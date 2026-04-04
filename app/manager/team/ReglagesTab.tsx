@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Users,
     Plus,
@@ -12,11 +12,18 @@ import {
     Key,
     UserCheck,
     UserX,
+    LayoutGrid,
+    List,
+    Eye,
+    Briefcase,
+    Zap,
+    Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal, ModalFooter, ConfirmModal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui";
+import { UserProfileDrawer } from "./UserProfileDrawer";
 
 interface User {
     id: string;
@@ -24,6 +31,9 @@ interface User {
     email: string;
     role: string;
     isActive: boolean;
+    avatar?: string | null;
+    phone?: string | null;
+    timezone?: string | null;
     createdAt: string;
     lastSignInAt?: string | null;
     lastSignInIp?: string | null;
@@ -60,6 +70,14 @@ const ROLE_LABELS: Record<string, string> = {
     CLIENT: "Client",
 };
 
+const ROLE_GRADIENTS: Record<string, string> = {
+    MANAGER: "linear-gradient(to right, #6366f1, #8b5cf6)",
+    SDR: "linear-gradient(to right, #3b82f6, #60a5fa)",
+    BUSINESS_DEVELOPER: "linear-gradient(to right, #10b981, #34d399)",
+    DEVELOPER: "linear-gradient(to right, #a855f7, #c084fc)",
+    CLIENT: "linear-gradient(to right, #94a3b8, #cbd5e1)",
+};
+
 function formatSessionDate(iso: string | null | undefined): string {
     if (!iso) return "—";
     const d = new Date(iso);
@@ -75,6 +93,138 @@ function formatSessionDate(iso: string | null | undefined): string {
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+function isUserOnline(lastConnectedAt: string | null | undefined): boolean {
+    if (!lastConnectedAt) return false;
+    return (Date.now() - new Date(lastConnectedAt).getTime()) < 5 * 60 * 1000;
+}
+
+// ============================================
+// UserCard — Grid view card component
+// ============================================
+
+function UserCard({
+    user,
+    onViewProfile,
+    onPermissions,
+    onToggleStatus,
+    onDelete,
+}: {
+    user: User;
+    onViewProfile: () => void;
+    onPermissions: () => void;
+    onToggleStatus: () => void;
+    onDelete: () => void;
+}) {
+    const [hovered, setHovered] = useState(false);
+    const initials = user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+    const online = isUserOnline(user.lastConnectedAt);
+
+    return (
+        <div
+            className="user-card cursor-pointer"
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onClick={onViewProfile}
+        >
+            {/* Role gradient stripe */}
+            <div className="h-1" style={{ background: ROLE_GRADIENTS[user.role] || ROLE_GRADIENTS.CLIENT }} />
+
+            <div className="p-5 flex flex-col items-center text-center">
+                {/* Avatar */}
+                <div className="relative mb-3">
+                    <div className="w-16 h-16 rounded-full user-avatar-ring overflow-hidden">
+                        {user.avatar ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <div
+                                className="w-full h-full flex items-center justify-center text-white text-lg font-bold"
+                                style={{ background: ROLE_GRADIENTS[user.role] || ROLE_GRADIENTS.CLIENT }}
+                            >
+                                {initials}
+                            </div>
+                        )}
+                    </div>
+                    {/* Online dot */}
+                    <span className={cn(
+                        "absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white",
+                        online ? "bg-emerald-500 live-dot-pulse" : "bg-slate-300"
+                    )} />
+                </div>
+
+                <h3 className="text-sm font-semibold text-slate-900 truncate w-full">{user.name}</h3>
+                <p className="text-xs text-slate-500 truncate w-full mb-2">{user.email}</p>
+
+                <span className={cn(
+                    "inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium mb-3",
+                    ROLE_COLORS[user.role] || "bg-slate-100 text-slate-700"
+                )}>
+                    {ROLE_LABELS[user.role] || user.role}
+                </span>
+
+                {/* Mini stats */}
+                <div className="flex items-center justify-center gap-4 text-xs text-slate-500 w-full border-t border-slate-100 pt-3">
+                    <div className="flex items-center gap-1">
+                        <Briefcase className="w-3 h-3" />
+                        <span>{user._count.assignedMissions}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Zap className="w-3 h-3" />
+                        <span>{user._count.actions}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatSessionDate(user.lastConnectedAt)}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Hover overlay */}
+            {hovered && (
+                <div
+                    className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center gap-2 rounded-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button
+                        onClick={onViewProfile}
+                        className="p-2.5 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                        title="Voir profil"
+                    >
+                        <Eye className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={onPermissions}
+                        className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                        title="Permissions"
+                    >
+                        <Key className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={onToggleStatus}
+                        className={cn(
+                            "p-2.5 rounded-xl transition-colors",
+                            user.isActive ? "text-amber-600 hover:bg-amber-50" : "text-emerald-600 hover:bg-emerald-50"
+                        )}
+                        title={user.isActive ? "Désactiver" : "Activer"}
+                    >
+                        {user.isActive ? <Ban className="w-5 h-5" /> : <Check className="w-5 h-5" />}
+                    </button>
+                    <button
+                        onClick={onDelete}
+                        className="p-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                        title="Supprimer"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export function ReglagesTab() {
     const { success, error: showError } = useToast();
 
@@ -83,12 +233,14 @@ export function ReglagesTab() {
     const [search, setSearch] = useState("");
     const [roleFilter, setRoleFilter] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showPermissionsModal, setShowPermissionsModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+    const [showProfileDrawer, setShowProfileDrawer] = useState(false);
 
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
     const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
@@ -107,6 +259,20 @@ export function ReglagesTab() {
     const [userPermissions, setUserPermissions] = useState<Set<string>>(new Set());
     const [permissionsLoading, setPermissionsLoading] = useState(false);
 
+    // ============================================
+    // Stats
+    // ============================================
+    const stats = useMemo(() => {
+        const total = users.length;
+        const active = users.filter((u) => u.isActive).length;
+        const inactive = total - active;
+        const sdrBd = users.filter((u) => ["SDR", "BUSINESS_DEVELOPER", "BOOKER"].includes(u.role)).length;
+        return { total, active, inactive, sdrBd };
+    }, [users]);
+
+    // ============================================
+    // Data fetching
+    // ============================================
     const fetchUsers = useCallback(async () => {
         try {
             setLoading(true);
@@ -176,20 +342,16 @@ export function ReglagesTab() {
         }
     };
 
+    // ============================================
+    // Handlers
+    // ============================================
     const handleCreate = async () => {
         setFormErrors({});
 
-        if (!formData.name.trim()) {
-            setFormErrors({ name: "Nom requis" });
-            return;
-        }
-        if (!formData.email.trim()) {
-            setFormErrors({ email: "Email requis" });
-            return;
-        }
+        if (!formData.name.trim()) { setFormErrors({ name: "Nom requis" }); return; }
+        if (!formData.email.trim()) { setFormErrors({ email: "Email requis" }); return; }
         if (formData.role === "CLIENT" && !formData.clientId?.trim()) {
-            setFormErrors({ clientId: "Sélectionnez un client pour un utilisateur portail client" });
-            return;
+            setFormErrors({ clientId: "Sélectionnez un client pour un utilisateur portail client" }); return;
         }
 
         try {
@@ -245,9 +407,7 @@ export function ReglagesTab() {
                 email: formData.email,
                 role: formData.role,
             };
-            if (formData.password) {
-                updateData.password = formData.password;
-            }
+            if (formData.password) updateData.password = formData.password;
             if (formData.role === "CLIENT") {
                 updateData.clientId = formData.clientId?.trim() || null;
             } else {
@@ -281,15 +441,10 @@ export function ReglagesTab() {
 
         try {
             setFormLoading(true);
-            const res = await fetch(`/api/users/${selectedUser.id}`, {
-                method: "DELETE",
-            });
+            const res = await fetch(`/api/users/${selectedUser.id}`, { method: "DELETE" });
             const json = await res.json();
 
-            if (!json.success) {
-                alert(json.error);
-                return;
-            }
+            if (!json.success) { alert(json.error); return; }
 
             setShowDeleteConfirm(false);
             setSelectedUser(null);
@@ -313,10 +468,7 @@ export function ReglagesTab() {
             });
             const json = await res.json();
 
-            if (!json.success) {
-                alert(json.error);
-                return;
-            }
+            if (!json.success) { alert(json.error); return; }
 
             setShowStatusConfirm(false);
             setSelectedUser(null);
@@ -333,30 +485,18 @@ export function ReglagesTab() {
 
         const newPermissions = new Set(userPermissions);
         const granted = !newPermissions.has(code);
-
-        if (granted) {
-            newPermissions.add(code);
-        } else {
-            newPermissions.delete(code);
-        }
-
+        if (granted) newPermissions.add(code); else newPermissions.delete(code);
         setUserPermissions(newPermissions);
 
         try {
             await fetch(`/api/users/${selectedUser.id}/permissions`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    permissions: [{ code, granted }],
-                }),
+                body: JSON.stringify({ permissions: [{ code, granted }] }),
             });
         } catch (err) {
             console.error("Error updating permission:", err);
-            if (granted) {
-                newPermissions.delete(code);
-            } else {
-                newPermissions.add(code);
-            }
+            if (granted) newPermissions.delete(code); else newPermissions.add(code);
             setUserPermissions(new Set(newPermissions));
         }
     };
@@ -382,10 +522,12 @@ export function ReglagesTab() {
     const openPermissionsModal = async (user: User) => {
         setSelectedUser(user);
         setShowPermissionsModal(true);
-        await Promise.all([
-            fetchAllPermissions(),
-            fetchUserPermissions(user.id),
-        ]);
+        await Promise.all([fetchAllPermissions(), fetchUserPermissions(user.id)]);
+    };
+
+    const openProfileDrawer = (user: User) => {
+        setSelectedUser(user);
+        setShowProfileDrawer(true);
     };
 
     const groupedPermissions = allPermissions.reduce((acc, perm) => {
@@ -416,7 +558,28 @@ export function ReglagesTab() {
                 }
             />
 
-            <div className="flex flex-wrap gap-3">
+            {/* Stats Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="team-stat-card bg-white rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total</p>
+                    <p className="text-2xl font-bold text-slate-900 mt-1">{stats.total}</p>
+                </div>
+                <div className="team-stat-card bg-white rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium text-emerald-600 uppercase tracking-wider">Actifs</p>
+                    <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.active}</p>
+                </div>
+                <div className="team-stat-card bg-white rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium text-blue-600 uppercase tracking-wider">SDR / BD</p>
+                    <p className="text-2xl font-bold text-blue-600 mt-1">{stats.sdrBd}</p>
+                </div>
+                <div className="team-stat-card bg-white rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium text-red-500 uppercase tracking-wider">Inactifs</p>
+                    <p className="text-2xl font-bold text-red-500 mt-1">{stats.inactive}</p>
+                </div>
+            </div>
+
+            {/* Filters + View Toggle */}
+            <div className="flex flex-wrap gap-3 items-center">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -448,157 +611,209 @@ export function ReglagesTab() {
                     <option value="active">Actifs</option>
                     <option value="inactive">Inactifs</option>
                 </select>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Utilisateur</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Rôle</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Statut</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Missions</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions (total)</th>
-                                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Connexion</th>
-                                <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                                            <span className="text-slate-500">Chargement...</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : users.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center">
-                                        <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                        <p className="text-slate-500">Aucun utilisateur trouvé</p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                users.map((user) => (
-                                    <tr key={user.id} className="hover:bg-slate-50">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                                                    {user.name.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-slate-900">{user.name}</p>
-                                                    <p className="text-sm text-slate-500">{user.email}</p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={cn(
-                                                "inline-flex px-2.5 py-1 rounded-full text-xs font-medium",
-                                                ROLE_COLORS[user.role] || "bg-slate-100 text-slate-700"
-                                            )}>
-                                                {ROLE_LABELS[user.role] || user.role}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {user.isActive ? (
-                                                <span className="inline-flex items-center gap-1.5 text-emerald-600">
-                                                    <UserCheck className="w-4 h-4" />
-                                                    <span className="text-sm font-medium">Actif</span>
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1.5 text-red-600">
-                                                    <UserX className="w-4 h-4" />
-                                                    <span className="text-sm font-medium">Inactif</span>
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {user.role === "CLIENT" && user.client ? (
-                                                <span className="text-slate-700">{user.client.name}</span>
-                                            ) : (
-                                                <span className="text-slate-400">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-slate-900 font-medium">{user._count.assignedMissions}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-slate-900 font-medium">{user._count.actions}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {(user.lastConnectedAt || user.lastSignInAt || user.lastSignInIp || user.lastSignInCountry) ? (
-                                                <div className="text-xs text-slate-500 space-y-0.5 max-w-[180px]">
-                                                    {user.lastConnectedAt && <div title="Dernière connexion">Connexion: {formatSessionDate(user.lastConnectedAt)}</div>}
-                                                    {user.lastSignInAt && <div title="Dernière connexion (login)">Login: {formatSessionDate(user.lastSignInAt)}</div>}
-                                                    {user.lastSignInIp && <div className="font-mono truncate" title="IP">IP: {user.lastSignInIp}</div>}
-                                                    {user.lastSignInCountry && <div title="Pays">{user.lastSignInCountry}</div>}
-                                                </div>
-                                            ) : (
-                                                <span className="text-slate-400">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => openPermissionsModal(user)}
-                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                                    title="Gérer les permissions"
-                                                >
-                                                    <Key className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => openEditModal(user)}
-                                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                                                    title="Modifier"
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedUser(user);
-                                                        setShowStatusConfirm(true);
-                                                    }}
-                                                    className={cn(
-                                                        "p-2 rounded-lg transition-colors",
-                                                        user.isActive
-                                                            ? "text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                            : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                                    )}
-                                                    title={user.isActive ? "Désactiver" : "Activer"}
-                                                >
-                                                    {user.isActive ? <Ban className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedUser(user);
-                                                        setShowDeleteConfirm(true);
-                                                    }}
-                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Supprimer"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                    <button
+                        onClick={() => setViewMode("grid")}
+                        className={cn(
+                            "p-2 transition-colors",
+                            viewMode === "grid" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"
+                        )}
+                    >
+                        <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => setViewMode("list")}
+                        className={cn(
+                            "p-2 transition-colors",
+                            viewMode === "list" ? "bg-indigo-50 text-indigo-600" : "text-slate-400 hover:text-slate-600"
+                        )}
+                    >
+                        <List className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
+            {/* Content */}
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="ml-3 text-slate-500">Chargement...</span>
+                </div>
+            ) : users.length === 0 ? (
+                <div className="text-center py-16">
+                    <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500">Aucun utilisateur trouvé</p>
+                </div>
+            ) : viewMode === "grid" ? (
+                /* Grid View */
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {users.map((user) => (
+                        <UserCard
+                            key={user.id}
+                            user={user}
+                            onViewProfile={() => openProfileDrawer(user)}
+                            onPermissions={() => openPermissionsModal(user)}
+                            onToggleStatus={() => { setSelectedUser(user); setShowStatusConfirm(true); }}
+                            onDelete={() => { setSelectedUser(user); setShowDeleteConfirm(true); }}
+                        />
+                    ))}
+                </div>
+            ) : (
+                /* List View */
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="bg-slate-50 border-b border-slate-200">
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Utilisateur</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Rôle</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Statut</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Téléphone</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Missions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Connexion</th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {users.map((user) => {
+                                    const initials = user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+                                    const online = isUserOnline(user.lastConnectedAt);
+                                    return (
+                                        <tr
+                                            key={user.id}
+                                            className="hover:bg-slate-50 cursor-pointer"
+                                            onClick={() => openProfileDrawer(user)}
+                                        >
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="relative">
+                                                        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                                            {user.avatar ? (
+                                                                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div
+                                                                    className="w-full h-full flex items-center justify-center text-white font-semibold text-sm"
+                                                                    style={{ background: ROLE_GRADIENTS[user.role] || ROLE_GRADIENTS.CLIENT }}
+                                                                >
+                                                                    {initials}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <span className={cn(
+                                                            "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white",
+                                                            online ? "bg-emerald-500" : "bg-slate-300"
+                                                        )} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-slate-900">{user.name}</p>
+                                                        <p className="text-sm text-slate-500">{user.email}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={cn(
+                                                    "inline-flex px-2.5 py-1 rounded-full text-xs font-medium",
+                                                    ROLE_COLORS[user.role] || "bg-slate-100 text-slate-700"
+                                                )}>
+                                                    {ROLE_LABELS[user.role] || user.role}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {user.isActive ? (
+                                                    <span className="inline-flex items-center gap-1.5 text-emerald-600">
+                                                        <UserCheck className="w-4 h-4" />
+                                                        <span className="text-sm font-medium">Actif</span>
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1.5 text-red-600">
+                                                        <UserX className="w-4 h-4" />
+                                                        <span className="text-sm font-medium">Inactif</span>
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {user.role === "CLIENT" && user.client ? (
+                                                    <span className="text-slate-700">{user.client.name}</span>
+                                                ) : (
+                                                    <span className="text-slate-400">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-sm text-slate-600">{user.phone || "—"}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-slate-900 font-medium">{user._count.assignedMissions}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-slate-900 font-medium">{user._count.actions}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-xs text-slate-500">{formatSessionDate(user.lastConnectedAt)}</span>
+                                            </td>
+                                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <button
+                                                        onClick={() => openPermissionsModal(user)}
+                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                        title="Permissions"
+                                                    >
+                                                        <Key className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openEditModal(user)}
+                                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                                        title="Modifier"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setSelectedUser(user); setShowStatusConfirm(true); }}
+                                                        className={cn(
+                                                            "p-2 rounded-lg transition-colors",
+                                                            user.isActive
+                                                                ? "text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                                : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                                        )}
+                                                        title={user.isActive ? "Désactiver" : "Activer"}
+                                                    >
+                                                        {user.isActive ? <Ban className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setSelectedUser(user); setShowDeleteConfirm(true); }}
+                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="Supprimer"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Profile Drawer */}
+            <UserProfileDrawer
+                isOpen={showProfileDrawer}
+                onClose={() => { setShowProfileDrawer(false); setSelectedUser(null); }}
+                user={selectedUser}
+                clients={clients}
+                onUserUpdated={(updated) => {
+                    setUsers((prev) => prev.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)));
+                    setSelectedUser(updated as User);
+                }}
+            />
+
+            {/* Create Modal */}
             <Modal
                 isOpen={showCreateModal}
-                onClose={() => {
-                    setShowCreateModal(false);
-                    resetForm();
-                }}
+                onClose={() => { setShowCreateModal(false); resetForm(); }}
                 title="Nouvel utilisateur"
                 size="md"
             >
@@ -675,10 +890,7 @@ export function ReglagesTab() {
                 </div>
                 <ModalFooter>
                     <button
-                        onClick={() => {
-                            setShowCreateModal(false);
-                            resetForm();
-                        }}
+                        onClick={() => { setShowCreateModal(false); resetForm(); }}
                         className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
                     >
                         Annuler
@@ -693,12 +905,10 @@ export function ReglagesTab() {
                 </ModalFooter>
             </Modal>
 
+            {/* Edit Modal */}
             <Modal
                 isOpen={showEditModal}
-                onClose={() => {
-                    setShowEditModal(false);
-                    resetForm();
-                }}
+                onClose={() => { setShowEditModal(false); resetForm(); }}
                 title="Modifier l'utilisateur"
                 size="md"
             >
@@ -771,10 +981,7 @@ export function ReglagesTab() {
                 </div>
                 <ModalFooter>
                     <button
-                        onClick={() => {
-                            setShowEditModal(false);
-                            resetForm();
-                        }}
+                        onClick={() => { setShowEditModal(false); resetForm(); }}
                         className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
                     >
                         Annuler
@@ -789,12 +996,10 @@ export function ReglagesTab() {
                 </ModalFooter>
             </Modal>
 
+            {/* Permissions Modal */}
             <Modal
                 isOpen={showPermissionsModal}
-                onClose={() => {
-                    setShowPermissionsModal(false);
-                    setSelectedUser(null);
-                }}
+                onClose={() => { setShowPermissionsModal(false); setSelectedUser(null); }}
                 title={`Permissions - ${selectedUser?.name}`}
                 size="lg"
             >
@@ -855,9 +1060,7 @@ export function ReglagesTab() {
                             if (!selectedUser) return;
                             try {
                                 setPermissionsLoading(true);
-                                const res = await fetch(`/api/users/${selectedUser.id}/reset-permissions`, {
-                                    method: "POST",
-                                });
+                                const res = await fetch(`/api/users/${selectedUser.id}/reset-permissions`, { method: "POST" });
                                 const json = await res.json();
 
                                 if (json.success) {
@@ -878,10 +1081,7 @@ export function ReglagesTab() {
                         Réinitialiser aux valeurs par défaut
                     </button>
                     <button
-                        onClick={() => {
-                            setShowPermissionsModal(false);
-                            setSelectedUser(null);
-                        }}
+                        onClick={() => { setShowPermissionsModal(false); setSelectedUser(null); }}
                         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
                     >
                         Fermer
@@ -889,12 +1089,10 @@ export function ReglagesTab() {
                 </ModalFooter>
             </Modal>
 
+            {/* Delete + Status Confirm Modals */}
             <ConfirmModal
                 isOpen={showDeleteConfirm}
-                onClose={() => {
-                    setShowDeleteConfirm(false);
-                    setSelectedUser(null);
-                }}
+                onClose={() => { setShowDeleteConfirm(false); setSelectedUser(null); }}
                 onConfirm={handleDelete}
                 title="Supprimer l'utilisateur"
                 message={`Êtes-vous sûr de vouloir supprimer "${selectedUser?.name}" ? Cette action est irréversible.`}
@@ -905,10 +1103,7 @@ export function ReglagesTab() {
 
             <ConfirmModal
                 isOpen={showStatusConfirm}
-                onClose={() => {
-                    setShowStatusConfirm(false);
-                    setSelectedUser(null);
-                }}
+                onClose={() => { setShowStatusConfirm(false); setSelectedUser(null); }}
                 onConfirm={handleToggleStatus}
                 title={selectedUser?.isActive ? "Désactiver l'utilisateur" : "Activer l'utilisateur"}
                 message={

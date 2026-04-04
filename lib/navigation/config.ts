@@ -26,6 +26,8 @@ import {
   FileDown,
   Activity,
   Key,
+  Trophy,
+  User,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 
@@ -134,6 +136,12 @@ export const MANAGER_NAV: NavSection[] = [
         permission: "pages.sdrs",
       },
       {
+        href: "/manager/users",
+        icon: Users,
+        label: "Réglages équipe",
+        permission: "pages.sdrs",
+      },
+      {
         href: "/manager/planning",
         icon: Calendar,
         label: "Planning",
@@ -152,15 +160,9 @@ export const MANAGER_NAV: NavSection[] = [
     dividerBefore: true,
     items: [
       {
-        href: "/manager/users",
-        icon: Settings,
-        label: "Réglages",
-        permission: "pages.sdrs",
-      },
-      {
         href: "/manager/settings",
-        icon: Mail,
-        label: "Parametres email",
+        icon: Settings,
+        label: "Paramètres",
         permission: "pages.sdrs",
       },
       {
@@ -261,6 +263,23 @@ export const SDR_NAV: NavSection[] = [
         icon: FolderKanban,
         label: "Projets",
         permission: "pages.projects",
+      },
+    ],
+  },
+  {
+    title: "Compte",
+    items: [
+      {
+        href: "/sdr/profile",
+        icon: User,
+        label: "Mon Profil",
+        permission: "pages.dashboard",
+      },
+      {
+        href: "/sdr/leaderboard",
+        icon: Trophy,
+        label: "Classement",
+        permission: "pages.dashboard",
       },
     ],
   },

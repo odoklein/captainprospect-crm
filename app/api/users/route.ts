@@ -72,6 +72,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 lastSignInIp: true,
                 lastSignInCountry: true,
                 lastConnectedAt: true,
+                avatar: true,
+                phone: true,
+                timezone: true,
                 client: {
                     select: {
                         id: true,

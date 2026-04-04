@@ -36,6 +36,9 @@ export const GET = withErrorHandler(async (
             lastSignInCountry: true,
             lastConnectedAt: true,
             clientId: true,
+            avatar: true,
+            phone: true,
+            timezone: true,
             client: {
                 select: {
                     id: true,
@@ -83,6 +86,8 @@ const updateUserSchema = z.object({
     role: z.enum(['SDR', 'MANAGER', 'CLIENT', 'DEVELOPER', 'BUSINESS_DEVELOPER']).optional(),
     password: z.string().min(6).optional(),
     clientId: z.string().nullable().optional(),
+    phone: z.string().max(50).nullable().optional(),
+    timezone: z.string().max(100).optional(),
 });
 
 export const PUT = withErrorHandler(async (
@@ -118,6 +123,8 @@ export const PUT = withErrorHandler(async (
     if (data.email) updateData.email = data.email;
     if (data.role) updateData.role = data.role;
     if (data.clientId !== undefined) updateData.clientId = data.clientId;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.timezone) updateData.timezone = data.timezone;
     if (data.password) {
         updateData.password = await bcrypt.hash(data.password, 10);
     }
@@ -132,6 +139,9 @@ export const PUT = withErrorHandler(async (
             role: true,
             isActive: true,
             clientId: true,
+            avatar: true,
+            phone: true,
+            timezone: true,
             createdAt: true,
             updatedAt: true,
         },

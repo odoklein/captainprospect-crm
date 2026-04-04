@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
+import { GamificationBar } from "./dashboard/GamificationBar";
+import { MorningBriefing } from "./dashboard/MorningBriefing";
 
 // ============================================
 // TYPES
@@ -355,6 +357,12 @@ export default function SDRDashboardPage() {
                     <p className="text-[13px] text-[#8B8BA7] mt-0.5">Voici votre journée en un coup d'œil</p>
                 </div>
             </div>
+
+            {/* Morning Briefing */}
+            <MorningBriefing />
+
+            {/* Gamification Bar */}
+            <GamificationBar />
 
             {/* ZONE 1 — KPIs */}
             <div className="flex flex-col lg:flex-row gap-4 mb-5">

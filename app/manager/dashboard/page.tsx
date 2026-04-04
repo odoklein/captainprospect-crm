@@ -17,6 +17,9 @@ import {
     LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { LiveTeamStrip } from "./LiveTeamStrip";
+import { SmartAlerts } from "./SmartAlerts";
+import { QuickActionsPanel } from "./QuickActionsPanel";
 
 /* ─── Types ─── */
 interface DashboardStats {
@@ -389,6 +392,12 @@ export default function ManagerDashboard() {
                 </div>
             </div>
 
+            {/* ── Live Team Strip ── */}
+            <LiveTeamStrip />
+
+            {/* ── Smart Alerts ── */}
+            <SmartAlerts />
+
             {/* ══ ROW 1 — Hero KPIs ══ */}
             <div className="flex flex-col lg:flex-row gap-4 mb-4">
                 <HeroKpiCard
@@ -687,6 +696,9 @@ export default function ManagerDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* ── Quick Actions Panel ── */}
+            <QuickActionsPanel />
 
             <style>{`
                 @keyframes fadeInUp {

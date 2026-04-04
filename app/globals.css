@@ -2760,6 +2760,140 @@ textarea::placeholder {
 }
 
 /* ============================================
+   USER CARD — Enhanced Team Management
+   ============================================ */
+
+.user-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    overflow: hidden;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.user-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(99, 102, 241, 0.10), 0 4px 12px rgba(0,0,0,0.05);
+    border-color: #c7d2fe;
+}
+.user-avatar-ring {
+    box-shadow: 0 0 0 2.5px #fff, 0 0 0 4px rgba(99, 102, 241, 0.35);
+}
+
+/* ============================================
+   GAMIFICATION — XP, Levels, Achievements
+   ============================================ */
+
+.xp-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+}
+.xp-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Daily progress bar (top of viewport) */
+.daily-progress-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    z-index: 9999;
+    transition: width 0.5s ease;
+}
+.daily-progress-shimmer {
+    background: linear-gradient(90deg, #f59e0b, #eab308, #f59e0b);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Achievement badge */
+.achievement-badge {
+    width: 80px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+.achievement-badge:hover {
+    transform: scale(1.1);
+}
+.achievement-locked {
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+.achievement-unlocked {
+    animation: badgePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes badgePop {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Streak flame pulse */
+.streak-flame {
+    animation: flamePulse 2s ease-in-out infinite;
+}
+@keyframes flamePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+
+/* Focus mode top bar */
+.focus-bar {
+    background: linear-gradient(90deg, #312e81, #4338ca, #312e81);
+    background-size: 200% 100%;
+    animation: focusPulse 4s ease infinite;
+}
+@keyframes focusPulse {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* ============================================
+   MANAGER — Live Feed & Alerts
+   ============================================ */
+
+.live-dot-pulse {
+    animation: livePulse 2s infinite;
+}
+@keyframes livePulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.alert-card {
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid;
+    transition: all 0.2s;
+}
+.alert-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .user-card { transition: none !important; }
+    .daily-progress-shimmer,
+    .streak-flame,
+    .focus-bar,
+    .live-dot-pulse,
+    .achievement-unlocked { animation: none !important; }
+    .alert-card { transition: none !important; }
+}
+
+/* ============================================
    CLIENT PORTAL — Premium Dashboard Styles
    ============================================ */
 
