@@ -8,7 +8,8 @@ import {
     MapPin, Monitor, ChevronLeft, ChevronRight, Check, X,
     UserCheck, UserX, Trash2, Pencil, RotateCcw, BriefcaseBusiness,
     FolderKanban, LayoutGrid, CalendarDays, Mail, Globe, Info,
-    AlertCircle, RefreshCw, Star, Zap,
+    AlertCircle, RefreshCw, Star, Zap, FileBarChart2, Download,
+    MessageSquare, ThumbsUp, ThumbsDown, Hash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
@@ -18,7 +19,7 @@ import { ConfirmModal } from "@/components/ui/Modal";
 // TYPES
 // ============================================
 
-type TabId = "apercu" | "activite" | "planning" | "historique" | "securite" | "acces";
+type TabId = "apercu" | "activite" | "planning" | "historique" | "securite" | "acces" | "rapport";
 
 interface UserDetail {
     id: string; name: string; email: string; role: string;
@@ -184,6 +185,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: "activite",   label: "Activité",    icon: TrendingUp },
     { id: "planning",   label: "Planning",    icon: Calendar },
     { id: "historique", label: "Historique",  icon: Clock },
+    { id: "rapport",    label: "Rapport",     icon: FileBarChart2 },
     { id: "securite",   label: "Sécurité",    icon: Shield },
     { id: "acces",      label: "Accès",       icon: Key },
 ];
@@ -951,6 +953,353 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
 }
 
 // ============================================
+// RAPPORT TAB
+// ============================================
+
+const ACTION_RESULT_FR: Record<string, string> = {
+    MEETING_BOOKED: "RDV pris",
+    CALLBACK_REQUESTED: "Rappel",
+    INTERESTED: "Intéressé",
+    NO_RESPONSE: "Pas de réponse",
+    BAD_CONTACT: "Mauvais contact",
+    DISQUALIFIED: "Non qualifié",
+    NOT_INTERESTED: "Pas intéressé",
+    MEETING_CANCELLED: "RDV annulé",
+    VOICEMAIL: "Messagerie",
+    WRONG_NUMBER: "Mauvais numéro",
+};
+
+function fmtDuration(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}h${String(m).padStart(2, "0")}`;
+    return `${m}m${String(s).padStart(2, "0")}s`;
+}
+
+function exportCsv(data: any, userName: string, from: string, to: string) {
+    const rows: string[][] = [];
+
+    rows.push(["Rapport SDR", userName]);
+    rows.push(["Période", `${from} → ${to}`]);
+    rows.push([]);
+    rows.push(["=== VUE D'ENSEMBLE ==="]);
+    rows.push(["Total actions", String(data.overview.totalActions)]);
+    rows.push(["Total appels", String(data.overview.totalCalls)]);
+    rows.push(["Total RDV", String(data.overview.totalRdv)]);
+    rows.push(["Taux de conversion", `${data.overview.conversionRate}%`]);
+    rows.push(["Rappels/Intéressés", String(data.overview.totalCallbacks + data.overview.totalInterested)]);
+    rows.push(["Pas de réponse", String(data.overview.totalNoResponse)]);
+    rows.push(["Temps de communication", fmtDuration(data.overview.totalDuration)]);
+    rows.push([]);
+    rows.push(["=== APPELS PAR MISSION ==="]);
+    rows.push(["Mission", "Client", "Appels", "RDV", "Taux conv.", "Rappels", "Intéressés", "Pas de réponse", "Durée totale"]);
+    for (const m of data.byMission) {
+        rows.push([
+            m.missionName, m.clientName ?? "", String(m.calls), String(m.rdv),
+            `${m.conversionRate}%`, String(m.callbacks), String(m.interested),
+            String(m.noResponse), fmtDuration(m.totalDuration),
+        ]);
+    }
+    rows.push([]);
+    rows.push(["=== MOTS-CLÉS FRÉQUENTS ==="]);
+    rows.push(["Mot", "Occurrences"]);
+    for (const kw of data.comments.topKeywords) {
+        rows.push([kw.word, String(kw.count)]);
+    }
+    rows.push([]);
+    rows.push(["=== POINTS DE FRICTION (extraits de commentaires) ==="]);
+    for (const note of data.comments.painPoints) {
+        rows.push([note.replace(/"/g, '""')]);
+    }
+    rows.push([]);
+    rows.push(["=== SIGNAUX POSITIFS (extraits de commentaires) ==="]);
+    for (const note of data.comments.positiveSignals) {
+        rows.push([note.replace(/"/g, '""')]);
+    }
+
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `rapport-sdr-${userName.replace(/\s+/g, "-")}-${from}-${to}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function RapportTab({ userId, userName }: { userId: string; userName: string }) {
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const [from, setFrom] = useState(firstOfMonth.toISOString().split("T")[0]);
+    const [to, setTo]     = useState(today.toISOString().split("T")[0]);
+    const [data, setData] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError]     = useState<string | null>(null);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/users/${userId}/sdr-report?from=${from}&to=${to}`);
+            const j = await res.json();
+            if (j.success) setData(j.data);
+            else setError(j.error ?? "Erreur lors du chargement");
+        } catch {
+            setError("Erreur réseau");
+        } finally {
+            setLoading(false);
+        }
+    }, [userId, from, to]);
+
+    // Load on mount
+    useEffect(() => { load(); }, [load]);
+
+    const fieldCls = "px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-900";
+
+    return (
+        <div className="space-y-5">
+
+            {/* Date range bar */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-end gap-3">
+                <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Du</p>
+                    <input type="date" className={fieldCls} value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+                </div>
+                <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Au</p>
+                    <input type="date" className={fieldCls} value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+                </div>
+                <button
+                    onClick={load}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+                >
+                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileBarChart2 className="w-4 h-4" />}
+                    Générer le rapport
+                </button>
+                {data && (
+                    <button
+                        onClick={() => exportCsv(data, userName, from, to)}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-semibold transition-colors"
+                    >
+                        <Download className="w-4 h-4" />
+                        Exporter CSV
+                    </button>
+                )}
+            </div>
+
+            {error && (
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-sm text-rose-700">{error}</div>
+            )}
+
+            {loading && !data && (
+                <div className="flex items-center justify-center py-20">
+                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                </div>
+            )}
+
+            {data && (
+                <>
+                    {/* Overview KPIs */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[
+                            { label: "Total appels", value: data.overview.totalCalls, icon: Phone, color: "indigo" },
+                            { label: "RDV pris", value: data.overview.totalRdv, icon: Calendar, color: "emerald" },
+                            { label: "Taux de conversion", value: `${data.overview.conversionRate}%`, icon: TrendingUp, color: "blue" },
+                            { label: "Temps de comm.", value: fmtDuration(data.overview.totalDuration), icon: Clock, color: "amber" },
+                        ].map((kpi) => (
+                            <div key={kpi.label} className="bg-white rounded-2xl border border-slate-200 p-4">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-xs font-medium text-slate-500 mb-1">{kpi.label}</p>
+                                        <p className="text-3xl font-bold text-slate-900">{kpi.value}</p>
+                                    </div>
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center",
+                                        kpi.color === "indigo" ? "bg-indigo-100 text-indigo-600" :
+                                        kpi.color === "emerald" ? "bg-emerald-100 text-emerald-600" :
+                                        kpi.color === "blue" ? "bg-blue-100 text-blue-600" :
+                                        "bg-amber-100 text-amber-600"
+                                    )}>
+                                        <kpi.icon className="w-5 h-5" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Secondary KPIs */}
+                    <div className="grid grid-cols-3 gap-4">
+                        {[
+                            { label: "Rappels", value: data.overview.totalCallbacks, color: "bg-amber-100 text-amber-700" },
+                            { label: "Intéressés", value: data.overview.totalInterested, color: "bg-blue-100 text-blue-700" },
+                            { label: "Pas de réponse", value: data.overview.totalNoResponse, color: "bg-slate-100 text-slate-600" },
+                        ].map((k) => (
+                            <div key={k.label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between">
+                                <span className="text-sm text-slate-600">{k.label}</span>
+                                <span className={cn("text-sm font-bold px-3 py-1 rounded-full", k.color)}>{k.value}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Per-mission table */}
+                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+                            <Target className="w-4 h-4 text-indigo-500" />
+                            <p className="font-semibold text-slate-900">Appels par mission</p>
+                            <span className="ml-auto text-xs text-slate-400">{data.byMission.length} mission(s)</span>
+                        </div>
+                        {data.byMission.length === 0 ? (
+                            <div className="p-10 text-center text-slate-400 text-sm">Aucune mission sur cette période.</div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="bg-slate-50 border-b border-slate-100">
+                                            <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Mission</th>
+                                            <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
+                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Appels</th>
+                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">RDV</th>
+                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Conv.</th>
+                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Rappels</th>
+                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Intéressés</th>
+                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Durée</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.byMission.map((m: any) => (
+                                            <tr key={m.missionId} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
+                                                <td className="py-3 px-4 font-medium text-slate-900 max-w-[180px] truncate">{m.missionName}</td>
+                                                <td className="py-3 px-4 text-slate-500 text-xs">{m.clientName ?? "—"}</td>
+                                                <td className="py-3 px-4 text-center font-semibold text-slate-900">{m.calls}</td>
+                                                <td className="py-3 px-4 text-center">
+                                                    <span className={cn("font-semibold px-2 py-0.5 rounded-full text-xs", m.rdv > 0 ? "bg-emerald-100 text-emerald-700" : "text-slate-400")}>
+                                                        {m.rdv}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-center text-xs font-medium text-slate-600">{m.conversionRate}%</td>
+                                                <td className="py-3 px-4 text-center text-amber-600 font-medium">{m.callbacks}</td>
+                                                <td className="py-3 px-4 text-center text-blue-600 font-medium">{m.interested}</td>
+                                                <td className="py-3 px-4 text-center text-xs text-slate-500">{fmtDuration(m.totalDuration)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Comments analysis */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+                        {/* Top keywords */}
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                            <div className="flex items-center gap-2 mb-4">
+                                <Hash className="w-4 h-4 text-indigo-500" />
+                                <p className="font-semibold text-slate-900">Mots-clés fréquents</p>
+                                <span className="ml-auto text-xs text-slate-400">{data.comments.total} commentaires</span>
+                            </div>
+                            {data.comments.topKeywords.length === 0 ? (
+                                <p className="text-sm text-slate-400 text-center py-4">Pas assez de commentaires.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {data.comments.topKeywords.map((kw: any) => {
+                                        const max = data.comments.topKeywords[0]?.count ?? 1;
+                                        const pct = Math.round((kw.count / max) * 100);
+                                        return (
+                                            <div key={kw.word} className="space-y-0.5">
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <span className="text-slate-700 font-medium">{kw.word}</span>
+                                                    <span className="text-xs text-slate-400">{kw.count}×</span>
+                                                </div>
+                                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${pct}%` }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Pain points + positive signals */}
+                        <div className="space-y-4">
+                            <div className="bg-white rounded-2xl border border-rose-100 p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <ThumbsDown className="w-4 h-4 text-rose-500" />
+                                    <p className="font-semibold text-slate-900">Points de friction</p>
+                                    <span className="ml-auto text-xs text-slate-400">{data.comments.painPoints.length} extrait(s)</span>
+                                </div>
+                                {data.comments.painPoints.length === 0 ? (
+                                    <p className="text-xs text-slate-400">Aucun commentaire négatif sur la période.</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                        {data.comments.painPoints.map((note: string, i: number) => (
+                                            <div key={i} className="flex items-start gap-2 text-xs text-slate-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                                                <span className="text-rose-400 shrink-0 mt-0.5">•</span>
+                                                <span>{note}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-emerald-100 p-5">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <ThumbsUp className="w-4 h-4 text-emerald-500" />
+                                    <p className="font-semibold text-slate-900">Signaux positifs</p>
+                                    <span className="ml-auto text-xs text-slate-400">{data.comments.positiveSignals.length} extrait(s)</span>
+                                </div>
+                                {data.comments.positiveSignals.length === 0 ? (
+                                    <p className="text-xs text-slate-400">Aucun commentaire positif sur la période.</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                                        {data.comments.positiveSignals.map((note: string, i: number) => (
+                                            <div key={i} className="flex items-start gap-2 text-xs text-slate-600 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+                                                <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
+                                                <span>{note}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* All comments sample */}
+                    {data.comments.allSample.length > 0 && (
+                        <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                            <div className="flex items-center gap-2 mb-4">
+                                <MessageSquare className="w-4 h-4 text-slate-500" />
+                                <p className="font-semibold text-slate-900">Échantillon de commentaires</p>
+                                <span className="ml-auto text-xs text-slate-400">50 derniers</span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+                                {data.comments.allSample.map((note: string, i: number) => (
+                                    <div key={i} className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
+                                        {note}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {data.overview.totalActions === 0 && (
+                        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
+                            <FileBarChart2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-500">Aucune activité enregistrée sur cette période.</p>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
+// ============================================
 // MAIN PAGE
 // ============================================
 
@@ -1103,6 +1452,7 @@ export default function UtilisateurDetailPage() {
                 {activeTab === "activite" && <ActiviteTab userId={userId} />}
                 {activeTab === "planning" && <PlanningTab userId={userId} />}
                 {activeTab === "historique" && <HistoriqueTab userId={userId} />}
+                {activeTab === "rapport" && <RapportTab userId={userId} userName={user.name} />}
                 {activeTab === "securite" && <SecuriteTab userId={userId} />}
                 {activeTab === "acces" && <AccesTab user={user} onUserUpdate={(patch) => setUser(u => u ? { ...u, ...patch } : u)} />}
             </div>
