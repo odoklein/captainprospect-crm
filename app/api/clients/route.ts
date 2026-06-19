@@ -9,6 +9,7 @@ import {
     getPaginationParams,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { getClientProductionInsights } from '@/lib/client-insights';
 
 // ============================================
 // SCHEMAS
@@ -121,11 +122,16 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         prisma.client.count({ where }),
     ]);
 
+    const productionByClient = await getClientProductionInsights(clients.map((c) => c.id));
+
     const clientsWithReadiness = clients.map((c) => {
         const od = c.onboarding?.onboardingData as { icp?: string } | null;
         const personaSet = !!(od?.icp && String(od.icp).trim());
         return {
             ...c,
+            insights: {
+                production: productionByClient.get(c.id),
+            },
             readiness: {
                 calendarConnected: !!(c as { bookingUrl?: string }).bookingUrl?.trim(),
                 personaSet,

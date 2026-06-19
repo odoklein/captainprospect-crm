@@ -22,6 +22,7 @@ import {
     ChevronDown,
     ChevronUp,
     Clock,
+    CalendarDays,
 } from "lucide-react";
 import Link from "next/link";
 import { ClientOnboardingModal } from "@/components/manager/ClientOnboardingModal";
@@ -60,6 +61,18 @@ interface Client {
         users: number;
     };
     readiness?: OnboardingReadiness;
+    insights?: {
+        production?: {
+            firstCallAt: string | null;
+            plannedMonthDays: number | null;
+            plannedWeekDays: number | null;
+            workedCallDays: number;
+            executedDays: number;
+            totalWorkedCallDays: number;
+            totalCalls: number;
+            totalMeetings: number;
+        } | null;
+    };
 }
 
 interface LeexiRecapItem {
@@ -506,6 +519,7 @@ export default function ClientsPage() {
                         const recapCount = getClientRecapCount(client.id);
                         const hasPortal = client._count.users > 0;
                         const recapPercent = Math.min(100, recapCount * 10);
+                        const production = client.insights?.production;
 
                         return (
                             <div
@@ -583,6 +597,31 @@ export default function ClientsPage() {
                                 )}
 
                                 <div className="mt-auto pt-4 border-t border-slate-100 space-y-1.5">
+                                    <div className="grid grid-cols-2 gap-2 mb-2">
+                                        <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jours travaillÃ©s</span>
+                                            <div className="mt-1 flex items-baseline gap-1.5">
+                                                <span className="text-lg font-bold text-slate-900">{production?.workedCallDays ?? 0}</span>
+                                                <span className="text-[11px] text-slate-500">/ {production?.plannedMonthDays ?? "â€”"}</span>
+                                            </div>
+                                        </div>
+                                        <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Appels / RDV</span>
+                                            <div className="mt-1 flex items-baseline gap-1.5">
+                                                <span className="text-lg font-bold text-slate-900">{production?.totalCalls ?? 0}</span>
+                                                <span className="text-[11px] text-slate-500">/ {production?.totalMeetings ?? 0}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-600">
+                                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                                        <span>
+                                            Premier appel :{" "}
+                                            {production?.firstCallAt
+                                                ? new Date(production.firstCallAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+                                                : "Aucun appel"}
+                                        </span>
+                                    </div>
                                     {(() => {
                                         const activeMission = client.missions?.find((m) => m.isActive && m.status === "ACTIVE");
                                         const latestMission = client.missions?.[0];

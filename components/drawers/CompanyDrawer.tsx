@@ -53,6 +53,7 @@ interface Company {
     website: string | null;
     size: string | null;
     phone: string | null;
+    additionalPhones?: string[] | null;
     status: "INCOMPLETE" | "PARTIAL" | "ACTIONABLE";
     contacts: Contact[];
     _count: {
@@ -132,6 +133,14 @@ export function CompanyDrawer({
     const [missionName, setMissionName] = useState<string>("");
     const [showAddContact, setShowAddContact] = useState(false);
     const [statusConfig, setStatusConfig] = useState<{ statuses: Array<{ code: string; label: string; requiresNote: boolean; triggersCallback?: boolean }> } | null>(null);
+    const companyPhones = useMemo(() => {
+        if (!company) return [];
+
+        return [company.phone, ...(company.additionalPhones ?? [])]
+            .map((value) => value?.trim() ?? "")
+            .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
+    }, [company]);
+    const primaryCompanyPhone = companyPhones[0] ?? null;
 
     const effectiveMissionId = company?.missionId ?? resolvedMissionId ?? undefined;
 
@@ -295,7 +304,7 @@ export function CompanyDrawer({
                     country: company.country || "",
                     website: company.website || "",
                     size: company.size || "",
-                    phone: company.phone || "",
+                    phone: company.phone || company.additionalPhones?.[0] || "",
                 });
                 setIsEditing(false);
             }
@@ -624,20 +633,29 @@ export function CompanyDrawer({
                             <DrawerField
                                 label="Téléphone"
                                 value={
-                                    company!.phone && (
-                                        <div className="flex items-center gap-2">
-                                            <a
-                                                href={`tel:${company!.phone}`}
-                                                className="text-indigo-600 hover:underline font-medium"
-                                            >
-                                                {company!.phone}
-                                            </a>
-                                            <button
-                                                onClick={() => copyToClipboard(company!.phone!, "Téléphone")}
-                                                className="text-slate-400 hover:text-slate-600"
-                                            >
-                                                <Copy className="w-3.5 h-3.5" />
-                                            </button>
+                                    companyPhones.length > 0 && (
+                                        <div className="space-y-1">
+                                            {companyPhones.map((phone, index) => (
+                                                <div key={phone} className="flex items-center gap-2">
+                                                    <a
+                                                        href={`tel:${phone}`}
+                                                        className="text-indigo-600 hover:underline font-medium"
+                                                    >
+                                                        {phone}
+                                                    </a>
+                                                    {index === 0 ? (
+                                                        <span className="text-[10px] uppercase tracking-wide text-emerald-600 font-semibold">
+                                                            Principal
+                                                        </span>
+                                                    ) : null}
+                                                    <button
+                                                        onClick={() => copyToClipboard(phone, index === 0 ? "Téléphone" : "Téléphone suppl.")}
+                                                        className="text-slate-400 hover:text-slate-600"
+                                                    >
+                                                        <Copy className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
                                         </div>
                                     )
                                 }
@@ -653,10 +671,10 @@ export function CompanyDrawer({
                 </DrawerSection>
 
                 {/* Quick Call Action - Show prominent call button if company has phone */}
-                {!isEditing && !isCreating && company && company.phone && (
+                {!isEditing && !isCreating && company && primaryCompanyPhone && (
                     <div className="-mt-2">
                         <a
-                            href={`tel:${company.phone}`}
+                            href={`tel:${primaryCompanyPhone}`}
                             className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white rounded-xl font-semibold text-base shadow-lg shadow-emerald-500/25 transition-all hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-[1.02]"
                         >
                             <Phone className="w-5 h-5" />

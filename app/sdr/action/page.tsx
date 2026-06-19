@@ -185,6 +185,7 @@ interface DrawerCompany {
     website: string | null;
     size: string | null;
     phone: string | null;
+    additionalPhones?: string[] | null;
     status: "INCOMPLETE" | "PARTIAL" | "ACTIONABLE";
     contacts: Array<{
         id: string;
@@ -198,6 +199,35 @@ interface DrawerCompany {
         companyId: string;
     }>;
     _count: { contacts: number };
+}
+
+function extractCompanyAdditionalPhones(customData: unknown): string[] {
+    if (!customData || typeof customData !== "object" || !("additionalPhones" in customData)) {
+        return [];
+    }
+
+    const raw = (customData as { additionalPhones?: unknown }).additionalPhones;
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+
+    return raw
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value) => value.length > 0);
+}
+
+function resolveCompanyPhone(
+    phone: string | null | undefined,
+    customData: unknown
+): { phone: string | null; additionalPhones: string[] } {
+    const additionalPhones = extractCompanyAdditionalPhones(customData);
+    const primaryPhone = phone?.trim() || additionalPhones[0] || null;
+    const remainingPhones = additionalPhones.filter((value) => value !== primaryPhone);
+
+    return {
+        phone: primaryPhone,
+        additionalPhones: remainingPhones,
+    };
 }
 
 // Fallback when config API not available
@@ -573,7 +603,7 @@ export default function SDRActionPage() {
                 status: (c.status ?? "PARTIAL") as DrawerContact["status"],
                 companyId: c.company?.id ?? "",
                 companyName: c.company?.name ?? undefined,
-                companyPhone: c.company?.phone ?? undefined,
+                companyPhone: resolveCompanyPhone(c.company?.phone, c.company?.customData).phone ?? undefined,
             } as DrawerContact;
         },
         enabled: !!drawerContactId,
@@ -585,6 +615,7 @@ export default function SDRActionPage() {
             const json = await res.json();
             if (!json.success || !json.data) throw new Error(json.error || "Impossible de charger la société");
             const co = json.data;
+            const normalizedCompanyPhone = resolveCompanyPhone(co.phone, co.customData);
             return {
                 id: co.id,
                 name: co.name,
@@ -592,7 +623,8 @@ export default function SDRActionPage() {
                 country: co.country,
                 website: co.website,
                 size: co.size,
-                phone: co.phone,
+                phone: normalizedCompanyPhone.phone,
+                additionalPhones: normalizedCompanyPhone.additionalPhones,
                 status: (co.status ?? "PARTIAL") as DrawerCompany["status"],
                 contacts: (co.contacts ?? []).map((ct: { id: string; firstName: string | null; lastName: string | null; email: string | null; phone: string | null; title: string | null; linkedin: string | null; status: string; companyId: string }) => ({
                     id: ct.id,
@@ -1157,7 +1189,12 @@ export default function SDRActionPage() {
         queryFn: async () => {
             const res = await fetch(`/api/missions/${unifiedDrawerMissionId}/client-booking`);
             const json = await res.json();
-            if (!json.success) return { bookingUrl: "", interlocuteurs: [] as any[] };
+            if (!json.success) {
+                return {
+                    bookingUrl: "",
+                    interlocuteurs: [] as NonNullable<NextActionData["clientInterlocuteurs"]>,
+                };
+            }
             return {
                 bookingUrl: json.data?.bookingUrl ?? "",
                 interlocuteurs: Array.isArray(json.data?.interlocuteurs) ? json.data.interlocuteurs : [],

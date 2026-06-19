@@ -19,6 +19,8 @@ function buildCallbackResultCodes(config: { statuses: Array<{ code: string; labe
     return new Set<string>([...defaults, ...configured]);
 }
 
+const COMPANY_PHONE_SQL = `COALESCE(NULLIF(co.phone, ''), NULLIF(co."customData"->'additionalPhones'->>0, ''))`;
+
 // ============================================
 // OPTIMIZED QUEUE QUERY - PHASE 2.5
 // ============================================
@@ -33,7 +35,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const listId = searchParams.get('listId');
     const channelParam = searchParams.get('channel')?.toUpperCase();
     const VALID_CHANNELS = ['CALL', 'EMAIL', 'LINKEDIN'] as const;
-    const channelFilter = channelParam && VALID_CHANNELS.includes(channelParam as any)
+    const isValidChannel = (value: string | undefined): value is (typeof VALID_CHANNELS)[number] =>
+        !!value && VALID_CHANNELS.includes(value as (typeof VALID_CHANNELS)[number]);
+    const channelFilter = isValidChannel(channelParam)
         ? `AND ('${channelParam}' = ANY(m.channels))`
         : '';
 
@@ -104,7 +108,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 co.industry as company_industry,
                 co.website as company_website,
                 co.country as company_country,
-                co.phone as company_phone,
+                ${COMPANY_PHONE_SQL} as company_phone,
                 c."firstName" as contact_first_name,
                 c."lastName" as contact_last_name,
                 c.title as contact_title,
@@ -141,7 +145,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               AND camp."isActive" = true
               ${sdrAssignmentWhere}
               AND (
-                  ('CALL' = ANY(m.channels) AND (c.phone IS NOT NULL AND c.phone != '' OR co.phone IS NOT NULL AND co.phone != '')) OR
+                  ('CALL' = ANY(m.channels) AND (c.phone IS NOT NULL AND c.phone != '' OR ${COMPANY_PHONE_SQL} IS NOT NULL)) OR
                   ('EMAIL' = ANY(m.channels) AND c.email IS NOT NULL AND c.email != '') OR
                   ('LINKEDIN' = ANY(m.channels) AND c.linkedin IS NOT NULL AND c.linkedin != '')
               )
@@ -158,7 +162,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 co.industry as company_industry,
                 co.website as company_website,
                 co.country as company_country,
-                co.phone as company_phone,
+                ${COMPANY_PHONE_SQL} as company_phone,
                 NULL::text as contact_first_name,
                 NULL::text as contact_last_name,
                 NULL::text as contact_title,
@@ -192,8 +196,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               AND camp."isActive" = true
               ${sdrAssignmentWhere}
               AND 'CALL' = ANY(m.channels)
-              AND co.phone IS NOT NULL
-              AND co.phone != ''
+              AND ${COMPANY_PHONE_SQL} IS NOT NULL
               AND NOT EXISTS (
                   SELECT 1 FROM "Contact" c2 
                   WHERE c2."companyId" = co.id 

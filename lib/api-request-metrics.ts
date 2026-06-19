@@ -4,6 +4,9 @@ const MAX_ENDPOINT_LENGTH = 500;
 const MAX_METHOD_LENGTH = 10;
 const MAX_PROVIDER_LENGTH = 80;
 
+let metricWritesDisabled = false;
+let missingTableWarningLogged = false;
+
 function startOfUtcDay(date = new Date()): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
@@ -17,12 +20,39 @@ function normalizeEndpoint(endpoint: string): string {
   }
 }
 
+function isMissingMetricTableError(error: unknown): boolean {
+  const maybeError = error as { code?: unknown; message?: unknown; meta?: { modelName?: unknown; table?: unknown } };
+  const message = typeof maybeError?.message === "string" ? maybeError.message : "";
+  const table = typeof maybeError?.meta?.table === "string" ? maybeError.meta.table : "";
+  const modelName = typeof maybeError?.meta?.modelName === "string" ? maybeError.meta.modelName : "";
+
+  return (
+    maybeError?.code === "P2021" ||
+    modelName === "ApiRequestDailyMetric" ||
+    table.includes("ApiRequestDailyMetric") ||
+    message.includes("ApiRequestDailyMetric") ||
+    message.includes("public.ApiRequestDailyMetric")
+  );
+}
+
+function emptyExternalApiCallSummary(date = startOfUtcDay()) {
+  return {
+    date: date.toISOString().slice(0, 10),
+    totalCalls: 0,
+    failedCalls: 0,
+    topEndpoints: [],
+    failedRequests: [],
+  };
+}
+
 export async function logExternalApiCallMetric(
   provider: string,
   endpoint: string,
   method: string,
   statusCode: number,
 ): Promise<void> {
+  if (metricWritesDisabled || process.env.EXTERNAL_API_METRICS_DISABLED === "1") return;
+
   const date = startOfUtcDay();
   const normalizedProvider = provider.substring(0, MAX_PROVIDER_LENGTH);
   const normalizedEndpoint = normalizeEndpoint(endpoint);
@@ -55,6 +85,16 @@ export async function logExternalApiCallMetric(
       },
     });
   } catch (error) {
+    if (isMissingMetricTableError(error)) {
+      metricWritesDisabled = true;
+      if (!missingTableWarningLogged) {
+        missingTableWarningLogged = true;
+        console.warn(
+          "External API call metrics disabled: ApiRequestDailyMetric table is missing. Run the Prisma migration 20260512150000_add_api_request_daily_metrics to re-enable metrics.",
+        );
+      }
+      return;
+    }
     console.error("Failed to log external API call metric:", error);
   }
 }
@@ -62,10 +102,23 @@ export async function logExternalApiCallMetric(
 export async function getTodayExternalApiCallSummary() {
   const today = startOfUtcDay();
 
-  const rows = await prisma.apiRequestDailyMetric.findMany({
-    where: { date: today },
-    orderBy: { count: "desc" },
-  });
+  if (metricWritesDisabled || process.env.EXTERNAL_API_METRICS_DISABLED === "1") {
+    return emptyExternalApiCallSummary(today);
+  }
+
+  let rows;
+  try {
+    rows = await prisma.apiRequestDailyMetric.findMany({
+      where: { date: today },
+      orderBy: { count: "desc" },
+    });
+  } catch (error) {
+    if (isMissingMetricTableError(error)) {
+      metricWritesDisabled = true;
+      return emptyExternalApiCallSummary(today);
+    }
+    throw error;
+  }
 
   const totalCalls = rows.reduce((sum, row) => sum + row.count, 0);
   const failedCalls = rows

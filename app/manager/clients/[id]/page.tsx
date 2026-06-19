@@ -148,9 +148,14 @@ interface Client {
     insights?: {
         production: {
             month: string;
+            firstCallAt?: string | null;
             plannedMonthDays: number | null;
             plannedWeekDays: number | null;
+            plannedMonthDaysFromWeekly?: number | null;
+            hasMonthlyPlan?: boolean;
             executedDays: number;
+            workedCallDays?: number;
+            totalWorkedCallDays?: number;
             totalActions: number;
             totalCalls: number;
             totalMeetings: number;
@@ -1663,7 +1668,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 <p className="mt-2 text-2xl font-bold text-slate-900">
                                     {client.insights?.production.plannedMonthDays ?? "Non défini"}
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500">Plans mensuels actifs</p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    {client.insights?.production.hasMonthlyPlan ? "Plans mensuels actifs" : "Calculé depuis les jours / semaine"}
+                                </p>
                             </div>
                             <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">Jours prévus / semaine</p>
@@ -1673,9 +1680,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 <p className="mt-1 text-xs text-slate-500">Fréquence des missions</p>
                             </div>
                             <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Jours effectués</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Jours avec appels</p>
                                 <p className="mt-2 text-2xl font-bold text-slate-900">
-                                    {client.insights?.production.executedDays ?? 0}
+                                    {client.insights?.production.workedCallDays ?? client.insights?.production.executedDays ?? 0}
                                 </p>
                                 <p className="mt-1 text-xs text-slate-500">
                                     {client.insights?.production.totalCalls ?? 0} appels · {client.insights?.production.totalMeetings ?? 0} RDV
@@ -1694,6 +1701,17 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         : "Aucun engagement actif"}
                                 </p>
                             </div>
+                        </div>
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Début réel de mission</p>
+                            <p className="mt-2 text-sm font-semibold text-slate-900">
+                                Premier appel : {client.insights?.production.firstCallAt
+                                    ? new Date(client.insights.production.firstCallAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
+                                    : "Aucun appel enregistré"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                {client.insights?.production.totalWorkedCallDays ?? 0} jour{(client.insights?.production.totalWorkedCallDays ?? 0) > 1 ? "s" : ""} avec appels depuis le lancement.
+                            </p>
                         </div>
                     </div>
 

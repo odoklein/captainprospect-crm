@@ -8,6 +8,7 @@ import {
   Mail, Phone, Linkedin, Download, Check, Loader2, Eye,
   MessageSquare, Edit3, Clock, FileSpreadsheet, AlertTriangle,
   CalendarClock, Send, Building2, MapPin, Trash2, Video,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getMeetingCancellationLabel, MEETING_CANCELLATION_REASONS } from "@/lib/constants/meetingCancellationReasons";
@@ -772,6 +773,7 @@ export default function ClientPortalMeetingsPage() {
   const [loading, setLoading]     = useState(true);
   const [tab, setTab]             = useState<TabId>("upcoming");
   const [q, setQ]                 = useState("");
+  const [commercialFilter, setCommercialFilter] = useState("all");
 
   const [modal, setModal]         = useState<ModalType>(null);
   const [sel, setSel]             = useState<Meeting|null>(null);
@@ -839,6 +841,8 @@ export default function ClientPortalMeetingsPage() {
         co?.name,
         m.campaign?.name,
         m.campaign?.mission?.name,
+        m.interlocuteur?.firstName,
+        m.interlocuteur?.lastName,
       ]
         .filter(Boolean)
         .join(" ")
@@ -847,18 +851,35 @@ export default function ClientPortalMeetingsPage() {
     };
   }, [q]);
 
+  const commercialOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    meetings.forEach((m) => {
+      if (!m.interlocuteur?.id) return;
+      const label = [m.interlocuteur.firstName, m.interlocuteur.lastName].filter(Boolean).join(" ") || "Assigné";
+      map.set(m.interlocuteur.id, label);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "fr"));
+  }, [meetings]);
+
+  const commercialPredicate = useMemo(() => {
+    if (commercialFilter === "all") return (m: Meeting) => true;
+    if (commercialFilter === "unassigned") return (m: Meeting) => !m.interlocuteur?.id;
+    return (m: Meeting) => m.interlocuteur?.id === commercialFilter;
+  }, [commercialFilter]);
+
   const filtered = useMemo(()=>{
     let list = tab==="all" ? meetings : meetings.filter(m=>getRdvStatus(m)===tab);
     list = list.filter(searchFilter);
+    list = list.filter(commercialPredicate);
     return list.sort((a,b)=>{
       const da=a.callbackDate ? new Date(a.callbackDate).getTime() : 0;
       const db=b.callbackDate ? new Date(b.callbackDate).getTime() : 0;
       return tab==="upcoming" ? da-db : db-da;
     });
-  },[meetings,tab,searchFilter]);
+  },[meetings,tab,searchFilter,commercialPredicate]);
 
   const tabCounts = useMemo(() => {
-    const base = q.trim() ? meetings.filter(searchFilter) : meetings;
+    const base = meetings.filter(searchFilter).filter(commercialPredicate);
     return {
       all: base.length,
       upcoming: base.filter(m => getRdvStatus(m)==="upcoming").length,
@@ -866,7 +887,7 @@ export default function ClientPortalMeetingsPage() {
       rescheduled: base.filter(m => getRdvStatus(m)==="rescheduled").length,
       cancelled: base.filter(m => getRdvStatus(m)==="cancelled").length,
     };
-  }, [meetings, q, searchFilter]);
+  }, [meetings, searchFilter, commercialPredicate]);
 
   useEffect(()=>{
     if (!loading && stats.upcoming===0 && stats.past>0 && tab==="upcoming") setTab("past");
@@ -1006,11 +1027,27 @@ export default function ClientPortalMeetingsPage() {
             Consultez vos rendez-vous, donnez votre avis, demandez un report.
           </p>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",justifyContent:"flex-end"}}>
           <div className="cp-search" style={{width:260}}>
             <Search className="cp-search-ico" style={{width:15,height:15}} />
             <input className="cp-input" type="search" placeholder="Contact, entreprise…" value={q} onChange={e=>setQ(e.target.value)} aria-label="Rechercher" />
             {q && <button className="cp-search-clr" onClick={()=>setQ("")} aria-label="Effacer"><X style={{width:13,height:13}} /></button>}
+          </div>
+          <div style={{position:"relative",width:220}}>
+            <UserCog style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",width:15,height:15,color:tk.ink4,pointerEvents:"none"}} />
+            <select
+              className="cp-input"
+              value={commercialFilter}
+              onChange={e=>setCommercialFilter(e.target.value)}
+              aria-label="Filtrer par commercial"
+              style={{paddingLeft:36,appearance:"auto"}}
+            >
+              <option value="all">Tous les commerciaux</option>
+              <option value="unassigned">Sans commercial</option>
+              {commercialOptions.map(([id, label]) => (
+                <option key={id} value={id}>{label}</option>
+              ))}
+            </select>
           </div>
           <button className="cp-btn cp-btn-secondary" style={{gap:7,padding:"0 14px"}} onClick={()=>genCSV(filtered)}>
             <FileSpreadsheet style={{width:15,height:15}} />Exporter{filtered.length ? ` (${filtered.length} RDV)` : ""}

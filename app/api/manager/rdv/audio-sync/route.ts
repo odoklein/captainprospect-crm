@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getAlloNumbersForAction } from "@/lib/call-enrichment/enrich-action";
 import { callProvider } from "@/lib/call-enrichment/provider";
 import { errorResponse, requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
@@ -28,13 +29,6 @@ const syncSchema = z.object({
     .min(1)
     .max(MAX_ACTIONS),
 });
-
-function getAlloNumbers(): string[] {
-  return (process.env.ALLO_NUMBERS ?? "")
-    .split(",")
-    .map((n) => n.trim())
-    .filter(Boolean);
-}
 
 function normalizePhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -224,8 +218,6 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     dateTo: parsed.data.dateTo,
   });
   if (actions.length === 0) return successResponse({ items: [] });
-  const alloNumbers = getAlloNumbers();
-  if (alloNumbers.length === 0) return errorResponse("ALLO_NUMBERS manquant", 400);
 
   const actionsWithPhones = actions
     .map((a) => {
@@ -254,13 +246,17 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
       ];
       const lookup =
         dedupedPhones.length > 0
-          ? await findBestMatchForAction({
-              sdrId: a.sdrId,
-              createdAt: a.createdAt,
-              callbackDate: a.callbackDate,
-              phones: dedupedPhones,
-              alloNumbers,
-            })
+          ? await getAlloNumbersForAction(a.sdrId).then(({ alloNumbers }) =>
+              alloNumbers.length > 0
+                ? findBestMatchForAction({
+                    sdrId: a.sdrId,
+                    createdAt: a.createdAt,
+                    callbackDate: a.callbackDate,
+                    phones: dedupedPhones,
+                    alloNumbers,
+                  })
+                : { match: null, attempts: [] as SearchAttempt[] },
+            )
           : { match: null, attempts: [] as SearchAttempt[] };
       const contactName = [a.contact?.firstName, a.contact?.lastName].filter(Boolean).join(" ").trim() || "—";
       return {

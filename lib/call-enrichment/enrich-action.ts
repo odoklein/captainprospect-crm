@@ -3,6 +3,7 @@ import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 import { prisma } from '@/lib/prisma';
 import { ceDebug, isCallEnrichmentDebug } from './debug';
 import { callProvider } from './provider';
+import { acquireAlloSlot } from './allo-semaphore';
 
 const DEFAULT_COUNTRY = (process.env.PHONE_DEFAULT_COUNTRY ?? 'FR') as Parameters<typeof isValidPhoneNumber>[1];
 const WINDOW_BEFORE_MS = parseInt(process.env.CALL_ENRICHMENT_WINDOW_BEFORE_MS ?? '3600000', 10); // 60 min (call happens before action is saved)
@@ -116,6 +117,21 @@ function getAlloNumbers(): string[] {
   return (process.env.ALLO_NUMBERS ?? '').split(',').map((n) => n.trim()).filter(Boolean);
 }
 
+export async function getAlloNumbersForAction(sdrId: string): Promise<{ alloNumbers: string[]; source: "sdr" | "env" }> {
+  const configuredNumbers = getAlloNumbers();
+  const user = await prisma.user.findUnique({
+    where: { id: sdrId },
+    select: { alloPhoneNumber: true },
+  });
+  const sdrAlloNumber = user?.alloPhoneNumber?.trim();
+
+  if (sdrAlloNumber && process.env.CALL_ENRICHMENT_SCAN_ALL_LINES !== "1") {
+    return { alloNumbers: [sdrAlloNumber], source: "sdr" };
+  }
+
+  return { alloNumbers: configuredNumbers, source: "env" };
+}
+
 /** True when default enrichment would skip but résumé or enregistrement is still missing (re-sync avec force). */
 export function enrichActionShouldUseForce(action: {
   callEnrichmentAt: Date | null;
@@ -167,10 +183,10 @@ export async function enrichActionFromCallProvider(
   }
 
   const phones = await collectCandidatePhones(actionId);
-  const alloNumbers = getAlloNumbers();
+  const { alloNumbers, source: alloNumberSource } = await getAlloNumbersForAction(action.sdrId);
 
   console.log(
-    `[call-enrichment] phones=${JSON.stringify(phones)} alloNumbers=${JSON.stringify(alloNumbers)} actionCreatedAt=${action.createdAt.toISOString()}`,
+    `[call-enrichment] phones=${JSON.stringify(phones)} alloNumbers=${JSON.stringify(alloNumbers)} alloNumberSource=${alloNumberSource} actionCreatedAt=${action.createdAt.toISOString()}`,
   );
   ceDebug("window mode", {
     USE_RELATIVE_WINDOW,
@@ -197,6 +213,7 @@ export async function enrichActionFromCallProvider(
   );
 
   let record;
+  const releaseAlloSlot = await acquireAlloSlot();
   try {
     record = await callProvider.fetchMatchingCallRecord({ phones, alloNumbers, sdrId: action.sdrId, windowStart, windowEnd });
   } catch (err) {
@@ -204,6 +221,8 @@ export async function enrichActionFromCallProvider(
     console.error(`[call-enrichment] outcome=PROVIDER_ERROR actionId=${actionId} message=${msg}`, err);
     await prisma.action.update({ where: { id: actionId }, data: { callEnrichmentError: msg } });
     return;
+  } finally {
+    releaseAlloSlot();
   }
 
   if (!record) {

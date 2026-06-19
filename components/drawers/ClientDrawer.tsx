@@ -91,6 +91,18 @@ interface MissionLite {
     _count?: { campaigns?: number; lists?: number; sdrAssignments?: number };
     campaigns?: Array<{ id: string; name: string; icp?: string | null }>;
     lists?: Array<{ id: string; name: string; type?: string; _count?: { companies?: number } }>;
+    missionPlans?: MissionPlanLite[];
+}
+
+interface MissionPlanLite {
+    id: string;
+    frequency: number;
+    preferredDays: string[];
+    timePreference?: string | null;
+    customStartTime?: string | null;
+    customEndTime?: string | null;
+    startDate?: string;
+    endDate?: string | null;
 }
 
 interface ClientUserLite {
@@ -117,9 +129,14 @@ interface InterlocuteurLite {
 
 interface ClientProductionInsights {
     month: string;
+    firstCallAt?: string | null;
     plannedMonthDays: number | null;
     plannedWeekDays: number | null;
+    plannedMonthDaysFromWeekly?: number | null;
+    hasMonthlyPlan?: boolean;
     executedDays: number;
+    workedCallDays?: number;
+    totalWorkedCallDays?: number;
     totalActions: number;
     totalCalls: number;
     totalMeetings: number;
@@ -344,6 +361,7 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [scriptModalMission, setScriptModalMission] = useState<MissionLite | null>(null);
+    const [savingPlanId, setSavingPlanId] = useState<string | null>(null);
 
     // React Query: full client detail
     const { data: clientDetail } = useQuery({
@@ -431,6 +449,38 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
 
     const activeMissionsCount = missions.filter((m) => m.status === "ACTIVE").length;
     const portalUsersCount = usersList.filter((u) => u.role === "CLIENT").length;
+    const activeMissionPlans = missions.flatMap((mission) =>
+        (mission.missionPlans ?? []).map((plan) => ({ mission, plan })),
+    );
+    const onlyActivePlan = activeMissionPlans.length === 1 ? activeMissionPlans[0] : null;
+
+    const savePlanFrequency = async (plan: MissionPlanLite, nextFrequency: number) => {
+        const weekdays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
+        const currentDays = plan.preferredDays ?? [];
+        const preferredDays = [
+            ...currentDays,
+            ...weekdays.filter((day) => !currentDays.includes(day)),
+        ].slice(0, nextFrequency);
+
+        setSavingPlanId(plan.id);
+        try {
+            const res = await fetch(`/api/mission-plans/${plan.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ frequency: nextFrequency, preferredDays }),
+            });
+            const json = await res.json();
+            if (!json.success) {
+                showError("Erreur", json.error || "Impossible de mettre Ã  jour le planning");
+                throw new Error(json.error);
+            }
+            success("Planning mis Ã  jour", `${nextFrequency} jour${nextFrequency > 1 ? "s" : ""} / semaine enregistrÃ©`);
+            queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
+            queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
+        } finally {
+            setSavingPlanId(null);
+        }
+    };
 
     // ───────────────────────────────────────────────────────────────────────
     // HEADER (hero)
@@ -637,23 +687,38 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                         <p className="mt-2 text-2xl font-bold text-slate-900">
                             {production?.plannedMonthDays ?? "Non défini"}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">Plan mensuel cumulé</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                            {production?.hasMonthlyPlan ? "Plan mensuel cumulé" : "Calculé depuis les jours / semaine"}
+                        </p>
                     </div>
                     <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-violet-500">
                             Jours prévus / semaine
                         </p>
-                        <p className="mt-2 text-2xl font-bold text-slate-900">
-                            {production?.plannedWeekDays ?? "Non défini"}
-                        </p>
+                        {onlyActivePlan ? (
+                            <div className="mt-2 max-w-[150px]">
+                                <InlineSelect
+                                    value={String(onlyActivePlan.plan.frequency)}
+                                    options={[1, 2, 3, 4, 5].map((day) => ({
+                                        value: String(day),
+                                        label: `${day} jour${day > 1 ? "s" : ""} / semaine`,
+                                    }))}
+                                    onSave={(value) => savePlanFrequency(onlyActivePlan.plan, Number(value))}
+                                />
+                            </div>
+                        ) : (
+                            <p className="mt-2 text-2xl font-bold text-slate-900">
+                                {production?.plannedWeekDays ?? "Non défini"}
+                            </p>
+                        )}
                         <p className="mt-1 text-xs text-slate-500">Fréquence des missions actives</p>
                     </div>
                     <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
-                            Jours effectués
+                            Jours avec appels
                         </p>
                         <p className="mt-2 text-2xl font-bold text-slate-900">
-                            {production?.executedDays ?? 0}
+                            {production?.workedCallDays ?? production?.executedDays ?? 0}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">
                             {production?.totalCalls ?? 0} appels · {production?.totalMeetings ?? 0} RDV
@@ -671,6 +736,49 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                                 ? `${engagement.offreTarif.nom} · fin ${formatDate(engagement.fin)}`
                                 : "Aucun engagement actif"}
                         </p>
+                    </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            Début réel de mission
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-slate-900">
+                            Premier appel : {production?.firstCallAt ? formatDate(production.firstCallAt) : "Aucun appel enregistré"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                            {production?.totalWorkedCallDays ?? 0} jour{(production?.totalWorkedCallDays ?? 0) > 1 ? "s" : ""} avec appels depuis le lancement.
+                        </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                            Engagements planning
+                        </p>
+                        {activeMissionPlans.length === 0 ? (
+                            <p className="text-sm text-slate-500">Aucun planning actif à modifier.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {activeMissionPlans.map(({ mission, plan }) => (
+                                    <div key={plan.id} className="flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-800 truncate">{mission.name}</p>
+                                            <p className="text-xs text-slate-500">1 jour / semaine = 4 jours / mois</p>
+                                        </div>
+                                        <div className="w-36">
+                                            <InlineSelect
+                                                value={String(plan.frequency)}
+                                                options={[1, 2, 3, 4, 5].map((day) => ({
+                                                    value: String(day),
+                                                    label: `${day} j / sem.`,
+                                                }))}
+                                                onSave={(value) => savePlanFrequency(plan, Number(value))}
+                                                readOnly={savingPlanId === plan.id}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             </SectionCard>
@@ -1108,7 +1216,7 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
             <div className="grid grid-cols-3 gap-3">
                 <StatPill icon={<PhoneCall className="w-4 h-4" />} value={production?.totalCalls ?? 0} label="Appels ce mois" tone="indigo" />
                 <StatPill icon={<CheckCircle2 className="w-4 h-4" />} value={production?.totalMeetings ?? 0} label="RDV ce mois" tone="emerald" />
-                <StatPill icon={<CalendarDays className="w-4 h-4" />} value={production?.executedDays ?? 0} label="Jours effectués" tone="amber" />
+                <StatPill icon={<CalendarDays className="w-4 h-4" />} value={production?.workedCallDays ?? production?.executedDays ?? 0} label="Jours avec appels" tone="amber" />
             </div>
 
             {recentActions.length === 0 ? (

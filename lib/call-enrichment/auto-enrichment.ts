@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getAlloNumbersForAction } from "./enrich-action";
 import { callProvider } from "./provider";
 import { acquireAlloSlot } from "./allo-semaphore";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
@@ -154,8 +155,8 @@ export async function autoEnrichAction(actionId: string): Promise<AutoEnrichResu
       };
     }
 
-    const alloNumbers = (process.env.ALLO_NUMBERS ?? "").split(",").map((n) => n.trim()).filter(Boolean);
-    if (!alloNumbers.length) return { found: false, ficheGenerated: false, error: "ALLO_NUMBERS not configured" };
+    const { alloNumbers } = await getAlloNumbersForAction(action.sdrId);
+    if (!alloNumbers.length) return { found: false, ficheGenerated: false, error: "No Allo number configured for SDR or ALLO_NUMBERS" };
 
     const phones = [
       ...normalizePhonesFromField(action.meetingPhone),

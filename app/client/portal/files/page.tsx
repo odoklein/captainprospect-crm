@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type FormEvent } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button, useToast } from "@/components/ui";
-import { Upload, Trash2, Loader2, FileText, FileImage, FileSpreadsheet, File, FolderOpen, CloudUpload } from "lucide-react";
+import { Upload, Trash2, Loader2, FileText, FileImage, FileSpreadsheet, File, FolderOpen, CloudUpload, Link2, ExternalLink, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ACCEPT: Record<string, string[]> = {
@@ -27,6 +27,9 @@ interface ClientFile {
     size: number;
     formattedSize: string;
     createdAt: string;
+    isLink?: boolean;
+    externalUrl?: string | null;
+    description?: string | null;
 }
 
 function formatDate(dateString: string) {
@@ -53,6 +56,11 @@ export default function ClientPortalFilesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [uploadingCount, setUploadingCount] = useState(0);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [showLinkForm, setShowLinkForm] = useState(false);
+    const [linkTitle, setLinkTitle] = useState("");
+    const [linkUrl, setLinkUrl] = useState("");
+    const [linkDescription, setLinkDescription] = useState("");
+    const [savingLink, setSavingLink] = useState(false);
 
     const fetchFiles = useCallback(async () => {
         setIsLoading(true);
@@ -131,6 +139,41 @@ export default function ClientPortalFilesPage() {
         }
     };
 
+    const handleAddLink = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!linkUrl.trim()) {
+            toast.error("Lien requis", "Collez une URL à partager");
+            return;
+        }
+        setSavingLink(true);
+        try {
+            const res = await fetch("/api/client/files", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: linkTitle.trim() || linkUrl.trim(),
+                    url: linkUrl.trim(),
+                    description: linkDescription.trim() || null,
+                }),
+            });
+            const json = await res.json();
+            if (json.success) {
+                await fetchFiles();
+                setShowLinkForm(false);
+                setLinkTitle("");
+                setLinkUrl("");
+                setLinkDescription("");
+                toast.success("Lien partagé", "Le lien est disponible pour votre équipe");
+            } else {
+                toast.error("Erreur", json.error || "Impossible d'ajouter le lien");
+            }
+        } catch {
+            toast.error("Erreur", "Impossible d'ajouter le lien");
+        } finally {
+            setSavingLink(false);
+        }
+    };
+
     return (
         <div className="min-h-full bg-gradient-to-br from-[#F8F9FC] via-[#F4F6F9] to-[#ECEEF4] p-4 md:p-6 space-y-5">
             {/* Header */}
@@ -140,7 +183,7 @@ export default function ClientPortalFilesPage() {
                 </div>
                 <div>
                     <h1 className="text-xl font-bold text-[#12122A] tracking-tight">Mes Fichiers</h1>
-                    <p className="text-xs text-[#6B7194] mt-0.5">Déposez vos fichiers pour les partager avec votre équipe</p>
+                    <p className="text-xs text-[#6B7194] mt-0.5">Déposez vos fichiers ou partagez un lien avec votre équipe</p>
                 </div>
             </div>
 
@@ -186,6 +229,66 @@ export default function ClientPortalFilesPage() {
                 </div>
             </div>
 
+            <div className="bg-white/80 rounded-2xl border border-[#E8EBF0] p-4 shadow-sm" style={{ animation: "filesFadeUp 0.35s ease both", animationDelay: "70ms" }}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-indigo-50 text-[#7C5CFC] flex items-center justify-center">
+                            <Link2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-[#12122A]">Partager un lien</p>
+                            <p className="text-xs text-[#6B7194]">Ajoutez une URL en plus des fichiers déposés.</p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowLinkForm((v) => !v)}
+                        className="rounded-xl"
+                    >
+                        {showLinkForm ? <X className="w-4 h-4 mr-1.5" /> : <Plus className="w-4 h-4 mr-1.5" />}
+                        {showLinkForm ? "Fermer" : "Ajouter un lien"}
+                    </Button>
+                </div>
+                {showLinkForm && (
+                    <form onSubmit={handleAddLink} className="mt-4 grid grid-cols-1 md:grid-cols-[1fr,1.3fr,auto] gap-3 items-end">
+                        <label className="block">
+                            <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Titre</span>
+                            <input
+                                value={linkTitle}
+                                onChange={(e) => setLinkTitle(e.target.value)}
+                                placeholder="Ex: Dossier Drive"
+                                className="mt-1 w-full h-10 rounded-xl border border-[#DDE0EC] bg-white px-3 text-sm outline-none focus:border-[#7C5CFC] focus:ring-2 focus:ring-indigo-100"
+                            />
+                        </label>
+                        <label className="block">
+                            <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Lien</span>
+                            <input
+                                value={linkUrl}
+                                onChange={(e) => setLinkUrl(e.target.value)}
+                                placeholder="https://..."
+                                type="url"
+                                required
+                                className="mt-1 w-full h-10 rounded-xl border border-[#DDE0EC] bg-white px-3 text-sm outline-none focus:border-[#7C5CFC] focus:ring-2 focus:ring-indigo-100"
+                            />
+                        </label>
+                        <Button type="submit" disabled={savingLink} className="h-10 rounded-xl">
+                            {savingLink ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Link2 className="w-4 h-4 mr-1.5" />}
+                            Partager
+                        </Button>
+                        <label className="block md:col-span-3">
+                            <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Note optionnelle</span>
+                            <input
+                                value={linkDescription}
+                                onChange={(e) => setLinkDescription(e.target.value)}
+                                placeholder="Contexte du lien..."
+                                className="mt-1 w-full h-10 rounded-xl border border-[#DDE0EC] bg-white px-3 text-sm outline-none focus:border-[#7C5CFC] focus:ring-2 focus:ring-indigo-100"
+                            />
+                        </label>
+                    </form>
+                )}
+            </div>
+
             {/* File list */}
             <div className="bg-white rounded-2xl border border-[#E8EBF0] overflow-hidden shadow-sm" style={{ animation: "filesFadeUp 0.35s ease both", animationDelay: "90ms" }}>
                 {isLoading ? (
@@ -205,7 +308,7 @@ export default function ClientPortalFilesPage() {
                 ) : (
                     <>
                         <div className="px-5 py-3 border-b border-[#F0F1F7] bg-[#FAFAFA]">
-                            <div className="grid grid-cols-[1fr,100px,140px,44px] gap-4">
+                            <div className="grid grid-cols-[1fr,100px,140px,74px] gap-4">
                                 <span className="text-[11px] font-bold text-[#A0A3BD] uppercase tracking-wider">Fichier</span>
                                 <span className="text-[11px] font-bold text-[#A0A3BD] uppercase tracking-wider">Taille</span>
                                 <span className="text-[11px] font-bold text-[#A0A3BD] uppercase tracking-wider">Déposé le</span>
@@ -214,23 +317,41 @@ export default function ClientPortalFilesPage() {
                         </div>
                         <div className="divide-y divide-[#F5F6FA]">
                             {files.map((f, idx) => {
-                                const { icon: FileIcon, color, bg } = getFileIcon(f.originalName);
+                                const { icon: FileIcon, color, bg } = f.isLink
+                                    ? { icon: Link2, color: "text-indigo-600", bg: "bg-indigo-50" }
+                                    : getFileIcon(f.originalName);
                                 return (
                                     <div
                                         key={f.id}
                                         className="px-5 py-3.5 hover:bg-[#FAFBFF] transition-colors"
                                         style={{ animation: "filesFadeUp 0.3s ease both", animationDelay: `${90 + idx * 20}ms` }}
                                     >
-                                        <div className="grid grid-cols-[1fr,100px,140px,44px] gap-4 items-center">
+                                        <div className="grid grid-cols-[1fr,100px,140px,74px] gap-4 items-center">
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", bg)}>
                                                     <FileIcon className={cn("w-4 h-4", color)} />
                                                 </div>
-                                                <span className="text-sm font-semibold text-[#12122A] truncate">{f.originalName}</span>
+                                                <div className="min-w-0">
+                                                    <span className="block text-sm font-semibold text-[#12122A] truncate">{f.originalName}</span>
+                                                    {f.description && (
+                                                        <span className="block text-xs text-[#8B8BA7] truncate">{f.description}</span>
+                                                    )}
+                                                </div>
                                             </div>
                                             <span className="text-sm text-[#6B7194]">{f.formattedSize}</span>
                                             <span className="text-sm text-[#6B7194]">{formatDate(f.createdAt)}</span>
-                                            <div className="flex justify-end">
+                                            <div className="flex justify-end gap-1">
+                                                {f.isLink && f.externalUrl && (
+                                                    <a
+                                                        href={f.externalUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="w-8 h-8 p-0 text-[#A0A3BD] hover:text-[#7C5CFC] hover:bg-indigo-50 rounded-lg transition-colors inline-flex items-center justify-center"
+                                                        aria-label="Ouvrir le lien"
+                                                    >
+                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                    </a>
+                                                )}
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"

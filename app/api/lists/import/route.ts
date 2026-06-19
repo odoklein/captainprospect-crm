@@ -83,6 +83,13 @@ function normalizeEmail(value: string | null | undefined): string | null {
     return normalized || null;
 }
 
+function splitPhoneValues(value: string | null | undefined): string[] {
+    return (value ?? "")
+        .split(/[;,]/)
+        .map((part) => part.trim())
+        .filter((part) => part.length > 0);
+}
+
 type ActionColumnMode = "single" | "multi-column";
 type ActionColumnGroup = {
     id?: string;
@@ -636,7 +643,8 @@ async function processBatch(
         })
         : uniqueNormalizedNames;
 
-    // 3) Create missing companies: one payload per unique name (first row wins for custom data); skip names excluded by whenAlreadyWorkedOn
+    // 3) Create missing companies: merge duplicate company rows so later rows can
+    // fill missing phone/custom data instead of losing them when the first row is sparse.
     const namesToCreate = namesToConsider.filter((n) => !companyMap.has(n));
     const companyPayloadByName = new Map<
         string,
@@ -648,12 +656,34 @@ async function processBatch(
     >();
     for (const r of validRows) {
         const companyKey = normalizeCompanyName(r.companyName);
-        if (!companyMap.has(companyKey) && !companyPayloadByName.has(companyKey)) {
+        if (companyMap.has(companyKey)) {
+            continue;
+        }
+
+        const existingPayload = companyPayloadByName.get(companyKey);
+        if (!existingPayload) {
             companyPayloadByName.set(companyKey, {
                 companyData: r.companyData,
                 companyCustomData: r.companyCustomData,
                 companyAdditionalPhones: r.companyAdditionalPhones ?? [],
             });
+            continue;
+        }
+
+        for (const [key, value] of Object.entries(r.companyData)) {
+            if (!existingPayload.companyData[key] && value) {
+                existingPayload.companyData[key] = value;
+            }
+        }
+
+        for (const [key, value] of Object.entries(r.companyCustomData)) {
+            if (!existingPayload.companyCustomData[key] && value) {
+                existingPayload.companyCustomData[key] = value;
+            }
+        }
+
+        if (r.companyAdditionalPhones && r.companyAdditionalPhones.length > 0) {
+            existingPayload.companyAdditionalPhones.push(...r.companyAdditionalPhones);
         }
     }
 
@@ -663,21 +693,32 @@ async function processBatch(
             .map((name) => {
                 const payload = companyPayloadByName.get(name);
                 if (!payload) return null;
-                const { companyData, companyCustomData } = payload;
+                const { companyData, companyCustomData, companyAdditionalPhones } = payload;
 
                 // Normalize company phone: allow multiple numbers in one cell, separated by ; or ,
                 let companyPhone: string | null = null;
                 let companyExtraPhones: string[] = [];
                 if (companyData.phone) {
-                    const parts = companyData.phone
-                        .split(/[;,]/)
-                        .map((p) => p.trim())
-                        .filter((p) => p.length > 0);
+                    const parts = splitPhoneValues(companyData.phone);
                     if (parts.length > 0) {
                         companyPhone = parts[0];
                         if (parts.length > 1) companyExtraPhones = parts.slice(1);
                     }
                 }
+
+                const extraFromColumns = companyAdditionalPhones.flatMap((raw) =>
+                    splitPhoneValues(raw)
+                );
+                if (!companyPhone && extraFromColumns.length > 0) {
+                    companyPhone = extraFromColumns[0];
+                    companyExtraPhones.push(...extraFromColumns.slice(1));
+                } else {
+                    companyExtraPhones.push(...extraFromColumns);
+                }
+
+                const normalizedCompanyExtraPhones = Array.from(
+                    new Set(companyExtraPhones.filter((p) => !companyPhone || p !== companyPhone))
+                );
 
                 const createData: Record<string, unknown> = {
                     name: companyData.name,
@@ -691,7 +732,9 @@ async function processBatch(
                 if (companyPhone) (createData as Record<string, unknown>).phone = companyPhone;
 
                 const customData: Record<string, unknown> = { ...companyCustomData };
-                if (companyExtraPhones.length > 0) customData.additionalPhones = companyExtraPhones;
+                if (normalizedCompanyExtraPhones.length > 0) {
+                    customData.additionalPhones = normalizedCompanyExtraPhones;
+                }
                 if (Object.keys(customData).length > 0) createData.customData = customData;
 
                 return createData as Parameters<typeof prisma.company.createMany>[0]["data"][number];

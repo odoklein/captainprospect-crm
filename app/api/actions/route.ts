@@ -11,7 +11,7 @@ import {
 } from '@/lib/api-utils';
 import { actionService } from '@/lib/services/ActionService';
 import { statusConfigService } from '@/lib/services/StatusConfigService';
-import { enrichActionFromCallProvider } from '@/lib/call-enrichment/enrich-action';
+import { enqueueActionCallEnrichment } from '@/lib/call-enrichment/scheduler';
 import { z } from 'zod';
 
 // ============================================
@@ -223,11 +223,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     }, statusDef);
 
     if (data.channel === 'CALL') {
-        after(() =>
-            enrichActionFromCallProvider(action.id).catch((err) => {
-                console.error('[call-enrichment]', action.id, err);
-            })
-        );
+        after(() => enqueueActionCallEnrichment(action.id));
     }
 
     return successResponse(action, 201);

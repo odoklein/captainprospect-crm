@@ -74,6 +74,8 @@ export const GET = withErrorHandler(async (
                     id: true,
                     name: true,
                     industry: true,
+                    phone: true,
+                    customData: true,
                     list: {
                         select: {
                             id: true,

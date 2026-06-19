@@ -9,7 +9,7 @@ import {
     AuthError,
 } from '@/lib/api-utils';
 import { z } from 'zod';
-import { DateTime } from 'luxon';
+import { getClientProductionInsight, getParisMonthWindow } from '@/lib/client-insights';
 
 // ============================================
 // SCHEMAS
@@ -48,10 +48,7 @@ export const GET = withErrorHandler(async (
         throw new AuthError('Accès non autorisé', 403);
     }
 
-    const nowParis = DateTime.now().setZone('Europe/Paris');
-    const currentMonth = nowParis.toFormat('yyyy-MM');
-    const monthStart = nowParis.startOf('month').toUTC().toJSDate();
-    const monthEnd = nowParis.endOf('month').toUTC().toJSDate();
+    const { currentMonth, monthStart, monthEnd } = getParisMonthWindow();
 
     const client = await prisma.client.findUnique({
         where: { id },
@@ -85,8 +82,14 @@ export const GET = withErrorHandler(async (
                         orderBy: { updatedAt: 'desc' },
                         take: 1,
                         select: {
+                            id: true,
                             frequency: true,
                             preferredDays: true,
+                            timePreference: true,
+                            customStartTime: true,
+                            customEndTime: true,
+                            startDate: true,
+                            endDate: true,
                         },
                     },
                     missionMonthPlans: {
@@ -139,7 +142,7 @@ export const GET = withErrorHandler(async (
         throw new NotFoundError('Client introuvable');
     }
 
-    const [engagement, monthActions, recentActions, sdrFeedback] = await Promise.all([
+    const [engagement, production, recentActions, sdrFeedback] = await Promise.all([
         prisma.engagement.findFirst({
             where: {
                 clientId: id,
@@ -158,23 +161,7 @@ export const GET = withErrorHandler(async (
                 },
             },
         }),
-        prisma.action.findMany({
-            where: {
-                createdAt: { gte: monthStart, lte: monthEnd },
-                campaign: { mission: { clientId: id } },
-            },
-            select: {
-                createdAt: true,
-                sdrId: true,
-                result: true,
-                channel: true,
-                campaign: {
-                    select: {
-                        missionId: true,
-                    },
-                },
-            },
-        }),
+        getClientProductionInsight(id),
         prisma.action.findMany({
             where: {
                 campaign: { mission: { clientId: id } },
@@ -258,33 +245,6 @@ export const GET = withErrorHandler(async (
             },
         }),
     ]);
-
-    const plannedMonthDays = client.missions.reduce(
-        (sum, mission) => sum + (mission.missionMonthPlans[0]?.targetDays ?? 0),
-        0,
-    );
-    const plannedWeekDays = client.missions.reduce(
-        (sum, mission) => sum + (mission.missionPlans[0]?.frequency ?? 0),
-        0,
-    );
-    const executedDayKeys = new Set(
-        monthActions.map((action) => {
-            const day = DateTime.fromJSDate(action.createdAt)
-                .setZone('Europe/Paris')
-                .toFormat('yyyy-MM-dd');
-            return `${action.campaign.missionId}:${action.sdrId}:${day}`;
-        }),
-    );
-
-    const production = {
-        month: currentMonth,
-        plannedMonthDays: plannedMonthDays || null,
-        plannedWeekDays: plannedWeekDays || null,
-        executedDays: executedDayKeys.size,
-        totalActions: monthActions.length,
-        totalCalls: monthActions.filter((action) => action.channel === 'CALL').length,
-        totalMeetings: monthActions.filter((action) => action.result === 'MEETING_BOOKED').length,
-    };
 
     return successResponse({
         ...client,
