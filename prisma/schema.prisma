@@ -561,6 +561,12 @@ enum OnboardingStatus {
   ACTIVE
 }
 
+enum ClientStatus {
+  ACTIVE
+  PAUSED
+  STOPPED
+}
+
 model Client {
   id            String    @id @default(cuid())
   name          String
@@ -569,6 +575,7 @@ model Client {
   industry      String?
   logo          String?
   bookingUrl    String?   // URL for booking tools (Calendly, etc.)
+  status        ClientStatus @default(ACTIVE)
   
   // Default mailbox for this client (optional)
   defaultMailboxId String?
@@ -623,10 +630,13 @@ model Client {
   // API Keys scoped to this client
   apiKeys       ApiKey[]
 
+  archivedAt    DateTime?
+
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([defaultMailboxId])
+  @@index([archivedAt])
 }
 
 model ClientInterlocuteur {

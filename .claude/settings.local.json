@@ -23,7 +23,12 @@
       "Read(//c/Users/dell/AppData/Roaming/**)",
       "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
       "Bash(node_modules/.bin/prisma db *)",
-      "Bash(findstr /i mission)"
+      "Bash(findstr /i mission)",
+      "Bash(git diff *)",
+      "Bash(git hash-object *)",
+      "Bash(git check-attr *)",
+      "Bash(powershell -Command \"[Environment]::GetEnvironmentVariable\\('DATABASE_URL','User'\\)\")",
+      "Bash(printenv)"
     ]
   }
 }

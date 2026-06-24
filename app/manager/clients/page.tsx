@@ -23,6 +23,9 @@ import {
     ChevronUp,
     Clock,
     CalendarDays,
+    Pause,
+    PlayCircle,
+    Ban,
 } from "lucide-react";
 import Link from "next/link";
 import { ClientOnboardingModal } from "@/components/manager/ClientOnboardingModal";
@@ -48,12 +51,15 @@ interface ClientMission {
     status: string;
 }
 
+type ClientStatus = "ACTIVE" | "PAUSED" | "STOPPED";
+
 interface Client {
     id: string;
     name: string;
     industry?: string;
     email?: string;
     phone?: string;
+    status: ClientStatus;
     createdAt: string;
     missions: ClientMission[];
     _count: {
@@ -97,6 +103,12 @@ interface LeexiRecapsData {
     totalMatched: number;
 }
 
+const STATUS_CONFIG: Record<ClientStatus, { label: string; badge: string; dot: string; icon: typeof PlayCircle }> = {
+    ACTIVE: { label: "Actif", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", icon: PlayCircle },
+    PAUSED: { label: "En Pause", badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500", icon: Pause },
+    STOPPED: { label: "Arrêté", badge: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500", icon: Ban },
+};
+
 // ============================================
 // FETCHERS
 // ============================================
@@ -136,6 +148,10 @@ export default function ClientsPage() {
     // Leexi UI state
     const [showLeexiSection, setShowLeexiSection] = useState(true);
     const [expandedRecapId, setExpandedRecapId] = useState<string | null>(null);
+
+    // Status quick-action menu
+    const [statusMenuClientId, setStatusMenuClientId] = useState<string | null>(null);
+    const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null);
 
     // React Query: clients list
     const {
@@ -203,6 +219,27 @@ export default function ClientsPage() {
     const handleClientClick = (client: Client) => {
         setSelectedClient(client);
         setShowDrawer(true);
+    };
+
+    const handleStatusChange = async (clientId: string, status: ClientStatus) => {
+        setStatusMenuClientId(null);
+        setUpdatingStatusId(clientId);
+        try {
+            const res = await fetch(`/api/clients/${clientId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status }),
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || "Mise à jour impossible");
+            queryClient.setQueryData<Client[]>(CLIENTS_QUERY_KEY, (prev) =>
+                prev ? prev.map((c) => (c.id === clientId ? { ...c, status } : c)) : prev
+            );
+        } catch (e) {
+            showError(e instanceof Error ? e.message : "Mise à jour impossible");
+        } finally {
+            setUpdatingStatusId(null);
+        }
     };
 
     const handleClientUpdate = (updatedClient: Client) => {
@@ -514,78 +551,133 @@ export default function ClientsPage() {
                     )}
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in duration-500">
                     {filteredClients.map((client, index) => {
                         const recapCount = getClientRecapCount(client.id);
                         const hasPortal = client._count.users > 0;
                         const recapPercent = Math.min(100, recapCount * 10);
                         const production = client.insights?.production;
+                        const status = client.status || "ACTIVE";
+                        const statusInfo = STATUS_CONFIG[status];
+                        const StatusIcon = statusInfo.icon;
+                        const isMenuOpen = statusMenuClientId === client.id;
 
                         return (
                             <div
                                 key={client.id}
                                 onClick={() => handleClientClick(client)}
-                                className="group bg-white rounded-2xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100/50 transition-all duration-300 cursor-pointer flex flex-col relative overflow-hidden"
+                                className="group bg-white rounded-xl border border-slate-200 p-3.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-100/50 transition-all duration-300 cursor-pointer flex flex-col relative overflow-hidden"
                                 style={{ animationDelay: `${index * 50}ms` }}
                             >
                                 <div className="absolute top-0 left-0 w-1 bg-indigo-500 h-0 group-hover:h-full transition-all duration-300"></div>
 
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100/50 flex items-center justify-center border border-indigo-100/50 flex-shrink-0 group-hover:scale-105 transition-transform">
-                                            <Building2 className="w-5 h-5 text-indigo-600" />
+                                <div className="flex items-start justify-between mb-2.5">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-50 to-indigo-100/50 flex items-center justify-center border border-indigo-100/50 flex-shrink-0 group-hover:scale-105 transition-transform">
+                                            <Building2 className="w-4 h-4 text-indigo-600" />
                                         </div>
-                                        <div>
-                                            <h3 className="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                        <div className="min-w-0">
+                                            <h3 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
                                                 {client.name}
                                             </h3>
-                                            <p className="text-xs text-slate-500 font-medium">
+                                            <p className="text-[11px] text-slate-500 font-medium truncate">
                                                 {client.industry || "Secteur non spécifié"}
                                             </p>
                                         </div>
                                     </div>
                                     {hasPortal ? (
-                                        <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-none px-2.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase">
+                                        <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-none px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase flex-shrink-0">
                                             Portail
                                         </Badge>
                                     ) : (
-                                        <Badge variant="outline" className="text-slate-400 border-slate-200 text-[10px] font-medium px-2.5 py-0.5 tracking-wide uppercase">
+                                        <Badge variant="outline" className="text-slate-400 border-slate-200 text-[9px] font-medium px-2 py-0.5 tracking-wide uppercase flex-shrink-0">
                                             Sans accès
                                         </Badge>
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3 mb-5 p-3 rounded-xl bg-slate-50/80 border border-slate-100/50">
+                                {/* Status quick action */}
+                                <div className="relative mb-2.5">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setStatusMenuClientId(isMenuOpen ? null : client.id);
+                                        }}
+                                        disabled={updatingStatusId === client.id}
+                                        className={`w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${statusInfo.badge} hover:opacity-80 disabled:opacity-50`}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                                            {statusInfo.label}
+                                        </span>
+                                        {updatingStatusId === client.id ? (
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                            <ChevronDown className="w-3 h-3" />
+                                        )}
+                                    </button>
+
+                                    {isMenuOpen && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-40"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setStatusMenuClientId(null);
+                                                }}
+                                            />
+                                            <div
+                                                className="absolute left-0 top-full mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                {(Object.keys(STATUS_CONFIG) as ClientStatus[]).map((key) => {
+                                                    const opt = STATUS_CONFIG[key];
+                                                    const OptIcon = opt.icon;
+                                                    return (
+                                                        <button
+                                                            key={key}
+                                                            onClick={() => handleStatusChange(client.id, key)}
+                                                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-colors ${key === status ? "text-slate-900 bg-slate-50" : "text-slate-600"}`}
+                                                        >
+                                                            <OptIcon className="w-3.5 h-3.5" />
+                                                            {opt.label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 mb-2.5 p-2 rounded-lg bg-slate-50/80 border border-slate-100/50">
                                     <div className="flex flex-col">
-                                        <span className="text-2xl font-bold text-slate-800">{client._count.missions}</span>
-                                        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mt-0.5 flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-emerald-500" /> Missions</span>
+                                        <span className="text-lg font-bold text-slate-800">{client._count.missions}</span>
+                                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1"><Target className="w-3 h-3 text-emerald-500" /> Missions</span>
                                     </div>
-                                    <div className="flex flex-col border-l border-slate-200/60 pl-3">
-                                        <span className="text-2xl font-bold text-slate-800">{client._count.users}</span>
-                                        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mt-0.5 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-amber-500" /> Interlocuteurs</span>
+                                    <div className="flex flex-col border-l border-slate-200/60 pl-2">
+                                        <span className="text-lg font-bold text-slate-800">{client._count.users}</span>
+                                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1"><Users className="w-3 h-3 text-amber-500" /> Interlocuteurs</span>
                                     </div>
                                 </div>
 
                                 {(client.readiness || recapCount > 0) && (
-                                    <div className="mb-5 space-y-4">
+                                    <div className="mb-2.5 space-y-2.5">
                                 {client.readiness && (
                                     <OnboardingReadinessGauge
                                         readiness={client.readiness}
-                                        size="md"
-                                        showLabels={true}
+                                        size="sm"
+                                        showLabels={false}
                                     />
                                 )}
                                 {recapCount > 0 && (
                                         <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                                    <Mic className="w-3.5 h-3.5 text-violet-500" /> Récaps Leexi
-                                                </span>
-                                                <span className="text-[11px] font-medium text-violet-600 bg-violet-50 px-2.5 py-0.5 rounded-full border border-violet-100">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="text-[11px] font-semibold text-slate-700 flex items-center gap-1"><Mic className="w-3 h-3 text-violet-500" /> Récaps Leexi</span>
+                                                <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
                                                     {recapCount}
                                                 </span>
                                             </div>
-                                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-gradient-to-r from-violet-400 to-indigo-500 rounded-full"
                                                     style={{ width: `${recapPercent}%`, transition: "width 1s ease-in-out" }}
@@ -596,27 +688,26 @@ export default function ClientsPage() {
                                     </div>
                                 )}
 
-                                <div className="mt-auto pt-4 border-t border-slate-100 space-y-1.5">
-                                    <div className="grid grid-cols-2 gap-2 mb-2">
-                                        <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jours travaillÃ©s</span>
-                                            <div className="mt-1 flex items-baseline gap-1.5">
-                                                <span className="text-lg font-bold text-slate-900">{production?.workedCallDays ?? 0}</span>
-                                                <span className="text-[11px] text-slate-500">/ {production?.plannedMonthDays ?? "â€”"}</span>
+                                <div className="mt-auto pt-2.5 border-t border-slate-100 space-y-1">
+                                    <div className="grid grid-cols-2 gap-1.5 mb-1.5">
+                                        <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1.5">
+                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Jours travaillés</span>
+                                            <div className="mt-0.5 flex items-baseline gap-1">
+                                                <span className="text-sm font-bold text-slate-900">{production?.workedCallDays ?? 0}</span>
+                                                <span className="text-[10px] text-slate-500">/ {production?.plannedMonthDays ?? "—"}</span>
                                             </div>
                                         </div>
-                                        <div className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2">
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Appels / RDV</span>
-                                            <div className="mt-1 flex items-baseline gap-1.5">
-                                                <span className="text-lg font-bold text-slate-900">{production?.totalCalls ?? 0}</span>
-                                                <span className="text-[11px] text-slate-500">/ {production?.totalMeetings ?? 0}</span>
+                                        <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1.5">
+                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Appels / RDV</span>
+                                            <div className="mt-0.5 flex items-baseline gap-1">
+                                                <span className="text-sm font-bold text-slate-900">{production?.totalCalls ?? 0}</span>
+                                                <span className="text-[10px] text-slate-500">/ {production?.totalMeetings ?? 0}</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-600">
-                                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-                                        <span>
-                                            Premier appel :{" "}
+                                    <div className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 truncate">
+                                        <CalendarDays className="w-3 h-3 flex-shrink-0" />
+                                        <span className="truncate">
                                             {production?.firstCallAt
                                                 ? new Date(production.firstCallAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
                                                 : "Aucun appel"}
@@ -630,21 +721,21 @@ export default function ClientsPage() {
                                         const ended = !displayMission.isActive || displayMission.status !== "ACTIVE";
                                         const endDate = new Date(displayMission.endDate);
                                         return (
-                                            <div className={`flex items-center gap-1.5 text-xs font-medium ${ended ? "text-red-400" : "text-emerald-600"}`}>
-                                                <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                                                <span>
-                                                    {ended ? "Mission terminée le " : "Fin de mission : "}
+                                            <div className={`flex items-center gap-1 text-[11px] font-medium ${ended ? "text-red-400" : "text-emerald-600"}`}>
+                                                <Clock className="w-3 h-3 flex-shrink-0" />
+                                                <span className="truncate">
+                                                    {ended ? "Terminée le " : "Fin : "}
                                                     {endDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
                                                 </span>
                                             </div>
                                         );
                                     })()}
-                                    <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-                                        <span className="flex items-center gap-1.5">
-                                            <Clock className="w-3.5 h-3.5" /> Créé le {new Date(client.createdAt).toLocaleDateString("fr-FR")}
+                                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                                        <span className="flex items-center gap-1">
+                                            <Clock className="w-3 h-3" /> {new Date(client.createdAt).toLocaleDateString("fr-FR")}
                                         </span>
                                         <span className="text-indigo-600 font-semibold opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all flex items-center gap-1">
-                                            Gérer <ArrowRight className="w-3.5 h-3.5" />
+                                            Gérer <ArrowRight className="w-3 h-3" />
                                         </span>
                                     </div>
                                 </div>

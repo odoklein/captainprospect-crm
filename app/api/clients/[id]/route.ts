@@ -28,6 +28,7 @@ const updateClientSchema = z.object({
     icp: z.string().optional(),
     /** Default outbound mailbox for this client (stored in onboardingData.defaultMailboxId) */
     defaultMailboxId: z.string().optional().or(z.literal('')),
+    status: z.enum(['ACTIVE', 'PAUSED', 'STOPPED']).optional(),
 });
 
 // ============================================
