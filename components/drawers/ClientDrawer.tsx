@@ -11,6 +11,7 @@ import {
     useToast,
     ConfirmModal,
     Modal,
+    DatePicker,
 } from "@/components/ui";
 import { CLIENTS_QUERY_KEY, clientDetailQueryKey } from "@/lib/query-keys";
 import {
@@ -32,7 +33,6 @@ import {
     X,
     Target,
     Users,
-    Calendar,
     Link as LinkIcon,
     ExternalLink,
     Trash2,
@@ -58,11 +58,18 @@ import {
     MessageSquare,
     PhoneCall,
     CalendarDays,
+    ChevronDown,
+    Pause,
+    Ban,
+    RefreshCw,
+    Receipt,
 } from "lucide-react";
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+type ClientStatus = "ACTIVE" | "PAUSED" | "STOPPED";
 
 interface Client {
     id: string;
@@ -70,6 +77,7 @@ interface Client {
     industry?: string;
     email?: string;
     phone?: string;
+    status?: ClientStatus;
     createdAt: string;
     bookingUrl?: string;
     _count: {
@@ -142,14 +150,20 @@ interface ClientProductionInsights {
     totalMeetings: number;
 }
 
+type EngagementStatut = "BROUILLON" | "ACTIF" | "EXPIRE" | "RENOUVELE" | "RESILIE" | "ARCHIVE";
+
 interface ClientEngagementInsights {
     id: string;
+    offreTarifId: string;
     dureeMois: number;
     debut: string;
     fin: string;
-    statut: string;
+    statut: EngagementStatut;
     renouvellement?: string | null;
-    offreTarif: { nom: string };
+    penaliteResiliation?: string | null;
+    fixeOverride?: number | string | null;
+    rdvOverride?: number | string | null;
+    offreTarif: { id: string; nom: string; fixeMensuel: number | string; prixParRdv: number | string };
 }
 
 interface ClientActionInsight {
@@ -273,6 +287,39 @@ function formatMonth(month?: string) {
     });
 }
 
+function toNumber(v: number | string | null | undefined): number | null {
+    if (v === null || v === undefined || v === "") return null;
+    const n = Number(v);
+    return Number.isNaN(n) ? null : n;
+}
+
+function formatEuro(v: number | string | null | undefined): string {
+    const n = toNumber(v);
+    return n === null ? "—" : `${n.toLocaleString("fr-FR")} €`;
+}
+
+const CLIENT_STATUS_CONFIG: Record<
+    ClientStatus,
+    { label: string; badge: string; dot: string; icon: typeof PlayCircle }
+> = {
+    ACTIVE: { label: "Actif", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", icon: PlayCircle },
+    PAUSED: { label: "En pause", badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500", icon: Pause },
+    STOPPED: { label: "Arrêté", badge: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400", icon: Ban },
+};
+
+const ENGAGEMENT_STATUT_OPTIONS: Array<{
+    value: EngagementStatut;
+    label: string;
+    tone: "default" | "success" | "warning" | "danger" | "info";
+}> = [
+    { value: "BROUILLON", label: "Brouillon", tone: "default" },
+    { value: "ACTIF", label: "Actif", tone: "success" },
+    { value: "RENOUVELE", label: "Renouvelé", tone: "info" },
+    { value: "EXPIRE", label: "Expiré", tone: "warning" },
+    { value: "RESILIE", label: "Résilié", tone: "danger" },
+    { value: "ARCHIVE", label: "Archivé", tone: "default" },
+];
+
 // ============================================================================
 // SECTION CARD — reference image style (title + Edit Info + 2-col grid)
 // ============================================================================
@@ -362,6 +409,10 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
     const [isDeleting, setIsDeleting] = useState(false);
     const [scriptModalMission, setScriptModalMission] = useState<MissionLite | null>(null);
     const [savingPlanId, setSavingPlanId] = useState<string | null>(null);
+    const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+    const [savingStatus, setSavingStatus] = useState(false);
+    const moreBtnRef = useRef<HTMLButtonElement | null>(null);
+    const [moreOpen, setMoreOpen] = useState(false);
 
     // React Query: full client detail
     const { data: clientDetail } = useQuery({
@@ -407,6 +458,25 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
         success("Copié", `${label} copié dans le presse-papier`);
     };
 
+    // Invalidate client detail + list after engagement create/edit/renew
+    const refreshClientQueries = () => {
+        if (!client) return;
+        queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
+        queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
+    };
+
+    // ─── change client status (Actif / En pause / Arrêté) ─────────────────────
+    const changeStatus = async (next: ClientStatus) => {
+        if (!client) return;
+        setStatusMenuOpen(false);
+        setSavingStatus(true);
+        try {
+            await saveField({ status: next });
+        } finally {
+            setSavingStatus(false);
+        }
+    };
+
     const handleDeleteConfirm = async () => {
         if (!client) return;
         setIsDeleting(true);
@@ -447,8 +517,10 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
     const icp = onboardingData.icp || "";
     const defaultMailboxId = onboardingData.defaultMailboxId || "";
 
+    const clientStatus: ClientStatus = (clientDetail?.status ?? client.status ?? "ACTIVE") as ClientStatus;
+    const statusInfo = CLIENT_STATUS_CONFIG[clientStatus];
+
     const activeMissionsCount = missions.filter((m) => m.status === "ACTIVE").length;
-    const portalUsersCount = usersList.filter((u) => u.role === "CLIENT").length;
     const activeMissionPlans = missions.flatMap((mission) =>
         (mission.missionPlans ?? []).map((plan) => ({ mission, plan })),
     );
@@ -487,118 +559,100 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
     // ───────────────────────────────────────────────────────────────────────
 
     const Header = (
-        <div className="relative px-6 pt-5 pb-4 border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/50">
+        <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-100 bg-white">
+            {/* Monogram */}
+            <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 text-base font-semibold">
+                {client.name[0]?.toUpperCase() || "?"}
+            </div>
+
+            {/* Name + industry */}
+            <div className="flex-1 min-w-0">
+                <InlineText
+                    value={client.name}
+                    onSave={(v) => saveField({ name: v })}
+                    valueClassName="text-base font-semibold !text-slate-900"
+                    className="!mb-0"
+                />
+                <p className="text-xs text-slate-500 truncate">
+                    {client.industry || "Secteur non spécifié"} · Client depuis{" "}
+                    {new Date(client.createdAt).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
+                </p>
+            </div>
+
+            {/* Client status pill */}
+            <div className="relative flex-shrink-0">
+                <button
+                    onClick={() => setStatusMenuOpen((v) => !v)}
+                    disabled={savingStatus}
+                    className={`flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-lg border text-xs font-medium transition-colors ${statusInfo.badge} hover:brightness-95 disabled:opacity-50`}
+                >
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                    {statusInfo.label}
+                    <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                </button>
+                {statusMenuOpen && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setStatusMenuOpen(false)} />
+                        <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                            {(Object.keys(CLIENT_STATUS_CONFIG) as ClientStatus[]).map((key) => {
+                                const opt = CLIENT_STATUS_CONFIG[key];
+                                const OptIcon = opt.icon;
+                                return (
+                                    <button
+                                        key={key}
+                                        onClick={() => changeStatus(key)}
+                                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-colors ${key === clientStatus ? "text-slate-900 bg-slate-50" : "text-slate-600"}`}
+                                    >
+                                        <OptIcon className="w-3.5 h-3.5 text-slate-400" />
+                                        {opt.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* Overflow menu */}
+            <button
+                ref={moreBtnRef}
+                onClick={() => setMoreOpen((v) => !v)}
+                aria-label="Plus d’actions"
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
+            >
+                <MoreHorizontal className="w-5 h-5" />
+            </button>
+            <PopoverPanel open={moreOpen} onClose={() => setMoreOpen(false)} anchor={moreBtnRef} width={200} align="end">
+                <div className="py-1">
+                    <Link
+                        href={`/manager/clients/${client.id}`}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                        <ExternalLink className="w-4 h-4 text-slate-400" />
+                        Page détaillée
+                    </Link>
+                    <div className="border-t border-slate-100 my-1" />
+                    <button
+                        onClick={() => {
+                            setMoreOpen(false);
+                            setShowDeleteConfirm(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                        Supprimer le client
+                    </button>
+                </div>
+            </PopoverPanel>
+
+            {/* Close */}
             <button
                 onClick={onClose}
                 aria-label="Fermer"
-                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
             >
                 <X className="w-5 h-5" />
             </button>
-
-            <div className="flex items-start gap-5">
-                <div className="w-16 h-16 flex-shrink-0 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-500/25">
-                    {client.name[0]?.toUpperCase() || "?"}
-                </div>
-
-                <div className="flex-1 min-w-0 pr-10">
-                    <InlineText
-                        value={client.name}
-                        onSave={(v) => saveField({ name: v })}
-                        valueClassName="text-xl font-bold !text-slate-900"
-                        className="!mb-1"
-                    />
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                        {usersList.length > 0 ? (
-                            <Badge variant="success" className="gap-1 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5">
-                                <ShieldCheck className="w-3 h-3" />
-                                Portail actif
-                            </Badge>
-                        ) : (
-                            <Badge variant="outline" className="gap-1 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5">
-                                <ShieldAlert className="w-3 h-3" />
-                                Pas d’accès
-                            </Badge>
-                        )}
-                        <Badge variant="primary" className="gap-1 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5">
-                            <Calendar className="w-3 h-3" />
-                            Client depuis {new Date(client.createdAt).toLocaleDateString("fr-FR", {
-                                month: "short",
-                                year: "numeric",
-                            })}
-                        </Badge>
-                        {client.industry && (
-                            <Badge variant="default" className="gap-1 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5">
-                                <Briefcase className="w-3 h-3" />
-                                {client.industry}
-                            </Badge>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Quick stats strip */}
-            <div className="grid grid-cols-4 gap-3 mt-5">
-                <StatPill
-                    icon={<Target className="w-4 h-4" />}
-                    value={client._count.missions}
-                    label="Missions"
-                    tone="indigo"
-                />
-                <StatPill
-                    icon={<PlayCircle className="w-4 h-4" />}
-                    value={activeMissionsCount}
-                    label="Actives"
-                    tone="emerald"
-                />
-                <StatPill
-                    icon={<Users className="w-4 h-4" />}
-                    value={portalUsersCount}
-                    label="Portail"
-                    tone="amber"
-                />
-                <StatPill
-                    icon={<UserIcon className="w-4 h-4" />}
-                    value={interlocuteurs.length}
-                    label="Contacts"
-                    tone="slate"
-                />
-            </div>
-
-            {/* Primary actions bar */}
-            <div className="flex items-center gap-2 mt-4">
-                <Link
-                    href={`/manager/missions?clientId=${client.id}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
-                >
-                    <Plus className="w-4 h-4" />
-                    Nouvelle mission
-                </Link>
-                <Link
-                    href={`/manager/clients/${client.id}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
-                >
-                    <Settings2 className="w-4 h-4" />
-                    Gérer les accès
-                </Link>
-                <Link
-                    href={`/manager/clients/${client.id}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
-                >
-                    <ExternalLink className="w-4 h-4" />
-                    Page détaillée
-                </Link>
-                <div className="ml-auto flex items-center gap-2">
-                    <Button
-                        variant="ghost"
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                        <Trash2 className="w-4 h-4 mr-1.5" />
-                        Supprimer
-                    </Button>
-                </div>
-            </div>
         </div>
     );
 
@@ -675,28 +729,25 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                 </div>
             </SectionCard>
 
+            {/* Production — mission-derived, calm */}
             <SectionCard
-                title={`Production & engagement · ${formatMonth(production?.month)}`}
+                title={`Production · ${formatMonth(production?.month)}`}
                 icon={<CalendarDays className="w-3.5 h-3.5" />}
             >
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">
-                            Jours prévus / mois
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs text-slate-500">Jours prévus / mois</p>
+                        <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums">
+                            {production?.plannedMonthDays ?? "—"}
                         </p>
-                        <p className="mt-2 text-2xl font-bold text-slate-900">
-                            {production?.plannedMonthDays ?? "Non défini"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                            {production?.hasMonthlyPlan ? "Plan mensuel cumulé" : "Calculé depuis les jours / semaine"}
+                        <p className="mt-1 text-xs text-slate-400">
+                            {production?.hasMonthlyPlan ? "Plan mensuel cumulé" : "Depuis les jours / semaine"}
                         </p>
                     </div>
-                    <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-violet-500">
-                            Jours prévus / semaine
-                        </p>
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs text-slate-500">Jours prévus / semaine</p>
                         {onlyActivePlan ? (
-                            <div className="mt-2 max-w-[150px]">
+                            <div className="mt-1 max-w-[160px]">
                                 <InlineSelect
                                     value={String(onlyActivePlan.plan.frequency)}
                                     options={[1, 2, 3, 4, 5].map((day) => ({
@@ -707,81 +758,61 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                                 />
                             </div>
                         ) : (
-                            <p className="mt-2 text-2xl font-bold text-slate-900">
-                                {production?.plannedWeekDays ?? "Non défini"}
+                            <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums">
+                                {production?.plannedWeekDays ?? "—"}
                             </p>
                         )}
-                        <p className="mt-1 text-xs text-slate-500">Fréquence des missions actives</p>
+                        <p className="mt-1 text-xs text-slate-400">Fréquence des missions actives</p>
                     </div>
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">
-                            Jours avec appels
-                        </p>
-                        <p className="mt-2 text-2xl font-bold text-slate-900">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
+                        <p className="text-xs text-slate-500">Jours avec appels</p>
+                        <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums">
                             {production?.workedCallDays ?? production?.executedDays ?? 0}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-slate-400 tabular-nums">
                             {production?.totalCalls ?? 0} appels · {production?.totalMeetings ?? 0} RDV
                         </p>
                     </div>
-                    <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600">
-                            Engagement
-                        </p>
-                        <p className="mt-2 text-lg font-bold text-slate-900">
-                            {engagement ? `${engagement.dureeMois} mois` : "Sans engagement"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                            {engagement
-                                ? `${engagement.offreTarif.nom} · fin ${formatDate(engagement.fin)}`
-                                : "Aucun engagement actif"}
-                        </p>
-                    </div>
                 </div>
-                <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                            Début réel de mission
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-900">
-                            Premier appel : {production?.firstCallAt ? formatDate(production.firstCallAt) : "Aucun appel enregistré"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                            {production?.totalWorkedCallDays ?? 0} jour{(production?.totalWorkedCallDays ?? 0) > 1 ? "s" : ""} avec appels depuis le lancement.
-                        </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                            Engagements planning
-                        </p>
-                        {activeMissionPlans.length === 0 ? (
-                            <p className="text-sm text-slate-500">Aucun planning actif à modifier.</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {activeMissionPlans.map(({ mission, plan }) => (
-                                    <div key={plan.id} className="flex items-center justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-slate-800 truncate">{mission.name}</p>
-                                            <p className="text-xs text-slate-500">1 jour / semaine = 4 jours / mois</p>
-                                        </div>
-                                        <div className="w-36">
-                                            <InlineSelect
-                                                value={String(plan.frequency)}
-                                                options={[1, 2, 3, 4, 5].map((day) => ({
-                                                    value: String(day),
-                                                    label: `${day} j / sem.`,
-                                                }))}
-                                                onSave={(value) => savePlanFrequency(plan, Number(value))}
-                                                readOnly={savingPlanId === plan.id}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
+                <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                    <span className="font-medium text-slate-700">Premier appel :</span>
+                    <span className="tabular-nums">
+                        {production?.firstCallAt ? formatDate(production.firstCallAt) : "Aucun appel enregistré"}
+                    </span>
+                    <span className="text-slate-300">·</span>
+                    <span className="tabular-nums">
+                        {production?.totalWorkedCallDays ?? 0} jour{(production?.totalWorkedCallDays ?? 0) > 1 ? "s" : ""} travaillés depuis le lancement
+                    </span>
+                </div>
+                {activeMissionPlans.length > 1 && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                        <p className="text-xs text-slate-500">Planning par mission</p>
+                        {activeMissionPlans.map(({ mission, plan }) => (
+                            <div key={plan.id} className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-medium text-slate-800 truncate">{mission.name}</p>
+                                <div className="w-32 flex-shrink-0">
+                                    <InlineSelect
+                                        value={String(plan.frequency)}
+                                        options={[1, 2, 3, 4, 5].map((day) => ({
+                                            value: String(day),
+                                            label: `${day} j / sem.`,
+                                        }))}
+                                        onSave={(value) => savePlanFrequency(plan, Number(value))}
+                                        readOnly={savingPlanId === plan.id}
+                                    />
+                                </div>
                             </div>
-                        )}
+                        ))}
                     </div>
-                </div>
+                )}
             </SectionCard>
+
+            {/* Engagement — editable */}
+            <EngagementSection
+                engagement={engagement ?? null}
+                clientId={client.id}
+                onChanged={refreshClientQueries}
+            />
 
             {/* ICP / Persona */}
             <SectionCard title="Persona idéal (ICP)" icon={<Sparkles className="w-3.5 h-3.5" />}>
@@ -793,55 +824,6 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                     valueClassName="!whitespace-pre-wrap !text-slate-700 !font-normal leading-relaxed"
                 />
             </SectionCard>
-
-            {/* Portail client + notifications */}
-            <div className="grid grid-cols-2 gap-5">
-                <SectionCard title="Portail client" icon={<ShieldCheck className="w-3.5 h-3.5" />} muted>
-                    <div className="space-y-1">
-                        <InlineToggle
-                            label="Historique d’appels"
-                            description="Afficher à ce client l’historique de tous ses appels"
-                            value={!!client.portalShowCallHistory}
-                            onSave={(v) => saveField({ portalShowCallHistory: v })}
-                        />
-                        <InlineToggle
-                            label="Base de données"
-                            description="Afficher à ce client la liste des contacts et entreprises ciblés"
-                            value={!!client.portalShowDatabase}
-                            onSave={(v) => saveField({ portalShowDatabase: v })}
-                        />
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="Notifications" icon={<Inbox className="w-3.5 h-3.5" />} muted>
-                    <div className="space-y-1">
-                        <InlineToggle
-                            label="Emails de RDV"
-                            description="Envoyer un email au client à chaque nouveau rendez-vous"
-                            value={client.rdvEmailNotificationsEnabled !== false}
-                            onSave={(v) => saveField({ rdvEmailNotificationsEnabled: v })}
-                        />
-                        <div className="pt-2">
-                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                                Boîte mail par défaut
-                            </p>
-                            <InlineSelect
-                                value={defaultMailboxId}
-                                placeholder="Aucune — le SDR choisit"
-                                options={[
-                                    { value: "", label: "Aucune — le SDR choisit", icon: <CircleDashed className="w-3.5 h-3.5" /> },
-                                    ...mailboxes.map((mb) => ({
-                                        value: mb.id,
-                                        label: mb.displayName ? `${mb.displayName} <${mb.email}>` : mb.email,
-                                        icon: <Mail className="w-3.5 h-3.5 text-indigo-500" />,
-                                    })),
-                                ]}
-                                onSave={(v) => saveField({ defaultMailboxId: v })}
-                            />
-                        </div>
-                    </div>
-                </SectionCard>
-            </div>
         </div>
     );
 
@@ -994,6 +976,22 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                         value={client.rdvEmailNotificationsEnabled !== false}
                         onSave={(v) => saveField({ rdvEmailNotificationsEnabled: v })}
                     />
+                    <div className="pt-3 mt-2 border-t border-slate-100">
+                        <p className="text-xs text-slate-500 mb-1.5">Boîte mail par défaut</p>
+                        <InlineSelect
+                            value={defaultMailboxId}
+                            placeholder="Aucune — le SDR choisit"
+                            options={[
+                                { value: "", label: "Aucune — le SDR choisit", icon: <CircleDashed className="w-3.5 h-3.5" /> },
+                                ...mailboxes.map((mb) => ({
+                                    value: mb.id,
+                                    label: mb.displayName ? `${mb.displayName} <${mb.email}>` : mb.email,
+                                    icon: <Mail className="w-3.5 h-3.5 text-indigo-500" />,
+                                })),
+                            ]}
+                            onSave={(v) => saveField({ defaultMailboxId: v })}
+                        />
+                    </div>
                 </div>
             </SectionCard>
         </div>
@@ -1728,6 +1726,310 @@ function ScriptModal({ mission, onClose }: { mission: MissionLite | null; onClos
                     </div>
                 </div>
             )}
+        </Modal>
+    );
+}
+
+// ============================================================================
+// ENGAGEMENT SECTION (inline-editable + create + renew)
+// ============================================================================
+
+function EngagementSection({
+    engagement,
+    clientId,
+    onChanged,
+}: {
+    engagement: ClientEngagementInsights | null;
+    clientId: string;
+    onChanged: () => void;
+}) {
+    const { success, error: showError } = useToast();
+    const [modal, setModal] = useState<null | "create" | "renew">(null);
+
+    const saveEngagementField = async (patch: Record<string, unknown>) => {
+        if (!engagement) return;
+        const res = await fetch(`/api/billing/engagements/${engagement.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(patch),
+        });
+        const json = await res.json();
+        if (!json.success) {
+            showError("Erreur", json.error || "Impossible de mettre à jour l’engagement");
+            throw new Error(json.error);
+        }
+        success("Engagement mis à jour", "Modifications enregistrées");
+        onChanged();
+    };
+
+    const offerName = engagement?.offreTarif?.nom ?? "—";
+
+    return (
+        <>
+            <SectionCard
+                title="Engagement"
+                icon={<Receipt className="w-3.5 h-3.5" />}
+                action={
+                    engagement ? (
+                        <button
+                            onClick={() => setModal("renew")}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 text-xs font-medium transition-colors"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Renouveler
+                        </button>
+                    ) : null
+                }
+            >
+                {!engagement ? (
+                    <div className="text-center py-6">
+                        <Receipt className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-sm text-slate-600">Aucun engagement pour ce client.</p>
+                        <button
+                            onClick={() => setModal("create")}
+                            className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+                        >
+                            <Plus className="w-4 h-4" /> Créer un engagement
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {/* Top row: offer + status + dates */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3">
+                            <div>
+                                <p className="text-xs text-slate-500">Offre</p>
+                                <p className="mt-0.5 text-sm font-medium text-slate-900 truncate">{offerName}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500 mb-1">Statut</p>
+                                <InlineSelect
+                                    value={engagement.statut}
+                                    asPill
+                                    options={ENGAGEMENT_STATUT_OPTIONS}
+                                    onSave={(v) => saveEngagementField({ statut: v })}
+                                />
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500">Durée</p>
+                                <p className="mt-0.5 text-sm font-medium text-slate-900 tabular-nums">
+                                    {engagement.dureeMois} mois
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500">Période</p>
+                                <p className="mt-0.5 text-sm font-medium text-slate-900 tabular-nums">
+                                    {formatDate(engagement.debut)} → {formatDate(engagement.fin)}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Pricing overrides */}
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-3 pt-3 border-t border-slate-100">
+                            <InlineText
+                                label={`Fixe mensuel (défaut ${formatEuro(engagement.offreTarif?.fixeMensuel)})`}
+                                value={toNumber(engagement.fixeOverride)?.toString() ?? ""}
+                                type="number"
+                                placeholder={formatEuro(engagement.offreTarif?.fixeMensuel)}
+                                onSave={(v) =>
+                                    saveEngagementField({ fixeOverride: v.trim() === "" ? null : Number(v) })
+                                }
+                            />
+                            <InlineText
+                                label={`Prix par RDV (défaut ${formatEuro(engagement.offreTarif?.prixParRdv)})`}
+                                value={toNumber(engagement.rdvOverride)?.toString() ?? ""}
+                                type="number"
+                                placeholder={formatEuro(engagement.offreTarif?.prixParRdv)}
+                                onSave={(v) =>
+                                    saveEngagementField({ rdvOverride: v.trim() === "" ? null : Number(v) })
+                                }
+                            />
+                        </div>
+
+                        {/* Terms */}
+                        <div className="grid grid-cols-1 gap-3 pt-3 border-t border-slate-100">
+                            <InlineText
+                                label="Conditions de renouvellement"
+                                value={engagement.renouvellement || ""}
+                                placeholder="Tacite reconduction, préavis, etc."
+                                multiline
+                                onSave={(v) => saveEngagementField({ renouvellement: v })}
+                                valueClassName="!whitespace-pre-wrap !text-slate-700 !font-normal leading-relaxed"
+                            />
+                            <InlineText
+                                label="Pénalité de résiliation"
+                                value={engagement.penaliteResiliation || ""}
+                                placeholder="Conditions de résiliation anticipée"
+                                multiline
+                                onSave={(v) => saveEngagementField({ penaliteResiliation: v })}
+                                valueClassName="!whitespace-pre-wrap !text-slate-700 !font-normal leading-relaxed"
+                            />
+                        </div>
+                    </div>
+                )}
+            </SectionCard>
+
+            <EngagementModal
+                mode={modal}
+                clientId={clientId}
+                engagement={engagement}
+                onClose={() => setModal(null)}
+                onSaved={() => {
+                    setModal(null);
+                    onChanged();
+                }}
+            />
+        </>
+    );
+}
+
+function EngagementModal({
+    mode,
+    clientId,
+    engagement,
+    onClose,
+    onSaved,
+}: {
+    mode: null | "create" | "renew";
+    clientId: string;
+    engagement: ClientEngagementInsights | null;
+    onClose: () => void;
+    onSaved: () => void;
+}) {
+    const { success, error: showError } = useToast();
+    const [offreTarifId, setOffreTarifId] = useState("");
+    const [dureeMois, setDureeMois] = useState(3);
+    const [debut, setDebut] = useState(() => new Date().toISOString().slice(0, 10));
+    const [isSaving, setIsSaving] = useState(false);
+
+    const { data: offres = [] } = useQuery({
+        queryKey: ["billing", "offres", "selectable"],
+        queryFn: async () => {
+            const res = await fetch("/api/billing/offres");
+            const json = await res.json();
+            if (!json.success || !Array.isArray(json.data)) return [];
+            return json.data as Array<{ id: string; nom: string; fixeMensuel: number; prixParRdv: number }>;
+        },
+        enabled: mode === "create",
+        staleTime: 60_000,
+    });
+
+    useEffect(() => {
+        // Reset form each time the modal opens
+        if (mode) {
+            setDureeMois(mode === "renew" ? engagement?.dureeMois ?? 3 : 3);
+            setDebut(new Date().toISOString().slice(0, 10));
+            setOffreTarifId("");
+        }
+    }, [mode, engagement?.dureeMois]);
+
+    const submit = async () => {
+        setIsSaving(true);
+        try {
+            if (mode === "create") {
+                if (!offreTarifId) {
+                    showError("Offre requise", "Sélectionnez une offre tarifaire");
+                    return;
+                }
+                const res = await fetch("/api/billing/engagements", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ clientId, offreTarifId, dureeMois, debut }),
+                });
+                const json = await res.json();
+                if (!json.success) {
+                    showError("Erreur", json.error || "Impossible de créer l’engagement");
+                    return;
+                }
+                success("Engagement créé", "Le nouvel engagement a été enregistré");
+                onSaved();
+            } else if (mode === "renew" && engagement) {
+                const res = await fetch(`/api/billing/engagements/${engagement.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ nouveauDebut: debut, nouvelleDureeMois: dureeMois }),
+                });
+                const json = await res.json();
+                if (!json.success) {
+                    showError("Erreur", json.error || "Impossible de renouveler l’engagement");
+                    return;
+                }
+                success("Engagement renouvelé", "Les nouvelles dates ont été enregistrées");
+                onSaved();
+            }
+        } catch {
+            showError("Erreur", "Une erreur est survenue");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const durationOptions = [1, 2, 3, 6, 9, 12, 18, 24, 36];
+
+    return (
+        <Modal
+            isOpen={!!mode}
+            onClose={onClose}
+            title={mode === "renew" ? "Renouveler l’engagement" : "Créer un engagement"}
+            description={
+                mode === "renew"
+                    ? "Définissez la nouvelle date de début et la durée."
+                    : "Choisissez une offre tarifaire, la durée et la date de début."
+            }
+            size="md"
+        >
+            <div className="space-y-4">
+                {mode === "create" && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Offre tarifaire</label>
+                        <select
+                            value={offreTarifId}
+                            onChange={(e) => setOffreTarifId(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                        >
+                            <option value="">Sélectionner une offre…</option>
+                            {offres.map((o) => (
+                                <option key={o.id} value={o.id}>
+                                    {o.nom} · {Number(o.fixeMensuel).toLocaleString("fr-FR")} € / mois
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Date de début</label>
+                        <DatePicker value={debut} onChange={setDebut} />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Durée (mois)</label>
+                        <select
+                            value={String(dureeMois)}
+                            onChange={(e) => setDureeMois(Number(e.target.value))}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                        >
+                            {durationOptions.map((m) => (
+                                <option key={m} value={m}>
+                                    {m} mois
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                    <Button variant="ghost" onClick={onClose} disabled={isSaving}>
+                        Annuler
+                    </Button>
+                    <Button variant="primary" onClick={submit} disabled={isSaving}>
+                        {isSaving
+                            ? "Enregistrement…"
+                            : mode === "renew"
+                            ? "Renouveler"
+                            : "Créer l’engagement"}
+                    </Button>
+                </div>
+            </div>
         </Modal>
     );
 }

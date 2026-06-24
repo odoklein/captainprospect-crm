@@ -147,18 +147,21 @@ export const GET = withErrorHandler(async (
         prisma.engagement.findFirst({
             where: {
                 clientId: id,
-                statut: { in: ['ACTIF', 'RENOUVELE'] },
             },
             orderBy: { debut: 'desc' },
             select: {
                 id: true,
+                offreTarifId: true,
                 dureeMois: true,
                 debut: true,
                 fin: true,
                 statut: true,
                 renouvellement: true,
+                penaliteResiliation: true,
+                fixeOverride: true,
+                rdvOverride: true,
                 offreTarif: {
-                    select: { nom: true },
+                    select: { id: true, nom: true, fixeMensuel: true, prixParRdv: true },
                 },
             },
         }),
