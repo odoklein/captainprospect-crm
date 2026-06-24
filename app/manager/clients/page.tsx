@@ -22,7 +22,6 @@ import {
     ChevronDown,
     ChevronUp,
     Clock,
-    CalendarDays,
     Pause,
     PlayCircle,
     Ban,
@@ -30,7 +29,6 @@ import {
 import Link from "next/link";
 import { ClientOnboardingModal } from "@/components/manager/ClientOnboardingModal";
 import { ClientDrawer } from "@/components/drawers";
-import { OnboardingReadinessGauge } from "@/components/common/OnboardingReadinessGauge";
 import { CLIENTS_QUERY_KEY, LEEXI_RECAPS_QUERY_KEY } from "@/lib/query-keys";
 
 // ============================================
@@ -103,11 +101,58 @@ interface LeexiRecapsData {
     totalMatched: number;
 }
 
-const STATUS_CONFIG: Record<ClientStatus, { label: string; badge: string; dot: string; icon: typeof PlayCircle }> = {
-    ACTIVE: { label: "Actif", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", icon: PlayCircle },
-    PAUSED: { label: "En Pause", badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500", icon: Pause },
-    STOPPED: { label: "Arrêté", badge: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500", icon: Ban },
+const STATUS_CONFIG: Record<
+    ClientStatus,
+    { label: string; badge: string; dot: string; surface: string; rule: string; muted: boolean; icon: typeof PlayCircle }
+> = {
+    ACTIVE: {
+        label: "Actif",
+        badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        dot: "bg-emerald-500",
+        surface: "bg-white",
+        rule: "bg-emerald-400",
+        muted: false,
+        icon: PlayCircle,
+    },
+    PAUSED: {
+        label: "En pause",
+        badge: "bg-amber-50 text-amber-700 border-amber-200",
+        dot: "bg-amber-500",
+        surface: "bg-amber-50/30",
+        rule: "bg-amber-400",
+        muted: false,
+        icon: Pause,
+    },
+    STOPPED: {
+        label: "Arrêté",
+        badge: "bg-slate-100 text-slate-600 border-slate-200",
+        dot: "bg-slate-400",
+        surface: "bg-slate-50",
+        rule: "bg-slate-300",
+        muted: true,
+        icon: Ban,
+    },
 };
+
+function getActiveMission(missions: ClientMission[] | undefined): ClientMission | null {
+    if (!missions || missions.length === 0) return null;
+    return missions.find((m) => m.isActive && m.status === "ACTIVE") ?? missions[0];
+}
+
+function daysUntil(dateStr: string): number {
+    return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
+}
+
+function StatTile({ label, value, alert = false }: { label: string; value: number; alert?: boolean }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3.5">
+            <p className={`text-2xl font-semibold tabular-nums ${alert && value > 0 ? "text-amber-600" : "text-slate-900"}`}>
+                {value}
+            </p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">{label}</p>
+        </div>
+    );
+}
 
 // ============================================
 // FETCHERS
@@ -206,8 +251,14 @@ export default function ClientsPage() {
     // ============================================
 
     const totalClients = clients.length;
-    const totalMissions = clients.reduce((acc, c) => acc + c._count.missions, 0);
-    const totalUsers = clients.reduce((acc, c) => acc + c._count.users, 0);
+    const totalRdv = clients.reduce((acc, c) => acc + (c.insights?.production?.totalMeetings ?? 0), 0);
+    const endingSoon = clients.filter((c) => {
+        const m = getActiveMission(c.missions);
+        if (!m) return false;
+        const ended = !m.isActive || m.status !== "ACTIVE";
+        const d = daysUntil(m.endDate);
+        return !ended && d >= 0 && d <= 30;
+    }).length;
 
     const getClientRecapCount = (clientId: string) => {
         if (!leexiData) return 0;
@@ -322,41 +373,12 @@ export default function ClientsPage() {
                 </div>
             </div>
 
-            {/* Premium Stats */}
-            <div className="grid grid-cols-3 gap-5">
-                <div className="mgr-stat-card bg-gradient-to-br from-indigo-50 to-white">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center">
-                            <Building2 className="w-7 h-7 text-indigo-600" />
-                        </div>
-                        <div>
-                            <p className="text-3xl font-bold text-slate-900">{totalClients}</p>
-                            <p className="text-sm font-medium text-slate-500">Clients totaux</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="mgr-stat-card bg-gradient-to-br from-emerald-50 to-white">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
-                            <Target className="w-7 h-7 text-emerald-600" />
-                        </div>
-                        <div>
-                            <p className="text-3xl font-bold text-slate-900">{totalMissions}</p>
-                            <p className="text-sm font-medium text-slate-500">Missions totales</p>
-                        </div>
-                    </div>
-                </div>
-                <div className="mgr-stat-card bg-gradient-to-br from-amber-50 to-white">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center">
-                            <Users className="w-7 h-7 text-amber-600" />
-                        </div>
-                        <div>
-                            <p className="text-3xl font-bold text-slate-900">{totalUsers}</p>
-                            <p className="text-sm font-medium text-slate-500">Utilisateurs connectés</p>
-                        </div>
-                    </div>
-                </div>
+            {/* Stats — calm, mission-aware */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatTile label="Clients" value={totalClients} />
+                <StatTile label="Actifs" value={statusCounts.ACTIVE} />
+                <StatTile label="RDV générés" value={totalRdv} />
+                <StatTile label="Mission · fin ≤ 30j" value={endingSoon} alert />
             </div>
 
             {/* Status filter tabs */}
@@ -599,192 +621,169 @@ export default function ClientsPage() {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-in fade-in duration-500">
-                    {filteredClients.map((client, index) => {
+                    {filteredClients.map((client) => {
                         const recapCount = getClientRecapCount(client.id);
                         const hasPortal = client._count.users > 0;
-                        const recapPercent = Math.min(100, recapCount * 10);
                         const production = client.insights?.production;
                         const status = client.status || "ACTIVE";
                         const statusInfo = STATUS_CONFIG[status];
-                        const StatusIcon = statusInfo.icon;
                         const isMenuOpen = statusMenuClientId === client.id;
+
+                        // Mission — the heart of the card
+                        const mission = getActiveMission(client.missions);
+                        const missionEnded = mission ? !mission.isActive || mission.status !== "ACTIVE" : false;
+                        const missionDays = mission ? daysUntil(mission.endDate) : null;
+                        const worked = production?.workedCallDays ?? 0;
+                        const planned = production?.plannedMonthDays ?? null;
+                        const progressPct = planned && planned > 0 ? Math.min(100, Math.round((worked / planned) * 100)) : 0;
 
                         return (
                             <div
                                 key={client.id}
                                 onClick={() => handleClientClick(client)}
-                                className="group bg-white rounded-xl border border-slate-200 p-3.5 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-100/50 transition-all duration-300 cursor-pointer flex flex-col relative overflow-hidden"
-                                style={{ animationDelay: `${index * 50}ms` }}
+                                className={`group relative flex flex-col rounded-xl border border-slate-200 ${statusInfo.surface} ${statusInfo.muted ? "opacity-75 hover:opacity-100" : ""} hover:border-indigo-300 hover:shadow-sm transition-colors cursor-pointer overflow-hidden`}
                             >
-                                <div className="absolute top-0 left-0 w-1 bg-indigo-500 h-0 group-hover:h-full transition-all duration-300"></div>
+                                {/* status rule */}
+                                <div className={`absolute inset-y-0 left-0 w-0.5 ${statusInfo.rule}`} />
 
-                                <div className="flex items-start justify-between mb-2.5">
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-50 to-indigo-100/50 flex items-center justify-center border border-indigo-100/50 flex-shrink-0 group-hover:scale-105 transition-transform">
-                                            <Building2 className="w-4 h-4 text-indigo-600" />
+                                <div className="flex flex-col gap-3.5 p-4">
+                                    {/* Header */}
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 text-sm font-semibold text-slate-500">
+                                                {client.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h3 className="text-[15px] font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                                                    {client.name}
+                                                </h3>
+                                                <p className="text-xs text-slate-500 truncate">
+                                                    {client.industry || "Secteur non spécifié"}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <h3 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
-                                                {client.name}
-                                            </h3>
-                                            <p className="text-[11px] text-slate-500 font-medium truncate">
-                                                {client.industry || "Secteur non spécifié"}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {hasPortal ? (
-                                        <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-none px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase flex-shrink-0">
-                                            Portail
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline" className="text-slate-400 border-slate-200 text-[9px] font-medium px-2 py-0.5 tracking-wide uppercase flex-shrink-0">
-                                            Sans accès
-                                        </Badge>
-                                    )}
-                                </div>
 
-                                {/* Status quick action */}
-                                <div className="relative mb-2.5">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setStatusMenuClientId(isMenuOpen ? null : client.id);
-                                        }}
-                                        disabled={updatingStatusId === client.id}
-                                        className={`w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-colors ${statusInfo.badge} hover:opacity-80 disabled:opacity-50`}
-                                    >
-                                        <span className="flex items-center gap-1.5">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
-                                            {statusInfo.label}
-                                        </span>
-                                        {updatingStatusId === client.id ? (
-                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                            <ChevronDown className="w-3 h-3" />
-                                        )}
-                                    </button>
-
-                                    {isMenuOpen && (
-                                        <>
-                                            <div
-                                                className="fixed inset-0 z-40"
+                                        {/* Status pill — clickable */}
+                                        <div className="relative flex-shrink-0">
+                                            <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setStatusMenuClientId(null);
+                                                    setStatusMenuClientId(isMenuOpen ? null : client.id);
                                                 }}
-                                            />
-                                            <div
-                                                className="absolute left-0 top-full mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden"
-                                                onClick={(e) => e.stopPropagation()}
+                                                disabled={updatingStatusId === client.id}
+                                                className={`flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-md border text-[11px] font-medium transition-colors ${statusInfo.badge} hover:brightness-95 disabled:opacity-50`}
                                             >
-                                                {(Object.keys(STATUS_CONFIG) as ClientStatus[]).map((key) => {
-                                                    const opt = STATUS_CONFIG[key];
-                                                    const OptIcon = opt.icon;
-                                                    return (
-                                                        <button
-                                                            key={key}
-                                                            onClick={() => handleStatusChange(client.id, key)}
-                                                            className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-colors ${key === status ? "text-slate-900 bg-slate-50" : "text-slate-600"}`}
-                                                        >
-                                                            <OptIcon className="w-3.5 h-3.5" />
-                                                            {opt.label}
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </>
-                                    )}
+                                                <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                                                {statusInfo.label}
+                                                {updatingStatusId === client.id ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    <ChevronDown className="w-3 h-3 opacity-60" />
+                                                )}
+                                            </button>
+
+                                            {isMenuOpen && (
+                                                <>
+                                                    <div
+                                                        className="fixed inset-0 z-40"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setStatusMenuClientId(null);
+                                                        }}
+                                                    />
+                                                    <div
+                                                        className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        {(Object.keys(STATUS_CONFIG) as ClientStatus[]).map((key) => {
+                                                            const opt = STATUS_CONFIG[key];
+                                                            const OptIcon = opt.icon;
+                                                            return (
+                                                                <button
+                                                                    key={key}
+                                                                    onClick={() => handleStatusChange(client.id, key)}
+                                                                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-colors ${key === status ? "text-slate-900 bg-slate-50" : "text-slate-600"}`}
+                                                                >
+                                                                    <OptIcon className="w-3.5 h-3.5 text-slate-400" />
+                                                                    {opt.label}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Mission — hero */}
+                                    <div className="space-y-1.5">
+                                        <div className="flex items-baseline justify-between">
+                                            <span className="text-xs text-slate-500">Jours travaillés · ce mois</span>
+                                            <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                                                {worked}
+                                                <span className="font-normal text-slate-400"> / {planned ?? "—"}</span>
+                                            </span>
+                                        </div>
+                                        <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${progressPct}%` }} />
+                                        </div>
+                                        {/* Mission end — color only when it matters */}
+                                        {mission ? (
+                                            <p
+                                                className={`text-xs font-medium ${
+                                                    missionEnded
+                                                        ? "text-red-500"
+                                                        : missionDays !== null && missionDays <= 30
+                                                        ? "text-amber-600"
+                                                        : "text-slate-500"
+                                                }`}
+                                            >
+                                                {missionEnded
+                                                    ? `Mission terminée le ${new Date(mission.endDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}`
+                                                    : missionDays !== null && missionDays <= 30
+                                                    ? `Mission · fin dans ${missionDays}j`
+                                                    : `Mission · fin le ${new Date(mission.endDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`}
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-slate-400">Aucune mission</p>
+                                        )}
+                                    </div>
+
+                                    {/* Secondary stats — quiet inline */}
+                                    <div className="flex items-center gap-4 text-xs text-slate-600">
+                                        <span className="flex items-center gap-1.5">
+                                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className="font-semibold tabular-nums text-slate-900">{production?.totalCalls ?? 0}</span>
+                                            <span className="text-slate-400">appels</span>
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <Target className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className="font-semibold tabular-nums text-slate-900">{production?.totalMeetings ?? 0}</span>
+                                            <span className="text-slate-400">RDV</span>
+                                        </span>
+                                        <span className="flex items-center gap-1.5">
+                                            <Users className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className="font-semibold tabular-nums text-slate-900">{client._count.users}</span>
+                                        </span>
+                                    </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-2 mb-2.5 p-2 rounded-lg bg-slate-50/80 border border-slate-100/50">
-                                    <div className="flex flex-col">
-                                        <span className="text-lg font-bold text-slate-800">{client._count.missions}</span>
-                                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1"><Target className="w-3 h-3 text-emerald-500" /> Missions</span>
+                                {/* Footer */}
+                                <div className="mt-auto flex items-center justify-between px-4 py-2.5 border-t border-slate-100">
+                                    <div className="flex items-center gap-1.5">
+                                        {hasPortal && (
+                                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">Portail</span>
+                                        )}
+                                        {recapCount > 0 && (
+                                            <span className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                                                <Mic className="w-2.5 h-2.5" />
+                                                {recapCount}
+                                            </span>
+                                        )}
                                     </div>
-                                    <div className="flex flex-col border-l border-slate-200/60 pl-2">
-                                        <span className="text-lg font-bold text-slate-800">{client._count.users}</span>
-                                        <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1"><Users className="w-3 h-3 text-amber-500" /> Interlocuteurs</span>
-                                    </div>
-                                </div>
-
-                                {(client.readiness || recapCount > 0) && (
-                                    <div className="mb-2.5 space-y-2.5">
-                                {client.readiness && (
-                                    <OnboardingReadinessGauge
-                                        readiness={client.readiness}
-                                        size="sm"
-                                        showLabels={false}
-                                    />
-                                )}
-                                {recapCount > 0 && (
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-[11px] font-semibold text-slate-700 flex items-center gap-1"><Mic className="w-3 h-3 text-violet-500" /> Récaps Leexi</span>
-                                                <span className="text-[10px] font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100">
-                                                    {recapCount}
-                                                </span>
-                                            </div>
-                                            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-violet-400 to-indigo-500 rounded-full"
-                                                    style={{ width: `${recapPercent}%`, transition: "width 1s ease-in-out" }}
-                                                />
-                                            </div>
-                                        </div>
-                                )}
-                                    </div>
-                                )}
-
-                                <div className="mt-auto pt-2.5 border-t border-slate-100 space-y-1">
-                                    <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-                                        <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1.5">
-                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Jours travaillés</span>
-                                            <div className="mt-0.5 flex items-baseline gap-1">
-                                                <span className="text-sm font-bold text-slate-900">{production?.workedCallDays ?? 0}</span>
-                                                <span className="text-[10px] text-slate-500">/ {production?.plannedMonthDays ?? "—"}</span>
-                                            </div>
-                                        </div>
-                                        <div className="rounded-lg border border-slate-100 bg-slate-50/70 px-2 py-1.5">
-                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Appels / RDV</span>
-                                            <div className="mt-0.5 flex items-baseline gap-1">
-                                                <span className="text-sm font-bold text-slate-900">{production?.totalCalls ?? 0}</span>
-                                                <span className="text-[10px] text-slate-500">/ {production?.totalMeetings ?? 0}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1 text-[11px] font-medium text-indigo-600 truncate">
-                                        <CalendarDays className="w-3 h-3 flex-shrink-0" />
-                                        <span className="truncate">
-                                            {production?.firstCallAt
-                                                ? new Date(production.firstCallAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
-                                                : "Aucun appel"}
-                                        </span>
-                                    </div>
-                                    {(() => {
-                                        const activeMission = client.missions?.find((m) => m.isActive && m.status === "ACTIVE");
-                                        const latestMission = client.missions?.[0];
-                                        const displayMission = activeMission ?? latestMission;
-                                        if (!displayMission) return null;
-                                        const ended = !displayMission.isActive || displayMission.status !== "ACTIVE";
-                                        const endDate = new Date(displayMission.endDate);
-                                        return (
-                                            <div className={`flex items-center gap-1 text-[11px] font-medium ${ended ? "text-red-400" : "text-emerald-600"}`}>
-                                                <Clock className="w-3 h-3 flex-shrink-0" />
-                                                <span className="truncate">
-                                                    {ended ? "Terminée le " : "Fin : "}
-                                                    {endDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
-                                                </span>
-                                            </div>
-                                        );
-                                    })()}
-                                    <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
-                                        <span className="flex items-center gap-1">
-                                            <Clock className="w-3 h-3" /> {new Date(client.createdAt).toLocaleDateString("fr-FR")}
-                                        </span>
-                                        <span className="text-indigo-600 font-semibold opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all flex items-center gap-1">
-                                            Gérer <ArrowRight className="w-3 h-3" />
-                                        </span>
-                                    </div>
+                                    <span className="flex items-center gap-1 text-xs font-medium text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                        Gérer <ArrowRight className="w-3.5 h-3.5" />
+                                    </span>
                                 </div>
                             </div>
                         );
