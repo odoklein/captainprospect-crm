@@ -136,6 +136,7 @@ export default function ClientsPage() {
     const queryClient = useQueryClient();
     const { error: showError } = useToast();
     const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState<ClientStatus | "ALL">("ALL");
 
     // Onboarding modal
     const [showOnboardingModal, setShowOnboardingModal] = useState(false);
@@ -183,9 +184,21 @@ export default function ClientsPage() {
     // FILTER CLIENTS
     // ============================================
 
-    const filteredClients = clients.filter(client =>
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.industry?.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredClients = clients.filter(client => {
+        const matchesSearch =
+            client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            client.industry?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === "ALL" || (client.status || "ACTIVE") === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    const statusCounts = clients.reduce(
+        (acc, c) => {
+            const s = c.status || "ACTIVE";
+            acc[s] = (acc[s] || 0) + 1;
+            return acc;
+        },
+        { ACTIVE: 0, PAUSED: 0, STOPPED: 0 } as Record<ClientStatus, number>
     );
 
     // ============================================
@@ -344,6 +357,38 @@ export default function ClientsPage() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Status filter tabs */}
+            <div className="flex items-center gap-1.5 border-b border-slate-200">
+                {([
+                    { key: "ALL", label: "Tous", count: totalClients },
+                    { key: "ACTIVE", label: STATUS_CONFIG.ACTIVE.label, count: statusCounts.ACTIVE },
+                    { key: "PAUSED", label: STATUS_CONFIG.PAUSED.label, count: statusCounts.PAUSED },
+                    { key: "STOPPED", label: STATUS_CONFIG.STOPPED.label, count: statusCounts.STOPPED },
+                ] as const).map((tab) => {
+                    const isActive = statusFilter === tab.key;
+                    return (
+                        <button
+                            key={tab.key}
+                            onClick={() => setStatusFilter(tab.key)}
+                            className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors -mb-px border-b-2 ${
+                                isActive
+                                    ? "text-indigo-600 border-indigo-600"
+                                    : "text-slate-500 border-transparent hover:text-slate-700"
+                            }`}
+                        >
+                            {tab.label}
+                            <span
+                                className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                    isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-500"
+                                }`}
+                            >
+                                {tab.count}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Premium Search */}
@@ -533,14 +578,16 @@ export default function ClientsPage() {
                         <Building2 className="w-8 h-8 text-slate-400" />
                     </div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                        {searchQuery ? "Aucun résultat trouvé" : "Aucun client"}
+                        {searchQuery || statusFilter !== "ALL" ? "Aucun résultat trouvé" : "Aucun client"}
                     </h3>
                     <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
                         {searchQuery
                             ? "Essayez de modifier vos termes de recherche."
+                            : statusFilter !== "ALL"
+                            ? `Aucun client avec le statut "${STATUS_CONFIG[statusFilter].label}".`
                             : "Commencez par ajouter votre premier client."}
                     </p>
-                    {!searchQuery && (
+                    {!searchQuery && statusFilter === "ALL" && (
                         <button
                             onClick={() => setShowOnboardingModal(true)}
                             className="mgr-btn-primary inline-flex items-center gap-2"
