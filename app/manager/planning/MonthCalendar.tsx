@@ -544,10 +544,12 @@ export function MonthCalendar() {
 
         try {
             for (const block of weekBlocks) {
-                // Shift date by +7 days
-                const sourceDate = new Date(block.date + 'T00:00:00');
-                sourceDate.setDate(sourceDate.getDate() + 7);
-                const nextDate = `${sourceDate.getFullYear()}-${String(sourceDate.getMonth() + 1).padStart(2, '0')}-${String(sourceDate.getDate()).padStart(2, '0')}`;
+                // Shift date by +7 days. block.date is already a full ISO timestamp
+                // (matches how blocksByDate keys are derived server-side), so use UTC-based
+                // arithmetic instead of re-parsing it as a local date string.
+                const sourceDate = new Date(block.date);
+                sourceDate.setUTCDate(sourceDate.getUTCDate() + 7);
+                const nextDate = sourceDate.toISOString().slice(0, 10);
 
                 try {
                     const res = await fetch('/api/planning', {
