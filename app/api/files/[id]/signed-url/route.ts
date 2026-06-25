@@ -8,6 +8,7 @@ import {
     withErrorHandler,
     NotFoundError,
 } from "@/lib/api-utils";
+import { canReadFile } from "@/lib/files/permissions";
 
 // ============================================
 // GET /api/files/[id]/signed-url - Temporary file access URL
@@ -17,7 +18,7 @@ export const GET = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) => {
-    await requireAuth(request);
+    const session = await requireAuth(request);
     const { id } = await params;
     const { searchParams } = new URL(request.url);
 
@@ -29,6 +30,8 @@ export const GET = withErrorHandler(async (
     const file = await prisma.file.findUnique({
         where: { id },
         select: {
+            uploadedById: true,
+            clientId: true,
             path: true,
             originalName: true,
             deletedAt: true,
@@ -37,6 +40,10 @@ export const GET = withErrorHandler(async (
 
     if (!file || file.deletedAt) {
         throw new NotFoundError("Fichier introuvable");
+    }
+
+    if (!canReadFile(session.user, file)) {
+        return errorResponse("Vous n'avez pas la permission d'accéder à ce fichier", 403);
     }
 
     const url = await storageService.getSignedUrl(file.path, expiresIn);

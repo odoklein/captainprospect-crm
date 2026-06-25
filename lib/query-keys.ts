@@ -3,6 +3,10 @@
  */
 export const CLIENTS_QUERY_KEY = ["manager", "clients"] as const;
 export const LEEXI_RECAPS_QUERY_KEY = ["manager", "leexi", "recaps"] as const;
+export const MANAGER_FILES_QUERY_KEY = ["manager", "files"] as const;
+export const MANAGER_FOLDERS_QUERY_KEY = ["manager", "folders"] as const;
+export const MANAGER_DRIVE_QUERY_KEY = ["manager", "drive"] as const;
+export const CLIENT_FILES_QUERY_KEY = ["client", "files"] as const;
 
 export function clientDetailQueryKey(clientId: string | null) {
     return ["manager", "client", clientId] as const;

@@ -8,6 +8,7 @@ import {
     AuthError,
     NotFoundError,
 } from "@/lib/api-utils";
+import { canMutateFile } from "@/lib/files/permissions";
 
 // ============================================
 // DELETE /api/client/files/[id] - Delete file (CLIENT only, must own the file via clientId)
@@ -33,7 +34,7 @@ export const DELETE = withErrorHandler(async (
         throw new NotFoundError("Fichier introuvable");
     }
 
-    if (file.clientId !== clientId) {
+    if (file.clientId !== clientId || !canMutateFile(session.user, file)) {
         return errorResponse("Vous n'avez pas la permission de supprimer ce fichier", 403);
     }
 

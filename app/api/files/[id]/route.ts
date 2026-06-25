@@ -5,12 +5,12 @@ import {
     successResponse,
     errorResponse,
     requireAuth,
-    requireRole,
     withErrorHandler,
     validateRequest,
     NotFoundError,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { canMutateFile, canReadFile } from '@/lib/files/permissions';
 
 // ============================================
 // SCHEMAS
@@ -31,7 +31,7 @@ export const GET = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireAuth(request);
+    const session = await requireAuth(request);
     const { id } = await params;
 
     const file = await prisma.file.findUnique({
@@ -75,6 +75,10 @@ export const GET = withErrorHandler(async (
         throw new NotFoundError('Fichier introuvable');
     }
 
+    if (!canReadFile(session.user, file)) {
+        return errorResponse('Vous n\'avez pas la permission d\'accéder à ce fichier', 403);
+    }
+
     return successResponse({
         ...file,
         formattedSize: storageService.formatSize(file.size),
@@ -103,7 +107,7 @@ export const PUT = withErrorHandler(async (
     }
 
     // Only uploader or managers can update
-    if (file.uploadedById !== session.user.id && session.user.role !== 'MANAGER') {
+    if (!canMutateFile(session.user, file)) {
         return errorResponse('Vous n\'avez pas la permission de modifier ce fichier', 403);
     }
 
@@ -145,7 +149,7 @@ export const DELETE = withErrorHandler(async (
     }
 
     // Only uploader or managers can delete
-    if (file.uploadedById !== session.user.id && session.user.role !== 'MANAGER') {
+    if (!canMutateFile(session.user, file)) {
         return errorResponse('Vous n\'avez pas la permission de supprimer ce fichier', 403);
     }
 

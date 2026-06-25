@@ -1,21 +1,21 @@
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { storageService } from '@/lib/storage/storage-service';
 import {
     successResponse,
-    errorResponse,
     requireAuth,
-    requireRole,
     withErrorHandler,
     getPaginationParams,
 } from '@/lib/api-utils';
+import { canReadFile } from '@/lib/files/permissions';
 
 // ============================================
 // GET /api/files - List files
 // ============================================
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
-    await requireAuth(request);
+    const session = await requireAuth(request);
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = getPaginationParams(searchParams);
 
@@ -26,9 +26,15 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const search = searchParams.get('search');
     const type = searchParams.get('type'); // 'image', 'video', 'document', etc.
 
-    const where: any = {
+    const where: Prisma.FileWhereInput = {
         deletedAt: null, // Only show non-deleted files
     };
+
+    if (session.user.role === 'CLIENT') {
+        where.clientId = session.user.clientId ?? '__forbidden__';
+    } else if (session.user.role !== 'MANAGER' && session.user.role !== 'DEVELOPER') {
+        where.uploadedById = session.user.id;
+    }
 
     if (folderId) {
         where.folderId = folderId;
@@ -55,20 +61,23 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         ];
     }
 
-    if (type) {
-        const typeMap: Record<string, string[]> = {
-            image: ['image/'],
-            video: ['video/'],
-            audio: ['audio/'],
-            document: ['application/pdf', 'application/msword', 'application/vnd.'],
-            text: ['text/'],
-        };
-
-        if (typeMap[type]) {
-            where.mimeType = {
-                startsWith: typeMap[type][0],
-            };
-        }
+    if (type === 'image') where.mimeType = { startsWith: 'image/' };
+    if (type === 'video') where.mimeType = { startsWith: 'video/' };
+    if (type === 'audio') where.mimeType = { startsWith: 'audio/' };
+    if (type === 'text') where.mimeType = { startsWith: 'text/' };
+    if (type === 'document') {
+        where.OR = [
+            ...(where.OR ?? []),
+            { mimeType: 'application/pdf' },
+            { mimeType: 'application/msword' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+            { mimeType: 'application/vnd.ms-excel' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+            { mimeType: 'application/vnd.ms-powerpoint' },
+            { mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' },
+            { mimeType: 'text/plain' },
+            { mimeType: 'text/csv' },
+        ];
     }
 
     const [files, total] = await Promise.all([
@@ -109,10 +118,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     ]);
 
     // Add formatted size to each file
-    const filesWithFormattedSize = files.map(file => ({
-        ...file,
-        formattedSize: storageService.formatSize(file.size),
-    }));
+    const filesWithFormattedSize = files
+        .filter((file) => canReadFile(session.user, file))
+        .map(file => ({
+            ...file,
+            formattedSize: storageService.formatSize(file.size),
+        }));
 
     return successResponse({
         files: filesWithFormattedSize,

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { storageService } from "@/lib/storage/storage-service";
 import {
@@ -24,13 +25,51 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = getPaginationParams(searchParams);
+    const search = searchParams.get("search")?.trim();
+    const type = searchParams.get("type")?.trim();
+
+    const where: Prisma.FileWhereInput = {
+        clientId,
+        deletedAt: null,
+    };
+
+    if (search) {
+        where.OR = [
+            { name: { contains: search, mode: "insensitive" } },
+            { originalName: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+            { tags: { hasSome: [search] } },
+        ];
+    }
+
+    if (type === "file") {
+        where.mimeType = { not: "text/uri-list" };
+    } else if (type === "link") {
+        where.mimeType = "text/uri-list";
+    } else if (type === "image") {
+        where.mimeType = { startsWith: "image/" };
+    } else if (type === "video") {
+        where.mimeType = { startsWith: "video/" };
+    } else if (type === "audio") {
+        where.mimeType = { startsWith: "audio/" };
+    } else if (type === "document") {
+        where.OR = [
+            ...(where.OR ?? []),
+            { mimeType: "application/pdf" },
+            { mimeType: "application/msword" },
+            { mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+            { mimeType: "application/vnd.ms-excel" },
+            { mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+            { mimeType: "application/vnd.ms-powerpoint" },
+            { mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+            { mimeType: "text/plain" },
+            { mimeType: "text/csv" },
+        ];
+    }
 
     const [files, total] = await Promise.all([
         prisma.file.findMany({
-            where: {
-                clientId,
-                deletedAt: null,
-            },
+            where,
             include: {
                 uploadedBy: {
                     select: {
@@ -51,10 +90,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             take: limit,
         }),
         prisma.file.count({
-            where: {
-                clientId,
-                deletedAt: null,
-            },
+            where,
         }),
     ]);
 

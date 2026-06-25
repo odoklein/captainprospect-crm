@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import {
     successResponse,
@@ -7,9 +8,9 @@ import {
     requireRole,
     withErrorHandler,
     validateRequest,
-    getPaginationParams,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { canReadFolder } from '@/lib/files/permissions';
 
 // ============================================
 // SCHEMAS
@@ -30,7 +31,7 @@ const createFolderSchema = z.object({
 // ============================================
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
-    await requireAuth(request);
+    const session = await requireAuth(request);
     const { searchParams } = new URL(request.url);
 
     const parentId = searchParams.get('parentId');
@@ -38,7 +39,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const clientId = searchParams.get('clientId');
     const includeFiles = searchParams.get('includeFiles') === 'true';
 
-    const where: any = {};
+    const where: Prisma.FolderWhereInput = {};
 
     if (parentId === 'root' || parentId === null) {
         where.parentId = null;
@@ -52,6 +53,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     if (clientId) {
         where.clientId = clientId;
+    }
+
+    if (session.user.role === 'CLIENT') {
+        where.clientId = session.user.clientId ?? '__forbidden__';
     }
 
     const folders = await prisma.folder.findMany({
@@ -92,7 +97,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         },
     });
 
-    return successResponse({ folders });
+    return successResponse({
+        folders: folders.filter((folder) => canReadFolder(session.user, folder)),
+    });
 });
 
 // ============================================

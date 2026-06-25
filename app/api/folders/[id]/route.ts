@@ -10,6 +10,7 @@ import {
     NotFoundError,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { canMutateFolder, canReadFolder } from '@/lib/files/permissions';
 
 // ============================================
 // SCHEMAS
@@ -31,7 +32,7 @@ export const GET = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireAuth(request);
+    const session = await requireAuth(request);
     const { id } = await params;
 
     const folder = await prisma.folder.findUnique({
@@ -98,6 +99,10 @@ export const GET = withErrorHandler(async (
         throw new NotFoundError('Dossier introuvable');
     }
 
+    if (!canReadFolder(session.user, folder)) {
+        return errorResponse('Vous n\'avez pas la permission d\'accéder à ce dossier', 403);
+    }
+
     return successResponse(folder);
 });
 
@@ -109,7 +114,7 @@ export const PUT = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER', 'SDR'], request);
+    const session = await requireRole(['MANAGER', 'SDR'], request);
     const { id } = await params;
     const data = await validateRequest(request, updateFolderSchema);
 
@@ -120,6 +125,10 @@ export const PUT = withErrorHandler(async (
 
     if (!folder) {
         throw new NotFoundError('Dossier introuvable');
+    }
+
+    if (!canMutateFolder(session.user, folder)) {
+        return errorResponse('Vous n\'avez pas la permission de modifier ce dossier', 403);
     }
 
     // Check if trying to move to a child folder (would create circular reference)
@@ -166,7 +175,7 @@ export const DELETE = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
 
     // Check if folder exists
@@ -184,6 +193,10 @@ export const DELETE = withErrorHandler(async (
 
     if (!folder) {
         throw new NotFoundError('Dossier introuvable');
+    }
+
+    if (!canMutateFolder(session.user, folder)) {
+        return errorResponse('Vous n\'avez pas la permission de supprimer ce dossier', 403);
     }
 
     // Check if folder is empty
