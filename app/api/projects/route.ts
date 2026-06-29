@@ -2,6 +2,34 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { Prisma, ProjectStatus, TaskPriority } from "@prisma/client";
+
+type ProjectMemberInput = {
+    userId?: string;
+    role?: string;
+};
+
+type CreateProjectBody = {
+    name?: string;
+    description?: string;
+    clientId?: string;
+    members?: ProjectMemberInput[];
+    startDate?: string;
+    endDate?: string;
+    color?: string;
+    icon?: string;
+    templateId?: string;
+};
+
+type TemplateTask = {
+    title: string;
+    description?: string | null;
+    priority?: TaskPriority;
+};
+
+type TemplateStructure = {
+    tasks?: TemplateTask[];
+};
 
 // GET /api/projects - List projects with filtering, sorting, stats
 export async function GET(req: NextRequest) {
@@ -26,7 +54,7 @@ export async function GET(req: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "50");
 
         // Build where clause based on role
-        let whereClause: any = {};
+        let whereClause: Prisma.ProjectWhereInput = {};
 
         if (role === "MANAGER" || role === "DEVELOPER" || role === "SDR" || role === "BUSINESS_DEVELOPER") {
             whereClause = {
@@ -48,7 +76,9 @@ export async function GET(req: NextRequest) {
         }
 
         // Apply filters
-        if (status) whereClause.status = status;
+        if (status && Object.values(ProjectStatus).includes(status as ProjectStatus)) {
+            whereClause.status = status as ProjectStatus;
+        }
         if (clientId) whereClause.clientId = clientId;
         if (ownerId) whereClause.ownerId = ownerId;
         if (search) {
@@ -64,11 +94,12 @@ export async function GET(req: NextRequest) {
         }
 
         // Build orderBy
-        const orderByMap: Record<string, any> = {
-            name: { name: sortOrder },
-            createdAt: { createdAt: sortOrder },
-            updatedAt: { updatedAt: sortOrder },
-            status: { status: sortOrder },
+        const sortDirection: Prisma.SortOrder = sortOrder === "asc" ? "asc" : "desc";
+        const orderByMap: Record<string, Prisma.ProjectOrderByWithRelationInput> = {
+            name: { name: sortDirection },
+            createdAt: { createdAt: sortDirection },
+            updatedAt: { updatedAt: sortDirection },
+            status: { status: sortDirection },
         };
         const orderBy = orderByMap[sortBy] || { updatedAt: "desc" };
 
@@ -119,7 +150,8 @@ export async function GET(req: NextRequest) {
             const completedTasks = tasksByStatus.DONE;
             const completionPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-            const { tasks, ...projectData } = p;
+            const projectData: Partial<typeof p> = { ...p };
+            delete projectData.tasks;
             return {
                 ...projectData,
                 taskStats: {
@@ -160,7 +192,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: "Rôle non autorisé" }, { status: 403 });
         }
 
-        const body = await req.json();
+        const body = (await req.json()) as CreateProjectBody;
         const { name, description, clientId, members, startDate, endDate, color, icon, templateId } = body;
 
         if (!name?.trim()) {
@@ -168,12 +200,36 @@ export async function POST(req: NextRequest) {
         }
 
         // If using a template, load it
-        let templateTasks: any[] = [];
+        let templateTasks: TemplateTask[] = [];
         if (templateId) {
             const template = await prisma.projectTemplate.findUnique({ where: { id: templateId } });
             if (template?.structure) {
-                const structure = template.structure as any;
+                const structure = template.structure as TemplateStructure;
                 templateTasks = structure.tasks || [];
+            }
+        }
+
+        const managerUsers = await prisma.user.findMany({
+            where: {
+                role: "MANAGER",
+                isActive: true,
+            },
+            select: { id: true },
+        });
+
+        const memberMap = new Map<string, string>();
+        memberMap.set(session.user.id, "owner");
+
+        for (const manager of managerUsers) {
+            if (manager.id !== session.user.id) {
+                memberMap.set(manager.id, "admin");
+            }
+        }
+
+        for (const member of members || []) {
+            if (!member?.userId || member.userId === session.user.id) continue;
+            if (!memberMap.has(member.userId)) {
+                memberMap.set(member.userId, member.role || "member");
             }
         }
 
@@ -188,15 +244,10 @@ export async function POST(req: NextRequest) {
                 color: color || "#6366f1",
                 icon: icon || "folder",
                 members: {
-                    create: [
-                        { userId: session.user.id, role: "owner" },
-                        ...(members || [])
-                            .filter((m: any) => m.userId !== session.user.id)
-                            .map((m: { userId: string; role?: string }) => ({
-                                userId: m.userId,
-                                role: m.role || "member",
-                            })),
-                    ],
+                    create: Array.from(memberMap.entries()).map(([userId, memberRole]) => ({
+                        userId,
+                        role: memberRole,
+                    })),
                 },
             },
             include: {

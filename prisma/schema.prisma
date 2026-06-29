@@ -157,6 +157,7 @@ enum EmailProvider {
   GMAIL
   OUTLOOK
   CUSTOM
+  REACHINBOX
 }
 
 enum InvoiceStatus {

@@ -44,6 +44,7 @@ function getProviderLabel(provider: string): string {
         case "GMAIL": return "Gmail";
         case "OUTLOOK": return "Outlook";
         case "CUSTOM": return "IMAP";
+        case "REACHINBOX": return "ReachInbox";
         default: return provider;
     }
 }

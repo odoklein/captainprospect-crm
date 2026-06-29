@@ -9,6 +9,8 @@ import type { EmailProvider } from '@prisma/client';
  * Get display name for provider
  */
 export function getProviderDisplayName(provider: EmailProvider): string {
+    if ((provider as string) === 'REACHINBOX') return 'ReachInbox';
+
     switch (provider) {
         case 'GMAIL':
             return 'Gmail';
@@ -25,6 +27,8 @@ export function getProviderDisplayName(provider: EmailProvider): string {
  * Get icon/logo path for provider
  */
 export function getProviderIcon(provider: EmailProvider): string {
+    if ((provider as string) === 'REACHINBOX') return '/icons/email.svg';
+
     switch (provider) {
         case 'GMAIL':
             return '/icons/gmail.svg';
@@ -41,6 +45,8 @@ export function getProviderIcon(provider: EmailProvider): string {
  * Get brand color for provider
  */
 export function getProviderColor(provider: EmailProvider): string {
+    if ((provider as string) === 'REACHINBOX') return '#10B981';
+
     switch (provider) {
         case 'GMAIL':
             return '#EA4335'; // Google red
@@ -57,7 +63,7 @@ export function getProviderColor(provider: EmailProvider): string {
  * Check if a provider is supported
  */
 export function isProviderSupported(provider: EmailProvider): boolean {
-    return provider === 'GMAIL' || provider === 'OUTLOOK';
+    return ['GMAIL', 'OUTLOOK', 'CUSTOM', 'REACHINBOX'].includes(provider as string);
 }
 
 /**
@@ -89,6 +95,13 @@ export const SUPPORTED_PROVIDERS: {
         label: 'Custom IMAP/SMTP',
         icon: '/icons/email.svg',
         color: '#6366F1',
-        supported: false,
+        supported: true,
+    },
+    {
+        value: 'REACHINBOX' as EmailProvider,
+        label: 'ReachInbox',
+        icon: '/icons/email.svg',
+        color: '#10B981',
+        supported: true,
     },
 ];

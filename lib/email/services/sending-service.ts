@@ -12,7 +12,7 @@ import {
   SendEmailParams,
   EmailAddress,
 } from "../providers";
-import { Mailbox, EmailStatus } from "@prisma/client";
+import { Mailbox } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 // ============================================
@@ -99,8 +99,7 @@ export class EmailSendingService {
       // Inject tracking pixel into HTML
       let bodyHtml = options.bodyHtml;
       if (bodyHtml && trackingPixelId) {
-        // cast to any to avoid type error until client is regenerated
-        const trackingDomain = (mailbox as any).trackingDomain || undefined;
+        const trackingDomain = mailbox.trackingDomain || undefined;
         bodyHtml = this.injectTrackingPixel(
           bodyHtml,
           trackingPixelId,
@@ -122,6 +121,10 @@ export class EmailSendingService {
 
       // Build send params
       const sendParams: SendEmailParams = {
+        from: {
+          email: mailbox.email,
+          name: mailbox.displayName || undefined,
+        },
         to: options.to,
         cc: options.cc,
         bcc: options.bcc,
@@ -167,6 +170,15 @@ export class EmailSendingService {
 
         const imapProvider = new ImapProvider(imapConfig);
         result = await imapProvider.sendEmail({} as OAuthTokens, sendParams);
+      } else if ((mailbox.provider as string) === "REACHINBOX") {
+        // ReachInbox - API key auth via accessToken
+        if (!mailbox.accessToken) {
+          return { success: false, error: "ReachInbox API key missing" };
+        }
+
+        const provider = getEmailProvider(mailbox.provider);
+        const tokens: OAuthTokens = { accessToken: decrypt(mailbox.accessToken) };
+        result = await provider.sendEmail(tokens, sendParams);
       } else {
         // OAuth providers (Gmail, Outlook)
         const provider = getEmailProvider(mailbox.provider);
@@ -264,7 +276,7 @@ export class EmailSendingService {
       // Wrap links in the stored HTML for click tracking
       // We do this after creating the email record so we have the emailId
       if (bodyHtml && shouldTrackOpens) {
-        const trackingDomain = (mailbox as any).trackingDomain || undefined;
+        const trackingDomain = mailbox.trackingDomain || undefined;
         const wrappedHtml = this.wrapLinksForTracking(bodyHtml, email.id, trackingDomain);
         if (wrappedHtml !== bodyHtml) {
           await prisma.email.update({
@@ -310,9 +322,11 @@ export class EmailSendingService {
   async scheduleSend(
     mailboxId: string,
     options: SendOptions,
-    scheduledAt?: Date,
+    _scheduledAt?: Date,
   ): Promise<{ success: boolean; jobId?: string; error?: string }> {
     try {
+      void _scheduledAt;
+
       const { scheduleEmailSend } = await import("../queue");
 
       const job = await scheduleEmailSend({
@@ -345,11 +359,13 @@ export class EmailSendingService {
 
   async recordOpen(
     trackingPixelId: string,
-    metadata?: {
+    _metadata?: {
       ipAddress?: string;
       userAgent?: string;
     },
   ): Promise<void> {
+    void _metadata;
+
     const email = await prisma.email.findUnique({
       where: { trackingPixelId },
     });
@@ -383,12 +399,15 @@ export class EmailSendingService {
 
   async recordClick(
     trackingPixelId: string,
-    url: string,
-    metadata?: {
+    _url: string,
+    _metadata?: {
       ipAddress?: string;
       userAgent?: string;
     },
   ): Promise<void> {
+    void _url;
+    void _metadata;
+
     const email = await prisma.email.findUnique({
       where: { trackingPixelId },
     });

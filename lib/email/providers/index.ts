@@ -7,6 +7,7 @@ import { IEmailProvider } from './types';
 import { GmailProvider, gmailProvider } from './gmail';
 import { OutlookProvider, outlookProvider } from './outlook';
 import { ImapProvider, imapProvider, type ImapConfig } from './imap';
+import { ReachInboxProvider, reachInboxProvider } from './reachinbox';
 
 // Re-export types
 export * from './types';
@@ -16,6 +17,7 @@ export type { ImapConfig } from './imap';
 export { GmailProvider, gmailProvider } from './gmail';
 export { OutlookProvider, outlookProvider } from './outlook';
 export { ImapProvider, imapProvider } from './imap';
+export { ReachInboxProvider, reachInboxProvider } from './reachinbox';
 
 // ============================================
 // PROVIDER FACTORY
@@ -25,6 +27,10 @@ export { ImapProvider, imapProvider } from './imap';
  * Get the appropriate email provider instance based on provider type
  */
 export function getEmailProvider(provider: EmailProvider): IEmailProvider {
+    if ((provider as string) === 'REACHINBOX') {
+        return reachInboxProvider;
+    }
+
     switch (provider) {
         case 'GMAIL':
             return gmailProvider;
@@ -41,6 +47,10 @@ export function getEmailProvider(provider: EmailProvider): IEmailProvider {
  * Get a new instance of the email provider (not singleton)
  */
 export function createEmailProvider(provider: EmailProvider, config?: ImapConfig): IEmailProvider {
+    if ((provider as string) === 'REACHINBOX') {
+        return new ReachInboxProvider();
+    }
+
     switch (provider) {
         case 'GMAIL':
             return new GmailProvider();
@@ -61,13 +71,17 @@ export function createEmailProvider(provider: EmailProvider, config?: ImapConfig
  * Check if a provider is supported
  */
 export function isProviderSupported(provider: EmailProvider): boolean {
-    return provider === 'GMAIL' || provider === 'OUTLOOK' || provider === 'CUSTOM';
+    return ['GMAIL', 'OUTLOOK', 'CUSTOM', 'REACHINBOX'].includes(provider as string);
 }
 
 /**
  * Get display name for provider
  */
 export function getProviderDisplayName(provider: EmailProvider): string {
+    if ((provider as string) === 'REACHINBOX') {
+        return 'ReachInbox';
+    }
+
     switch (provider) {
         case 'GMAIL':
             return 'Gmail';
@@ -84,6 +98,10 @@ export function getProviderDisplayName(provider: EmailProvider): string {
  * Get icon/logo path for provider
  */
 export function getProviderIcon(provider: EmailProvider): string {
+    if ((provider as string) === 'REACHINBOX') {
+        return '/icons/email.svg';
+    }
+
     switch (provider) {
         case 'GMAIL':
             return '/icons/gmail.svg';
@@ -100,6 +118,10 @@ export function getProviderIcon(provider: EmailProvider): string {
  * Get brand color for provider
  */
 export function getProviderColor(provider: EmailProvider): string {
+    if ((provider as string) === 'REACHINBOX') {
+        return '#10B981';
+    }
+
     switch (provider) {
         case 'GMAIL':
             return '#EA4335'; // Google red
@@ -142,6 +164,13 @@ export const SUPPORTED_PROVIDERS: {
         label: 'Custom IMAP/SMTP',
         icon: '/icons/email.svg',
         color: '#6366F1',
+        supported: true,
+    },
+    {
+        value: 'REACHINBOX' as EmailProvider,
+        label: 'ReachInbox',
+        icon: '/icons/email.svg',
+        color: '#10B981',
         supported: true,
     },
 ];

@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { encrypt } from '@/lib/encryption';
-import { MailboxType } from '@prisma/client';
+import { EmailProvider, MailboxType } from '@prisma/client';
 import { scheduleEmailSync } from '@/lib/email/queue';
 
 // ============================================
@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
         const {
+            provider,
             email,
             displayName,
             imapHost,
@@ -158,10 +159,12 @@ export async function POST(req: NextRequest) {
             smtpHost,
             smtpPort,
             password,
+            apiKey,
             type: requestedType,
         } = body;
 
         const type = session.user.role === 'CLIENT' ? 'CLIENT' : (requestedType || 'PERSONAL');
+        const requestedProvider: EmailProvider = provider === 'REACHINBOX' ? 'REACHINBOX' : 'CUSTOM';
 
         // Validate required fields
         if (!email?.trim()) {
@@ -171,9 +174,16 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        if (!imapHost || !smtpHost || !password) {
+        if (requestedProvider === 'CUSTOM' && (!imapHost || !smtpHost || !password)) {
             return NextResponse.json(
                 { success: false, error: 'Configuration IMAP/SMTP requise' },
+                { status: 400 }
+            );
+        }
+
+        if (requestedProvider === 'REACHINBOX' && !apiKey?.trim()) {
+            return NextResponse.json(
+                { success: false, error: 'ClÃ© API ReachInbox requise' },
                 { status: 400 }
             );
         }
@@ -197,14 +207,15 @@ export async function POST(req: NextRequest) {
         const mailbox = await prisma.mailbox.create({
             data: {
                 ownerId: session.user.id,
-                provider: 'CUSTOM',
+                provider: requestedProvider,
                 email: email.trim(),
                 displayName: displayName?.trim() || null,
-                imapHost: imapHost.trim(),
-                imapPort: imapPort || 993,
-                smtpHost: smtpHost.trim(),
-                smtpPort: smtpPort || 587,
-                password: encrypt(password),
+                imapHost: requestedProvider === 'CUSTOM' ? imapHost.trim() : null,
+                imapPort: requestedProvider === 'CUSTOM' ? (imapPort || 993) : null,
+                smtpHost: requestedProvider === 'CUSTOM' ? smtpHost.trim() : null,
+                smtpPort: requestedProvider === 'CUSTOM' ? (smtpPort || 587) : null,
+                password: requestedProvider === 'CUSTOM' ? encrypt(password) : null,
+                accessToken: requestedProvider === 'REACHINBOX' ? encrypt(apiKey.trim()) : null,
                 type: type as MailboxType,
                 syncStatus: 'PENDING',
                 isActive: true,

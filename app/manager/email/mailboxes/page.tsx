@@ -11,15 +11,13 @@ import {
     CheckCircle,
     AlertCircle,
     Loader2,
-    ExternalLink,
-    Shield,
-    Activity,
+    Users,
+    Copy,
     Server,
     ArrowRight,
     X,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Card, CardContent } from "@/components/ui/Card";
 
 // ============================================
 // TYPES
@@ -27,7 +25,7 @@ import { Button } from "@/components/ui/Button";
 
 interface Mailbox {
     id: string;
-    provider: "GMAIL" | "OUTLOOK" | "CUSTOM";
+    provider: "GMAIL" | "OUTLOOK" | "CUSTOM" | "REACHINBOX";
     email: string;
     displayName: string | null;
     type: string;
@@ -46,6 +44,31 @@ interface Mailbox {
     };
 }
 
+interface TeamUser {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+}
+
+interface MailboxPermission {
+    id: string;
+    userId: string;
+    canRead: boolean;
+    canSend: boolean;
+    canSendAs: boolean;
+    requiresApproval: boolean;
+    user: TeamUser;
+}
+
+interface EditablePermission {
+    userId: string;
+    canRead: boolean;
+    canSend: boolean;
+    canSendAs: boolean;
+    requiresApproval: boolean;
+}
+
 // ============================================
 // ADD MAILBOX MODAL
 // ============================================
@@ -57,7 +80,7 @@ interface AddMailboxModalProps {
 }
 
 function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
-    const [step, setStep] = useState<'select' | 'imap'>('select');
+    const [step, setStep] = useState<'select' | 'imap' | 'reachinbox'>('select');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [imapForm, setImapForm] = useState({
@@ -68,6 +91,11 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
         imapPort: '993',
         smtpHost: '',
         smtpPort: '587',
+    });
+    const [reachInboxForm, setReachInboxForm] = useState({
+        email: '',
+        displayName: '',
+        apiKey: '',
     });
 
     const providers = [
@@ -95,6 +123,14 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
             bgColor: 'bg-slate-50 hover:bg-slate-100',
             borderColor: 'border-slate-200',
         },
+        {
+            id: 'reachinbox',
+            name: 'ReachInbox',
+            description: 'Connexion via cle API ReachInbox',
+            color: 'from-emerald-500 to-teal-500',
+            bgColor: 'bg-emerald-50 hover:bg-emerald-100',
+            borderColor: 'border-emerald-200',
+        },
     ];
 
     const handleProviderSelect = (providerId: string) => {
@@ -104,6 +140,8 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
             window.location.href = '/api/email/oauth/outlook/connect';
         } else if (providerId === 'imap') {
             setStep('imap');
+        } else if (providerId === 'reachinbox') {
+            setStep('reachinbox');
         }
     };
 
@@ -143,6 +181,38 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
         }
     };
 
+    const handleReachInboxSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch('/api/email/mailboxes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider: 'REACHINBOX',
+                    email: reachInboxForm.email,
+                    displayName: reachInboxForm.displayName || reachInboxForm.email.split('@')[0],
+                    apiKey: reachInboxForm.apiKey,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Erreur lors de la connexion ReachInbox');
+            }
+
+            onSuccess();
+            onClose();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Erreur lors de la connexion ReachInbox');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -153,7 +223,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                     {/* Header */}
                     <div className="flex items-center justify-between p-4 border-b border-slate-200">
                         <div className="flex items-center gap-3">
-                            {step === 'imap' && (
+                            {step !== 'select' && (
                                 <button
                                     onClick={() => setStep('select')}
                                     className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
@@ -162,7 +232,11 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                 </button>
                             )}
                             <h2 className="text-lg font-semibold text-slate-900">
-                                {step === 'select' ? 'Ajouter une boîte mail' : 'Configuration IMAP/SMTP'}
+                                {step === 'select'
+                                    ? 'Ajouter une boîte mail'
+                                    : step === 'reachinbox'
+                                        ? 'Connexion ReachInbox'
+                                        : 'Configuration IMAP/SMTP'}
                             </h2>
                         </div>
                         <button
@@ -192,7 +266,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-lg",
                                             provider.color
                                         )}>
-                                            {provider.id === 'imap' ? (
+                                            {provider.id === 'imap' || provider.id === 'reachinbox' ? (
                                                 <Server className="w-6 h-6 text-white" />
                                             ) : (
                                                 <Mail className="w-6 h-6 text-white" />
@@ -206,6 +280,83 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                     </button>
                                 ))}
                             </div>
+                        ) : step === 'reachinbox' ? (
+                            <form onSubmit={handleReachInboxSubmit} className="space-y-4">
+                                {error && (
+                                    <div className="p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2">
+                                        <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                        <p className="text-sm text-red-700">{error}</p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Adresse email *
+                                        </label>
+                                        <input
+                                            type="email"
+                                            required
+                                            value={reachInboxForm.email}
+                                            onChange={(e) => setReachInboxForm({ ...reachInboxForm, email: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                            placeholder="vous@example.com"
+                                        />
+                                    </div>
+
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Nom d&apos;affichage
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={reachInboxForm.displayName}
+                                            onChange={(e) => setReachInboxForm({ ...reachInboxForm, displayName: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                            placeholder="Equipe Captain Prospect"
+                                        />
+                                    </div>
+
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Cle API ReachInbox *
+                                        </label>
+                                        <input
+                                            type="password"
+                                            required
+                                            value={reachInboxForm.apiKey}
+                                            onChange={(e) => setReachInboxForm({ ...reachInboxForm, apiKey: e.target.value })}
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                            placeholder="ri_..."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        disabled={isLoading}
+                                        className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm transition-colors disabled:opacity-50"
+                                    >
+                                        Annuler
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading}
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-medium text-sm hover:from-emerald-400 hover:to-teal-500 transition-all disabled:opacity-50"
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Connexion...
+                                            </>
+                                        ) : (
+                                            'Connecter'
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
                         ) : (
                             <form onSubmit={handleImapSubmit} className="space-y-4">
                                 {error && (
@@ -232,7 +383,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
 
                                     <div className="col-span-2">
                                         <label className="block text-sm font-medium text-slate-700 mb-1">
-                                            Nom d'affichage
+                                            Nom d&apos;affichage
                                         </label>
                                         <input
                                             type="text"
@@ -347,6 +498,251 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
     );
 }
 
+interface TeamPermissionsModalProps {
+    mailbox: Mailbox | null;
+    isOpen: boolean;
+    onClose: () => void;
+}
+
+function TeamPermissionsModal({ mailbox, isOpen, onClose }: TeamPermissionsModalProps) {
+    const [users, setUsers] = useState<TeamUser[]>([]);
+    const [ownerId, setOwnerId] = useState<string | null>(null);
+    const [permissions, setPermissions] = useState<Record<string, EditablePermission>>({});
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!isOpen || !mailbox) return;
+
+        const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                const [usersRes, mailboxRes, permissionsRes] = await Promise.all([
+                    fetch('/api/users?role=MANAGER,SDR,DEVELOPER,BUSINESS_DEVELOPER&status=active&limit=200&excludeSelf=false'),
+                    fetch(`/api/email/mailboxes/${mailbox.id}`),
+                    fetch(`/api/email/mailboxes/${mailbox.id}/permissions`),
+                ]);
+
+                const [usersJson, mailboxJson, permissionsJson] = await Promise.all([
+                    usersRes.json(),
+                    mailboxRes.json(),
+                    permissionsRes.json(),
+                ]);
+
+                if (!usersJson.success) throw new Error(usersJson.error || 'Erreur chargement utilisateurs');
+                if (!mailboxJson.success) throw new Error(mailboxJson.error || 'Erreur chargement boîte mail');
+                if (!permissionsJson.success) throw new Error(permissionsJson.error || 'Erreur chargement permissions');
+
+                const loadedUsers: TeamUser[] = usersJson.data?.users || [];
+                const loadedPermissions: MailboxPermission[] = permissionsJson.data || [];
+                const nextPermissions: Record<string, EditablePermission> = {};
+
+                for (const permission of loadedPermissions) {
+                    nextPermissions[permission.userId] = {
+                        userId: permission.userId,
+                        canRead: permission.canRead,
+                        canSend: permission.canSend,
+                        canSendAs: permission.canSendAs,
+                        requiresApproval: permission.requiresApproval,
+                    };
+                }
+
+                setUsers(loadedUsers);
+                setOwnerId(mailboxJson.data?.ownerId || null);
+                setPermissions(nextPermissions);
+            } catch (err) {
+                setError(err instanceof Error ? err.message : 'Erreur serveur');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [isOpen, mailbox]);
+
+    const editableUsers = users.filter((user) => user.id !== ownerId);
+
+    const getPermission = (userId: string): EditablePermission => permissions[userId] || {
+        userId,
+        canRead: false,
+        canSend: false,
+        canSendAs: false,
+        requiresApproval: false,
+    };
+
+    const updatePermission = (userId: string, patch: Partial<EditablePermission>) => {
+        setPermissions((prev) => {
+            const current = prev[userId] || {
+                userId,
+                canRead: false,
+                canSend: false,
+                canSendAs: false,
+                requiresApproval: false,
+            };
+            const next = { ...current, ...patch };
+
+            if (patch.canRead === false) {
+                next.canSend = false;
+                next.canSendAs = false;
+                next.requiresApproval = false;
+            }
+
+            if (patch.canSend === true) {
+                next.canRead = true;
+            }
+
+            if (patch.canSend === false) {
+                next.canSendAs = false;
+                next.requiresApproval = false;
+            }
+
+            return { ...prev, [userId]: next };
+        });
+    };
+
+    const handleSave = async () => {
+        if (!mailbox) return;
+        setIsSaving(true);
+        setError(null);
+
+        try {
+            const payload = editableUsers.map((user) => getPermission(user.id));
+            const response = await fetch(`/api/email/mailboxes/${mailbox.id}/permissions`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ permissions: payload }),
+            });
+
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Erreur sauvegarde permissions');
+            onClose();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Erreur serveur');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (!isOpen || !mailbox) return null;
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
+            <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-3xl max-h-[88vh] overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-900">Accès équipe</h2>
+                            <p className="text-sm text-slate-500">{mailbox.displayName || mailbox.email}</p>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                            <X className="w-5 h-5 text-slate-500" />
+                        </button>
+                    </div>
+
+                    <div className="p-4 overflow-y-auto max-h-[65vh]">
+                        {error && (
+                            <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2">
+                                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                                <p className="text-sm text-red-700">{error}</p>
+                            </div>
+                        )}
+
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+                            </div>
+                        ) : editableUsers.length === 0 ? (
+                            <div className="py-10 text-center text-sm text-slate-500">
+                                Aucun utilisateur actif disponible.
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {editableUsers.map((user) => {
+                                    const permission = getPermission(user.id);
+
+                                    return (
+                                        <div key={user.id} className="flex items-center gap-4 p-3 border border-slate-200 rounded-xl">
+                                            <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-semibold">
+                                                {user.name.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-slate-900 truncate">{user.name}</p>
+                                                <p className="text-xs text-slate-500 truncate">{user.email} · {user.role}</p>
+                                            </div>
+                                            <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={permission.canRead}
+                                                    onChange={(e) => updatePermission(user.id, { canRead: e.target.checked })}
+                                                    className="rounded border-slate-300"
+                                                />
+                                                Lire
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={permission.canSend}
+                                                    onChange={(e) => updatePermission(user.id, { canSend: e.target.checked })}
+                                                    className="rounded border-slate-300"
+                                                />
+                                                Envoyer
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={permission.canSendAs}
+                                                    disabled={!permission.canSend}
+                                                    onChange={(e) => updatePermission(user.id, { canSendAs: e.target.checked })}
+                                                    className="rounded border-slate-300 disabled:opacity-50"
+                                                />
+                                                Send as
+                                            </label>
+                                            <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={permission.requiresApproval}
+                                                    disabled={!permission.canSend}
+                                                    onChange={(e) => updatePermission(user.id, { requiresApproval: e.target.checked })}
+                                                    className="rounded border-slate-300 disabled:opacity-50"
+                                                />
+                                                Validation
+                                            </label>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-end gap-3 p-4 border-t border-slate-200 bg-slate-50">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isSaving}
+                            className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={isSaving || isLoading}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                            Sauvegarder
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
 // ============================================
 // MAILBOXES PAGE
 // ============================================
@@ -356,6 +752,8 @@ export default function MailboxesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [syncingMailboxes, setSyncingMailboxes] = useState<Set<string>>(new Set());
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [teamMailbox, setTeamMailbox] = useState<Mailbox | null>(null);
+    const [copiedWebhookMailboxId, setCopiedWebhookMailboxId] = useState<string | null>(null);
 
     // Fetch mailboxes
     useEffect(() => {
@@ -418,15 +816,15 @@ export default function MailboxesPage() {
         }
     };
 
-    const getProviderIcon = (provider: string) => {
-        switch (provider) {
-            case "GMAIL":
-                return "/icons/gmail.svg";
-            case "OUTLOOK":
-                return "/icons/outlook.svg";
-            default:
-                return null;
-        }
+    const getReachInboxWebhookUrl = () => {
+        if (typeof window === "undefined") return "/api/email/webhooks/reachinbox";
+        return `${window.location.origin}/api/email/webhooks/reachinbox`;
+    };
+
+    const handleCopyWebhookUrl = async (mailboxId: string) => {
+        await navigator.clipboard.writeText(getReachInboxWebhookUrl());
+        setCopiedWebhookMailboxId(mailboxId);
+        window.setTimeout(() => setCopiedWebhookMailboxId(null), 1800);
     };
 
     const getProviderColor = (provider: string) => {
@@ -435,6 +833,8 @@ export default function MailboxesPage() {
                 return "#EA4335";
             case "OUTLOOK":
                 return "#0078D4";
+            case "REACHINBOX":
+                return "#10B981";
             default:
                 return "#6366F1";
         }
@@ -510,6 +910,11 @@ export default function MailboxesPage() {
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onSuccess={handleAddSuccess}
+            />
+            <TeamPermissionsModal
+                isOpen={Boolean(teamMailbox)}
+                mailbox={teamMailbox}
+                onClose={() => setTeamMailbox(null)}
             />
 
             {/* Mailboxes Grid */}
@@ -604,6 +1009,31 @@ export default function MailboxesPage() {
                                         </div>
                                     )}
 
+                                    {mailbox.provider === "REACHINBOX" && (
+                                        <div className="p-3 mb-4 rounded-xl border border-cyan-100 bg-cyan-50/70">
+                                            <p className="text-xs font-semibold text-cyan-950 mb-1">
+                                                Webhook ReachInbox
+                                            </p>
+                                            <p className="text-[11px] text-cyan-700 mb-2">
+                                                À renseigner dans ReachInbox pour recevoir les réponses et statuts en temps réel.
+                                            </p>
+                                            <div className="flex items-center gap-2">
+                                                <code className="flex-1 px-2 py-1.5 rounded-lg bg-white/80 text-[11px] text-slate-700 truncate border border-cyan-100">
+                                                    {getReachInboxWebhookUrl()}
+                                                </code>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleCopyWebhookUrl(mailbox.id)}
+                                                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-cyan-600 text-white text-xs font-medium hover:bg-cyan-500 transition-colors"
+                                                    title="Copier l'URL webhook"
+                                                >
+                                                    <Copy className="w-3.5 h-3.5" />
+                                                    {copiedWebhookMailboxId === mailbox.id ? "Copié" : "Copier"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Actions */}
                                     <div className="flex items-center gap-2">
                                         <button
@@ -625,6 +1055,13 @@ export default function MailboxesPage() {
                                         >
                                             <Settings className="w-4 h-4" />
                                         </a>
+                                        <button
+                                            onClick={() => setTeamMailbox(mailbox)}
+                                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                            title="Accès équipe"
+                                        >
+                                            <Users className="w-4 h-4" />
+                                        </button>
                                         <button
                                             onClick={() => handleDelete(mailbox.id)}
                                             className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

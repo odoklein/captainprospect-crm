@@ -6,8 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { emailSendingService } from '@/lib/email/services/sending-service';
+import { getMailboxSendAccess } from '@/lib/email/permissions';
 
 export async function POST(req: NextRequest) {
     try {
@@ -104,46 +104,23 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Verify mailbox access
-        const mailbox = await prisma.mailbox.findUnique({
-            where: { id: mailboxId },
-            include: {
-                permissions: {
-                    where: { userId: session.user.id },
-                },
-            },
+        const sendAccess = await getMailboxSendAccess({
+            mailboxId,
+            userId: session.user.id,
+            userRole: session.user.role,
+            missionId,
         });
 
-        if (!mailbox) {
+        if (!sendAccess.mailboxExists) {
             return NextResponse.json(
                 { success: false, error: 'Boîte mail non trouvée' },
                 { status: 404 }
             );
         }
 
-        const isOwner = mailbox.ownerId === session.user.id;
-        const canSend = mailbox.permissions.some(p => p.canSend);
-
-        let allowedByMissionContext = false;
-        // Allow SDRs assigned to a mission to send from that mission's default mailbox
-        if (!isOwner && !canSend && missionId) {
-            const mission = await prisma.mission.findUnique({
-                where: { id: missionId },
-                select: {
-                    defaultMailboxId: true,
-                    sdrAssignments: { select: { sdrId: true } },
-                },
-            });
-            const isAssignedSdr =
-                mission?.sdrAssignments.some((a) => a.sdrId === session.user.id) ?? false;
-            if (mission?.defaultMailboxId === mailboxId && isAssignedSdr) {
-                allowedByMissionContext = true;
-            }
-        }
-
-        if (!isOwner && !canSend && !allowedByMissionContext && session.user.role !== 'MANAGER') {
+        if (!sendAccess.allowed) {
             return NextResponse.json(
-                { success: false, error: 'Permission d\'envoi non autorisée' },
+                { success: false, error: sendAccess.reason || 'Permission d\'envoi non autorisée' },
                 { status: 403 }
             );
         }
