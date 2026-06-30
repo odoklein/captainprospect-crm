@@ -102,7 +102,7 @@ export async function getConversationIdForClientUser(userId: string): Promise<st
         where: { id: userId },
         select: { clientId: true, role: true },
     });
-    if (!user || user.role !== "CLIENT" || !user.clientId) return null;
+    if (!user || (user.role !== "CLIENT" && user.role !== "COMMERCIAL") || !user.clientId) return null;
     return getOrCreateClientConversation(user.clientId);
 }
 

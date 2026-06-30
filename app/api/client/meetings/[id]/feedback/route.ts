@@ -99,14 +99,24 @@ export const POST = withErrorHandler(async (
         throw new AuthError('Not authorized to provide feedback for this meeting');
     }
 
-    const existing = await prisma.meetingFeedback.findUnique({ where: { actionId } });
-    if (existing) {
-        throw new AuthError('Feedback already submitted for this meeting');
+    const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+    if (outcome === 'NO_SHOW' && action.callbackDate &&
+        Date.now() - action.callbackDate.getTime() > FORTY_EIGHT_HOURS_MS) {
+        throw new AuthError(
+            "Ce rendez-vous a eu lieu il y a plus de 48h, ce signalement n'est plus possible depuis le portail. Contactez votre manager.",
+            403
+        );
     }
 
-    const feedback = await prisma.meetingFeedback.create({
-        data: {
+    const feedback = await prisma.meetingFeedback.upsert({
+        where: { actionId },
+        create: {
             actionId,
+            outcome,
+            recontactRequested: recontact,
+            clientNote: clientNote || null,
+        },
+        update: {
             outcome,
             recontactRequested: recontact,
             clientNote: clientNote || null,

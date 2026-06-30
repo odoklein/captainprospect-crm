@@ -76,6 +76,7 @@ export default function ClientPortalReportingPage() {
     const [isLoadingSessions, setIsLoadingSessions] = useState(true);
     const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
     const [showCRTab, setShowCRTab] = useState<"cr" | "email">("cr");
+    const [sessionsError, setSessionsError] = useState<string | null>(null);
 
     useEffect(() => {
         (async () => {
@@ -96,9 +97,14 @@ export default function ClientPortalReportingPage() {
             try {
                 const res = await fetch("/api/client/sessions");
                 const json = await res.json();
-                if (json.success) setSessions(json.data ?? []);
+                if (json.success) {
+                    setSessions(json.data ?? []);
+                } else {
+                    setSessionsError(json.error ?? "Erreur lors du chargement des sessions.");
+                }
             } catch (e) {
                 console.error("Failed to load sessions:", e);
+                setSessionsError("Erreur lors du chargement des sessions.");
             } finally {
                 setIsLoadingSessions(false);
             }
@@ -187,6 +193,10 @@ export default function ClientPortalReportingPage() {
                 {isLoadingSessions ? (
                     <div className="flex items-center justify-center py-12 rounded-2xl border border-[#E8EBF0] bg-white">
                         <Loader2 className="w-8 h-8 animate-spin text-[#6C3AFF]" />
+                    </div>
+                ) : sessionsError ? (
+                    <div className="text-center py-12 rounded-2xl border border-red-200 bg-red-50">
+                        <p className="text-sm text-red-600">{sessionsError}</p>
                     </div>
                 ) : sessions.length === 0 ? (
                     <div className="text-center py-12 rounded-2xl border border-[#E8EBF0] bg-white">

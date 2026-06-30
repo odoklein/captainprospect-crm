@@ -210,7 +210,15 @@ interface ClientDrawerProps {
     onDelete?: () => void;
 }
 
-type TabId = "apercu" | "missions" | "acces" | "interlocuteurs" | "activite" | "avis-sdr";
+type TabId = "apercu" | "missions" | "acces" | "interlocuteurs" | "activite" | "avis-sdr" | "sessions";
+
+interface ClientSessionLite {
+    id: string;
+    type: string;
+    date: string;
+    crMarkdown?: string | null;
+    summaryEmail?: string | null;
+}
 
 // ============================================================================
 // HELPERS
@@ -427,6 +435,17 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
         queryFn: fetchMailboxes,
         enabled: isOpen,
         staleTime: 60_000,
+    });
+
+    // Sessions & CRs (compact read-only view)
+    const { data: sessions = [] } = useQuery<ClientSessionLite[]>({
+        queryKey: ["client-sessions", client?.id],
+        queryFn: async () => {
+            const res = await fetch(`/api/clients/${client!.id}/sessions`);
+            const json = await res.json();
+            return json.success ? (json.data ?? []) : [];
+        },
+        enabled: isOpen && !!client?.id,
     });
 
     // Reset tab when switching clients
@@ -1395,7 +1414,48 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
         { id: "interlocuteurs", label: "Interlocuteurs", icon: <Users className="w-3.5 h-3.5" />, badge: interlocuteurs.length || undefined },
         { id: "activite", label: "Activité", icon: <Activity className="w-3.5 h-3.5" /> },
         { id: "avis-sdr", label: "Avis SDR", icon: <MessageSquare className="w-3.5 h-3.5" />, badge: sdrFeedback.length || undefined },
+        { id: "sessions", label: "CR & Sessions", icon: <FileText className="w-3.5 h-3.5" />, badge: sessions.length || undefined },
     ];
+
+    const SessionsTab = (
+        <div className="space-y-3">
+            <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-slate-900">CR & Sessions</h3>
+                {client && (
+                    <Link
+                        href={`/manager/clients/${client.id}?tab=sessions`}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
+                    >
+                        Gérer les sessions <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                )}
+            </div>
+            {sessions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
+                    <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-slate-700">Aucune session pour ce client</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {sessions.map((s) => (
+                        <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-900">{s.type}</span>
+                                <span className="text-xs text-slate-500">
+                                    {new Date(s.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                </span>
+                            </div>
+                            {s.crMarkdown ? (
+                                <p className="text-xs text-slate-600 mt-1.5 line-clamp-2">{s.crMarkdown}</p>
+                            ) : (
+                                <p className="text-xs text-slate-400 italic mt-1.5">Pas de CR disponible</p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <>
@@ -1424,6 +1484,7 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                         {activeTab === "interlocuteurs" && InterlocuteursTab}
                         {activeTab === "activite" && ActivityTab}
                         {activeTab === "avis-sdr" && SdrFeedbackTab}
+                        {activeTab === "sessions" && SessionsTab}
                     </div>
                 </div>
             </Drawer>
