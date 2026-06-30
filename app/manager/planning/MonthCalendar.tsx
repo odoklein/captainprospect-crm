@@ -134,6 +134,7 @@ export function MonthCalendar() {
 
     const quickAddRef = useRef<HTMLDivElement | null>(null);
     const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const skipMonthResetRef = useRef(false);
 
     useEffect(() => {
         if (!snapshot) {
@@ -144,6 +145,10 @@ export function MonthCalendar() {
     }, [snapshot, monthLoading]);
 
     useEffect(() => {
+        if (skipMonthResetRef.current) {
+            skipMonthResetRef.current = false;
+            return;
+        }
         const [year, mon] = month.split('-').map(Number);
         const now = new Date();
         const isCurrentMonth =
@@ -509,12 +514,29 @@ export function MonthCalendar() {
         }
     }, [backgroundSync, deletingBlockId, showError, success]);
 
+    function navigateWeek(delta: number) {
+        const [year, mon] = month.split('-').map(Number);
+        const targetMonday = new Date(firstMondayOfMonth(year, mon));
+        targetMonday.setDate(targetMonday.getDate() + (weekOffset + delta) * 7);
+        const targetMonth = `${targetMonday.getFullYear()}-${String(targetMonday.getMonth() + 1).padStart(2, '0')}`;
+
+        if (targetMonth !== month) {
+            const newFirstMonday = firstMondayOfMonth(targetMonday.getFullYear(), targetMonday.getMonth() + 1);
+            const diffDays = Math.round((targetMonday.getTime() - newFirstMonday.getTime()) / 86400000);
+            skipMonthResetRef.current = true;
+            setMonth(targetMonth);
+            setWeekOffset(Math.floor(diffDays / 7));
+        } else {
+            setWeekOffset((current) => current + delta);
+        }
+    }
+
     function prevNav() {
-        setWeekOffset((current) => current - 1);
+        navigateWeek(-1);
     }
 
     function nextNav() {
-        setWeekOffset((current) => current + 1);
+        navigateWeek(1);
     }
 
     function goToToday() {
@@ -2062,6 +2084,15 @@ function normalizeMonthlyData(payload: MonthlyData): MonthlyData {
 
 function toDateString(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function firstMondayOfMonth(year: number, mon: number): Date {
+    const firstOfMonth = new Date(year, mon - 1, 1);
+    let startDow = firstOfMonth.getDay() - 1;
+    if (startDow < 0) startDow = 6;
+    const firstMonday = new Date(firstOfMonth);
+    firstMonday.setDate(firstMonday.getDate() - startDow);
+    return firstMonday;
 }
 
 function currentWeekKey(weekOffset: number, month: string): string {

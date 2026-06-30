@@ -137,7 +137,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     }
 
     const [year, month, day] = data.date.split('-').map(Number);
-    const blockDate = new Date(year, month - 1, day, 0, 0, 0, 0);
+    const blockDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
 
     // Reject if the SDR is marked absent on this day (impactsPlanning=true)
     if (await isSdrAbsentOnDate(data.sdrId, blockDate)) {
