@@ -11,17 +11,8 @@ export function StickyHeader() {
     const [refreshing, setRefreshing] = useState(false);
 
     const health = snapshot?.healthSummary;
-
-    const totalMissions = (health?.missions.active ?? 0) + (health?.missions.noSdr ?? 0);
-    const totalSdrs = (health?.sdrs.optimal ?? 0) + (health?.sdrs.overloaded ?? 0) + (health?.sdrs.underutilized ?? 0);
-
-    const stripColor = !health
-        ? 'bg-slate-200'
-        : (health.sdrs.overloaded > 0 || health.missions.noSdr > 0)
-            ? 'bg-gradient-to-r from-red-400 via-amber-400 to-green-400'
-            : health.missions.understaffed > 0
-                ? 'bg-gradient-to-r from-amber-400 to-green-400'
-                : 'bg-green-400';
+    const missionsNoSdr = health?.missions.noSdr ?? 0;
+    const sdrsOverloaded = health?.sdrs.overloaded ?? 0;
 
     async function handleRefresh() {
         setRefreshing(true);
@@ -76,54 +67,30 @@ export function StickyHeader() {
                             <RefreshCw className={cn('w-4 h-4', (refreshing || loading) && 'animate-spin')} />
                         </button>
                     </div>
-                </div>
 
-                {/* Health summary pills */}
-                {health && !loading && (
-                    <div className="flex items-center gap-4 mt-2.5 text-xs flex-wrap">
-                        <div className="flex items-center gap-2 text-slate-500">
-                            <span className="font-semibold text-slate-700">{totalMissions} mission{totalMissions !== 1 ? 's' : ''}</span>
-                            <Pill count={health.missions.complete} label="complètes" color="emerald" />
-                            {health.missions.understaffed > 0 && (
-                                <Pill count={health.missions.understaffed} label="à compléter" color="amber" />
+                    {/* Right — actionable alerts only */}
+                    {health && !loading && (missionsNoSdr > 0 || sdrsOverloaded > 0) && (
+                        <div className="flex items-center gap-2 text-xs">
+                            {missionsNoSdr > 0 && (
+                                <Alert count={missionsNoSdr} label={`mission${missionsNoSdr > 1 ? 's' : ''} sans SDR`} />
                             )}
-                            {health.missions.noSdr > 0 && (
-                                <Pill count={health.missions.noSdr} label="sans SDR" color="red" />
+                            {sdrsOverloaded > 0 && (
+                                <Alert count={sdrsOverloaded} label={`SDR surchargé${sdrsOverloaded > 1 ? 's' : ''}`} />
                             )}
                         </div>
-                        <div className="w-px h-4 bg-slate-200" />
-                        <div className="flex items-center gap-2 text-slate-500">
-                            <span className="font-semibold text-slate-700">{totalSdrs} SDR{totalSdrs !== 1 ? 's' : ''}</span>
-                            <Pill count={health.sdrs.optimal} label="optimaux" color="emerald" />
-                            {health.sdrs.overloaded > 0 && (
-                                <Pill count={health.sdrs.overloaded} label="surchargés" color="red" />
-                            )}
-                            {health.sdrs.underutilized > 0 && (
-                                <Pill count={health.sdrs.underutilized} label="sous-utilisés" color="blue" />
-                            )}
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
-            <div
-                className={cn('h-1 w-full transition-colors', stripColor)}
-                title="Barre de santé: rouge = risques forts, ambre = points à surveiller, vert = planning sain"
-            />
+            <div className="h-px w-full bg-slate-200" />
         </div>
     );
 }
 
-function Pill({ count, label, color }: { count: number; label: string; color: 'emerald' | 'amber' | 'red' | 'blue' }) {
-    if (count === 0) return null;
-    const colors = {
-        emerald: 'bg-emerald-100 text-emerald-700',
-        amber: 'bg-amber-100 text-amber-700',
-        red: 'bg-red-100 text-red-700',
-        blue: 'bg-blue-100 text-blue-700',
-    };
+function Alert({ count, label }: { count: number; label: string }) {
     return (
-        <span className={cn('px-2 py-0.5 rounded-full font-medium', colors[color])}>
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
             {count} {label}
         </span>
     );
