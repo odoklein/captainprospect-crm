@@ -4638,3 +4638,117 @@ textarea::placeholder {
 @media (prefers-reduced-motion: reduce) {
     .sdr-drawer * { animation: none !important; transition: none !important; }
 }
+/* ============================================
+   CAPTAIN PROSPECT DESIGN SYSTEM — TOKENS
+   Source of truth: designsystemfinal/CaptainProspect Design System.html
+   Warm cream canvas, deep green accent, DM Sans/DM Mono.
+   Prefix: --cp-* (variables) / .cpds-* (utilities) to avoid
+   collisions with the legacy .cp-* sidebar classes above.
+   ============================================ */
+:root {
+    /* Surfaces */
+    --cp-canvas: #FAF9F6;
+    --cp-raised: #FFFFFF;
+    --cp-sunken: #F1EFE9;
+    --cp-inverse: #0E0F0C;
+
+    /* Ink */
+    --cp-ink: #0E0F0C;
+    --cp-ink-2: #4A4B46;
+    --cp-ink-3: #8A8A83;
+    --cp-on-inverse: #FAF9F6;
+
+    /* Borders */
+    --cp-border: #E8E6DF;
+    --cp-border-strong: #D5D2C9;
+
+    /* Accent (deep green) */
+    --cp-green: #2B5F3E;
+    --cp-green-hover: #224A31;
+    --cp-green-soft: #E7EFE9;
+
+    /* Signals */
+    --cp-success: #2B5F3E;
+    --cp-success-soft: #E7EFE9;
+    --cp-warn: #B8541A;
+    --cp-warn-soft: #F5E6DA;
+    --cp-danger: #9A2A2A;
+    --cp-danger-soft: #F3DFDF;
+    --cp-info: #3A5280;
+    --cp-info-soft: #E4E9F2;
+    --cp-neutral-soft: #ECEAE3;
+
+    /* Shape / motion */
+    --cp-r-lg: 16px;
+    --cp-r-md: 10px;
+    --cp-r-sm: 6px;
+    --cp-dur-fast: 120ms;
+    --cp-dur-base: 200ms;
+    --cp-dur-slow: 320ms;
+    --cp-ease: cubic-bezier(.2, .7, .2, 1);
+    --cp-focus-ring: 0 0 0 3px rgba(43, 95, 62, 0.22);
+
+    /* Typography */
+    --cp-font: var(--font-dm-sans), 'DM Sans', 'Inter', system-ui, sans-serif;
+    --cp-mono: var(--font-dm-mono), 'DM Mono', ui-monospace, monospace;
+}
+
+/* Page wrapper: applies the CP canvas + font to everything inside */
+.cpds-page {
+    background: var(--cp-canvas);
+    font-family: var(--cp-font);
+    color: var(--cp-ink);
+    -webkit-font-smoothing: antialiased;
+}
+
+.cpds-card {
+    background: var(--cp-raised);
+    border: 1px solid var(--cp-border);
+    border-radius: var(--cp-r-lg);
+    transition: border-color var(--cp-dur-base) var(--cp-ease), box-shadow var(--cp-dur-base) var(--cp-ease);
+}
+.cpds-card:hover {
+    border-color: var(--cp-border-strong);
+    box-shadow: 0 8px 28px -12px rgba(14, 15, 12, 0.14);
+}
+
+.cpds-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 9px 3px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.cpds-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 5px;
+    border: 1px solid var(--cp-border-strong);
+    border-bottom-width: 2px;
+    background: var(--cp-raised);
+    color: var(--cp-ink-2);
+    font-family: var(--cp-mono);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+@keyframes cpds-fade-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+}
+.cpds-enter { animation: cpds-fade-up 0.35s var(--cp-ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+    .cpds-enter { animation: none !important; }
+}

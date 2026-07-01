@@ -30,7 +30,8 @@
       "Bash(powershell -Command \"[Environment]::GetEnvironmentVariable\\('DATABASE_URL','User'\\)\")",
       "Bash(printenv)",
       "Bash(npx eslint *)",
-      "mcp__f069f23f-4aab-4d2b-a023-a38d928e1fef__slack_send_message"
+      "mcp__f069f23f-4aab-4d2b-a023-a38d928e1fef__slack_send_message",
+      "Bash(node -e ' *)"
     ]
   }
 }

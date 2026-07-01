@@ -1,0 +1,3128 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>CaptainProspect — Design System Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<style>/* latin-ext */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("c1cf97cb-e689-4bbc-81bd-7fb14e721c51") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("9a68af06-cdf5-4306-858b-47afccef1430") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("d12b48c2-4ee0-4f8a-bbbd-74bc903c2061") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("b680c60f-1d95-4324-9e5f-210561d92daf") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("fa9ad0a9-ec34-48af-87b0-924b66837b67") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("111a62ad-a3ce-4a23-bdee-b5cee740c380") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fa9ad0a9-ec34-48af-87b0-924b66837b67") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("111a62ad-a3ce-4a23-bdee-b5cee740c380") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fa9ad0a9-ec34-48af-87b0-924b66837b67") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("111a62ad-a3ce-4a23-bdee-b5cee740c380") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fa9ad0a9-ec34-48af-87b0-924b66837b67") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("111a62ad-a3ce-4a23-bdee-b5cee740c380") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fa9ad0a9-ec34-48af-87b0-924b66837b67") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("111a62ad-a3ce-4a23-bdee-b5cee740c380") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+
+<style>
+/* =========================================================
+   CaptainProspect — Design System v2
+   Quiet Workspace
+   ========================================================= */
+
+:root{
+  /* surface */
+  --surface-canvas:#FAF9F6;
+  --surface-raised:#FFFFFF;
+  --surface-sunken:#F1EFE9;
+  --surface-inverse:#0E0F0C;
+
+  /* text */
+  --text-primary:#0E0F0C;
+  --text-secondary:#4A4B46;
+  --text-tertiary:#8A8A83;
+  --text-on-inverse:#FAF9F6;
+
+  /* border */
+  --border-subtle:#E8E6DF;
+  --border-strong:#D5D2C9;
+
+  /* accent */
+  --accent-primary:#2B5F3E;
+  --accent-primary-hover:#224A31;
+  --accent-primary-soft:#E7EFE9;
+
+  /* signal */
+  --signal-warn:#B8541A;
+  --signal-warn-soft:#F5E6DA;
+  --signal-danger:#9A2A2A;
+  --signal-danger-soft:#F3DFDF;
+  --signal-info:#3A5280;
+  --signal-info-soft:#E4E9F2;
+  --signal-success:#2B5F3E;
+  --signal-success-soft:#E7EFE9;
+  --signal-neutral-soft:#ECEAE3;
+
+  /* focus */
+  --focus-ring:0 0 0 3px rgba(43,95,62,0.22);
+
+  /* motion */
+  --dur-fast:120ms;
+  --dur-base:200ms;
+  --dur-slow:320ms;
+  --ease:cubic-bezier(.2,.7,.2,1);
+
+  /* radius */
+  --r-xs:2px; --r-sm:6px; --r-md:10px; --r-lg:16px;
+
+  /* elevation */
+  --elev-1:0 1px 2px rgba(14,15,12,.04), 0 1px 1px rgba(14,15,12,.03);
+  --elev-2:0 4px 12px rgba(14,15,12,.06), 0 1px 2px rgba(14,15,12,.04);
+  --elev-3:0 16px 48px rgba(14,15,12,.14), 0 2px 6px rgba(14,15,12,.06);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'DM Sans',ui-sans-serif,system-ui,sans-serif;
+  background:var(--surface-canvas);
+  color:var(--text-primary);
+  font-size:14px;
+  line-height:20px;
+  font-feature-settings:"ss01","cv11";
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.mono{font-family:'DM Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+a{color:inherit}
+code{font-family:'DM Mono',ui-monospace,monospace;font-size:12.5px;background:var(--surface-sunken);padding:1px 5px;border-radius:4px}
+em{font-style:normal;color:var(--text-secondary)}
+
+.kbd{
+  font-family:'DM Mono',ui-monospace,monospace;
+  font-size:11px;
+  padding:2px 6px;
+  background:var(--surface-sunken);
+  border:1px solid var(--border-subtle);
+  border-bottom-width:2px;
+  border-radius:4px;
+  color:var(--text-secondary);
+  margin-left:8px;
+}
+.kbd--ghost{background:transparent;border-color:transparent;color:var(--text-tertiary)}
+
+/* =========================================================
+   COVER
+   ========================================================= */
+.cover{
+  min-height:92vh;
+  padding:120px 80px 96px;
+  max-width:1440px;
+  margin:0 auto;
+  position:relative;
+  border-bottom:1px solid var(--border-subtle);
+}
+.cover__inner{max-width:980px}
+.cover__eyebrow{
+  display:inline-flex;gap:10px;align-items:center;
+  font-size:12px;letter-spacing:0.04em;color:var(--text-secondary);
+  padding:8px 14px;border:1px solid var(--border-subtle);border-radius:999px;
+  background:var(--surface-raised);
+}
+.cover__eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent-primary)}
+.cover__title{
+  font-size:104px;line-height:1.02;font-weight:500;letter-spacing:-0.035em;
+  margin:36px 0 32px;max-width:900px;
+}
+.cover__lede{
+  font-size:22px;line-height:32px;color:var(--text-secondary);
+  max-width:720px;margin:0 0 72px;
+  text-wrap:pretty;
+}
+.cover__meta{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:40px;
+  padding:28px 0;
+  border-top:1px solid var(--border-subtle);
+  border-bottom:1px solid var(--border-subtle);
+  font-size:14px;
+}
+.cover__meta-label{
+  font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--text-tertiary);margin-bottom:6px;
+}
+.cover__toc{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:0;margin-top:72px;
+}
+.cover__toc a{
+  padding:20px 0;border-top:1px solid var(--border-subtle);
+  text-decoration:none;color:var(--text-primary);
+  font-size:15px;font-weight:500;
+  transition:color var(--dur-fast) var(--ease);
+}
+.cover__toc a:last-child,
+.cover__toc a:nth-child(n+4){border-bottom:1px solid var(--border-subtle)}
+.cover__toc a:hover{color:var(--accent-primary)}
+
+/* =========================================================
+   CHAPTER
+   ========================================================= */
+.chapter{
+  max-width:1440px;margin:0 auto;
+  padding:120px 80px;
+  border-bottom:1px solid var(--border-subtle);
+}
+.chapter--tinted{background:#F4F2EC}
+.chapter__head{max-width:820px;margin-bottom:80px}
+.chapter__num{
+  font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.1em;
+  color:var(--text-tertiary);margin-bottom:16px;
+}
+.chapter__title{
+  font-size:56px;line-height:60px;font-weight:500;letter-spacing:-0.025em;
+  margin:0 0 20px;
+}
+.chapter__dek{
+  font-size:19px;line-height:28px;color:var(--text-secondary);
+  margin:0;max-width:680px;text-wrap:pretty;
+}
+
+/* =========================================================
+   DIRECTIONS
+   ========================================================= */
+.directions{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:24px;
+  margin-bottom:48px;
+}
+.dir{
+  background:var(--surface-raised);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);
+  padding:24px;
+  display:flex;flex-direction:column;gap:20px;
+  position:relative;
+}
+.dir--chosen{
+  border-color:var(--accent-primary);
+  box-shadow:0 0 0 1px var(--accent-primary), var(--elev-2);
+}
+.dir__badge{
+  position:absolute;top:-10px;left:24px;
+  background:var(--accent-primary);color:var(--text-on-inverse);
+  font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+  padding:4px 10px;border-radius:999px;font-weight:500;
+}
+.dir__swatches{display:flex;gap:6px;margin-bottom:16px}
+.dir__swatches span{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.08)}
+.dir__label{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--text-tertiary);text-transform:uppercase;
+}
+.dir__name{font-size:24px;line-height:28px;font-weight:500;letter-spacing:-0.01em;margin:4px 0 0}
+.dir__preview{
+  height:220px;border-radius:var(--r-sm);
+  border:1px solid var(--border-subtle);
+  overflow:hidden;position:relative;
+}
+
+/* Direction A preview */
+.dir__preview--a{background:#FFF;display:flex}
+.prev-a-rail{width:28px;background:#FAFAF7;border-right:1px solid #EDEBE4;padding:12px 0;display:flex;flex-direction:column;gap:10px;align-items:center}
+.prev-a-rail span{width:8px;height:8px;border-radius:50%;background:#D5D2C9}
+.prev-a-rail span:first-child{background:#111418}
+.prev-a-main{flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:6px}
+.prev-a-kicker{font-size:9px;letter-spacing:0.1em;color:#8A8A83}
+.prev-a-num{font-size:48px;font-weight:500;letter-spacing:-0.025em;line-height:1;color:#111418;margin-top:4px}
+.prev-a-sub{font-size:10px;color:#4A4B46;margin-bottom:auto}
+.prev-a-bars{display:flex;gap:3px;align-items:flex-end;height:40px}
+.prev-a-bars i{flex:1;background:#111418;border-radius:1px}
+.prev-a-bars i:nth-child(1){height:32%} .prev-a-bars i:nth-child(2){height:48%}
+.prev-a-bars i:nth-child(3){height:64%} .prev-a-bars i:nth-child(4){height:52%}
+.prev-a-bars i:nth-child(5){height:72%} .prev-a-bars i:nth-child(6){height:88%;background:#3D5AFE}
+.prev-a-bars i:nth-child(7){height:68%} .prev-a-bars i:nth-child(8){height:80%}
+.prev-a-bars i:nth-child(9){height:58%} .prev-a-bars i:nth-child(10){height:76%}
+.prev-a-bars i:nth-child(11){height:90%} .prev-a-bars i:nth-child(12){height:66%}
+
+/* Direction B preview */
+.dir__preview--b{background:#FAF9F6;padding:16px;display:flex;flex-direction:column;gap:12px}
+.prev-b-top{display:flex;gap:4px;padding:3px;background:#ECEAE3;border-radius:6px;width:fit-content}
+.prev-b-tab{font-size:11px;padding:4px 10px;border-radius:4px;color:#4A4B46}
+.prev-b-tab--on{background:#FFF;color:#0E0F0C;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.prev-b-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;flex:1}
+.prev-b-cell{background:#FFF;border:1px solid #E8E6DF;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.prev-b-label{font-size:10px;letter-spacing:0.06em;color:#8A8A83;text-transform:uppercase}
+.prev-b-num{font-size:26px;font-weight:500;letter-spacing:-0.02em;line-height:1;color:#0E0F0C;margin:auto 0}
+.prev-b-num span{font-size:14px;color:#8A8A83;margin-left:2px}
+.prev-b-delta{font-family:'DM Mono',monospace;font-size:10px;color:#4A4B46}
+.prev-b-delta--up{color:#2B5F3E}
+.prev-b-delta--down{color:#B8541A}
+
+/* Direction C preview */
+.dir__preview--c{background:#0B0D10;color:#E6E8EB;font-family:'DM Mono',monospace}
+.prev-c-chrome{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid #1B1F24}
+.prev-c-chrome span{width:8px;height:8px;border-radius:50%;background:#2B3037}
+.prev-c-body{padding:16px;display:flex;flex-direction:column;gap:6px;font-size:11px}
+.prev-c-line{display:flex;gap:8px;color:#8C9097}
+.prev-c-line em{color:#7CF0BA;font-style:normal}
+.prev-c-line span{color:#E6E8EB}
+.prev-c-line--hi em{color:#FF8A5C}
+.prev-c-line--hi span{color:#FF8A5C}
+.prev-c-graph{display:flex;gap:3px;align-items:flex-end;height:40px;margin-top:8px}
+.prev-c-graph i{flex:1;background:#7CF0BA;opacity:.9;border-radius:1px}
+.prev-c-graph i:nth-child(1){height:30%;opacity:.4}
+.prev-c-graph i:nth-child(2){height:45%;opacity:.5}
+.prev-c-graph i:nth-child(3){height:60%;opacity:.6}
+.prev-c-graph i:nth-child(4){height:52%;opacity:.55}
+.prev-c-graph i:nth-child(5){height:78%;opacity:.8}
+.prev-c-graph i:nth-child(6){height:66%;opacity:.7}
+.prev-c-graph i:nth-child(7){height:88%}
+.prev-c-graph i:nth-child(8){height:94%}
+
+.dir__desc{font-size:14px;line-height:22px;color:var(--text-secondary);margin:0}
+.dir__traits{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.dir__traits li{font-size:13px;color:var(--text-secondary);padding-left:16px;position:relative}
+.dir__traits li::before{content:"";position:absolute;left:0;top:8px;width:8px;height:1px;background:var(--border-strong)}
+
+.converge{
+  display:flex;gap:32px;align-items:flex-start;
+  padding:40px;background:var(--surface-raised);
+  border:1px solid var(--border-subtle);border-radius:var(--r-md);
+}
+.converge__num{font-family:'DM Mono',monospace;font-size:24px;color:var(--accent-primary)}
+.converge__label{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--accent-primary);text-transform:uppercase;margin-bottom:8px;
+}
+.converge__title{font-size:24px;line-height:30px;font-weight:500;letter-spacing:-0.01em;margin:0 0 10px}
+.converge__body p{font-size:15px;line-height:24px;color:var(--text-secondary);margin:0;max-width:720px}
+
+/* =========================================================
+   AUDIT
+   ========================================================= */
+.audit{
+  display:grid;grid-template-columns:1.15fr 1fr;gap:48px;
+  margin-bottom:80px;align-items:start;
+}
+.audit__label,.principles__label{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--text-tertiary);text-transform:uppercase;margin-bottom:14px;
+}
+.audit__mock{
+  background:#1a1033;
+  border-radius:var(--r-md);
+  padding:16px;
+  position:relative;
+  height:420px;
+  display:grid;
+  grid-template-columns:64px 1fr 1fr 1fr;
+  grid-template-rows:auto auto auto auto;
+  gap:10px;
+  overflow:hidden;
+}
+.mock-sidebar{
+  grid-row:1/-1;grid-column:1;
+  background:#1a1033;display:flex;flex-direction:column;gap:8px;padding:10px 8px;
+  border-right:1px solid rgba(255,255,255,.06);
+}
+.mock-logo{width:28px;height:28px;background:#8b5cf6;border-radius:6px;margin-bottom:10px}
+.mock-nav-item{height:10px;background:rgba(255,255,255,.08);border-radius:3px}
+.mock-nav-item--on{background:#8b5cf6}
+.mock-nav-sec{height:6px;background:rgba(255,255,255,.04);width:60%;margin:4px 0;border-radius:2px}
+.mock-main{
+  grid-column:2/-1;grid-row:1/-1;
+  display:grid;
+  grid-template-columns:2fr 1fr 1fr 1fr;
+  grid-template-rows:160px 1fr;
+  gap:10px;
+  background:#F8F7FC;border-radius:8px;padding:12px;
+}
+.mock-hero{
+  grid-column:1;grid-row:1;
+  background:linear-gradient(135deg,#2d1b4e,#1a1033);
+  border-radius:8px;padding:14px;position:relative;color:#FFF;
+  display:flex;align-items:center;gap:14px;
+}
+.mock-hero-big{font-size:44px;font-weight:700;letter-spacing:-0.02em}
+.mock-hero-ring{width:48px;height:48px;border-radius:50%;border:4px solid #8b5cf6;border-right-color:transparent}
+.mock-kpi{
+  background:#FFF;border-radius:8px;padding:10px;
+  border:1px solid #EDEAF5;
+}
+.mock-kpi:nth-child(2){grid-column:2;grid-row:1;position:relative}
+.mock-kpi:nth-child(2)::after{content:"";position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:6px;background:#EDE5FD}
+.mock-kpi:nth-child(3){grid-column:3;grid-row:1;position:relative}
+.mock-kpi:nth-child(3)::after{content:"";position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:6px;background:#FEF3C7}
+.mock-kpi:nth-child(4){grid-column:4;grid-row:1;position:relative}
+.mock-kpi:nth-child(4)::after{content:"";position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:6px;background:#DCFCE7}
+.mock-chart{background:#FFF;border-radius:8px;padding:10px;border:1px solid #EDEAF5}
+.mock-chart--a{grid-column:1/2;grid-row:2}
+.mock-chart--b{grid-column:2/3;grid-row:2}
+.mock-chart--c{grid-column:3/-1;grid-row:2;background:linear-gradient(180deg,#FFF 0%,#F3ECFF 100%)}
+.audit__pins{position:absolute;inset:0;pointer-events:none}
+.pin{
+  position:absolute;width:22px;height:22px;border-radius:50%;
+  background:var(--signal-warn);color:#FFF;
+  font-size:11px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 3px rgba(184,84,26,.2);
+}
+.pin--inline{
+  position:relative;display:inline-flex;margin-right:10px;flex-shrink:0;
+  width:20px;height:20px;font-size:11px;
+}
+
+.audit__findings ol{list-style:none;padding:0;margin:0}
+.audit__findings li{
+  display:flex;align-items:flex-start;
+  padding:16px 0;border-bottom:1px solid var(--border-subtle);
+  font-size:14px;line-height:22px;color:var(--text-secondary);
+}
+.audit__findings li strong{color:var(--text-primary);margin-right:6px;font-weight:500}
+
+.principles{margin-top:32px}
+.principles__grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--border-subtle);
+  border:1px solid var(--border-subtle);border-radius:var(--r-md);overflow:hidden;
+}
+.principle{
+  background:var(--surface-raised);padding:32px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.principle__num{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--text-tertiary);
+}
+.principle h4{font-size:18px;line-height:24px;font-weight:500;letter-spacing:-0.005em;margin:0}
+.principle p{font-size:14px;line-height:22px;color:var(--text-secondary);margin:0}
+
+/* =========================================================
+   FOUNDATIONS BLOCKS
+   ========================================================= */
+.f-block{margin-bottom:80px}
+.f-block__head{max-width:720px;margin-bottom:40px}
+.f-block__kicker{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--accent-primary);margin-bottom:10px;
+}
+.f-block__title{font-size:32px;line-height:36px;font-weight:500;letter-spacing:-0.015em;margin:0 0 10px}
+.f-block__dek{font-size:15px;line-height:24px;color:var(--text-secondary);margin:0}
+
+.f-triple{display:grid;grid-template-columns:repeat(3,1fr);gap:40px;align-items:start}
+.f-third .f-block__head{margin-bottom:24px}
+
+/* COLOR ROLES */
+.roles{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:24px;
+  margin-bottom:32px;
+}
+.role-group{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:20px;
+}
+.role-group__label{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--text-tertiary);text-transform:uppercase;margin-bottom:14px;
+}
+.role{
+  display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;
+  padding:10px 0;border-top:1px solid var(--border-subtle);
+}
+.role:first-of-type{border-top:0;padding-top:0}
+.role__chip{width:32px;height:32px;border-radius:6px}
+.role__name{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-primary)}
+.role__hex{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-tertiary)}
+.role__use{grid-column:2/-1;font-size:12px;color:var(--text-secondary);margin-top:2px}
+
+.role-rules,.c-rules{
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;
+}
+.rule{
+  padding:16px 20px;border:1px solid var(--border-subtle);border-radius:var(--r-md);
+  background:var(--surface-raised);
+}
+.rule__good,.rule__bad{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  text-transform:uppercase;margin-bottom:6px;
+}
+.rule__good{color:var(--accent-primary)}
+.rule__bad{color:var(--signal-warn)}
+.rule p{font-size:13px;line-height:20px;color:var(--text-secondary);margin:0}
+
+/* TYPE */
+.type-scale{
+  background:var(--surface-raised);
+  border:1px solid var(--border-subtle);border-radius:var(--r-md);
+  overflow:hidden;
+}
+.type-row{
+  display:grid;grid-template-columns:200px 1fr 220px;
+  gap:32px;padding:28px 32px;align-items:center;
+  border-bottom:1px solid var(--border-subtle);
+}
+.type-row:last-child{border-bottom:0}
+.type-row__name{font-size:14px;font-weight:500;margin-bottom:4px}
+.type-row__spec{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-tertiary)}
+.type-row__sample{color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.type-row__use{font-size:13px;color:var(--text-secondary)}
+
+/* SPACING */
+.spacing{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:24px;margin-bottom:40px;
+}
+.spacing__row{
+  display:grid;grid-template-columns:140px 60px 1fr;gap:16px;align-items:center;
+  padding:10px 0;border-top:1px solid var(--border-subtle);
+}
+.spacing__row:first-child{border-top:0;padding-top:0}
+.spacing__tok{font-family:'DM Mono',monospace;font-size:12px}
+.spacing__val{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-tertiary)}
+.spacing__bar{height:14px;background:var(--accent-primary);border-radius:2px;max-width:100%}
+
+.grid-demo{margin-top:24px}
+.grid-demo__label{font-size:13px;color:var(--text-secondary);margin-bottom:12px}
+.grid-demo__vis{
+  display:grid;grid-template-columns:80px 1fr 80px;
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);overflow:hidden;height:80px;
+}
+.grid-demo__gutter{background:repeating-linear-gradient(-45deg,#F1EFE9,#F1EFE9 4px,#FFF 4px,#FFF 8px)}
+.grid-demo__cols{display:grid;grid-template-columns:repeat(12,1fr);gap:24px;padding:16px 0}
+.grid-demo__cols span{background:var(--accent-primary-soft);border-radius:2px}
+.grid-demo__break{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:16px;
+}
+.grid-demo__break-t{font-size:13px;font-weight:500;margin-bottom:4px}
+.grid-demo__break-v{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-tertiary)}
+
+/* RADII */
+.radii,.elev,.motion{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:20px;display:flex;flex-direction:column;gap:4px;
+}
+.radii__row,.elev__row{
+  display:flex;align-items:center;gap:16px;padding:10px 0;
+  border-top:1px solid var(--border-subtle);
+}
+.radii__row:first-child,.elev__row:first-child,.motion__row:first-child{border-top:0;padding-top:0}
+.radii__box{width:36px;height:36px;background:var(--surface-sunken);border:1px solid var(--border-subtle);flex-shrink:0}
+.radii__name,.elev__name,.motion__name{font-family:'DM Mono',monospace;font-size:12px}
+.radii__use,.elev__use,.motion__use{font-size:12px;color:var(--text-secondary)}
+
+/* ELEV */
+.elev__box{width:36px;height:36px;background:#FFF;border-radius:6px;flex-shrink:0}
+.elev__box--0{border:1px solid var(--border-subtle)}
+.elev__box--1{box-shadow:var(--elev-1)}
+.elev__box--2{box-shadow:var(--elev-2)}
+.elev__box--3{box-shadow:var(--elev-3)}
+
+/* MOTION */
+.motion__row{
+  display:grid;grid-template-columns:120px 110px 1fr;gap:12px;
+  padding:10px 0;border-top:1px solid var(--border-subtle);align-items:center;
+}
+.motion__val{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-secondary)}
+.motion__principle{
+  margin-top:16px;padding:14px;background:var(--surface-sunken);
+  border-radius:var(--r-sm);font-size:13px;line-height:20px;color:var(--text-secondary);
+}
+
+/* =========================================================
+   COMPONENTS
+   ========================================================= */
+.c-block{margin-bottom:64px}
+.c-block__head{max-width:720px;margin-bottom:28px}
+.c-block__kicker{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--accent-primary);margin-bottom:10px;
+}
+.c-block__title{font-size:28px;line-height:32px;font-weight:500;letter-spacing:-0.015em;margin:0 0 10px}
+.c-block__dek{font-size:15px;line-height:24px;color:var(--text-secondary);margin:0}
+.c-stage{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:32px;display:flex;flex-direction:column;gap:20px;
+}
+.c-stage--flat{padding:0;overflow:hidden}
+.c-stage--cols{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.c-stage--cols .field--full,.c-stage--cols .c-row{grid-column:1/-1}
+.c-stage--grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;background:transparent;border:0;padding:0}
+.c-stage--dialog{background:#F1EFE9;padding:40px;min-height:420px;position:relative}
+.c-stage--nav{background:#F1EFE9;padding:32px;display:flex;justify-content:center}
+.c-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.c-row--2{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:end}
+
+/* BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:inherit;font-size:14px;font-weight:500;line-height:1;
+  padding:0 16px;height:36px;border-radius:var(--r-sm);
+  border:1px solid transparent;background:transparent;color:inherit;
+  cursor:pointer;letter-spacing:-0.005em;
+  transition:background var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease);
+  white-space:nowrap;
+}
+.btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.btn--primary{background:var(--accent-primary);color:#FFF}
+.btn--primary:hover{background:var(--accent-primary-hover)}
+.btn--primary:disabled{background:var(--surface-sunken);color:var(--text-tertiary);cursor:not-allowed}
+.btn--secondary{background:var(--surface-raised);color:var(--text-primary);border-color:var(--border-strong)}
+.btn--secondary:hover{background:var(--surface-sunken)}
+.btn--ghost{background:transparent;color:var(--text-secondary)}
+.btn--ghost:hover{background:var(--surface-sunken);color:var(--text-primary)}
+.btn--danger{background:var(--signal-danger);color:#FFF}
+.btn--danger:hover{filter:brightness(0.92)}
+.btn--sm{height:28px;padding:0 10px;font-size:13px;border-radius:5px}
+.btn--md{height:36px}
+.btn--lg{height:44px;padding:0 20px;font-size:15px}
+.btn--icon{padding:0;width:36px;justify-content:center;background:transparent;color:var(--text-secondary);border-color:transparent}
+.btn--icon:hover{background:var(--surface-sunken);color:var(--text-primary)}
+.btn--icon.btn--sm{width:28px;height:28px}
+
+/* INPUTS */
+.field{display:flex;flex-direction:column;gap:6px}
+.field--full{grid-column:1/-1}
+.field__label{font-size:13px;font-weight:500;color:var(--text-primary)}
+.field__hint{font-size:12px;color:var(--text-tertiary)}
+.field__error{font-size:12px;color:var(--signal-danger)}
+.input{
+  display:flex;align-items:center;gap:8px;
+  height:36px;padding:0 12px;
+  background:var(--surface-raised);
+  border:1px solid var(--border-strong);border-radius:var(--r-sm);
+  transition:border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.input input,.input textarea{
+  flex:1;border:0;background:transparent;outline:none;
+  font:inherit;color:var(--text-primary);
+  padding:0;min-width:0;
+}
+.input input::placeholder,.input textarea::placeholder{color:var(--text-tertiary)}
+.input--focused{border-color:var(--accent-primary);box-shadow:var(--focus-ring)}
+.input--error{border-color:var(--signal-danger);box-shadow:0 0 0 3px rgba(154,42,42,0.18)}
+.input--textarea{height:auto;padding:10px 12px;align-items:stretch}
+.input--textarea textarea{resize:vertical;font-family:inherit;line-height:20px}
+.select{
+  display:flex;align-items:center;justify-content:space-between;
+  height:36px;padding:0 12px;
+  background:var(--surface-raised);
+  border:1px solid var(--border-strong);border-radius:var(--r-sm);
+  font-size:14px;color:var(--text-primary);cursor:pointer;
+}
+.select svg{color:var(--text-tertiary)}
+
+/* CHECK / RADIO / SWITCH */
+.check,.radio{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:14px;cursor:pointer;user-select:none;
+}
+.check input,.radio input{position:absolute;opacity:0;pointer-events:none}
+.check span,.radio span{
+  width:16px;height:16px;border:1px solid var(--border-strong);
+  background:var(--surface-raised);display:inline-flex;align-items:center;justify-content:center;
+  transition:all var(--dur-fast) var(--ease);flex-shrink:0;
+}
+.check span{border-radius:4px}
+.radio span{border-radius:50%}
+.check input:checked + span{
+  background:var(--accent-primary);border-color:var(--accent-primary);
+}
+.check input:checked + span::after{
+  content:"";width:8px;height:5px;border-left:1.5px solid #FFF;border-bottom:1.5px solid #FFF;
+  transform:rotate(-45deg) translate(1px,-1px);
+}
+.radio input:checked + span::after{
+  content:"";width:8px;height:8px;border-radius:50%;background:var(--accent-primary);
+}
+.radio input:checked + span{border-color:var(--accent-primary)}
+.check--bare{gap:0}
+
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.switch input{display:none}
+.switch i{
+  width:30px;height:18px;background:var(--border-strong);border-radius:999px;
+  position:relative;transition:background var(--dur-fast) var(--ease);
+}
+.switch i::before{
+  content:"";position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;background:#FFF;
+  box-shadow:0 1px 2px rgba(0,0,0,0.15);
+  transition:transform var(--dur-fast) var(--ease);
+}
+.switch input:checked + i{background:var(--accent-primary)}
+.switch input:checked + i::before{transform:translateX(12px)}
+
+/* BADGES */
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:12px;font-weight:500;letter-spacing:-0.005em;
+  padding:3px 8px;border-radius:4px;
+  background:var(--signal-neutral-soft);color:var(--text-secondary);
+  white-space:nowrap;
+}
+.badge i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.7}
+.badge--neutral{background:var(--signal-neutral-soft);color:#5E5E58}
+.badge--info{background:var(--signal-info-soft);color:var(--signal-info)}
+.badge--success{background:var(--signal-success-soft);color:var(--signal-success)}
+.badge--warn{background:var(--signal-warn-soft);color:var(--signal-warn)}
+.badge--danger{background:var(--signal-danger-soft);color:var(--signal-danger)}
+.badge--solid{background:var(--surface-inverse);color:var(--text-on-inverse)}
+.badge--solid i{display:none}
+
+/* CHIPS */
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:13px;padding:4px 10px;border-radius:999px;
+  color:var(--text-secondary);border:1px solid transparent;
+  cursor:pointer;transition:all var(--dur-fast) var(--ease);
+}
+.chip em{color:var(--text-tertiary);font-variant-numeric:tabular-nums}
+.chip:hover{background:var(--surface-sunken)}
+.chip--on{background:var(--surface-inverse);color:var(--text-on-inverse)}
+.chip--on em{color:rgba(255,255,255,0.55)}
+
+/* METRIC */
+.metric{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:20px 22px;
+  display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden;
+  color:var(--accent-primary);
+}
+.metric__label{
+  font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--text-tertiary);font-weight:500;
+}
+.metric__value{
+  font-size:44px;line-height:1.04;font-weight:500;letter-spacing:-0.025em;
+  color:var(--text-primary);margin:2px 0 4px;
+  font-feature-settings:"tnum";
+}
+.metric__unit{font-size:20px;color:var(--text-tertiary);margin-left:2px;font-weight:400}
+.metric__meta{display:flex;align-items:center;gap:10px;font-size:12px}
+.metric__vs{color:var(--text-tertiary)}
+.metric__spark{width:100%;height:40px;margin-top:8px;color:var(--accent-primary);opacity:0.55}
+.metric--warn{color:var(--signal-warn)}
+.metric--warn .metric__spark{color:var(--signal-warn)}
+
+.delta{
+  font-family:'DM Mono',monospace;font-size:12px;color:var(--text-secondary);
+  font-variant-numeric:tabular-nums;
+}
+.delta--up{color:var(--accent-primary)}
+.delta--down{color:var(--signal-warn)}
+
+/* AVATAR */
+.avatar{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:28px;height:28px;border-radius:50%;
+  background:var(--surface-sunken);color:var(--text-primary);
+  font-size:11px;font-weight:500;letter-spacing:0.02em;
+  border:1px solid var(--border-subtle);
+  flex-shrink:0;
+}
+.avatar--sm{width:28px;height:28px;font-size:11px}
+.avatar--md{width:36px;height:36px;font-size:13px}
+.avatar--lg{width:48px;height:48px;font-size:15px}
+
+/* TABLE */
+.table{background:var(--surface-raised);width:100%}
+.table__toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-bottom:1px solid var(--border-subtle);
+}
+.table__filters{display:flex;gap:6px;flex-wrap:wrap}
+.table__actions{display:flex;gap:6px}
+.table__grid{display:flex;flex-direction:column}
+.thead,.tr{
+  display:grid;
+  grid-template-columns:40px 2fr 1.4fr 1.2fr 1fr 0.9fr 1.3fr 48px;
+  gap:16px;padding:0 20px;align-items:center;
+}
+.thead{
+  height:36px;border-bottom:1px solid var(--border-subtle);
+  font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--text-tertiary);font-weight:500;
+  background:var(--surface-canvas);
+}
+.th{display:flex;align-items:center}
+.th--num{justify-content:flex-end}
+.th--check{justify-content:center}
+.tr{
+  height:56px;border-bottom:1px solid var(--border-subtle);
+  font-size:14px;color:var(--text-primary);
+  transition:background var(--dur-fast) var(--ease);
+}
+.tr:last-child{border-bottom:0}
+.tr:hover{background:var(--surface-canvas)}
+.tr--selected{background:var(--accent-primary-soft)}
+.tr--selected:hover{background:var(--accent-primary-soft)}
+.td{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.td--num{text-align:right;justify-self:end;color:var(--text-secondary)}
+.td--check{justify-content:center;display:flex}
+.td--actions{display:flex;justify-content:flex-end}
+.cell-contact{display:flex;align-items:center;gap:10px;min-width:0}
+.cell-contact__name{font-size:14px;font-weight:500;color:var(--text-primary)}
+.cell-contact__sub{font-size:12px;color:var(--text-tertiary);font-family:'DM Mono',monospace;letter-spacing:-0.01em}
+.table__foot{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-top:1px solid var(--border-subtle);
+  font-size:13px;color:var(--text-secondary);
+}
+
+/* DIALOG */
+.dialog-preview{
+  width:100%;max-width:520px;margin:0 auto;
+  display:flex;align-items:center;justify-content:center;
+}
+.dialog{
+  width:100%;background:var(--surface-raised);
+  border-radius:var(--r-lg);box-shadow:var(--elev-3);
+  overflow:hidden;
+}
+.dialog__head{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:24px 24px 16px;gap:16px;
+}
+.dialog__eyebrow{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px;
+}
+.dialog__title{font-size:20px;line-height:26px;font-weight:500;letter-spacing:-0.005em;margin:0}
+.dialog__body{padding:8px 24px 24px;display:flex;flex-direction:column;gap:16px}
+.dialog__foot{
+  display:flex;justify-content:flex-end;gap:10px;
+  padding:16px 24px;background:var(--surface-canvas);
+  border-top:1px solid var(--border-subtle);
+}
+
+/* NAV DEMO */
+.navdemo{
+  width:260px;background:var(--surface-raised);
+  border:1px solid var(--border-subtle);border-radius:var(--r-md);
+  padding:14px;display:flex;flex-direction:column;gap:14px;
+}
+.navdemo__brand{display:flex;align-items:center;gap:10px;padding:4px 6px}
+.navdemo__mark{
+  width:24px;height:24px;border-radius:6px;
+  background:var(--accent-primary);
+  position:relative;
+}
+.navdemo__mark::after{
+  content:"";position:absolute;inset:5px;border-radius:2px;
+  background:var(--text-on-inverse);
+  clip-path:polygon(0 50%,40% 100%,100% 0,60% 0,40% 60%,0 30%);
+}
+.navdemo__name{font-size:13px;font-weight:500;letter-spacing:-0.005em}
+.navdemo__org{font-size:11px;color:var(--text-tertiary)}
+.navdemo__search{
+  display:flex;align-items:center;gap:8px;
+  height:32px;padding:0 10px;border-radius:var(--r-sm);
+  background:var(--surface-sunken);color:var(--text-tertiary);
+  font-size:13px;
+}
+.navdemo__search span{flex:1}
+.navdemo__group{display:flex;flex-direction:column;gap:2px}
+.navdemo__section{
+  font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--text-tertiary);padding:8px 10px 4px;font-weight:500;
+}
+.navdemo__item{
+  display:flex;align-items:center;gap:10px;
+  height:32px;padding:0 10px;border-radius:var(--r-sm);
+  font-size:13px;color:var(--text-secondary);cursor:pointer;
+}
+.navdemo__item:hover{background:var(--surface-sunken);color:var(--text-primary)}
+.navdemo__item--on{background:var(--accent-primary-soft);color:var(--accent-primary);font-weight:500}
+.navdemo__glyph{
+  width:14px;height:14px;border:1.3px solid currentColor;border-radius:3px;
+  flex-shrink:0;opacity:0.7;
+}
+.navdemo__item--on .navdemo__glyph{opacity:1}
+.navdemo__count{
+  margin-left:auto;font-family:'DM Mono',monospace;font-size:11px;
+  color:var(--text-tertiary);
+}
+.navdemo__count--warn{color:var(--signal-warn)}
+.navdemo__foot{
+  margin-top:auto;padding-top:14px;border-top:1px solid var(--border-subtle);
+}
+.navdemo__profile{display:flex;align-items:center;gap:10px;padding:4px 6px}
+.navdemo__who{font-size:13px;font-weight:500}
+.navdemo__role{font-size:11px;color:var(--text-tertiary)}
+
+/* =========================================================
+   SCREENS (applied)
+   ========================================================= */
+#screens-mount{display:flex;flex-direction:column;gap:96px}
+.scr{display:flex;flex-direction:column;gap:24px}
+.scr__head{max-width:720px}
+.scr__kicker{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--accent-primary);margin-bottom:10px;
+}
+.scr__title{font-size:32px;line-height:36px;font-weight:500;letter-spacing:-0.015em;margin:0 0 12px}
+.scr__note{font-size:15px;line-height:24px;color:var(--text-secondary);margin:0;text-wrap:pretty}
+.scr__frame{
+  background:#F1EFE9;
+  border:1px solid var(--border-subtle);border-radius:var(--r-lg);
+  padding:24px;overflow:hidden;
+}
+.scr__scale{width:100%;height:820px;overflow:hidden;border-radius:var(--r-md);background:var(--surface-canvas);box-shadow:var(--elev-2);position:relative}
+.scr__zoom{width:1440px;transform-origin:top left}
+.scr__scale .app,
+.scr__scale .auth,
+.scr__scale .nav-system{width:1440px}
+
+/* Scale content to fit */
+@media (min-width:1201px){
+  .scr__zoom{transform:scale(0.86)}
+  .scr__scale{height:770px}
+}
+@media (max-width:1200px){
+  .scr__zoom{transform:scale(0.72)}
+  .scr__scale{height:640px}
+}
+@media (max-width:900px){
+  .scr__zoom{transform:scale(0.48)}
+  .scr__scale{height:420px}
+}
+
+/* App shell for screen frames */
+.app{
+  display:grid;grid-template-columns:260px 1fr;min-height:900px;
+  background:var(--surface-canvas);
+}
+.scr-nav{
+  background:var(--surface-raised);
+  border-right:1px solid var(--border-subtle);
+  padding:16px 14px;display:flex;flex-direction:column;gap:14px;
+}
+.scr-nav .navdemo__brand{padding:6px 8px}
+.scr-nav .navdemo__search{margin:0 2px}
+.scr-nav .navdemo__group{display:flex;flex-direction:column;gap:2px;padding:0 2px}
+.scr-nav .navdemo__foot{padding:12px 4px 0;border-top:1px solid var(--border-subtle);margin-top:auto}
+.nav-ic{display:inline-flex;color:currentColor;width:14px;height:14px}
+
+.scr-main{display:flex;flex-direction:column;min-width:0;position:relative}
+.scr-top{
+  height:60px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border-subtle);background:var(--surface-canvas);
+}
+.scr-top__crumbs{font-size:13px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px}
+.scr-top__crumbs strong{color:var(--text-primary);font-weight:500}
+.scr-top__crumbs i{font-style:normal;color:var(--text-tertiary);opacity:0.6;margin:0 2px}
+.scr-top__tools{display:flex;align-items:center;gap:8px}
+.scr-top__sep{width:1px;height:20px;background:var(--border-subtle);margin:0 4px}
+.scr-top__dot{position:absolute;right:6px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--signal-warn)}
+.btn.btn--ghost{position:relative}
+
+.scr-body{padding:32px;display:flex;flex-direction:column;gap:24px}
+
+/* Page head */
+.page-head{
+  display:grid;grid-template-columns:1fr 320px;gap:40px;align-items:end;
+  padding-bottom:24px;border-bottom:1px solid var(--border-subtle);
+}
+.page-head__eyebrow{
+  font-family:'DM Mono',monospace;font-size:12px;color:var(--text-tertiary);
+  letter-spacing:0.04em;margin-bottom:8px;
+}
+.page-head__title{font-size:36px;line-height:42px;font-weight:500;letter-spacing:-0.02em;margin:0 0 10px}
+.page-head__sub{font-size:15px;line-height:22px;color:var(--text-secondary);margin:0;max-width:520px}
+.page-head__sub strong{color:var(--text-primary);font-weight:500}
+.page-head__kpi{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:16px 18px;display:flex;flex-direction:column;gap:8px;
+}
+.page-head__kpi-label{font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-tertiary);font-weight:500}
+.page-head__kpi-bar{position:relative;height:6px;background:var(--surface-sunken);border-radius:999px;overflow:hidden}
+.page-head__kpi-bar i{position:absolute;left:0;top:0;bottom:0;background:var(--border-strong);border-radius:999px}
+.page-head__kpi-bar .over{background:var(--accent-primary);max-width:100%}
+.page-head__kpi-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary)}
+
+/* Metric row */
+.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+
+/* Panels */
+.panels{display:grid;grid-template-columns:1.4fr 1fr 1.1fr;gap:16px}
+.panel{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);overflow:hidden;display:flex;flex-direction:column;
+}
+.panel__head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 20px;border-bottom:1px solid var(--border-subtle);
+}
+.panel__title{font-size:15px;font-weight:500;letter-spacing:-0.005em;margin:0}
+.panel__meta{font-size:12px;color:var(--text-tertiary)}
+.panel__body{padding:20px;flex:1}
+
+/* Breakdown */
+.bd{display:grid;grid-template-columns:160px 1fr;gap:24px;align-items:center}
+.bd-chart{position:relative;width:160px;height:160px}
+.donut{width:100%;height:100%}
+.donut__center{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;
+}
+.donut__center div{font-size:28px;font-weight:500;letter-spacing:-0.015em}
+.donut__center small{font-size:10px;color:var(--text-tertiary);letter-spacing:0.08em;text-transform:uppercase}
+.bd-list{display:flex;flex-direction:column;gap:6px}
+.bd-row{
+  display:grid;grid-template-columns:10px 1fr 70px 50px;gap:10px;align-items:center;
+  font-size:12.5px;color:var(--text-secondary);padding:3px 0;
+}
+.bd-dot{width:8px;height:8px;border-radius:2px;display:inline-block}
+.bd-label{color:var(--text-primary)}
+.bd-num{text-align:right;color:var(--text-primary);font-size:12px}
+.bd-pct{text-align:right;color:var(--text-tertiary);font-size:12px}
+
+/* Recall */
+.recall{display:flex;flex-direction:column;gap:8px}
+.recall-item{
+  display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;
+  padding:14px;background:var(--surface-canvas);border-radius:var(--r-sm);
+}
+.recall-item__ic{
+  width:36px;height:36px;border-radius:8px;background:var(--accent-primary-soft);
+  color:var(--accent-primary);display:flex;align-items:center;justify-content:center;
+}
+.recall-item__ic--warn{background:var(--signal-warn-soft);color:var(--signal-warn)}
+.recall-item__title{font-size:14px;font-weight:500}
+.recall-item__sub{font-size:12px;color:var(--text-tertiary)}
+.recall-link{
+  display:inline-flex;align-items:center;gap:6px;font-size:13px;
+  color:var(--accent-primary);text-decoration:none;font-weight:500;padding:4px;
+}
+
+/* Leaderboard */
+.lb{display:flex;flex-direction:column;gap:6px}
+.rank{
+  display:grid;grid-template-columns:24px 28px 1fr 120px 40px;gap:10px;align-items:center;
+  padding:8px 4px;
+}
+.rank__n{font-size:11px;color:var(--text-tertiary)}
+.rank__name{font-size:13px;font-weight:500}
+.rank__bar{height:4px;background:var(--surface-sunken);border-radius:999px;overflow:hidden}
+.rank__bar i{display:block;height:100%;background:var(--accent-primary);border-radius:999px}
+.rank__v{font-size:13px;text-align:right;color:var(--text-primary)}
+
+/* List view head */
+.list-head{
+  display:grid;grid-template-columns:1fr auto;gap:32px;align-items:flex-end;
+  padding-bottom:20px;border-bottom:1px solid var(--border-subtle);
+}
+.list-head__meta{
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--text-secondary);margin-top:12px;
+}
+.list-head__meta .avatar{margin-right:4px}
+.list-head__stats{display:flex;gap:32px}
+.list-head__stat-l{font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-tertiary);margin-bottom:4px}
+.list-head__stat-v{font-size:22px;font-weight:500;letter-spacing:-0.015em}
+
+.table--screen{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);overflow:hidden;
+}
+.input--search{height:32px;padding:0 10px;gap:6px;background:var(--surface-canvas)}
+.input--search span{display:inline-flex;color:var(--text-tertiary)}
+.input--search input{font-size:13px}
+.tr--hot{background:linear-gradient(90deg,rgba(14,15,12,0.03),transparent 60%)}
+
+/* Detail view */
+.scr-body--detail{display:grid;grid-template-columns:1fr 320px;gap:32px;padding:32px 40px}
+.detail-main{min-width:0;display:flex;flex-direction:column;gap:28px}
+.detail-head{
+  display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;
+  padding-bottom:24px;border-bottom:1px solid var(--border-subtle);
+}
+.detail-head__name{font-size:32px;line-height:36px;font-weight:500;letter-spacing:-0.02em;margin:0 0 6px}
+.detail-head__sub{font-size:14px;color:var(--text-secondary);margin-bottom:10px}
+.detail-head__sub strong{color:var(--text-primary);font-weight:500}
+.detail-head__badges{display:flex;gap:6px;flex-wrap:wrap}
+.detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.info-card{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:14px 16px;display:flex;flex-direction:column;gap:6px;
+}
+.info-card__label{font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-tertiary);font-weight:500}
+.info-card__v{font-size:13px;color:var(--text-primary)}
+
+.detail-section{margin-top:8px}
+.detail-section__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.detail-section__title{font-size:18px;font-weight:500;letter-spacing:-0.005em;margin:0}
+.timeline{list-style:none;padding:0;margin:0;position:relative}
+.timeline::before{
+  content:"";position:absolute;left:79px;top:10px;bottom:10px;width:1px;background:var(--border-subtle);
+}
+.timeline__item{
+  display:grid;grid-template-columns:70px 20px 1fr;gap:12px;align-items:flex-start;
+  padding:10px 0;
+}
+.timeline__when{font-size:12px;color:var(--text-tertiary);padding-top:14px;text-align:right}
+.timeline__dot{
+  width:10px;height:10px;border-radius:50%;background:var(--text-tertiary);
+  margin:16px auto 0;position:relative;z-index:1;
+  box-shadow:0 0 0 3px var(--surface-canvas);
+}
+.timeline__dot--success{background:var(--accent-primary)}
+.timeline__dot--info{background:var(--signal-info)}
+.timeline__dot--warn{background:var(--signal-warn)}
+.timeline__dot--neutral{background:var(--text-tertiary)}
+.timeline__card{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-sm);padding:12px 14px;
+}
+.timeline__row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
+.timeline__row strong{font-size:13px;font-weight:500}
+.timeline__card p{font-size:13px;line-height:19px;color:var(--text-secondary);margin:0}
+
+.detail-side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.side-card{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:18px;display:flex;flex-direction:column;gap:6px;
+}
+.side-card__label{font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-tertiary);font-weight:500}
+.side-card__value{font-size:18px;font-weight:500;letter-spacing:-0.005em}
+.side-card__meta{font-size:12px;color:var(--text-secondary)}
+.side-card__btn{align-self:flex-start;margin-top:6px}
+.side-card__who{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500}
+.side-card__script p{font-size:13px;line-height:20px;color:var(--text-secondary);margin:0;font-style:normal}
+
+/* Dialog screen */
+.scr-main--dim{position:relative}
+.scr-body--dim{opacity:0.45;filter:saturate(0.4)}
+.dim-rows{display:flex;flex-direction:column;gap:12px}
+.dim-row{display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface-raised);border-radius:var(--r-sm);border:1px solid var(--border-subtle)}
+.dim-sw{width:28px;height:28px;border-radius:50%;background:var(--surface-sunken)}
+.dim-sw--r{margin-left:auto;width:14px;height:14px}
+.dim-bar{flex:1;height:10px;background:var(--surface-sunken);border-radius:4px}
+.scrim{position:absolute;inset:0;background:rgba(14,15,12,0.4);z-index:2}
+.dialog-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:3}
+.dialog--wide{width:680px;max-width:90%}
+.dialog__steps{
+  display:flex;gap:8px;padding:12px 14px;background:var(--surface-canvas);
+  border-radius:var(--r-sm);margin-bottom:4px;
+}
+.step{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-tertiary);padding:4px 10px;border-radius:var(--r-xs)}
+.step__n{font-size:11px}
+.step--done{color:var(--text-secondary)}
+.step--done .step__n{color:var(--accent-primary)}
+.step--on{background:var(--surface-raised);color:var(--text-primary);font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,0.04)}
+.step--on .step__n{color:var(--accent-primary)}
+.input--numeric{display:flex;align-items:center;gap:6px}
+.input__suffix{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-tertiary);white-space:nowrap}
+
+/* Auth */
+.auth{
+  display:grid;grid-template-columns:1.1fr 1fr;min-height:900px;background:var(--surface-canvas);
+}
+.auth__left{
+  background:var(--surface-inverse);color:var(--text-on-inverse);
+  padding:48px 64px;display:flex;flex-direction:column;gap:32px;position:relative;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(43,95,62,0.35) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 95%, rgba(184,84,26,0.18) 0%, transparent 60%);
+}
+.auth__brand{display:flex;align-items:center;gap:10px;color:#FFF}
+.auth__brand .navdemo__mark{background:#FFF}
+.auth__brand .navdemo__mark::after{background:var(--surface-inverse)}
+.auth__pitch{margin:auto 0}
+.auth__eyebrow{
+  font-family:'DM Mono',monospace;font-size:12px;letter-spacing:0.08em;
+  color:rgba(255,255,255,0.55);text-transform:uppercase;margin-bottom:16px;
+}
+.auth__pitch h1{font-size:64px;line-height:68px;font-weight:500;letter-spacing:-0.03em;margin:0 0 20px}
+.auth__pitch p{font-size:18px;line-height:28px;color:rgba(255,255,255,0.72);max-width:480px;margin:0 0 40px}
+.auth__stats{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;max-width:520px}
+.auth__stat-v{font-size:32px;font-weight:500;letter-spacing:-0.02em}
+.auth__stat-l{font-size:12px;color:rgba(255,255,255,0.55);margin-top:4px}
+.auth__foot{font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.04em}
+
+.auth__right{display:flex;align-items:center;justify-content:center;padding:48px}
+.auth__card{width:420px;display:flex;flex-direction:column;gap:16px}
+.auth__kicker{font-size:11px;letter-spacing:0.08em;color:var(--text-tertiary);margin-bottom:0}
+.auth__card h2{font-size:32px;line-height:36px;font-weight:500;letter-spacing:-0.02em;margin:0}
+.auth__sub{font-size:15px;color:var(--text-secondary);margin:0 0 12px}
+.auth__field-top{display:flex;justify-content:space-between;align-items:center}
+.auth__link{font-size:12px;color:var(--accent-primary);text-decoration:none}
+.auth__remember{font-size:13px;color:var(--text-secondary);margin-top:4px}
+.auth__cta{justify-content:center;width:100%}
+.auth__or{display:flex;align-items:center;gap:12px;color:var(--text-tertiary);font-size:12px;margin:4px 0}
+.auth__or span{flex:1;height:1px;background:var(--border-subtle)}
+.auth__sso{justify-content:center;width:100%}
+.auth__switch{font-size:13px;color:var(--text-secondary);text-align:center;margin-top:12px}
+.auth__switch a{color:var(--accent-primary);text-decoration:none;font-weight:500}
+
+/* Nav system demo */
+.nav-system{
+  display:grid;grid-template-columns:260px 72px 1fr;gap:32px;padding:32px;
+  align-items:start;background:var(--surface-canvas);min-height:900px;
+}
+.nav-system__item{display:flex;flex-direction:column;gap:12px}
+.nav-system__item--wide{grid-column:1/-1}
+.nav-system__label{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--text-tertiary);text-transform:uppercase;
+}
+.scr-nav--rail{
+  width:72px;padding:16px 0;align-items:center;gap:6px;
+  border-radius:var(--r-md);border:1px solid var(--border-subtle);
+}
+.scr-nav--rail .navdemo__mark{margin-bottom:12px}
+.rail-item{
+  width:40px;height:40px;border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  color:var(--text-secondary);cursor:pointer;
+  transition:background var(--dur-fast) var(--ease);
+}
+.rail-item:hover{background:var(--surface-sunken);color:var(--text-primary)}
+.rail-item--on{background:var(--accent-primary-soft);color:var(--accent-primary)}
+.rail-item em{
+  position:absolute;top:4px;right:4px;font-style:normal;
+  font-family:'DM Mono',monospace;font-size:9px;
+  background:var(--surface-inverse);color:#FFF;border-radius:999px;
+  min-width:14px;height:14px;padding:0 4px;display:flex;align-items:center;justify-content:center;
+}
+.rail-item--warn em{background:var(--signal-warn)}
+.rail-item--badged em{}
+.rail-sep{width:24px;height:1px;background:var(--border-subtle);margin:6px 0}
+
+.scr-top--solo{
+  border:1px solid var(--border-subtle);border-radius:var(--r-md);
+  background:var(--surface-raised);height:56px;
+}
+.input--topbar{width:260px;background:var(--surface-sunken)}
+
+
+/* =========================================================
+   HANDOFF
+   ========================================================= */
+.handoff{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:24px;
+}
+.handoff__col{
+  background:var(--surface-raised);border:1px solid var(--border-subtle);
+  border-radius:var(--r-md);padding:28px;
+}
+.handoff__col--wide{grid-column:1/-1}
+.handoff__col h4{
+  font-size:16px;font-weight:500;letter-spacing:-0.005em;
+  margin:0 0 12px;
+}
+.handoff__col p{font-size:14px;line-height:22px;color:var(--text-secondary);margin:0 0 16px}
+.code{
+  background:var(--surface-inverse);color:#E6E3DB;
+  font-family:'DM Mono',monospace;font-size:12px;line-height:18px;
+  padding:16px;border-radius:var(--r-sm);overflow:auto;margin:0;
+  white-space:pre;
+}
+.handoff__table{width:100%;border-collapse:collapse;font-size:13px}
+.handoff__table th,.handoff__table td{
+  text-align:left;padding:10px 0;border-bottom:1px solid var(--border-subtle);
+}
+.handoff__table th{
+  font-size:11px;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--text-tertiary);font-weight:500;
+}
+.handoff__table td:first-child{font-family:'DM Mono',monospace;color:var(--text-secondary)}
+.handoff__table td:nth-child(2){font-family:'DM Mono',monospace;color:var(--text-primary)}
+.handoff__table tr:last-child td{border-bottom:0}
+
+.rollout{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+.rollout li{
+  background:var(--surface-canvas);border:1px solid var(--border-subtle);
+  border-radius:var(--r-sm);padding:18px;display:flex;flex-direction:column;gap:8px;
+}
+.rollout__phase{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent-primary);letter-spacing:0.04em}
+.rollout__title{font-size:15px;font-weight:500;letter-spacing:-0.005em}
+.rollout__detail{font-size:13px;line-height:19px;color:var(--text-secondary)}
+
+.migrules,.metrics-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.migrules li,.metrics-list li{
+  font-size:13px;line-height:20px;color:var(--text-secondary);
+  padding-left:18px;position:relative;
+}
+.migrules li::before,.metrics-list li::before{
+  content:"";position:absolute;left:0;top:9px;width:10px;height:1px;background:var(--accent-primary);
+}
+.metrics-list li strong{color:var(--text-primary);font-weight:500}
+
+.signoff{
+  display:flex;gap:24px;align-items:flex-end;margin-top:64px;
+  padding-top:32px;border-top:1px solid var(--border-subtle);
+}
+.signoff__line{flex:1;height:1px;background:var(--text-primary);margin-bottom:14px}
+.signoff__text{max-width:460px}
+.signoff__eyebrow{
+  font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;
+  color:var(--text-tertiary);text-transform:uppercase;margin-bottom:6px;
+}
+.signoff__note{font-size:14px;line-height:21px;color:var(--text-secondary)}
+
+/* =========================================================
+   TWEAKS PANEL
+   ========================================================= */
+.tweaks{
+  position:fixed;right:24px;bottom:24px;z-index:100;
+  width:280px;background:var(--surface-raised);
+  border:1px solid var(--border-subtle);border-radius:var(--r-md);
+  box-shadow:var(--elev-3);padding:16px;display:none;flex-direction:column;gap:12px;
+  font-family:'DM Sans',sans-serif;
+}
+.tweaks.is-on{display:flex}
+.tweaks__title{
+  font-size:11px;letter-spacing:0.08em;text-transform:uppercase;
+  color:var(--text-tertiary);font-weight:500;
+}
+.tweaks__row{display:flex;flex-direction:column;gap:6px}
+.tweaks__label{font-size:12px;color:var(--text-secondary)}
+.tweaks__swatches{display:flex;gap:6px}
+.tweaks__swatches button{
+  width:28px;height:28px;border-radius:50%;border:2px solid var(--border-subtle);
+  cursor:pointer;padding:0;transition:transform var(--dur-fast) var(--ease);
+}
+.tweaks__swatches button:hover{transform:scale(1.08)}
+.tweaks__swatches button[aria-pressed="true"]{border-color:var(--text-primary);transform:scale(1.08)}
+
+/* =========================================================
+   RESPONSIVE (condensed)
+   ========================================================= */
+@media (max-width:1200px){
+  .directions,.principles__grid,.roles,.handoff,.c-stage--grid4{grid-template-columns:repeat(2,1fr)}
+  .rollout{grid-template-columns:repeat(2,1fr)}
+  .f-triple{grid-template-columns:1fr}
+}
+@media (max-width:780px){
+  .cover{padding:72px 24px 64px}
+  .cover__title{font-size:56px}
+  .chapter{padding:72px 24px}
+  .directions,.principles__grid,.roles,.handoff,.c-stage--grid4,.cover__meta,.cover__toc,.rollout{grid-template-columns:1fr}
+  .audit{grid-template-columns:1fr}
+  .type-row{grid-template-columns:1fr;gap:8px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+}
+
+</style>
+</head>
+<body>
+<div id="tweaks-root"></div>
+
+<!-- ============================================================ -->
+<!-- COVER -->
+<!-- ============================================================ -->
+<section class="cover" data-screen-label="01 Cover">
+  <div class="cover__inner">
+    <div class="cover__eyebrow">
+      <span class="dot"></span>
+      <span>CaptainProspect · Design System v2</span>
+    </div>
+    <h1 class="cover__title">A calmer,<br>more confident CRM.</h1>
+    <p class="cover__lede">Redesigning the prospecting workspace around clarity, rhythm, and restraint — so sales teams can focus on the one number that matters, then drill into the ones that explain it.</p>
+    <div class="cover__meta">
+      <div><div class="cover__meta-label">Prepared by</div><div>Product Design</div></div>
+      <div><div class="cover__meta-label">Date</div><div>April 2026</div></div>
+      <div><div class="cover__meta-label">Scope</div><div>Foundations · 24 components · 6 surfaces</div></div>
+      <div><div class="cover__meta-label">Status</div><div>For review</div></div>
+    </div>
+    <nav class="cover__toc">
+      <a href="#direction">01 — Design Direction</a>
+      <a href="#audit">02 — Audit &amp; Principles</a>
+      <a href="#foundations">03 — System Foundations</a>
+      <a href="#components">04 — Component Patterns</a>
+      <a href="#screens">05 — Applied Screens</a>
+      <a href="#handoff">06 — Handoff &amp; Rollout</a>
+    </nav>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 01 — DIRECTION -->
+<!-- ============================================================ -->
+<section class="chapter" id="direction" data-screen-label="02 Direction">
+  <div class="chapter__head">
+    <div class="chapter__num">01</div>
+    <h2 class="chapter__title">Design Direction</h2>
+    <p class="chapter__dek">Three explorations, one chosen path. Each keeps the product's existing information architecture intact, but resets the visual vocabulary.</p>
+  </div>
+
+  <div class="directions">
+    <article class="dir">
+      <header class="dir__head">
+        <div class="dir__swatches">
+          <span style="background:#111418"></span>
+          <span style="background:#F6F5F2"></span>
+          <span style="background:#3D5AFE"></span>
+          <span style="background:#E85D3B"></span>
+        </div>
+        <div class="dir__label">Direction A</div>
+        <h3 class="dir__name">Editorial Grid</h3>
+      </header>
+      <div class="dir__preview dir__preview--a">
+        <div class="prev-a-rail">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="prev-a-main">
+          <div class="prev-a-kicker">OVERVIEW</div>
+          <div class="prev-a-num">1,284</div>
+          <div class="prev-a-sub">appointments booked · month to date</div>
+          <div class="prev-a-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <p class="dir__desc">Newspaper-inspired grid. Oversized numerals, thin rules, generous margins. Near-monochrome with a single cobalt accent and an amber signal. Feels like Bloomberg Terminal by way of a design magazine.</p>
+      <ul class="dir__traits">
+        <li>Very high type contrast</li>
+        <li>1px rules instead of cards</li>
+        <li>Best for managers reviewing data</li>
+      </ul>
+    </article>
+
+    <article class="dir dir--chosen">
+      <div class="dir__badge">Selected direction</div>
+      <header class="dir__head">
+        <div class="dir__swatches">
+          <span style="background:#0E0F0C"></span>
+          <span style="background:#FAF9F6"></span>
+          <span style="background:#2B5F3E"></span>
+          <span style="background:#B8541A"></span>
+        </div>
+        <div class="dir__label">Direction B</div>
+        <h3 class="dir__name">Quiet Workspace</h3>
+      </header>
+      <div class="dir__preview dir__preview--b">
+        <div class="prev-b-top">
+          <div class="prev-b-tab prev-b-tab--on">Today</div>
+          <div class="prev-b-tab">Week</div>
+          <div class="prev-b-tab">Month</div>
+        </div>
+        <div class="prev-b-grid">
+          <div class="prev-b-cell">
+            <div class="prev-b-label">Calls placed</div>
+            <div class="prev-b-num">9,861</div>
+            <div class="prev-b-delta prev-b-delta--up">+ 12.4%</div>
+          </div>
+          <div class="prev-b-cell">
+            <div class="prev-b-label">Hot leads</div>
+            <div class="prev-b-num">29</div>
+            <div class="prev-b-delta">— flat</div>
+          </div>
+          <div class="prev-b-cell">
+            <div class="prev-b-label">Conversion</div>
+            <div class="prev-b-num">1.0<span>%</span></div>
+            <div class="prev-b-delta prev-b-delta--down">− 0.2 pts</div>
+          </div>
+        </div>
+      </div>
+      <p class="dir__desc">Warm off-white canvas, deep forest accent for action, burnt-orange for signal. Restrained elevation, soft radii, DM Sans at multiple weights doing most of the hierarchy work. Dense but never cramped.</p>
+      <ul class="dir__traits">
+        <li>Warm neutrals reduce eye-strain across long sessions</li>
+        <li>Data-first but human</li>
+        <li>Scales across manager + SDR views</li>
+      </ul>
+    </article>
+
+    <article class="dir">
+      <header class="dir__head">
+        <div class="dir__swatches">
+          <span style="background:#0B0D10"></span>
+          <span style="background:#16181D"></span>
+          <span style="background:#7CF0BA"></span>
+          <span style="background:#FF8A5C"></span>
+        </div>
+        <div class="dir__label">Direction C</div>
+        <h3 class="dir__name">Command Deck</h3>
+      </header>
+      <div class="dir__preview dir__preview--c">
+        <div class="prev-c-chrome">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="prev-c-body">
+          <div class="prev-c-line"><em>▸</em> mission.open <span>· 12 active</span></div>
+          <div class="prev-c-line"><em>▸</em> calls.today <span>· 412</span></div>
+          <div class="prev-c-line prev-c-line--hi"><em>▸</em> conv.rate <span>· 1.04%</span></div>
+          <div class="prev-c-line"><em>▸</em> hot.leads <span>· 29</span></div>
+          <div class="prev-c-graph"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <p class="dir__desc">Dark, technical, keyboard-first. For power SDRs who live in the app eight hours a day. Mint for success, coral for signal. Mono for data columns, DM Sans for UI. High contrast, tight vertical rhythm.</p>
+      <ul class="dir__traits">
+        <li>Reduced glare for long sessions</li>
+        <li>Terminal-inspired rhythm</li>
+        <li>Optional "dark pro" mode, not default</li>
+      </ul>
+    </article>
+  </div>
+
+  <div class="converge">
+    <div class="converge__num">→</div>
+    <div class="converge__body">
+      <div class="converge__label">Chosen</div>
+      <h3 class="converge__title">Direction B — Quiet Workspace</h3>
+      <p>It gives managers the editorial calm they asked for, keeps SDR data density intact, and Command Deck can ship later as a dark mode inside the same token system. Everything below applies this direction.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 02 — AUDIT -->
+<!-- ============================================================ -->
+<section class="chapter chapter--tinted" id="audit" data-screen-label="03 Audit">
+  <div class="chapter__head">
+    <div class="chapter__num">02</div>
+    <h2 class="chapter__title">Audit &amp; Principles</h2>
+    <p class="chapter__dek">Honest read on what's working, what isn't, and the rules we'll use to judge every new decision.</p>
+  </div>
+
+  <div class="audit">
+    <div class="audit__before">
+      <div class="audit__label">Before</div>
+      <div class="audit__mock audit__mock--before">
+        <div class="mock-sidebar">
+          <div class="mock-logo"></div>
+          <div class="mock-nav-item mock-nav-item--on"></div>
+          <div class="mock-nav-sec"></div>
+          <div class="mock-nav-item"></div>
+          <div class="mock-nav-item"></div>
+          <div class="mock-nav-item"></div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-hero">
+            <div class="mock-hero-big">97</div>
+            <div class="mock-hero-ring"></div>
+          </div>
+          <div class="mock-kpi"></div>
+          <div class="mock-kpi"></div>
+          <div class="mock-kpi"></div>
+          <div class="mock-chart mock-chart--a"></div>
+          <div class="mock-chart mock-chart--b"></div>
+          <div class="mock-chart mock-chart--c"></div>
+        </div>
+        <div class="audit__pins">
+          <span class="pin" style="top:18%;left:4%">1</span>
+          <span class="pin" style="top:38%;left:28%">2</span>
+          <span class="pin" style="top:42%;left:76%">3</span>
+          <span class="pin" style="top:78%;left:40%">4</span>
+        </div>
+      </div>
+    </div>
+    <div class="audit__findings">
+      <ol>
+        <li><span class="pin pin--inline">1</span><strong>Monochrome purple saturation</strong> — every icon, accent, chart, and CTA is the same hue. Hierarchy collapses, nothing earns attention.</li>
+        <li><span class="pin pin--inline">2</span><strong>Hero card is a different design system</strong> — dark gradient block with inverted type fights the rest of the page.</li>
+        <li><span class="pin pin--inline">3</span><strong>KPI cards are decorative, not informative</strong> — colored icon tiles, no trend, no comparison, numbers float unanchored.</li>
+        <li><span class="pin pin--inline">4</span><strong>Three different card styles coexist</strong> — rounded cards, outlined cards, and a dark hero. No shared container grammar.</li>
+        <li><span class="pin pin--inline">5</span><strong>Emoji as data signal</strong> — 🔥 next to "hot leads" is friendly but crowds out the number itself.</li>
+        <li><span class="pin pin--inline">6</span><strong>Navigation noise</strong> — all-caps section labels + full-color icons + colored active-pill create three competing visual weights in one rail.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="principles">
+    <div class="principles__label">Principles</div>
+    <div class="principles__grid">
+      <div class="principle">
+        <div class="principle__num">01</div>
+        <h4>One number at a time</h4>
+        <p>Every screen answers one question first. Everything else is supporting evidence, smaller and quieter.</p>
+      </div>
+      <div class="principle">
+        <div class="principle__num">02</div>
+        <h4>Rhythm over ornament</h4>
+        <p>Consistent vertical rhythm and a small set of spacing steps. Decoration never replaces hierarchy.</p>
+      </div>
+      <div class="principle">
+        <div class="principle__num">03</div>
+        <h4>Color is signal</h4>
+        <p>Neutral surfaces do the layout work. Accent colors mean <em>action</em>, <em>success</em>, <em>warning</em> — never "decorative."</p>
+      </div>
+      <div class="principle">
+        <div class="principle__num">04</div>
+        <h4>Dense, not cramped</h4>
+        <p>SDRs scan hundreds of rows per shift. Breathing room comes from type and line-height, not reduced information.</p>
+      </div>
+      <div class="principle">
+        <div class="principle__num">05</div>
+        <h4>Keyboard parity</h4>
+        <p>Every primary action has a shortcut. Visible focus states. No interaction that requires a mouse.</p>
+      </div>
+      <div class="principle">
+        <div class="principle__num">06</div>
+        <h4>Accessible by default</h4>
+        <p>WCAG AA minimum on all text. Semantic color never the only carrier of meaning — always paired with a label or glyph.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 03 — FOUNDATIONS -->
+<!-- ============================================================ -->
+<section class="chapter" id="foundations" data-screen-label="04 Foundations">
+  <div class="chapter__head">
+    <div class="chapter__num">03</div>
+    <h2 class="chapter__title">System Foundations</h2>
+    <p class="chapter__dek">Color as role, not as paint. A type scale that carries hierarchy by itself. Spacing, radius, elevation, motion — each defined as a short, memorizable set.</p>
+  </div>
+
+  <!-- COLOR ROLES -->
+  <div class="f-block">
+    <div class="f-block__head">
+      <div class="f-block__kicker">3.1</div>
+      <h3 class="f-block__title">Color roles</h3>
+      <p class="f-block__dek">We ship <em>roles</em>, not hex codes. Designers pick the role; engineering maps it to a token. Raw values exist only in the theme file.</p>
+    </div>
+
+    <div class="roles">
+      <div class="role-group">
+        <div class="role-group__label">Surface</div>
+        <div class="role">
+          <div class="role__chip" style="background:#FAF9F6"></div>
+          <div class="role__name">surface / canvas</div>
+          <div class="role__hex">#FAF9F6</div>
+          <div class="role__use">Default page background</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#FFFFFF;box-shadow:inset 0 0 0 1px #E8E6DF"></div>
+          <div class="role__name">surface / raised</div>
+          <div class="role__hex">#FFFFFF</div>
+          <div class="role__use">Cards, tables, modals</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#F1EFE9"></div>
+          <div class="role__name">surface / sunken</div>
+          <div class="role__hex">#F1EFE9</div>
+          <div class="role__use">Inputs, empty states</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#0E0F0C"></div>
+          <div class="role__name">surface / inverse</div>
+          <div class="role__hex">#0E0F0C</div>
+          <div class="role__use">Tooltips, command menu</div>
+        </div>
+      </div>
+
+      <div class="role-group">
+        <div class="role-group__label">Text</div>
+        <div class="role">
+          <div class="role__chip" style="background:#0E0F0C"></div>
+          <div class="role__name">text / primary</div>
+          <div class="role__hex">#0E0F0C</div>
+          <div class="role__use">Body, numerals</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#4A4B46"></div>
+          <div class="role__name">text / secondary</div>
+          <div class="role__hex">#4A4B46</div>
+          <div class="role__use">Captions, meta</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#8A8A83"></div>
+          <div class="role__name">text / tertiary</div>
+          <div class="role__hex">#8A8A83</div>
+          <div class="role__use">Placeholders, disabled</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#FAF9F6;box-shadow:inset 0 0 0 1px #E8E6DF"></div>
+          <div class="role__name">text / on-inverse</div>
+          <div class="role__hex">#FAF9F6</div>
+          <div class="role__use">Text on dark surfaces</div>
+        </div>
+      </div>
+
+      <div class="role-group">
+        <div class="role-group__label">Border</div>
+        <div class="role">
+          <div class="role__chip" style="background:#E8E6DF"></div>
+          <div class="role__name">border / subtle</div>
+          <div class="role__hex">#E8E6DF</div>
+          <div class="role__use">Card, divider</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#D5D2C9"></div>
+          <div class="role__name">border / strong</div>
+          <div class="role__hex">#D5D2C9</div>
+          <div class="role__use">Inputs, focus ring base</div>
+        </div>
+      </div>
+
+      <div class="role-group">
+        <div class="role-group__label">Accent — Primary</div>
+        <div class="role">
+          <div class="role__chip" style="background:#2B5F3E"></div>
+          <div class="role__name">accent / primary</div>
+          <div class="role__hex">#2B5F3E</div>
+          <div class="role__use">CTAs, links, active nav</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#E7EFE9"></div>
+          <div class="role__name">accent / primary-soft</div>
+          <div class="role__hex">#E7EFE9</div>
+          <div class="role__use">Selected rows, success bg</div>
+        </div>
+      </div>
+
+      <div class="role-group">
+        <div class="role-group__label">Accent — Signal</div>
+        <div class="role">
+          <div class="role__chip" style="background:#B8541A"></div>
+          <div class="role__name">signal / warn</div>
+          <div class="role__hex">#B8541A</div>
+          <div class="role__use">At-risk, overdue</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#F5E6DA"></div>
+          <div class="role__name">signal / warn-soft</div>
+          <div class="role__hex">#F5E6DA</div>
+          <div class="role__use">Warning pill bg</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#9A2A2A"></div>
+          <div class="role__name">signal / danger</div>
+          <div class="role__hex">#9A2A2A</div>
+          <div class="role__use">Destructive, errors</div>
+        </div>
+        <div class="role">
+          <div class="role__chip" style="background:#3A5280"></div>
+          <div class="role__name">signal / info</div>
+          <div class="role__hex">#3A5280</div>
+          <div class="role__use">Neutral informational</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="role-rules">
+      <div class="rule">
+        <div class="rule__good">Do</div>
+        <p>Use <code>accent / primary</code> only for the single most important action on a view. If two buttons are both primary, one of them isn't.</p>
+      </div>
+      <div class="rule">
+        <div class="rule__bad">Don't</div>
+        <p>Don't use color alone to convey state. Pair warning color with an icon or label — e.g. "Overdue" not just a red dot.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TYPE -->
+  <div class="f-block">
+    <div class="f-block__head">
+      <div class="f-block__kicker">3.2</div>
+      <h3 class="f-block__title">Typography</h3>
+      <p class="f-block__dek">DM Sans for everything, DM Mono for tabular data and code. Hierarchy comes from size &amp; weight, never from color.</p>
+    </div>
+
+    <div class="type-scale">
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Display</div>
+          <div class="type-row__spec">56 / 60 · 500 · -0.02em</div>
+        </div>
+        <div class="type-row__sample" style="font-size:56px;line-height:60px;font-weight:500;letter-spacing:-0.02em">Close more meetings.</div>
+        <div class="type-row__use">Marketing, auth hero, dashboard headline number</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Title / XL</div>
+          <div class="type-row__spec">40 / 44 · 500 · -0.015em</div>
+        </div>
+        <div class="type-row__sample" style="font-size:40px;line-height:44px;font-weight:500;letter-spacing:-0.015em">Mission dashboard</div>
+        <div class="type-row__use">Empty state heros, onboarding</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Title / L</div>
+          <div class="type-row__spec">28 / 34 · 500 · -0.01em</div>
+        </div>
+        <div class="type-row__sample" style="font-size:28px;line-height:34px;font-weight:500;letter-spacing:-0.01em">Tableau de bord</div>
+        <div class="type-row__use">Page title</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Title / M</div>
+          <div class="type-row__spec">20 / 26 · 500 · -0.005em</div>
+        </div>
+        <div class="type-row__sample" style="font-size:20px;line-height:26px;font-weight:500;letter-spacing:-0.005em">Leads à relancer</div>
+        <div class="type-row__use">Card titles, modal titles</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Body / L</div>
+          <div class="type-row__spec">16 / 24 · 400</div>
+        </div>
+        <div class="type-row__sample" style="font-size:16px;line-height:24px;font-weight:400">Long-form content, instructions in dialogs, and descriptive copy.</div>
+        <div class="type-row__use">Paragraphs, descriptions</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Body / M</div>
+          <div class="type-row__spec">14 / 20 · 400</div>
+        </div>
+        <div class="type-row__sample" style="font-size:14px;line-height:20px;font-weight:400">Default UI size. Table cells, form labels, navigation items, button text.</div>
+        <div class="type-row__use">Default UI</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Body / S</div>
+          <div class="type-row__spec">13 / 18 · 400</div>
+        </div>
+        <div class="type-row__sample" style="font-size:13px;line-height:18px;font-weight:400">Secondary metadata, timestamps, helper copy under inputs.</div>
+        <div class="type-row__use">Meta, helper</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Caption</div>
+          <div class="type-row__spec">11 / 16 · 500 · 0.06em · UPPERCASE</div>
+        </div>
+        <div class="type-row__sample" style="font-size:11px;line-height:16px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase">Section label · eyebrow · nav group</div>
+        <div class="type-row__use">Labels, table headers</div>
+      </div>
+      <div class="type-row">
+        <div class="type-row__meta">
+          <div class="type-row__name">Mono / Data</div>
+          <div class="type-row__spec">13 / 20 · 400 · DM Mono · tabular</div>
+        </div>
+        <div class="type-row__sample" style="font-family:'DM Mono',monospace;font-size:13px;line-height:20px">+12.4%   9,861   01:34:22   €1,248.00</div>
+        <div class="type-row__use">Numerals in tables, durations, IDs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPACING -->
+  <div class="f-block">
+    <div class="f-block__head">
+      <div class="f-block__kicker">3.3</div>
+      <h3 class="f-block__title">Spacing &amp; layout</h3>
+      <p class="f-block__dek">4-pt base, 8-step scale. Skip intermediate values — pick the next step up if unsure.</p>
+    </div>
+
+    <div class="spacing">
+      <div class="spacing__row"><span class="spacing__tok">space-0</span><span class="spacing__val">0</span><div class="spacing__bar" style="width:0"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-1</span><span class="spacing__val">4</span><div class="spacing__bar" style="width:4px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-2</span><span class="spacing__val">8</span><div class="spacing__bar" style="width:8px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-3</span><span class="spacing__val">12</span><div class="spacing__bar" style="width:12px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-4</span><span class="spacing__val">16</span><div class="spacing__bar" style="width:16px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-5</span><span class="spacing__val">24</span><div class="spacing__bar" style="width:24px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-6</span><span class="spacing__val">32</span><div class="spacing__bar" style="width:32px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-7</span><span class="spacing__val">48</span><div class="spacing__bar" style="width:48px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-8</span><span class="spacing__val">64</span><div class="spacing__bar" style="width:64px"></div></div>
+      <div class="spacing__row"><span class="spacing__tok">space-9</span><span class="spacing__val">96</span><div class="spacing__bar" style="width:96px"></div></div>
+    </div>
+
+    <div class="grid-demo">
+      <div class="grid-demo__label">Layout grid — 12 column, 24px gutter, 80px side margin (desktop ≥1280)</div>
+      <div class="grid-demo__vis">
+        <div class="grid-demo__gutter"></div>
+        <div class="grid-demo__cols">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="grid-demo__gutter"></div>
+      </div>
+      <div class="grid-demo__break">
+        <div><div class="grid-demo__break-t">Mobile</div><div class="grid-demo__break-v">≤ 640 · 4 col · 16 gutter · 20 margin</div></div>
+        <div><div class="grid-demo__break-t">Tablet</div><div class="grid-demo__break-v">641–1024 · 8 col · 20 gutter · 40 margin</div></div>
+        <div><div class="grid-demo__break-t">Desktop</div><div class="grid-demo__break-v">1025–1440 · 12 col · 24 gutter · 64 margin</div></div>
+        <div><div class="grid-demo__break-t">Wide</div><div class="grid-demo__break-v">≥ 1441 · 12 col · 24 gutter · 80 margin</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RADIUS / ELEVATION / MOTION -->
+  <div class="f-block f-triple">
+    <div class="f-third">
+      <div class="f-block__kicker">3.4</div>
+      <h3 class="f-block__title">Radius</h3>
+      <div class="radii">
+        <div class="radii__row"><div class="radii__box" style="border-radius:2px"></div><div><div class="radii__name">radius-xs · 2</div><div class="radii__use">Tags, inline chips</div></div></div>
+        <div class="radii__row"><div class="radii__box" style="border-radius:6px"></div><div><div class="radii__name">radius-sm · 6</div><div class="radii__use">Buttons, inputs</div></div></div>
+        <div class="radii__row"><div class="radii__box" style="border-radius:10px"></div><div><div class="radii__name">radius-md · 10</div><div class="radii__use">Cards, panels</div></div></div>
+        <div class="radii__row"><div class="radii__box" style="border-radius:16px"></div><div><div class="radii__name">radius-lg · 16</div><div class="radii__use">Modals, hero blocks</div></div></div>
+        <div class="radii__row"><div class="radii__box" style="border-radius:999px"></div><div><div class="radii__name">radius-full</div><div class="radii__use">Avatars, pills, toggles</div></div></div>
+      </div>
+    </div>
+    <div class="f-third">
+      <div class="f-block__kicker">3.5</div>
+      <h3 class="f-block__title">Elevation</h3>
+      <div class="elev">
+        <div class="elev__row"><div class="elev__box elev__box--0"></div><div><div class="elev__name">elev-0 · flat</div><div class="elev__use">Default containers</div></div></div>
+        <div class="elev__row"><div class="elev__box elev__box--1"></div><div><div class="elev__name">elev-1 · resting</div><div class="elev__use">Cards on hover</div></div></div>
+        <div class="elev__row"><div class="elev__box elev__box--2"></div><div><div class="elev__name">elev-2 · popover</div><div class="elev__use">Menus, tooltips</div></div></div>
+        <div class="elev__row"><div class="elev__box elev__box--3"></div><div><div class="elev__name">elev-3 · dialog</div><div class="elev__use">Modals, sheets</div></div></div>
+      </div>
+    </div>
+    <div class="f-third">
+      <div class="f-block__kicker">3.6</div>
+      <h3 class="f-block__title">Motion</h3>
+      <div class="motion">
+        <div class="motion__row">
+          <div class="motion__name">duration-fast</div>
+          <div class="motion__val">120ms</div>
+          <div class="motion__use">Hover, focus</div>
+        </div>
+        <div class="motion__row">
+          <div class="motion__name">duration-base</div>
+          <div class="motion__val">200ms</div>
+          <div class="motion__use">Buttons, menus</div>
+        </div>
+        <div class="motion__row">
+          <div class="motion__name">duration-slow</div>
+          <div class="motion__val">320ms</div>
+          <div class="motion__use">Panels, modals</div>
+        </div>
+        <div class="motion__row">
+          <div class="motion__name">ease-standard</div>
+          <div class="motion__val">cubic(.2,.7,.2,1)</div>
+          <div class="motion__use">Default</div>
+        </div>
+        <div class="motion__row">
+          <div class="motion__name">ease-entrance</div>
+          <div class="motion__val">cubic(0,.5,.3,1)</div>
+          <div class="motion__use">Overlays enter</div>
+        </div>
+        <div class="motion__principle">
+          Motion must be <em>subtractable</em>. If <code>prefers-reduced-motion</code> is on, transitions become instant cross-fades.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 04 — COMPONENTS -->
+<!-- ============================================================ -->
+<section class="chapter chapter--tinted" id="components" data-screen-label="05 Components">
+  <div class="chapter__head">
+    <div class="chapter__num">04</div>
+    <h2 class="chapter__title">Component Patterns</h2>
+    <p class="chapter__dek">The production set. Each ships with a single default, explicit variants, and a rule for when not to use it.</p>
+  </div>
+
+  <!-- BUTTONS -->
+  <div class="c-block">
+    <div class="c-block__head">
+      <div class="c-block__kicker">4.1</div>
+      <h3 class="c-block__title">Buttons</h3>
+      <p class="c-block__dek">One primary per view. Size by context: <code>sm</code> in dense tables, <code>md</code> default, <code>lg</code> in empty states and auth only.</p>
+    </div>
+    <div class="c-stage">
+      <div class="c-row">
+        <button class="btn btn--primary">New mission</button>
+        <button class="btn btn--secondary">Export CSV</button>
+        <button class="btn btn--ghost">Cancel</button>
+        <button class="btn btn--danger">Delete</button>
+        <button class="btn btn--primary" disabled="">Saving…</button>
+      </div>
+      <div class="c-row">
+        <button class="btn btn--primary btn--sm">Call now</button>
+        <button class="btn btn--primary btn--md">Call now</button>
+        <button class="btn btn--primary btn--lg">Call now</button>
+      </div>
+      <div class="c-row">
+        <button class="btn btn--secondary"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 3v8M3 7h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg>With leading icon</button>
+        <button class="btn btn--secondary">Kbd shortcut<kbd class="kbd">⌘K</kbd></button>
+        <button class="btn btn--icon" aria-label="More"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1" fill="currentColor"></circle><circle cx="7" cy="7" r="1" fill="currentColor"></circle><circle cx="11" cy="7" r="1" fill="currentColor"></circle></svg></button>
+      </div>
+    </div>
+    <div class="c-rules">
+      <div class="rule"><div class="rule__good">Do</div><p>Lead with a verb. "New mission," "Export CSV," "Call now."</p></div>
+      <div class="rule"><div class="rule__bad">Don't</div><p>Don't put two primaries side-by-side. The second one must be <code>secondary</code> or <code>ghost</code>.</p></div>
+    </div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="c-block">
+    <div class="c-block__head">
+      <div class="c-block__kicker">4.2</div>
+      <h3 class="c-block__title">Inputs &amp; forms</h3>
+      <p class="c-block__dek">Label above field always. Helper text on a separate line. Error state replaces helper, never stacks on top of it.</p>
+    </div>
+    <div class="c-stage c-stage--cols">
+      <div class="field">
+        <label class="field__label">Mission name</label>
+        <div class="input"><input type="text" placeholder="Q2 · SaaS mid-market outbound"></div>
+        <div class="field__hint">Visible to the whole team.</div>
+      </div>
+      <div class="field">
+        <label class="field__label">Phone script</label>
+        <div class="input input--focused"><input type="text" value="Bonjour, c'est Hichem de…"></div>
+        <div class="field__hint">Focused state.</div>
+      </div>
+      <div class="field">
+        <label class="field__label">Daily call target</label>
+        <div class="input input--error"><input type="text" value="abc"></div>
+        <div class="field__error">Must be a whole number between 1 and 500.</div>
+      </div>
+      <div class="field">
+        <label class="field__label">Owner</label>
+        <div class="select"><span>Jean-François</span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"></path></svg></div>
+        <div class="field__hint">Select — shows current value, not a placeholder.</div>
+      </div>
+      <div class="field field--full">
+        <label class="field__label">Notes</label>
+        <div class="input input--textarea"><textarea rows="3" placeholder="Context, caveats, special instructions…"></textarea></div>
+      </div>
+      <div class="c-row">
+        <label class="check"><input type="checkbox" checked=""><span></span>Record calls for QA</label>
+        <label class="check"><input type="checkbox"><span></span>Notify Slack on hot lead</label>
+        <label class="radio"><input type="radio" name="r" checked=""><span></span>All contacts</label>
+        <label class="radio"><input type="radio" name="r"><span></span>New this week</label>
+        <label class="switch"><input type="checkbox" checked=""><i></i>Auto-dialer</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- BADGES / TAGS -->
+  <div class="c-block">
+    <div class="c-block__head">
+      <div class="c-block__kicker">4.3</div>
+      <h3 class="c-block__title">Status &amp; badges</h3>
+      <p class="c-block__dek">Label + dot. Never a colored pill with no text. Five semantic roles, no ad-hoc colors.</p>
+    </div>
+    <div class="c-stage">
+      <div class="c-row">
+        <span class="badge badge--neutral"><i></i>Not started</span>
+        <span class="badge badge--info"><i></i>In progress</span>
+        <span class="badge badge--success"><i></i>Interested</span>
+        <span class="badge badge--warn"><i></i>At risk</span>
+        <span class="badge badge--danger"><i></i>Lost</span>
+        <span class="badge badge--solid">Hot lead</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARDS -->
+  <div class="c-block">
+    <div class="c-block__head">
+      <div class="c-block__kicker">4.4</div>
+      <h3 class="c-block__title">Cards &amp; metric tiles</h3>
+      <p class="c-block__dek">One container style. The metric tile is a specialization with fixed anatomy: label, value, delta, sparkline.</p>
+    </div>
+    <div class="c-stage c-stage--grid4">
+      <div class="metric">
+        <div class="metric__label">Calls placed</div>
+        <div class="metric__value">9,861</div>
+        <div class="metric__meta">
+          <span class="delta delta--up">↑ 12.4%</span>
+          <span class="metric__vs">vs last month</span>
+        </div>
+        <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,30 20,28 40,24 60,26 80,20 100,22 120,16 140,18 160,12 180,14 200,8" fill="none" stroke="currentColor" stroke-width="1.5"></polyline></svg>
+      </div>
+      <div class="metric">
+        <div class="metric__label">Appointments</div>
+        <div class="metric__value">97<span class="metric__unit">/30</span></div>
+        <div class="metric__meta">
+          <span class="delta delta--up">↑ 3 ahead</span>
+          <span class="metric__vs">weekly target</span>
+        </div>
+        <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,20 20,22 40,18 60,24 80,16 100,14 120,18 140,10 160,12 180,8 200,6" fill="none" stroke="currentColor" stroke-width="1.5"></polyline></svg>
+      </div>
+      <div class="metric">
+        <div class="metric__label">Hot leads</div>
+        <div class="metric__value">29</div>
+        <div class="metric__meta">
+          <span class="delta">— flat</span>
+          <span class="metric__vs">week on week</span>
+        </div>
+        <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,20 20,22 40,20 60,18 80,22 100,20 120,18 140,22 160,20 180,20 200,18" fill="none" stroke="currentColor" stroke-width="1.5"></polyline></svg>
+      </div>
+      <div class="metric metric--warn">
+        <div class="metric__label">Conversion</div>
+        <div class="metric__value">1.0<span class="metric__unit">%</span></div>
+        <div class="metric__meta">
+          <span class="delta delta--down">↓ 0.2 pts</span>
+          <span class="metric__vs">vs last month</span>
+        </div>
+        <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,8 20,10 40,14 60,12 80,16 100,18 120,16 140,20 160,22 180,26 200,28" fill="none" stroke="currentColor" stroke-width="1.5"></polyline></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="c-block">
+    <div class="c-block__head">
+      <div class="c-block__kicker">4.5</div>
+      <h3 class="c-block__title">Data table</h3>
+      <p class="c-block__dek">The workhorse. 44px rows, mono for numerics, 1px borders only between groups. Sticky header, keyboard row focus, selectable via space.</p>
+    </div>
+    <div class="c-stage c-stage--flat">
+      <div class="table">
+        <div class="table__toolbar">
+          <div class="table__filters">
+            <span class="chip chip--on">All <em>1,284</em></span>
+            <span class="chip">Hot <em>29</em></span>
+            <span class="chip">Interested <em>112</em></span>
+            <span class="chip">To recall <em>28</em></span>
+          </div>
+          <div class="table__actions">
+            <button class="btn btn--ghost btn--sm">Filter</button>
+            <button class="btn btn--ghost btn--sm">Sort</button>
+            <button class="btn btn--secondary btn--sm">Export</button>
+          </div>
+        </div>
+        <div class="table__grid">
+          <div class="thead">
+            <div class="th th--check"><label class="check check--bare"><input type="checkbox"><span></span></label></div>
+            <div class="th">Contact</div>
+            <div class="th">Company</div>
+            <div class="th">Status</div>
+            <div class="th th--num">Last call</div>
+            <div class="th th--num">Attempts</div>
+            <div class="th th--num">Next action</div>
+            <div class="th"></div>
+          </div>
+          <div class="tr">
+            <div class="td td--check"><label class="check check--bare"><input type="checkbox" checked=""><span></span></label></div>
+            <div class="td"><div class="cell-contact"><span class="avatar avatar--sm" data-init="MD">MD</span><div><div class="cell-contact__name">Marie Dubois</div><div class="cell-contact__sub">VP Sales · +33 6 12 34 56 78</div></div></div></div>
+            <div class="td">Axiom Logistics</div>
+            <div class="td"><span class="badge badge--success"><i></i>Interested</span></div>
+            <div class="td td--num mono">2h ago</div>
+            <div class="td td--num mono">3</div>
+            <div class="td td--num mono">Tomorrow · 10:00</div>
+            <div class="td td--actions"><button class="btn btn--icon btn--sm" aria-label="More"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="3" cy="7" r="1" fill="currentColor"></circle><circle cx="7" cy="7" r="1" fill="currentColor"></circle><circle cx="11" cy="7" r="1" fill="currentColor"></circle></svg></button></div>
+          </div>
+          <div class="tr">
+            <div class="td td--check"><label class="check check--bare"><input type="checkbox"><span></span></label></div>
+            <div class="td"><div class="cell-contact"><span class="avatar avatar--sm" data-init="PL">PL</span><div><div class="cell-contact__name">Pierre Laurent</div><div class="cell-contact__sub">CTO · +33 6 44 11 22 33</div></div></div></div>
+            <div class="td">Nordest Industrie</div>
+            <div class="td"><span class="badge badge--solid">Hot lead</span></div>
+            <div class="td td--num mono">18m ago</div>
+            <div class="td td--num mono">1</div>
+            <div class="td td--num mono">Today · 16:30</div>
+            <div class="td td--actions"><button class="btn btn--icon btn--sm" aria-label="More"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="3" cy="7" r="1" fill="currentColor"></circle><circle cx="7" cy="7" r="1" fill="currentColor"></circle><circle cx="11" cy="7" r="1" fill="currentColor"></circle></svg></button></div>
+          </div>
+          <div class="tr">
+            <div class="td td--check"><label class="check check--bare"><input type="checkbox"><span></span></label></div>
+            <div class="td"><div class="cell-contact"><span class="avatar avatar--sm" data-init="SM">SM</span><div><div class="cell-contact__name">Sophie Martin</div><div class="cell-contact__sub">COO · +33 6 99 88 77 66</div></div></div></div>
+            <div class="td">Velia Santé</div>
+            <div class="td"><span class="badge badge--warn"><i></i>At risk</span></div>
+            <div class="td td--num mono">3d ago</div>
+            <div class="td td--num mono">4</div>
+            <div class="td td--num mono">Overdue · 2d</div>
+            <div class="td td--actions"><button class="btn btn--icon btn--sm" aria-label="More"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="3" cy="7" r="1" fill="currentColor"></circle><circle cx="7" cy="7" r="1" fill="currentColor"></circle><circle cx="11" cy="7" r="1" fill="currentColor"></circle></svg></button></div>
+          </div>
+          <div class="tr tr--selected">
+            <div class="td td--check"><label class="check check--bare"><input type="checkbox" checked=""><span></span></label></div>
+            <div class="td"><div class="cell-contact"><span class="avatar avatar--sm" data-init="RG">RG</span><div><div class="cell-contact__name">Rémi Guyot</div><div class="cell-contact__sub">Head of Ops · +33 6 55 33 22 11</div></div></div></div>
+            <div class="td">Calyx Robotics</div>
+            <div class="td"><span class="badge badge--info"><i></i>In progress</span></div>
+            <div class="td td--num mono">Yesterday</div>
+            <div class="td td--num mono">2</div>
+            <div class="td td--num mono">Friday · 09:15</div>
+            <div class="td td--actions"><button class="btn btn--icon btn--sm" aria-label="More"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="3" cy="7" r="1" fill="currentColor"></circle><circle cx="7" cy="7" r="1" fill="currentColor"></circle><circle cx="11" cy="7" r="1" fill="currentColor"></circle></svg></button></div>
+          </div>
+          <div class="tr">
+            <div class="td td--check"><label class="check check--bare"><input type="checkbox"><span></span></label></div>
+            <div class="td"><div class="cell-contact"><span class="avatar avatar--sm" data-init="LB">LB</span><div><div class="cell-contact__name">Léa Bernard</div><div class="cell-contact__sub">CFO · +33 6 78 90 12 34</div></div></div></div>
+            <div class="td">Mistral Partners</div>
+            <div class="td"><span class="badge badge--neutral"><i></i>Not started</span></div>
+            <div class="td td--num mono">—</div>
+            <div class="td td--num mono">0</div>
+            <div class="td td--num mono">—</div>
+            <div class="td td--actions"><button class="btn btn--icon btn--sm" aria-label="More"><svg width="14" height="14" viewBox="0 0 14 14"><circle cx="3" cy="7" r="1" fill="currentColor"></circle><circle cx="7" cy="7" r="1" fill="currentColor"></circle><circle cx="11" cy="7" r="1" fill="currentColor"></circle></svg></button></div>
+          </div>
+        </div>
+        <div class="table__foot">
+          <div>5 of 1,284 · 2 selected</div>
+          <div class="c-row">
+            <button class="btn btn--ghost btn--sm">‹ Prev</button>
+            <button class="btn btn--ghost btn--sm">Next ›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="c-block">
+    <div class="c-block__head">
+      <div class="c-block__kicker">4.6</div>
+      <h3 class="c-block__title">Dialogs</h3>
+      <p class="c-block__dek">Centered, max 520/720/960. Scrim at 40% surface/inverse. Actions bottom-right, destructive <em>always</em> confirms.</p>
+    </div>
+    <div class="c-stage c-stage--dialog">
+      <div class="dialog-preview">
+        <div class="dialog">
+          <div class="dialog__head">
+            <div>
+              <div class="dialog__eyebrow">New mission</div>
+              <h4 class="dialog__title">Create a prospecting mission</h4>
+            </div>
+            <button class="btn btn--icon" aria-label="Close"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button>
+          </div>
+          <div class="dialog__body">
+            <div class="field"><label class="field__label">Mission name</label><div class="input"><input type="text" value="Q2 · SaaS mid-market outbound"></div></div>
+            <div class="c-row c-row--2">
+              <div class="field"><label class="field__label">Owner</label><div class="select"><span>Jean-François</span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"></path></svg></div></div>
+              <div class="field"><label class="field__label">Target close</label><div class="input"><input type="text" value="June 30, 2026"></div></div>
+            </div>
+          </div>
+          <div class="dialog__foot">
+            <button class="btn btn--ghost">Cancel</button>
+            <button class="btn btn--primary">Create mission</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV -->
+  <div class="c-block">
+    <div class="c-block__head">
+      <div class="c-block__kicker">4.7</div>
+      <h3 class="c-block__title">Navigation</h3>
+      <p class="c-block__dek">Rail (72px collapsed) or drawer (240px). No color icons, no all-caps headers. Keyboard accessible: <kbd class="kbd">⌘1…9</kbd> jumps sections.</p>
+    </div>
+    <div class="c-stage c-stage--nav">
+      <aside class="navdemo">
+        <div class="navdemo__brand"><div class="navdemo__mark"></div><div><div class="navdemo__name">CaptainProspect</div><div class="navdemo__org">Acme Prospection</div></div></div>
+        <div class="navdemo__search"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3"></circle><path d="M8 8l2 2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path></svg><span>Search</span><kbd class="kbd">⌘K</kbd></div>
+        <div class="navdemo__group">
+          <div class="navdemo__item navdemo__item--on"><span class="navdemo__glyph"></span>Overview<kbd class="kbd kbd--ghost">1</kbd></div>
+          <div class="navdemo__item"><span class="navdemo__glyph"></span>Missions<span class="navdemo__count">12</span></div>
+          <div class="navdemo__item"><span class="navdemo__glyph"></span>Lists<span class="navdemo__count">34</span></div>
+          <div class="navdemo__item"><span class="navdemo__glyph"></span>Calls</div>
+        </div>
+        <div class="navdemo__group">
+          <div class="navdemo__section">Follow-up</div>
+          <div class="navdemo__item"><span class="navdemo__glyph"></span>Clients</div>
+          <div class="navdemo__item"><span class="navdemo__glyph"></span>Meetings<span class="navdemo__count navdemo__count--warn">3</span></div>
+          <div class="navdemo__item"><span class="navdemo__glyph"></span>Stats</div>
+        </div>
+        <div class="navdemo__foot">
+          <div class="navdemo__profile"><span class="avatar avatar--sm" data-init="JF">JF</span><div><div class="navdemo__who">Jean-François</div><div class="navdemo__role">Manager</div></div></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 05 — SCREENS (external file for size) -->
+<!-- ============================================================ -->
+<section class="chapter" id="screens" data-screen-label="06 Screens">
+  <div class="chapter__head">
+    <div class="chapter__num">05</div>
+    <h2 class="chapter__title">Applied Screen Redesigns</h2>
+    <p class="chapter__dek">Six surfaces rendered end-to-end in the new system, with a before/after read on each decision.</p>
+  </div>
+  <div id="screens-mount"></div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 06 — HANDOFF -->
+<!-- ============================================================ -->
+<section class="chapter chapter--tinted" id="handoff" data-screen-label="07 Handoff">
+  <div class="chapter__head">
+    <div class="chapter__num">06</div>
+    <h2 class="chapter__title">Handoff &amp; Rollout</h2>
+    <p class="chapter__dek">Concrete guidance for the team. Tokens to ship, components to map, an order that minimizes user disruption.</p>
+  </div>
+
+  <div class="handoff">
+    <div class="handoff__col">
+      <h4>Tokens</h4>
+      <p>Ship as a single <code>tokens.json</code> consumed by Tailwind config and a CSS custom-properties file. Dark mode is a sibling theme file — same role names, different values.</p>
+      <pre class="code">{
+  "color": {
+    "surface": { "canvas": "#FAF9F6", "raised": "#FFFFFF", "sunken": "#F1EFE9" },
+    "text":    { "primary": "#0E0F0C", "secondary": "#4A4B46", "tertiary": "#8A8A83" },
+    "accent":  { "primary": "#2B5F3E", "primary-soft": "#E7EFE9" },
+    "signal":  { "warn": "#B8541A", "danger": "#9A2A2A", "info": "#3A5280" }
+  },
+  "space":  [0, 4, 8, 12, 16, 24, 32, 48, 64, 96],
+  "radius": { "xs": 2, "sm": 6, "md": 10, "lg": 16, "full": 9999 },
+  "font":   { "sans": "DM Sans", "mono": "DM Mono" }
+}</pre>
+    </div>
+    <div class="handoff__col">
+      <h4>Component mapping</h4>
+      <table class="handoff__table">
+        <thead><tr><th>Old</th><th>New</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>PurpleHero</td><td>MetricBoard</td><td><span class="badge badge--danger"><i></i>Remove</span></td></tr>
+          <tr><td>KpiCard (iconified)</td><td>Metric</td><td><span class="badge badge--warn"><i></i>Rewrite</span></td></tr>
+          <tr><td>Sidebar</td><td>NavRail</td><td><span class="badge badge--warn"><i></i>Rewrite</span></td></tr>
+          <tr><td>Table v1</td><td>Table</td><td><span class="badge badge--info"><i></i>Refactor</span></td></tr>
+          <tr><td>Modal</td><td>Dialog</td><td><span class="badge badge--success"><i></i>Keep</span></td></tr>
+          <tr><td>Button (7 variants)</td><td>Button (4 variants)</td><td><span class="badge badge--warn"><i></i>Rewrite</span></td></tr>
+          <tr><td>TagPill</td><td>Badge</td><td><span class="badge badge--info"><i></i>Refactor</span></td></tr>
+          <tr><td>Leaderboard</td><td>RankedList</td><td><span class="badge badge--info"><i></i>Refactor</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="handoff__col handoff__col--wide">
+      <h4>Rollout plan</h4>
+      <ol class="rollout">
+        <li>
+          <div class="rollout__phase">Phase 1 · Week 1–2</div>
+          <div class="rollout__title">Tokens &amp; primitives</div>
+          <div class="rollout__detail">Ship <code>tokens.json</code>, DM Sans/Mono via <code>@font-face</code>, reset button/input/badge/avatar. No visual change to users yet — all legacy components still render. Behind <code>?ds=v2</code> flag.</div>
+        </li>
+        <li>
+          <div class="rollout__phase">Phase 2 · Week 3–4</div>
+          <div class="rollout__title">Navigation + dashboard</div>
+          <div class="rollout__detail">Replace sidebar and top dashboard. Highest visual impact, lowest risk — no destructive actions on these screens. Gather feedback from 10 SDRs in a design-partner cohort.</div>
+        </li>
+        <li>
+          <div class="rollout__phase">Phase 3 · Week 5–7</div>
+          <div class="rollout__title">Lists, detail, call console</div>
+          <div class="rollout__detail">The daily driver for SDRs. Ship with a "restore old UI" escape hatch for two weeks. Track time-to-complete for core tasks before/after.</div>
+        </li>
+        <li>
+          <div class="rollout__phase">Phase 4 · Week 8</div>
+          <div class="rollout__title">Settings, auth, onboarding, dialogs</div>
+          <div class="rollout__detail">Lower-traffic surfaces. Remove <code>?ds=v2</code> flag. Retire old component files. Publish v2 docs site.</div>
+        </li>
+        <li>
+          <div class="rollout__phase">Phase 5 · Week 9–10</div>
+          <div class="rollout__title">Dark mode + mobile polish</div>
+          <div class="rollout__detail">Command Deck (direction C) ships as optional dark theme. Mobile call console refined with thumb-zone buttons and larger hit targets.</div>
+        </li>
+      </ol>
+    </div>
+    <div class="handoff__col">
+      <h4>Migration rules for engineers</h4>
+      <ul class="migrules">
+        <li>Never hard-code hex. Use <code>var(--color-*)</code>.</li>
+        <li>Never hard-code px spacing outside the 10-step scale. Use <code>var(--space-*)</code> or Tailwind <code>px-{step}</code>.</li>
+        <li>Buttons: exactly one <code>--primary</code> per view. ESLint rule to flag violations.</li>
+        <li>Icon size: 14 inside buttons, 16 in nav, 20 in empty states. No other sizes.</li>
+        <li>Every interactive element must render a <code>:focus-visible</code> state using <code>--focus-ring</code>.</li>
+        <li>No new component without a doc entry and a dark-mode variant.</li>
+      </ul>
+    </div>
+    <div class="handoff__col">
+      <h4>Success metrics</h4>
+      <ul class="metrics-list">
+        <li><strong>Time-to-first-call</strong> for a new SDR on day 1: target − 40%.</li>
+        <li><strong>Dashboard scan time</strong> (eye-tracking): target − 25%.</li>
+        <li><strong>Accessibility audit</strong>: 100% WCAG AA on all shipped surfaces.</li>
+        <li><strong>Support tickets</strong> mentioning "can't find" / "hard to read": target − 50% in 90 days.</li>
+        <li><strong>Component sprawl</strong>: 63 legacy components → 24 system components.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="signoff">
+    <div class="signoff__line"></div>
+    <div class="signoff__text">
+      <div class="signoff__eyebrow">End of spec</div>
+      <div class="signoff__note">A system is only as good as its enforcement. Ship the tokens, the lint rules, and the doc site in the same week — otherwise v2 becomes v1.5 plus opinions.</div>
+    </div>
+  </div>
+</section>
+
+<script type="text/babel-disabled">
+  // placeholder
+</script>
+<script>
+/* =========================================================
+   Applied Screens — CaptainProspect v2
+   Rendered directly into #screens-mount
+   ========================================================= */
+(function(){
+  const mount = document.getElementById('screens-mount');
+  if(!mount) return;
+
+  const icon = {
+    overview: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.5" y="1.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="7.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.5" y="7.5" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>',
+    missions: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h10M2 7h10M2 11h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    lists: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5h11M5 5v7.5" stroke="currentColor" stroke-width="1.3"/></svg>',
+    calls: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2h2l1 3-1.5 1a7 7 0 003.5 3.5l1-1.5 3 1v2a1 1 0 01-1 1A10 10 0 012 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    clients: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="5" r="2.2" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 12c.5-2.3 2.3-3.5 4.5-3.5s4 1.2 4.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    meet: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="2.5" width="11" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1.5 5.5h11M4 1v3M10 1v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    stats: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 12V8M6 12V4M10 12V7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    email: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1.5" y="3" width="11" height="8" rx="1.3" stroke="currentColor" stroke-width="1.3"/><path d="M2 4l5 3.5L12 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    search: '<svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="5.5" cy="5.5" r="3.8" stroke="currentColor" stroke-width="1.3"/><path d="M8.5 8.5l3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+    more: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="3" cy="7" r="1" fill="currentColor"/><circle cx="7" cy="7" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/></svg>',
+    bell: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 10V6.5a4 4 0 018 0V10M2 10h10M6 12a1 1 0 002 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    filter:'<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3h10l-4 5v4l-2-1V8L2 3z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    plus: '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    arrow:'<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    phone:'<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 2h2l1 3-1.5 1a7 7 0 003.5 3.5l1-1.5 3 1v2a1 1 0 01-1 1A10 10 0 012 3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+    chat: '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 3.5h10v6H6l-3 2.5V9.5H2v-6z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>',
+  };
+
+  // Reusable sidebar
+  function sidebar(active){
+    const items = [
+      ['overview','Overview','1',null,'Overview'],
+      ['missions','Missions','2','12','Missions'],
+      ['lists','Lists & Prospection','3','34','Lists'],
+      ['calls','Calls','4',null,'Calls'],
+    ];
+    const items2 = [
+      ['clients','Clients',null,null,'Clients'],
+      ['meet','Meetings',null,'3w','Meetings'],
+      ['stats','Statistics',null,null,'Statistics'],
+      ['email','Email Hub',null,null,'Email'],
+    ];
+    const row = ([ic,label,kbd,count,key])=>{
+      const on = key===active?' navdemo__item--on':'';
+      const badge = count
+        ? (count.endsWith('w')
+          ? `<span class="navdemo__count navdemo__count--warn">${count.replace('w','')}</span>`
+          : `<span class="navdemo__count">${count}</span>`)
+        : (kbd?`<kbd class="kbd kbd--ghost">${kbd}</kbd>`:'');
+      return `<div class="navdemo__item${on}"><span class="nav-ic">${icon[ic]}</span>${label}${badge}</div>`;
+    };
+    return `
+      <aside class="scr-nav">
+        <div class="navdemo__brand"><div class="navdemo__mark"></div><div><div class="navdemo__name">CaptainProspect</div><div class="navdemo__org">Acme Prospection</div></div></div>
+        <div class="navdemo__search">${icon.search}<span>Search missions, contacts…</span><kbd class="kbd">⌘K</kbd></div>
+        <div class="navdemo__group">${items.map(row).join('')}</div>
+        <div class="navdemo__group">
+          <div class="navdemo__section">Follow-up</div>
+          ${items2.map(row).join('')}
+        </div>
+        <div class="navdemo__foot">
+          <div class="navdemo__profile"><span class="avatar avatar--sm" data-init="JF">JF</span><div><div class="navdemo__who">Jean-François</div><div class="navdemo__role">Manager · Acme</div></div></div>
+        </div>
+      </aside>`;
+  }
+
+  // Reusable topbar
+  function topbar(title, breadcrumb, actions){
+    return `
+      <header class="scr-top">
+        <div class="scr-top__crumbs">${breadcrumb}</div>
+        <div class="scr-top__tools">
+          <button class="btn btn--ghost btn--sm">${icon.chat}</button>
+          <button class="btn btn--ghost btn--sm">${icon.bell}<span class="scr-top__dot"></span></button>
+          <div class="scr-top__sep"></div>
+          ${actions||''}
+        </div>
+      </header>`;
+  }
+
+  function screenCard(label, title, note, body){
+    return `
+      <div class="scr">
+        <div class="scr__head">
+          <div class="scr__kicker">${label}</div>
+          <h3 class="scr__title">${title}</h3>
+          <p class="scr__note">${note}</p>
+        </div>
+        <div class="scr__frame">${body}</div>
+      </div>`;
+  }
+
+  // ---------------- Screen 1: Dashboard ----------------
+  const leader = [
+    [1,'Hichem','H',25,100,true],
+    [2,'Sophie','S',20,80,false],
+    [3,'Jean-François','JF',17,68,false],
+    [4,'Maxime','M',6,24,false],
+    [5,'Léa-Maria','LM',4,16,false],
+  ].map(([r,n,i,v,w])=>`
+    <div class="rank">
+      <span class="rank__n mono">${String(r).padStart(2,'0')}</span>
+      <span class="avatar avatar--sm" data-init="${i}">${i}</span>
+      <div class="rank__name">${n}</div>
+      <div class="rank__bar"><i style="width:${w}%"></i></div>
+      <div class="rank__v mono">${v}</div>
+    </div>`).join('');
+
+  const callBreakdown = [
+    ['No answer','no-answer',7122,72],
+    ['Interested','ok',1,0.01],
+    ['Call back','back',28,0.3],
+    ['Out of target','ot',63,0.6],
+    ['Refused','ref',885,9],
+    ['Forwarded','fwd',377,3.8],
+    ['Email only','email',159,1.6],
+    ['Recall','rec',5,0.05],
+    ['Wrong contact','wc',53,0.5],
+  ].map(([label,,n,p])=>`
+    <div class="bd-row">
+      <span class="bd-dot" data-key="${label}"></span>
+      <div class="bd-label">${label}</div>
+      <div class="bd-num mono">${n.toLocaleString('en-US')}</div>
+      <div class="bd-pct mono">${p}%</div>
+    </div>`).join('');
+
+  const dashboard = `
+    <div class="app">
+      ${sidebar('Overview')}
+      <main class="scr-main">
+        ${topbar('Overview','<span>Manager</span> <i>/</i> <strong>Overview</strong>',`
+          <button class="btn btn--secondary btn--sm">Last month</button>
+          <button class="btn btn--secondary btn--sm">All missions</button>
+          <button class="btn btn--primary btn--sm">${icon.plus}New mission</button>
+        `)}
+        <div class="scr-body">
+          <div class="page-head">
+            <div>
+              <div class="page-head__eyebrow">Tuesday, 21 April 2026</div>
+              <h1 class="page-head__title">Good afternoon, Jean-François.</h1>
+              <p class="page-head__sub">Your team ran <strong>9,861 calls</strong> last month and booked <strong>97 appointments</strong>. Here's where you stand.</p>
+            </div>
+            <div class="page-head__kpi">
+              <div class="page-head__kpi-label">Weekly target</div>
+              <div class="page-head__kpi-bar"><i style="width:100%"></i><i class="over" style="width:223%"></i></div>
+              <div class="page-head__kpi-meta"><span class="mono">97 / 30</span><span class="delta delta--up">+ 223%</span></div>
+            </div>
+          </div>
+
+          <section class="metric-row">
+            <div class="metric">
+              <div class="metric__label">Calls placed</div>
+              <div class="metric__value">9,861</div>
+              <div class="metric__meta"><span class="delta delta--up">↑ 12.4%</span><span class="metric__vs">vs last month</span></div>
+              <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,30 20,28 40,24 60,26 80,20 100,22 120,16 140,18 160,12 180,14 200,8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            </div>
+            <div class="metric">
+              <div class="metric__label">Appointments</div>
+              <div class="metric__value">97<span class="metric__unit">/30</span></div>
+              <div class="metric__meta"><span class="delta delta--up">↑ 3 ahead</span><span class="metric__vs">weekly</span></div>
+              <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,20 20,22 40,18 60,24 80,16 100,14 120,18 140,10 160,12 180,8 200,6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            </div>
+            <div class="metric">
+              <div class="metric__label">Hot leads</div>
+              <div class="metric__value">29</div>
+              <div class="metric__meta"><span class="delta">— flat</span><span class="metric__vs">week on week</span></div>
+              <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,20 20,22 40,20 60,18 80,22 100,20 120,18 140,22 160,20 180,20 200,18" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            </div>
+            <div class="metric metric--warn">
+              <div class="metric__label">Conversion</div>
+              <div class="metric__value">1.0<span class="metric__unit">%</span></div>
+              <div class="metric__meta"><span class="delta delta--down">↓ 0.2 pts</span><span class="metric__vs">vs last month</span></div>
+              <svg class="metric__spark" viewBox="0 0 200 40" preserveAspectRatio="none"><polyline points="0,8 20,10 40,14 60,12 80,16 100,18 120,16 140,20 160,22 180,26 200,28" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+            </div>
+          </section>
+
+          <section class="panels">
+            <article class="panel panel--breakdown">
+              <div class="panel__head">
+                <h3 class="panel__title">Call outcomes</h3>
+                <div class="panel__meta"><span class="mono">9,861 total</span></div>
+              </div>
+              <div class="panel__body bd">
+                <div class="bd-chart">
+                  <svg viewBox="0 0 120 120" class="donut">
+                    <circle cx="60" cy="60" r="42" fill="none" stroke="#F1EFE9" stroke-width="14"/>
+                    <circle cx="60" cy="60" r="42" fill="none" stroke="#2B5F3E" stroke-width="14" stroke-dasharray="3 261" stroke-dashoffset="0" transform="rotate(-90 60 60)"/>
+                    <circle cx="60" cy="60" r="42" fill="none" stroke="#B8541A" stroke-width="14" stroke-dasharray="24 240" stroke-dashoffset="-3" transform="rotate(-90 60 60)"/>
+                    <circle cx="60" cy="60" r="42" fill="none" stroke="#3A5280" stroke-width="14" stroke-dasharray="44 220" stroke-dashoffset="-27" transform="rotate(-90 60 60)"/>
+                    <circle cx="60" cy="60" r="42" fill="none" stroke="#D5D2C9" stroke-width="14" stroke-dasharray="193 71" stroke-dashoffset="-71" transform="rotate(-90 60 60)"/>
+                  </svg>
+                  <div class="donut__center"><div class="mono">97</div><small>RDV</small></div>
+                </div>
+                <div class="bd-list">${callBreakdown}</div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel__head">
+                <h3 class="panel__title">To recall</h3>
+                <span class="badge badge--warn"><i></i>28 pending</span>
+              </div>
+              <div class="panel__body recall">
+                <div class="recall-item">
+                  <div class="recall-item__ic">${icon.phone}</div>
+                  <div>
+                    <div class="recall-item__title">28 callbacks scheduled</div>
+                    <div class="recall-item__sub">High-priority · mostly in the next 24h</div>
+                  </div>
+                  <button class="btn btn--ghost btn--sm">View ${icon.arrow}</button>
+                </div>
+                <div class="recall-item">
+                  <div class="recall-item__ic recall-item__ic--warn">${icon.bell}</div>
+                  <div>
+                    <div class="recall-item__title">1 interested contact</div>
+                    <div class="recall-item__sub">High conversion probability</div>
+                  </div>
+                  <button class="btn btn--ghost btn--sm">View ${icon.arrow}</button>
+                </div>
+                <a class="recall-link" href="#">Open prospecting queue ${icon.arrow}</a>
+              </div>
+            </article>
+
+            <article class="panel panel--leader">
+              <div class="panel__head">
+                <h3 class="panel__title">Leaderboard · Appointments</h3>
+                <span class="badge badge--success"><i></i>Goal reached</span>
+              </div>
+              <div class="panel__body lb">${leader}</div>
+            </article>
+          </section>
+        </div>
+      </main>
+    </div>`;
+
+  // ---------------- Screen 2: List view ----------------
+  const rows = [
+    ['Marie Dubois','MD','VP Sales','Axiom Logistics','+33 6 12 34 56 78','success','Interested','2h ago','3','Tomorrow · 10:00',false],
+    ['Pierre Laurent','PL','CTO','Nordest Industrie','+33 6 44 11 22 33','solid','Hot lead','18m ago','1','Today · 16:30',true],
+    ['Sophie Martin','SM','COO','Velia Santé','+33 6 99 88 77 66','warn','At risk','3d ago','4','Overdue · 2d',false],
+    ['Rémi Guyot','RG','Head of Ops','Calyx Robotics','+33 6 55 33 22 11','info','In progress','Yesterday','2','Friday · 09:15',false],
+    ['Léa Bernard','LB','CFO','Mistral Partners','+33 6 78 90 12 34','neutral','Not started','—','0','—',false],
+    ['Antoine Rolland','AR','Directeur Achats','Oléron Maritime','+33 6 11 77 55 33','success','Interested','5h ago','2','Thu · 14:00',false],
+    ['Nora Chahid','NC','Head of IT','Gravitas Bank','+33 6 22 33 44 55','info','In progress','1d ago','3','Fri · 11:30',false],
+    ['Hugo Renault','HR','VP Product','Pivot Robotics','+33 6 88 99 00 11','warn','At risk','4d ago','5','Overdue · 1d',false],
+    ['Inès Fabre','IF','CEO','Atelier Nord','+33 6 12 55 44 33','neutral','Not started','—','0','—',false],
+  ].map((r,idx)=>`
+    <div class="tr${r[10]?' tr--hot':''}">
+      <div class="td td--check"><label class="check check--bare"><input type="checkbox" ${idx<2?'checked':''}/><span></span></label></div>
+      <div class="td"><div class="cell-contact"><span class="avatar avatar--sm" data-init="${r[1]}">${r[1]}</span><div><div class="cell-contact__name">${r[0]}</div><div class="cell-contact__sub">${r[2]} · ${r[4]}</div></div></div></div>
+      <div class="td">${r[3]}</div>
+      <div class="td"><span class="badge badge--${r[5]}"><i></i>${r[6]}</span></div>
+      <div class="td td--num mono">${r[7]}</div>
+      <div class="td td--num mono">${r[8]}</div>
+      <div class="td td--num mono">${r[9]}</div>
+      <div class="td td--actions"><button class="btn btn--icon btn--sm">${icon.more}</button></div>
+    </div>`).join('');
+
+  const listView = `
+    <div class="app">
+      ${sidebar('Lists')}
+      <main class="scr-main">
+        ${topbar('','<span>Lists</span> <i>/</i> <strong>Q2 · SaaS mid-market</strong>',`
+          <button class="btn btn--secondary btn--sm">${icon.filter}Filter</button>
+          <button class="btn btn--secondary btn--sm">Export</button>
+          <button class="btn btn--primary btn--sm">${icon.phone}Start session</button>
+        `)}
+        <div class="scr-body">
+          <div class="list-head">
+            <div>
+              <div class="page-head__eyebrow mono">MISSION · Q2-SMB-2026</div>
+              <h1 class="page-head__title">Q2 · SaaS mid-market outbound</h1>
+              <div class="list-head__meta">
+                <span><span class="avatar avatar--sm" data-init="JF">JF</span> Jean-François</span>
+                <span>·</span>
+                <span class="mono">1,284 contacts</span>
+                <span>·</span>
+                <span class="mono">87 / 150 called</span>
+                <span>·</span>
+                <span>Ends <span class="mono">Jun 30</span></span>
+              </div>
+            </div>
+            <div class="list-head__stats">
+              <div><div class="list-head__stat-l">Coverage</div><div class="list-head__stat-v mono">58%</div></div>
+              <div><div class="list-head__stat-l">Conv.</div><div class="list-head__stat-v mono">1.04%</div></div>
+              <div><div class="list-head__stat-l">Hot leads</div><div class="list-head__stat-v mono">12</div></div>
+            </div>
+          </div>
+
+          <div class="table table--screen">
+            <div class="table__toolbar">
+              <div class="table__filters">
+                <span class="chip chip--on">All <em>1,284</em></span>
+                <span class="chip">Hot <em>12</em></span>
+                <span class="chip">Interested <em>112</em></span>
+                <span class="chip">To recall <em>28</em></span>
+                <span class="chip">At risk <em>44</em></span>
+              </div>
+              <div class="table__actions">
+                <div class="input input--search"><span>${icon.search}</span><input placeholder="Search contacts…"/></div>
+              </div>
+            </div>
+            <div class="table__grid">
+              <div class="thead">
+                <div class="th th--check"><label class="check check--bare"><input type="checkbox"/><span></span></label></div>
+                <div class="th">Contact</div>
+                <div class="th">Company</div>
+                <div class="th">Status</div>
+                <div class="th th--num">Last call</div>
+                <div class="th th--num">Attempts</div>
+                <div class="th th--num">Next action</div>
+                <div class="th"></div>
+              </div>
+              ${rows}
+            </div>
+            <div class="table__foot">
+              <div>9 of 1,284 · 2 selected</div>
+              <div class="c-row">
+                <button class="btn btn--ghost btn--sm">Assign…</button>
+                <button class="btn btn--ghost btn--sm">Move…</button>
+                <button class="btn btn--ghost btn--sm">‹ Prev</button>
+                <button class="btn btn--ghost btn--sm">Next ›</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>`;
+
+  // ---------------- Screen 3: Detail (contact) ----------------
+  const timeline = [
+    ['16:42','Call · 4m 12s','Interested. Asked for pricing sheet. Schedule follow-up demo next week with CFO.','success','Interested'],
+    ['10:14','Email sent','Pricing deck (v2, 2026) attached. Opened twice.','info','Sent'],
+    ['Apr 18','Call · 2m 08s','Asked us to call back Thursday afternoon.','info','Call back'],
+    ['Apr 16','Enriched','Phone number updated from LinkedIn Sales Nav.','neutral','System'],
+    ['Apr 14','Assigned','Added to Q2 · SaaS mid-market outbound by Jean-François.','neutral','System'],
+  ].map(([when,what,detail,kind,tag])=>`
+    <li class="timeline__item">
+      <div class="timeline__dot timeline__dot--${kind}"></div>
+      <div class="timeline__when mono">${when}</div>
+      <div class="timeline__card">
+        <div class="timeline__row">
+          <strong>${what}</strong>
+          <span class="badge badge--${kind}"><i></i>${tag}</span>
+        </div>
+        <p>${detail}</p>
+      </div>
+    </li>`).join('');
+
+  const detailView = `
+    <div class="app">
+      ${sidebar('Lists')}
+      <main class="scr-main">
+        ${topbar('','<span>Lists</span> <i>/</i> <span>Q2 · SaaS mid-market</span> <i>/</i> <strong>Marie Dubois</strong>',`
+          <button class="btn btn--secondary btn--sm">Edit</button>
+          <button class="btn btn--primary btn--sm">${icon.phone}Call now</button>
+        `)}
+        <div class="scr-body scr-body--detail">
+          <div class="detail-main">
+            <div class="detail-head">
+              <span class="avatar avatar--lg" data-init="MD">MD</span>
+              <div>
+                <h1 class="detail-head__name">Marie Dubois</h1>
+                <div class="detail-head__sub">VP Sales · <strong>Axiom Logistics</strong> · Paris, France</div>
+                <div class="detail-head__badges">
+                  <span class="badge badge--success"><i></i>Interested</span>
+                  <span class="badge badge--info"><i></i>Mission · Q2 SMB</span>
+                  <span class="badge badge--neutral"><i></i>3 attempts</span>
+                </div>
+              </div>
+              <div class="detail-head__actions">
+                <button class="btn btn--ghost">${icon.more}</button>
+              </div>
+            </div>
+
+            <div class="detail-grid">
+              <div class="info-card">
+                <div class="info-card__label">Phone</div>
+                <div class="info-card__v mono">+33 6 12 34 56 78</div>
+              </div>
+              <div class="info-card">
+                <div class="info-card__label">Email</div>
+                <div class="info-card__v mono">marie.dubois@axiom-log.fr</div>
+              </div>
+              <div class="info-card">
+                <div class="info-card__label">LinkedIn</div>
+                <div class="info-card__v">linkedin.com/in/mdubois</div>
+              </div>
+              <div class="info-card">
+                <div class="info-card__label">Company size</div>
+                <div class="info-card__v">120–500 employees</div>
+              </div>
+            </div>
+
+            <section class="detail-section">
+              <div class="detail-section__head">
+                <h2 class="detail-section__title">Activity</h2>
+                <div class="c-row">
+                  <span class="chip chip--on">All</span>
+                  <span class="chip">Calls</span>
+                  <span class="chip">Emails</span>
+                  <span class="chip">System</span>
+                </div>
+              </div>
+              <ol class="timeline">${timeline}</ol>
+            </section>
+          </div>
+
+          <aside class="detail-side">
+            <div class="side-card">
+              <div class="side-card__label">Next action</div>
+              <div class="side-card__value">Follow-up demo</div>
+              <div class="side-card__meta mono">Tue 28 Apr · 10:00</div>
+              <button class="btn btn--secondary btn--sm side-card__btn">Reschedule</button>
+            </div>
+            <div class="side-card">
+              <div class="side-card__label">Assigned to</div>
+              <div class="side-card__who"><span class="avatar avatar--sm" data-init="H">H</span>Hichem Beroual</div>
+            </div>
+            <div class="side-card">
+              <div class="side-card__label">Script</div>
+              <div class="side-card__script">
+                <p>"Bonjour Marie, c'est Hichem d'Acme. Je vous appelle au sujet de votre pipeline Q2 — j'ai deux minutes pour vous montrer comment Velia a divisé son coût d'acquisition par 3."</p>
+              </div>
+              <button class="btn btn--ghost btn--sm">Open full script ${icon.arrow}</button>
+            </div>
+            <div class="side-card">
+              <div class="side-card__label">Tags</div>
+              <div class="c-row">
+                <span class="badge badge--neutral"><i></i>SaaS</span>
+                <span class="badge badge--neutral"><i></i>Mid-market</span>
+                <span class="badge badge--neutral"><i></i>Decision-maker</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>`;
+
+  // ---------------- Screen 4: Dialog / Create mission ----------------
+  const dialogView = `
+    <div class="app">
+      ${sidebar('Missions')}
+      <main class="scr-main scr-main--dim">
+        ${topbar('','<span>Missions</span> <i>/</i> <strong>All missions</strong>',`
+          <button class="btn btn--primary btn--sm">${icon.plus}New mission</button>
+        `)}
+        <div class="scr-body scr-body--dim">
+          <div class="dim-rows">
+            ${Array.from({length:5}).map((_,i)=>`<div class="dim-row"><span class="dim-sw"></span><span class="dim-bar" style="width:${60+i*7}%"></span><span class="dim-sw dim-sw--r"></span></div>`).join('')}
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="dialog-wrap">
+          <div class="dialog dialog--wide">
+            <div class="dialog__head">
+              <div>
+                <div class="dialog__eyebrow">Create mission · Step 2 of 3</div>
+                <h4 class="dialog__title">Tell us about this mission</h4>
+              </div>
+              <button class="btn btn--icon">✕</button>
+            </div>
+            <div class="dialog__body">
+              <div class="dialog__steps">
+                <div class="step step--done"><span class="step__n mono">01</span>Audience</div>
+                <div class="step step--on"><span class="step__n mono">02</span>Mission</div>
+                <div class="step"><span class="step__n mono">03</span>Team</div>
+              </div>
+              <div class="c-row c-row--2">
+                <div class="field"><label class="field__label">Mission name</label><div class="input"><input value="Q2 · SaaS mid-market outbound"/></div><div class="field__hint">Visible to the whole team.</div></div>
+                <div class="field"><label class="field__label">Internal code</label><div class="input"><input class="mono" value="Q2-SMB-2026"/></div></div>
+              </div>
+              <div class="c-row c-row--2">
+                <div class="field"><label class="field__label">Owner</label><div class="select"><span><span class="avatar avatar--sm" data-init="JF" style="margin-right:8px">JF</span>Jean-François</span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></div></div>
+                <div class="field"><label class="field__label">Target close</label><div class="input"><input value="June 30, 2026"/></div></div>
+              </div>
+              <div class="field"><label class="field__label">Daily call target per SDR</label><div class="input input--numeric"><input class="mono" value="60"/><span class="input__suffix">calls / day</span></div><div class="field__hint">Weekly target auto-computed: <strong>300 calls</strong>.</div></div>
+              <div class="field"><label class="field__label">Description</label><div class="input input--textarea"><textarea rows="3">Outbound to CTO/VP Eng at 120–500 FTE SaaS companies in France &amp; Benelux. Focus on infra &amp; platform teams.</textarea></div></div>
+              <div class="c-row">
+                <label class="switch"><input type="checkbox" checked/><i></i>Record calls for QA</label>
+                <label class="switch"><input type="checkbox"/><i></i>Notify #sales on hot leads</label>
+              </div>
+            </div>
+            <div class="dialog__foot">
+              <button class="btn btn--ghost">‹ Back</button>
+              <div style="flex:1"></div>
+              <button class="btn btn--ghost">Save draft</button>
+              <button class="btn btn--primary">Continue ${icon.arrow}</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>`;
+
+  // ---------------- Screen 5: Auth / Login ----------------
+  const auth = `
+    <div class="auth">
+      <aside class="auth__left">
+        <div class="auth__brand">
+          <div class="navdemo__mark"></div>
+          <div class="navdemo__name">CaptainProspect</div>
+        </div>
+        <div class="auth__pitch">
+          <div class="auth__eyebrow">CRM for prospecting teams</div>
+          <h1>Close more meetings,<br/>with less noise.</h1>
+          <p>Every call, every follow-up, every lead — in one quiet workspace your SDRs actually enjoy living in.</p>
+          <div class="auth__stats">
+            <div><div class="auth__stat-v mono">12k+</div><div class="auth__stat-l">SDRs on board</div></div>
+            <div><div class="auth__stat-v mono">2.4M</div><div class="auth__stat-l">Calls last month</div></div>
+            <div><div class="auth__stat-v mono">38%</div><div class="auth__stat-l">Avg. lift in RDV</div></div>
+          </div>
+        </div>
+        <div class="auth__foot mono">© 2026 CaptainProspect · Paris</div>
+      </aside>
+      <section class="auth__right">
+        <div class="auth__card">
+          <div class="auth__kicker mono">SIGN IN</div>
+          <h2>Welcome back.</h2>
+          <p class="auth__sub">Use your work email to continue.</p>
+          <div class="field"><label class="field__label">Email</label><div class="input"><input value="jean-francois@acme.fr"/></div></div>
+          <div class="field">
+            <div class="auth__field-top"><label class="field__label">Password</label><a class="auth__link" href="#">Forgot?</a></div>
+            <div class="input"><input type="password" value="••••••••••••"/></div>
+          </div>
+          <label class="check auth__remember"><input type="checkbox" checked/><span></span>Keep me signed in on this device</label>
+          <button class="btn btn--primary btn--lg auth__cta">Continue ${icon.arrow}</button>
+          <div class="auth__or"><span></span>or<span></span></div>
+          <button class="btn btn--secondary btn--lg auth__sso">Continue with SSO</button>
+          <div class="auth__switch">New to CaptainProspect? <a href="#">Request access</a></div>
+        </div>
+      </section>
+    </div>`;
+
+  // ---------------- Screen 6: Navigation system ----------------
+  const navSystem = `
+    <div class="nav-system">
+      <div class="nav-system__item">
+        <div class="nav-system__label">Full drawer · 260px</div>
+        ${sidebar('Overview')}
+      </div>
+      <div class="nav-system__item">
+        <div class="nav-system__label">Rail collapsed · 72px</div>
+        <aside class="scr-nav scr-nav--rail">
+          <div class="navdemo__mark"></div>
+          <div class="rail-item rail-item--on" title="Overview">${icon.overview}</div>
+          <div class="rail-item rail-item--badged" title="Missions">${icon.missions}<em>12</em></div>
+          <div class="rail-item" title="Lists">${icon.lists}</div>
+          <div class="rail-item" title="Calls">${icon.calls}</div>
+          <div class="rail-sep"></div>
+          <div class="rail-item" title="Clients">${icon.clients}</div>
+          <div class="rail-item rail-item--warn" title="Meetings">${icon.meet}<em>3</em></div>
+          <div class="rail-item" title="Stats">${icon.stats}</div>
+          <div class="rail-item" title="Email Hub">${icon.email}</div>
+          <div style="flex:1"></div>
+          <span class="avatar avatar--sm" data-init="JF">JF</span>
+        </aside>
+      </div>
+      <div class="nav-system__item nav-system__item--wide">
+        <div class="nav-system__label">Topbar anatomy</div>
+        <div class="scr-top scr-top--solo">
+          <div class="scr-top__crumbs"><span>Lists</span> <i>/</i> <span>Q2 · SaaS mid-market</span> <i>/</i> <strong>Marie Dubois</strong></div>
+          <div class="scr-top__tools">
+            <div class="input input--search input--topbar"><span>${icon.search}</span><input placeholder="Jump to…"/><kbd class="kbd">⌘K</kbd></div>
+            <button class="btn btn--ghost btn--sm">${icon.chat}</button>
+            <button class="btn btn--ghost btn--sm">${icon.bell}<span class="scr-top__dot"></span></button>
+            <div class="scr-top__sep"></div>
+            <button class="btn btn--primary btn--sm">${icon.phone}Call now</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  // ---------------- Assemble ----------------
+  mount.innerHTML = [
+    screenCard('5.1 Dashboard', 'Manager overview',
+      'One lead question — "where does the team stand?" — answered in the first 300px. Dark purple hero gone; the single-view hierarchy is now: greeting → target → four metrics → three supporting panels.',
+      `<div class="scr__scale"><div class="scr__zoom">${dashboard}</div></div>`),
+    screenCard('5.2 List view', 'Prospecting list',
+      'Same data density as before, but rows breathe (56px), mono numerals align, chips replace dropdowns for filters, and hot leads use a solid badge so they\'re unmistakable at a glance.',
+      `<div class="scr__scale"><div class="scr__zoom">${listView}</div></div>`),
+    screenCard('5.3 Detail view', 'Contact profile',
+      'Two-pane layout: facts + history on the left, context + actions on the right. Timeline uses a single vertical rule and status badges instead of colored icons.',
+      `<div class="scr__scale"><div class="scr__zoom">${detailView}</div></div>`),
+    screenCard('5.4 Dialog', 'Create mission · stepped',
+      'Modal includes a three-step progress. Scrim at 40%. Primary action is always right-aligned; "Back" sits opposite to signal direction.',
+      `<div class="scr__scale"><div class="scr__zoom">${dialogView}</div></div>`),
+    screenCard('5.5 Authentication', 'Sign-in',
+      'Split layout: a quiet marketing panel with three proof points, and a single-column form on the right. SSO given equal weight to email, not hidden below.',
+      `<div class="scr__scale"><div class="scr__zoom">${auth}</div></div>`),
+    screenCard('5.6 Navigation system', 'Rail, drawer, topbar',
+      'Two nav modes, one vocabulary. The 72px rail is thumb-friendly on 13" laptops; the 260px drawer is the default on ≥1280. Topbar carries breadcrumb, search, status, and one primary action — never more.',
+      `<div class="scr__scale"><div class="scr__zoom">${navSystem}</div></div>`),
+  ].join('');
+
+  // Fix the donut-dot colors via a tiny pass
+  document.querySelectorAll('.bd-dot').forEach((el,i)=>{
+    const palette = ['#D5D2C9','#2B5F3E','#3A5280','#8A8A83','#B8541A','#C98A5F','#B09E7A','#6F7F99','#9A2A2A'];
+    el.style.background = palette[i % palette.length];
+  });
+})();
+
+</script>
+<script>
+// Tweaks panel
+(function(){
+  const TWEAK_DEFAULS = /*EDITMODE-BEGIN*/{
+    "accent": "forest",
+    "radius": "soft",
+    "density": "balanced"
+  }/*EDITMODE-END*/;
+
+  const root = document.documentElement;
+  const ACCENTS = {
+    forest:    { primary:'#2B5F3E', hover:'#224A31', soft:'#E7EFE9' },
+    ink:       { primary:'#0E0F0C', hover:'#2B2C28', soft:'#ECEAE3' },
+    cobalt:    { primary:'#2A4A9F', hover:'#223D80', soft:'#E3E8F4' },
+    terracotta:{ primary:'#A24B2C', hover:'#833A21', soft:'#F3DFD5' },
+  };
+  const RADII = {
+    sharp:  { xs:'0px',  sm:'3px', md:'5px',  lg:'8px'  },
+    soft:   { xs:'2px',  sm:'6px', md:'10px', lg:'16px' },
+    round:  { xs:'6px',  sm:'10px',md:'16px', lg:'24px' },
+  };
+  const DENSITY = {
+    compact:  { btn:'30px', pad:'24px' },
+    balanced: { btn:'36px', pad:'32px' },
+    spacious: { btn:'42px', pad:'40px' },
+  };
+
+  const state = Object.assign({}, TWEAK_DEFAULS);
+
+  function apply(){
+    const a = ACCENTS[state.accent] || ACCENTS.forest;
+    root.style.setProperty('--accent-primary', a.primary);
+    root.style.setProperty('--accent-primary-hover', a.hover);
+    root.style.setProperty('--accent-primary-soft', a.soft);
+    root.style.setProperty('--signal-success', a.primary);
+    root.style.setProperty('--signal-success-soft', a.soft);
+
+    const r = RADII[state.radius] || RADII.soft;
+    root.style.setProperty('--r-xs', r.xs);
+    root.style.setProperty('--r-sm', r.sm);
+    root.style.setProperty('--r-md', r.md);
+    root.style.setProperty('--r-lg', r.lg);
+  }
+
+  // Build panel
+  const panel = document.createElement('div');
+  panel.className = 'tweaks';
+  panel.innerHTML = `
+    <div class="tweaks__title">Tweaks</div>
+    <div class="tweaks__row">
+      <div class="tweaks__label">Accent</div>
+      <div class="tweaks__swatches" data-group="accent">
+        ${Object.entries(ACCENTS).map(([k,v])=>`<button data-v="${k}" style="background:${v.primary}" title="${k}"></button>`).join('')}
+      </div>
+    </div>
+    <div class="tweaks__row">
+      <div class="tweaks__label">Radius</div>
+      <div class="c-row" data-group="radius">
+        ${Object.keys(RADII).map(k=>`<button class="btn btn--ghost btn--sm" data-v="${k}">${k}</button>`).join('')}
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  function refresh(){
+    panel.querySelectorAll('[data-group="accent"] button').forEach(b=>{
+      b.setAttribute('aria-pressed', b.dataset.v===state.accent ? 'true':'false');
+    });
+    panel.querySelectorAll('[data-group="radius"] button').forEach(b=>{
+      b.classList.toggle('btn--secondary', b.dataset.v===state.radius);
+      b.classList.toggle('btn--ghost', b.dataset.v!==state.radius);
+    });
+  }
+
+  panel.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-v]');
+    if(!btn) return;
+    const group = btn.closest('[data-group]').dataset.group;
+    state[group] = btn.dataset.v;
+    apply(); refresh();
+    try{ window.parent.postMessage({type:'__edit_mode_set_keys', edits:{[group]:btn.dataset.v}},'*'); }catch(_){}
+  });
+
+  window.addEventListener('message', (e)=>{
+    if(!e.data) return;
+    if(e.data.type==='__activate_edit_mode') panel.classList.add('is-on');
+    if(e.data.type==='__deactivate_edit_mode') panel.classList.remove('is-on');
+  });
+
+  apply(); refresh();
+  try{ window.parent.postMessage({type:'__edit_mode_available'},'*'); }catch(_){}
+})();
+
+</script>
+
+</body></html>
