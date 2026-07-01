@@ -320,6 +320,21 @@ const SCRIPT_TABS = [
     { id: "ai", label: "Script amélioré par IA" },
 ];
 
+/** Format a Date for a datetime-local input (local time, YYYY-MM-DDTHH:mm). */
+function toLocalDateTimeInput(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** One-tap callback slots so the SDR never has to open the date picker mid-call. */
+const CALLBACK_QUICK_PICKS: { label: string; compute: () => Date }[] = [
+    { label: "Dans 1h", compute: () => new Date(Date.now() + 60 * 60 * 1000) },
+    { label: "Demain 9h", compute: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d; } },
+    { label: "Demain 14h", compute: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(14, 0, 0, 0); return d; } },
+    { label: "Dans 2 jours", compute: () => { const d = new Date(); d.setDate(d.getDate() + 2); d.setHours(9, 0, 0, 0); return d; } },
+    { label: "Lundi 9h", compute: () => { const d = new Date(); const delta = ((8 - d.getDay()) % 7) || 7; d.setDate(d.getDate() + delta); d.setHours(9, 0, 0, 0); return d; } },
+];
+
 // Stats modal body: summary + list of contacts with status (for Actions page)
 function ActionStatsModalBody({
     items,
@@ -454,8 +469,11 @@ export default function SDRActionPage() {
     const [currentAction, setCurrentAction] = useState<NextActionData | null>(null);
     const [selectedResult, setSelectedResult] = useState<ActionResult | null>(null);
     const [note, setNote] = useState("");
+    const noteInputRef = useRef<HTMLTextAreaElement | null>(null);
     /** For CALLBACK_REQUESTED: date/time from calendar (YYYY-MM-DDTHH:mm for datetime-local). */
     const [callbackDateValue, setCallbackDateValue] = useState("");
+    /** Label of the quick-pick chip used to fill the callback date (for active styling). */
+    const [callbackQuickLabel, setCallbackQuickLabel] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
@@ -862,6 +880,15 @@ export default function SDRActionPage() {
         window.location.href = `tel:${phone}`;
     }, [session?.user?.id, statusLabels]);
 
+    const copyToClipboard = useCallback(async (value: string) => {
+        try {
+            await navigator.clipboard.writeText(value);
+            success("Copié", value);
+        } catch {
+            showError("Impossible de copier");
+        }
+    }, [success, showError]);
+
     const getRequiresNote = useCallback((code: string) =>
         statusConfig?.statuses?.find((s) => s.code === code)?.requiresNote ??
         ["INTERESTED", "CALLBACK_REQUESTED", "ENVOIE_MAIL"].includes(code)
@@ -990,6 +1017,7 @@ export default function SDRActionPage() {
         setSelectedResult(null);
         setNote("");
         setCallbackDateValue("");
+        setCallbackQuickLabel(null);
         setMeetingCat("");
         setShowSuccess(false);
         setElapsedTime(0);
@@ -1710,13 +1738,54 @@ export default function SDRActionPage() {
 
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
-    // Keyboard shortcuts
+    // Select a result and, when it requires a note, jump the cursor straight into the note field
+    const selectResultWithFocus = useCallback((value: ActionResult) => {
+        setSelectedResult(value);
+        if (getRequiresNote(value)) {
+            requestAnimationFrame(() => noteInputRef.current?.focus());
+        }
+    }, [getRequiresNote]);
+
+    // Any overlay open? Keyboard shortcuts must not fire underneath modals/drawers.
+    const overlayOpen = alloDialogOpen || showBookingDrawer || showStatsModal || showQuickEmailModal
+        || showMailToSendChoiceModal || unifiedDrawerOpen || !!drawerContactId || !!drawerCompanyId;
+
+    // Keyboard shortcuts (card view):
+    //   1-9        → pick a result (auto-focuses the note when required)
+    //   Enter      → validate & next (outside typing fields)
+    //   Ctrl+Enter → validate & next from anywhere, including the note field
+    //   Escape     → clear the selected result
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if (e.target instanceof HTMLTextAreaElement) return;
+            if (viewMode !== "card" || overlayOpen) return;
+
+            // Ctrl/Cmd+Enter works even while typing the note
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                if (selectedResult && !isSubmitting) {
+                    e.preventDefault();
+                    handleSubmit();
+                }
+                return;
+            }
+
+            const target = e.target as HTMLElement | null;
+            const isTypingField = target instanceof HTMLTextAreaElement
+                || target instanceof HTMLInputElement
+                || target instanceof HTMLSelectElement
+                || !!target?.isContentEditable;
+            if (isTypingField) {
+                // Let Escape blur the note so the SDR can keep using shortcuts
+                if (e.key === "Escape") (target as HTMLElement).blur();
+                return;
+            }
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
             if (e.key >= "1" && e.key <= "9") {
                 const idx = parseInt(e.key, 10) - 1;
-                if (resultOptions[idx]) setSelectedResult(resultOptions[idx].value);
+                if (resultOptions[idx]) selectResultWithFocus(resultOptions[idx].value);
+            }
+            if (e.key === "Escape" && selectedResult) {
+                setSelectedResult(null);
             }
             if (e.key === "Enter" && selectedResult && !isSubmitting) {
                 e.preventDefault();
@@ -1725,7 +1794,7 @@ export default function SDRActionPage() {
         };
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
-    }, [selectedResult, isSubmitting, resultOptions, handleSubmit]);
+    }, [selectedResult, isSubmitting, resultOptions, handleSubmit, viewMode, overlayOpen, selectResultWithFocus]);
 
 
     const parseBaseScript = (rawScript?: string): string => {
@@ -2730,17 +2799,27 @@ export default function SDRActionPage() {
                                         const phone = currentAction.contact.phone || (currentAction.channel === 'CALL' && currentAction.company?.phone ? currentAction.company.phone : null);
                                         const isValidPhone = phone && /[\d+\-().\s]/.test(phone) && phone.length >= 8;
                                         return isValidPhone ? (
-                                            <a
-                                                href={`tel:${phone}`}
-                                                onClick={(e) => handlePhoneCallAttempt(e, phone, {
-                                                    lastAction: currentAction.lastAction,
-                                                    lastActionBy: currentAction.lastActionBy ?? null,
-                                                })}
-                                                className="flex items-center justify-center gap-2.5 h-12 w-full text-[14px] font-[500] text-white bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 rounded-xl transition-all shadow-md shadow-violet-500/25 active:scale-[0.98]"
-                                            >
-                                                <Phone className="w-4 h-4" />
-                                                <span className="font-mono tracking-wide">{phone}</span>
-                                            </a>
+                                            <div className="flex items-stretch gap-2">
+                                                <a
+                                                    href={`tel:${phone}`}
+                                                    onClick={(e) => handlePhoneCallAttempt(e, phone, {
+                                                        lastAction: currentAction.lastAction,
+                                                        lastActionBy: currentAction.lastActionBy ?? null,
+                                                    })}
+                                                    className="flex flex-1 items-center justify-center gap-2.5 h-12 text-[14px] font-[500] text-white bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 rounded-xl transition-all shadow-md shadow-violet-500/25 active:scale-[0.98]"
+                                                >
+                                                    <Phone className="w-4 h-4" />
+                                                    <span className="font-mono tracking-wide">{phone}</span>
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => copyToClipboard(phone)}
+                                                    title="Copier le numéro"
+                                                    className="w-12 h-12 rounded-xl border border-[#e5e5e5] bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                                >
+                                                    <Copy className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         ) : null;
                                     })()}
                                     {/* Email */}
@@ -2846,10 +2925,20 @@ export default function SDRActionPage() {
                                 </div>
                                 <div className="space-y-2">
                                     {currentAction.company.phone ? (
-                                        <a href={`tel:${currentAction.company.phone}`} onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, { lastAction: currentAction.lastAction, lastActionBy: currentAction.lastActionBy ?? null })} className="flex items-center justify-center gap-2 h-11 w-full text-[14px] font-[500] text-white bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 rounded-xl transition-all shadow-md shadow-violet-500/25 active:scale-[0.98]">
-                                            <Phone className="w-4 h-4" />
-                                            {currentAction.company.phone}
-                                        </a>
+                                        <div className="flex items-stretch gap-2">
+                                            <a href={`tel:${currentAction.company.phone}`} onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, { lastAction: currentAction.lastAction, lastActionBy: currentAction.lastActionBy ?? null })} className="flex flex-1 items-center justify-center gap-2 h-11 text-[14px] font-[500] text-white bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 rounded-xl transition-all shadow-md shadow-violet-500/25 active:scale-[0.98]">
+                                                <Phone className="w-4 h-4" />
+                                                {currentAction.company.phone}
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() => copyToClipboard(currentAction.company!.phone!)}
+                                                title="Copier le numéro"
+                                                className="w-11 h-11 rounded-xl border border-[#e5e5e5] bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     ) : (
                                         <Button variant="outline" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="w-full gap-2 border-[#e5e5e5] text-slate-600 hover:border-violet-200 hover:text-violet-600">
                                             <PenLine className="w-3.5 h-3.5" />
@@ -2995,7 +3084,7 @@ export default function SDRActionPage() {
                             return (
                                 <button
                                     key={option.value}
-                                    onClick={() => setSelectedResult(option.value)}
+                                    onClick={() => selectResultWithFocus(option.value)}
                                     title={STATUS_HOVER_HINTS[option.value]}
                                     className={cn(
                                         "relative flex items-center gap-2.5 p-3.5 rounded-xl border-2 transition-all duration-150 text-left group",
@@ -3065,9 +3154,10 @@ export default function SDRActionPage() {
                 </div>
                 <div className="p-4 space-y-3">
                     <textarea
+                        ref={noteInputRef}
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
-                        placeholder="Note sur l'échange..."
+                        placeholder="Note sur l'échange...  (Ctrl+Entrée pour valider)"
                         rows={3}
                         maxLength={500}
                         className="w-full px-3 py-2.5 text-[14px] border border-[#e5e5e5] rounded-xl bg-[#f5f5f5]/30 text-[#1a1a1a] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 focus:bg-white resize-none transition-colors leading-relaxed"
@@ -3131,11 +3221,35 @@ export default function SDRActionPage() {
                             <p className="text-[12px] text-amber-600">Optionnel — ou indiquez-la dans la note</p>
                         </div>
                     </div>
-                    <div className="p-4">
+                    <div className="p-4 space-y-3">
+                        {/* One-tap slots — no picker needed mid-call */}
+                        <div className="flex flex-wrap gap-1.5">
+                            {CALLBACK_QUICK_PICKS.map((pick) => {
+                                const isActive = callbackQuickLabel === pick.label && !!callbackDateValue;
+                                return (
+                                    <button
+                                        key={pick.label}
+                                        type="button"
+                                        onClick={() => {
+                                            setCallbackDateValue(toLocalDateTimeInput(pick.compute()));
+                                            setCallbackQuickLabel(pick.label);
+                                        }}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-lg text-[12px] font-[500] border transition-all active:scale-[0.97]",
+                                            isActive
+                                                ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                                                : "bg-white text-amber-700 border-amber-200 hover:bg-amber-100 hover:border-amber-300"
+                                        )}
+                                    >
+                                        {pick.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
                         <DateTimePicker
                             label=""
                             value={callbackDateValue}
-                            onChange={setCallbackDateValue}
+                            onChange={(v) => { setCallbackDateValue(v); setCallbackQuickLabel(null); }}
                             placeholder="Choisir date et heure du rappel…"
                             min={new Date().toISOString().slice(0, 16)}
                             triggerClassName="border-amber-200 focus:ring-amber-400/40 focus:border-amber-400"
@@ -3222,6 +3336,13 @@ export default function SDRActionPage() {
                                 <span className="text-[12px] font-[500] text-slate-500 tabular-nums">{formatTime(elapsedTime)}</span>
                             </div>
                         )}
+                        {/* Keyboard shortcut hints */}
+                        <div className="hidden xl:flex items-center gap-3 pl-3 border-l border-[#e5e5e5] text-[11px] text-slate-400">
+                            <span className="flex items-center gap-1"><span className="cpds-kbd">1-9</span> statut</span>
+                            <span className="flex items-center gap-1"><span className="cpds-kbd">⏎</span> valider</span>
+                            <span className="flex items-center gap-1"><span className="cpds-kbd">Ctrl+⏎</span> depuis la note</span>
+                            <span className="flex items-center gap-1"><span className="cpds-kbd">Échap</span> effacer</span>
+                        </div>
                     </div>
 
                     {/* Right CTA group */}

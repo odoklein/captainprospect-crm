@@ -60,9 +60,9 @@ const PIE_LABELS: Record<string, string> = {
     BAD_CONTACT: "Mauvais N.", DISQUALIFIED: "Hors cible",
 };
 const PIE_COLORS: Record<string, string> = {
-    MEETING_BOOKED: "#7C5CFC", INTERESTED: "#A78BFA",
-    CALLBACK_REQUESTED: "#F59E0B", NO_RESPONSE: "#E2E8F0",
-    BAD_CONTACT: "#CBD5E1", DISQUALIFIED: "#94A3B8",
+    MEETING_BOOKED: "#2B5F3E", INTERESTED: "#4E8B66",
+    CALLBACK_REQUESTED: "#B8541A", NO_RESPONSE: "#E8E6DF",
+    BAD_CONTACT: "#D5D2C9", DISQUALIFIED: "#8A8A83",
 };
 const DAYS = ["L", "M", "Me", "J", "V", "S", "D"];
 
@@ -103,7 +103,7 @@ function useCountUp(target: number, duration = 1000) {
 }
 
 /* ─── Progress Ring ─── */
-function ProgressRing({ pct, size = 56, stroke = 5, color = "#7C5CFC" }: {
+function ProgressRing({ pct, size = 56, stroke = 5, color = "#FAF9F6" }: {
     pct: number; size?: number; stroke?: number; color?: string;
 }) {
     const r = (size - stroke) / 2;
@@ -112,7 +112,7 @@ function ProgressRing({ pct, size = 56, stroke = 5, color = "#7C5CFC" }: {
     return (
         <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
             <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-                stroke="rgba(124,92,252,0.12)" strokeWidth={stroke} />
+                stroke="rgba(250,249,246,0.18)" strokeWidth={stroke} />
             <circle cx={size / 2} cy={size / 2} r={r} fill="none"
                 stroke={color} strokeWidth={stroke}
                 strokeDasharray={circ} strokeDashoffset={offset}
@@ -130,17 +130,17 @@ function HeroKpiCard({ label, value, sub, pct, icon: Icon, sparkData }: {
     const count = useCountUp(value);
     return (
         <div className="flex-[2] relative overflow-hidden rounded-2xl p-6 flex flex-col gap-3"
-            style={{ background: "linear-gradient(145deg, #16103A 0%, #1A1040 40%, #0D0A2E 100%)" }}>
+            style={{ background: "linear-gradient(145deg, #1C3F2A 0%, #234D33 45%, #16301F 100%)" }}>
             {/* Glow blobs */}
             <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full blur-3xl opacity-30"
-                style={{ background: "radial-gradient(circle, #7C5CFC, transparent)" }} />
+                style={{ background: "radial-gradient(circle, #4E8B66, transparent)" }} />
             <div className="absolute -bottom-10 -left-10 w-36 h-36 rounded-full blur-3xl opacity-15"
-                style={{ background: "radial-gradient(circle, #A78BFA, transparent)" }} />
+                style={{ background: "radial-gradient(circle, #7FB394, transparent)" }} />
 
             <div className="relative z-10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                        <Icon className="w-4 h-4 text-violet-300" />
+                        <Icon className="w-4 h-4 text-[#CFE0D5]" />
                     </div>
                     <span className="text-[13px] font-medium text-white/50">{label}</span>
                 </div>
@@ -169,11 +169,11 @@ function HeroKpiCard({ label, value, sub, pct, icon: Icon, sparkData }: {
                     <AreaChart data={sparkData}>
                         <defs>
                             <linearGradient id="spark-hero" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#7C5CFC" stopOpacity={0.35} />
-                                <stop offset="100%" stopColor="#7C5CFC" stopOpacity={0} />
+                                <stop offset="0%" stopColor="#CFE0D5" stopOpacity={0.35} />
+                                <stop offset="100%" stopColor="#CFE0D5" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <Area type="monotone" dataKey="rdv" stroke="#7C5CFC" strokeWidth={2}
+                        <Area type="monotone" dataKey="rdv" stroke="#CFE0D5" strokeWidth={2}
                             fill="url(#spark-hero)" />
                     </AreaChart>
                 </ResponsiveContainer>
@@ -183,13 +183,13 @@ function HeroKpiCard({ label, value, sub, pct, icon: Icon, sparkData }: {
             <div className="relative z-10">
                 <div className="flex items-center justify-between mb-1.5">
                     <span className="text-[11px] text-white/30">Objectif hebdomadaire</span>
-                    <span className="text-[11px] font-bold text-violet-400">{Math.round((value / RDV_WEEKLY_GOAL) * 100)}%</span>
+                    <span className="text-[11px] font-bold text-[#CFE0D5]">{Math.round((value / RDV_WEEKLY_GOAL) * 100)}%</span>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-1000"
                         style={{
                             width: `${Math.min(100, (value / RDV_WEEKLY_GOAL) * 100)}%`,
-                            background: "linear-gradient(90deg, #7C5CFC, #A78BFA)",
+                            background: "linear-gradient(90deg, #CFE0D5, #FAF9F6)",
                         }} />
                 </div>
             </div>
@@ -204,7 +204,7 @@ function MiniKpi({ label, value, suffix, icon: Icon, bgColor, iconColor, trend }
 }) {
     const count = useCountUp(value);
     return (
-        <div className="flex-1 bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between group hover:shadow-md hover:border-violet-100 transition-all duration-200">
+        <div className="flex-1 bg-white rounded-2xl border border-slate-100 p-4 flex items-center justify-between group hover:shadow-md hover:border-[#D9E5DD] transition-all duration-200">
             <div>
                 <div className="text-[11px] text-slate-400 font-medium mb-1 uppercase tracking-wider">{label}</div>
                 <div className="flex items-end gap-1">
@@ -314,10 +314,10 @@ export default function ManagerDashboard() {
 
     if (isLoading && !stats) {
         return (
-            <div className="flex items-center justify-center py-40" style={{ background: "#F4F6FA" }}>
+            <div className="flex items-center justify-center py-40" style={{ background: "#FAF9F6" }}>
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center">
-                        <Loader2 className="w-7 h-7 text-violet-600 animate-spin" />
+                    <div className="w-14 h-14 rounded-2xl bg-[#E7EFE9] flex items-center justify-center">
+                        <Loader2 className="w-7 h-7 text-[#2B5F3E] animate-spin" />
                     </div>
                     <p className="text-[13px] text-slate-400 font-medium">Chargement du tableau de bord...</p>
                 </div>
@@ -326,13 +326,13 @@ export default function ManagerDashboard() {
     }
 
     return (
-        <div className="min-h-full p-5 lg:p-6" style={{ background: "linear-gradient(160deg, #F4F6FA 0%, #EEF2FF 100%)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div className="min-h-full p-5 lg:p-6" style={{ background: "#FAF9F6", fontFamily: "var(--cp-font, 'DM Sans', 'Inter', system-ui, sans-serif)" }}>
 
             {/* ── Page Header ── */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                        <div className="w-8 h-8 rounded-xl bg-[#2B5F3E] flex items-center justify-center shadow-lg shadow-[#2B5F3E]/30">
                             <Activity className="w-4 h-4 text-white" />
                         </div>
                         <h1 className="text-[22px] font-black text-slate-900 tracking-tight">Tableau de bord</h1>
@@ -351,8 +351,8 @@ export default function ManagerDashboard() {
                     {/* Date filter */}
                     <div className="relative" ref={dateFilterRef}>
                         <button onClick={() => setDateFilterOpen((o) => !o)}
-                            className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:border-violet-300 hover:shadow-sm transition-all duration-150 shadow-sm">
-                            <Calendar className="w-3.5 h-3.5 text-violet-500" />
+                            className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:border-[#9DBBA9] hover:shadow-sm transition-all duration-150 shadow-sm">
+                            <Calendar className="w-3.5 h-3.5 text-[#2B5F3E]" />
                             <span>{dateRange.preset ? PRESET_LABELS[dateRange.preset] : "Plage"}</span>
                             <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 transition-transform", dateFilterOpen && "rotate-180")} />
                         </button>
@@ -368,21 +368,21 @@ export default function ManagerDashboard() {
 
                     {/* Mission filter */}
                     <select value={missionFilter} onChange={(e) => setMissionFilter(e.target.value)}
-                        className="px-3.5 py-2 text-[12px] font-medium text-slate-700 bg-white border border-slate-200 rounded-xl min-w-[160px] focus:outline-none focus:ring-2 focus:ring-violet-400/30 focus:border-violet-400 shadow-sm">
+                        className="px-3.5 py-2 text-[12px] font-medium text-slate-700 bg-white border border-slate-200 rounded-xl min-w-[160px] focus:outline-none focus:ring-2 focus:ring-[#2B5F3E]/25 focus:border-[#2B5F3E] shadow-sm">
                         <option value="">Toutes les missions</option>
                         {missions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                     </select>
 
                     {/* Refresh */}
                     <button onClick={() => refetch()} disabled={isFetching}
-                        className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-violet-600 hover:border-violet-300 hover:shadow-sm transition-all duration-150 shadow-sm disabled:opacity-50">
+                        className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#2B5F3E] hover:border-[#9DBBA9] hover:shadow-sm transition-all duration-150 shadow-sm disabled:opacity-50">
                         <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin")} />
                     </button>
 
                     {/* New mission CTA */}
                     <Link href="/manager/missions/new"
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 hover:scale-[1.02] transition-all duration-150"
-                        style={{ background: "linear-gradient(135deg, #7C5CFC 0%, #5C3DFA 100%)" }}>
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold text-white shadow-lg shadow-[#2B5F3E]/30 hover:shadow-[#2B5F3E]/40 hover:scale-[1.02] transition-all duration-150"
+                        style={{ background: "linear-gradient(135deg, #2B5F3E 0%, #224A31 100%)" }}>
                         <span className="text-lg leading-none">+</span>
                         <span>Nouvelle mission</span>
                     </Link>
@@ -400,7 +400,7 @@ export default function ManagerDashboard() {
                     sparkData={sparklineData}
                 />
                 <div className="flex-[1.2] flex flex-col gap-3">
-                    <MiniKpi label="Appels effectués" value={stats?.totalActions ?? 0} icon={Phone} bgColor="bg-violet-50" iconColor="text-violet-600" trend="up" />
+                    <MiniKpi label="Appels effectués" value={stats?.totalActions ?? 0} icon={Phone} bgColor="bg-[#E7EFE9]" iconColor="text-[#2B5F3E]" trend="up" />
                     <MiniKpi label="Leads chauds 🔥" value={hotLeads} icon={Flame} bgColor="bg-amber-50" iconColor="text-amber-500" />
                     <MiniKpi label="Taux de conversion" value={Math.round((stats?.conversionRate ?? 0) * 10) / 10} suffix="%" icon={TrendingUp} bgColor="bg-emerald-50" iconColor="text-emerald-500" trend="up" />
                 </div>
@@ -472,7 +472,7 @@ export default function ManagerDashboard() {
                         <div className="flex-1 bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-[14px] font-bold text-slate-800">Leads à relancer</h3>
-                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-violet-100 text-violet-600">
+                                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#E7EFE9] text-[#2B5F3E]">
                                     {callbackCount} en attente
                                 </span>
                             </div>
@@ -489,9 +489,9 @@ export default function ManagerDashboard() {
                                     </div>
                                 </div>
                                 {/* Interested */}
-                                <div className="flex items-center gap-3 p-3 rounded-xl bg-violet-50 border border-violet-100">
-                                    <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-                                        <Star className="w-4 h-4 text-violet-600" />
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-[#E7EFE9] border border-[#D9E5DD]">
+                                    <div className="w-9 h-9 rounded-xl bg-[#E7EFE9] flex items-center justify-center flex-shrink-0">
+                                        <Star className="w-4 h-4 text-[#2B5F3E]" />
                                     </div>
                                     <div>
                                         <p className="text-[12px] font-bold text-slate-800">{stats?.resultBreakdown?.INTERESTED ?? 0} contacts intéressés</p>
@@ -501,7 +501,7 @@ export default function ManagerDashboard() {
                             </div>
 
                             <Link href="/manager/prospection"
-                                className="mt-4 flex items-center gap-1.5 text-[12px] font-bold text-violet-600 hover:text-violet-800 transition-colors">
+                                className="mt-4 flex items-center gap-1.5 text-[12px] font-bold text-[#2B5F3E] hover:text-[#224A31] transition-colors">
                                 Voir la file de prospection <ArrowRight className="w-3.5 h-3.5" />
                             </Link>
                         </div>
@@ -511,10 +511,10 @@ export default function ManagerDashboard() {
                     <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
                         <div className="flex items-center justify-between mb-5">
                             <div className="flex items-center gap-2">
-                                <Target className="w-4 h-4 text-violet-500" />
+                                <Target className="w-4 h-4 text-[#2B5F3E]" />
                                 <h3 className="text-[14px] font-bold text-slate-800">Missions proches de l'objectif</h3>
                             </div>
-                            <Link href="/manager/missions" className="text-[12px] font-bold text-violet-600 hover:text-violet-800 transition-colors">
+                            <Link href="/manager/missions" className="text-[12px] font-bold text-[#2B5F3E] hover:text-[#224A31] transition-colors">
                                 Voir toutes →
                             </Link>
                         </div>
@@ -531,7 +531,7 @@ export default function ManagerDashboard() {
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-2">
                                                     {isHot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-                                                    <span className="text-[13px] font-semibold text-slate-700 group-hover:text-violet-600 transition-colors">{m.name}</span>
+                                                    <span className="text-[13px] font-semibold text-slate-700 group-hover:text-[#2B5F3E] transition-colors">{m.name}</span>
                                                     <span className="text-[10px] text-slate-400">· {m.client.name}</span>
                                                 </div>
                                                 <span className="text-[12px] font-bold text-slate-600">{m.meetingsThisPeriod}<span className="font-normal text-slate-300">/{goal}</span></span>
@@ -541,7 +541,7 @@ export default function ManagerDashboard() {
                                                     style={{
                                                         width: `${pct}%`,
                                                         background: isHot
-                                                            ? "linear-gradient(90deg, #7C5CFC, #A78BFA)"
+                                                            ? "linear-gradient(90deg, #2B5F3E, #4E8B66)"
                                                             : pct >= 60 ? "#F59E0B" : "#CBD5E1",
                                                     }} />
                                             </div>
@@ -588,7 +588,7 @@ export default function ManagerDashboard() {
                                             className={cn(
                                                 "flex items-center gap-3 p-2.5 rounded-xl transition-all duration-150",
                                                 isFirst
-                                                    ? "bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-100"
+                                                    ? "bg-gradient-to-r from-[#E7EFE9] to-[#F1EFE9] border border-[#D9E5DD]"
                                                     : "hover:bg-slate-50"
                                             )}>
                                             {/* Rank */}
@@ -601,7 +601,7 @@ export default function ManagerDashboard() {
                                             <div className={cn(
                                                 "w-8 h-8 rounded-xl flex items-center justify-center text-[11px] font-black text-white flex-shrink-0",
                                                 isFirst
-                                                    ? "bg-gradient-to-br from-violet-500 to-indigo-600 shadow-md shadow-violet-300"
+                                                    ? "bg-gradient-to-br from-[#2B5F3E] to-[#1C3F2A] shadow-md shadow-[#BFD5C7]"
                                                     : "bg-slate-200 text-slate-600"
                                             )}>
                                                 {getInitials(person.name)}
@@ -610,7 +610,7 @@ export default function ManagerDashboard() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <span className={cn("text-[12px] font-bold truncate",
-                                                        isFirst ? "text-violet-700" : "text-slate-700"
+                                                        isFirst ? "text-[#224A31]" : "text-slate-700"
                                                     )}>{person.name}</span>
                                                     <span className="text-[13px] font-black text-slate-800 flex-shrink-0 ml-2">{person.rdv}<span className="text-[10px] font-normal text-slate-400 ml-0.5">RDV</span></span>
                                                 </div>
@@ -629,7 +629,7 @@ export default function ManagerDashboard() {
                                                     <div className="h-full rounded-full transition-all duration-700"
                                                         style={{
                                                             width: `${barPct}%`,
-                                                            background: isFirst ? "linear-gradient(90deg,#7C5CFC,#A78BFA)" : "#CBD5E1"
+                                                            background: isFirst ? "linear-gradient(90deg,#2B5F3E,#4E8B66)" : "#CBD5E1"
                                                         }} />
                                                 </div>
                                             </div>
@@ -659,8 +659,8 @@ export default function ManagerDashboard() {
                                     <XAxis dataKey="jour" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                                     <YAxis hide domain={[0, Math.max(35, (stats?.meetingsBooked ?? 0) + 5)]} />
                                     <Tooltip content={<CustomTooltip />} />
-                                    <Line type="monotone" dataKey="objectif" stroke="#E2E8F0" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Objectif" />
-                                    <Line type="monotone" dataKey="cumul" stroke="#7C5CFC" strokeWidth={2.5} dot={false} name="Réalisé" />
+                                    <Line type="monotone" dataKey="objectif" stroke="#D5D2C9" strokeWidth={1.5} strokeDasharray="4 3" dot={false} name="Objectif" />
+                                    <Line type="monotone" dataKey="cumul" stroke="#2B5F3E" strokeWidth={2.5} dot={false} name="Réalisé" />
                                 </LineChart>
                             </ResponsiveContainer>
                         </div>
@@ -687,7 +687,7 @@ export default function ManagerDashboard() {
                                             <p className="text-[12px] text-slate-600 leading-relaxed">
                                                 <span className="font-bold text-slate-800">{item.user}</span>
                                                 {" "}a décroché un RDV{item.contactOrCompanyName && (
-                                                    <> avec <span className="font-bold text-violet-600">{item.contactOrCompanyName}</span></>
+                                                    <> avec <span className="font-bold text-[#2B5F3E]">{item.contactOrCompanyName}</span></>
                                                 )}
                                             </p>
                                             <span className="text-[10px] text-slate-300">{item.time}</span>
