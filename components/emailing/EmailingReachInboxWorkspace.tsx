@@ -4,14 +4,19 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
     AlertTriangle,
     ArrowUpRight,
+    BarChart3,
+    Bot,
     CheckCircle2,
     ChevronDown,
     CircleDashed,
+    Eye,
     Inbox,
     KeyRound,
+    Layers3,
     Link2,
     Loader2,
     MailOpen,
+    MessageCircle,
     MousePointerClick,
     RefreshCw,
     Reply,
@@ -20,6 +25,7 @@ import {
     Sparkles,
     TrendingUp,
     Users,
+    XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
@@ -81,10 +87,30 @@ interface EmailingSummary {
     leads: number;
     opportunities: number;
     positiveReplies: number;
+    negativeReplies: number;
+    automaticLeadReplies: number;
+    openRateTracked: number;
+    clickedRateTracked: number;
+    opportunitiesRate: number;
+    userOpportunityRate: number;
     openRate: number;
     replyRate: number;
     clickRate: number;
     bounceRate: number;
+}
+
+interface CampaignAnalytics extends EmailingSummary {
+    campaignId: string;
+    campaignStatus: string;
+    campaignOpportunityRate: number;
+    sequenceStartedCount: number;
+    uniqueEmailOpenedCount: number;
+    uniqueLinkClickedCount: number;
+    uniqueRepliesCount: number;
+    daily: DashboardResponse["daily"];
+    activity: unknown[];
+    campaignStepAnalyticsResult: unknown[];
+    subsequencesStepAnalyticsResults: unknown[];
 }
 
 const EMPTY_SUMMARY: EmailingSummary = {
@@ -96,6 +122,12 @@ const EMPTY_SUMMARY: EmailingSummary = {
     leads: 0,
     opportunities: 0,
     positiveReplies: 0,
+    negativeReplies: 0,
+    automaticLeadReplies: 0,
+    openRateTracked: 0,
+    clickedRateTracked: 0,
+    opportunitiesRate: 0,
+    userOpportunityRate: 0,
     openRate: 0,
     replyRate: 0,
     clickRate: 0,
@@ -148,6 +180,20 @@ function summarizeCampaigns(campaigns: Campaign[]): EmailingSummary {
         clickRate: rate(base.clicked, base.sent),
         bounceRate: rate(base.bounced, base.sent),
     };
+}
+
+function compactObjectLabel(value: unknown): string {
+    if (!value || typeof value !== "object") return String(value ?? "");
+    const record = value as Record<string, unknown>;
+    return String(
+        record.name
+        || record.stepName
+        || record.subject
+        || record.date
+        || record.type
+        || record.status
+        || "Detail ReachInbox",
+    );
 }
 
 function HeaderShell({
@@ -343,18 +389,130 @@ function TrendPanel({ daily }: { daily: DashboardResponse["daily"] }) {
     );
 }
 
+function CampaignAnalyticsPanel({
+    campaign,
+    analytics,
+    isLoading,
+    onClose,
+}: {
+    campaign: Campaign | null;
+    analytics: CampaignAnalytics | null;
+    isLoading: boolean;
+    onClose: () => void;
+}) {
+    if (!campaign) return null;
+
+    const detail = analytics ?? {
+        ...EMPTY_SUMMARY,
+        campaignId: campaign.id,
+        campaignStatus: campaign.status,
+        campaignOpportunityRate: 0,
+        sequenceStartedCount: 0,
+        uniqueEmailOpenedCount: 0,
+        uniqueLinkClickedCount: 0,
+        uniqueRepliesCount: 0,
+        daily: [],
+        activity: [],
+        campaignStepAnalyticsResult: [],
+        subsequencesStepAnalyticsResults: [],
+    };
+
+    return (
+        <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-emerald-700">
+                        <BarChart3 className="h-4 w-4" />
+                        Analytics campagne
+                    </div>
+                    <h2 className="mt-2 text-lg font-semibold text-slate-950">{campaign.name}</h2>
+                    <p className="mt-1 text-sm text-slate-500">
+                        Detail lecture seule depuis ReachInbox: qualite des reponses, unicite, opportunites et etapes.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="inline-flex h-9 items-center justify-center rounded-[10px] border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
+                >
+                    Fermer
+                </button>
+            </div>
+
+            {isLoading ? (
+                <div className="flex min-h-[260px] items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-emerald-600" />
+                </div>
+            ) : (
+                <div className="space-y-5 p-5">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <MetricCard icon={Eye} label="Ouvertures uniques" value={num(detail.uniqueEmailOpenedCount || detail.opened)} sub={`${percent(detail.openRateTracked || detail.openRate)} tracke`} />
+                        <MetricCard icon={MousePointerClick} label="Clics uniques" value={num(detail.uniqueLinkClickedCount || detail.clicked)} sub={`${percent(detail.clickedRateTracked || detail.clickRate)} tracke`} />
+                        <MetricCard icon={MessageCircle} label="Reponses uniques" value={num(detail.uniqueRepliesCount || detail.replied)} sub={`${percent(detail.replyRate)} des envois`} />
+                        <MetricCard icon={ArrowUpRight} label="Opportunites" value={num(detail.opportunities)} sub={`${percent(detail.campaignOpportunityRate || detail.opportunitiesRate)} conversion`} />
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <MetricCard icon={CheckCircle2} label="Reponses positives" value={num(detail.positiveReplies)} sub="Intentions positives" />
+                        <MetricCard icon={XCircle} label="Reponses negatives" value={num(detail.negativeReplies)} sub="A surveiller" />
+                        <MetricCard icon={Bot} label="Reponses auto" value={num(detail.automaticLeadReplies)} sub="OOO et automatiques" />
+                        <MetricCard icon={Layers3} label="Sequences lancees" value={num(detail.sequenceStartedCount)} sub={detail.campaignStatus.toLowerCase()} />
+                    </div>
+
+                    <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+                        <TrendPanel daily={detail.daily} />
+                        <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-5">
+                            <h3 className="text-sm font-semibold text-slate-950">Etapes et activite</h3>
+                            <div className="mt-4 space-y-3">
+                                <div className="rounded-[14px] bg-white p-3 shadow-sm">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Etapes campagne</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-950">{num(detail.campaignStepAnalyticsResult.length)}</p>
+                                </div>
+                                <div className="rounded-[14px] bg-white p-3 shadow-sm">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sous-sequences</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-950">{num(detail.subsequencesStepAnalyticsResults.length)}</p>
+                                </div>
+                                <div className="rounded-[14px] bg-white p-3 shadow-sm">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Activite</p>
+                                    <p className="mt-1 text-2xl font-semibold text-slate-950">{num(detail.activity.length)}</p>
+                                </div>
+                            </div>
+                            <div className="mt-4 max-h-52 space-y-2 overflow-auto">
+                                {detail.campaignStepAnalyticsResult.slice(0, 6).map((item, index) => (
+                                    <div key={index} className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
+                                        <p className="truncate text-sm font-semibold text-slate-800">{compactObjectLabel(item)}</p>
+                                    </div>
+                                ))}
+                                {detail.campaignStepAnalyticsResult.length === 0 && (
+                                    <p className="rounded-[12px] border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-500">
+                                        Aucun detail d etape retourne pour cette periode.
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function CampaignTable({
     campaigns,
     clients,
     canLink,
     onLink,
     linkingId,
+    onInspect,
+    selectedCampaignId,
 }: {
     campaigns: Campaign[];
     clients?: ClientOption[];
     canLink: boolean;
     onLink?: (campaign: Campaign, clientId: string) => void;
     linkingId?: string | null;
+    onInspect?: (campaign: Campaign) => void;
+    selectedCampaignId?: string | null;
 }) {
     return (
         <div className="overflow-hidden rounded-[18px] border border-slate-200 bg-white shadow-sm">
@@ -394,6 +552,7 @@ function CampaignTable({
                                 <th className="px-5 py-3 font-semibold">Reponse</th>
                                 <th className="px-5 py-3 font-semibold">Clic</th>
                                 <th className="px-5 py-3 font-semibold">Rebond</th>
+                                {onInspect && <th className="px-5 py-3 font-semibold">Analytics</th>}
                                 {canLink && <th className="px-5 py-3 font-semibold">Client</th>}
                             </tr>
                         </thead>
@@ -421,6 +580,23 @@ function CampaignTable({
                                     <td className="px-5 py-4 tabular-nums text-slate-700">{percent(rate(campaign.stats.replied, campaign.stats.sent))}</td>
                                     <td className="px-5 py-4 tabular-nums text-slate-700">{percent(rate(campaign.stats.clicked, campaign.stats.sent))}</td>
                                     <td className="px-5 py-4 tabular-nums text-slate-700">{percent(rate(campaign.stats.bounced, campaign.stats.sent))}</td>
+                                    {onInspect && (
+                                        <td className="px-5 py-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => onInspect(campaign)}
+                                                className={cn(
+                                                    "inline-flex h-9 items-center gap-2 rounded-[10px] border px-3 text-[12px] font-semibold transition",
+                                                    selectedCampaignId === campaign.id
+                                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                                        : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-700",
+                                                )}
+                                            >
+                                                <BarChart3 className="h-3.5 w-3.5" />
+                                                Details
+                                            </button>
+                                        </td>
+                                    )}
                                     {canLink && (
                                         <td className="px-5 py-4">
                                             <div className="relative min-w-[220px]">
@@ -462,6 +638,9 @@ function ManagerEmailingPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [linkingId, setLinkingId] = useState<string | null>(null);
     const [showConnectionSettings, setShowConnectionSettings] = useState(false);
+    const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+    const [campaignAnalytics, setCampaignAnalytics] = useState<CampaignAnalytics | null>(null);
+    const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
     const [startDate, setStartDate] = useState(dateDaysAgo(30));
     const [endDate, setEndDate] = useState(today());
 
@@ -485,6 +664,11 @@ function ManagerEmailingPage() {
     useEffect(() => {
         fetchDashboard();
     }, [fetchDashboard]);
+
+    useEffect(() => {
+        setSelectedCampaign(null);
+        setCampaignAnalytics(null);
+    }, [startDate, endDate]);
 
     useEffect(() => {
         (async () => {
@@ -536,6 +720,23 @@ function ManagerEmailingPage() {
             showError("Liaison impossible", error instanceof Error ? error.message : "Erreur inconnue");
         } finally {
             setLinkingId(null);
+        }
+    };
+
+    const handleInspect = async (campaign: Campaign) => {
+        setSelectedCampaign(campaign);
+        setCampaignAnalytics(null);
+        setIsAnalyticsLoading(true);
+        try {
+            const params = new URLSearchParams({ startDate, endDate });
+            const response = await fetch(`/api/email/reachinbox/campaigns/${encodeURIComponent(campaign.id)}/analytics?${params.toString()}`);
+            const json = await response.json();
+            if (!response.ok || !json.success) throw new Error(json.error || "Analytics indisponibles");
+            setCampaignAnalytics(json.data);
+        } catch (error) {
+            showError("Analytics campagne", error instanceof Error ? error.message : "Chargement impossible");
+        } finally {
+            setIsAnalyticsLoading(false);
         }
     };
 
@@ -624,16 +825,35 @@ function ManagerEmailingPage() {
                 <MetricCard icon={Link2} label="Liees clients" value={num(linkedCampaigns)} sub="Visibles cote portail client" />
             </div>
 
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <MetricCard icon={Users} label="Leads contactes" value={num(dashboard.summary.leads)} sub="Leads atteints" />
+                <MetricCard icon={CheckCircle2} label="Positives" value={num(dashboard.summary.positiveReplies)} sub="Reponses qualifiees positives" />
+                <MetricCard icon={XCircle} label="Negatives" value={num(dashboard.summary.negativeReplies)} sub="Reponses non interessees" />
+                <MetricCard icon={ArrowUpRight} label="Opportunites" value={num(dashboard.summary.opportunities)} sub={`${percent(dashboard.summary.opportunitiesRate)} taux opportunite`} />
+            </div>
+
             <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
                 <TrendPanel daily={dashboard.daily} />
                 <div className="rounded-[18px] border border-slate-200 bg-white p-5 shadow-sm">
                     <h2 className="text-base font-semibold text-slate-950">Qualite emailing</h2>
                     <div className="mt-5 space-y-3">
                         <MetricCard icon={MousePointerClick} label="Clic" value={percent(dashboard.summary.clickRate)} sub={`${num(dashboard.summary.clicked)} clics`} />
+                        <MetricCard icon={Eye} label="Ouverture trackee" value={percent(dashboard.summary.openRateTracked || dashboard.summary.openRate)} sub="Taux ReachInbox tracke" />
+                        <MetricCard icon={Bot} label="Reponses auto" value={num(dashboard.summary.automaticLeadReplies)} sub="Absences et automatiques" />
                         <MetricCard icon={AlertTriangle} label="Rebond" value={percent(dashboard.summary.bounceRate)} sub={`${num(dashboard.summary.bounced)} rebonds`} />
                     </div>
                 </div>
             </div>
+
+            <CampaignAnalyticsPanel
+                campaign={selectedCampaign}
+                analytics={campaignAnalytics}
+                isLoading={isAnalyticsLoading}
+                onClose={() => {
+                    setSelectedCampaign(null);
+                    setCampaignAnalytics(null);
+                }}
+            />
 
             <CampaignTable
                 campaigns={dashboard.campaigns}
@@ -641,6 +861,8 @@ function ManagerEmailingPage() {
                 canLink
                 onLink={handleLink}
                 linkingId={linkingId}
+                onInspect={handleInspect}
+                selectedCampaignId={selectedCampaign?.id ?? null}
             />
         </div>
     );

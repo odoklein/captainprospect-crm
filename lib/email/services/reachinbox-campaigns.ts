@@ -13,7 +13,11 @@ import { randomUUID } from 'crypto';
 import type { EmailProvider } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { decrypt, encrypt } from '@/lib/encryption';
-import { reachInboxProvider, type ReachInboxCampaignSummary } from '../providers/reachinbox';
+import {
+    reachInboxProvider,
+    type ReachInboxCampaignAnalytics,
+    type ReachInboxCampaignSummary,
+} from '../providers/reachinbox';
 
 export interface ReachInboxCampaignWithContext extends ReachInboxCampaignSummary {
     mailboxId: string;
@@ -47,6 +51,12 @@ export interface ReachInboxDashboardData {
         leads: number;
         opportunities: number;
         positiveReplies: number;
+        negativeReplies: number;
+        automaticLeadReplies: number;
+        openRateTracked: number;
+        clickedRateTracked: number;
+        opportunitiesRate: number;
+        userOpportunityRate: number;
         openRate: number;
         replyRate: number;
         clickRate: number;
@@ -69,6 +79,16 @@ export interface ReachInboxDashboardData {
     } | null;
     errors: { mailboxEmail: string; message: string }[];
 }
+
+type ReachInboxMailboxCredentials = {
+    id: string;
+    email: string;
+    displayName: string | null;
+    accessToken: string | null;
+    lastSyncAt: Date | null;
+    lastError: string | null;
+    createdAt: Date;
+};
 
 export async function fetchCampaignLinks(): Promise<CampaignLinkRow[]> {
     try {
@@ -233,23 +253,7 @@ export async function fetchReachInboxDashboard(params: {
     endDate: string;
     campaignIds?: string[];
 }): Promise<ReachInboxDashboardData> {
-    const mailbox = await prisma.mailbox.findFirst({
-        where: {
-            provider: 'REACHINBOX' as EmailProvider,
-            isActive: true,
-            accessToken: { not: null },
-        },
-        select: {
-            id: true,
-            email: true,
-            displayName: true,
-            accessToken: true,
-            lastSyncAt: true,
-            lastError: true,
-            createdAt: true,
-        },
-        orderBy: { updatedAt: 'desc' },
-    });
+    const mailbox = await findActiveReachInboxMailbox();
 
     if (!mailbox?.accessToken) {
         return emptyDashboard(false);
@@ -332,6 +336,39 @@ export async function fetchReachInboxDashboard(params: {
     };
 }
 
+export async function fetchReachInboxCampaignAnalytics(params: {
+    campaignId: string;
+    startDate: string;
+    endDate: string;
+}): Promise<ReachInboxCampaignAnalytics & { connected: boolean; connection: { id: string; email: string } | null }> {
+    const mailbox = await findActiveReachInboxMailbox();
+    if (!mailbox?.accessToken) {
+        throw new Error('ReachInbox n est pas connecte');
+    }
+
+    let apiKey: string;
+    try {
+        apiKey = decrypt(mailbox.accessToken);
+    } catch {
+        throw new Error('Cle API ReachInbox illisible');
+    }
+
+    const analytics = await reachInboxProvider.getCampaignAnalytics(
+        { accessToken: apiKey },
+        {
+            campaignId: params.campaignId,
+            startDate: params.startDate,
+            endDate: params.endDate,
+        },
+    );
+
+    return {
+        ...analytics,
+        connected: true,
+        connection: { id: mailbox.id, email: mailbox.email },
+    };
+}
+
 function withRates(summary: Omit<ReachInboxDashboardData['summary'], 'openRate' | 'replyRate' | 'clickRate' | 'bounceRate'>): ReachInboxDashboardData['summary'] {
     return {
         ...summary,
@@ -340,6 +377,26 @@ function withRates(summary: Omit<ReachInboxDashboardData['summary'], 'openRate' 
         clickRate: rate(summary.clicked, summary.sent),
         bounceRate: rate(summary.bounced, summary.sent),
     };
+}
+
+async function findActiveReachInboxMailbox(): Promise<ReachInboxMailboxCredentials | null> {
+    return prisma.mailbox.findFirst({
+        where: {
+            provider: 'REACHINBOX' as EmailProvider,
+            isActive: true,
+            accessToken: { not: null },
+        },
+        select: {
+            id: true,
+            email: true,
+            displayName: true,
+            accessToken: true,
+            lastSyncAt: true,
+            lastError: true,
+            createdAt: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+    });
 }
 
 function emptyDashboard(connected: boolean): ReachInboxDashboardData {
@@ -355,6 +412,12 @@ function emptyDashboard(connected: boolean): ReachInboxDashboardData {
             leads: 0,
             opportunities: 0,
             positiveReplies: 0,
+            negativeReplies: 0,
+            automaticLeadReplies: 0,
+            openRateTracked: 0,
+            clickedRateTracked: 0,
+            opportunitiesRate: 0,
+            userOpportunityRate: 0,
         }),
         daily: [],
         campaigns: [],

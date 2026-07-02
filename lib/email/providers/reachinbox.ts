@@ -48,6 +48,16 @@ export interface ReachInboxAnalyticsSummary {
     leads: number;
     opportunities: number;
     positiveReplies: number;
+    negativeReplies: number;
+    automaticLeadReplies: number;
+    openRateTracked: number;
+    clickedRateTracked: number;
+    opportunitiesRate: number;
+    userOpportunityRate: number;
+    openRate: number;
+    replyRate: number;
+    clickRate: number;
+    bounceRate: number;
     daily: Array<{
         date: string;
         sent: number;
@@ -56,6 +66,19 @@ export interface ReachInboxAnalyticsSummary {
         clicked: number;
         bounced: number;
     }>;
+}
+
+export interface ReachInboxCampaignAnalytics extends ReachInboxAnalyticsSummary {
+    campaignId: string;
+    campaignStatus: string;
+    campaignOpportunityRate: number;
+    sequenceStartedCount: number;
+    uniqueEmailOpenedCount: number;
+    uniqueLinkClickedCount: number;
+    uniqueRepliesCount: number;
+    activity: unknown[];
+    campaignStepAnalyticsResult: unknown[];
+    subsequencesStepAnalyticsResults: unknown[];
 }
 
 export interface ReachInboxWarmupSummary {
@@ -380,6 +403,32 @@ export class ReachInboxProvider implements IEmailProvider {
         return this.mapAnalyticsSummary(response);
     }
 
+    async getCampaignAnalytics(tokens: OAuthTokens, params: {
+        campaignId: string;
+        startDate: string;
+        endDate: string;
+    }): Promise<ReachInboxCampaignAnalytics> {
+        const campaignIdNumber = Number(params.campaignId);
+        const campaignId = Number.isFinite(campaignIdNumber) ? campaignIdNumber : params.campaignId;
+        const response = await this.request<ReachInboxRecord>(
+            tokens,
+            `/analytics?startDate=${encodeURIComponent(params.startDate)}&endDate=${encodeURIComponent(params.endDate)}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    campaignId,
+                    campaignAnalyticsRequired: true,
+                    includeSubsequenceIds: [],
+                    excludeSubsequenceIds: [],
+                    filter: 'none',
+                }),
+            },
+        );
+
+        return this.mapCampaignAnalytics(params.campaignId, response);
+    }
+
     async getWarmupAnalytics(tokens: OAuthTokens): Promise<ReachInboxWarmupSummary | null> {
         try {
             const response = await this.request<ReachInboxRecord>(tokens, '/analytics/warmup-analytics', {
@@ -451,16 +500,50 @@ export class ReachInboxProvider implements IEmailProvider {
         const sent = this.getNumber(totals.sent ?? totals.sentCount ?? totals.emailsSent ?? totals.totalSent)
             || daily.reduce((sum, entry) => sum + entry.sent, 0);
 
+        const opened = this.getNumber(totals.opened ?? totals.open ?? totals.opens ?? totals.openCount ?? totals.totalOpens ?? totals.uniqueOpens);
+        const replied = this.getNumber(totals.replied ?? totals.reply ?? totals.replies ?? totals.replyCount ?? totals.totalReplies);
+        const clicked = this.getNumber(totals.clicked ?? totals.click ?? totals.clicks ?? totals.clickCount ?? totals.totalClicks);
+        const bounced = this.getNumber(totals.bounced ?? totals.bounces ?? totals.bounceCount ?? totals.totalBounces);
+
         return {
             sent,
-            opened: this.getNumber(totals.opened ?? totals.open ?? totals.opens ?? totals.openCount ?? totals.totalOpens ?? totals.uniqueOpens),
-            replied: this.getNumber(totals.replied ?? totals.reply ?? totals.replies ?? totals.replyCount ?? totals.totalReplies),
-            clicked: this.getNumber(totals.clicked ?? totals.click ?? totals.clicks ?? totals.clickCount ?? totals.totalClicks),
-            bounced: this.getNumber(totals.bounced ?? totals.bounces ?? totals.bounceCount ?? totals.totalBounces),
+            opened,
+            replied,
+            clicked,
+            bounced,
             leads: this.getNumber(totals.leads ?? totals.leadsContacted ?? totals.totalLeads ?? totals.leadsCount ?? totals.contactsCount ?? totals.prospects),
             opportunities: this.getNumber(totals.opportunities ?? totals.opportunityCount ?? totals.totalOpportunities),
             positiveReplies: this.getNumber(totals.positiveReplies ?? totals.positive_replies ?? totals.positiveReplyCount),
+            negativeReplies: this.getNumber(totals.negativeReplies ?? totals.negative_replies ?? totals.negativeReplyCount),
+            automaticLeadReplies: this.getNumber(totals.automaticLeadReplies ?? totals.automatic_lead_replies ?? totals.automaticReplies),
+            openRateTracked: this.getNumber(totals.openRateTracked ?? totals.open_rate_tracked),
+            clickedRateTracked: this.getNumber(totals.clickedRateTracked ?? totals.clicked_rate_tracked),
+            opportunitiesRate: this.getNumber(totals.opportunitiesRate ?? totals.opportunityRate),
+            userOpportunityRate: this.getNumber(totals.userOpportunityRate),
+            openRate: this.getNumber(totals.openRate ?? totals.open_rate) || this.rate(opened, sent),
+            replyRate: this.getNumber(totals.replyRate ?? totals.reply_rate) || this.rate(replied, sent),
+            clickRate: this.getNumber(totals.clickRate ?? totals.click_rate) || this.rate(clicked, sent),
+            bounceRate: this.getNumber(totals.bounceRate ?? totals.bounce_rate) || this.rate(bounced, sent),
             daily,
+        };
+    }
+
+    private mapCampaignAnalytics(campaignId: string, response: ReachInboxRecord): ReachInboxCampaignAnalytics {
+        const data = this.asRecord(response.data) || this.asRecord(response.result) || response;
+        const summary = this.mapAnalyticsSummary(response);
+
+        return {
+            ...summary,
+            campaignId,
+            campaignStatus: (this.getString(data.campaignStatus || data.status || data.state) || 'UNKNOWN').toUpperCase(),
+            campaignOpportunityRate: this.getNumber(data.campaignOpportunityRate ?? data.campaign_opportunity_rate),
+            sequenceStartedCount: this.getNumber(data.sequenceStartedCount ?? data.sequence_started_count),
+            uniqueEmailOpenedCount: this.getNumber(data.uniqueEmailOpenedCount ?? data.unique_email_opened_count ?? data.uniqueOpens),
+            uniqueLinkClickedCount: this.getNumber(data.uniqueLinkClickedCount ?? data.unique_link_clicked_count ?? data.uniqueClicks),
+            uniqueRepliesCount: this.getNumber(data.uniqueRepliesCount ?? data.unique_replies_count ?? data.uniqueReplies),
+            activity: Array.isArray(data.activity) ? data.activity : [],
+            campaignStepAnalyticsResult: Array.isArray(data.campaignStepAnalyticsResult) ? data.campaignStepAnalyticsResult : [],
+            subsequencesStepAnalyticsResults: Array.isArray(data.subsequencesStepAnalyticsResults) ? data.subsequencesStepAnalyticsResults : [],
         };
     }
 
@@ -471,6 +554,11 @@ export class ReachInboxProvider implements IEmailProvider {
             if (Number.isFinite(parsed)) return parsed;
         }
         return 0;
+    }
+
+    private rate(part: number, total: number): number {
+        if (!total) return 0;
+        return Math.round((part / total) * 1000) / 10;
     }
 
     private async request<T>(tokens: OAuthTokens, path: string, init: RequestInit): Promise<T> {
