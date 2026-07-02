@@ -61,8 +61,8 @@ const eventConfig: Record<
     },
     clicked: {
         icon: <MousePointerClick className="w-3.5 h-3.5" />,
-        color: "text-violet-600",
-        bg: "bg-violet-100",
+        color: "text-[#2B5F3E]",
+        bg: "bg-[#D9E5DD]",
         label: "",
     },
     sent: {
@@ -73,8 +73,8 @@ const eventConfig: Record<
     },
     sequence_step: {
         icon: <Zap className="w-3.5 h-3.5" />,
-        color: "text-indigo-600",
-        bg: "bg-indigo-100",
+        color: "text-[#2B5F3E]",
+        bg: "bg-[#D9E5DD]",
         label: "",
     },
     bounced: {

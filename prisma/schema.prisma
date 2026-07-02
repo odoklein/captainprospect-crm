@@ -602,7 +602,8 @@ model Client {
   
   // Email Hub relations
   emailThreads  EmailThread[]
-  
+  reachInboxCampaignLinks ReachInboxCampaignLink[]
+
   // Internal Communication Module
   commsChannel  CommsChannel?
 
@@ -1848,7 +1849,8 @@ model Mailbox {
   permissions     MailboxPermission[]
   sequences       EmailSequence[]
   analyticsDaily  EmailAnalyticsDaily[]
-  
+  reachInboxCampaignLinks ReachInboxCampaignLink[]
+
   // Default mappings (optional)
   defaultForClients  Client[]  @relation("ClientDefaultMailbox")
   defaultForMissions Mission[] @relation("MissionDefaultMailbox")
@@ -1882,6 +1884,25 @@ model MailboxPermission {
   @@unique([mailboxId, userId])
   @@index([mailboxId])
   @@index([userId])
+}
+
+// Link between an external ReachInbox campaign and a CRM client.
+// campaignId is the ReachInbox-side identifier; stats are always
+// fetched live from the ReachInbox API, only the association persists.
+model ReachInboxCampaignLink {
+  id           String   @id @default(cuid())
+  campaignId   String   @unique
+  campaignName String
+  mailboxId    String?
+  mailbox      Mailbox? @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([mailboxId])
 }
 
 // ============================================

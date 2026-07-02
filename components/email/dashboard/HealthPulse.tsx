@@ -55,10 +55,10 @@ const colorMap = {
         label: "text-amber-600",
     },
     indigo: {
-        bg: "bg-indigo-50 hover:bg-indigo-100 border-indigo-200",
-        icon: "text-indigo-500",
-        value: "text-indigo-900",
-        label: "text-indigo-600",
+        bg: "bg-[#E7EFE9] hover:bg-[#D9E5DD] border-[#C4D6CB]",
+        icon: "text-[#2B5F3E]",
+        value: "text-[#16301F]",
+        label: "text-[#2B5F3E]",
     },
     emerald: {
         bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
@@ -67,10 +67,10 @@ const colorMap = {
         label: "text-emerald-600",
     },
     violet: {
-        bg: "bg-violet-50 hover:bg-violet-100 border-violet-200",
+        bg: "bg-[#E7EFE9] hover:bg-[#D9E5DD] border-[#C4D6CB]",
         icon: "text-violet-500",
-        value: "text-violet-900",
-        label: "text-violet-600",
+        value: "text-[#16301F]",
+        label: "text-[#2B5F3E]",
     },
     red: {
         bg: "bg-red-50 hover:bg-red-100 border-red-200",

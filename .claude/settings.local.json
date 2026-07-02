@@ -31,7 +31,11 @@
       "Bash(printenv)",
       "Bash(npx eslint *)",
       "mcp__f069f23f-4aab-4d2b-a023-a38d928e1fef__slack_send_message",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(tee /tmp/tsc_out.txt)",
+      "Bash(./node_modules/.bin/prisma --version)",
+      "Bash(./node_modules/.bin/prisma generate *)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")"
     ]
   }
 }

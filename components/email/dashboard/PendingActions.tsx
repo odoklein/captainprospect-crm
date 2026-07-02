@@ -162,7 +162,7 @@ export function PendingActions({ data, isLoading }: PendingActionsProps) {
                             {/* Action link */}
                             <a
                                 href={action.linkHref}
-                                className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-800 whitespace-nowrap flex-shrink-0 transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-medium text-[#2B5F3E] hover:text-[#1C3F2A] whitespace-nowrap flex-shrink-0 transition-colors"
                             >
                                 {action.linkLabel}
                                 <ArrowRight className="w-3 h-3" />

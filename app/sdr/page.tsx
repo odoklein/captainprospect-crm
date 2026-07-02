@@ -332,10 +332,10 @@ export default function SDRDashboardPage() {
 
     if (isLoading && !stats) {
         return (
-            <div className="flex items-center justify-center py-32 bg-[#F4F6F9] min-h-screen">
+            <div className="flex items-center justify-center py-32 bg-[#FAF9F6] min-h-screen">
                 <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-8 h-8 text-[#7C5CFC] animate-spin" />
-                    <p className="text-[13px] text-[#8B8BA7] font-medium">Chargement du dashboard...</p>
+                    <Loader2 className="w-8 h-8 text-[#2B5F3E] animate-spin" />
+                    <p className="text-[13px] text-[#8A8A83] font-medium">Chargement du dashboard...</p>
                 </div>
             </div>
         );
@@ -345,32 +345,32 @@ export default function SDRDashboardPage() {
     const sparkData = buildSparklineData(stats?.actionsToday ?? 0);
 
     return (
-        <div className="min-h-full bg-[#F4F6F9] p-4 md:p-6" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div className="min-h-full bg-[#FAF9F6] p-4 md:p-6" style={{ fontFamily: "var(--cp-font, 'DM Sans', 'Inter', system-ui, sans-serif)" }}>
             {/* Page Header */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-[22px] font-bold text-[#12122A] tracking-tight">
+                    <h1 className="text-[22px] font-bold text-[#0E0F0C] tracking-tight">
                         {getGreeting()}, {session?.user?.name?.split(" ")[0] ?? "vous"} ! 👋
                     </h1>
-                    <p className="text-[13px] text-[#8B8BA7] mt-0.5">Voici votre journée en un coup d'œil</p>
+                    <p className="text-[13px] text-[#8A8A83] mt-0.5">Voici votre journée en un coup d'œil</p>
                 </div>
             </div>
 
             {/* ZONE 1 — KPIs */}
             <div className="flex flex-col lg:flex-row gap-4 mb-5">
                 {/* Hero KPI - Actions Today */}
-                <div className="flex-[2] bg-gradient-to-br from-[#1A1040] to-[#12122A] rounded-2xl p-6 relative overflow-hidden">
+                <div className="flex-[2] bg-gradient-to-br from-[#1C3F2A] to-[#16301F] rounded-2xl p-6 relative overflow-hidden">
                     {/* Gradients */}
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-[#7C5CFC]/10 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#A78BFA]/5 rounded-full blur-2xl pointer-events-none" />
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-[#4E8B66]/15 rounded-full blur-3xl pointer-events-none" />
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#7FB394]/10 rounded-full blur-2xl pointer-events-none" />
 
                     <div className="relative z-10">
                         <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-[#7C5CFC]/20 flex items-center justify-center">
-                                    <Phone className="w-4 h-4 text-[#A78BFA]" />
+                                <div className="w-8 h-8 rounded-lg bg-[#4E8B66]/25 flex items-center justify-center">
+                                    <Phone className="w-4 h-4 text-[#CFE0D5]" />
                                 </div>
-                                <span className="text-[#8B8BA7] text-[13px] font-medium">Appels aujourd'hui</span>
+                                <span className="text-[#8A8A83] text-[13px] font-medium">Appels aujourd'hui</span>
                             </div>
                             {dailyProgressPct >= 100 && (
                                 <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#10B981]/15 text-[#10B981] text-[11px] font-semibold">
@@ -384,17 +384,17 @@ export default function SDRDashboardPage() {
                             <span className={`text-[52px] font-extrabold text-white leading-none tracking-tight transition-all duration-700 ${heroAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
                                 {heroCount}
                             </span>
-                            <span className="text-[#4A4A6A] text-[14px] font-medium mb-2">/ {DAILY_GOAL} obj. jour</span>
+                            <span className="text-[#87A491] text-[14px] font-medium mb-2">/ {DAILY_GOAL} obj. jour</span>
                         </div>
 
                         <div className="mt-5 mb-2">
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] text-[#6A6A8A]">Progression vers l'objectif</span>
-                                <span className="text-[11px] font-semibold text-[#A78BFA]">{Math.round(dailyProgressPct)}%</span>
+                                <span className="text-[11px] text-[#87A491]">Progression vers l'objectif</span>
+                                <span className="text-[11px] font-semibold text-[#CFE0D5]">{Math.round(dailyProgressPct)}%</span>
                             </div>
-                            <div className="h-2 bg-[#1E1E3A] rounded-full overflow-hidden">
+                            <div className="h-2 bg-[#12281A] rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-[#7C5CFC] to-[#A78BFA] rounded-full transition-all duration-1000 ease-out"
+                                    className="h-full bg-gradient-to-r from-[#CFE0D5] to-[#FAF9F6] rounded-full transition-all duration-1000 ease-out"
                                     style={{ width: `${dailyProgressPct}%` }}
                                 />
                             </div>
@@ -405,11 +405,11 @@ export default function SDRDashboardPage() {
                                 <AreaChart data={sparkData}>
                                     <defs>
                                         <linearGradient id="db-spark-grad-2" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#7C5CFC" stopOpacity={0.3} />
-                                            <stop offset="100%" stopColor="#7C5CFC" stopOpacity={0} />
+                                            <stop offset="0%" stopColor="#CFE0D5" stopOpacity={0.3} />
+                                            <stop offset="100%" stopColor="#CFE0D5" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
-                                    <Area type="monotone" dataKey="val" stroke="#7C5CFC" strokeWidth={2} fill="url(#db-spark-grad-2)" />
+                                    <Area type="monotone" dataKey="val" stroke="#CFE0D5" strokeWidth={2} fill="url(#db-spark-grad-2)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
@@ -418,30 +418,30 @@ export default function SDRDashboardPage() {
 
                 {/* Supporting KPIs */}
                 <div className="flex-[1.2] flex flex-col gap-3">
-                    <div className="flex-1 bg-white rounded-xl border border-[#E8EBF0] p-4 flex items-center justify-between hover:border-[#C5C8D4] transition-colors duration-150">
+                    <div className="flex-1 bg-white rounded-xl border border-[#E8E6DF] p-4 flex items-center justify-between hover:border-[#D5D2C9] transition-colors duration-150">
                         <div>
-                            <div className="text-[11px] text-[#8B8BA7] font-medium mb-0.5">RDV Pris</div>
-                            <div className="text-[28px] font-bold text-[#12122A] leading-none">{stats?.meetingsBooked ?? 0}</div>
+                            <div className="text-[11px] text-[#8A8A83] font-medium mb-0.5">RDV Pris</div>
+                            <div className="text-[28px] font-bold text-[#0E0F0C] leading-none">{stats?.meetingsBooked ?? 0}</div>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-[#F0FDF4] flex items-center justify-center">
                             <Calendar className="w-5 h-5 text-[#10B981]" />
                         </div>
                     </div>
 
-                    <div className="flex-1 bg-white rounded-xl border border-[#E8EBF0] p-4 flex items-center justify-between hover:border-[#C5C8D4] transition-colors duration-150">
+                    <div className="flex-1 bg-white rounded-xl border border-[#E8E6DF] p-4 flex items-center justify-between hover:border-[#D5D2C9] transition-colors duration-150">
                         <div>
-                            <div className="text-[11px] text-[#8B8BA7] font-medium mb-0.5">Contacts Chauds</div>
-                            <div className="text-[28px] font-bold text-[#12122A] leading-none">{stats?.opportunitiesGenerated ?? 0}</div>
+                            <div className="text-[11px] text-[#8A8A83] font-medium mb-0.5">Contacts Chauds</div>
+                            <div className="text-[28px] font-bold text-[#0E0F0C] leading-none">{stats?.opportunitiesGenerated ?? 0}</div>
                         </div>
-                        <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center">
-                            <Briefcase className="w-5 h-5 text-[#7C5CFC]" />
+                        <div className="w-10 h-10 rounded-xl bg-[#E7EFE9] flex items-center justify-center">
+                            <Briefcase className="w-5 h-5 text-[#2B5F3E]" />
                         </div>
                     </div>
 
-                    <div className="flex-1 bg-white rounded-xl border border-[#E8EBF0] p-4 flex items-center justify-between hover:border-[#C5C8D4] transition-colors duration-150">
+                    <div className="flex-1 bg-white rounded-xl border border-[#E8E6DF] p-4 flex items-center justify-between hover:border-[#D5D2C9] transition-colors duration-150">
                         <div>
-                            <div className="text-[11px] text-[#8B8BA7] font-medium mb-0.5">Rappels Planifiés</div>
-                            <div className="text-[28px] font-bold text-[#12122A] leading-none">{stats?.callbacksPending ?? 0}</div>
+                            <div className="text-[11px] text-[#8A8A83] font-medium mb-0.5">Rappels Planifiés</div>
+                            <div className="text-[28px] font-bold text-[#0E0F0C] leading-none">{stats?.callbacksPending ?? 0}</div>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-[#FFF7ED] flex items-center justify-center">
                             <Clock className="w-5 h-5 text-[#F59E0B]" />
@@ -456,8 +456,8 @@ export default function SDRDashboardPage() {
                 <div className="flex-[3] flex flex-col gap-4">
                     {/* Active Mission */}
                     {activeMission ? (
-                        <div className="bg-white rounded-xl border border-[#E8EBF0] overflow-hidden flex flex-col shadow-sm">
-                            <div className="bg-gradient-to-r from-[#7C5CFC] to-[#6C4CE0] p-5 text-white flex justify-between items-center relative overflow-hidden">
+                        <div className="bg-white rounded-xl border border-[#E8E6DF] overflow-hidden flex flex-col shadow-sm">
+                            <div className="bg-gradient-to-r from-[#2B5F3E] to-[#224A31] p-5 text-white flex justify-between items-center relative overflow-hidden">
                                 <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
                                 <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-black/5 rounded-full blur-xl pointer-events-none" />
 
@@ -473,8 +473,8 @@ export default function SDRDashboardPage() {
 
                             <div className="p-6 flex flex-col gap-5">
                                 <div>
-                                    <h3 className="text-[20px] font-bold text-[#12122A] tracking-tight">{activeMission.name}</h3>
-                                    <p className="text-[14px] text-[#8B8BA7] flex items-center gap-1.5 mt-1">
+                                    <h3 className="text-[20px] font-bold text-[#0E0F0C] tracking-tight">{activeMission.name}</h3>
+                                    <p className="text-[14px] text-[#8A8A83] flex items-center gap-1.5 mt-1">
                                         <Building2 className="w-3.5 h-3.5" />
                                         {activeMission.client.name}
                                     </p>
@@ -483,12 +483,12 @@ export default function SDRDashboardPage() {
                                 {/* Progress Indicator */}
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[12px] font-medium text-[#5A5A7A]">Progression de la mission</span>
-                                        <span className="text-[12px] font-bold text-[#7C5CFC]">{activeMission.progress || 0}%</span>
+                                        <span className="text-[12px] font-medium text-[#4A4B46]">Progression de la mission</span>
+                                        <span className="text-[12px] font-bold text-[#2B5F3E]">{activeMission.progress || 0}%</span>
                                     </div>
-                                    <div className="h-2.5 bg-[#F4F6F9] rounded-full overflow-hidden shadow-inner">
+                                    <div className="h-2.5 bg-[#F1EFE9] rounded-full overflow-hidden shadow-inner">
                                         <div
-                                            className="h-full bg-gradient-to-r from-[#7C5CFC] to-[#A78BFA] rounded-full transition-all duration-700 ease-out"
+                                            className="h-full bg-gradient-to-r from-[#2B5F3E] to-[#4E8B66] rounded-full transition-all duration-700 ease-out"
                                             style={{ width: `${activeMission.progress || 0}%` }}
                                         />
                                     </div>
@@ -497,29 +497,29 @@ export default function SDRDashboardPage() {
                                 {/* Key Mission Stats */}
                                 <div className="flex items-center gap-8 py-1">
                                     <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-full bg-[#F4F6F9] flex items-center justify-center">
-                                            <Users className="w-4 h-4 text-[#8B8BA7]" />
+                                        <div className="w-8 h-8 rounded-full bg-[#F1EFE9] flex items-center justify-center">
+                                            <Users className="w-4 h-4 text-[#8A8A83]" />
                                         </div>
                                         <div>
-                                            <p className="text-[14px] font-semibold text-[#12122A]">{activeMission.contactsRemaining || 0}</p>
-                                            <p className="text-[11px] text-[#8B8BA7]">Contacts rest</p>
+                                            <p className="text-[14px] font-semibold text-[#0E0F0C]">{activeMission.contactsRemaining || 0}</p>
+                                            <p className="text-[11px] text-[#8A8A83]">Contacts rest</p>
                                         </div>
                                     </div>
-                                    <div className="w-px h-8 bg-[#E8EBF0]" />
+                                    <div className="w-px h-8 bg-[#E8E6DF]" />
                                     <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-full bg-[#F4F6F9] flex items-center justify-center">
-                                            <Target className="w-4 h-4 text-[#8B8BA7]" />
+                                        <div className="w-8 h-8 rounded-full bg-[#F1EFE9] flex items-center justify-center">
+                                            <Target className="w-4 h-4 text-[#8A8A83]" />
                                         </div>
                                         <div>
-                                            <p className="text-[14px] font-semibold text-[#12122A]">{activeMission._count?.campaigns || 0}</p>
-                                            <p className="text-[11px] text-[#8B8BA7]">Campagnes</p>
+                                            <p className="text-[14px] font-semibold text-[#0E0F0C]">{activeMission._count?.campaigns || 0}</p>
+                                            <p className="text-[11px] text-[#8A8A83]">Campagnes</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Call to Action Button */}
                                 <Link href="/sdr/action" className="block mt-2">
-                                    <button className="w-full h-12 bg-gradient-to-r from-[#7C5CFC] to-[#6C4CE0] text-white rounded-xl flex items-center justify-center gap-2 text-[14px] font-semibold hover:opacity-90 transition-opacity shadow-[0_4px_16px_rgba(124,92,252,0.3)]">
+                                    <button className="w-full h-12 bg-gradient-to-r from-[#2B5F3E] to-[#224A31] text-white rounded-xl flex items-center justify-center gap-2 text-[14px] font-semibold hover:opacity-90 transition-opacity shadow-[0_4px_16px_rgba(43,95,62,0.3)]">
                                         <Play className="w-[18px] h-[18px] fill-current" />
                                         Lancer la session
                                     </button>
@@ -527,28 +527,28 @@ export default function SDRDashboardPage() {
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-xl border border-dashed border-[#C5C8D4] p-10 flex flex-col items-center justify-center text-center">
-                            <Target className="w-12 h-12 text-[#E8EBF0] mb-4" />
-                            <h3 className="text-[16px] font-bold text-[#12122A]">Aucune mission assignée</h3>
-                            <p className="text-[13px] text-[#8B8BA7] mt-1.5 max-w-[280px]">
+                        <div className="bg-white rounded-xl border border-dashed border-[#D5D2C9] p-10 flex flex-col items-center justify-center text-center">
+                            <Target className="w-12 h-12 text-[#E8E6DF] mb-4" />
+                            <h3 className="text-[16px] font-bold text-[#0E0F0C]">Aucune mission assignée</h3>
+                            <p className="text-[13px] text-[#8A8A83] mt-1.5 max-w-[280px]">
                                 Vous n'avez pas de mission principale assignée. Contactez votre manager.
                             </p>
                         </div>
                     )}
 
                     {/* My actions list */}
-                    <div className="bg-white rounded-xl border border-[#E8EBF0] flex flex-col flex-1 min-h-[320px]">
-                        <div className="p-5 border-b border-[#E8EBF0] flex items-center justify-between">
-                            <h3 className="text-[14px] font-semibold text-[#12122A] flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-[#7C5CFC]" />
+                    <div className="bg-white rounded-xl border border-[#E8E6DF] flex flex-col flex-1 min-h-[320px]">
+                        <div className="p-5 border-b border-[#E8E6DF] flex items-center justify-between">
+                            <h3 className="text-[14px] font-semibold text-[#0E0F0C] flex items-center gap-2">
+                                <Activity className="w-4 h-4 text-[#2B5F3E]" />
                                 Historique des actions
                             </h3>
-                            <div className="flex rounded-md border border-[#E8EBF0] p-0.5 bg-[#F4F6F9]">
+                            <div className="flex rounded-md border border-[#E8E6DF] p-0.5 bg-[#F1EFE9]">
                                 <button
                                     onClick={() => setActionsPeriod("today")}
                                     className={cn(
                                         "px-2.5 py-1 text-[11px] font-medium rounded transition-colors",
-                                        actionsPeriod === "today" ? "bg-white text-[#12122A] shadow-sm" : "text-[#5A5A7A] hover:text-[#12122A]"
+                                        actionsPeriod === "today" ? "bg-white text-[#0E0F0C] shadow-sm" : "text-[#4A4B46] hover:text-[#0E0F0C]"
                                     )}
                                 >
                                     Aujourd'hui
@@ -557,7 +557,7 @@ export default function SDRDashboardPage() {
                                     onClick={() => setActionsPeriod("all")}
                                     className={cn(
                                         "px-2.5 py-1 text-[11px] font-medium rounded transition-colors",
-                                        actionsPeriod === "all" ? "bg-white text-[#12122A] shadow-sm" : "text-[#5A5A7A] hover:text-[#12122A]"
+                                        actionsPeriod === "all" ? "bg-white text-[#0E0F0C] shadow-sm" : "text-[#4A4B46] hover:text-[#0E0F0C]"
                                     )}
                                 >
                                     Tout
@@ -568,10 +568,10 @@ export default function SDRDashboardPage() {
                         <div className="flex-1 overflow-y-auto p-3">
                             {actionsLoading ? (
                                 <div className="flex items-center justify-center py-10">
-                                    <Loader2 className="w-6 h-6 text-[#7C5CFC] animate-spin" />
+                                    <Loader2 className="w-6 h-6 text-[#2B5F3E] animate-spin" />
                                 </div>
                             ) : myActions.length === 0 ? (
-                                <p className="text-[13px] text-[#8B8BA7] text-center py-10">
+                                <p className="text-[13px] text-[#8A8A83] text-center py-10">
                                     {actionsPeriod === "today" ? "Aucune action aujourd'hui." : "Aucune action enregistrée."}
                                 </p>
                             ) : (
@@ -585,28 +585,28 @@ export default function SDRDashboardPage() {
                                                     onClick={() => hasFiche && openFicheForAction(item)}
                                                     className={cn(
                                                         "w-full flex items-center gap-3 p-2.5 rounded-xl text-left border border-transparent transition-all group",
-                                                        hasFiche ? "hover:bg-[#F9FAFB] hover:border-[#E8EBF0] cursor-pointer" : "cursor-default"
+                                                        hasFiche ? "hover:bg-[#F9FAFB] hover:border-[#E8E6DF] cursor-pointer" : "cursor-default"
                                                     )}
                                                 >
-                                                    <div className="w-9 h-9 rounded-full bg-[#F4F6F9] border border-[#E8EBF0] flex items-center justify-center flex-shrink-0 group-hover:bg-white group-hover:shadow-sm transition-all">
+                                                    <div className="w-9 h-9 rounded-full bg-[#F1EFE9] border border-[#E8E6DF] flex items-center justify-center flex-shrink-0 group-hover:bg-white group-hover:shadow-sm transition-all">
                                                         {item.contactId ? (
-                                                            <User className="w-4 h-4 text-[#8B8BA7]" />
+                                                            <User className="w-4 h-4 text-[#8A8A83]" />
                                                         ) : (
-                                                            <Building2 className="w-4 h-4 text-[#8B8BA7]" />
+                                                            <Building2 className="w-4 h-4 text-[#8A8A83]" />
                                                         )}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className="text-[13px] font-semibold text-[#12122A] truncate">{name}</p>
-                                                        <p className="text-[11px] text-[#8B8BA7] truncate mt-0.5">
+                                                        <p className="text-[13px] font-semibold text-[#0E0F0C] truncate">{name}</p>
+                                                        <p className="text-[11px] text-[#8A8A83] truncate mt-0.5">
                                                             {item.resultLabel} {item.campaignName && <span className="opacity-70">• {item.campaignName}</span>}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2 flex-shrink-0">
-                                                        <span className="text-[10px] font-medium text-[#5A5A7A] bg-[#F4F6F9] px-2 py-1 rounded-md">
+                                                        <span className="text-[10px] font-medium text-[#4A4B46] bg-[#F1EFE9] px-2 py-1 rounded-md">
                                                             {new Date(item.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                                                         </span>
                                                         {hasFiche && (
-                                                            <ChevronRight className="w-4 h-4 text-[#C5C8D4] group-hover:text-[#7C5CFC] transition-colors" />
+                                                            <ChevronRight className="w-4 h-4 text-[#C9C6BC] group-hover:text-[#2B5F3E] transition-colors" />
                                                         )}
                                                     </div>
                                                 </button>
@@ -623,9 +623,9 @@ export default function SDRDashboardPage() {
                 <div className="flex-[2] flex flex-col gap-4">
                     {/* Weekly Progress */}
                     {stats && (
-                        <div className="bg-white rounded-xl border border-[#E8EBF0] p-5">
+                        <div className="bg-white rounded-xl border border-[#E8E6DF] p-5">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[14px] font-semibold text-[#12122A]">Progression par rapport à last week</h3>
+                                <h3 className="text-[14px] font-semibold text-[#0E0F0C]">Progression par rapport à last week</h3>
                                 <div className={cn(
                                     "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold",
                                     (stats.weeklyProgress ?? 0) >= 0 ? "bg-[#F0FDF4] text-[#10B981]" : "bg-[#FEF3C7] text-[#B45309]"
@@ -635,7 +635,7 @@ export default function SDRDashboardPage() {
                                 </div>
                             </div>
 
-                            <div className="h-2 bg-[#F4F6F9] rounded-full overflow-hidden mb-3">
+                            <div className="h-2 bg-[#F1EFE9] rounded-full overflow-hidden mb-3">
                                 <div
                                     className={cn(
                                         "h-full rounded-full transition-all duration-700 ease-out",
@@ -645,7 +645,7 @@ export default function SDRDashboardPage() {
                                 />
                             </div>
 
-                            <p className="text-[12px] text-[#5A5A7A] leading-relaxed">
+                            <p className="text-[12px] text-[#4A4B46] leading-relaxed">
                                 {(stats.weeklyProgress ?? 0) > 0
                                     ? "Vous avez fait plus d'actions cette semaine que la précédente. Continuez sur cette belle lancée !"
                                     : (stats.weeklyProgress ?? 0) === 0
@@ -672,10 +672,10 @@ export default function SDRDashboardPage() {
 
                     {/* Other Missions */}
                     {missions.length > 1 && (
-                        <div className="bg-white rounded-xl border border-[#E8EBF0] p-5 mb-10 xl:mb-0">
+                        <div className="bg-white rounded-xl border border-[#E8E6DF] p-5 mb-10 xl:mb-0">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[14px] font-semibold text-[#12122A]">Passer à une autre mission</h3>
-                                <span className="text-[11px] font-semibold text-[#8B8BA7] bg-[#F4F6F9] px-2.5 py-1 rounded-full uppercase tracking-wide">
+                                <h3 className="text-[14px] font-semibold text-[#0E0F0C]">Passer à une autre mission</h3>
+                                <span className="text-[11px] font-semibold text-[#8A8A83] bg-[#F1EFE9] px-2.5 py-1 rounded-full uppercase tracking-wide">
                                     {missions.length} Missions
                                 </span>
                             </div>
@@ -693,16 +693,16 @@ export default function SDRDashboardPage() {
                                                     localStorage.setItem("sdr_selected_mission", mission.id);
                                                     window.dispatchEvent(new CustomEvent("sdr_mission_changed", { detail: mission.id }));
                                                 }}
-                                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[#F4F6F9] transition-all border border-transparent hover:border-[#E8EBF0] text-left group"
+                                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[#F1EFE9] transition-all border border-transparent hover:border-[#E8E6DF] text-left group"
                                             >
-                                                <div className="w-9 h-9 rounded-full bg-white border border-[#E8EBF0] shadow-sm flex items-center justify-center flex-shrink-0">
-                                                    <Icon className="w-4 h-4 text-[#8B8BA7] group-hover:text-[#7C5CFC] transition-colors" />
+                                                <div className="w-9 h-9 rounded-full bg-white border border-[#E8E6DF] shadow-sm flex items-center justify-center flex-shrink-0">
+                                                    <Icon className="w-4 h-4 text-[#8A8A83] group-hover:text-[#2B5F3E] transition-colors" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[13px] font-bold text-[#12122A] truncate group-hover:text-[#7C5CFC] transition-colors">{mission.name}</p>
-                                                    <p className="text-[11px] text-[#8B8BA7] truncate mt-0.5">{mission.client.name}</p>
+                                                    <p className="text-[13px] font-bold text-[#0E0F0C] truncate group-hover:text-[#2B5F3E] transition-colors">{mission.name}</p>
+                                                    <p className="text-[11px] text-[#8A8A83] truncate mt-0.5">{mission.client.name}</p>
                                                 </div>
-                                                <ChevronRight className="w-4 h-4 text-[#C5C8D4] group-hover:text-[#7C5CFC] transition-colors flex-shrink-0" />
+                                                <ChevronRight className="w-4 h-4 text-[#C9C6BC] group-hover:text-[#2B5F3E] transition-colors flex-shrink-0" />
                                             </button>
                                         );
                                     })}
@@ -723,7 +723,7 @@ export default function SDRDashboardPage() {
                     title="Chargement..."
                 >
                     <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 text-[#7C5CFC] animate-spin" />
+                        <Loader2 className="w-8 h-8 text-[#2B5F3E] animate-spin" />
                     </div>
                 </Drawer>
             )}

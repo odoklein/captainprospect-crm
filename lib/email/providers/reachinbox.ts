@@ -23,6 +23,22 @@ const DEFAULT_REACHINBOX_API_BASE = 'https://api.reachinbox.ai/api/v1';
 
 type ReachInboxRecord = Record<string, unknown>;
 
+/** Normalized campaign summary returned by listCampaigns(). */
+export interface ReachInboxCampaignSummary {
+    id: string;
+    name: string;
+    status: string;
+    createdAt: string | null;
+    stats: {
+        sent: number;
+        opened: number;
+        replied: number;
+        clicked: number;
+        bounced: number;
+        leads: number;
+    };
+}
+
 export class ReachInboxProvider implements IEmailProvider {
     provider = 'REACHINBOX' as EmailProvider;
     private readonly baseUrl: string;
@@ -286,6 +302,65 @@ export class ReachInboxProvider implements IEmailProvider {
         };
     }
 
+    /**
+     * List campaigns with their aggregate stats.
+     * ReachInbox exposes campaigns on slightly different paths depending on
+     * plan/version, so several endpoints are tried and fields are parsed
+     * defensively (same philosophy as the onebox mapping above).
+     */
+    async listCampaigns(tokens: OAuthTokens): Promise<ReachInboxCampaignSummary[]> {
+        const endpoints = [
+            '/campaigns/all?limit=200&offset=0',
+            '/campaigns?limit=200&offset=0',
+            '/campaign/all?limit=200&offset=0',
+        ];
+
+        let response: ReachInboxRecord | null = null;
+        let lastError: Error | null = null;
+        for (const endpoint of endpoints) {
+            try {
+                response = await this.request<ReachInboxRecord>(tokens, endpoint, { method: 'GET' });
+                break;
+            } catch (err) {
+                lastError = err as Error;
+            }
+        }
+        if (!response) {
+            throw lastError ?? new Error('Impossible de charger les campagnes ReachInbox');
+        }
+
+        return this.extractArray(response).map((item) => this.mapCampaign(item));
+    }
+
+    private mapCampaign(item: ReachInboxRecord): ReachInboxCampaignSummary {
+        const statsSource = this.asRecord(item.stats) || this.asRecord(item.analytics) || this.asRecord(item.metrics) || item;
+        const createdAt = this.getString(item.createdAt || item.created_at || item.startDate);
+
+        return {
+            id: this.getString(item.id || item._id || item.campaignId) || randomUUID(),
+            name: this.getString(item.name || item.campaignName || item.title) || 'Campagne sans nom',
+            status: (this.getString(item.status || item.state) || 'UNKNOWN').toUpperCase(),
+            createdAt: createdAt ?? null,
+            stats: {
+                sent: this.getNumber(statsSource.sent ?? statsSource.sentCount ?? statsSource.emailsSent ?? statsSource.totalSent ?? statsSource.sent_count),
+                opened: this.getNumber(statsSource.opened ?? statsSource.opens ?? statsSource.openCount ?? statsSource.totalOpens ?? statsSource.uniqueOpens),
+                replied: this.getNumber(statsSource.replied ?? statsSource.replies ?? statsSource.replyCount ?? statsSource.totalReplies),
+                clicked: this.getNumber(statsSource.clicked ?? statsSource.clicks ?? statsSource.clickCount ?? statsSource.totalClicks),
+                bounced: this.getNumber(statsSource.bounced ?? statsSource.bounces ?? statsSource.bounceCount ?? statsSource.totalBounces),
+                leads: this.getNumber(statsSource.leads ?? statsSource.totalLeads ?? statsSource.leadsCount ?? statsSource.contactsCount ?? statsSource.prospects),
+            },
+        };
+    }
+
+    private getNumber(value: unknown): number {
+        if (typeof value === 'number' && Number.isFinite(value)) return value;
+        if (typeof value === 'string') {
+            const parsed = Number(value);
+            if (Number.isFinite(parsed)) return parsed;
+        }
+        return 0;
+    }
+
     private async request<T>(tokens: OAuthTokens, path: string, init: RequestInit): Promise<T> {
         if (!tokens.accessToken) {
             throw new Error('ReachInbox API key missing');
@@ -317,6 +392,9 @@ export class ReachInboxProvider implements IEmailProvider {
         if (Array.isArray(response.records)) return response.records;
         if (Array.isArray(response.messages)) return response.messages;
         if (Array.isArray(response.onebox)) return response.onebox;
+        if (Array.isArray(response.campaigns)) return response.campaigns;
+        const nested = this.asRecord(response.data);
+        if (nested && Array.isArray(nested.campaigns)) return nested.campaigns;
         return [];
     }
 

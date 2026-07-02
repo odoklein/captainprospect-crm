@@ -2139,14 +2139,14 @@ export default function SDRActionPage() {
         return (
             <div className="space-y-4">
                 {/* Header — Table View */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-[#0f0f12] via-slate-950 to-violet-950 rounded-2xl p-5 shadow-xl">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-600/20 via-transparent to-transparent" />
-                    <div className="absolute -top-16 -right-16 w-48 h-48 bg-violet-500/10 rounded-full blur-2xl" />
+                <div className="relative overflow-hidden bg-gradient-to-br from-[#0E0F0C] via-[#12211A] to-[#1C3F2A] rounded-2xl p-5 shadow-xl">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#4E8B66]/25 via-transparent to-transparent" />
+                    <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#4E8B66]/10 rounded-full blur-2xl" />
 
                     <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center border border-violet-400/20">
-                                <Phone className="w-5 h-5 text-violet-300" />
+                                <Phone className="w-5 h-5 text-[#CFE0D5]" />
                             </div>
                             <div>
                                 <h1 className="text-[22px] font-[500] text-white leading-tight">Actions</h1>
@@ -2184,7 +2184,7 @@ export default function SDRActionPage() {
                     <div className="px-5 py-3.5 border-b border-[#e5e5e5] bg-[#f5f5f5]/50">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-violet-700 flex items-center justify-center shadow-sm shadow-violet-500/20">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-sm shadow-[#2B5F3E]/20">
                                     <Filter className="w-3.5 h-3.5 text-white" />
                                 </div>
                                 <div>
@@ -2567,13 +2567,13 @@ export default function SDRActionPage() {
         return (
             <div className="space-y-4">
                 {/* Header — Empty Queue */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-[#0f0f12] via-slate-950 to-violet-950 rounded-2xl p-5 shadow-xl">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-600/20 via-transparent to-transparent" />
-                    <div className="absolute -top-16 -right-16 w-48 h-48 bg-violet-500/10 rounded-full blur-2xl" />
+                <div className="relative overflow-hidden bg-gradient-to-br from-[#0E0F0C] via-[#12211A] to-[#1C3F2A] rounded-2xl p-5 shadow-xl">
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#4E8B66]/25 via-transparent to-transparent" />
+                    <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#4E8B66]/10 rounded-full blur-2xl" />
                     <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center border border-violet-400/20">
-                                <Phone className="w-5 h-5 text-violet-300" />
+                                <Phone className="w-5 h-5 text-[#CFE0D5]" />
                             </div>
                             <div>
                                 <h1 className="text-[22px] font-[500] text-white leading-tight">Actions</h1>
@@ -2638,17 +2638,17 @@ export default function SDRActionPage() {
             )}
 
             {/* Header */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#0f0f12] via-slate-950 to-violet-950 rounded-2xl p-5 shadow-xl">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-600/20 via-transparent to-transparent" />
-                <div className="absolute -top-16 -right-16 w-48 h-48 bg-violet-500/10 rounded-full blur-2xl" />
+            <div className="relative overflow-hidden bg-gradient-to-br from-[#0E0F0C] via-[#12211A] to-[#1C3F2A] rounded-2xl p-5 shadow-xl">
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#4E8B66]/25 via-transparent to-transparent" />
+                <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#4E8B66]/10 rounded-full blur-2xl" />
                 <div className="absolute bottom-0 left-1/4 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
 
                 <div className="relative">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                         {/* Left: Title & mission context */}
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-violet-500/20 backdrop-blur-sm flex items-center justify-center border border-violet-400/20 ring-1 ring-white/5">
-                                <Phone className="w-5 h-5 text-violet-300" />
+                            <div className="w-10 h-10 rounded-xl bg-[#4E8B66]/25 backdrop-blur-sm flex items-center justify-center border border-[#7FB394]/25 ring-1 ring-white/5">
+                                <Phone className="w-5 h-5 text-[#CFE0D5]" />
                             </div>
                             <div>
                                 <h1 className="text-[22px] font-[500] text-white leading-tight tracking-tight">Actions</h1>
@@ -2738,13 +2738,13 @@ export default function SDRActionPage() {
                                             </div>
                                         </div>
                                         {currentAction.company?.id && (
-                                            <Button variant="ghost" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Modifier l'entreprise">
+                                            <Button variant="ghost" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
                                                 <PenLine className="w-3.5 h-3.5" />
                                             </Button>
                                         )}
                                     </div>
                                     {currentAction.company?.website && (
-                                        <a href={`https://${currentAction.company.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-[12px] text-violet-600 hover:text-violet-700 font-[400] transition-colors">
+                                        <a href={`https://${currentAction.company.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-[12px] text-[#2B5F3E] hover:text-[#224A31] font-[400] transition-colors">
                                             <Globe className="w-3 h-3" />
                                             {currentAction.company.website}
                                             <ExternalLink className="w-2.5 h-2.5 opacity-60" />
@@ -2762,14 +2762,14 @@ export default function SDRActionPage() {
                                 <div className="flex items-start gap-3 mb-4">
                                     {/* Contact initials avatar */}
                                     <div className="relative flex-shrink-0">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-600 to-violet-700 flex items-center justify-center shadow-md shadow-violet-500/25">
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
                                             <span className="text-[16px] font-[500] text-white tracking-wide">
                                                 {getInitials(currentAction.contact.firstName, currentAction.contact.lastName)}
                                             </span>
                                         </div>
                                         {/* Channel indicator dot */}
                                         <div className={cn("absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white",
-                                            currentAction.channel === 'CALL' ? "bg-violet-500" :
+                                            currentAction.channel === 'CALL' ? "bg-[#2B5F3E]" :
                                             currentAction.channel === 'EMAIL' ? "bg-blue-500" : "bg-sky-500"
                                         )}>
                                             {currentAction.channel === 'CALL' ? <Phone className="w-2 h-2 text-white" /> :
@@ -2786,7 +2786,7 @@ export default function SDRActionPage() {
                                         )}
                                     </div>
                                     {currentAction.contact.id && (
-                                        <Button variant="ghost" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Modifier le contact">
+                                        <Button variant="ghost" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier le contact">
                                             <PenLine className="w-3.5 h-3.5" />
                                         </Button>
                                     )}
@@ -2806,7 +2806,7 @@ export default function SDRActionPage() {
                                                         lastAction: currentAction.lastAction,
                                                         lastActionBy: currentAction.lastActionBy ?? null,
                                                     })}
-                                                    className="flex flex-1 items-center justify-center gap-2.5 h-12 text-[14px] font-[500] text-white bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 rounded-xl transition-all shadow-md shadow-violet-500/25 active:scale-[0.98]"
+                                                    className="flex flex-1 items-center justify-center gap-2.5 h-12 text-[14px] font-[500] text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
                                                 >
                                                     <Phone className="w-4 h-4" />
                                                     <span className="font-mono tracking-wide">{phone}</span>
@@ -2861,7 +2861,7 @@ export default function SDRActionPage() {
                                                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                                         Aucun numéro de téléphone valide
                                                     </div>
-                                                    <Button variant="outline" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="w-full gap-2 border-[#e5e5e5] text-slate-600 hover:border-violet-200 hover:text-violet-600">
+                                                    <Button variant="outline" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="w-full gap-2 border-[#e5e5e5] text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
                                                         <PenLine className="w-3.5 h-3.5" />
                                                         Ajouter un numéro
                                                     </Button>
@@ -2918,7 +2918,7 @@ export default function SDRActionPage() {
                                         <span className="text-[11px] font-[500] uppercase tracking-wide text-slate-500 bg-[#f5f5f5] border border-[#e5e5e5] px-2 py-0.5 rounded-md mt-1 inline-block">Entreprise</span>
                                     </div>
                                     {currentAction.company.id && (
-                                        <Button variant="ghost" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg" title="Modifier l'entreprise">
+                                        <Button variant="ghost" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
                                             <PenLine className="w-3.5 h-3.5" />
                                         </Button>
                                     )}
@@ -2926,7 +2926,7 @@ export default function SDRActionPage() {
                                 <div className="space-y-2">
                                     {currentAction.company.phone ? (
                                         <div className="flex items-stretch gap-2">
-                                            <a href={`tel:${currentAction.company.phone}`} onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, { lastAction: currentAction.lastAction, lastActionBy: currentAction.lastActionBy ?? null })} className="flex flex-1 items-center justify-center gap-2 h-11 text-[14px] font-[500] text-white bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 rounded-xl transition-all shadow-md shadow-violet-500/25 active:scale-[0.98]">
+                                            <a href={`tel:${currentAction.company.phone}`} onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, { lastAction: currentAction.lastAction, lastActionBy: currentAction.lastActionBy ?? null })} className="flex flex-1 items-center justify-center gap-2 h-11 text-[14px] font-[500] text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]">
                                                 <Phone className="w-4 h-4" />
                                                 {currentAction.company.phone}
                                             </a>
@@ -2940,7 +2940,7 @@ export default function SDRActionPage() {
                                             </button>
                                         </div>
                                     ) : (
-                                        <Button variant="outline" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="w-full gap-2 border-[#e5e5e5] text-slate-600 hover:border-violet-200 hover:text-violet-600">
+                                        <Button variant="outline" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="w-full gap-2 border-[#e5e5e5] text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
                                             <PenLine className="w-3.5 h-3.5" />
                                             Ajouter un numéro
                                         </Button>
@@ -2992,7 +2992,7 @@ export default function SDRActionPage() {
                         <div className="px-5 py-4 border-b border-[#e5e5e5] bg-gradient-to-r from-[#f5f5f5] to-white">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-violet-700 flex items-center justify-center shadow-md shadow-violet-500/25">
+                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
                                         <Sparkles className="w-4 h-4 text-white" />
                                     </div>
                                     <div>
@@ -3001,7 +3001,7 @@ export default function SDRActionPage() {
                                     </div>
                                 </div>
                                 {currentAction?.scriptDefaultTab && (
-                                    <span className="text-[11px] font-[500] uppercase tracking-wide text-violet-600 bg-violet-50 border border-violet-200 px-2 py-1 rounded-lg">
+                                    <span className="text-[11px] font-[500] uppercase tracking-wide text-[#2B5F3E] bg-[#E7EFE9] border border-[#C4D6CB] px-2 py-1 rounded-lg">
                                         {SCRIPT_TABS.find((t) => t.id === currentAction.scriptDefaultTab)?.label ?? "Script"}
                                     </span>
                                 )}
@@ -3057,7 +3057,7 @@ export default function SDRActionPage() {
                 <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-violet-700 flex items-center justify-center shadow-md shadow-violet-500/25">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
                                 <CheckCircle2 className="w-4.5 h-4.5 text-white" />
                             </div>
                             <div>
@@ -3142,7 +3142,7 @@ export default function SDRActionPage() {
                                         "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-[500] border transition-all",
                                         linkedAlloCall
                                             ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                            : "bg-violet-50 text-violet-600 border-violet-200 hover:bg-violet-100"
+                                            : "bg-[#E7EFE9] text-[#2B5F3E] border-[#C4D6CB] hover:bg-[#D9E5DD]"
                                     )}
                                 >
                                     <PhoneCall className="w-3 h-3" />
@@ -3160,7 +3160,7 @@ export default function SDRActionPage() {
                         placeholder="Note sur l'échange...  (Ctrl+Entrée pour valider)"
                         rows={3}
                         maxLength={500}
-                        className="w-full px-3 py-2.5 text-[14px] border border-[#e5e5e5] rounded-xl bg-[#f5f5f5]/30 text-[#1a1a1a] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 focus:bg-white resize-none transition-colors leading-relaxed"
+                        className="w-full px-3 py-2.5 text-[14px] border border-[#e5e5e5] rounded-xl bg-[#f5f5f5]/30 text-[#1a1a1a] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2B5F3E]/25 focus:border-[#2B5F3E] focus:bg-white resize-none transition-colors leading-relaxed"
                     />
                     {/* Linked call preview */}
                     {linkedAlloCall && (
@@ -3378,7 +3378,7 @@ export default function SDRActionPage() {
                             onClick={handleSubmit}
                             disabled={!selectedResult || isSubmitting || (getRequiresNote(selectedResult) && !note.trim())}
                             isLoading={isSubmitting}
-                            className="gap-2 px-6 h-9 text-[14px] font-[500] shadow-md shadow-violet-500/20 bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 border-0"
+                            className="gap-2 px-6 h-9 text-[14px] font-[500] shadow-md shadow-[#2B5F3E]/20 bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] border-0"
                         >
                             {isSubmitting ? "Enregistrement…" : selectedResult === "ENVOIE_MAIL" ? "Enregistrer" : "Valider & Suivant"}
                             {!isSubmitting && <ChevronRight className="w-4 h-4" />}

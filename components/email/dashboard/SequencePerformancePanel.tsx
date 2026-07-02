@@ -109,8 +109,8 @@ export function SequencePerformancePanel({
             {/* Header */}
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
-                        <Zap className="w-3.5 h-3.5 text-indigo-600" />
+                    <div className="w-7 h-7 rounded-lg bg-[#D9E5DD] flex items-center justify-center">
+                        <Zap className="w-3.5 h-3.5 text-[#2B5F3E]" />
                     </div>
                     <h3 className="text-sm font-semibold text-slate-900">Séquences actives</h3>
                 </div>
@@ -173,7 +173,7 @@ export function SequencePerformancePanel({
                             {/* Sparkline */}
                             <Sparkline
                                 data={seq.sparkline}
-                                className="text-indigo-400 hidden md:block"
+                                className="text-[#4E8B66] hidden md:block"
                             />
 
                             {/* Actions */}

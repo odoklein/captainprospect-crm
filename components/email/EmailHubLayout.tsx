@@ -12,6 +12,7 @@ import {
     Send,
     Plus,
     Mail,
+    Megaphone,
 } from "lucide-react";
 
 // ============================================
@@ -44,6 +45,12 @@ const MANAGER_TABS: EmailHubTab[] = [
         label: "Emails envoyés",
         href: "/manager/emails/sent",
         icon: <Send className="w-4 h-4" />,
+    },
+    {
+        id: "campaigns",
+        label: "Campagnes",
+        href: "/manager/emails/campaigns",
+        icon: <Megaphone className="w-4 h-4" />,
     },
     {
         id: "contacts",
@@ -112,21 +119,22 @@ export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayout
     const activeTab = getActiveTab(pathname, tabs);
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full" style={{ fontFamily: "var(--cp-font, 'DM Sans', 'Inter', system-ui, sans-serif)" }}>
             {/* ── Header ── */}
-            <div className="flex-shrink-0 border-b border-slate-200 bg-white">
+            <div className="flex-shrink-0" style={{ borderBottom: "1px solid var(--cp-border)", background: "var(--cp-raised)" }}>
                 <div className="px-6 pt-5 pb-0">
                     {/* Title row */}
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200/50">
-                                <Mail className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 rounded-[12px] flex items-center justify-center"
+                                style={{ background: "var(--cp-green)", color: "var(--cp-on-inverse)" }}>
+                                <Mail className="w-5 h-5" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-slate-900">
+                                <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--cp-ink)" }}>
                                     Email Hub
                                 </h1>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs" style={{ color: "var(--cp-ink-3)" }}>
                                     {variant === "manager"
                                         ? "Gérez vos campagnes, séquences et boîtes mail"
                                         : "Vos emails et séquences"}
@@ -142,7 +150,8 @@ export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayout
                                     router.push("/manager/emails/contacts");
                                 }
                             }}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-sm font-semibold rounded-xl hover:from-indigo-500 hover:to-violet-500 transition-all duration-200 shadow-md shadow-indigo-200/50 hover:shadow-lg hover:shadow-indigo-300/50"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-[10px] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
+                            style={{ background: "var(--cp-green)", color: "var(--cp-on-inverse)" }}
                         >
                             <Plus className="w-4 h-4" />
                             Nouvel envoi
@@ -150,7 +159,7 @@ export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayout
                     </div>
 
                     {/* Tab navigation */}
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 overflow-x-auto">
                         {tabs.map((tab) => {
                             const isActive = activeTab === tab.id;
                             return (
@@ -158,22 +167,22 @@ export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayout
                                     key={tab.id}
                                     onClick={() => router.push(tab.href)}
                                     className={cn(
-                                        "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-all duration-200",
-                                        isActive
-                                            ? "text-indigo-600 border-indigo-600 bg-indigo-50/50"
-                                            : "text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50"
+                                        "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-all duration-200 whitespace-nowrap"
                                     )}
+                                    style={isActive
+                                        ? { color: "var(--cp-green)", borderColor: "var(--cp-green)", background: "var(--cp-green-soft)" }
+                                        : { color: "var(--cp-ink-3)", borderColor: "transparent" }}
+                                    onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.color = "var(--cp-ink-2)"; e.currentTarget.style.background = "var(--cp-sunken)"; } }}
+                                    onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.color = "var(--cp-ink-3)"; e.currentTarget.style.background = ""; } }}
                                 >
                                     {tab.icon}
                                     {tab.label}
                                     {tab.badge !== undefined && tab.badge > 0 && (
                                         <span
-                                            className={cn(
-                                                "ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-full min-w-[18px] text-center",
-                                                isActive
-                                                    ? "bg-indigo-100 text-indigo-700"
-                                                    : "bg-slate-200 text-slate-600"
-                                            )}
+                                            className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-full min-w-[18px] text-center"
+                                            style={isActive
+                                                ? { background: "var(--cp-green)", color: "var(--cp-on-inverse)" }
+                                                : { background: "var(--cp-neutral-soft)", color: "var(--cp-ink-2)" }}
                                         >
                                             {tab.badge}
                                         </span>
@@ -186,7 +195,7 @@ export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayout
             </div>
 
             {/* ── Page content ── */}
-            <div className="flex-1 overflow-y-auto bg-slate-50/50">
+            <div className="flex-1 overflow-y-auto" style={{ background: "var(--cp-canvas)" }}>
                 {children}
             </div>
         </div>
