@@ -358,28 +358,50 @@ export class ReachInboxProvider implements IEmailProvider {
      * defensively (same philosophy as the onebox mapping above).
      */
     async listCampaigns(tokens: OAuthTokens): Promise<ReachInboxCampaignSummary[]> {
-        const endpoints = [
-            '/campaigns/all?sort=newest&offset=0&limit=200&filter=All',
+        const primaryEndpoints = [
+            '/campaigns/all?sort=newest&offset=0&limit=200&filter=Active',
             '/campaigns/all?sort=newest&offset=0&limit=200',
+        ];
+        const fallbackEndpoints = [
+            '/campaigns/all?sort=newest&offset=0&limit=200&filter=Paused',
+            '/campaigns/all?sort=newest&offset=0&limit=200&filter=Completed',
+            '/campaigns/all?sort=newest&offset=0&limit=200&filter=Stopped',
+            '/campaigns?sort=newest&offset=0&limit=200&filter=Active',
             '/campaigns?sort=newest&offset=0&limit=200',
-            '/campaign/all?sort=newest&offset=0&limit=200',
+            '/campaign/all?sort=newest&offset=0&limit=200&filter=Active',
         ];
 
-        let response: ReachInboxRecord | null = null;
+        const campaigns = new Map<string, ReachInboxCampaignSummary>();
         let lastError: Error | null = null;
-        for (const endpoint of endpoints) {
+        for (const endpoint of primaryEndpoints) {
             try {
-                response = await this.request<ReachInboxRecord>(tokens, endpoint, { method: 'GET' });
-                break;
+                const response = await this.request<ReachInboxRecord>(tokens, endpoint, { method: 'GET' });
+                for (const item of this.extractCampaignArray(response)) {
+                    const campaign = this.mapCampaign(item);
+                    campaigns.set(campaign.id, campaign);
+                }
+                if (campaigns.size > 0) return Array.from(campaigns.values());
             } catch (err) {
                 lastError = err as Error;
             }
         }
-        if (!response) {
+
+        for (const endpoint of fallbackEndpoints) {
+            try {
+                const response = await this.request<ReachInboxRecord>(tokens, endpoint, { method: 'GET' });
+                for (const item of this.extractCampaignArray(response)) {
+                    const campaign = this.mapCampaign(item);
+                    campaigns.set(campaign.id, campaign);
+                }
+            } catch (err) {
+                lastError = err as Error;
+            }
+        }
+        if (campaigns.size === 0 && lastError) {
             throw lastError ?? new Error('Impossible de charger les campagnes ReachInbox');
         }
 
-        return this.extractArray(response).map((item) => this.mapCampaign(item));
+        return Array.from(campaigns.values());
     }
 
     async getAnalyticsSummary(tokens: OAuthTokens, params: {
@@ -572,6 +594,7 @@ export class ReachInboxProvider implements IEmailProvider {
         const response = await fetch(`${this.baseUrl}${path}`, {
             ...init,
             headers,
+            signal: init.signal ?? AbortSignal.timeout(12000),
         });
 
         const text = await response.text();
@@ -595,6 +618,51 @@ export class ReachInboxProvider implements IEmailProvider {
         if (Array.isArray(response.campaigns)) return response.campaigns;
         const nested = this.asRecord(response.data);
         if (nested && Array.isArray(nested.campaigns)) return nested.campaigns;
+        return [];
+    }
+
+    private extractCampaignArray(response: ReachInboxRecord | null | undefined): ReachInboxRecord[] {
+        if (!response) return [];
+        if (Array.isArray(response)) return response.filter((item): item is ReachInboxRecord => Boolean(this.asRecord(item)));
+
+        const directKeys = ['campaigns', 'items', 'records', 'rows', 'results', 'docs'];
+        for (const key of directKeys) {
+            const value = response[key];
+            if (Array.isArray(value)) return value.map((item) => this.asRecord(item)).filter((item): item is ReachInboxRecord => Boolean(item));
+        }
+
+        const data = this.asRecord(response.data);
+        if (data) {
+            for (const key of directKeys) {
+                const value = data[key];
+                if (Array.isArray(value)) return value.map((item) => this.asRecord(item)).filter((item): item is ReachInboxRecord => Boolean(item));
+            }
+            const nestedData = this.asRecord(data.data);
+            if (nestedData) {
+                for (const key of directKeys) {
+                    const value = nestedData[key];
+                    if (Array.isArray(value)) return value.map((item) => this.asRecord(item)).filter((item): item is ReachInboxRecord => Boolean(item));
+                }
+            }
+        }
+
+        return this.findCampaignLikeArrays(response);
+    }
+
+    private findCampaignLikeArrays(value: unknown, depth = 0): ReachInboxRecord[] {
+        if (depth > 4) return [];
+        if (Array.isArray(value)) {
+            const records = value.map((item) => this.asRecord(item)).filter((item): item is ReachInboxRecord => Boolean(item));
+            const campaignLike = records.filter((item) => item.id || item.campaignId || item.name || item.campaignName);
+            return campaignLike.length > 0 ? campaignLike : [];
+        }
+        const record = this.asRecord(value);
+        if (!record) return [];
+
+        for (const nested of Object.values(record)) {
+            const found = this.findCampaignLikeArrays(nested, depth + 1);
+            if (found.length > 0) return found;
+        }
         return [];
     }
 
@@ -688,6 +756,7 @@ export class ReachInboxProvider implements IEmailProvider {
     }
 
     private getString(value: unknown): string | undefined {
+        if (typeof value === 'number' && Number.isFinite(value)) return String(value);
         return typeof value === 'string' && value.trim() ? value.trim() : undefined;
     }
 

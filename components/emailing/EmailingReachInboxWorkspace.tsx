@@ -636,6 +636,7 @@ function ManagerEmailingPage() {
     const [clients, setClients] = useState<ClientOption[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isCampaignsLoading, setIsCampaignsLoading] = useState(false);
     const [linkingId, setLinkingId] = useState<string | null>(null);
     const [showConnectionSettings, setShowConnectionSettings] = useState(false);
     const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
@@ -644,22 +645,43 @@ function ManagerEmailingPage() {
     const [startDate, setStartDate] = useState(dateDaysAgo(30));
     const [endDate, setEndDate] = useState(today());
 
+    const fetchCampaignList = useCallback(async () => {
+        setIsCampaignsLoading(true);
+        try {
+            const response = await fetch("/api/email/reachinbox/campaigns");
+            const json = await response.json();
+            if (!response.ok || !json.success) throw new Error(json.error || "Campagnes indisponibles");
+            setDashboard((current) => current
+                ? {
+                    ...current,
+                    campaigns: json.data?.campaigns ?? [],
+                    errors: [...current.errors, ...(json.data?.errors ?? [])],
+                }
+                : current);
+        } catch (error) {
+            showError("Campagnes ReachInbox", error instanceof Error ? error.message : "Chargement impossible");
+        } finally {
+            setIsCampaignsLoading(false);
+        }
+    }, [showError]);
+
     const fetchDashboard = useCallback(async (refresh = false) => {
         if (refresh) setIsRefreshing(true);
         else setIsLoading(true);
         try {
-            const params = new URLSearchParams({ startDate, endDate });
+            const params = new URLSearchParams({ startDate, endDate, includeCampaigns: "false" });
             const response = await fetch(`/api/email/reachinbox/dashboard?${params.toString()}`);
             const json = await response.json();
             if (!response.ok || !json.success) throw new Error(json.error || "Chargement impossible");
             setDashboard(json.data);
+            if (json.data?.connected) void fetchCampaignList();
         } catch (error) {
             showError("ReachInbox", error instanceof Error ? error.message : "Chargement impossible");
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [endDate, showError, startDate]);
+    }, [endDate, fetchCampaignList, showError, startDate]);
 
     useEffect(() => {
         fetchDashboard();
@@ -854,6 +876,13 @@ function ManagerEmailingPage() {
                     setCampaignAnalytics(null);
                 }}
             />
+
+            {isCampaignsLoading && (
+                <div className="inline-flex items-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Chargement des campagnes ReachInbox...
+                </div>
+            )}
 
             <CampaignTable
                 campaigns={dashboard.campaigns}

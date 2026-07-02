@@ -19,11 +19,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const startDate = searchParams.get('startDate') || defaultStartDate();
     const endDate = searchParams.get('endDate') || defaultEndDate();
     const campaignIds = searchParams.getAll('campaignId').filter(Boolean);
+    const includeCampaigns = searchParams.get('includeCampaigns') !== 'false';
 
     const dashboard = await fetchReachInboxDashboard({
         startDate,
         endDate,
         campaignIds,
+        includeCampaigns,
     });
 
     return successResponse(dashboard);

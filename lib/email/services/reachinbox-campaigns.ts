@@ -156,6 +156,10 @@ export async function fetchAllReachInboxCampaigns(): Promise<{
     const errors: { mailboxEmail: string; message: string }[] = [];
     const seenApiKeys = new Set<string>();
     const seenCampaignIds = new Set<string>();
+    const campaignRequests: Array<{
+        mailbox: { id: string; email: string };
+        apiKey: string;
+    }> = [];
 
     for (const mailbox of mailboxes) {
         if (!mailbox.accessToken) continue;
@@ -171,9 +175,19 @@ export async function fetchAllReachInboxCampaigns(): Promise<{
         // Several CRM mailboxes can point to the same ReachInbox account.
         if (seenApiKeys.has(apiKey)) continue;
         seenApiKeys.add(apiKey);
+        campaignRequests.push({ mailbox: { id: mailbox.id, email: mailbox.email }, apiKey });
+    }
 
-        try {
-            const list = await reachInboxProvider.listCampaigns({ accessToken: apiKey });
+    const results = await Promise.allSettled(
+        campaignRequests.map(async (entry) => ({
+            mailbox: entry.mailbox,
+            list: await reachInboxProvider.listCampaigns({ accessToken: entry.apiKey }),
+        })),
+    );
+
+    for (const result of results) {
+        if (result.status === 'fulfilled') {
+            const { mailbox, list } = result.value;
             for (const campaign of list) {
                 if (seenCampaignIds.has(campaign.id)) continue;
                 seenCampaignIds.add(campaign.id);
@@ -185,8 +199,8 @@ export async function fetchAllReachInboxCampaigns(): Promise<{
                     client: link ? { id: link.clientId, name: link.clientName } : null,
                 });
             }
-        } catch (err) {
-            errors.push({ mailboxEmail: mailbox.email, message: (err as Error).message });
+        } else {
+            errors.push({ mailboxEmail: 'ReachInbox', message: result.reason instanceof Error ? result.reason.message : String(result.reason) });
         }
     }
 
@@ -252,6 +266,7 @@ export async function fetchReachInboxDashboard(params: {
     startDate: string;
     endDate: string;
     campaignIds?: string[];
+    includeCampaigns?: boolean;
 }): Promise<ReachInboxDashboardData> {
     const mailbox = await findActiveReachInboxMailbox();
 
@@ -292,38 +307,50 @@ export async function fetchReachInboxDashboard(params: {
     let warmup: ReachInboxDashboardData['warmup'] = null;
     let campaigns: ReachInboxCampaignWithContext[] = [];
 
-    try {
-        const analytics = await reachInboxProvider.getAnalyticsSummary(
+    const [analyticsResult, campaignResult, warmupResult] = await Promise.allSettled([
+        reachInboxProvider.getAnalyticsSummary(
             { accessToken: apiKey },
             {
                 startDate: params.startDate,
                 endDate: params.endDate,
                 campaignIds: params.campaignIds,
             },
-        );
-        summary = withRates(analytics);
-        daily = analytics.daily;
+        ),
+        params.includeCampaigns === false
+            ? Promise.resolve({ campaigns: [], errors: [] })
+            : fetchAllReachInboxCampaigns(),
+        reachInboxProvider.getWarmupAnalytics({ accessToken: apiKey }),
+    ]);
+
+    if (analyticsResult.status === 'fulfilled') {
+        summary = withRates(analyticsResult.value);
+        daily = analyticsResult.value.daily;
         await prisma.mailbox.update({
             where: { id: mailbox.id },
             data: { lastSyncAt: new Date(), lastError: null, syncStatus: 'SYNCED' },
         });
-    } catch (err) {
-        errors.push({ mailboxEmail: mailbox.email, message: (err as Error).message });
+    } else {
+        const message = analyticsResult.reason instanceof Error ? analyticsResult.reason.message : String(analyticsResult.reason);
+        errors.push({ mailboxEmail: mailbox.email, message });
         await prisma.mailbox.update({
             where: { id: mailbox.id },
-            data: { lastError: (err as Error).message, syncStatus: 'ERROR' },
+            data: { lastError: message, syncStatus: 'ERROR' },
         }).catch(() => undefined);
     }
 
-    try {
-        const campaignList = await fetchAllReachInboxCampaigns();
-        campaigns = campaignList.campaigns;
-        errors.push(...campaignList.errors);
-    } catch (err) {
-        errors.push({ mailboxEmail: mailbox.email, message: (err as Error).message });
+    if (campaignResult.status === 'fulfilled') {
+        campaigns = campaignResult.value.campaigns;
+        errors.push(...campaignResult.value.errors);
+    } else {
+        errors.push({
+            mailboxEmail: mailbox.email,
+            message: campaignResult.reason instanceof Error ? campaignResult.reason.message : String(campaignResult.reason),
+        });
     }
 
-    warmup = await reachInboxProvider.getWarmupAnalytics({ accessToken: apiKey });
+    if (warmupResult.status === 'fulfilled') {
+        warmup = warmupResult.value;
+    }
 
     return {
         connected: true,
