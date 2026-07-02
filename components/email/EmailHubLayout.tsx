@@ -48,7 +48,7 @@ const MANAGER_TABS: EmailHubTab[] = [
     },
     {
         id: "campaigns",
-        label: "Campagnes",
+        label: "ReachInbox",
         href: "/manager/emails/campaigns",
         icon: <Megaphone className="w-4 h-4" />,
     },
@@ -136,7 +136,7 @@ export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayout
                                 </h1>
                                 <p className="text-xs" style={{ color: "var(--cp-ink-3)" }}>
                                     {variant === "manager"
-                                        ? "Gérez vos campagnes, séquences et boîtes mail"
+                                        ? "Suivez les emails, les statistiques ReachInbox et les boites mail"
                                         : "Vos emails et séquences"}
                                 </p>
                             </div>
@@ -154,7 +154,7 @@ export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayout
                             style={{ background: "var(--cp-green)", color: "var(--cp-on-inverse)" }}
                         >
                             <Plus className="w-4 h-4" />
-                            Nouvel envoi
+                            Voir contacts
                         </button>
                     </div>
 

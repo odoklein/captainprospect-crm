@@ -119,6 +119,12 @@ export const MANAGER_NAV: NavSection[] = [
         permission: "pages.analytics",
       },
       {
+        href: "/manager/emailing",
+        icon: Send,
+        label: "Emailing",
+        permission: "pages.email",
+      },
+      {
         href: "/manager/emails",
         icon: Mail,
         label: "Email Hub",
@@ -486,6 +492,12 @@ export const CLIENT_NAV: NavSection[] = [
   {
     title: "Outils",
     items: [
+      {
+        href: "/client/portal/emailing",
+        icon: Send,
+        label: "Emailing",
+        permission: "pages.dashboard",
+      },
       {
         href: "/client/portal/email",
         icon: Mail,

@@ -39,6 +39,32 @@ export interface ReachInboxCampaignSummary {
     };
 }
 
+export interface ReachInboxAnalyticsSummary {
+    sent: number;
+    opened: number;
+    replied: number;
+    clicked: number;
+    bounced: number;
+    leads: number;
+    opportunities: number;
+    positiveReplies: number;
+    daily: Array<{
+        date: string;
+        sent: number;
+        opened: number;
+        replied: number;
+        clicked: number;
+        bounced: number;
+    }>;
+}
+
+export interface ReachInboxWarmupSummary {
+    warmupSent: number;
+    inboxPlacement: number;
+    spamPlacement: number;
+    healthScore: number;
+}
+
 export class ReachInboxProvider implements IEmailProvider {
     provider = 'REACHINBOX' as EmailProvider;
     private readonly baseUrl: string;
@@ -332,6 +358,44 @@ export class ReachInboxProvider implements IEmailProvider {
         return this.extractArray(response).map((item) => this.mapCampaign(item));
     }
 
+    async getAnalyticsSummary(tokens: OAuthTokens, params: {
+        startDate: string;
+        endDate: string;
+        campaignIds?: string[];
+    }): Promise<ReachInboxAnalyticsSummary> {
+        const response = await this.request<ReachInboxRecord>(
+            tokens,
+            `/analytics/summary?startDate=${encodeURIComponent(params.startDate)}&endDate=${encodeURIComponent(params.endDate)}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    campaignIds: params.campaignIds ?? [],
+                    excludeIds: [],
+                }),
+            },
+        );
+
+        return this.mapAnalyticsSummary(response);
+    }
+
+    async getWarmupAnalytics(tokens: OAuthTokens): Promise<ReachInboxWarmupSummary | null> {
+        try {
+            const response = await this.request<ReachInboxRecord>(tokens, '/analytics/warmup-analytics', {
+                method: 'GET',
+            });
+            const source = this.asRecord(response.data) || response;
+            return {
+                warmupSent: this.getNumber(source.warmupSent ?? source.warmup_sent ?? source.sent ?? source.totalSent),
+                inboxPlacement: this.getNumber(source.inboxPlacement ?? source.inbox_placement ?? source.inbox ?? source.inboxPercentage),
+                spamPlacement: this.getNumber(source.spamPlacement ?? source.spam_placement ?? source.spam ?? source.spamPercentage),
+                healthScore: this.getNumber(source.healthScore ?? source.health_score ?? source.score),
+            };
+        } catch {
+            return null;
+        }
+    }
+
     private mapCampaign(item: ReachInboxRecord): ReachInboxCampaignSummary {
         const statsSource = this.asRecord(item.stats) || this.asRecord(item.analytics) || this.asRecord(item.metrics) || item;
         const createdAt = this.getString(item.createdAt || item.created_at || item.startDate);
@@ -349,6 +413,45 @@ export class ReachInboxProvider implements IEmailProvider {
                 bounced: this.getNumber(statsSource.bounced ?? statsSource.bounces ?? statsSource.bounceCount ?? statsSource.totalBounces),
                 leads: this.getNumber(statsSource.leads ?? statsSource.totalLeads ?? statsSource.leadsCount ?? statsSource.contactsCount ?? statsSource.prospects),
             },
+        };
+    }
+
+    private mapAnalyticsSummary(response: ReachInboxRecord): ReachInboxAnalyticsSummary {
+        const data = this.asRecord(response.data) || this.asRecord(response.result) || response;
+        const totals = this.asRecord(data.summary)
+            || this.asRecord(data.total)
+            || this.asRecord(data.totals)
+            || data;
+
+        const dailySource = Array.isArray(data.result)
+            ? data.result
+            : Array.isArray(data.daily)
+                ? data.daily
+                : Array.isArray(data.analytics)
+                    ? data.analytics
+                    : [];
+
+        return {
+            sent: this.getNumber(totals.sent ?? totals.sentCount ?? totals.emailsSent ?? totals.totalSent),
+            opened: this.getNumber(totals.opened ?? totals.opens ?? totals.openCount ?? totals.totalOpens ?? totals.uniqueOpens),
+            replied: this.getNumber(totals.replied ?? totals.replies ?? totals.replyCount ?? totals.totalReplies),
+            clicked: this.getNumber(totals.clicked ?? totals.clicks ?? totals.clickCount ?? totals.totalClicks),
+            bounced: this.getNumber(totals.bounced ?? totals.bounces ?? totals.bounceCount ?? totals.totalBounces),
+            leads: this.getNumber(totals.leads ?? totals.totalLeads ?? totals.leadsCount ?? totals.contactsCount ?? totals.prospects),
+            opportunities: this.getNumber(totals.opportunities ?? totals.opportunityCount ?? totals.totalOpportunities),
+            positiveReplies: this.getNumber(totals.positiveReplies ?? totals.positive_replies ?? totals.positiveReplyCount),
+            daily: dailySource
+                .map((entry) => this.asRecord(entry))
+                .filter((entry): entry is ReachInboxRecord => Boolean(entry))
+                .map((entry) => ({
+                    date: this.getString(entry.date || entry.day || entry.createdAt) || '',
+                    sent: this.getNumber(entry.sent ?? entry.sentCount ?? entry.emailsSent),
+                    opened: this.getNumber(entry.opened ?? entry.opens ?? entry.openCount),
+                    replied: this.getNumber(entry.replied ?? entry.replies ?? entry.replyCount),
+                    clicked: this.getNumber(entry.clicked ?? entry.clicks ?? entry.clickCount),
+                    bounced: this.getNumber(entry.bounced ?? entry.bounces ?? entry.bounceCount),
+                }))
+                .filter((entry) => entry.date),
         };
     }
 

@@ -1,9 +1,9 @@
 "use client";
 
 // ============================================
-// CAMPAGNES REACHINBOX — Email Hub section
+// REACHINBOX DASHBOARD - Email Hub section
 // /manager/emails/campaigns
-// Live campaign stats + client linking.
+// API-key onboarding + read-only stats.
 // ============================================
 
 import { ReachInboxCampaignsPanel } from "@/components/email/ReachInboxCampaignsPanel";
@@ -13,8 +13,8 @@ export default function EmailHubCampaignsPage() {
         <div className="p-6 max-w-[1600px] mx-auto space-y-4">
             <ReachInboxCampaignsPanel variant="manager" />
             <p className="text-[11px] px-1" style={{ color: "var(--cp-ink-3)" }}>
-                Liez une campagne à un client pour qu&apos;elle apparaisse automatiquement dans son portail
-                et sur sa fiche client.
+                Lecture seule : cette page affiche les statistiques ReachInbox sans creer, modifier,
+                lancer ou mettre en pause des campagnes.
             </p>
         </div>
     );
