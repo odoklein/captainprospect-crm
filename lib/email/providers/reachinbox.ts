@@ -336,9 +336,10 @@ export class ReachInboxProvider implements IEmailProvider {
      */
     async listCampaigns(tokens: OAuthTokens): Promise<ReachInboxCampaignSummary[]> {
         const endpoints = [
-            '/campaigns/all?limit=200&offset=0',
-            '/campaigns?limit=200&offset=0',
-            '/campaign/all?limit=200&offset=0',
+            '/campaigns/all?sort=newest&offset=0&limit=200&filter=All',
+            '/campaigns/all?sort=newest&offset=0&limit=200',
+            '/campaigns?sort=newest&offset=0&limit=200',
+            '/campaign/all?sort=newest&offset=0&limit=200',
         ];
 
         let response: ReachInboxRecord | null = null;
@@ -384,12 +385,14 @@ export class ReachInboxProvider implements IEmailProvider {
             const response = await this.request<ReachInboxRecord>(tokens, '/analytics/warmup-analytics', {
                 method: 'GET',
             });
-            const source = this.asRecord(response.data) || response;
+            const first = Array.isArray(response.data) ? this.asRecord(response.data[0]) : null;
+            const source = first || this.asRecord(response.data) || response;
+            const aggregates = this.asRecord(source.aggregates) || source;
             return {
-                warmupSent: this.getNumber(source.warmupSent ?? source.warmup_sent ?? source.sent ?? source.totalSent),
-                inboxPlacement: this.getNumber(source.inboxPlacement ?? source.inbox_placement ?? source.inbox ?? source.inboxPercentage),
-                spamPlacement: this.getNumber(source.spamPlacement ?? source.spam_placement ?? source.spam ?? source.spamPercentage),
-                healthScore: this.getNumber(source.healthScore ?? source.health_score ?? source.score),
+                warmupSent: this.getNumber(aggregates.warmupSent ?? aggregates.warmup_sent ?? aggregates.sent ?? aggregates.totalSent ?? aggregates.warmupEmailSentCount),
+                inboxPlacement: this.getNumber(aggregates.inboxPlacement ?? aggregates.inbox_placement ?? aggregates.inbox ?? aggregates.inboxPercentage ?? aggregates.landedOnInboxCount),
+                spamPlacement: this.getNumber(aggregates.spamPlacement ?? aggregates.spam_placement ?? aggregates.spam ?? aggregates.spamPercentage ?? aggregates.landedOnSpamCount),
+                healthScore: this.getNumber(aggregates.healthScore ?? aggregates.health_score ?? aggregates.score),
             };
         } catch {
             return null;
@@ -397,6 +400,7 @@ export class ReachInboxProvider implements IEmailProvider {
     }
 
     private mapCampaign(item: ReachInboxRecord): ReachInboxCampaignSummary {
+        const emailStats = this.asRecord(item.emails);
         const statsSource = this.asRecord(item.stats) || this.asRecord(item.analytics) || this.asRecord(item.metrics) || item;
         const createdAt = this.getString(item.createdAt || item.created_at || item.startDate);
 
@@ -406,12 +410,12 @@ export class ReachInboxProvider implements IEmailProvider {
             status: (this.getString(item.status || item.state) || 'UNKNOWN').toUpperCase(),
             createdAt: createdAt ?? null,
             stats: {
-                sent: this.getNumber(statsSource.sent ?? statsSource.sentCount ?? statsSource.emailsSent ?? statsSource.totalSent ?? statsSource.sent_count),
-                opened: this.getNumber(statsSource.opened ?? statsSource.opens ?? statsSource.openCount ?? statsSource.totalOpens ?? statsSource.uniqueOpens),
-                replied: this.getNumber(statsSource.replied ?? statsSource.replies ?? statsSource.replyCount ?? statsSource.totalReplies),
-                clicked: this.getNumber(statsSource.clicked ?? statsSource.clicks ?? statsSource.clickCount ?? statsSource.totalClicks),
-                bounced: this.getNumber(statsSource.bounced ?? statsSource.bounces ?? statsSource.bounceCount ?? statsSource.totalBounces),
-                leads: this.getNumber(statsSource.leads ?? statsSource.totalLeads ?? statsSource.leadsCount ?? statsSource.contactsCount ?? statsSource.prospects),
+                sent: this.getNumber(statsSource.sent ?? emailStats?.sent ?? statsSource.totalEmailSent ?? statsSource.sentCount ?? statsSource.emailsSent ?? statsSource.totalSent ?? statsSource.sent_count),
+                opened: this.getNumber(statsSource.opened ?? statsSource.open ?? statsSource.opens ?? statsSource.totalEmailOpened ?? statsSource.totalOpens ?? emailStats?.totalOpens ?? statsSource.totalUniqueEmailOpened ?? statsSource.totalUniqueOpen ?? statsSource.uniqueOpens),
+                replied: this.getNumber(statsSource.replied ?? statsSource.reply ?? statsSource.replies ?? statsSource.totalEmailReplied ?? statsSource.totalReplies ?? emailStats?.totalReplies),
+                clicked: this.getNumber(statsSource.clicked ?? statsSource.click ?? statsSource.clicks ?? statsSource.totalLinkClicked ?? statsSource.linksClicked ?? statsSource.clickCount ?? statsSource.totalClicks),
+                bounced: this.getNumber(statsSource.bounced ?? statsSource.bounces ?? statsSource.totalEmailBounced ?? statsSource.emailBounced ?? emailStats?.emailBounced ?? statsSource.bounceCount ?? statsSource.totalBounces),
+                leads: this.getNumber(statsSource.leads ?? statsSource.leadsContacted ?? statsSource.leadAddedCount ?? statsSource.totalLeads ?? statsSource.leadsCount ?? statsSource.contactsCount ?? statsSource.prospects ?? statsSource.uniqueLeadsReachedOut),
             },
         };
     }
@@ -431,27 +435,32 @@ export class ReachInboxProvider implements IEmailProvider {
                     ? data.analytics
                     : [];
 
+        const daily = dailySource
+            .map((entry) => this.asRecord(entry))
+            .filter((entry): entry is ReachInboxRecord => Boolean(entry))
+            .map((entry) => ({
+                date: this.getString(entry.date || entry.day || entry.createdAt) || '',
+                sent: this.getNumber(entry.sent ?? entry.sentCount ?? entry.emailsSent),
+                opened: this.getNumber(entry.opened ?? entry.open ?? entry.opens ?? entry.totalOpens ?? entry.uniqueOpens),
+                replied: this.getNumber(entry.replied ?? entry.reply ?? entry.replies ?? entry.totalReplies),
+                clicked: this.getNumber(entry.clicked ?? entry.click ?? entry.clicks ?? entry.linksClicked),
+                bounced: this.getNumber(entry.bounced ?? entry.bounces ?? entry.emailBounced),
+            }))
+            .filter((entry) => entry.date);
+
+        const sent = this.getNumber(totals.sent ?? totals.sentCount ?? totals.emailsSent ?? totals.totalSent)
+            || daily.reduce((sum, entry) => sum + entry.sent, 0);
+
         return {
-            sent: this.getNumber(totals.sent ?? totals.sentCount ?? totals.emailsSent ?? totals.totalSent),
-            opened: this.getNumber(totals.opened ?? totals.opens ?? totals.openCount ?? totals.totalOpens ?? totals.uniqueOpens),
-            replied: this.getNumber(totals.replied ?? totals.replies ?? totals.replyCount ?? totals.totalReplies),
-            clicked: this.getNumber(totals.clicked ?? totals.clicks ?? totals.clickCount ?? totals.totalClicks),
+            sent,
+            opened: this.getNumber(totals.opened ?? totals.open ?? totals.opens ?? totals.openCount ?? totals.totalOpens ?? totals.uniqueOpens),
+            replied: this.getNumber(totals.replied ?? totals.reply ?? totals.replies ?? totals.replyCount ?? totals.totalReplies),
+            clicked: this.getNumber(totals.clicked ?? totals.click ?? totals.clicks ?? totals.clickCount ?? totals.totalClicks),
             bounced: this.getNumber(totals.bounced ?? totals.bounces ?? totals.bounceCount ?? totals.totalBounces),
-            leads: this.getNumber(totals.leads ?? totals.totalLeads ?? totals.leadsCount ?? totals.contactsCount ?? totals.prospects),
+            leads: this.getNumber(totals.leads ?? totals.leadsContacted ?? totals.totalLeads ?? totals.leadsCount ?? totals.contactsCount ?? totals.prospects),
             opportunities: this.getNumber(totals.opportunities ?? totals.opportunityCount ?? totals.totalOpportunities),
             positiveReplies: this.getNumber(totals.positiveReplies ?? totals.positive_replies ?? totals.positiveReplyCount),
-            daily: dailySource
-                .map((entry) => this.asRecord(entry))
-                .filter((entry): entry is ReachInboxRecord => Boolean(entry))
-                .map((entry) => ({
-                    date: this.getString(entry.date || entry.day || entry.createdAt) || '',
-                    sent: this.getNumber(entry.sent ?? entry.sentCount ?? entry.emailsSent),
-                    opened: this.getNumber(entry.opened ?? entry.opens ?? entry.openCount),
-                    replied: this.getNumber(entry.replied ?? entry.replies ?? entry.replyCount),
-                    clicked: this.getNumber(entry.clicked ?? entry.clicks ?? entry.clickCount),
-                    bounced: this.getNumber(entry.bounced ?? entry.bounces ?? entry.bounceCount),
-                }))
-                .filter((entry) => entry.date),
+            daily,
         };
     }
 

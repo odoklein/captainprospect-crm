@@ -461,6 +461,7 @@ function ManagerEmailingPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [linkingId, setLinkingId] = useState<string | null>(null);
+    const [showConnectionSettings, setShowConnectionSettings] = useState(false);
     const [startDate, setStartDate] = useState(dateDaysAgo(30));
     const [endDate, setEndDate] = useState(today());
 
@@ -579,7 +580,27 @@ function ManagerEmailingPage() {
                 <span className="text-slate-300">to</span>
                 <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)}
                     className="h-9 rounded-[10px] border border-slate-200 px-3 text-sm text-slate-700 outline-none focus:border-emerald-500" />
+                <div className="ml-auto flex items-center gap-2">
+                    <span className="hidden text-[12px] text-slate-500 md:inline">
+                        Cle active: {dashboard.connection?.email ?? "ReachInbox"}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setShowConnectionSettings((value) => !value)}
+                        className="inline-flex h-9 items-center gap-2 rounded-[10px] border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 transition hover:border-emerald-300 hover:text-emerald-700"
+                    >
+                        <KeyRound className="h-3.5 w-3.5" />
+                        {showConnectionSettings ? "Masquer la cle" : "Changer la cle API"}
+                    </button>
+                </div>
             </div>
+
+            {showConnectionSettings && (
+                <ConnectReachInboxCard onConnected={() => {
+                    setShowConnectionSettings(false);
+                    fetchDashboard(true);
+                }} />
+            )}
 
             {dashboard.errors.length > 0 && (
                 <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
