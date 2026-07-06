@@ -1,0 +1,14 @@
+[variables]
+NPM_CONFIG_PRODUCTION = "false"
+PUPPETEER_SKIP_DOWNLOAD = "true"
+NEXT_TELEMETRY_DISABLED = "1"
+NODE_OPTIONS = "--max-old-space-size=4096"
+
+[phases.install]
+cmds = ["npm ci --include=dev --no-audit --fund=false"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
