@@ -135,6 +135,52 @@ const EMPTY_SUMMARY: EmailingSummary = {
 };
 
 const ACTIVE_STATUSES = new Set(["ACTIVE", "RUNNING"]);
+const CACHE_VERSION = "v1";
+const DASHBOARD_CACHE_TTL_MS = 10 * 60 * 1000;
+const CAMPAIGN_CACHE_TTL_MS = 10 * 60 * 1000;
+const CLIENT_CAMPAIGNS_CACHE_TTL_MS = 10 * 60 * 1000;
+
+type CacheEnvelope<T> = {
+    savedAt: number;
+    data: T;
+};
+
+function readCache<T>(key: string, ttlMs: number): T | null {
+    if (typeof window === "undefined") return null;
+    try {
+        const raw = window.localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as CacheEnvelope<T>;
+        if (!parsed?.savedAt || Date.now() - parsed.savedAt > ttlMs) {
+            window.localStorage.removeItem(key);
+            return null;
+        }
+        return parsed.data;
+    } catch {
+        return null;
+    }
+}
+
+function writeCache<T>(key: string, data: T) {
+    if (typeof window === "undefined") return;
+    try {
+        window.localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), data }));
+    } catch {
+        // Ignore quota/private-mode failures; caching is only a UX boost.
+    }
+}
+
+function managerDashboardCacheKey(startDate: string, endDate: string): string {
+    return `reachinbox:${CACHE_VERSION}:manager:dashboard:${startDate}:${endDate}`;
+}
+
+function managerCampaignsCacheKey(): string {
+    return `reachinbox:${CACHE_VERSION}:manager:campaigns`;
+}
+
+function clientCampaignsCacheKey(): string {
+    return `reachinbox:${CACHE_VERSION}:client:campaigns`;
+}
 
 function dateDaysAgo(days: number): string {
     const date = new Date();
@@ -646,35 +692,77 @@ function ManagerEmailingPage() {
     const [endDate, setEndDate] = useState(today());
 
     const fetchCampaignList = useCallback(async () => {
+        const cached = readCache<{ campaigns: Campaign[]; errors: DashboardResponse["errors"] }>(
+            managerCampaignsCacheKey(),
+            CAMPAIGN_CACHE_TTL_MS,
+        );
+        if (cached) {
+            setDashboard((current) => current
+                ? {
+                    ...current,
+                    campaigns: cached.campaigns,
+                }
+                : current);
+        }
+
         setIsCampaignsLoading(true);
         try {
             const response = await fetch("/api/email/reachinbox/campaigns");
             const json = await response.json();
             if (!response.ok || !json.success) throw new Error(json.error || "Campagnes indisponibles");
+            const payload = {
+                campaigns: json.data?.campaigns ?? [],
+                errors: json.data?.errors ?? [],
+            };
+            writeCache(managerCampaignsCacheKey(), payload);
             setDashboard((current) => current
-                ? {
-                    ...current,
-                    campaigns: json.data?.campaigns ?? [],
-                    errors: [...current.errors, ...(json.data?.errors ?? [])],
-                }
+                ? (() => {
+                    const next = {
+                        ...current,
+                        campaigns: payload.campaigns,
+                        errors: [...current.errors, ...payload.errors],
+                    };
+                    writeCache(managerDashboardCacheKey(startDate, endDate), next);
+                    return next;
+                })()
                 : current);
         } catch (error) {
             showError("Campagnes ReachInbox", error instanceof Error ? error.message : "Chargement impossible");
         } finally {
             setIsCampaignsLoading(false);
         }
-    }, [showError]);
+    }, [endDate, showError, startDate]);
 
     const fetchDashboard = useCallback(async (refresh = false) => {
+        const cacheKey = managerDashboardCacheKey(startDate, endDate);
+        if (!refresh) {
+            const cached = readCache<DashboardResponse>(cacheKey, DASHBOARD_CACHE_TTL_MS);
+            if (cached) {
+                setDashboard(cached);
+                setIsLoading(false);
+                if (cached.connected) void fetchCampaignList();
+            } else {
+                setIsLoading(true);
+            }
+        }
+
         if (refresh) setIsRefreshing(true);
-        else setIsLoading(true);
         try {
             const params = new URLSearchParams({ startDate, endDate, includeCampaigns: "false" });
             const response = await fetch(`/api/email/reachinbox/dashboard?${params.toString()}`);
             const json = await response.json();
             if (!response.ok || !json.success) throw new Error(json.error || "Chargement impossible");
-            setDashboard(json.data);
-            if (json.data?.connected) void fetchCampaignList();
+            const cachedCampaigns = readCache<{ campaigns: Campaign[]; errors: DashboardResponse["errors"] }>(
+                managerCampaignsCacheKey(),
+                CAMPAIGN_CACHE_TTL_MS,
+            );
+            const nextDashboard: DashboardResponse = {
+                ...json.data,
+                campaigns: cachedCampaigns?.campaigns ?? json.data?.campaigns ?? [],
+            };
+            writeCache(cacheKey, nextDashboard);
+            setDashboard(nextDashboard);
+            if (nextDashboard.connected) void fetchCampaignList();
         } catch (error) {
             showError("ReachInbox", error instanceof Error ? error.message : "Chargement impossible");
         } finally {
@@ -710,12 +798,15 @@ function ManagerEmailingPage() {
         const previous = campaign.client ?? null;
         const nextClient = clients.find((client) => client.id === clientId) ?? null;
         setDashboard((current) => current
-            ? {
-                ...current,
-                campaigns: current.campaigns.map((item) => item.id === campaign.id
+            ? (() => {
+                const campaigns = current.campaigns.map((item) => item.id === campaign.id
                     ? { ...item, client: nextClient ? { id: nextClient.id, name: nextClient.name } : null }
-                    : item),
-            }
+                    : item);
+                const next = { ...current, campaigns };
+                writeCache(managerCampaignsCacheKey(), { campaigns, errors: [] });
+                writeCache(managerDashboardCacheKey(startDate, endDate), next);
+                return next;
+            })()
             : current);
 
         try {
@@ -734,10 +825,13 @@ function ManagerEmailingPage() {
             success(clientId ? "Campagne liee" : "Liaison retiree", campaign.name);
         } catch (error) {
             setDashboard((current) => current
-                ? {
-                    ...current,
-                    campaigns: current.campaigns.map((item) => item.id === campaign.id ? { ...item, client: previous } : item),
-                }
+                ? (() => {
+                    const campaigns = current.campaigns.map((item) => item.id === campaign.id ? { ...item, client: previous } : item);
+                    const next = { ...current, campaigns };
+                    writeCache(managerCampaignsCacheKey(), { campaigns, errors: [] });
+                    writeCache(managerDashboardCacheKey(startDate, endDate), next);
+                    return next;
+                })()
                 : current);
             showError("Liaison impossible", error instanceof Error ? error.message : "Erreur inconnue");
         } finally {
@@ -904,13 +998,25 @@ function ClientEmailingPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const fetchCampaigns = useCallback(async (refresh = false) => {
-        if (refresh) setIsRefreshing(true);
-        else setIsLoading(true);
+        if (!refresh) {
+            const cached = readCache<Campaign[]>(clientCampaignsCacheKey(), CLIENT_CAMPAIGNS_CACHE_TTL_MS);
+            if (cached) {
+                setCampaigns(cached);
+                setIsLoading(false);
+            } else {
+                setIsLoading(true);
+            }
+        } else {
+            setIsRefreshing(true);
+        }
+
         try {
             const response = await fetch("/api/client/reachinbox-campaigns");
             const json = await response.json();
             if (!response.ok || !json.success) throw new Error(json.error || "Chargement impossible");
-            setCampaigns(json.data?.campaigns ?? []);
+            const nextCampaigns = json.data?.campaigns ?? [];
+            writeCache(clientCampaignsCacheKey(), nextCampaigns);
+            setCampaigns(nextCampaigns);
         } catch (error) {
             showError("Emailing", error instanceof Error ? error.message : "Chargement impossible");
         } finally {

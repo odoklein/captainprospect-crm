@@ -359,10 +359,12 @@ export class ReachInboxProvider implements IEmailProvider {
      */
     async listCampaigns(tokens: OAuthTokens): Promise<ReachInboxCampaignSummary[]> {
         const primaryEndpoints = [
+            '/campaigns/all?sort=newest&offset=0&limit=200&filter=All',
             '/campaigns/all?sort=newest&offset=0&limit=200&filter=Active',
             '/campaigns/all?sort=newest&offset=0&limit=200',
         ];
         const fallbackEndpoints = [
+            '/campaigns?sort=newest&offset=0&limit=200&filter=All',
             '/campaigns/all?sort=newest&offset=0&limit=200&filter=Paused',
             '/campaigns/all?sort=newest&offset=0&limit=200&filter=Completed',
             '/campaigns/all?sort=newest&offset=0&limit=200&filter=Stopped',
@@ -389,6 +391,28 @@ export class ReachInboxProvider implements IEmailProvider {
         for (const endpoint of fallbackEndpoints) {
             try {
                 const response = await this.request<ReachInboxRecord>(tokens, endpoint, { method: 'GET' });
+                for (const item of this.extractCampaignArray(response)) {
+                    const campaign = this.mapCampaign(item);
+                    campaigns.set(campaign.id, campaign);
+                }
+            } catch (err) {
+                lastError = err as Error;
+            }
+        }
+        if (campaigns.size === 0) {
+            try {
+                const response = await this.request<ReachInboxRecord>(
+                    tokens,
+                    `/analytics/summary?startDate=${encodeURIComponent(this.daysAgoParam(365))}&endDate=${encodeURIComponent(this.todayParam())}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            campaignIds: [],
+                            excludeIds: [],
+                        }),
+                    },
+                );
                 for (const item of this.extractCampaignArray(response)) {
                     const campaign = this.mapCampaign(item);
                     campaigns.set(campaign.id, campaign);
@@ -473,12 +497,12 @@ export class ReachInboxProvider implements IEmailProvider {
     private mapCampaign(item: ReachInboxRecord): ReachInboxCampaignSummary {
         const emailStats = this.asRecord(item.emails);
         const statsSource = this.asRecord(item.stats) || this.asRecord(item.analytics) || this.asRecord(item.metrics) || item;
-        const createdAt = this.getString(item.createdAt || item.created_at || item.startDate);
+        const createdAt = this.getString(item.createdAt || item.created_at || item.startDate || item.start_date);
 
         return {
-            id: this.getString(item.id || item._id || item.campaignId) || randomUUID(),
-            name: this.getString(item.name || item.campaignName || item.title) || 'Campagne sans nom',
-            status: (this.getString(item.status || item.state) || 'UNKNOWN').toUpperCase(),
+            id: this.getString(item.id || item._id || item.campaignId || item.campaign_id || item.campaignID) || randomUUID(),
+            name: this.getString(item.name || item.campaignName || item.campaign_name || item.title) || 'Campagne sans nom',
+            status: (this.getString(item.status || item.state || item.campaignStatus || item.campaign_status) || 'UNKNOWN').toUpperCase(),
             createdAt: createdAt ?? null,
             stats: {
                 sent: this.getNumber(statsSource.sent ?? emailStats?.sent ?? statsSource.totalEmailSent ?? statsSource.sentCount ?? statsSource.emailsSent ?? statsSource.totalSent ?? statsSource.sent_count),
@@ -625,7 +649,7 @@ export class ReachInboxProvider implements IEmailProvider {
         if (!response) return [];
         if (Array.isArray(response)) return response.filter((item): item is ReachInboxRecord => Boolean(this.asRecord(item)));
 
-        const directKeys = ['campaigns', 'items', 'records', 'rows', 'results', 'docs'];
+        const directKeys = ['campaigns', 'campaignData', 'campaign_data', 'campaignsData', 'campaignStats', 'campaign_analytics', 'items', 'records', 'rows', 'results', 'docs', 'content', 'list', 'data'];
         for (const key of directKeys) {
             const value = response[key];
             if (Array.isArray(value)) return value.map((item) => this.asRecord(item)).filter((item): item is ReachInboxRecord => Boolean(item));
@@ -653,7 +677,17 @@ export class ReachInboxProvider implements IEmailProvider {
         if (depth > 4) return [];
         if (Array.isArray(value)) {
             const records = value.map((item) => this.asRecord(item)).filter((item): item is ReachInboxRecord => Boolean(item));
-            const campaignLike = records.filter((item) => item.id || item.campaignId || item.name || item.campaignName);
+            const campaignLike = records.filter((item) =>
+                item.id
+                || item._id
+                || item.campaignId
+                || item.campaign_id
+                || item.campaignID
+                || item.name
+                || item.campaignName
+                || item.campaign_name
+                || item.title
+            );
             return campaignLike.length > 0 ? campaignLike : [];
         }
         const record = this.asRecord(value);
@@ -764,6 +798,16 @@ export class ReachInboxProvider implements IEmailProvider {
         return value && typeof value === 'object' && !Array.isArray(value)
             ? value as ReachInboxRecord
             : null;
+    }
+
+    private todayParam(): string {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    private daysAgoParam(days: number): string {
+        const date = new Date();
+        date.setDate(date.getDate() - days);
+        return date.toISOString().slice(0, 10);
     }
 
     private getDate(value: unknown): Date {
