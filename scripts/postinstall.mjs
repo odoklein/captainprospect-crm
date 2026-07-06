@@ -15,6 +15,13 @@ const projectRoot = dirname(__dirname);
 
 async function main() {
     try {
+        const shouldBuildChromiumPack =
+            process.env.VERCEL || process.env.BUILD_CHROMIUM_PACK === "true";
+        if (!shouldBuildChromiumPack) {
+            console.log("Chromium postinstall: skipping chromium-pack.tar outside Vercel.");
+            return;
+        }
+
         console.log("📦 Chromium postinstall: creating chromium-pack.tar...");
         const chromiumEntry = require.resolve("@sparticuz/chromium");
         const chromiumDir = dirname(dirname(dirname(chromiumEntry)));

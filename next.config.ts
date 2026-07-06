@@ -7,6 +7,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const tailwindCssEntry = path.join(projectRoot, "node_modules", "tailwindcss", "index.css");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   turbopack: {
     root: projectRoot,
     // Bare `@import "tailwindcss"` must resolve inside this repo (not a parent folder with package-lock.json).

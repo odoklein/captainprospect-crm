@@ -121,10 +121,13 @@ ${notesText ? `\nNotes d'appel (échantillon) :\n${notesText}` : ""}
     const isVercel = !!process.env.VERCEL;
     const puppeteer = isVercel ? await import("puppeteer-core") : await import("puppeteer");
     const chromium = isVercel ? (await import("@sparticuz/chromium-min")).default : null;
+    const executablePath = isVercel
+        ? await getChromiumExecutablePath()
+        : process.env.PUPPETEER_EXECUTABLE_PATH;
     const browser = await puppeteer.default.launch({
         headless: true,
         args: isVercel ? chromium!.args : ["--no-sandbox", "--disable-setuid-sandbox"],
-        executablePath: isVercel ? await getChromiumExecutablePath() : undefined,
+        executablePath,
     });
     try {
         const page = await browser.newPage();
