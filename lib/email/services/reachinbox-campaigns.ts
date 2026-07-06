@@ -396,13 +396,13 @@ export async function fetchReachInboxCampaignAnalytics(params: {
     };
 }
 
-function withRates(summary: Omit<ReachInboxDashboardData['summary'], 'openRate' | 'replyRate' | 'clickRate' | 'bounceRate'>): ReachInboxDashboardData['summary'] {
+function withRates(summary: ReachInboxDashboardData['summary']): ReachInboxDashboardData['summary'] {
     return {
         ...summary,
-        openRate: rate(summary.opened, summary.sent),
-        replyRate: rate(summary.replied, summary.sent),
-        clickRate: rate(summary.clicked, summary.sent),
-        bounceRate: rate(summary.bounced, summary.sent),
+        openRate: summary.openRate || rate(summary.opened, summary.sent),
+        replyRate: summary.replyRate || rate(summary.replied, summary.sent),
+        clickRate: summary.clickRate || rate(summary.clicked, summary.sent),
+        bounceRate: summary.bounceRate || rate(summary.bounced, summary.sent),
     };
 }
 

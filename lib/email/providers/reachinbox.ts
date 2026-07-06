@@ -88,6 +88,107 @@ export interface ReachInboxWarmupSummary {
     healthScore: number;
 }
 
+const SENT_KEYS = [
+    'sent',
+    'sentCount',
+    'emailSentCount',
+    'sentEmailCount',
+    'emailsSent',
+    'emailsSentCount',
+    'totalSent',
+    'totalEmailSent',
+    'totalEmailsSent',
+    'totalSentEmails',
+    'sequenceStartedCount',
+    'sequence_started_count',
+    'sent_count',
+    'total_email_sent',
+];
+const OPENED_KEYS = [
+    'opened',
+    'open',
+    'opens',
+    'openCount',
+    'openedCount',
+    'emailOpenedCount',
+    'uniqueEmailOpenedCount',
+    'totalEmailOpenedCount',
+    'totalEmailOpened',
+    'totalOpens',
+    'totalUniqueEmailOpened',
+    'totalUniqueOpen',
+    'uniqueEmailOpened',
+    'uniqueOpens',
+    'opened_count',
+    'unique_email_opened_count',
+];
+const REPLIED_KEYS = [
+    'replied',
+    'reply',
+    'replies',
+    'replyCount',
+    'repliesCount',
+    'uniqueRepliesCount',
+    'totalReplies',
+    'totalEmailReplied',
+    'uniqueReplies',
+    'reply_count',
+    'unique_replies_count',
+];
+const CLICKED_KEYS = [
+    'clicked',
+    'click',
+    'clicks',
+    'clickCount',
+    'clickedCount',
+    'linkClickedCount',
+    'uniqueLinkClickedCount',
+    'totalLinkClickedCount',
+    'totalLinkClicked',
+    'linksClicked',
+    'totalClicks',
+    'uniqueClicks',
+    'click_count',
+    'unique_link_clicked_count',
+];
+const BOUNCED_KEYS = [
+    'bounced',
+    'bounce',
+    'bounces',
+    'bounceCount',
+    'bouncedCount',
+    'emailBouncedCount',
+    'totalEmailBounced',
+    'emailBounced',
+    'totalBounces',
+    'bounce_count',
+];
+const LEAD_KEYS = [
+    'leads',
+    'leadCount',
+    'leadsCount',
+    'leadAddedCount',
+    'leadsContacted',
+    'totalLeads',
+    'contactsCount',
+    'prospects',
+    'uniqueLeadsReachedOut',
+    'sequenceStartedCount',
+];
+const OPPORTUNITY_KEYS = ['opportunities', 'opportunityCount', 'totalOpportunities', 'opportunitiesCount'];
+const POSITIVE_REPLY_KEYS = ['positiveReplies', 'positive_replies', 'positiveReplyCount', 'positiveRepliesCount'];
+const NEGATIVE_REPLY_KEYS = ['negativeReplies', 'negative_replies', 'negativeReplyCount', 'negativeRepliesCount'];
+const AUTOMATIC_REPLY_KEYS = ['automaticLeadReplies', 'automatic_lead_replies', 'automaticReplies', 'automaticReplyCount'];
+const OPEN_RATE_KEYS = ['openRate', 'open_rate', 'openedRate', 'openPercentage'];
+const REPLY_RATE_KEYS = ['replyRate', 'reply_rate', 'repliedRate', 'replyPercentage'];
+const CLICK_RATE_KEYS = ['clickRate', 'click_rate', 'clickedRate', 'clickPercentage'];
+const BOUNCE_RATE_KEYS = ['bounceRate', 'bounce_rate', 'bouncedRate', 'bouncePercentage'];
+const OPEN_RATE_TRACKED_KEYS = ['openRateTracked', 'open_rate_tracked', 'trackedOpenRate', 'tracked_open_rate'];
+const CLICK_RATE_TRACKED_KEYS = ['clickedRateTracked', 'clicked_rate_tracked', 'clickRateTracked', 'trackedClickRate', 'tracked_click_rate'];
+const OPPORTUNITY_RATE_KEYS = ['opportunitiesRate', 'opportunityRate', 'opportunity_rate', 'opportunities_rate'];
+const USER_OPPORTUNITY_RATE_KEYS = ['userOpportunityRate', 'user_opportunity_rate'];
+const CAMPAIGN_OPPORTUNITY_RATE_KEYS = ['campaignOpportunityRate', 'campaign_opportunity_rate', ...OPPORTUNITY_RATE_KEYS];
+
 export class ReachInboxProvider implements IEmailProvider {
     provider = 'REACHINBOX' as EmailProvider;
     private readonly baseUrl: string;
@@ -456,23 +557,55 @@ export class ReachInboxProvider implements IEmailProvider {
     }): Promise<ReachInboxCampaignAnalytics> {
         const campaignIdNumber = Number(params.campaignId);
         const campaignId = Number.isFinite(campaignIdNumber) ? campaignIdNumber : params.campaignId;
-        const response = await this.request<ReachInboxRecord>(
-            tokens,
-            `/analytics?startDate=${encodeURIComponent(params.startDate)}&endDate=${encodeURIComponent(params.endDate)}`,
+        const endpoint = `/analytics?startDate=${encodeURIComponent(params.startDate)}&endDate=${encodeURIComponent(params.endDate)}`;
+        const bodies: ReachInboxRecord[] = [
             {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    campaignId,
-                    campaignAnalyticsRequired: true,
-                    includeSubsequenceIds: [],
-                    excludeSubsequenceIds: [],
-                    filter: 'none',
-                }),
+                campaignId,
+                campaignAnalyticsRequired: true,
+                includeSubsequenceIds: [],
+                excludeSubsequenceIds: [],
+                filter: 'none',
             },
-        );
+            {
+                campaignId,
+                campaignAnalyticsRequired: true,
+                includeSubsequenceIds: [],
+                excludeSubsequenceIds: [],
+            },
+            {
+                campaignId: params.campaignId,
+                campaignAnalyticsRequired: true,
+                includeSubsequenceIds: [],
+                excludeSubsequenceIds: [],
+            },
+        ];
 
-        return this.mapCampaignAnalytics(params.campaignId, response);
+        let lastError: Error | null = null;
+        for (const body of bodies) {
+            try {
+                const response = await this.request<ReachInboxRecord>(tokens, endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                return this.mapCampaignAnalytics(params.campaignId, response);
+            } catch (error) {
+                lastError = error instanceof Error ? error : new Error(String(error));
+            }
+        }
+
+        try {
+            const summary = await this.getAnalyticsSummary(tokens, {
+                startDate: params.startDate,
+                endDate: params.endDate,
+                campaignIds: [params.campaignId],
+            });
+
+            return this.mapCampaignAnalyticsFromSummary(params.campaignId, summary);
+        } catch {
+            throw lastError ?? new Error('Analytics ReachInbox indisponibles');
+        }
     }
 
     async getWarmupAnalytics(tokens: OAuthTokens): Promise<ReachInboxWarmupSummary | null> {
@@ -495,61 +628,110 @@ export class ReachInboxProvider implements IEmailProvider {
     }
 
     private mapCampaign(item: ReachInboxRecord): ReachInboxCampaignSummary {
+        const nestedCampaign = this.asRecord(item.campaign);
         const emailStats = this.asRecord(item.emails);
         const statsSource = this.asRecord(item.stats) || this.asRecord(item.analytics) || this.asRecord(item.metrics) || item;
         const createdAt = this.getString(item.createdAt || item.created_at || item.startDate || item.start_date);
 
         return {
-            id: this.getString(item.id || item._id || item.campaignId || item.campaign_id || item.campaignID) || randomUUID(),
-            name: this.getString(item.name || item.campaignName || item.campaign_name || item.title) || 'Campagne sans nom',
-            status: (this.getString(item.status || item.state || item.campaignStatus || item.campaign_status) || 'UNKNOWN').toUpperCase(),
+            id: this.getString(
+                item.id
+                || item._id
+                || item.campaignId
+                || item.campaign_id
+                || item.campaignID
+                || item.campaign_id_str
+                || item.sequenceId
+                || item.sequence_id
+                || nestedCampaign?.id
+                || nestedCampaign?._id
+                || nestedCampaign?.campaignId
+                || nestedCampaign?.campaign_id,
+            ) || randomUUID(),
+            name: this.getString(item.name || item.campaignName || item.campaign_name || item.title || nestedCampaign?.name || nestedCampaign?.campaignName) || 'Campagne sans nom',
+            status: (this.getString(item.status || item.state || item.campaignStatus || item.campaign_status || nestedCampaign?.status) || 'UNKNOWN').toUpperCase(),
             createdAt: createdAt ?? null,
             stats: {
-                sent: this.getNumber(statsSource.sent ?? emailStats?.sent ?? statsSource.totalEmailSent ?? statsSource.sentCount ?? statsSource.emailsSent ?? statsSource.totalSent ?? statsSource.sent_count),
-                opened: this.getNumber(statsSource.opened ?? statsSource.open ?? statsSource.opens ?? statsSource.totalEmailOpened ?? statsSource.totalOpens ?? emailStats?.totalOpens ?? statsSource.totalUniqueEmailOpened ?? statsSource.totalUniqueOpen ?? statsSource.uniqueOpens),
-                replied: this.getNumber(statsSource.replied ?? statsSource.reply ?? statsSource.replies ?? statsSource.totalEmailReplied ?? statsSource.totalReplies ?? emailStats?.totalReplies),
-                clicked: this.getNumber(statsSource.clicked ?? statsSource.click ?? statsSource.clicks ?? statsSource.totalLinkClicked ?? statsSource.linksClicked ?? statsSource.clickCount ?? statsSource.totalClicks),
-                bounced: this.getNumber(statsSource.bounced ?? statsSource.bounces ?? statsSource.totalEmailBounced ?? statsSource.emailBounced ?? emailStats?.emailBounced ?? statsSource.bounceCount ?? statsSource.totalBounces),
-                leads: this.getNumber(statsSource.leads ?? statsSource.leadsContacted ?? statsSource.leadAddedCount ?? statsSource.totalLeads ?? statsSource.leadsCount ?? statsSource.contactsCount ?? statsSource.prospects ?? statsSource.uniqueLeadsReachedOut),
+                sent: this.pickNumber([statsSource, emailStats], SENT_KEYS),
+                opened: this.pickNumber([statsSource, emailStats], OPENED_KEYS),
+                replied: this.pickNumber([statsSource, emailStats], REPLIED_KEYS),
+                clicked: this.pickNumber([statsSource, emailStats], CLICKED_KEYS),
+                bounced: this.pickNumber([statsSource, emailStats], BOUNCED_KEYS),
+                leads: this.pickNumber([statsSource, emailStats], LEAD_KEYS),
             },
         };
     }
 
     private mapAnalyticsSummary(response: ReachInboxRecord): ReachInboxAnalyticsSummary {
-        const data = this.asRecord(response.data) || this.asRecord(response.result) || response;
-        const totals = this.asRecord(data.summary)
-            || this.asRecord(data.total)
-            || this.asRecord(data.totals)
-            || data;
+        const responseData = this.asRecord(response.data);
+        const nestedData = this.asRecord(responseData?.data);
+        const resultRecord = this.asRecord(response.result) || this.asRecord(responseData?.result) || this.asRecord(nestedData?.result);
+        const data = responseData || resultRecord || response;
+        const totals = this.pickRecord([
+            this.asRecord(data.summary),
+            this.asRecord(data.total),
+            this.asRecord(data.totals),
+            this.asRecord(data.overall),
+            this.asRecord(data.analytics),
+            this.asRecord(data.metrics),
+            this.asRecord(data.stats),
+            this.asRecord(data.aggregate),
+            resultRecord,
+            nestedData,
+            data,
+            response,
+        ]) || data;
+        const metricSources = [
+            totals,
+            this.asRecord(totals.summary),
+            this.asRecord(totals.total),
+            this.asRecord(totals.totals),
+            this.asRecord(totals.overall),
+            this.asRecord(totals.analytics),
+            this.asRecord(totals.metrics),
+            this.asRecord(totals.stats),
+            nestedData,
+            data,
+            response,
+        ];
 
-        const dailySource = Array.isArray(data.result)
-            ? data.result
-            : Array.isArray(data.daily)
-                ? data.daily
-                : Array.isArray(data.analytics)
-                    ? data.analytics
-                    : [];
+        const dailySource = this.pickArray([
+            data.result,
+            data.daily,
+            data.dailyAnalytics,
+            data.analytics,
+            data.graphData,
+            data.timeSeries,
+            data.timeline,
+            nestedData?.result,
+            nestedData?.daily,
+            response.result,
+        ]);
 
         const daily = dailySource
             .map((entry) => this.asRecord(entry))
             .filter((entry): entry is ReachInboxRecord => Boolean(entry))
             .map((entry) => ({
                 date: this.getString(entry.date || entry.day || entry.createdAt) || '',
-                sent: this.getNumber(entry.sent ?? entry.sentCount ?? entry.emailsSent),
-                opened: this.getNumber(entry.opened ?? entry.open ?? entry.opens ?? entry.totalOpens ?? entry.uniqueOpens),
-                replied: this.getNumber(entry.replied ?? entry.reply ?? entry.replies ?? entry.totalReplies),
-                clicked: this.getNumber(entry.clicked ?? entry.click ?? entry.clicks ?? entry.linksClicked),
-                bounced: this.getNumber(entry.bounced ?? entry.bounces ?? entry.emailBounced),
+                sent: this.pickNumber([entry], SENT_KEYS),
+                opened: this.pickNumber([entry], OPENED_KEYS),
+                replied: this.pickNumber([entry], REPLIED_KEYS),
+                clicked: this.pickNumber([entry], CLICKED_KEYS),
+                bounced: this.pickNumber([entry], BOUNCED_KEYS),
             }))
             .filter((entry) => entry.date);
 
-        const sent = this.getNumber(totals.sent ?? totals.sentCount ?? totals.emailsSent ?? totals.totalSent)
+        const sent = this.pickNumber(metricSources, SENT_KEYS)
             || daily.reduce((sum, entry) => sum + entry.sent, 0);
 
-        const opened = this.getNumber(totals.opened ?? totals.open ?? totals.opens ?? totals.openCount ?? totals.totalOpens ?? totals.uniqueOpens);
-        const replied = this.getNumber(totals.replied ?? totals.reply ?? totals.replies ?? totals.replyCount ?? totals.totalReplies);
-        const clicked = this.getNumber(totals.clicked ?? totals.click ?? totals.clicks ?? totals.clickCount ?? totals.totalClicks);
-        const bounced = this.getNumber(totals.bounced ?? totals.bounces ?? totals.bounceCount ?? totals.totalBounces);
+        const opened = this.pickNumber(metricSources, OPENED_KEYS)
+            || daily.reduce((sum, entry) => sum + entry.opened, 0);
+        const replied = this.pickNumber(metricSources, REPLIED_KEYS)
+            || daily.reduce((sum, entry) => sum + entry.replied, 0);
+        const clicked = this.pickNumber(metricSources, CLICKED_KEYS)
+            || daily.reduce((sum, entry) => sum + entry.clicked, 0);
+        const bounced = this.pickNumber(metricSources, BOUNCED_KEYS)
+            || daily.reduce((sum, entry) => sum + entry.bounced, 0);
 
         return {
             sent,
@@ -557,19 +739,19 @@ export class ReachInboxProvider implements IEmailProvider {
             replied,
             clicked,
             bounced,
-            leads: this.getNumber(totals.leads ?? totals.leadsContacted ?? totals.totalLeads ?? totals.leadsCount ?? totals.contactsCount ?? totals.prospects),
-            opportunities: this.getNumber(totals.opportunities ?? totals.opportunityCount ?? totals.totalOpportunities),
-            positiveReplies: this.getNumber(totals.positiveReplies ?? totals.positive_replies ?? totals.positiveReplyCount),
-            negativeReplies: this.getNumber(totals.negativeReplies ?? totals.negative_replies ?? totals.negativeReplyCount),
-            automaticLeadReplies: this.getNumber(totals.automaticLeadReplies ?? totals.automatic_lead_replies ?? totals.automaticReplies),
-            openRateTracked: this.getNumber(totals.openRateTracked ?? totals.open_rate_tracked),
-            clickedRateTracked: this.getNumber(totals.clickedRateTracked ?? totals.clicked_rate_tracked),
-            opportunitiesRate: this.getNumber(totals.opportunitiesRate ?? totals.opportunityRate),
-            userOpportunityRate: this.getNumber(totals.userOpportunityRate),
-            openRate: this.getNumber(totals.openRate ?? totals.open_rate) || this.rate(opened, sent),
-            replyRate: this.getNumber(totals.replyRate ?? totals.reply_rate) || this.rate(replied, sent),
-            clickRate: this.getNumber(totals.clickRate ?? totals.click_rate) || this.rate(clicked, sent),
-            bounceRate: this.getNumber(totals.bounceRate ?? totals.bounce_rate) || this.rate(bounced, sent),
+            leads: this.pickNumber(metricSources, LEAD_KEYS),
+            opportunities: this.pickNumber(metricSources, OPPORTUNITY_KEYS),
+            positiveReplies: this.pickNumber(metricSources, POSITIVE_REPLY_KEYS),
+            negativeReplies: this.pickNumber(metricSources, NEGATIVE_REPLY_KEYS),
+            automaticLeadReplies: this.pickNumber(metricSources, AUTOMATIC_REPLY_KEYS),
+            openRateTracked: this.pickRateNumber(metricSources, OPEN_RATE_TRACKED_KEYS),
+            clickedRateTracked: this.pickRateNumber(metricSources, CLICK_RATE_TRACKED_KEYS),
+            opportunitiesRate: this.pickRateNumber(metricSources, OPPORTUNITY_RATE_KEYS),
+            userOpportunityRate: this.pickRateNumber(metricSources, USER_OPPORTUNITY_RATE_KEYS),
+            openRate: this.pickRateNumber(metricSources, OPEN_RATE_KEYS) || this.rate(opened, sent),
+            replyRate: this.pickRateNumber(metricSources, REPLY_RATE_KEYS) || this.rate(replied, sent),
+            clickRate: this.pickRateNumber(metricSources, CLICK_RATE_KEYS) || this.rate(clicked, sent),
+            bounceRate: this.pickRateNumber(metricSources, BOUNCE_RATE_KEYS) || this.rate(bounced, sent),
             daily,
         };
     }
@@ -582,24 +764,82 @@ export class ReachInboxProvider implements IEmailProvider {
             ...summary,
             campaignId,
             campaignStatus: (this.getString(data.campaignStatus || data.status || data.state) || 'UNKNOWN').toUpperCase(),
-            campaignOpportunityRate: this.getNumber(data.campaignOpportunityRate ?? data.campaign_opportunity_rate),
-            sequenceStartedCount: this.getNumber(data.sequenceStartedCount ?? data.sequence_started_count),
-            uniqueEmailOpenedCount: this.getNumber(data.uniqueEmailOpenedCount ?? data.unique_email_opened_count ?? data.uniqueOpens),
-            uniqueLinkClickedCount: this.getNumber(data.uniqueLinkClickedCount ?? data.unique_link_clicked_count ?? data.uniqueClicks),
-            uniqueRepliesCount: this.getNumber(data.uniqueRepliesCount ?? data.unique_replies_count ?? data.uniqueReplies),
+            campaignOpportunityRate: this.pickRateNumber([data], CAMPAIGN_OPPORTUNITY_RATE_KEYS),
+            sequenceStartedCount: this.pickNumber([data], SENT_KEYS),
+            uniqueEmailOpenedCount: this.pickNumber([data], OPENED_KEYS),
+            uniqueLinkClickedCount: this.pickNumber([data], CLICKED_KEYS),
+            uniqueRepliesCount: this.pickNumber([data], REPLIED_KEYS),
             activity: Array.isArray(data.activity) ? data.activity : [],
             campaignStepAnalyticsResult: Array.isArray(data.campaignStepAnalyticsResult) ? data.campaignStepAnalyticsResult : [],
             subsequencesStepAnalyticsResults: Array.isArray(data.subsequencesStepAnalyticsResults) ? data.subsequencesStepAnalyticsResults : [],
         };
     }
 
+    private mapCampaignAnalyticsFromSummary(campaignId: string, summary: ReachInboxAnalyticsSummary): ReachInboxCampaignAnalytics {
+        return {
+            ...summary,
+            campaignId,
+            campaignStatus: 'UNKNOWN',
+            campaignOpportunityRate: summary.opportunitiesRate,
+            sequenceStartedCount: summary.sent,
+            uniqueEmailOpenedCount: summary.opened,
+            uniqueLinkClickedCount: summary.clicked,
+            uniqueRepliesCount: summary.replied,
+            activity: [],
+            campaignStepAnalyticsResult: [],
+            subsequencesStepAnalyticsResults: [],
+        };
+    }
+
     private getNumber(value: unknown): number {
         if (typeof value === 'number' && Number.isFinite(value)) return value;
         if (typeof value === 'string') {
-            const parsed = Number(value);
+            const normalized = value.trim().replace('%', '').replace(/\s+/g, '').replace(',', '.');
+            const parsed = Number(normalized);
             if (Number.isFinite(parsed)) return parsed;
         }
         return 0;
+    }
+
+    private getRateNumber(value: unknown): number {
+        const rate = this.getNumber(value);
+        if (rate > 0 && rate <= 1) return Math.round(rate * 1000) / 10;
+        return rate;
+    }
+
+    private pickNumber(sources: Array<ReachInboxRecord | null | undefined>, keys: string[]): number {
+        for (const source of sources) {
+            if (!source) continue;
+            for (const key of keys) {
+                const value = source[key];
+                const number = this.getNumber(value);
+                if (number !== 0) return number;
+            }
+        }
+        return 0;
+    }
+
+    private pickRateNumber(sources: Array<ReachInboxRecord | null | undefined>, keys: string[]): number {
+        for (const source of sources) {
+            if (!source) continue;
+            for (const key of keys) {
+                const value = source[key];
+                const number = this.getRateNumber(value);
+                if (number !== 0) return number;
+            }
+        }
+        return 0;
+    }
+
+    private pickRecord(sources: Array<ReachInboxRecord | null | undefined>): ReachInboxRecord | null {
+        return sources.find((source): source is ReachInboxRecord => Boolean(source)) ?? null;
+    }
+
+    private pickArray(sources: unknown[]): unknown[] {
+        for (const source of sources) {
+            if (Array.isArray(source)) return source;
+        }
+        return [];
     }
 
     private rate(part: number, total: number): number {

@@ -135,7 +135,7 @@ const EMPTY_SUMMARY: EmailingSummary = {
 };
 
 const ACTIVE_STATUSES = new Set(["ACTIVE", "RUNNING"]);
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const DASHBOARD_CACHE_TTL_MS = 10 * 60 * 1000;
 const CAMPAIGN_CACHE_TTL_MS = 10 * 60 * 1000;
 const CLIENT_CAMPAIGNS_CACHE_TTL_MS = 10 * 60 * 1000;
