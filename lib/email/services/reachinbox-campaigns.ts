@@ -181,14 +181,16 @@ export async function fetchAllReachInboxCampaigns(): Promise<{
     const results = await Promise.allSettled(
         campaignRequests.map(async (entry) => ({
             mailbox: entry.mailbox,
+            apiKey: entry.apiKey,
             list: await reachInboxProvider.listCampaigns({ accessToken: entry.apiKey }),
         })),
     );
 
     for (const result of results) {
         if (result.status === 'fulfilled') {
-            const { mailbox, list } = result.value;
-            for (const campaign of list) {
+            const { mailbox, apiKey, list } = result.value;
+            const enriched = await enrichCampaignsWithAnalytics(apiKey, list);
+            for (const campaign of enriched) {
                 if (seenCampaignIds.has(campaign.id)) continue;
                 seenCampaignIds.add(campaign.id);
                 const link = linkByCampaign.get(campaign.id);
@@ -205,6 +207,70 @@ export async function fetchAllReachInboxCampaigns(): Promise<{
     }
 
     return { campaigns, errors };
+}
+
+/**
+ * /campaigns/all is only reliable for id, name, status and sent count.
+ * Unique opens/replies/clicks, bounces, contacted leads and the rates come
+ * from POST /analytics per campaign — the same numbers the ReachInbox
+ * dashboard shows. On failure the campaign keeps its list stats.
+ */
+const ANALYTICS_CONCURRENCY = 5;
+
+async function enrichCampaignsWithAnalytics(
+    apiKey: string,
+    list: ReachInboxCampaignSummary[],
+): Promise<ReachInboxCampaignSummary[]> {
+    const endDate = toDateParam(new Date());
+    const enriched: ReachInboxCampaignSummary[] = [];
+
+    for (let i = 0; i < list.length; i += ANALYTICS_CONCURRENCY) {
+        const chunk = list.slice(i, i + ANALYTICS_CONCURRENCY);
+        const results = await Promise.allSettled(
+            chunk.map((campaign) => reachInboxProvider.getCampaignAnalytics(
+                { accessToken: apiKey },
+                {
+                    campaignId: campaign.id,
+                    startDate: analyticsStartDate(campaign.createdAt),
+                    endDate,
+                },
+            )),
+        );
+
+        results.forEach((result, index) => {
+            const campaign = chunk[index];
+            if (result.status !== 'fulfilled') {
+                enriched.push(campaign);
+                return;
+            }
+            const analytics = result.value;
+            const leads = analytics.sequenceStartedCount || analytics.leads || campaign.stats.leads;
+            enriched.push({
+                ...campaign,
+                stats: {
+                    sent: campaign.stats.sent || analytics.sent,
+                    opened: analytics.uniqueEmailOpenedCount || analytics.opened || campaign.stats.opened,
+                    replied: analytics.uniqueRepliesCount || analytics.replied || campaign.stats.replied,
+                    clicked: analytics.uniqueLinkClickedCount || analytics.clicked || campaign.stats.clicked,
+                    bounced: analytics.bounced || campaign.stats.bounced,
+                    leads,
+                    openRate: analytics.openRate || campaign.stats.openRate,
+                    replyRate: analytics.replyRate || campaign.stats.replyRate,
+                    clickRate: analytics.clickRate || campaign.stats.clickRate,
+                    bounceRate: analytics.bounceRate || campaign.stats.bounceRate,
+                },
+            });
+        });
+    }
+
+    return enriched;
+}
+
+/** All-time stats: start at the campaign creation date when it is usable. */
+function analyticsStartDate(createdAt: string | null): string {
+    const candidate = createdAt?.slice(0, 10);
+    if (candidate && /^\d{4}-\d{2}-\d{2}$/.test(candidate)) return candidate;
+    return toDateParam(daysAgo(730));
 }
 
 export async function connectReachInboxApiKey(params: {
@@ -397,12 +463,14 @@ export async function fetchReachInboxCampaignAnalytics(params: {
 }
 
 function withRates(summary: ReachInboxDashboardData['summary']): ReachInboxDashboardData['summary'] {
+    // ReachInbox rates divide by contacted leads, not by emails sent.
+    const rateBase = summary.leads || summary.sent;
     return {
         ...summary,
-        openRate: summary.openRate || rate(summary.opened, summary.sent),
-        replyRate: summary.replyRate || rate(summary.replied, summary.sent),
-        clickRate: summary.clickRate || rate(summary.clicked, summary.sent),
-        bounceRate: summary.bounceRate || rate(summary.bounced, summary.sent),
+        openRate: summary.openRate || rate(summary.opened, rateBase),
+        replyRate: summary.replyRate || rate(summary.replied, rateBase),
+        clickRate: summary.clickRate || rate(summary.clicked, rateBase),
+        bounceRate: summary.bounceRate || rate(summary.bounced, rateBase),
     };
 }
 
@@ -445,6 +513,10 @@ function emptyDashboard(connected: boolean): ReachInboxDashboardData {
             clickedRateTracked: 0,
             opportunitiesRate: 0,
             userOpportunityRate: 0,
+            openRate: 0,
+            replyRate: 0,
+            clickRate: 0,
+            bounceRate: 0,
         }),
         daily: [],
         campaigns: [],

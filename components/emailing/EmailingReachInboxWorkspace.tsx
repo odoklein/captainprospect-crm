@@ -39,6 +39,11 @@ interface CampaignStats {
     clicked: number;
     bounced: number;
     leads: number;
+    // Rates come from ReachInbox (unique events / contacted leads).
+    openRate: number;
+    replyRate: number;
+    clickRate: number;
+    bounceRate: number;
 }
 
 interface Campaign {
@@ -135,7 +140,8 @@ const EMPTY_SUMMARY: EmailingSummary = {
 };
 
 const ACTIVE_STATUSES = new Set(["ACTIVE", "RUNNING"]);
-const CACHE_VERSION = "v2";
+// v3: campaign stats now carry ReachInbox rates — discard older cached shapes.
+const CACHE_VERSION = "v3";
 const DASHBOARD_CACHE_TTL_MS = 10 * 60 * 1000;
 const CAMPAIGN_CACHE_TTL_MS = 10 * 60 * 1000;
 const CLIENT_CAMPAIGNS_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -219,12 +225,14 @@ function summarizeCampaigns(campaigns: Campaign[]): EmailingSummary {
         { ...EMPTY_SUMMARY },
     );
 
+    // Same convention as ReachInbox: rates over contacted leads.
+    const rateBase = base.leads || base.sent;
     return {
         ...base,
-        openRate: rate(base.opened, base.sent),
-        replyRate: rate(base.replied, base.sent),
-        clickRate: rate(base.clicked, base.sent),
-        bounceRate: rate(base.bounced, base.sent),
+        openRate: rate(base.opened, rateBase),
+        replyRate: rate(base.replied, rateBase),
+        clickRate: rate(base.clicked, rateBase),
+        bounceRate: rate(base.bounced, rateBase),
     };
 }
 
@@ -494,7 +502,7 @@ function CampaignAnalyticsPanel({
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <MetricCard icon={Eye} label="Ouvertures uniques" value={num(detail.uniqueEmailOpenedCount || detail.opened)} sub={`${percent(detail.openRateTracked || detail.openRate)} tracke`} />
                         <MetricCard icon={MousePointerClick} label="Clics uniques" value={num(detail.uniqueLinkClickedCount || detail.clicked)} sub={`${percent(detail.clickedRateTracked || detail.clickRate)} tracke`} />
-                        <MetricCard icon={MessageCircle} label="Reponses uniques" value={num(detail.uniqueRepliesCount || detail.replied)} sub={`${percent(detail.replyRate)} des envois`} />
+                        <MetricCard icon={MessageCircle} label="Reponses uniques" value={num(detail.uniqueRepliesCount || detail.replied)} sub={`${percent(detail.replyRate)} des leads contactes`} />
                         <MetricCard icon={ArrowUpRight} label="Opportunites" value={num(detail.opportunities)} sub={`${percent(detail.campaignOpportunityRate || detail.opportunitiesRate)} conversion`} />
                     </div>
 
@@ -622,10 +630,10 @@ function CampaignTable({
                                     </td>
                                     <td className="px-5 py-4 tabular-nums text-slate-700">{num(campaign.stats.leads)}</td>
                                     <td className="px-5 py-4 tabular-nums font-semibold text-slate-950">{num(campaign.stats.sent)}</td>
-                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(rate(campaign.stats.opened, campaign.stats.sent))}</td>
-                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(rate(campaign.stats.replied, campaign.stats.sent))}</td>
-                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(rate(campaign.stats.clicked, campaign.stats.sent))}</td>
-                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(rate(campaign.stats.bounced, campaign.stats.sent))}</td>
+                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(campaign.stats.openRate ?? rate(campaign.stats.opened, campaign.stats.leads || campaign.stats.sent))}</td>
+                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(campaign.stats.replyRate ?? rate(campaign.stats.replied, campaign.stats.leads || campaign.stats.sent))}</td>
+                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(campaign.stats.clickRate ?? rate(campaign.stats.clicked, campaign.stats.leads || campaign.stats.sent))}</td>
+                                    <td className="px-5 py-4 tabular-nums text-slate-700">{percent(campaign.stats.bounceRate ?? rate(campaign.stats.bounced, campaign.stats.leads || campaign.stats.sent))}</td>
                                     {onInspect && (
                                         <td className="px-5 py-4">
                                             <button

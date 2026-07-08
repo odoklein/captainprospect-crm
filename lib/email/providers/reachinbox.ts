@@ -36,6 +36,13 @@ export interface ReachInboxCampaignSummary {
         clicked: number;
         bounced: number;
         leads: number;
+        // Rates as ReachInbox reports them (percentages, e.g. 50.7).
+        // ReachInbox divides unique events by contacted leads, not by
+        // emails sent — never recompute these client-side.
+        openRate: number;
+        replyRate: number;
+        clickRate: number;
+        bounceRate: number;
     };
 }
 
@@ -99,10 +106,22 @@ const SENT_KEYS = [
     'totalEmailSent',
     'totalEmailsSent',
     'totalSentEmails',
-    'sequenceStartedCount',
-    'sequence_started_count',
     'sent_count',
     'total_email_sent',
+];
+// Leads actually contacted (sequences started). This is the denominator
+// ReachInbox uses for open/reply/click/bounce rates. Kept separate from
+// SENT_KEYS so "emails sent" never bleeds into "leads contacted".
+const CONTACTED_LEADS_KEYS = [
+    'sequenceStartedCount',
+    'sequence_started_count',
+    'totalUsersContacted',
+    'total_users_contacted',
+    'contactedLeads',
+    'contacted_leads',
+    'leadsContacted',
+    'uniqueLeadsReachedOut',
+    'unique_leads_reached_out',
 ];
 const OPENED_KEYS = [
     'opened',
@@ -633,6 +652,15 @@ export class ReachInboxProvider implements IEmailProvider {
         const statsSource = this.asRecord(item.stats) || this.asRecord(item.analytics) || this.asRecord(item.metrics) || item;
         const createdAt = this.getString(item.createdAt || item.created_at || item.startDate || item.start_date);
 
+        const sent = this.pickNumber([statsSource, emailStats], SENT_KEYS);
+        const opened = this.pickNumber([statsSource, emailStats], OPENED_KEYS);
+        const replied = this.pickNumber([statsSource, emailStats], REPLIED_KEYS);
+        const clicked = this.pickNumber([statsSource, emailStats], CLICKED_KEYS);
+        const bounced = this.pickNumber([statsSource, emailStats], BOUNCED_KEYS);
+        const leads = this.pickNumber([statsSource, emailStats], [...CONTACTED_LEADS_KEYS, ...LEAD_KEYS]);
+        // ReachInbox rates are relative to contacted leads, not emails sent.
+        const rateBase = leads || sent;
+
         return {
             id: this.getString(
                 item.id
@@ -652,12 +680,16 @@ export class ReachInboxProvider implements IEmailProvider {
             status: (this.getString(item.status || item.state || item.campaignStatus || item.campaign_status || nestedCampaign?.status) || 'UNKNOWN').toUpperCase(),
             createdAt: createdAt ?? null,
             stats: {
-                sent: this.pickNumber([statsSource, emailStats], SENT_KEYS),
-                opened: this.pickNumber([statsSource, emailStats], OPENED_KEYS),
-                replied: this.pickNumber([statsSource, emailStats], REPLIED_KEYS),
-                clicked: this.pickNumber([statsSource, emailStats], CLICKED_KEYS),
-                bounced: this.pickNumber([statsSource, emailStats], BOUNCED_KEYS),
-                leads: this.pickNumber([statsSource, emailStats], LEAD_KEYS),
+                sent,
+                opened,
+                replied,
+                clicked,
+                bounced,
+                leads,
+                openRate: this.pickRateNumber([statsSource, emailStats], OPEN_RATE_KEYS) || this.rate(opened, rateBase),
+                replyRate: this.pickRateNumber([statsSource, emailStats], REPLY_RATE_KEYS) || this.rate(replied, rateBase),
+                clickRate: this.pickRateNumber([statsSource, emailStats], CLICK_RATE_KEYS) || this.rate(clicked, rateBase),
+                bounceRate: this.pickRateNumber([statsSource, emailStats], BOUNCE_RATE_KEYS) || this.rate(bounced, rateBase),
             },
         };
     }
@@ -732,6 +764,10 @@ export class ReachInboxProvider implements IEmailProvider {
             || daily.reduce((sum, entry) => sum + entry.clicked, 0);
         const bounced = this.pickNumber(metricSources, BOUNCED_KEYS)
             || daily.reduce((sum, entry) => sum + entry.bounced, 0);
+        const leads = this.pickNumber(metricSources, [...CONTACTED_LEADS_KEYS, ...LEAD_KEYS]);
+        // ReachInbox rates divide by contacted leads; emails sent is only a
+        // last-resort denominator when the API returns no lead count at all.
+        const rateBase = leads || sent;
 
         return {
             sent,
@@ -739,7 +775,7 @@ export class ReachInboxProvider implements IEmailProvider {
             replied,
             clicked,
             bounced,
-            leads: this.pickNumber(metricSources, LEAD_KEYS),
+            leads,
             opportunities: this.pickNumber(metricSources, OPPORTUNITY_KEYS),
             positiveReplies: this.pickNumber(metricSources, POSITIVE_REPLY_KEYS),
             negativeReplies: this.pickNumber(metricSources, NEGATIVE_REPLY_KEYS),
@@ -748,10 +784,10 @@ export class ReachInboxProvider implements IEmailProvider {
             clickedRateTracked: this.pickRateNumber(metricSources, CLICK_RATE_TRACKED_KEYS),
             opportunitiesRate: this.pickRateNumber(metricSources, OPPORTUNITY_RATE_KEYS),
             userOpportunityRate: this.pickRateNumber(metricSources, USER_OPPORTUNITY_RATE_KEYS),
-            openRate: this.pickRateNumber(metricSources, OPEN_RATE_KEYS) || this.rate(opened, sent),
-            replyRate: this.pickRateNumber(metricSources, REPLY_RATE_KEYS) || this.rate(replied, sent),
-            clickRate: this.pickRateNumber(metricSources, CLICK_RATE_KEYS) || this.rate(clicked, sent),
-            bounceRate: this.pickRateNumber(metricSources, BOUNCE_RATE_KEYS) || this.rate(bounced, sent),
+            openRate: this.pickRateNumber(metricSources, OPEN_RATE_KEYS) || this.rate(opened, rateBase),
+            replyRate: this.pickRateNumber(metricSources, REPLY_RATE_KEYS) || this.rate(replied, rateBase),
+            clickRate: this.pickRateNumber(metricSources, CLICK_RATE_KEYS) || this.rate(clicked, rateBase),
+            bounceRate: this.pickRateNumber(metricSources, BOUNCE_RATE_KEYS) || this.rate(bounced, rateBase),
             daily,
         };
     }
@@ -765,7 +801,7 @@ export class ReachInboxProvider implements IEmailProvider {
             campaignId,
             campaignStatus: (this.getString(data.campaignStatus || data.status || data.state) || 'UNKNOWN').toUpperCase(),
             campaignOpportunityRate: this.pickRateNumber([data], CAMPAIGN_OPPORTUNITY_RATE_KEYS),
-            sequenceStartedCount: this.pickNumber([data], SENT_KEYS),
+            sequenceStartedCount: this.pickNumber([data], CONTACTED_LEADS_KEYS) || summary.leads,
             uniqueEmailOpenedCount: this.pickNumber([data], OPENED_KEYS),
             uniqueLinkClickedCount: this.pickNumber([data], CLICKED_KEYS),
             uniqueRepliesCount: this.pickNumber([data], REPLIED_KEYS),
@@ -781,7 +817,7 @@ export class ReachInboxProvider implements IEmailProvider {
             campaignId,
             campaignStatus: 'UNKNOWN',
             campaignOpportunityRate: summary.opportunitiesRate,
-            sequenceStartedCount: summary.sent,
+            sequenceStartedCount: summary.leads,
             uniqueEmailOpenedCount: summary.opened,
             uniqueLinkClickedCount: summary.clicked,
             uniqueRepliesCount: summary.replied,

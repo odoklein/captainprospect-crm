@@ -27,6 +27,11 @@ interface CampaignStats {
     clicked: number;
     bounced: number;
     leads: number;
+    // Rates come from ReachInbox (unique events / contacted leads).
+    openRate: number;
+    replyRate: number;
+    clickRate: number;
+    bounceRate: number;
 }
 
 interface Campaign {
@@ -110,6 +115,12 @@ function number(value: number): string {
 function rate(part: number, total: number): string {
     if (!total) return "-";
     return pct(Math.round((part / total) * 1000) / 10);
+}
+
+/** Prefer the rate ReachInbox reports; recompute over contacted leads only as fallback. */
+function statRate(explicit: number | undefined, part: number, stats: CampaignStats): string {
+    if (typeof explicit === "number" && explicit > 0) return pct(explicit);
+    return rate(part, stats.leads || stats.sent);
 }
 
 function KpiCard({
@@ -325,8 +336,8 @@ function CampaignTable({ campaigns }: { campaigns: Campaign[] }) {
                                     </td>
                                     <td className="px-4 py-3 tabular-nums" style={{ color: "var(--cp-ink-2)" }}>{number(campaign.stats.leads)}</td>
                                     <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: "var(--cp-ink)" }}>{number(campaign.stats.sent)}</td>
-                                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--cp-ink-2)" }}>{rate(campaign.stats.opened, campaign.stats.sent)}</td>
-                                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--cp-ink-2)" }}>{rate(campaign.stats.replied, campaign.stats.sent)}</td>
+                                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--cp-ink-2)" }}>{statRate(campaign.stats.openRate, campaign.stats.opened, campaign.stats)}</td>
+                                    <td className="px-4 py-3 tabular-nums" style={{ color: "var(--cp-ink-2)" }}>{statRate(campaign.stats.replyRate, campaign.stats.replied, campaign.stats)}</td>
                                     <td className="px-4 py-3 tabular-nums" style={{ color: campaign.stats.bounced > 0 ? "var(--cp-danger)" : "var(--cp-ink-2)" }}>
                                         {number(campaign.stats.bounced)}
                                     </td>
