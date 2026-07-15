@@ -124,6 +124,12 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [view, setView] = useState<"companies" | "contacts">("companies");
 
+    // Bulk selection / deletion (companies or contacts)
+    const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
+    const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
     // Drawer states
     const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
     const [selectedContact, setSelectedContact] = useState<(Contact & { companyName: string }) | null>(null);
@@ -182,6 +188,12 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
             fetchList();
         }
     }, [listId]);
+
+    // Clear selection when switching between companies/contacts views
+    useEffect(() => {
+        setSelectedCompanyIds(new Set());
+        setSelectedContactIds(new Set());
+    }, [view]);
 
     useEffect(() => {
         const missionId = list?.mission?.id;
@@ -355,6 +367,48 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
         } finally {
             setIsDeleting(false);
             setShowDeleteModal(false);
+        }
+    };
+
+    // ============================================
+    // BULK DELETE (SELECTED COMPANIES OR CONTACTS)
+    // ============================================
+
+    const selectedIds = view === "companies" ? selectedCompanyIds : selectedContactIds;
+
+    const handleBulkDelete = async () => {
+        const ids = Array.from(selectedIds);
+        if (ids.length === 0) return;
+
+        setIsBulkDeleting(true);
+        try {
+            const endpoint = view === "companies" ? "/api/companies" : "/api/contacts";
+            let failCount = 0;
+
+            await Promise.all(
+                ids.map(async (id) => {
+                    try {
+                        const res = await fetch(`${endpoint}/${id}`, { method: "DELETE" });
+                        const json = await res.json();
+                        if (!json.success) failCount++;
+                    } catch {
+                        failCount++;
+                    }
+                })
+            );
+
+            if (failCount > 0) {
+                showError("Erreur", `${failCount} élément(s) n'ont pas pu être supprimé(s).`);
+            } else {
+                success("Supprimé", `${ids.length} élément(s) supprimé(s).`);
+            }
+
+            setSelectedCompanyIds(new Set());
+            setSelectedContactIds(new Set());
+            await fetchList();
+        } finally {
+            setIsBulkDeleting(false);
+            setShowBulkDeleteModal(false);
         }
     };
 
@@ -814,6 +868,21 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                     </div>
                 </div>
 
+                {isManager && selectedIds.size > 0 && (
+                    <div className="flex items-center justify-between mb-4 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100">
+                        <span className="text-sm font-medium text-indigo-700">
+                            {selectedIds.size} {view === "companies" ? "société(s)" : "contact(s)"} sélectionné(e)(s)
+                        </span>
+                        <button
+                            onClick={() => setShowBulkDeleteModal(true)}
+                            className="flex items-center gap-2 h-9 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Supprimer la sélection
+                        </button>
+                    </div>
+                )}
+
                 {view === "companies" ? (
                     companies.length === 0 ? (
                         <div className="text-center py-20 flex flex-col items-center justify-center flex-1">
@@ -838,6 +907,9 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                                 pageSize={15}
                                 onRowClick={handleCompanyClick}
                                 enableSecondaryColumnsToggle
+                                selectable={isManager}
+                                selectedIds={selectedCompanyIds}
+                                onSelectionChange={(ids) => setSelectedCompanyIds(new Set(ids))}
                             />
                         </div>
                     )
@@ -864,6 +936,9 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                                 pagination
                                 pageSize={15}
                                 onRowClick={handleContactClick}
+                                selectable={isManager}
+                                selectedIds={selectedContactIds}
+                                onSelectionChange={(ids) => setSelectedContactIds(new Set(ids))}
                             />
                         </div>
                     )
@@ -932,6 +1007,26 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                 confirmText="Supprimer"
                 variant="danger"
                 isLoading={isDeleting}
+            />
+
+            {/* Bulk Delete Confirmation */}
+            <ConfirmModal
+                isOpen={showBulkDeleteModal}
+                onClose={() => setShowBulkDeleteModal(false)}
+                onConfirm={handleBulkDelete}
+                title={
+                    view === "companies"
+                        ? "Supprimer les sociétés sélectionnées ?"
+                        : "Supprimer les contacts sélectionnés ?"
+                }
+                message={
+                    view === "companies"
+                        ? `Êtes-vous sûr de vouloir supprimer ${selectedIds.size} société(s) ? Les contacts associés seront également supprimés.`
+                        : `Êtes-vous sûr de vouloir supprimer ${selectedIds.size} contact(s) ?`
+                }
+                confirmText="Supprimer"
+                variant="danger"
+                isLoading={isBulkDeleting}
             />
         </div>
     );
