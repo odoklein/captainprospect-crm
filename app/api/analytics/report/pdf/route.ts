@@ -6,10 +6,6 @@ import {
 import { getChromiumExecutablePath } from "@/lib/pdf-chromium";
 import { getAnalyticsReportData } from "../get-report-data";
 import { getAnalyticsReportHtml } from "../report-template";
-import { uploadReportPdf } from "@/lib/storage/supabase-report-storage";
-
-const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
-const MISTRAL_MODEL = "mistral-large-latest";
 
 // ============================================
 // GET /api/analytics/report/pdf
@@ -62,55 +58,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         listIds,
     });
 
-    // AI summary
-    let aiSummary = "Aucune donnée suffisante pour générer une analyse.";
-    const apiKey = process.env.MISTRAL_API_KEY;
-    if (apiKey && (raw.kpis.totalCalls > 0 || raw.notesSample.length > 0)) {
-        try {
-            const notesText = raw.notesSample
-                .slice(0, 20)
-                .map((n) => `- ${n.slice(0, 200)}`)
-                .join("\n");
-            const statsText = `
-Statistiques :
-- Appels : ${raw.kpis.totalCalls}
-- RDV bookés : ${raw.kpis.meetings}
-- Taux conversion : ${raw.kpis.conversionRate}%
-- Non-réponse : ${raw.kpis.noResponse}
-- Rappels/Intéressés : ${raw.kpis.callbacks}
-- Talk time total : ${Math.round(raw.kpis.totalTalkTime / 60)} min
-
-${raw.sdrPerformance.length > 0 ? `Top SDR : ${raw.sdrPerformance[0].sdrName} (${raw.sdrPerformance[0].meetings} RDV)` : ""}
-${notesText ? `\nNotes d'appel (échantillon) :\n${notesText}` : ""}
-`;
-            const res = await fetch(MISTRAL_API_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: MISTRAL_MODEL,
-                    messages: [
-                        {
-                            role: "system",
-                            content: `Tu es un analyste commercial expert. À partir des stats et notes de prospection B2B, rédige une synthèse exécutive courte (3 à 5 bullet points ou 1 paragraphe dense, max 150 mots) en français. Inclus : tendances principales, points d'attention, recommandations prioritaires. Style professionnel, concis. Réponds UNIQUEMENT par le texte de synthèse, sans préambule.`,
-                        },
-                        { role: "user", content: statsText.trim() },
-                    ],
-                    temperature: 0.4,
-                    max_tokens: 500,
-                }),
-            });
-            if (res.ok) {
-                const json = await res.json();
-                const content = json.choices?.[0]?.message?.content?.trim();
-                if (content) aiSummary = content;
-            }
-        } catch (err) {
-            console.error("Mistral report summary error:", err);
-        }
-    }
+    // Keep export fast and reliable: the PDF should not wait on an external AI request.
+    const topSdr = raw.sdrPerformance[0];
+    const aiSummary = raw.kpis.totalCalls === 0
+        ? "Aucune activité d'appel sur la période sélectionnée."
+        : `${raw.kpis.meetings} rendez-vous obtenus sur ${raw.kpis.totalCalls} appels, soit un taux de conversion de ${raw.kpis.conversionRate}%.${topSdr ? ` ${topSdr.sdrName} arrive en tête avec ${topSdr.meetings} rendez-vous.` : ""}`;
 
     const templateData = {
         ...raw,
@@ -140,17 +92,6 @@ ${notesText ? `\nNotes d'appel (échantillon) :\n${notesText}` : ""}
         const filename = `rapport-analytics-${from}-${to}.pdf`;
         const buffer = Buffer.from(pdfBuffer);
 
-        // Upload to Supabase Storage when configured (avoids download errors, keeps history)
-        const stored = await uploadReportPdf(buffer, filename);
-        if (stored) {
-            return NextResponse.json({
-                success: true,
-                url: stored.url,
-                filename,
-            });
-        }
-
-        // Fallback: return PDF binary directly
         return new NextResponse(new Uint8Array(buffer), {
             status: 200,
             headers: {

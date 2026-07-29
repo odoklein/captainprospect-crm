@@ -305,6 +305,8 @@ export default function AnalyticsPage() {
         }
         if (!from || !to) return;
         setIsGeneratingReport(true);
+        // Open synchronously so Chrome allows the generated PDF preview after the fetch.
+        const previewWindow = window.open("about:blank", "_blank");
         try {
             const params = new URLSearchParams();
             params.set("from", from);
@@ -324,7 +326,8 @@ export default function AnalyticsPage() {
             if (contentType.includes("application/json")) {
                 const j = await res.json();
                 if (j.success && j.url) {
-                    window.open(j.url, "_blank", "noopener,noreferrer");
+                    if (previewWindow) previewWindow.location.href = j.url;
+                    else window.open(j.url, "_blank", "noopener,noreferrer");
                     setShowReportModal(false);
                     return;
                 }
@@ -332,13 +335,19 @@ export default function AnalyticsPage() {
 
             const blob = await res.blob();
             const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(blobUrl);
+            if (previewWindow) {
+                previewWindow.location.href = blobUrl;
+                window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+            } else {
+                const a = document.createElement("a");
+                a.href = blobUrl;
+                a.download = filename;
+                a.click();
+                window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1_000);
+            }
             setShowReportModal(false);
         } catch (err) {
+            previewWindow?.close();
             console.error("Report generation failed:", err);
             alert(err instanceof Error ? err.message : "Erreur lors de la génération du rapport");
         } finally {
@@ -589,7 +598,7 @@ export default function AnalyticsPage() {
                         onClick={() => setShowReportModal(true)}
                         className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:border-violet-300 hover:shadow-sm transition-all shadow-sm"
                     >
-                        <FileText className="w-3.5 h-3.5 text-slate-400" /> Générer un rapport
+                        <Download className="w-3.5 h-3.5 text-slate-400" /> Exporter les stats
                     </button>
                     <button onClick={fetchStats} className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-violet-600 hover:border-violet-300 hover:shadow-sm transition-all shadow-sm">
                         <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
@@ -1593,8 +1602,8 @@ export default function AnalyticsPage() {
             <Modal
                 isOpen={showReportModal}
                 onClose={() => !isGeneratingReport && setShowReportModal(false)}
-                title="Générer un rapport PDF"
-                description="Choisissez la période et le type de rapport. Le rapport inclura les KPIs et une analyse IA basée sur les notes."
+                title="Exporter les stats en PDF"
+                description="Choisissez la période. Vos indicateurs et la performance de l'équipe seront ouverts dans un nouvel onglet Chrome."
                 size="md"
             >
                 <div className="space-y-5">
@@ -1689,12 +1698,12 @@ export default function AnalyticsPage() {
                             {isGeneratingReport ? (
                                 <>
                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                    Génération…
+                                    Préparation du PDF…
                                 </>
                             ) : (
                                 <>
                                     <FileText className="w-4 h-4" />
-                                    Générer le rapport
+                                    Exporter les stats
                                 </>
                             )}
                         </button>
