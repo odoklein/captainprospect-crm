@@ -1,6 +1,5 @@
 [variables]
 NPM_CONFIG_PRODUCTION = "false"
-PUPPETEER_SKIP_DOWNLOAD = "true"
 NEXT_TELEMETRY_DISABLED = "1"
 NODE_OPTIONS = "--max-old-space-size=4096"
 
@@ -8,7 +7,13 @@ NODE_OPTIONS = "--max-old-space-size=4096"
 cmds = ["npm ci --include=dev --no-audit --fund=false"]
 
 [phases.build]
-cmds = ["npm run build"]
+cmds = [
+  "npm run build",
+  "cp -r .next/static .next/standalone/.next/static",
+  "cp -r public .next/standalone/public",
+  "rm -rf node_modules",
+  "find .next -mindepth 1 -maxdepth 1 ! -name standalone -exec rm -rf {} +"
+]
 
 [start]
-cmd = "npm run start"
+cmd = "node .next/standalone/server.js"
