@@ -7,6 +7,7 @@ import {
     AuthError,
 } from '@/lib/api-utils';
 import { filterRdvList } from '@/lib/utils/meetingFilters';
+import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 
 // ============================================
 // GET /api/commercial/meetings
@@ -45,7 +46,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     // Get all missions for this client
     const missions = await prisma.mission.findMany({
-        where: { clientId },
+        where: { clientId, AND: [portalVisibleMissionWhere()] },
         select: { id: true },
     });
 

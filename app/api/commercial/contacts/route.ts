@@ -6,6 +6,7 @@ import {
     withErrorHandler,
     AuthError,
 } from '@/lib/api-utils';
+import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 
 // ============================================
 // GET /api/commercial/contacts
@@ -38,7 +39,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     // Get all missions for this client
     const missions = await prisma.mission.findMany({
-        where: { clientId },
+        where: { clientId, AND: [portalVisibleMissionWhere()] },
         select: { id: true },
     });
 

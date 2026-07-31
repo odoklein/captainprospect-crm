@@ -696,6 +696,9 @@ model Mission {
   endDate       DateTime
   status        MissionStatus @default(ACTIVE)
   isActive      Boolean   @default(true)
+  // Client/commercial portals stay in launch mode while portalVisibleAt is in the future.
+  portalLaunchStartedAt DateTime?
+  portalVisibleAt       DateTime?
   campaigns     Campaign[]
   lists         List[]
   sdrAssignments SDRAssignment[]
@@ -745,6 +748,7 @@ model Mission {
   @@index([defaultMailboxId])
   @@index([status])
   @@index([clientId, status])
+  @@index([clientId, portalVisibleAt])
   @@index([status, startDate, endDate])
 }
 

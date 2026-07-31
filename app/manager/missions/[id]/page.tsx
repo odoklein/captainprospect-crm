@@ -39,6 +39,10 @@ import {
     GripVertical,
     Pencil,
     MessageSquare,
+    Rocket,
+    Clock3,
+    EyeOff,
+    ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -61,6 +65,8 @@ interface Mission {
     channels?: ("CALL" | "EMAIL" | "LINKEDIN")[];
     status: MissionStatusValue;
     isActive: boolean;
+    portalLaunchStartedAt?: string | null;
+    portalVisibleAt?: string | null;
     startDate?: string;
     endDate?: string;
     client?: {
@@ -228,6 +234,9 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
     const [isLoading, setIsLoading] = useState(true);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isToggling, setIsToggling] = useState(false);
+    const [showPortalLaunchModal, setShowPortalLaunchModal] = useState(false);
+    const [portalLaunchDays, setPortalLaunchDays] = useState(7);
+    const [isUpdatingPortalLaunch, setIsUpdatingPortalLaunch] = useState(false);
 
     // Modals
     const [showEditMissionDialog, setShowEditMissionDialog] = useState(false);
@@ -1006,6 +1015,55 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
         }
     };
 
+    const startPortalLaunch = async () => {
+        if (!mission) return;
+        setIsUpdatingPortalLaunch(true);
+        try {
+            const res = await fetch(`/api/missions/${mission.id}/portal-launch`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ days: portalLaunchDays }),
+            });
+            const json = await res.json();
+            if (!json.success) {
+                showError("Erreur", json.error || "Impossible de démarrer la mission");
+                return;
+            }
+            setMission((prev) => prev ? { ...prev, ...json.data } : prev);
+            setShowPortalLaunchModal(false);
+            success(
+                "Phase de démarrage activée",
+                `Les portails afficheront l'écran de lancement pendant ${portalLaunchDays} jours.`
+            );
+        } catch {
+            showError("Erreur", "Impossible de démarrer la phase de lancement");
+        } finally {
+            setIsUpdatingPortalLaunch(false);
+        }
+    };
+
+    const revealPortalActivity = async () => {
+        if (!mission) return;
+        setIsUpdatingPortalLaunch(true);
+        try {
+            const res = await fetch(`/api/missions/${mission.id}/portal-launch`, {
+                method: "DELETE",
+            });
+            const json = await res.json();
+            if (!json.success) {
+                showError("Erreur", json.error || "Impossible de publier les résultats");
+                return;
+            }
+            setMission((prev) => prev ? { ...prev, ...json.data } : prev);
+            setShowPortalLaunchModal(false);
+            success("Résultats publiés", "Le client et les commerciaux voient maintenant l'activité.");
+        } catch {
+            showError("Erreur", "Impossible de publier les résultats");
+        } finally {
+            setIsUpdatingPortalLaunch(false);
+        }
+    };
+
     // ============================================
     // DELETE MISSION
     // ============================================
@@ -1121,6 +1179,9 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
     const channelsList = mission.channels?.length ? mission.channels : [mission.channel];
     const channel = CHANNEL_CONFIG[mission.channel];
     const ChannelIcon = channel.icon;
+    const isPortalLaunching = Boolean(
+        mission.portalVisibleAt && new Date(mission.portalVisibleAt).getTime() > Date.now()
+    );
 
     const dateRangeStr = mission.startDate
         ? `${new Date(mission.startDate).toLocaleDateString("fr-FR")} → ${mission.endDate ? new Date(mission.endDate).toLocaleDateString("fr-FR") : "En cours"}`
@@ -1172,6 +1233,18 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                     <div className="flex items-center gap-2">
                         <button
+                            onClick={() => setShowPortalLaunchModal(true)}
+                            className={cn(
+                                "flex items-center gap-2 h-9 px-3 text-sm font-medium rounded-lg transition-colors",
+                                isPortalLaunching
+                                    ? "bg-amber-400 text-slate-950 hover:bg-amber-300"
+                                    : "bg-emerald-500 text-white hover:bg-emerald-400"
+                            )}
+                        >
+                            {isPortalLaunching ? <Clock3 className="w-4 h-4" /> : <Rocket className="w-4 h-4" />}
+                            {isPortalLaunching ? "Démarrage en cours" : "Démarrer"}
+                        </button>
+                        <button
                             onClick={toggleActive}
                             disabled={isToggling}
                             className="flex items-center gap-2 h-9 px-3 text-sm font-medium bg-white/10 hover:bg-white/20 disabled:opacity-50 rounded-lg transition-colors"
@@ -1196,6 +1269,33 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
                     </div>
                 </div>
             </div>
+
+            {isPortalLaunching && mission.portalVisibleAt && (
+                <div className="flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                            <EyeOff className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold text-amber-950">Activité masquée sur les portails</p>
+                            <p className="mt-1 text-xs leading-5 text-amber-800">
+                                Les SDR continuent de travailler normalement. Publication automatique le{" "}
+                                {new Date(mission.portalVisibleAt).toLocaleDateString("fr-FR", {
+                                    day: "numeric",
+                                    month: "long",
+                                    year: "numeric",
+                                })}.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setShowPortalLaunchModal(true)}
+                        className="h-9 shrink-0 rounded-lg border border-amber-300 bg-white px-4 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-100"
+                    >
+                        Gérer la visibilité
+                    </button>
+                </div>
+            )}
 
 
             {/* READINESS PANEL */}
@@ -3165,6 +3265,106 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
                 mission={mission}
                 onSaved={fetchMission}
             />
+
+            <Modal
+                isOpen={showPortalLaunchModal}
+                onClose={() => setShowPortalLaunchModal(false)}
+                title={isPortalLaunching ? "Phase de démarrage" : "Démarrer la mission"}
+                description={
+                    isPortalLaunching
+                        ? "L'activité réelle reste visible par l'équipe interne et masquée sur les portails."
+                        : "Activez la mission et laissez les premiers résultats se consolider avant de les publier."
+                }
+                size="sm"
+            >
+                {isPortalLaunching && mission.portalVisibleAt ? (
+                    <div className="space-y-5">
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                                    <Clock3 className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-amber-950">Écran d&apos;attente actif</p>
+                                    <p className="mt-1 text-xs text-amber-800">
+                                        Fin prévue le{" "}
+                                        {new Date(mission.portalVisibleAt).toLocaleDateString("fr-FR", {
+                                            day: "numeric",
+                                            month: "long",
+                                            year: "numeric",
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-3 rounded-xl border border-slate-200 p-4">
+                            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                            <p className="text-sm leading-6 text-slate-600">
+                                Les actions sont enregistrées normalement et apparaîtront automatiquement à la fin de la période.
+                            </p>
+                        </div>
+                        <ModalFooter>
+                            <button
+                                onClick={() => setShowPortalLaunchModal(false)}
+                                className="h-10 rounded-lg bg-slate-100 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                            >
+                                Fermer
+                            </button>
+                            <button
+                                onClick={revealPortalActivity}
+                                disabled={isUpdatingPortalLaunch}
+                                className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                                {isUpdatingPortalLaunch && <Loader2 className="h-4 w-4 animate-spin" />}
+                                Publier maintenant
+                            </button>
+                        </ModalFooter>
+                    </div>
+                ) : (
+                    <div>
+                        <div className="grid grid-cols-3 gap-3">
+                            {[3, 7, 14].map((days) => (
+                                <button
+                                    key={days}
+                                    type="button"
+                                    onClick={() => setPortalLaunchDays(days)}
+                                    className={cn(
+                                        "rounded-xl border px-3 py-4 text-center transition-all active:scale-[0.98]",
+                                        portalLaunchDays === days
+                                            ? "border-emerald-600 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-600/10"
+                                            : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                    )}
+                                >
+                                    <span className="block text-2xl font-black">{days}</span>
+                                    <span className="mt-1 block text-xs font-semibold">jours</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="mt-5 flex items-start gap-3 rounded-xl bg-slate-50 p-4">
+                            <EyeOff className="mt-0.5 h-5 w-5 shrink-0 text-slate-500" />
+                            <p className="text-sm leading-6 text-slate-600">
+                                Le client et les commerciaux verront un écran de lancement. Managers et SDR gardent toute l&apos;activité.
+                            </p>
+                        </div>
+                        <ModalFooter>
+                            <button
+                                onClick={() => setShowPortalLaunchModal(false)}
+                                className="h-10 rounded-lg bg-slate-100 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={startPortalLaunch}
+                                disabled={isUpdatingPortalLaunch}
+                                className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                                {isUpdatingPortalLaunch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                                Démarrer pour {portalLaunchDays} jours
+                            </button>
+                        </ModalFooter>
+                    </div>
+                )}
+            </Modal>
 
 
             {/* Delete Confirmation Modal */}

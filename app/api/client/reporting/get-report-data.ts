@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 
 const QUALIFIED_RESULTS = ["INTERESTED", "CALLBACK_REQUESTED", "MEETING_BOOKED"] as const;
 
@@ -57,6 +58,7 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
     const missions = await prisma.mission.findMany({
         where: {
             clientId,
+            AND: [portalVisibleMissionWhere()],
             ...(missionId ? { id: missionId } : {}),
         },
         select: {

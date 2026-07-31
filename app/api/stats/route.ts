@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 import type { Prisma } from '@prisma/client';
 import {
     successResponse,
@@ -113,6 +114,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         if (clientId) {
             campaignWhere.mission = {
                 is: {
+                    AND: [portalVisibleMissionWhere()],
                     client: {
                         id: clientId,
                     },

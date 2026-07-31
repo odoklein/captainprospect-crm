@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { DashboardSkeleton } from "@/components/client/skeletons";
 import { BreakdownCharts } from "@/components/client/BreakdownCharts";
+import { LaunchWarmupScreen, type PortalLaunchMission } from "@/components/portal/LaunchWarmupScreen";
 
 interface DashboardStats {
     totalActions: number;
@@ -95,6 +96,7 @@ export default function ClientPortal() {
     const [portalSettings, setPortalSettings] = useState<PortalSettings | null>(null);
     const [totalMeetingsCount, setTotalMeetingsCount] = useState<number>(0);
     const [callsCountForMonth, setCallsCountForMonth] = useState<number>(0);
+    const [launchMissions, setLaunchMissions] = useState<PortalLaunchMission[]>([]);
     // Month selector for calls stats: 0 = current month, -1 = previous, etc.
     const [callsMonthOffset, setCallsMonthOffset] = useState(0);
 
@@ -121,20 +123,22 @@ export default function ClientPortal() {
             const callsStartStr = callsStart.toISOString().split("T")[0];
             const callsEndStr = callsEnd.toISOString().split("T")[0];
 
-            const [statsRes, missionsRes, meetingsRes, settingsRes, callsRes] = await Promise.all([
+            const [statsRes, missionsRes, meetingsRes, settingsRes, callsRes, launchRes] = await Promise.all([
                 fetch(`/api/stats?startDate=${startDate}&endDate=${endDate}`),
                 fetch("/api/missions?isActive=true"),
                 clientId ? fetch(`/api/clients/${clientId}/meetings`) : Promise.resolve(null),
                 fetch("/api/client/portal/settings"),
                 fetch(`/api/client/calls?startDate=${callsStartStr}&endDate=${callsEndStr}`),
+                fetch("/api/portal/launch-state", { cache: "no-store" }),
             ]);
 
-            const [statsJson, missionsJson, meetingsJson, settingsJson, callsJson] = await Promise.all([
+            const [statsJson, missionsJson, meetingsJson, settingsJson, callsJson, launchJson] = await Promise.all([
                 statsRes.json(),
                 missionsRes.json(),
                 meetingsRes?.ok ? meetingsRes.json() : Promise.resolve(null),
                 settingsRes.json(),
                 callsRes.ok ? callsRes.json() : Promise.resolve({ success: false }),
+                launchRes.json(),
             ]);
 
             if (statsJson.success) setStats(statsJson.data);
@@ -167,6 +171,9 @@ export default function ClientPortal() {
             if (callsJson?.success) {
                 setCallsCountForMonth(callsJson.data?.total ?? 0);
             }
+            if (launchJson?.success) {
+                setLaunchMissions(launchJson.data?.missions ?? []);
+            }
         } catch (error) {
             console.error("Failed to fetch data:", error);
             toast.error("Erreur de chargement", "Impossible de charger les données");
@@ -183,6 +190,10 @@ export default function ClientPortal() {
 
     if (isLoading && !stats) {
         return <DashboardSkeleton />;
+    }
+
+    if (launchMissions.length > 0) {
+        return <LaunchWarmupScreen missions={launchMissions} userName={userName} />;
     }
 
     const meetingsBooked = totalMeetingsCount || stats?.meetingsBooked || 0;

@@ -11,6 +11,7 @@ import {
 import { z } from 'zod';
 import { canTransitionMissionStatus } from '@/lib/constants/missionStatus';
 import type { MissionStatusValue } from '@/lib/constants/missionStatus';
+import { isMissionInPortalLaunch } from '@/lib/portal-visibility';
 
 // ============================================
 // SCHEMAS
@@ -155,6 +156,9 @@ export const GET = withErrorHandler(async (
         });
         if (!hasAccess) {
             return errorResponse('Accès non autorisé', 403);
+        }
+        if (isMissionInPortalLaunch(mission)) {
+            return errorResponse('Mission en phase de démarrage', 403);
         }
     }
 

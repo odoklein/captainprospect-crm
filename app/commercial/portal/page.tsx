@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
+import { LaunchWarmupScreen, type PortalLaunchMission } from "@/components/portal/LaunchWarmupScreen";
 
 const MONTH_NAMES = [
     "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -61,6 +62,7 @@ export default function CommercialPortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [monthOffset, setMonthOffset] = useState(0);
+    const [launchMissions, setLaunchMissions] = useState<PortalLaunchMission[]>([]);
 
     const now = new Date();
     const displayDate = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -76,18 +78,21 @@ export default function CommercialPortal() {
             const startDate = monthStart.toISOString().split("T")[0];
             const endDate = monthEnd.toISOString().split("T")[0];
 
-            const [profileRes, meetingsRes] = await Promise.all([
+            const [profileRes, meetingsRes, launchRes] = await Promise.all([
                 fetch("/api/commercial/settings"),
                 fetch(`/api/commercial/meetings?startDate=${startDate}&endDate=${endDate}`),
+                fetch("/api/portal/launch-state", { cache: "no-store" }),
             ]);
 
-            const [profileJson, meetingsJson] = await Promise.all([
+            const [profileJson, meetingsJson, launchJson] = await Promise.all([
                 profileRes.json(),
                 meetingsRes.json(),
+                launchRes.json(),
             ]);
 
             if (profileJson.success) setProfile(profileJson.data);
             if (meetingsJson.success) setAllMeetings(meetingsJson.data?.allMeetings ?? []);
+            if (launchJson.success) setLaunchMissions(launchJson.data?.missions ?? []);
         } catch {
             toast.error("Erreur de chargement", "Impossible de charger les données");
         } finally {
@@ -121,6 +126,10 @@ export default function CommercialPortal() {
                 </div>
             </div>
         );
+    }
+
+    if (launchMissions.length > 0) {
+        return <LaunchWarmupScreen missions={launchMissions} userName={userName} />;
     }
 
     return (

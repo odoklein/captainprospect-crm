@@ -11,6 +11,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import type { MissionStatusValue } from '@/lib/constants/missionStatus';
+import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 
 // ============================================
 // SCHEMAS
@@ -79,6 +80,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     if (session.user.role === 'CLIENT') {
         // Clients only see missions for their own company
         where.client = { users: { some: { id: session.user.id } } };
+        where.AND = [portalVisibleMissionWhere()];
     } else if (session.user.role === 'SDR') {
         // SDRs only see missions they're assigned to
         where.sdrAssignments = { some: { sdrId: session.user.id } };

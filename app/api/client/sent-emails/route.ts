@@ -5,6 +5,7 @@ import {
     requireRole,
     withErrorHandler,
 } from "@/lib/api-utils";
+import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 
 // ============================================
 // GET /api/client/sent-emails
@@ -53,6 +54,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             {
                 mission: {
                     clientId: clientUser.clientId,
+                    AND: [portalVisibleMissionWhere()],
                 },
             },
             {
@@ -65,6 +67,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     if (missionId) {
         baseWhere.missionId = missionId;
+        baseWhere.mission = {
+            clientId: clientUser.clientId,
+            AND: [portalVisibleMissionWhere()],
+        };
         delete baseWhere.OR; // narrow to specific mission
     }
 

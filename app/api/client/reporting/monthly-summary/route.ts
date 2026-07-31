@@ -5,6 +5,7 @@ import {
     requireRole,
     withErrorHandler,
 } from '@/lib/api-utils';
+import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(['CLIENT'], request);
@@ -12,7 +13,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     if (!clientId) return successResponse([]);
 
     const missions = await prisma.mission.findMany({
-        where: { clientId },
+        where: { clientId, AND: [portalVisibleMissionWhere()] },
         select: { id: true, startDate: true, objective: true },
     });
 

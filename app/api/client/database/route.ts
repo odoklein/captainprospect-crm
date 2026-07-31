@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
+import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["CLIENT"], request);
@@ -15,6 +16,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             list: {
                 mission: {
                     clientId,
+                    AND: [portalVisibleMissionWhere()],
                 },
             },
         },

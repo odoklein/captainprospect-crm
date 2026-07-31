@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
+import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 
 function normalize(val: string | null | undefined): string {
     return val?.trim() || "Non renseigné";
@@ -52,7 +53,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const campaignIds = await prisma.campaign
         .findMany({
-            where: { mission: { clientId } },
+            where: { mission: { clientId, AND: [portalVisibleMissionWhere()] } },
             select: { id: true },
         })
         .then((list) => list.map((c) => c.id));

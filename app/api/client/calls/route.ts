@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
+import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["CLIENT"], request);
@@ -14,15 +16,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    const where: {
-        channel: "CALL";
-        campaign: { mission: { clientId: string | null } };
-        createdAt?: { gte?: Date; lte?: Date };
-    } = {
+    const where: Prisma.ActionWhereInput = {
         channel: "CALL" as const,
         campaign: {
             mission: {
                 clientId,
+                AND: [portalVisibleMissionWhere()],
             },
         },
     };
