@@ -2397,6 +2397,7 @@ export default function SDRActionPage() {
                             companyId={unifiedDrawerCompanyId}
                             missionId={unifiedDrawerMissionId}
                             missionName={unifiedDrawerMissionName}
+                            enableGooglePhoneLookup
                             clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                             clientInterlocuteurs={unifiedDrawerInterlocuteurs}
                             onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
@@ -3438,6 +3439,7 @@ export default function SDRActionPage() {
                     companyId={unifiedDrawerCompanyId}
                     missionId={unifiedDrawerMissionId}
                     missionName={unifiedDrawerMissionName}
+                    enableGooglePhoneLookup
                     clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                     clientInterlocuteurs={unifiedDrawerInterlocuteurs}
                     onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
@@ -3493,6 +3495,7 @@ export default function SDRActionPage() {
                     refreshQueue();
                 }}
                 isManager={true}
+                enableGooglePhoneLookup
                 listId={selectedListId ?? undefined}
                 companies={[]}
             />
@@ -3505,6 +3508,7 @@ export default function SDRActionPage() {
                 }}
                 onContactClick={handleContactFromCompany}
                 isManager={true}
+                enableGooglePhoneLookup
                 listId={selectedListId ?? undefined}
             />
         </div>

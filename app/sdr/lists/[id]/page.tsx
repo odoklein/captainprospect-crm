@@ -416,6 +416,7 @@ export default function SDRListDetailPage({ params }: { params: Promise<{ id: st
                 contact={editContact}
                 onUpdate={() => fetchList()}
                 isManager={true}
+                enableGooglePhoneLookup
                 listId={listId || undefined}
                 companies={companies.map((c) => ({ id: c.id, name: c.name }))}
             />
@@ -429,6 +430,7 @@ export default function SDRListDetailPage({ params }: { params: Promise<{ id: st
                 onContactClick={handleContactFromCompanyDrawer}
                 onContactCreated={handleContactCreated}
                 isManager={true}
+                enableGooglePhoneLookup
                 listId={listId || undefined}
             />
         </div>

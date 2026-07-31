@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuickEmailModal } from "@/components/email/QuickEmailModal";
+import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
+import { hasUsablePhone } from "@/lib/phone-utils";
 import { ContactDrawer } from "./ContactDrawer";
 
 // ============================================
@@ -74,6 +76,7 @@ interface CompanyDrawerProps {
     isManager?: boolean;
     listId?: string;
     isCreating?: boolean;
+    enableGooglePhoneLookup?: boolean;
 }
 
 // ============================================
@@ -106,6 +109,7 @@ export function CompanyDrawer({
     isManager = false,
     listId,
     isCreating = false,
+    enableGooglePhoneLookup = false,
 }: CompanyDrawerProps) {
     const { success, error: showError } = useToast();
     const [isEditing, setIsEditing] = useState(false);
@@ -661,6 +665,16 @@ export function CompanyDrawer({
                                 }
                                 icon={<Phone className="w-5 h-5 text-emerald-500" />}
                             />
+                            {enableGooglePhoneLookup &&
+                                !hasUsablePhone(company.phone, company.additionalPhones ?? []) && (
+                                <GooglePhoneSuggestion
+                                    companyId={company.id}
+                                    companyName={company.name}
+                                    onApplied={(phone) =>
+                                        onUpdate?.({ ...company, phone })
+                                    }
+                                />
+                            )}
                             <DrawerField
                                 label="Taille"
                                 value={company!.size}
@@ -952,6 +966,7 @@ export function CompanyDrawer({
                         companies={[{ id: company.id, name: company.name }]}
                         listId={listId}
                         isManager={isManager}
+                        enableGooglePhoneLookup={enableGooglePhoneLookup}
                         onCreate={(newContact) => {
                             onUpdate?.();
                             onContactCreated?.({ ...newContact, companyName: company.name });

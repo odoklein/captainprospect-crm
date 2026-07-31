@@ -1164,6 +1164,7 @@ export default function SDRCallbacksPage() {
                     companyId={unifiedDrawerCompanyId}
                     missionId={unifiedDrawerMissionId}
                     missionName={unifiedDrawerMissionName}
+                    enableGooglePhoneLookup
                     onActionRecorded={fetchCallbacks}
                 />
             )}

@@ -50,8 +50,10 @@ import {
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { ContactDrawer } from "./ContactDrawer";
+import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+import { hasUsablePhone } from "@/lib/phone-utils";
 import {
     sdrUnifiedDrawerCompanyKey,
     sdrUnifiedDrawerContactKey,
@@ -116,6 +118,7 @@ interface UnifiedActionDrawerProps {
     onBookingDialogOpenChange?: (isOpen: boolean) => void;
     /** When the Allo call-picker modal opens, parent can hide overlapping UI (e.g. ScriptCompanionDrawer). */
     onAlloDialogOpenChange?: (isOpen: boolean) => void;
+    enableGooglePhoneLookup?: boolean;
 }
 
 interface AlloCallItem {
@@ -425,6 +428,7 @@ export function UnifiedActionDrawer({
     onContactSelect,
     onBookingDialogOpenChange,
     onAlloDialogOpenChange,
+    enableGooglePhoneLookup = false,
 }: UnifiedActionDrawerProps) {
     const { success, error: showError } = useToast();
 
@@ -497,6 +501,31 @@ export function UnifiedActionDrawer({
     const refetchActions = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: actionsQueryKey });
     }, [queryClient, actionsQueryKey]);
+
+    const companyAdditionalPhones = useMemo(() => {
+        const value = company?.customData?.additionalPhones;
+        return Array.isArray(value)
+            ? value.filter(
+                  (phone): phone is string =>
+                      typeof phone === "string" && phone.trim().length > 0,
+              )
+            : [];
+    }, [company?.customData]);
+
+    const contactHasPhone = hasUsablePhone(
+        contact?.phone,
+        contact?.additionalPhones ?? [],
+    );
+    const companyHasPhone = hasUsablePhone(
+        company?.phone,
+        companyAdditionalPhones,
+    );
+
+    const handleGooglePhoneApplied = useCallback(() => {
+        queryClient.invalidateQueries({
+            queryKey: sdrUnifiedDrawerCompanyKey(companyId),
+        });
+    }, [companyId, queryClient]);
 
     // React Query: campaigns
     const { data: campaigns = [], isFetching: campaignsLoading } = useQuery<
@@ -1863,6 +1892,20 @@ export function UnifiedActionDrawer({
                                     </InfoRow>
                                 )}
 
+                                {enableGooglePhoneLookup &&
+                                    !isEditingContact &&
+                                    !contactHasPhone &&
+                                    !companyHasPhone &&
+                                    company && (
+                                        <div className="border-b border-slate-100 px-4 py-3">
+                                            <GooglePhoneSuggestion
+                                                companyId={company.id}
+                                                companyName={company.name}
+                                                onApplied={handleGooglePhoneApplied}
+                                            />
+                                        </div>
+                                    )}
+
                                 {(contact.email || isEditingContact) && (
                                     <InfoRow
                                         icon={Mail}
@@ -2355,6 +2398,18 @@ export function UnifiedActionDrawer({
                                         )}
                                     </InfoRow>
                                 )}
+
+                                {enableGooglePhoneLookup &&
+                                    !isEditingCompany &&
+                                    !companyHasPhone && (
+                                        <div className="border-b border-slate-100 px-4 py-3">
+                                            <GooglePhoneSuggestion
+                                                companyId={company.id}
+                                                companyName={company.name}
+                                                onApplied={handleGooglePhoneApplied}
+                                            />
+                                        </div>
+                                    )}
 
                                 {(company.website || isEditingCompany) && (
                                     <InfoRow
@@ -3136,6 +3191,7 @@ export function UnifiedActionDrawer({
                     isCreating={true}
                     companies={[{ id: company.id, name: company.name }]}
                     isManager={true}
+                    enableGooglePhoneLookup={enableGooglePhoneLookup}
                     onCreate={async (newContact) => {
                         setShowAddContact(false);
                         setActiveTab("contact");

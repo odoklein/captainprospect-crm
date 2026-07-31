@@ -30,6 +30,8 @@ import {
 import { cn } from "@/lib/utils";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { QuickEmailModal } from "@/components/email/QuickEmailModal";
+import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
+import { hasUsablePhone } from "@/lib/phone-utils";
 
 // ============================================
 // TYPES
@@ -62,6 +64,7 @@ interface ContactDrawerProps {
     listId?: string;
     companies?: Array<{ id: string; name: string }>;
     isCreating?: boolean;
+    enableGooglePhoneLookup?: boolean;
 }
 
 // ============================================
@@ -93,6 +96,7 @@ export function ContactDrawer({
     listId,
     companies = [],
     isCreating = false,
+    enableGooglePhoneLookup = false,
 }: ContactDrawerProps) {
     const { success, error: showError } = useToast();
     const [isEditing, setIsEditing] = useState(false);
@@ -990,6 +994,20 @@ export function ContactDrawer({
                                 }
                                 icon={<Phone className="w-5 h-5 text-emerald-500" />}
                             />
+                            {enableGooglePhoneLookup &&
+                                !hasUsablePhone(contact.phone, contact.additionalPhones ?? []) &&
+                                !hasUsablePhone(contact.companyPhone) && (
+                                    <GooglePhoneSuggestion
+                                        companyId={contact.companyId}
+                                        companyName={contact.companyName || "cette société"}
+                                        onApplied={(phone) =>
+                                            onUpdate?.({
+                                                ...contact,
+                                                companyPhone: phone,
+                                            })
+                                        }
+                                    />
+                                )}
                             {(() => {
                                 const extraPhones = contact.additionalPhones && Array.isArray(contact.additionalPhones) ? contact.additionalPhones.filter(Boolean) : [];
                                 return extraPhones.length > 0 ? (

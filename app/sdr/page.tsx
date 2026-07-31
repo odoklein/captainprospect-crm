@@ -735,6 +735,7 @@ export default function SDRDashboardPage() {
                     contact={drawerContact}
                     onUpdate={(updated) => setDrawerContact(updated)}
                     isManager={true}
+                    enableGooglePhoneLookup
                     companies={[]}
                 />
             )}
@@ -751,6 +752,7 @@ export default function SDRDashboardPage() {
                         setDrawerContactId(contact.id);
                     }}
                     isManager={true}
+                    enableGooglePhoneLookup
                 />
             )}
         </div>

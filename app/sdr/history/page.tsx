@@ -531,6 +531,7 @@ export default function SDRHistoryPage() {
                     companyId={unifiedDrawerCompanyId}
                     missionId={unifiedDrawerMissionId}
                     missionName={unifiedDrawerMissionName}
+                    enableGooglePhoneLookup
                     onActionRecorded={fetchHistory}
                 />
             )}

@@ -838,6 +838,30 @@ model Company {
   updatedAt     DateTime  @updatedAt
 }
 
+model PhoneEnrichmentLookup {
+  id                    String   @id @default(cuid())
+  companyId             String
+  provider              String   @default("GOOGLE_PLACES")
+  queryHash             String
+  suggestedPhone        String?
+  sourceUrl             String?
+  matchedCompanyName    String?
+  matchedAddress        String?
+  confidence            Int      @default(0)
+  status                String   @default("PENDING")
+  requestedById         String
+  reviewedById          String?
+  reviewedAt            DateTime?
+  cacheHit              Boolean  @default(false)
+  expiresAt             DateTime
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([queryHash, expiresAt])
+  @@index([requestedById, createdAt])
+}
+
 model Contact {
   id            String    @id @default(cuid())
   companyId     String
