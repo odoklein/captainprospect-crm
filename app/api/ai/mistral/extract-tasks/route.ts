@@ -20,15 +20,10 @@ const extractTasksSchema = z.object({
 });
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_MODEL = process.env.MISTRAL_MODEL || 'mistral-small-latest';
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireAuth(request);
-
-    const apiKey = process.env.MISTRAL_API_KEY;
-    if (!apiKey) {
-        return errorResponse('MISTRAL_API_KEY non configurée', 503);
-    }
 
     const { content, clientName, sessionType } =
         await validateRequest(request, extractTasksSchema);
@@ -71,12 +66,63 @@ Contraintes :
 - Répondre en français
 - Maximum 20 tâches`;
 
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    const mistralApiKey = process.env.MISTRAL_API_KEY;
+
+    // 1. Try free Gemini 2.0 Flash model first
+    if (geminiApiKey) {
+        try {
+            const geminiRes = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `${systemPrompt}\n\nVoici le contenu à analyser :\n\n${content}` }] }],
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 4000,
+                            responseMimeType: 'application/json',
+                        },
+                    }),
+                }
+            );
+
+            if (geminiRes.ok) {
+                const data = await geminiRes.json();
+                const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed.tasks)) {
+                        const validRoles = ['SDR', 'MANAGER', 'DEV', 'ALWAYS'];
+                        const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+                        const tasks = parsed.tasks
+                            .filter((t: any) => t.label && typeof t.label === 'string')
+                            .map((t: any) => ({
+                                label: t.label.trim(),
+                                assigneeRole: validRoles.includes(t.assigneeRole) ? t.assigneeRole : 'ALWAYS',
+                                assignee: t.assignee || null,
+                                priority: validPriorities.includes(t.priority) ? t.priority : 'MEDIUM',
+                            }));
+                        return successResponse({ tasks, summary: parsed.summary || '' });
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Gemini extract-tasks failed, trying Mistral fallback:', e);
+        }
+    }
+
+    if (!mistralApiKey) {
+        return errorResponse('Aucune clé API IA configurée (GEMINI_API_KEY ou MISTRAL_API_KEY)', 503);
+    }
+
     try {
         const response = await fetch(MISTRAL_API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${apiKey}`,
+                Authorization: `Bearer ${mistralApiKey}`,
             },
             body: JSON.stringify({
                 model: MISTRAL_MODEL,

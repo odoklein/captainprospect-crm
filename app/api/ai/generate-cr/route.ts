@@ -21,23 +21,58 @@ const schema = z.object({
 });
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_MODEL = process.env.MISTRAL_MODEL || 'mistral-small-latest';
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
   await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
 
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) {
-    return errorResponse('MISTRAL_API_KEY non configurée', 503);
+  const { prompt } = await validateRequest(request, schema);
+
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const mistralApiKey = process.env.MISTRAL_API_KEY;
+
+  // 1. Try free Gemini 2.0 Flash model first
+  if (geminiApiKey) {
+    try {
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.4,
+              maxOutputTokens: 4096,
+            },
+          }),
+        }
+      );
+
+      if (geminiRes.ok) {
+        const data = await geminiRes.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) {
+          return successResponse({ text });
+        }
+      } else {
+        console.warn('Gemini generate-cr fallback to Mistral:', await geminiRes.text());
+      }
+    } catch (e) {
+      console.warn('Gemini generate-cr error, trying Mistral fallback:', e);
+    }
   }
 
-  const { prompt } = await validateRequest(request, schema);
+  // 2. Fallback to free/low-cost Mistral model (mistral-small-latest)
+  if (!mistralApiKey) {
+    return errorResponse('Aucune clé API IA configurée (GEMINI_API_KEY ou MISTRAL_API_KEY)', 503);
+  }
 
   const response = await fetch(MISTRAL_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${mistralApiKey}`,
     },
     body: JSON.stringify({
       model: MISTRAL_MODEL,
@@ -60,7 +95,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const text = result.choices?.[0]?.message?.content?.trim();
 
   if (!text) {
-    return errorResponse('Réponse vide de Mistral AI', 500);
+    return errorResponse('Réponse vide de l\'IA', 500);
   }
 
   return successResponse({ text });
