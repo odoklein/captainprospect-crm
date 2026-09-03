@@ -21,7 +21,7 @@ const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = "gpt-4o";
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
-  await requireRole(["MANAGER"], request);
+  await requireAuth(request);
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return errorResponse("OPENAI_API_KEY non configurée", 503);
