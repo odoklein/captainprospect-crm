@@ -165,7 +165,7 @@ function HeroKpiCard({ label, value, sub, pct, icon: Icon, sparkData }: {
 
             {/* Sparkline */}
             <div className="relative z-10 h-[42px] -mx-1 mt-1">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={sparkData}>
                         <defs>
                             <linearGradient id="spark-hero" x1="0" y1="0" x2="0" y2="1">
@@ -425,7 +425,7 @@ export default function ManagerDashboard() {
                                 <div className="flex items-center gap-5">
                                     {/* Donut */}
                                     <div className="relative flex-shrink-0" style={{ width: 120, height: 120 }}>
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                             <PieChart>
                                                 <Pie data={callResultsPieData} cx="50%" cy="50%"
                                                     innerRadius={36} outerRadius={54}
@@ -654,7 +654,7 @@ export default function ManagerDashboard() {
                             </span>
                         </div>
                         <div className="h-[100px] mt-3">
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                                 <LineChart data={weeklyGoalData}>
                                     <XAxis dataKey="jour" tick={{ fontSize: 10, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
                                     <YAxis hide domain={[0, Math.max(35, (stats?.meetingsBooked ?? 0) + 5)]} />

@@ -1,7 +1,7 @@
 // ============================================
 // POST /api/ai/mistral/rdv-fiche
 // Extract structured "fiche RDV" sections from a transcription.
-// Uses Gemini 2.0 Flash (free) with fallback to Mistral.
+// Uses Mistral AI (mistral-small-latest) directly (no Google AI).
 // ============================================
 
 import { NextRequest } from "next/server";
@@ -15,16 +15,52 @@ import {
 import { z } from "zod";
 
 const schema = z.object({
-  transcription: z.string().min(20, "Transcription requise (minimum 20 caractères)").max(120_000, "Transcription trop longue"),
+  transcription: z
+    .string()
+    .min(5, "Transcription requise (minimum 5 caractères)")
+    .max(120_000, "Transcription trop longue"),
 });
 
 const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
 const MISTRAL_MODEL = process.env.MISTRAL_MODEL || "mistral-small-latest";
 
+function cleanJsonString(str: string): string {
+  let cleaned = str.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.slice(7);
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.slice(3);
+  }
+  if (cleaned.endsWith("```")) {
+    cleaned = cleaned.slice(0, -3);
+  }
+  return cleaned.trim();
+}
+
+function extractFieldText(val: unknown): string {
+  if (typeof val === "string") return val.trim();
+  if (Array.isArray(val)) {
+    return val
+      .map((item) => (typeof item === "string" ? `• ${item.trim()}` : JSON.stringify(item)))
+      .join("\n");
+  }
+  if (val && typeof val === "object") {
+    return Object.values(val)
+      .filter((v) => typeof v === "string" || typeof v === "number")
+      .join("\n");
+  }
+  return "";
+}
+
 export const POST = withErrorHandler(async (request: NextRequest) => {
   await requireAuth(request);
 
   const { transcription } = await validateRequest(request, schema);
+
+  const mistralApiKey = process.env.MISTRAL_API_KEY;
+  if (!mistralApiKey) {
+    return errorResponse("Clé API Mistral non configurée (MISTRAL_API_KEY)", 503);
+  }
 
   const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM CaptainProspect).
 
@@ -48,108 +84,95 @@ ${transcription.trim()}
 
 Extrais les sections demandées. Si une section est absente, mets une chaîne vide.`;
 
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  const mistralApiKey = process.env.MISTRAL_API_KEY;
+  // Call Mistral with automatic retry on 429 rate limit (free tier limit is 1 req/sec)
+  let response: Response | null = null;
+  let lastErrorText = "";
 
-  // 1. Try Gemini 2.0 Flash first (free model)
-  if (geminiApiKey) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      // Backoff before retry: 1.5s, 3s
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+    }
+
     try {
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 2048,
-              responseMimeType: "application/json",
-            },
-          }),
-        }
-      );
+      response = await fetch(MISTRAL_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${mistralApiKey}`,
+        },
+        body: JSON.stringify({
+          model: MISTRAL_MODEL,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.2,
+          max_tokens: 1200,
+          response_format: { type: "json_object" },
+        }),
+      });
 
-      if (geminiRes.ok) {
-        const data = await geminiRes.json();
-        const content = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (content) {
-          const parsed = JSON.parse(content);
-          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            const obj = parsed as Record<string, unknown>;
-            const fiche = {
-              contexte: typeof obj.contexte === "string" ? obj.contexte.trim() : "",
-              besoinsProblemes: typeof obj.besoinsProblemes === "string" ? obj.besoinsProblemes.trim() : "",
-              solutionsEnPlace: typeof obj.solutionsEnPlace === "string" ? obj.solutionsEnPlace.trim() : "",
-              objectionsFreins: typeof obj.objectionsFreins === "string" ? obj.objectionsFreins.trim() : "",
-              notesImportantes: typeof obj.notesImportantes === "string" ? obj.notesImportantes.trim() : "",
-            };
-            return successResponse({ fiche });
-          }
-        }
-      } else {
-        console.warn("Gemini rdv-fiche error, trying Mistral fallback:", await geminiRes.text());
+      if (response.status !== 429 && response.status !== 503) {
+        break;
       }
+
+      lastErrorText = await response.clone().text().catch(() => "");
+      console.warn(`Mistral rate limited (${response.status}), retrying attempt ${attempt + 1}/3...`);
     } catch (e) {
-      console.warn("Gemini rdv-fiche request failed, trying Mistral fallback:", e);
+      console.warn(`Mistral fetch error attempt ${attempt + 1}/3:`, e);
+      if (attempt === 2) throw e;
     }
   }
 
-  // 2. Fallback to Mistral
-  if (!mistralApiKey) {
-    return errorResponse("Aucune clé API IA configurée (GEMINI_API_KEY ou MISTRAL_API_KEY)", 503);
+  if (!response) {
+    return errorResponse("Impossible de contacter le service Mistral AI", 500);
   }
-
-  const response = await fetch(MISTRAL_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${mistralApiKey}`,
-    },
-    body: JSON.stringify({
-      model: MISTRAL_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2,
-      max_tokens: 1200,
-      response_format: { type: "json_object" },
-    }),
-  });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    console.error("Mistral rdv-fiche error:", err);
-    return errorResponse(
-      (err as { error?: { message?: string } })?.error?.message || "Erreur IA Mistral",
-      response.status
-    );
+    const message =
+      (err as { error?: { message?: string } })?.error?.message ||
+      (response.status === 429
+        ? "Trop de requêtes vers Mistral AI. Veuillez patienter quelques secondes avant de réessayer."
+        : "Erreur IA Mistral");
+    console.error("Mistral rdv-fiche error:", response.status, err || lastErrorText);
+    return errorResponse(message, response.status);
   }
 
   const result = await response.json();
-  const content = result.choices?.[0]?.message?.content?.trim();
-  if (!content) return errorResponse("Réponse vide de l'IA", 500);
+  const rawContent = result.choices?.[0]?.message?.content?.trim();
+  if (!rawContent) return errorResponse("Réponse vide de l'IA Mistral", 500);
+
+  const cleanContent = cleanJsonString(rawContent);
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(cleanContent);
   } catch {
-    console.error("Failed to parse IA response:", content);
-    return errorResponse("Impossible de parser la réponse de l'IA", 500);
+    console.error("Failed to parse Mistral response:", cleanContent);
+    return errorResponse("Impossible de parser la réponse JSON de Mistral", 500);
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return errorResponse("Réponse IA invalide", 500);
+    return errorResponse("Format de réponse IA invalide", 500);
   }
 
   const obj = parsed as Record<string, unknown>;
   const fiche = {
-    contexte: typeof obj.contexte === "string" ? obj.contexte.trim() : "",
-    besoinsProblemes: typeof obj.besoinsProblemes === "string" ? obj.besoinsProblemes.trim() : "",
-    solutionsEnPlace: typeof obj.solutionsEnPlace === "string" ? obj.solutionsEnPlace.trim() : "",
-    objectionsFreins: typeof obj.objectionsFreins === "string" ? obj.objectionsFreins.trim() : "",
-    notesImportantes: typeof obj.notesImportantes === "string" ? obj.notesImportantes.trim() : "",
+    contexte: extractFieldText(obj.contexte ?? obj.context),
+    besoinsProblemes: extractFieldText(
+      obj.besoinsProblemes ?? obj.besoins_problemes ?? obj.besoins ?? obj.problemes
+    ),
+    solutionsEnPlace: extractFieldText(
+      obj.solutionsEnPlace ?? obj.solutions_en_place ?? obj.solutions
+    ),
+    objectionsFreins: extractFieldText(
+      obj.objectionsFreins ?? obj.objections_freins ?? obj.objections ?? obj.freins
+    ),
+    notesImportantes: extractFieldText(
+      obj.notesImportantes ?? obj.notes_importantes ?? obj.notes
+    ),
   };
 
   return successResponse({ fiche, usage: result.usage });

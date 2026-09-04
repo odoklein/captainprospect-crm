@@ -66,9 +66,9 @@ export function useFicheRdv(
   const generateWithAI = useCallback(
     async (meeting: Meeting, onUpdate: (m: Meeting) => void) => {
       const transcription = ficheManualTranscript.trim();
-      if (!transcription) {
+      if (!transcription || transcription.length < 5) {
         setFicheError(
-          "Collez une transcription dans le champ prévu à cet effet, puis relancez."
+          "Veuillez coller ou saisir une transcription (au moins 5 caractères), puis relancez."
         );
         return;
       }
@@ -82,7 +82,11 @@ export function useFicheRdv(
         });
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.success) {
-          setFicheError(json?.error || "Impossible de générer la fiche.");
+          const errorMsg =
+            res.status === 429
+              ? "Trop de requêtes vers l'IA (limite temporaire atteinte). Veuillez patienter quelques secondes avant de réessayer."
+              : (json?.error || "Impossible de générer la fiche.");
+          setFicheError(errorMsg);
           return;
         }
         const fiche = json.data?.fiche;
@@ -129,8 +133,9 @@ export function useFicheRdv(
 
   const generateWithAIFromTranscription = useCallback(
     async (meeting: Meeting, transcription: string, onUpdate: (m: Meeting) => void) => {
-      if (!transcription.trim()) {
-        setFicheError("Transcription vide.");
+      const clean = (transcription || "").trim();
+      if (!clean || clean.length < 5) {
+        setFicheError("Transcription trop courte pour générer une fiche (minimum 5 caractères).");
         return;
       }
       setFicheLoading(true);
@@ -139,11 +144,15 @@ export function useFicheRdv(
         const res = await fetch("/api/ai/mistral/rdv-fiche", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ transcription }),
+          body: JSON.stringify({ transcription: clean }),
         });
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.success) {
-          setFicheError(json?.error || "Impossible de générer la fiche.");
+          const errorMsg =
+            res.status === 429
+              ? "Trop de requêtes vers l'IA (limite temporaire atteinte). Veuillez patienter quelques secondes avant de réessayer."
+              : (json?.error || "Impossible de générer la fiche.");
+          setFicheError(errorMsg);
           return;
         }
         const fiche = json.data?.fiche;
