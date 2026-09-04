@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Drawer, Button, Badge, Select, useToast, TextSkeleton, ListSkeleton, DateTimePicker, Modal } from "@/components/ui";
 import { ACTION_RESULT_LABELS, type ActionResult } from "@/lib/types";
@@ -431,6 +432,8 @@ export function UnifiedActionDrawer({
     enableGooglePhoneLookup = false,
 }: UnifiedActionDrawerProps) {
     const { success, error: showError } = useToast();
+    const { data: session } = useSession();
+    const isManager = session?.user?.role === "MANAGER";
 
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<"contact" | "company">("contact");
@@ -567,6 +570,13 @@ export function UnifiedActionDrawer({
     const [newActionNote, setNewActionNote] = useState("");
     const [newCallbackDateValue, setNewCallbackDateValue] = useState("");
     const noteRef = useRef<HTMLTextAreaElement>(null);
+
+    // Edit / delete an existing history entry (re-qualify a status in place
+    // instead of creating a duplicate action record)
+    const [editingActionId, setEditingActionId] = useState<string | null>(null);
+    const [editActionResult, setEditActionResult] = useState("");
+    const [editActionNote, setEditActionNote] = useState("");
+    const [deleteConfirmActionId, setDeleteConfirmActionId] = useState<string | null>(null);
 
     const [alloDialogOpen, setAlloDialogOpen] = useState(false);
     const [alloDialogCalls, setAlloDialogCalls] = useState<AlloCallItem[]>([]);
@@ -1137,6 +1147,62 @@ export function UnifiedActionDrawer({
 
     const handleAddAction = (andNext?: boolean) => addActionMutation.mutate({ andNext });
 
+    // ── Edit / delete an existing action (fix status without duplicating) ───────
+
+    const startEditAction = useCallback((a: ActionItem) => {
+        setEditingActionId(a.id);
+        setEditActionResult(a.result);
+        setEditActionNote(a.note ?? "");
+    }, []);
+
+    const cancelEditAction = useCallback(() => {
+        setEditingActionId(null);
+        setEditActionResult("");
+        setEditActionNote("");
+    }, []);
+
+    const updateActionMutation = useMutation({
+        mutationFn: async ({ actionId, result, note }: { actionId: string; result: string; note: string }) => {
+            const res = await fetch(`/api/actions/${actionId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ result, note: note.trim() || undefined }),
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || "Impossible de modifier cette action");
+            return json.data;
+        },
+        onSuccess: () => {
+            success("Action mise à jour", "Le statut a été modifié sans créer de doublon");
+            cancelEditAction();
+            queryClient.invalidateQueries({ queryKey: actionsQueryKey });
+            onActionRecorded?.();
+        },
+        onError: (err: Error) => showError("Erreur", err.message),
+    });
+
+    const handleSaveEditAction = () => {
+        if (!editingActionId || !editActionResult) return;
+        updateActionMutation.mutate({ actionId: editingActionId, result: editActionResult, note: editActionNote });
+    };
+
+    const deleteActionMutation = useMutation({
+        mutationFn: async (actionId: string) => {
+            const res = await fetch(`/api/actions/${actionId}`, { method: "DELETE" });
+            if (res.status !== 204) {
+                const json = await res.json().catch(() => null);
+                throw new Error(json?.error || "Impossible de supprimer cette action");
+            }
+        },
+        onSuccess: () => {
+            success("Action supprimée", "L'entrée a été retirée de l'historique");
+            setDeleteConfirmActionId(null);
+            queryClient.invalidateQueries({ queryKey: actionsQueryKey });
+            onActionRecorded?.();
+        },
+        onError: (err: Error) => showError("Erreur", err.message),
+    });
+
     const createInterlocutorContactMutation = useMutation({
         mutationFn: async () => {
             const targetCompanyId = contact?.companyId || company?.id || companyId;
@@ -1434,6 +1500,8 @@ export function UnifiedActionDrawer({
                                             const noteText = a.note;
                                             const hasLongNote = noteText && noteText.length > 80;
                                             const hasContent = !!a.note?.trim();
+                                            const isMeetingResultItem = a.result === "MEETING_BOOKED" || a.result === "MEETING_CANCELLED";
+                                            const isEditingThis = editingActionId === a.id;
 
                                             return (
                                                 <li
@@ -1565,12 +1633,75 @@ export function UnifiedActionDrawer({
                                                         </button>
 
                                                         {/* Expandable note content */}
-                                                        {hasContent && isExpanded && (
+                                                        {hasContent && isExpanded && !isEditingThis && (
                                                             <div className="px-3.5 pb-3.5 pt-0 border-t border-slate-100 space-y-2">
                                                                 {a.note && (
                                                                     <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed pt-2">
                                                                         {a.note}
                                                                     </p>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Inline edit: fix the status/note on this entry without creating a duplicate */}
+                                                        {!isMeetingResultItem && isEditingThis && (
+                                                            <div className="px-3.5 pb-3.5 pt-3 border-t border-slate-100 space-y-2.5">
+                                                                <Select
+                                                                    options={statusOptions}
+                                                                    value={editActionResult}
+                                                                    onChange={setEditActionResult}
+                                                                    placeholder="Statut"
+                                                                />
+                                                                <textarea
+                                                                    value={editActionNote}
+                                                                    onChange={(e) => setEditActionNote(e.target.value)}
+                                                                    placeholder="Note (optionnel)"
+                                                                    rows={2}
+                                                                    className="w-full min-h-[56px] px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                                                />
+                                                                <div className="flex items-center justify-end gap-2 pt-0.5">
+                                                                    <Button variant="ghost" size="sm" onClick={cancelEditAction} disabled={updateActionMutation.isPending}>
+                                                                        Annuler
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={handleSaveEditAction}
+                                                                        disabled={!editActionResult || updateActionMutation.isPending}
+                                                                        className="gap-1.5"
+                                                                    >
+                                                                        {updateActionMutation.isPending ? (
+                                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                        ) : (
+                                                                            <Save className="w-3.5 h-3.5" />
+                                                                        )}
+                                                                        Enregistrer
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Fix status / remove duplicate — not for meetings (managed from the RDV pages) */}
+                                                        {!isMeetingResultItem && !isEditingThis && (
+                                                            <div className="flex items-center justify-end gap-1 px-2 pb-1.5 -mt-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => startEditAction(a)}
+                                                                    aria-label={`Modifier le statut « ${statusLabels[a.result] ?? a.result} »`}
+                                                                    className="flex items-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                                >
+                                                                    <Pencil className="w-3 h-3" aria-hidden="true" />
+                                                                    Modifier
+                                                                </button>
+                                                                {isManager && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setDeleteConfirmActionId(a.id)}
+                                                                        aria-label={`Supprimer l'action « ${statusLabels[a.result] ?? a.result} »`}
+                                                                        className="flex items-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                    >
+                                                                        <Trash2 className="w-3 h-3" aria-hidden="true" />
+                                                                        Supprimer
+                                                                    </button>
                                                                 )}
                                                             </div>
                                                         )}
@@ -3267,6 +3398,31 @@ export function UnifiedActionDrawer({
                 onSelectId={setAlloDialogSelectedId}
                 onConfirm={confirmAlloCall}
             />
+
+            <Modal
+                isOpen={!!deleteConfirmActionId}
+                onClose={() => setDeleteConfirmActionId(null)}
+                title="Supprimer cette action ?"
+                size="sm"
+            >
+                <p className="text-sm text-slate-600">
+                    Cette entrée de l&apos;historique sera définitivement supprimée. Cette action est irréversible.
+                </p>
+                <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-slate-100">
+                    <Button variant="ghost" onClick={() => setDeleteConfirmActionId(null)} disabled={deleteActionMutation.isPending}>
+                        Annuler
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => deleteConfirmActionId && deleteActionMutation.mutate(deleteConfirmActionId)}
+                        disabled={deleteActionMutation.isPending}
+                        className="gap-2 bg-red-600 hover:bg-red-700 text-white"
+                    >
+                        {deleteActionMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                        Supprimer
+                    </Button>
+                </div>
+            </Modal>
 
         </Drawer>
     );

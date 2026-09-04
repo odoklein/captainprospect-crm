@@ -12,7 +12,7 @@ import {
     Activity, Target, Send, PhoneMissed, ThumbsUp, PhoneOff,
     CalendarX, RotateCw, SlidersHorizontal, Download, Columns3,
     X, Minus, Radio, Zap, Users, Filter, ArrowUpDown,
-    Eye, EyeOff, MoreHorizontal, Maximize2, Mic,
+    Eye, EyeOff, MoreHorizontal, Maximize2, Mic, History,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Card, Button, useToast } from "@/components/ui";
@@ -39,6 +39,7 @@ type ChannelTabValue = (typeof CHANNEL_TABS)[number]["value"];
 type SortKey = "createdAt" | "result" | "sdr" | "name" | "duration";
 type SortDir = "asc" | "desc";
 type Density = "compact" | "default" | "comfortable";
+type ViewMode = "latest_per_contact" | "all_actions";
 
 interface MissionItem {
     id: string;
@@ -654,6 +655,9 @@ export default function ManagerProspectionPage() {
     const [sortKey, setSortKey] = useState<SortKey>("createdAt");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
     const [density, setDensity] = useState<Density>("default");
+    /** "Dernier statut par contact" (default): one row per contact/company, its most recent action.
+     *  "Historique complet": every action row, as recorded. */
+    const [viewMode, setViewMode] = useState<ViewMode>("latest_per_contact");
     const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(
         new Set(["date", "name", "sdr", "result", "note", "duration"])
     );
@@ -687,6 +691,11 @@ export default function ManagerProspectionPage() {
     useEffect(() => {
         reloadMissionsCatalog();
     }, [reloadMissionsCatalog]);
+
+    // Row set changes drastically between view modes — go back to page 1
+    useEffect(() => {
+        setPage(1);
+    }, [viewMode]);
 
     // ── keyboard shortcut: "/" focuses search ────────────────────────────────
     useEffect(() => {
@@ -873,17 +882,34 @@ export default function ManagerProspectionPage() {
 
     const pickerHasFilters = !!(pickerMissionSearch.trim() || pickerClientId || pickerSdrId);
 
+    // ── latest action per contact/company — lets a manager "clean" the base:
+    // once a prospect is re-qualified (e.g. PROJET_A_SUIVRE → HORS_CIBLE), it
+    // shows and counts under its new status only, not both. ─────────────────
+    const latestActionPerContact = useMemo(() => {
+        const map = new Map<string, ActionRecord>();
+        for (const a of actions) {
+            const key = a.contactId ? `contact:${a.contactId}` : a.companyId ? `company:${a.companyId}` : `action:${a.id}`;
+            const existing = map.get(key);
+            if (!existing || new Date(a.createdAt).getTime() > new Date(existing.createdAt).getTime()) {
+                map.set(key, a);
+            }
+        }
+        return Array.from(map.values());
+    }, [actions]);
+
+    const displayActions = viewMode === "latest_per_contact" ? latestActionPerContact : actions;
+
     // ── result counts ────────────────────────────────────────────────────────
     const resultCounts = useMemo(() => {
         const map: Record<string, number> = {};
-        actions.forEach(a => { map[a.result] = (map[a.result] || 0) + 1; });
+        displayActions.forEach(a => { map[a.result] = (map[a.result] || 0) + 1; });
         return map;
-    }, [actions]);
+    }, [displayActions]);
 
     // ── unique results present in data ───────────────────────────────────────
     const uniqueResults = useMemo(() =>
-        Array.from(new Set(actions.map(a => a.result))).sort(),
-        [actions]);
+        Array.from(new Set(displayActions.map(a => a.result))).sort(),
+        [displayActions]);
 
     // ── sort handler ─────────────────────────────────────────────────────────
     const handleSort = useCallback((key: SortKey) => {
@@ -918,7 +944,7 @@ export default function ManagerProspectionPage() {
     const processed = useMemo(() => {
         const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
         const toTs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
-        let rows = actions.filter(a => {
+        const rows = displayActions.filter(a => {
             if (sdrFilter && a.sdr?.id !== sdrFilter) return false;
             if (resultFilters.size && !resultFilters.has(a.result)) return false;
             if (search && !a._searchKey?.includes(search.toLowerCase())) return false;
@@ -948,7 +974,7 @@ export default function ManagerProspectionPage() {
             return sortDir === "asc" ? cmp : -cmp;
         });
         return rows;
-    }, [actions, sdrFilter, resultFilters, search, dateFrom, dateTo, sortKey, sortDir]);
+    }, [displayActions, sdrFilter, resultFilters, search, dateFrom, dateTo, sortKey, sortDir]);
 
     const totalPages = Math.max(1, Math.ceil(processed.length / pageSize));
     const pageRows = processed.slice((page - 1) * pageSize, page * pageSize);
@@ -1547,6 +1573,50 @@ export default function ManagerProspectionPage() {
                     </div>
                 </div>
 
+                {/* View mode: one row per contact (cleanable base) vs full call log */}
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vue</span>
+                    <div role="tablist" aria-label="Mode d'affichage" className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={viewMode === "latest_per_contact"}
+                            onClick={() => setViewMode("latest_per_contact")}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+                                viewMode === "latest_per_contact"
+                                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5"
+                                    : "text-slate-500 hover:text-slate-800"
+                            )}
+                        >
+                            <Users className="w-3.5 h-3.5" aria-hidden />
+                            Dernier statut par contact
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={viewMode === "all_actions"}
+                            onClick={() => setViewMode("all_actions")}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+                                viewMode === "all_actions"
+                                    ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-900/5"
+                                    : "text-slate-500 hover:text-slate-800"
+                            )}
+                        >
+                            <History className="w-3.5 h-3.5" aria-hidden />
+                            Historique complet
+                        </button>
+                    </div>
+                    {viewMode === "latest_per_contact" && (
+                        <span className="text-[11px] text-slate-400 font-medium">
+                            {latestActionPerContact.length} prospect{latestActionPerContact.length !== 1 ? "s" : ""} · {actions.length} action{actions.length !== 1 ? "s" : ""} au total
+                        </span>
+                    )}
+                </div>
+
                 {/* Result filter chips */}
                 {uniqueResults.length > 0 && (
                     <ResultFilterBar
@@ -1561,7 +1631,7 @@ export default function ManagerProspectionPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-xs font-semibold text-slate-400">
                         {processed.length} ligne{processed.length !== 1 ? "s" : ""}
-                        {hasFilters && ` sur ${actions.length}`}
+                        {hasFilters && ` sur ${displayActions.length}`}
                     </p>
                     {selectedIds.size > 0 && (
                         <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[11px] font-bold">

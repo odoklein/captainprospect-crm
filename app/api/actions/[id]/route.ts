@@ -12,6 +12,9 @@ import {
     MEETING_CANCELLATION_REASON_CODES,
     type MeetingCancellationReasonCode,
 } from '@/lib/constants/meetingCancellationReasons';
+import { actionService, resolveActionResult } from '@/lib/services/ActionService';
+import { statusConfigService } from '@/lib/services/StatusConfigService';
+import type { ActionResult } from '@prisma/client';
 import { z } from 'zod';
 
 // ============================================
@@ -54,7 +57,7 @@ export const PATCH = withErrorHandler(async (
     const action = await prisma.action.findUnique({
         where: { id },
         include: {
-            campaign: { select: { missionId: true } },
+            campaign: { select: { id: true, missionId: true } },
         },
     });
 
@@ -63,14 +66,9 @@ export const PATCH = withErrorHandler(async (
     }
 
     const isMeetingAction = action.result === 'MEETING_BOOKED' || action.result === 'MEETING_CANCELLED';
-    const isCallbackAction = action.result === 'CALLBACK_REQUESTED';
-
-    if (!isMeetingAction && !isCallbackAction) {
-        return errorResponse('Seules les actions type rappel ou rendez-vous peuvent être modifiées', 400);
-    }
 
     // Meeting: result + note + cancellationReason (when cancelling) + callbackDate (reschedule); Callback: callbackDate + note
-    if (isMeetingAction && data.result !== undefined && !meetingResults.includes(data.result as any)) {
+    if (isMeetingAction && data.result !== undefined && !meetingResults.includes(data.result as (typeof meetingResults)[number])) {
         return errorResponse('Statut RDV invalide', 400);
     }
     if (
@@ -86,7 +84,7 @@ export const PATCH = withErrorHandler(async (
     const updateData: {
         callbackDate?: Date;
         note?: string;
-        result?: (typeof meetingResults)[number];
+        result?: (typeof meetingResults)[number] | ActionResult;
         cancellationReason?: string | null;
         meetingType?: string | null;
         meetingCategory?: string | null;
@@ -112,25 +110,54 @@ export const PATCH = withErrorHandler(async (
     if (isMeetingAction && data.meetingJoinUrl !== undefined) updateData.meetingJoinUrl = data.meetingJoinUrl;
     if (isMeetingAction && data.meetingPhone !== undefined) updateData.meetingPhone = data.meetingPhone;
 
+    // Any other action (call/email/linkedin outcome, e.g. re-qualifying a
+    // "PROJET_A_SUIVRE" contact to "HORS_CIBLE") can also have its result
+    // changed in place, instead of forcing a brand-new action record.
+    let resolvedGeneralResult: ActionResult | null = null;
+    if (!isMeetingAction && data.result !== undefined) {
+        const allowedCodes = await statusConfigService.getAllowedResultCodes({ campaignId: action.campaignId });
+        if (!allowedCodes.includes(data.result)) {
+            return errorResponse('Résultat non autorisé pour cette campagne', 400);
+        }
+        const config = await statusConfigService.getEffectiveStatusConfig({ campaignId: action.campaignId });
+        const statusDef = config.statuses.find((s) => s.code === data.result);
+        const finalNote = data.note !== undefined ? data.note : action.note;
+        if (statusDef?.requiresNote && !finalNote?.trim()) {
+            return errorResponse('Une note est requise pour ce type de résultat', 400);
+        }
+        resolvedGeneralResult = resolveActionResult(data.result);
+        updateData.result = resolvedGeneralResult;
+    }
+
     if (Object.keys(updateData).length === 0) {
         return errorResponse('Aucune donnée à mettre à jour', 400);
     }
 
-    const updated = await prisma.action.update({
-        where: { id },
-        data: updateData,
-        include: {
-            contact: { select: { id: true, firstName: true, lastName: true, company: { select: { name: true } } } },
-            company: { select: { id: true, name: true } },
-            campaign: { select: { id: true, name: true, mission: { select: { id: true, name: true } } } },
-        },
+    const updated = await prisma.$transaction(async (tx) => {
+        const rec = await tx.action.update({
+            where: { id },
+            data: updateData,
+            include: {
+                contact: { select: { id: true, firstName: true, lastName: true, company: { select: { name: true } } } },
+                company: { select: { id: true, name: true } },
+                campaign: { select: { id: true, name: true, mission: { select: { id: true, name: true } } } },
+            },
+        });
+        if (resolvedGeneralResult && action.contactId) {
+            await actionService.applyResultSideEffects(tx, action.contactId, resolvedGeneralResult, updateData.note ?? action.note);
+        }
+        return rec;
     });
 
     return successResponse(updated);
 });
 
 // ============================================
-// DELETE /api/actions/[id] - Delete meeting action (MEETING_BOOKED or MEETING_CANCELLED only)
+// DELETE /api/actions/[id] - Delete an action.
+// Meetings (booked/cancelled) can be deleted by SDR, BD or Manager, as before.
+// Any other action (e.g. a duplicate call/email/linkedin log entry) can only
+// be deleted by a Manager, so the base can be cleaned up without opening
+// deletion to everyone.
 // ============================================
 
 const MEETING_RESULTS_FOR_DELETE = ['MEETING_BOOKED', 'MEETING_CANCELLED'] as const;
@@ -153,12 +180,10 @@ export const DELETE = withErrorHandler(async (
         throw new NotFoundError('Action introuvable');
     }
 
-    if (!MEETING_RESULTS_FOR_DELETE.includes(action.result as any)) {
-        return errorResponse('Seuls les rendez-vous (confirmés ou annulés) peuvent être supprimés', 400);
+    const isMeeting = MEETING_RESULTS_FOR_DELETE.includes(action.result as (typeof MEETING_RESULTS_FOR_DELETE)[number]);
+    if (!isMeeting && session.user.role !== 'MANAGER') {
+        return errorResponse('Seuls les managers peuvent supprimer cette action', 403);
     }
-
-    // Access: SDR, BD, Manager can all delete any meeting
-    // No restriction by ownership
 
     await prisma.action.delete({ where: { id } });
 

@@ -35,7 +35,8 @@
       "Bash(tee /tmp/tsc_out.txt)",
       "Bash(./node_modules/.bin/prisma --version)",
       "Bash(./node_modules/.bin/prisma generate *)",
-      "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")"
+      "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")",
+      "Bash(npx tsc *)"
     ]
   }
 }

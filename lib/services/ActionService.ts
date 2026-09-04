@@ -87,7 +87,7 @@ function normalizeActionResultCode(raw: string): string {
         .toUpperCase();
 }
 
-function resolveActionResult(inputResult: string): ActionResult {
+export function resolveActionResult(inputResult: string): ActionResult {
     const normalized = normalizeActionResultCode(inputResult);
     const mapped = ACTION_RESULT_ALIASES[normalized] ?? normalized;
     if (VALID_ACTION_RESULTS.has(mapped as ActionResult)) {
@@ -244,19 +244,7 @@ export class ActionService {
 
             // 3. Data-cleaning side-effects (contacts only)
             if (input.contactId) {
-                if (resolvedResult === 'BAD_CONTACT') {
-                    await this.handleBadContact(tx, input.contactId, input.note);
-                } else if (resolvedResult === 'NUMERO_KO' || resolvedResult === 'FAUX_NUMERO') {
-                    // Confirmed bad phone: clear it so the contact drops out of CALL queues
-                    await this.handleDeadPhone(tx, input.contactId);
-                } else if (resolvedResult === 'DISQUALIFIED' || resolvedResult === 'HORS_CIBLE') {
-                    // Hard disqualification: downgrade completeness so reporting is accurate
-                    await tx.contact.update({
-                        where: { id: input.contactId },
-                        data: { status: 'INCOMPLETE' },
-                    });
-                    await this.propagateCompanyStatus(tx, input.contactId);
-                }
+                await this.applyResultSideEffects(tx, input.contactId, resolvedResult, input.note);
             }
 
  return action;
@@ -370,6 +358,32 @@ export class ActionService {
     // ============================================
     // BAD CONTACT / DATA CLEANING HANDLERS
     // ============================================
+
+    /**
+     * Data-cleaning side-effects for a (re)qualified action result.
+     * Shared by createAction and PATCH /api/actions/[id] so editing an
+     * existing action's result behaves the same as recording a new one.
+     */
+    async applyResultSideEffects(
+        tx: Prisma.TransactionClient,
+        contactId: string,
+        resolvedResult: string,
+        note?: string | null
+    ): Promise<void> {
+        if (resolvedResult === 'BAD_CONTACT') {
+            await this.handleBadContact(tx, contactId, note ?? undefined);
+        } else if (resolvedResult === 'NUMERO_KO' || resolvedResult === 'FAUX_NUMERO') {
+            // Confirmed bad phone: clear it so the contact drops out of CALL queues
+            await this.handleDeadPhone(tx, contactId);
+        } else if (resolvedResult === 'DISQUALIFIED' || resolvedResult === 'HORS_CIBLE') {
+            // Hard disqualification: downgrade completeness so reporting is accurate
+            await tx.contact.update({
+                where: { id: contactId },
+                data: { status: 'INCOMPLETE' },
+            });
+            await this.propagateCompanyStatus(tx, contactId);
+        }
+    }
 
     private async handleBadContact(
         tx: Prisma.TransactionClient,
