@@ -168,7 +168,7 @@ const STATUS_CONFIG = {
 const RELANCE_HOVER_HINT = "👉 Rappel demandé\n➡️ Le prospect attend ton appel\n➡️ Il y a un signal d’intérêt";
 const RAPPEL_HOVER_HINT = "👉 Rappel à faire\n➡️ Le prospect n’a pas encore été joint\n➡️ C’est un rappel logistique, pas commercial";
 const HORS_CIBLE_HOVER_HINT = "Prospect hors des critères de ciblage.\n\nSecteur non pertinent\nTaille / structure incompatible\nPas dans les critères de qualification";
-const MIN_NOTE_LENGTH_FOR_AI_ENHANCE = 25;
+const MIN_NOTE_LENGTH_FOR_AI_RESUME = 5;
 
 const getStatusHoverHint = (code: string, label?: string | null): string | undefined => {
     const haystack = `${code} ${label ?? ""}`.toUpperCase();
@@ -960,32 +960,61 @@ export function UnifiedActionDrawer({
 
     // ── Actions ────────────────────────────────────────────────────────────────
 
-    const improveNoteMutation = useMutation({
-        mutationFn: async (text: string) => {
+    const summarizeNoteMutation = useMutation({
+        mutationFn: async (payload: { text?: string; linkedCall?: AlloCallItem | null }) => {
+            const transcription =
+                payload.linkedCall?.transcript?.length ?
+                    payload.linkedCall.transcript.map((t) => `${t.source}: ${t.text}`).join("\n")
+                :   undefined;
+
             const res = await fetch("/api/ai/mistral/note-improve", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text }),
+                body: JSON.stringify({
+                    text: payload.text || undefined,
+                    channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : channel,
+                    resultCode: newActionResult || undefined,
+                    resultLabel: newActionResult ? (statusLabels[newActionResult] ?? newActionResult) : undefined,
+                    callSummary: payload.linkedCall?.summary ?? undefined,
+                    transcription,
+                }),
             });
             const json = await res.json();
-            if (!json.success || !json.data?.improvedText) throw new Error(json.error || "Impossible d'améliorer la note");
+            if (!json.success || !json.data?.improvedText) {
+                throw new Error(json.error || "Impossible de générer le résumé avec l'IA");
+            }
             return json.data.improvedText as string;
         },
-        onSuccess: (improvedText) => setNewActionNote(improvedText),
-        onError: (err: Error) => showError("Erreur", err.message || "Connexion à l'IA impossible"),
+        onSuccess: (summaryText) => setNewActionNote(summaryText),
+        onError: (err: Error) => showError("Erreur IA", err.message || "Connexion à Mistral impossible"),
     });
 
-    const handleImproveNote = () => {
+    const handleSummarizeWithAi = () => {
         const trimmed = newActionNote.trim();
-        if (!trimmed) return;
-        if (trimmed.length < MIN_NOTE_LENGTH_FOR_AI_ENHANCE) {
+        const hasCallData = Boolean(
+            linkedAlloCall?.summary?.trim() || linkedAlloCall?.transcript?.length
+        );
+
+        if (!trimmed && !hasCallData) {
             showError(
-                "Texte trop court",
-                `Ajoutez plus de contexte (au moins ${MIN_NOTE_LENGTH_FOR_AI_ENHANCE} caractères) avant l'amélioration IA.`
+                "Données insuffisantes",
+                "Saisissez des notes ou associez un appel Allo pour que l'IA puisse générer un résumé."
             );
             return;
         }
-        improveNoteMutation.mutate(trimmed);
+
+        if (trimmed && trimmed.length < MIN_NOTE_LENGTH_FOR_AI_RESUME && !hasCallData) {
+            showError(
+                "Texte trop court",
+                `Saisissez au moins ${MIN_NOTE_LENGTH_FOR_AI_RESUME} caractères ou associez un appel Allo.`
+            );
+            return;
+        }
+
+        summarizeNoteMutation.mutate({
+            text: trimmed,
+            linkedCall: linkedAlloCall,
+        });
     };
 
     // ── Send email from inline panel + record action ────────────────────────
@@ -3233,17 +3262,23 @@ export function UnifiedActionDrawer({
                                         <div className="flex items-center justify-between gap-2 mt-1.5 flex-wrap">
                                             <button
                                                 type="button"
-                                                onClick={handleImproveNote}
-                                                disabled={newActionNote.trim().length < MIN_NOTE_LENGTH_FOR_AI_ENHANCE || improveNoteMutation.isPending}
-                                                aria-label="Améliorer la note avec l'IA"
+                                                onClick={handleSummarizeWithAi}
+                                                disabled={
+                                                    (!newActionNote.trim() &&
+                                                        !linkedAlloCall?.summary?.trim() &&
+                                                        !linkedAlloCall?.transcript?.length) ||
+                                                    summarizeNoteMutation.isPending
+                                                }
+                                                aria-label="Résumer avec l'IA"
+                                                title="Générer un résumé factuel et concis avec Mistral IA"
                                                 className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded-lg px-2 py-1 hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
                                             >
-                                                {improveNoteMutation.isPending ? (
+                                                {summarizeNoteMutation.isPending ? (
                                                     <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
                                                 ) : (
                                                     <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
                                                 )}
-                                                {improveNoteMutation.isPending ? "Amélioration…" : "Améliorer avec l'IA"}
+                                                {summarizeNoteMutation.isPending ? "Résumé en cours…" : "Résumer avec l'IA"}
                                             </button>
                                             {isCallCampaign && (
                                                 <button

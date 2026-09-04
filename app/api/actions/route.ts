@@ -48,83 +48,6 @@ const createActionSchema = z.object({
 );
 
 // ============================================
-// MISTRAL NOTE IMPROVEMENT (SERVER-SIDE AUTO-ENHANCE)
-// ============================================
-
-async function maybeImproveNoteWithMistral(params: {
- text: string | undefined;
- channel: 'CALL' | 'EMAIL' | 'LINKEDIN';
- resultCode: string;
- resultLabel?: string;
-}) {
- const raw = params.text?.trim();
- if (!raw) return undefined;
-
- const apiKey = process.env.MISTRAL_API_KEY;
- if (!apiKey) return raw;
-
- const systemPrompt = `Tu travailles dans CaptainProspect, un CRM de prospection B2B.
-
-Tu améliores des notes internes rédigées par un commercial (SDR / business developer) après un échange (appel, email, LinkedIn) avec un contact ou une entreprise.
-
-Contexte :
-- La note décrit ce qui s'est passé pendant l'échange : ce que le prospect a dit, son intérêt, les objections, le niveau de qualification, les prochaines étapes (rappel, démo, envoi d'email, etc.).
-- Ce n'est PAS un message envoyé au prospect, mais un compte-rendu interne qui sera relu plus tard par le SDR, son manager ou un collègue.
-- Canal de l'action: ${params.channel}
-- Résultat CRM (statut sélectionné) : ${params.resultLabel || params.resultCode}
-
-Ta tâche :
-- Corriger l'orthographe et la grammaire.
-- Reformuler pour que la note soit claire, concise et professionnelle, tout en restant une note interne (pas un email).
-
-Contraintes :
-- Réponds UNIQUEMENT par le texte amélioré, sans préambule ni explication.
-- Garde exactement le même sens et les mêmes infos (dates, montants, décisions, "rappeler à...", "intéressé par...", etc.).
-- Maximum 500 caractères.
-- Style : note interne de compte-rendu d'échange, pas un message adressé au prospect.`;
-
- try {
- const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
- method: 'POST',
- headers: {
- 'Content-Type': 'application/json',
- 'Authorization': `Bearer ${apiKey}`,
- },
- body: JSON.stringify({
- model: 'mistral-large-latest',
- messages: [
- { role: 'system', content: systemPrompt },
- {
- role: 'user',
- content:
- `Voici la note brute à améliorer (ne change pas le fond, seulement la forme) :\n\n` +
- raw,
- },
- ],
- temperature: 0.3,
- max_tokens: 400,
- }),
- });
-
- if (!response.ok) {
- // In case of Mistral error, keep original note and don't block the action
- // eslint-disable-next-line no-console
- console.error('Mistral note auto-improve error:', await response.text().catch(() => ''));
- return raw;
- }
-
- const result = await response.json();
- let improved: string | undefined = result.choices?.[0]?.message?.content?.trim();
- if (!improved) return raw;
- return improved.slice(0, 500);
- } catch (err) {
- // eslint-disable-next-line no-console
- console.error('Mistral note auto-improve request failed:', err);
- return raw;
- }
-}
-
-// ============================================
 // GET /api/actions - List actions
 // ============================================
 
@@ -196,14 +119,6 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
  return errorResponse('Une note est requise pour ce type de résultat', 400);
  }
 
- // Auto-amélioration de la note (Mistral) côté serveur, en arrière-plan pour l'utilisateur
- const improvedNote = await maybeImproveNoteWithMistral({
- text: data.note,
- channel: data.channel,
- resultCode: data.result,
- resultLabel: statusDef?.label,
- });
-
     // Use service layer with transaction
     const action = await actionService.createAction({
         contactId: data.contactId,
@@ -212,7 +127,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         campaignId: data.campaignId,
         channel: data.channel,
         result: data.result,
-        note: improvedNote ?? data.note,
+        note: data.note,
         callbackDate: data.callbackDate,
         duration: data.duration,
         meetingType: data.meetingType,

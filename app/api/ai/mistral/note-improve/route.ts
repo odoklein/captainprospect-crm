@@ -1,5 +1,5 @@
 // ============================================
-// POST /api/ai/mistral/note-improve - Fix orthography and rephrase note
+// POST /api/ai/mistral/note-improve - Generate precise factual summary for SDR note
 // ============================================
 
 import { NextRequest } from 'next/server';
@@ -13,10 +13,12 @@ import {
 import { z } from 'zod';
 
 const noteImproveSchema = z.object({
-    text: z.string().max(500, 'Note trop longue'),
+    text: z.string().max(4000, 'Note trop longue').optional(),
     channel: z.enum(['CALL', 'EMAIL', 'LINKEDIN']).optional(),
     resultCode: z.string().optional(),
     resultLabel: z.string().optional(),
+    callSummary: z.string().max(4000, "Résumé d'appel trop long").optional().nullable(),
+    transcription: z.string().max(10000, 'Transcription trop longue').optional().nullable(),
 });
 
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
@@ -30,31 +32,44 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         return errorResponse('MISTRAL_API_KEY non configurée', 503);
     }
 
-    const { text, channel, resultCode, resultLabel } = await validateRequest(request, noteImproveSchema);
+    const { text, channel, resultCode, resultLabel, callSummary, transcription } =
+        await validateRequest(request, noteImproveSchema);
 
-    if (!text?.trim()) {
-        return errorResponse('Texte requis', 400);
+    const rawText = text?.trim() ?? '';
+    const rawCallSummary = callSummary?.trim() ?? '';
+    const rawTranscription = transcription?.trim() ?? '';
+
+    if (!rawText && !rawCallSummary && !rawTranscription) {
+        return errorResponse("Texte ou données d'appel requis", 400);
     }
 
-    const systemPrompt = `Tu travailles dans CaptainProspect, un CRM de prospection B2B.
+    const systemPrompt = `Tu es un assistant IA expert dans CaptainProspect, un CRM de prospection commerciale B2B.
+Ta mission UNIQUE est de produire un RÉSUMÉ synthétique, factuel, direct et précis d'un échange commercial pour le compte-rendu interne du commercial (SDR).
 
-Tu améliores des notes internes rédigées par un commercial (SDR / business developer) après un échange (appel, email, LinkedIn) avec un contact ou une entreprise.
+DIRECTIVES STRICTES ET ABSOLUES :
+1. AUCUNE INVENTION (ZÉRO HALLUCINATION) :
+- Ne JAMAIS rien inventer. Reste STRICTEMENT et EXCLUSIVEMENT fidèle aux faits et éléments explicitement mentionnés dans les données fournies.
+- Si une information n'est pas mentionnée, NE L'EXTRAPOLE PAS, NE L'INVENTE PAS.
+- S'il y a peu de données ou des données très succinctes (ex: "occupé", "pas intéressé", "barrage secrétaire", "mauvais numéro"), ne brode pas, n'invente aucun motif fictif, aucun contexte d'entreprise imaginaire. Restitue simplement le fait brut de manière concise et factuelle.
+- N'invente JAMAIS : pas de dates/heures imaginaires, pas de budget imaginaire, pas de noms fictifs, pas d'objections ou de projets non exprimés.
 
-Contexte :
-- La note décrit ce qui s'est passé pendant l'échange : ce que le prospect a dit, son intérêt, les objections, le niveau de qualification, les prochaines étapes (rappel, démo, envoi d'email, etc.).
-- Ce n'est PAS un message envoyé au prospect, mais un compte-rendu interne qui sera relu plus tard par le SDR, son manager ou un collègue.
-${channel ? `- Canal de l'action: ${channel}` : ''}
-${(resultCode || resultLabel) ? `- Résultat CRM (statut sélectionné) : ${resultLabel || resultCode}` : ''}
+2. FORMAT RÉSUMÉ CONCIS UNIQUEMENT :
+- Produis UNIQUEMENT un résumé concis, structuré et professionnel sous forme de note interne (compte-rendu d'échange).
+- Longueur maximale : 500 caractères (contrainte stricte de la base CRM).
+- Synthétise uniquement les points clés réels :
+  • Statut / qualification (ce qui s'est réellement passé)
+  • Raison ou retour précis du prospect (strictement ce qui est indiqué)
+  • Prochaine étape concrète s'il y en a une (date de rappel, envoi d'email...)
+- Aucun préambule, aucune formule de politesse, pas de "Voici le résumé :", pas de guillemets.
+- Réponds UNIQUEMENT avec le texte brut du résumé.`;
 
-Ta tâche :
-- Corriger l'orthographe et la grammaire.
-- Reformuler pour que la note soit claire, concise et professionnelle, tout en restant une note interne (pas un email).
-
-Contraintes :
-- Réponds UNIQUEMENT par le texte amélioré, sans préambule ni explication.
-- Garde exactement le même sens et les mêmes infos (dates, noms, décisions, "rappeler à...", "intéressé par...", etc.).
-- Maximum 500 caractères.
-- Style : note interne de compte-rendu d'échange, pas un message adressé au prospect.`;
+    let userContent = `Voici les informations de l'échange commercial à résumer fidèlement (sans rien inventer) :\n`;
+    if (channel) userContent += `- Canal : ${channel}\n`;
+    if (resultLabel || resultCode) userContent += `- Résultat CRM : ${resultLabel || resultCode}\n`;
+    if (rawTranscription) userContent += `- Transcription : ${rawTranscription.slice(0, 2000)}\n`;
+    if (rawCallSummary) userContent += `- Résumé appel brut : ${rawCallSummary.slice(0, 1000)}\n`;
+    if (rawText) userContent += `- Notes brutes : ${rawText}\n`;
+    userContent += `\nConsigne : Fournis uniquement le résumé factuel et concis (max 500 caractères). Ne rien inventer.`;
 
     try {
         const response = await fetch(MISTRAL_API_URL, {
@@ -69,13 +84,11 @@ Contraintes :
                     { role: 'system', content: systemPrompt },
                     {
                         role: 'user',
-                        content:
-                            `Voici la note brute à améliorer (ne change pas le fond, seulement la forme) :\n\n` +
-                            text.trim(),
+                        content: userContent,
                     },
                 ],
-                temperature: 0.3,
-                max_tokens: 400,
+                temperature: 0.1,
+                max_tokens: 300,
             }),
         });
 
