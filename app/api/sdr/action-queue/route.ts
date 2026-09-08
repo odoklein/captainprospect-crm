@@ -6,7 +6,11 @@ import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
 
 // ============================================
 // GET /api/sdr/action-queue
-// Returns a list of queue items (same pool as /api/actions/next) for table view.
+// Returns a list of queue items (same pool as /api/actions/next, but not filtered
+// by contactability) for table view. Contacts/companies with no phone/email/LinkedIn
+// for the mission's channel are still included (hasContactInfo: false) so SDRs can
+// see and enrich them — unlike /api/actions/next, which stays strictly call-ready
+// only for the single-lead auto-advance flow.
 // Query: missionId?, listId?, search? (filter by name/company)
 // Returns full eligible queue (no artificial limit).
 // ============================================
@@ -94,6 +98,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             contact_phone: string | null;
             contact_linkedin: string | null;
             contact_status: string;
+            has_contact_info: boolean;
             campaign_id: string;
             mission_name: string;
             mission_channel: string;
@@ -123,6 +128,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 c.phone as contact_phone,
                 c.linkedin as contact_linkedin,
                 c.status::text as contact_status,
+                (
+                    ('CALL' = ANY(m.channels) AND (c.phone IS NOT NULL AND c.phone != '' OR ${COMPANY_PHONE_SQL} IS NOT NULL)) OR
+                    ('EMAIL' = ANY(m.channels) AND c.email IS NOT NULL AND c.email != '') OR
+                    ('LINKEDIN' = ANY(m.channels) AND c.linkedin IS NOT NULL AND c.linkedin != '')
+                ) as has_contact_info,
                 camp.id as campaign_id,
                 m.name as mission_name,
                 m.channel as mission_channel
@@ -149,11 +159,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               AND (l."isArchived" IS NULL OR l."isArchived" = false)
               AND camp."isActive" = true
               ${sdrAssignmentWhere}
-              AND (
-                  ('CALL' = ANY(m.channels) AND (c.phone IS NOT NULL AND c.phone != '' OR ${COMPANY_PHONE_SQL} IS NOT NULL)) OR
-                  ('EMAIL' = ANY(m.channels) AND c.email IS NOT NULL AND c.email != '') OR
-                  ('LINKEDIN' = ANY(m.channels) AND c.linkedin IS NOT NULL AND c.linkedin != '')
-              )
               ${missionFilter}
               ${sdrTodayMissionFilter}
               ${listFilter}
@@ -161,7 +166,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             ORDER BY c.id, co.id
         ),
         sdr_companies AS (
-            -- One row per company (when no eligible contacts exist), regardless of campaign count
+            -- One row per company that has NO contacts at all (nothing else could
+            -- represent it) — shown regardless of whether the company itself has a
+            -- phone, so SDRs can see and enrich it, not just call it.
             SELECT DISTINCT ON (co.id)
                 NULL::text as contact_id,
                 co.id as company_id,
@@ -177,6 +184,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 NULL::text as contact_phone,
                 NULL::text as contact_linkedin,
                 'INCOMPLETE'::text as contact_status,
+                ('CALL' = ANY(m.channels) AND ${COMPANY_PHONE_SQL} IS NOT NULL) as has_contact_info,
                 camp.id as campaign_id,
                 m.name as mission_name,
                 m.channel as mission_channel
@@ -200,16 +208,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               AND (l."isArchived" IS NULL OR l."isArchived" = false)
               AND camp."isActive" = true
               ${sdrAssignmentWhere}
-              AND 'CALL' = ANY(m.channels)
-              AND ${COMPANY_PHONE_SQL} IS NOT NULL
               AND NOT EXISTS (
                   SELECT 1 FROM "Contact" c2
                   WHERE c2."companyId" = co.id
-                  AND (
-                      ('CALL' = ANY(m.channels) AND c2.phone IS NOT NULL AND c2.phone != '') OR
-                      ('EMAIL' = ANY(m.channels) AND c2.email IS NOT NULL AND c2.email != '') OR
-                      ('LINKEDIN' = ANY(m.channels) AND c2.linkedin IS NOT NULL AND c2.linkedin != '')
-                  )
               )
               ${missionFilter}
               ${sdrTodayMissionFilter}
@@ -356,6 +357,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const sorted = filtered.sort(
         (a, b) =>
             a._priorityOrder - b._priorityOrder ||
+            (a.has_contact_info === b.has_contact_info ? 0 : a.has_contact_info ? -1 : 1) ||
             (a.contact_status === "ACTIONABLE" ? 0 : a.contact_status === "PARTIAL" ? 1 : 2) -
                 (b.contact_status === "ACTIONABLE" ? 0 : b.contact_status === "PARTIAL" ? 1 : 2) ||
             (a.last_action_callback_date ? new Date(a.last_action_callback_date).getTime() : Infinity) -
@@ -402,6 +404,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             ? { id: row.last_action_sdr_id, name: row.last_action_sdr_name || null }
             : null,
         priority: row._priorityLabel,
+        hasContactInfo: row.has_contact_info,
     }));
 
     return successResponse({ items });

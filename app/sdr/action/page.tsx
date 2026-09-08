@@ -154,6 +154,7 @@ interface QueueItem {
     lastAction: NextActionData["lastAction"] | null;
     lastActionBy?: { id: string; name: string | null } | null;
     priority: string;
+    hasContactInfo?: boolean;
     _displayName?: string;
     _companyName?: string;
     _phone?: string | null;
@@ -1907,6 +1908,15 @@ export default function SDRActionPage() {
                                         </span>
                                     )}
                                 </div>
+                                {row.hasContactInfo === false && (
+                                    <span
+                                        className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-1.5 py-0.5"
+                                        title="Aucun téléphone / email / LinkedIn renseigné — à enrichir"
+                                    >
+                                        <AlertCircle className="w-2.5 h-2.5" />
+                                        Coordonnées manquantes
+                                    </span>
+                                )}
                             </div>
                         </div>
                     );
