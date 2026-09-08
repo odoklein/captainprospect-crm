@@ -356,6 +356,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             a._priorityOrder - b._priorityOrder ||
             (a.contact_status === "ACTIONABLE" ? 0 : a.contact_status === "PARTIAL" ? 1 : 2) -
                 (b.contact_status === "ACTIONABLE" ? 0 : b.contact_status === "PARTIAL" ? 1 : 2) ||
+            (a.last_action_callback_date ? new Date(a.last_action_callback_date).getTime() : Infinity) -
+                (b.last_action_callback_date ? new Date(b.last_action_callback_date).getTime() : Infinity) ||
             new Date(a.last_action_created ?? 0).getTime() - new Date(b.last_action_created ?? 0).getTime()
     );
     const next = sorted[0];
