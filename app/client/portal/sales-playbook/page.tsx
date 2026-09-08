@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Loader2, Target, FileText, Info, ChevronDown, Copy, Check, Users, Link2, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { StrategyArtifactViewer } from "@/components/strategy";
 
 type MissionItem = {
     id: string;
@@ -422,11 +423,13 @@ function StrategyCard({ strategy, animationDelay }: { strategy: StrategyDetail; 
                 <div className="rounded-xl bg-blue-50/40 border border-blue-100 p-4">
                     <div className="flex items-center gap-2 mb-2">
                         <Info className="w-4 h-4 text-blue-600" />
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Pitch</p>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-blue-700">Pitch Commercial</p>
                     </div>
-                    <p className="text-sm text-[#3D3E5C] whitespace-pre-wrap leading-relaxed">
-                        {strategy.pitch || <span className="text-[#A0A3BD] italic">Non renseigné</span>}
-                    </p>
+                    <StrategyArtifactViewer
+                        type="pitch"
+                        content={strategy.pitch}
+                        emptyText="Non renseigné"
+                    />
                 </div>
 
                 {/* Script */}

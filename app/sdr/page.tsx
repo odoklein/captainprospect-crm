@@ -529,9 +529,9 @@ export default function SDRDashboardPage() {
                     ) : (
                         <div className="bg-white rounded-xl border border-dashed border-[#D5D2C9] p-10 flex flex-col items-center justify-center text-center">
                             <Target className="w-12 h-12 text-[#E8E6DF] mb-4" />
-                            <h3 className="text-[16px] font-bold text-[#0E0F0C]">Aucune mission assignée</h3>
+                            <h3 className="text-[16px] font-bold text-[#0E0F0C]">Aucune mission planifiée aujourd'hui</h3>
                             <p className="text-[13px] text-[#8A8A83] mt-1.5 max-w-[280px]">
-                                Vous n'avez pas de mission principale assignée. Contactez votre manager.
+                                Vous n'avez pas de créneau dans votre planning du jour. Consultez votre planning ou contactez votre manager.
                             </p>
                         </div>
                     )}

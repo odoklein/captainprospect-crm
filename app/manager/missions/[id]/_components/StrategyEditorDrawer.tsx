@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Drawer, useToast } from "@/components/ui";
 import { Loader2, Save, CheckCircle2, AlertCircle, Target, Users, FileText, Sparkles } from "lucide-react";
+import { PitchBlockEditor, ScriptBlockEditor } from "@/components/strategy";
 
 interface ListSummary {
     id: string;
@@ -414,27 +415,21 @@ export function StrategyEditorDrawer({
 
                     {/* Step 4: Pitch */}
                     <Step number={4} icon={<Sparkles style={{ width: 18, height: 18, color: C.indigo }} />} title="Pitch — message à porter">
-                        <textarea
+                        <PitchBlockEditor
                             value={pitch}
-                            onChange={(e) => setPitch(e.target.value)}
-                            rows={5}
+                            onChange={setPitch}
+                            icp={icp}
                             placeholder="Quelle est la valeur que vous apportez ? Quelle est l'accroche ? Quelles preuves chiffrées ?"
-                            style={{ ...inputStyle, fontFamily: "inherit", resize: "vertical", minHeight: 120 }}
-                            onFocus={fieldFocus}
-                            onBlur={fieldBlur}
                         />
                     </Step>
 
                     {/* Step 5: Script */}
                     <Step number={5} icon={<FileText style={{ width: 18, height: 18, color: C.indigo }} />} title="Script d’appel">
-                        <textarea
+                        <ScriptBlockEditor
                             value={script}
-                            onChange={(e) => setScript(e.target.value)}
-                            rows={10}
-                            placeholder="Le script que les SDR liront. Décrochage, accroche, qualification, gestion des objections, clôture."
-                            style={{ ...inputStyle, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", resize: "vertical", minHeight: 220, fontSize: 13 }}
-                            onFocus={fieldFocus}
-                            onBlur={fieldBlur}
+                            onChange={setScript}
+                            icp={icp}
+                            pitch={pitch}
                         />
                         <p style={hintStyle}>
                             Pour les scripts additionnels ou améliorés par IA, utilisez l’onglet « Stratégie &amp; Scripts (avancé) ».

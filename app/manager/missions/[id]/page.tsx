@@ -50,6 +50,7 @@ import { EditMissionDialog } from "./_components/EditMissionDialog";
 import { ReadinessPanel } from "./_components/ReadinessPanel";
 import { StrategyByListTab } from "./_components/StrategyByListTab";
 import { MailboxManagerDialog } from "@/components/email/inbox/MailboxManagerDialog";
+import { PitchBlockEditor, ScriptBlockEditor, StrategyArtifactViewer } from "@/components/strategy";
 import { MISSION_STATUS_CONFIG } from "@/lib/constants/missionStatus";
 import type { MissionStatusValue } from "@/lib/constants/missionStatus";
 
@@ -67,12 +68,6 @@ interface Mission {
     isActive: boolean;
     portalLaunchStartedAt?: string | null;
     portalVisibleAt?: string | null;
-    startDate?: string;
-    endDate?: string;
-    client?: {
-        id: string;
-        name: string;
-        interlocuteurs?: {
             id: string;
             firstName: string;
             lastName: string;
@@ -1720,17 +1715,21 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">Pitch</label>
+                                            <label className="block text-sm font-semibold text-slate-700 mb-2">Pitch Commercial</label>
                                             {isStrategyEditing ? (
-                                                <textarea
+                                                <PitchBlockEditor
                                                     value={strategyForm.pitch}
-                                                    onChange={(e) => setStrategyForm(prev => ({ ...prev, pitch: e.target.value }))}
-                                                    rows={3}
-                                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none text-sm"
-                                                    placeholder="Votre message clé..."
+                                                    onChange={(val) => setStrategyForm(prev => ({ ...prev, pitch: val }))}
+                                                    icp={strategyForm.icp}
+                                                    clientName={mission.client?.name}
+                                                    channel={mission.channel}
                                                 />
                                             ) : (
-                                                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg min-h-[60px]">{campaignData?.pitch || <span className="text-slate-400 italic">Non défini</span>}</p>
+                                                <StrategyArtifactViewer
+                                                    type="pitch"
+                                                    content={campaignData?.pitch}
+                                                    emptyText="Aucun pitch commercial défini pour cette mission."
+                                                />
                                             )}
                                         </div>
                                     </div>
@@ -1745,20 +1744,12 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
                                             </div>
                                             <div>
                                                 <h2 className="text-lg font-semibold text-slate-900">Script d'appel</h2>
-                                                <p className="text-sm text-slate-500">Script unique (non divisé)</p>
+                                                <p className="text-sm text-slate-500">Argumentaire et trame commerciale</p>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {isStrategyEditing ? (
                                                 <>
-                                                    <button
-                                                        onClick={generateWithMistral}
-                                                        disabled={isGenerating || !strategyForm.icp || !strategyForm.pitch}
-                                                        className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-indigo-700 bg-gradient-to-r from-purple-50 to-indigo-50 border border-indigo-200 hover:from-purple-100 hover:to-indigo-100 disabled:opacity-50 rounded-lg transition-colors"
-                                                    >
-                                                        {isGenerating && generatingSection === "all" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-                                                        Générer avec IA
-                                                    </button>
                                                     <button
                                                         onClick={() => setIsStrategyEditing(false)}
                                                         className="h-9 px-4 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
@@ -1811,25 +1802,25 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
 
                                     {isStrategyEditing ? (
                                         <div className="space-y-2">
-                                            <textarea
+                                            <ScriptBlockEditor
                                                 value={baseScript}
-                                                onChange={(e) => setBaseScript(e.target.value)}
-                                                rows={10}
-                                                placeholder="Ajoutez un script de base unique..."
-                                                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono text-sm"
+                                                onChange={setBaseScript}
+                                                icp={strategyForm.icp}
+                                                pitch={strategyForm.pitch}
+                                                channel={mission.channel}
+                                                onAiGenerateSection={(sec) => {
+                                                    if (sec === "all") generateWithMistral();
+                                                }}
+                                                isGenerating={isGenerating}
+                                                generatingSection={generatingSection}
                                             />
                                         </div>
                                     ) : (
-                                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 min-h-[180px]">
-                                            {baseScript ? (
-                                                <p className="text-sm text-slate-700 whitespace-pre-wrap">{baseScript}</p>
-                                            ) : (
-                                                <div className="text-center py-8 text-sm text-slate-400">
-                                                    <Sparkles className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                                                    Aucun script de base
-                                                </div>
-                                            )}
-                                        </div>
+                                        <StrategyArtifactViewer
+                                            type="script"
+                                            content={baseScript}
+                                            emptyText="Aucun script de base configuré pour cette mission."
+                                        />
                                     )}
                                 </div>
 

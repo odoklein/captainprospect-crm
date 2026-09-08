@@ -26,6 +26,7 @@ import {
     ArrowRight,
     Check,
 } from "lucide-react";
+import { PitchBlockEditor, StrategyArtifactViewer } from "@/components/strategy";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -529,13 +530,14 @@ export function NewMissionDialog({ isOpen, onClose, onCreated }: Props) {
                                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                                         Pitch Commercial <span className="text-red-500">*</span>
                                     </label>
-                                    <p className="text-xs text-slate-500 mb-2">Quelle valeur apportez-vous ? En 2-3 phrases, l'essentiel de votre offre.</p>
-                                    <textarea
+                                    <p className="text-xs text-slate-500 mb-2">Quelle valeur apportez-vous ? Utilisez les blocs ou le texte libre, et structurez automatiquement en 1 clic.</p>
+                                    <PitchBlockEditor
                                         value={form.pitch}
-                                        onChange={e => setForm(p => ({ ...p, pitch: e.target.value }))}
-                                        placeholder="Ex: Nous aidons les équipes commerciales à multiplier par 3 le nombre de meetings qualifiés grâce à une plateforme de prospection IA qui automatise les relances et personnalise les messages à grande échelle."
-                                        rows={4}
-                                        className={`w-full px-4 py-3 border rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-slate-400 resize-none ${!form.pitch && "border-red-300" || "border-slate-200"}`}
+                                        onChange={val => setForm(p => ({ ...p, pitch: val }))}
+                                        icp={form.icp}
+                                        clientName={clientName}
+                                        channel={form.channels?.[0] || form.channel}
+                                        placeholder="Ex: Nous aidons les équipes commerciales à multiplier par 3 le nombre de meetings qualifiés..."
                                     />
                                 </div>
                             </div>
@@ -661,26 +663,24 @@ export function NewMissionDialog({ isOpen, onClose, onCreated }: Props) {
                                         <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl leading-relaxed">{form.icp || "—"}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] text-slate-400 font-semibold uppercase mb-1">Pitch</p>
-                                        <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl leading-relaxed">{form.pitch || "—"}</p>
+                                        <p className="text-[10px] text-slate-400 font-semibold uppercase mb-1.5">Pitch Commercial</p>
+                                        <StrategyArtifactViewer type="pitch" content={form.pitch} emptyText="Aucun pitch défini" />
                                     </div>
                                 </div>
 
                                 {/* Script card */}
                                 {form.scriptIntro && (
                                     <div className="p-5 bg-white border border-slate-200 rounded-2xl space-y-3">
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Script</p>
-                                        {[
-                                            { label: "Introduction", value: form.scriptIntro },
-                                            { label: "Découverte", value: form.scriptDiscovery },
-                                            { label: "Objections", value: form.scriptObjection },
-                                            { label: "Closing", value: form.scriptClosing },
-                                        ].filter(s => s.value).map(s => (
-                                            <div key={s.label}>
-                                                <p className="text-[10px] text-slate-400 font-semibold uppercase mb-1">{s.label}</p>
-                                                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl font-mono whitespace-pre-wrap leading-relaxed">{s.value}</p>
-                                            </div>
-                                        ))}
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Script d'appel</p>
+                                        <StrategyArtifactViewer
+                                            type="script"
+                                            content={JSON.stringify({
+                                                intro: form.scriptIntro,
+                                                discovery: form.scriptDiscovery,
+                                                objection: form.scriptObjection,
+                                                closing: form.scriptClosing,
+                                            })}
+                                        />
                                     </div>
                                 )}
                             </div>

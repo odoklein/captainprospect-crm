@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, Button, Modal, ModalFooter, Select, Tabs, useToast } from "@/components/ui";
 import { ArrowLeft, Target, Loader2, MessageSquare, Sparkles, Plus, Wand2 } from "lucide-react";
 import Link from "next/link";
+import { PitchBlockEditor } from "@/components/strategy";
 
 // ============================================
 // TYPES
@@ -430,16 +431,15 @@ export default function NewCampaignPage() {
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
                                 Pitch Commercial *
                             </label>
-                            <textarea
+                            <PitchBlockEditor
                                 value={formData.pitch}
-                                onChange={(e) => setFormData(prev => ({ ...prev, pitch: e.target.value }))}
+                                onChange={(val) => setFormData(prev => ({ ...prev, pitch: val }))}
+                                icp={formData.icp}
+                                channel={selectedMission?.channel}
+                                clientName={selectedMission?.client?.name}
                                 placeholder="Ex: Nous aidons les CEOs à automatiser leur prospection pour gagner 10h par semaine."
-                                rows={3}
-                                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none ${errors.pitch ? "border-red-500" : "border-slate-200"}`}
+                                error={errors.pitch}
                             />
-                            {errors.pitch && (
-                                <p className="text-xs text-red-500 mt-1 font-medium">{errors.pitch}</p>
-                            )}
                         </div>
                     </div>
                 </Card>

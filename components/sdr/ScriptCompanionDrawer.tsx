@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Drawer, Tabs, Button, TextSkeleton, useToast } from "@/components/ui";
+import { StrategyArtifactViewer } from "@/components/strategy";
 import {
     sdrScriptCompanionCampaignsKey,
     sdrScriptCompanionDataKey,
@@ -187,13 +188,11 @@ export function ScriptCompanionDrawer({
 
                         {activeTab === "base" ? (
                             <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                {companionData.baseScript ? (
-                                    <pre className="whitespace-pre-wrap text-sm leading-6 text-slate-700 font-sans">
-                                        {companionData.baseScript}
-                                    </pre>
-                                ) : (
-                                    <p className="text-sm text-slate-500">Aucun script de base configuré sur cette campagne.</p>
-                                )}
+                                <StrategyArtifactViewer
+                                    type="script"
+                                    content={companionData.baseScript}
+                                    emptyText="Aucun script de base configuré sur cette campagne."
+                                />
                             </div>
                         ) : activeTab === "ai" ? (
                             <div className="rounded-xl border border-slate-200 bg-white p-4">

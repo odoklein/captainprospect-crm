@@ -25,6 +25,7 @@ import {
 import Link from "next/link";
 import { Card, Button, Badge, Modal, ModalFooter, LoadingState, EmptyState, Tabs } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { PitchBlockEditor, StrategyArtifactViewer } from "@/components/strategy";
 
 // ============================================
 // TYPES
@@ -527,16 +528,19 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                 )}
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-2">Pitch</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-2">Pitch Commercial</label>
                                 {isEditing ? (
-                                    <textarea
+                                    <PitchBlockEditor
                                         value={formData.pitch}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, pitch: e.target.value }))}
-                                        rows={3}
-                                        className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                        onChange={(val) => setFormData(prev => ({ ...prev, pitch: val }))}
+                                        icp={formData.icp}
                                     />
                                 ) : (
-                                    <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">{campaign.pitch}</p>
+                                    <StrategyArtifactViewer
+                                        type="pitch"
+                                        content={campaign.pitch}
+                                        emptyText="Aucun pitch défini"
+                                    />
                                 )}
                             </div>
                         </div>

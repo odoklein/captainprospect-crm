@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { successResponse, requireRole, withErrorHandler } from "@/lib/api-utils";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
+import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
 
 // ============================================
 // GET /api/sdr/action-queue
@@ -49,9 +50,23 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const cooldownDate = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000);
     const sdrId = session.user.id;
     const isBooker = session.user.role === "BOOKER";
+    const isSdr = session.user.role === "SDR";
+
+    // SDRs are strictly limited to missions in today's planning (ScheduleBlock),
+    // regardless of any long-lived SDRAssignment record or client-supplied missionId.
+    let sdrTodayMissionIds: string[] = [];
+    if (isSdr) {
+        sdrTodayMissionIds = await getTodaySdrMissionIds(sdrId);
+        if (sdrTodayMissionIds.length === 0 || (missionId && !sdrTodayMissionIds.includes(missionId))) {
+            return successResponse({ items: [] });
+        }
+    }
 
     const missionFilter = missionId ? `AND m.id = '${missionId.replace(/'/g, "''")}'` : "";
     const listFilter = listId ? `AND l.id = '${listId.replace(/'/g, "''")}'` : "";
+    const sdrTodayMissionFilter = isSdr
+        ? `AND m.id IN (${sdrTodayMissionIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(",")})`
+        : "";
 
     const shouldBypassAssignmentGate = Boolean(missionId);
 
@@ -140,6 +155,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                   ('LINKEDIN' = ANY(m.channels) AND c.linkedin IS NOT NULL AND c.linkedin != '')
               )
               ${missionFilter}
+              ${sdrTodayMissionFilter}
               ${listFilter}
               ${channelFilter}
             ORDER BY c.id, co.id
@@ -196,6 +212,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                   )
               )
               ${missionFilter}
+              ${sdrTodayMissionFilter}
               ${listFilter}
               ${channelFilter}
             ORDER BY co.id

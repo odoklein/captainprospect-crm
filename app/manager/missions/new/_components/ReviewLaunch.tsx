@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui";
 import { CreateMissionInput } from "@/app/actions/mission-wizard";
 import { CheckCircle2, Target, Calendar, MessageSquare, Users } from "lucide-react";
+import { StrategyArtifactViewer } from "@/components/strategy";
 
 interface ReviewLaunchProps {
     data: CreateMissionInput;
@@ -69,8 +70,8 @@ export function ReviewLaunch({ data, clientName }: ReviewLaunchProps) {
                         <dd className="font-medium text-slate-900 bg-slate-50 p-3 rounded-lg">{data.icp || "-"}</dd>
                     </div>
                     <div>
-                        <dt className="text-slate-500 mb-1">Pitch Commercial</dt>
-                        <dd className="font-medium text-slate-900 bg-slate-50 p-3 rounded-lg">{data.pitch || "-"}</dd>
+                        <dt className="text-slate-500 mb-2">Pitch Commercial</dt>
+                        <StrategyArtifactViewer type="pitch" content={data.pitch} emptyText="Aucun pitch renseigné" />
                     </div>
                 </dl>
             </Card>
@@ -82,32 +83,15 @@ export function ReviewLaunch({ data, clientName }: ReviewLaunchProps) {
                         <MessageSquare className="w-5 h-5 text-violet-600" />
                         Script de prospection
                     </h3>
-                    <div className="space-y-4 text-sm">
-                        {data.scriptIntro && (
-                            <div>
-                                <dt className="text-slate-500 mb-1 font-medium">Introduction</dt>
-                                <dd className="text-slate-900 bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">{data.scriptIntro}</dd>
-                            </div>
-                        )}
-                        {data.scriptDiscovery && (
-                            <div>
-                                <dt className="text-slate-500 mb-1 font-medium">Découverte</dt>
-                                <dd className="text-slate-900 bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">{data.scriptDiscovery}</dd>
-                            </div>
-                        )}
-                        {data.scriptObjection && (
-                            <div>
-                                <dt className="text-slate-500 mb-1 font-medium">Objections</dt>
-                                <dd className="text-slate-900 bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">{data.scriptObjection}</dd>
-                            </div>
-                        )}
-                        {data.scriptClosing && (
-                            <div>
-                                <dt className="text-slate-500 mb-1 font-medium">Closing</dt>
-                                <dd className="text-slate-900 bg-slate-50 p-3 rounded-lg whitespace-pre-wrap">{data.scriptClosing}</dd>
-                            </div>
-                        )}
-                    </div>
+                    <StrategyArtifactViewer
+                        type="script"
+                        content={JSON.stringify({
+                            intro: data.scriptIntro,
+                            discovery: data.scriptDiscovery,
+                            objection: data.scriptObjection,
+                            closing: data.scriptClosing,
+                        })}
+                    />
                 </Card>
             )}
         </div>

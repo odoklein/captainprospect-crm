@@ -723,17 +723,16 @@ export default function SDRActionPage() {
 
                     const saved = localStorage.getItem("sdr_selected_mission");
                     const allowedMissionIds = (() => {
-                        if (!todayJson.success || !todayJson.data) return new Set(allMissions.map((m: Mission) => m.id));
+                        // Strictly today's planning only — no fallback to the rest of the week.
+                        if (!todayJson.success || !todayJson.data) return new Set<string>();
                         const planningData = todayJson.data as {
                             hasBlocksToday: boolean;
                             todayMissionIds: string[];
-                            weekBlocks: Array<{ mission: { id: string } }>;
                         };
                         if (planningData.hasBlocksToday && planningData.todayMissionIds.length > 0) {
                             return new Set(planningData.todayMissionIds);
                         }
-                        const weekIds = planningData.weekBlocks.map((b) => b.mission.id);
-                        return weekIds.length > 0 ? new Set(weekIds) : new Set<string>();
+                        return new Set<string>();
                     })();
                     const availableMissions = allMissions.filter((m: Mission) => allowedMissionIds.has(m.id));
                     const missionId = (saved && availableMissions.some((m: Mission) => m.id === saved))
@@ -767,13 +766,12 @@ export default function SDRActionPage() {
     }, [showError]);
 
     useEffect(() => {
+        // Strictly today's planning only — no fallback to the rest of the week.
         const allowedMissionIds = (() => {
             if (!todayBlocksData) return null;
             if (todayBlocksData.hasBlocksToday && todayBlocksData.todayMissionIds.length > 0) {
                 return new Set(todayBlocksData.todayMissionIds);
             }
-            const weekIds = todayBlocksData.weekBlocks.map((block) => block.mission.id);
-            if (weekIds.length > 0) return new Set(weekIds);
             return new Set<string>();
         })();
 
@@ -895,12 +893,11 @@ export default function SDRActionPage() {
         , [statusConfig]);
 
     const selectableMissionIds = useMemo(() => {
+        // Strictly today's planning only — no fallback to the rest of the week.
         if (!todayBlocksData) return null;
         if (todayBlocksData.hasBlocksToday && todayBlocksData.todayMissionIds.length > 0) {
             return new Set(todayBlocksData.todayMissionIds);
         }
-        const weekIds = todayBlocksData.weekBlocks.map((block) => block.mission.id);
-        if (weekIds.length > 0) return new Set(weekIds);
         return new Set<string>();
     }, [todayBlocksData]);
 

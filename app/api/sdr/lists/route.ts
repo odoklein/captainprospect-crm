@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
 
 // ============================================
 // GET /api/sdr/lists
@@ -22,6 +23,17 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const missionId = searchParams.get("missionId");
+        const role = (session.user as { role?: string }).role;
+
+        // SDRs are strictly limited to missions in today's planning (ScheduleBlock) —
+        // never other missions they happen to be assigned to but aren't working today.
+        let todayMissionIds: string[] | null = null;
+        if (role === "SDR") {
+            todayMissionIds = await getTodaySdrMissionIds(session.user.id);
+            if (todayMissionIds.length === 0 || (missionId && !todayMissionIds.includes(missionId))) {
+                return NextResponse.json({ success: true, data: [] });
+            }
+        }
 
         // Fetch lists from active mission window (same scope as mission dropdown)
         const lists = await prisma.list.findMany({
@@ -32,6 +44,7 @@ export async function GET(request: NextRequest) {
                     startDate: { lte: new Date() },
                     endDate: { gte: new Date() },
                     ...(missionId ? { id: missionId } : {}),
+                    ...(todayMissionIds ? { id: { in: todayMissionIds } } : {}),
                 },
             },
             include: {
