@@ -69,33 +69,40 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       },
     });
 
-    await Promise.allSettled(
-      toAutoConfirm
-        .filter((m) => !!m.campaign?.mission?.clientId)
-        .map(async (m) => {
-          const clientId = m.campaign!.mission!.clientId!;
-          await createClientPortalNotification(clientId, {
-            title: "Nouveau RDV confirmé",
-            message: "Un rendez-vous a été confirmé pour une de vos missions.",
-            type: "success",
-            link: "/client/portal/meetings",
-          });
+    // Background notification dispatch to prevent blocking API response
+    void (async () => {
+      try {
+        await Promise.allSettled(
+          toAutoConfirm
+            .filter((m) => !!m.campaign?.mission?.clientId)
+            .map(async (m) => {
+              const clientId = m.campaign!.mission!.clientId!;
+              await createClientPortalNotification(clientId, {
+                title: "Nouveau RDV confirmé",
+                message: "Un rendez-vous a été confirmé pour une de vos missions.",
+                type: "success",
+                link: "/client/portal/meetings",
+              });
 
-          void sendNewRdvEmailNotification(clientId, {
-            contactFirstName: m.contact?.firstName ?? null,
-            contactLastName: m.contact?.lastName ?? null,
-            companyName: m.company?.name ?? m.contact?.company?.name ?? null,
-            missionName: m.campaign?.mission?.name ?? null,
-            scheduledAt: m.callbackDate ?? null,
-            meetingChannel: (m.channel as any) ?? "CALL",
-            meetingType: (m.meetingType as any) ?? null,
-            meetingJoinUrl: m.meetingJoinUrl ?? null,
-            meetingAddress: m.meetingAddress ?? null,
-            meetingPhone: m.meetingPhone ?? null,
-            interlocuteurId: m.interlocuteurId ?? undefined,
-          });
-        })
-    );
+              void sendNewRdvEmailNotification(clientId, {
+                contactFirstName: m.contact?.firstName ?? null,
+                contactLastName: m.contact?.lastName ?? null,
+                companyName: m.company?.name ?? m.contact?.company?.name ?? null,
+                missionName: m.campaign?.mission?.name ?? null,
+                scheduledAt: m.callbackDate ?? null,
+                meetingChannel: (m.channel as any) ?? "CALL",
+                meetingType: (m.meetingType as any) ?? null,
+                meetingJoinUrl: m.meetingJoinUrl ?? null,
+                meetingAddress: m.meetingAddress ?? null,
+                meetingPhone: m.meetingPhone ?? null,
+                interlocuteurId: m.interlocuteurId ?? undefined,
+              });
+            })
+        );
+      } catch (err) {
+        console.error("Auto-confirm background notification error:", err);
+      }
+    })();
   }
 
   const where: Prisma.ActionWhereInput = {
@@ -266,6 +273,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     sdrCounts,
     confirmedBookedCount,
     totalBookedCount,
+    pendingCount,
   ] = await Promise.all([
     prisma.action.count({
       where: { AND: [aggBase, { result: "MEETING_BOOKED" }, { callbackDate: { gte: now } }] },
@@ -292,6 +300,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }),
     prisma.action.count({
       where: { AND: [aggBase, { result: "MEETING_BOOKED" }] },
+    }),
+    prisma.action.count({
+      where: { AND: [aggBase, { result: "MEETING_BOOKED" }, { confirmationStatus: "PENDING" as any }] },
     }),
   ]);
 
@@ -390,6 +401,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     },
     aggregates: {
       totalCount,
+      pendingCount,
       upcomingCount,
       pastCount,
       cancelledCount,

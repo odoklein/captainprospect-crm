@@ -133,9 +133,9 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
     <div
       className="rdv-scrollbar"
       style={{
-        width: 290, flexShrink: 0, borderRight: "1px solid var(--border)",
-        background: "var(--surface)", overflowY: "auto", padding: "20px",
-        display: "flex", flexDirection: "column", gap: 20,
+        width: 260, flexShrink: 0, borderRight: "1px solid var(--border)",
+        background: "var(--surface)", overflowY: "auto", padding: "16px",
+        display: "flex", flexDirection: "column", gap: 16,
       }}
     >
       {/* Header */}

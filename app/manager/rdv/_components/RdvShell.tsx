@@ -103,6 +103,7 @@ export function RdvShell() {
         setView={setView}
         filters={filters}
         meetings={meetings}
+        aggregates={aggregates}
         onRefresh={() => fetchMeetings()}
         onOpenSyncAudios={() => setSyncAudiosOpen(true)}
       />
@@ -112,8 +113,10 @@ export function RdvShell() {
         loading={loading}
         statusFilter={filters.statusFilter}
         datePreset={filters.datePreset}
+        confirmationFilter={filters.confirmationFilter}
         onSetStatusFilter={filters.setStatusFilter}
         onSetDatePreset={filters.setDatePreset}
+        onSetConfirmationFilter={filters.setConfirmationFilter}
       />
 
       <div className={`rdv-content-layout ${panelState.panelOpen ? "panel-open" : ""}`}>
@@ -162,6 +165,7 @@ export function RdvShell() {
           onOpenEditCompany={() => setActiveModal("editCompany")}
           onOpenLinkContact={() => setActiveModal("linkContact")}
           updateLocalMeeting={updateLocalMeeting}
+          meetings={meetings}
         />
       </div>
 

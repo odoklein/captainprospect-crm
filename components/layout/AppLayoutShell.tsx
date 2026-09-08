@@ -505,20 +505,16 @@ function InnerLayout({
                     </div>
                 </header>
 
-                {isEmailHub ? (
-                    // Email Hub: fill remaining height, no padding wrapper
-                    <div className="flex-1 overflow-hidden" style={{ height: 'calc(100vh - 56px)' }}>
+                {isEmailHub || isRdvPage ? (
+                    // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 56px)' }}>
                         {children}
                     </div>
                 ) : (
                     <div className="cp-content">
-                        {isRdvPage ? (
-                            <div className="w-full">{children}</div>
-                        ) : (
-                            <div className="max-w-[1440px] mx-auto w-full">
-                                {children}
-                            </div>
-                        )}
+                        <div className="max-w-[1440px] mx-auto w-full">
+                            {children}
+                        </div>
                     </div>
                 )}
 

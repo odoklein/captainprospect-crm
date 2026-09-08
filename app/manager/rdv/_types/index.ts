@@ -67,6 +67,7 @@ export interface Meeting {
 
 export interface Aggregates {
   totalCount: number;
+  pendingCount?: number;
   upcomingCount: number;
   pastCount: number;
   cancelledCount: number;

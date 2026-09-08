@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import type { Meeting } from "../../_types";
 import type { UseFicheRdvReturn } from "../../_hooks/useFicheRdv";
-import { FileText, Check, RefreshCw } from "lucide-react";
+import { FileText, Check, RefreshCw, Copy, CheckCheck, Sparkles } from "lucide-react";
 
 interface FicheTabProps {
   meeting: Meeting;
@@ -19,6 +20,8 @@ const FICHE_FIELDS = [
 ] as const;
 
 export function FicheTab({ meeting, setSelectedMeeting, ficheState }: FicheTabProps) {
+  const [copiedFiche, setCopiedFiche] = useState(false);
+
   const {
     ficheForm,
     setFicheForm,
@@ -34,35 +37,62 @@ export function FicheTab({ meeting, setSelectedMeeting, ficheState }: FicheTabPr
     triggerAutoSave,
   } = ficheState;
 
+  const handleCopyAll = () => {
+    const text = FICHE_FIELDS.map(([field, label]) => `**${label}** :\n${ficheForm[field]?.trim() || "—"}`).join("\n\n");
+    navigator.clipboard.writeText(text);
+    setCopiedFiche(true);
+    setTimeout(() => setCopiedFiche(false), 2000);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Fiche RDV</div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Fiche Qualification RDV</div>
+          <button
+            className="rdv-btn rdv-btn-ghost"
+            style={{ fontSize: 11, padding: "3px 8px" }}
+            onClick={handleCopyAll}
+            title="Copier toute la fiche formatée"
+          >
+            {copiedFiche ? <CheckCheck size={12} style={{ color: "var(--green)" }} /> : <Copy size={12} />}
+            <span>{copiedFiche ? "Copié !" : "Copier"}</span>
+          </button>
+        </div>
+
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {ficheAutoSaveStatus === "saving" && <span style={{ fontSize: 11, color: "var(--ink3)", fontWeight: 500 }}>Enregistrement…</span>}
           {ficheAutoSaveStatus === "saved" && <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 500 }}>Sauvegardé ✓</span>}
           {ficheAutoSaveStatus === "error" && <span style={{ fontSize: 11, color: "var(--red)", fontWeight: 500 }}>Erreur</span>}
-          {ficheSaved && ficheAutoSaveStatus === "idle" && <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 500 }}>Sauvegardé ✓</span>}
+          {ficheSaved && ficheAutoSaveStatus === "idle" && <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 500 }}>Sauvegardé ✓</span>}
+
           <button
-            className="rdv-btn rdv-btn-ghost"
-            style={{ fontSize: 12, padding: "6px 12px" }}
+            className="rdv-btn"
+            style={{
+              fontSize: 11,
+              padding: "5px 10px",
+              background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
+              color: "#ffffff",
+              boxShadow: "0 2px 6px rgba(79, 70, 229, 0.25)",
+            }}
             disabled={ficheLoading}
             onClick={() => generateWithAI(meeting, (updated) => setSelectedMeeting(updated))}
           >
             {ficheLoading ? (
-              <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} />
+              <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} />
             ) : (
-              <FileText size={13} />
+              <Sparkles size={12} />
             )}
             Générer IA
           </button>
+
           <button
             className="rdv-btn rdv-btn-primary"
-            style={{ fontSize: 12, padding: "6px 12px" }}
+            style={{ fontSize: 11, padding: "5px 10px" }}
             disabled={ficheSaving}
             onClick={() => saveFiche(meeting, (updated) => setSelectedMeeting(updated))}
           >
-            <Check size={13} /> {ficheSaving ? "Enregistrement…" : "Sauvegarder"}
+            <Check size={12} /> {ficheSaving ? "Enregistrement…" : "Sauvegarder"}
           </button>
         </div>
       </div>

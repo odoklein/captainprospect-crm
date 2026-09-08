@@ -40,26 +40,26 @@ export function FeedbackTab({ meeting, feedbackState, updateMeeting }: FeedbackT
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", marginBottom: 12 }}>Résultat du RDV</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           {OUTCOMES.map(([key, label, Icon, color, bg]) => (
             <button
               key={key}
               onClick={() => setFeedbackOutcome(key)}
               style={{
-                padding: 20,
-                borderRadius: 12,
-                border: `2px solid ${feedbackOutcome === key ? color : "var(--border)"}`,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: `1.5px solid ${feedbackOutcome === key ? color : "var(--border2)"}`,
                 background: feedbackOutcome === key ? bg : "var(--surface)",
                 cursor: "pointer",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 8,
-                transition: "all 0.15s",
+                transition: "all 0.12s",
               }}
             >
-              <Icon size={22} style={{ color }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color }}>{label}</span>
+              <Icon size={16} style={{ color }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color }}>{label}</span>
             </button>
           ))}
         </div>
