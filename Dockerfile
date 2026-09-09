@@ -1,32 +1,21 @@
-FROM node:20-bookworm-slim AS deps
+FROM node:20-slim AS deps
 WORKDIR /app
-
 COPY package.json package-lock.json ./
-RUN npm ci
-
-FROM node:20-bookworm-slim AS builder
+RUN npm ci --ignore-scripts
+FROM node:20-slim AS build
 WORKDIR /app
-
 ENV NEXT_TELEMETRY_DISABLED=1
-
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
 RUN npm run build
-
-FROM node:20-bookworm-slim AS runner
+FROM node:20-slim AS runtime
 WORKDIR /app
-
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=5000
 ENV HOSTNAME=0.0.0.0
-
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/prisma ./prisma
-
+COPY --from=build /app/public ./public
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
 EXPOSE 5000
-
 CMD ["node", "server.js"]
