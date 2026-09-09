@@ -34,40 +34,61 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim() || null;
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '30')));
+    const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || '50')));
     const skip = (page - 1) * limit;
 
-    // Get all missions for this client
-    const missions = await prisma.mission.findMany({
-        where: { clientId, AND: [portalVisibleMissionWhere()] },
-        select: { id: true },
+    // Filter by List(s) where commercialInterlocuteurId = interlocuteur courant ET contactsViewEnabled = true
+    const eligibleLists = await prisma.list.findMany({
+        where: {
+            commercialInterlocuteurId: interlocuteurId,
+            contactsViewEnabled: true,
+            isActive: true,
+            isArchived: false,
+            mission: {
+                clientId,
+                AND: [portalVisibleMissionWhere()],
+            },
+        },
+        select: {
+            id: true,
+            name: true,
+            type: true,
+            _count: {
+                select: {
+                    companies: true,
+                },
+            },
+        },
     });
 
-    const missionIds = missions.map((m) => m.id);
-    if (missionIds.length === 0) {
-        return successResponse({ contacts: [], companies: [], total: 0 });
+    const eligibleListIds = eligibleLists.map((l) => l.id);
+
+    // If no eligible base -> empty contacts, no error, with clear message
+    if (eligibleListIds.length === 0) {
+        return successResponse({
+            contacts: [],
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+            eligibleLists: [],
+            message: "aucune base activée pour l'instant",
+        });
     }
 
-    // Get campaigns linked to these missions
-    const campaigns = await prisma.campaign.findMany({
-        where: { missionId: { in: missionIds } },
-        select: { id: true },
-    });
-
-    const campaignIds = campaigns.map((c) => c.id);
-    if (campaignIds.length === 0) {
-        return successResponse({ contacts: [], companies: [], total: 0 });
-    }
-
-    // Build contact where clause
+    // Build contact where clause scoped to companies in the eligible list(s)
     const contactWhere: Record<string, unknown> = {
-        actions: { some: { campaignId: { in: campaignIds } } },
+        company: {
+            listId: { in: eligibleListIds },
+        },
     };
 
     if (search) {
         contactWhere.OR = [
             { firstName: { contains: search, mode: 'insensitive' } },
             { lastName: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search, mode: 'insensitive' } },
             { company: { name: { contains: search, mode: 'insensitive' } } },
         ];
     }
@@ -84,6 +105,14 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                         country: true,
                         website: true,
                         size: true,
+                        phone: true,
+                        listId: true,
+                        list: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
                     },
                 },
             },
@@ -100,5 +129,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+        eligibleLists,
+        message: null,
     });
 });

@@ -813,6 +813,7 @@ model List {
   // Optional commercial (client interlocuteur) owning this list
   commercialInterlocuteurId String?
   commercialInterlocuteur   ClientInterlocuteur? @relation(fields: [commercialInterlocuteurId], references: [id], onDelete: SetNull)
+  contactsViewEnabled       Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

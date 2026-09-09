@@ -15,6 +15,11 @@ import {
     Users,
     Sparkles,
     ChevronRight,
+    Eye,
+    EyeOff,
+    Check,
+    Power,
+    PowerOff,
 } from "lucide-react";
 import { StrategyEditorDrawer } from "./StrategyEditorDrawer";
 
@@ -23,6 +28,14 @@ interface ListItem {
     name: string;
     type: string;
     isActive?: boolean;
+    contactsViewEnabled?: boolean;
+    commercialInterlocuteurId?: string | null;
+    commercialInterlocuteur?: {
+        id: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        title?: string | null;
+    } | null;
     campaignId?: string | null;
     campaign?: {
         id: string;
@@ -91,6 +104,10 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
     const [initialAssignToListId, setInitialAssignToListId] = useState<string | null>(null);
     const [busyListId, setBusyListId] = useState<string | null>(null);
     const [pickerListId, setPickerListId] = useState<string | null>(null);
+    const [togglingContactsListId, setTogglingContactsListId] = useState<string | null>(null);
+    const [successContactsListId, setSuccessContactsListId] = useState<string | null>(null);
+    const [togglingActiveListId, setTogglingActiveListId] = useState<string | null>(null);
+    const [successActiveListId, setSuccessActiveListId] = useState<string | null>(null);
 
     const defaultCampaign = campaigns.find((c) => c.isActive) || campaigns[0] || null;
 
@@ -187,6 +204,78 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
             showError("Erreur", "Mise à jour échouée");
         } finally {
             setBusyListId(null);
+        }
+    };
+
+    const handleToggleContactsView = async (list: ListItem) => {
+        if (togglingContactsListId === list.id || busyListId === list.id) return;
+        setTogglingContactsListId(list.id);
+        const targetValue = !(list.contactsViewEnabled ?? false);
+        try {
+            const res = await fetch(`/api/lists/${list.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contactsViewEnabled: targetValue }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+                showError("Erreur", json.error || "Impossible de modifier la visibilité des contacts de cette base");
+                return;
+            }
+            const confirmedValue = typeof json.data?.contactsViewEnabled === "boolean"
+                ? json.data.contactsViewEnabled
+                : targetValue;
+
+            setSuccessContactsListId(list.id);
+            setTimeout(() => {
+                setSuccessContactsListId((prev) => (prev === list.id ? null : prev));
+            }, 2000);
+
+            success(
+                confirmedValue ? "Accès contacts activé" : "Accès contacts désactivé",
+                `La base « ${list.name} » est désormais ${confirmedValue ? "visible" : "masquée"} pour son commercial référent.`
+            );
+            onChange();
+        } catch (err) {
+            showError("Erreur réseau", err instanceof Error ? err.message : "Échec de la communication avec le serveur");
+        } finally {
+            setTogglingContactsListId(null);
+        }
+    };
+
+    const handleToggleListActive = async (list: ListItem) => {
+        if (togglingActiveListId === list.id || busyListId === list.id) return;
+        setTogglingActiveListId(list.id);
+        const targetValue = list.isActive === false;
+        try {
+            const res = await fetch(`/api/lists/${list.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isActive: targetValue }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+                showError("Erreur", json.error || "Impossible de modifier le statut de la liste");
+                return;
+            }
+            const confirmedValue = typeof json.data?.isActive === "boolean"
+                ? json.data.isActive
+                : targetValue;
+
+            setSuccessActiveListId(list.id);
+            setTimeout(() => {
+                setSuccessActiveListId((prev) => (prev === list.id ? null : prev));
+            }, 2000);
+
+            success(
+                confirmedValue ? "Liste activée" : "Liste désactivée",
+                `La liste « ${list.name} » est désormais ${confirmedValue ? "active" : "désactivée"} pour cette mission.`
+            );
+            onChange();
+        } catch (err) {
+            showError("Erreur réseau", err instanceof Error ? err.message : "Échec de la communication avec le serveur");
+        } finally {
+            setTogglingActiveListId(null);
         }
     };
 
@@ -370,28 +459,138 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                         </div>
                                     </div>
 
-                                    <span
+                                    <div
                                         style={{
-                                            display: "inline-flex",
+                                            display: "flex",
                                             alignItems: "center",
-                                            gap: 6,
-                                            fontSize: 13,
-                                            fontWeight: 600,
-                                            color: statusColor,
-                                            background: statusBg,
-                                            padding: "8px 14px",
-                                            borderRadius: 999,
-                                            border: `1px solid ${statusColor}33`,
-                                            flexShrink: 0,
+                                            gap: 10,
+                                            flexWrap: "wrap",
+                                            justifyContent: "flex-end",
                                         }}
                                     >
-                                        {hasAnyStrategy && isReady ? (
-                                            <CheckCircle2 style={{ width: 16, height: 16 }} />
-                                        ) : (
-                                            <AlertCircle style={{ width: 16, height: 16 }} />
-                                        )}
-                                        {statusLabel}
-                                    </span>
+                                        {/* Toggle Active / Inactive for mission */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleListActive(list)}
+                                            disabled={isBusy || togglingActiveListId === list.id}
+                                            style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 6,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                padding: "6px 12px",
+                                                borderRadius: 10,
+                                                border: !inactive
+                                                    ? `1px solid ${COLORS.emerald}33`
+                                                    : `1px solid ${COLORS.rose}33`,
+                                                background: !inactive
+                                                    ? COLORS.emeraldBg
+                                                    : COLORS.roseBg,
+                                                color: !inactive
+                                                    ? COLORS.emerald
+                                                    : COLORS.rose,
+                                                cursor: (isBusy || togglingActiveListId === list.id) ? "not-allowed" : "pointer",
+                                                opacity: (isBusy || togglingActiveListId === list.id) ? 0.6 : 1,
+                                                transition: "all 150ms ease",
+                                            }}
+                                            title={inactive ? "Cliquer pour réactiver la liste pour cette mission" : "Cliquer pour désactiver la liste pour cette mission"}
+                                        >
+                                            {togglingActiveListId === list.id ? (
+                                                <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
+                                            ) : successActiveListId === list.id ? (
+                                                <Check style={{ width: 14, height: 14 }} />
+                                            ) : !inactive ? (
+                                                <Power style={{ width: 14, height: 14 }} />
+                                            ) : (
+                                                <PowerOff style={{ width: 14, height: 14 }} />
+                                            )}
+                                            <span>{!inactive ? "Active" : "Désactivée"}</span>
+                                        </button>
+
+                                        {/* Toggle Commercial contacts view */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleContactsView(list)}
+                                            disabled={isBusy || togglingContactsListId === list.id}
+                                            style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 6,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                padding: "6px 12px",
+                                                borderRadius: 10,
+                                                border: list.contactsViewEnabled
+                                                    ? `1px solid ${COLORS.indigo}44`
+                                                    : `1px solid ${COLORS.border}`,
+                                                background: list.contactsViewEnabled
+                                                    ? COLORS.indigoBg
+                                                    : COLORS.bgSubtle,
+                                                color: list.contactsViewEnabled
+                                                    ? COLORS.indigo
+                                                    : COLORS.textMuted,
+                                                cursor: (isBusy || togglingContactsListId === list.id) ? "not-allowed" : "pointer",
+                                                opacity: (isBusy || togglingContactsListId === list.id) ? 0.6 : 1,
+                                                transition: "all 150ms ease",
+                                            }}
+                                            title={
+                                                list.commercialInterlocuteur
+                                                    ? `Accès contacts pour ${[list.commercialInterlocuteur.firstName, list.commercialInterlocuteur.lastName].filter(Boolean).join(" ")} : ${list.contactsViewEnabled ? "Activé" : "Désactivé"}`
+                                                    : `Aucun commercial assigné. Accès contacts : ${list.contactsViewEnabled ? "Activé" : "Désactivé"}`
+                                            }
+                                        >
+                                            {togglingContactsListId === list.id ? (
+                                                <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
+                                            ) : successContactsListId === list.id ? (
+                                                <Check style={{ width: 14, height: 14, color: COLORS.emerald }} />
+                                            ) : list.contactsViewEnabled ? (
+                                                <Eye style={{ width: 14, height: 14 }} />
+                                            ) : (
+                                                <EyeOff style={{ width: 14, height: 14 }} />
+                                            )}
+                                            <span>
+                                                Vue contacts : {list.contactsViewEnabled ? "Activée" : "Désactivée"}
+                                            </span>
+                                            {list.commercialInterlocuteur && (
+                                                <span
+                                                    style={{
+                                                        fontSize: 11,
+                                                        opacity: 0.85,
+                                                        marginLeft: 2,
+                                                        paddingLeft: 6,
+                                                        borderLeft: `1px solid ${list.contactsViewEnabled ? COLORS.indigo + "33" : COLORS.border}`,
+                                                    }}
+                                                >
+                                                    {[list.commercialInterlocuteur.firstName, list.commercialInterlocuteur.lastName].filter(Boolean).join(" ")}
+                                                </span>
+                                            )}
+                                        </button>
+
+                                        {/* Readiness status pill */}
+                                        <span
+                                            style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 6,
+                                                fontSize: 13,
+                                                fontWeight: 600,
+                                                color: statusColor,
+                                                background: statusBg,
+                                                padding: "6px 14px",
+                                                borderRadius: 999,
+                                                border: `1px solid ${statusColor}33`,
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            {hasAnyStrategy && isReady ? (
+                                                <CheckCircle2 style={{ width: 16, height: 16 }} />
+                                            ) : (
+                                                <AlertCircle style={{ width: 16, height: 16 }} />
+                                            )}
+                                            {statusLabel}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 {/* Body */}

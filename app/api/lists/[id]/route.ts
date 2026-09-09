@@ -88,7 +88,7 @@ export const PATCH = withErrorHandler(async (
     const { id } = await params;
     const body = await request.json();
 
-    const { name, type, source, missionId, commercialInterlocuteurId, campaignId, isActive, isArchived } = body;
+    const { name, type, source, missionId, commercialInterlocuteurId, campaignId, isActive, isArchived, contactsViewEnabled } = body;
 
     // Load current list with mission + client for validation
     const existing = await prisma.list.findUnique({
@@ -180,6 +180,11 @@ export const PATCH = withErrorHandler(async (
         await prisma.$executeRaw`UPDATE "List" SET "isArchived" = ${isArchived}, "archivedAt" = ${archivedAt} WHERE id = ${id}`;
     }
 
+    // contactsViewEnabled: toggle commercial portal visibility for this list
+    if (typeof contactsViewEnabled === 'boolean') {
+        await prisma.$executeRaw`UPDATE "List" SET "contactsViewEnabled" = ${contactsViewEnabled} WHERE id = ${id}`;
+    }
+
     const hasOtherUpdates =
         (name && name !== existing.name) ||
         (type && type !== existing.type) ||
@@ -249,6 +254,11 @@ export const PATCH = withErrorHandler(async (
     if (typeof isArchived === 'boolean' && updatedList) {
         (updatedList as { isArchived?: boolean; archivedAt?: Date | null }).isArchived = isArchived;
         (updatedList as { isArchived?: boolean; archivedAt?: Date | null }).archivedAt = isArchived ? new Date() : null;
+    }
+
+    // Attach contactsViewEnabled from DB when we updated it
+    if (typeof contactsViewEnabled === 'boolean' && updatedList) {
+        (updatedList as { contactsViewEnabled?: boolean }).contactsViewEnabled = contactsViewEnabled;
     }
 
     return successResponse(updatedList!);

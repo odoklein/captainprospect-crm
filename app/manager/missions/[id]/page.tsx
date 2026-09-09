@@ -104,6 +104,7 @@ interface Mission {
         name: string;
         type: string;
         isActive?: boolean;
+        contactsViewEnabled?: boolean;
         commercialInterlocuteurId?: string | null;
         commercialInterlocuteur?: {
             id: string;
@@ -246,6 +247,7 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
     const [listToDelete, setListToDelete] = useState<Mission["lists"][0] | null>(null);
     const [isDeletingList, setIsDeletingList] = useState(false);
     const [togglingListId, setTogglingListId] = useState<string | null>(null);
+    const [togglingContactsListId, setTogglingContactsListId] = useState<string | null>(null);
     const { position: listMenuPosition, contextData: listMenuData, handleContextMenu: handleListContextMenu, close: closeListMenu } = useContextMenu();
 
     // Email Templates
@@ -1141,6 +1143,37 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
             showError("Erreur", "Impossible de modifier l’état de la liste");
         } finally {
             setTogglingListId(null);
+        }
+    };
+
+    const handleToggleListContactsView = async (list: Mission["lists"][0]) => {
+        if (togglingContactsListId === list.id) return;
+        const nextValue = !(list.contactsViewEnabled ?? false);
+        setTogglingContactsListId(list.id);
+        try {
+            const res = await fetch(`/api/lists/${list.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contactsViewEnabled: nextValue }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+                showError("Erreur", json.error || "Impossible de modifier la visibilité des contacts de cette base");
+                return;
+            }
+            await fetchMission();
+            const confirmedValue = typeof json.data?.contactsViewEnabled === "boolean"
+                ? json.data.contactsViewEnabled
+                : nextValue;
+            success(
+                confirmedValue ? "Accès contacts activé" : "Accès contacts désactivé",
+                `La base « ${list.name} » est désormais ${confirmedValue ? "visible" : "masquée"} pour son commercial.`
+            );
+        } catch (err) {
+            console.error(err);
+            showError("Erreur réseau", err instanceof Error ? err.message : "Impossible de modifier l'accès aux contacts");
+        } finally {
+            setTogglingContactsListId(null);
         }
     };
 
@@ -2233,6 +2266,28 @@ export default function MissionDetailPage({ params }: { params: Promise<{ id: st
                                                     ) : (
                                                         "Activer"
                                                     )}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={togglingContactsListId === list.id}
+                                                    onClick={() => handleToggleListContactsView(list)}
+                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${list.contactsViewEnabled ? "text-indigo-700 border-indigo-300 bg-indigo-50 hover:bg-indigo-100" : "text-slate-500 border-slate-200 bg-white hover:bg-slate-50"}`}
+                                                    title={
+                                                        list.commercialInterlocuteur
+                                                            ? `Accès contacts pour ${list.commercialInterlocuteur.firstName || list.commercialInterlocuteur.lastName} : ${list.contactsViewEnabled ? "Activé" : "Désactivé"}`
+                                                            : `Accès contacts commercial : ${list.contactsViewEnabled ? "Activé" : "Désactivé"}`
+                                                    }
+                                                >
+                                                    {togglingContactsListId === list.id ? (
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : list.contactsViewEnabled ? (
+                                                        <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                                                    ) : (
+                                                        <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                                                    )}
+                                                    <span>
+                                                        Contacts : {list.contactsViewEnabled ? "Activé" : "Désactivé"}
+                                                    </span>
                                                 </button>
                                                 <span className="text-xs font-medium text-slate-500 px-2 py-1 bg-slate-100 rounded">
                                                     {list.type}
