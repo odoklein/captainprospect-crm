@@ -217,7 +217,7 @@ export const GET = withErrorHandler(async (
 
     const campaign = await prisma.campaign.findUnique({
         where: { id },
-        select: { id: true, name: true, script: true, rules: true },
+        select: { id: true, name: true, script: true, rules: true, missionId: true },
     });
 
     if (!campaign) throw new NotFoundError("Campagne introuvable");
@@ -238,10 +238,27 @@ export const GET = withErrorHandler(async (
     const draftEntry = rules.scriptCompanion?.drafts?.[session.user.id];
     const sharedEntry = effectiveRules.scriptCompanion?.shared;
 
+    let baseScript = parseScriptContent((refreshedCampaign?.script as string | null) ?? campaign.script ?? null);
+
+    if (!baseScript.trim() && campaign.missionId) {
+        const fallbackCamp = await prisma.campaign.findFirst({
+            where: {
+                missionId: campaign.missionId,
+                isActive: true,
+                script: { not: null },
+            },
+            orderBy: { createdAt: "asc" },
+            select: { script: true },
+        });
+        if (fallbackCamp?.script?.trim()) {
+            baseScript = parseScriptContent(fallbackCamp.script);
+        }
+    }
+
     return successResponse({
         campaignId: campaign.id,
         campaignName: campaign.name,
-        baseScript: parseScriptContent((refreshedCampaign?.script as string | null) ?? campaign.script ?? null),
+        baseScript,
         additionalDraft: draftEntry?.content ?? "",
         additionalShared: sharedEntry?.content ?? "",
         aiDraft: effectiveRules.scriptCompanion?.aiDrafts?.[session.user.id]?.content ?? "",

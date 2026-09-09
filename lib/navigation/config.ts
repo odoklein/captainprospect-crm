@@ -565,11 +565,6 @@ export const COMMERCIAL_NAV: NavSection[] = [
         icon: Calendar,
         label: "Mes RDV",
       },
-      {
-        href: "/commercial/portal/contacts",
-        icon: Users,
-        label: "Contacts",
-      },
     ],
   },
   {

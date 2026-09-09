@@ -425,7 +425,30 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         select: { scripts: true },
     });
 
-    const scriptFromCampaign = campaignMeta?.script ?? next.campaign_script ?? null;
+    let scriptFromCampaign = campaignMeta?.script ?? next.campaign_script ?? null;
+    let effectiveStrategyName = campaignMeta?.name ?? null;
+    let isInheritedStrategy = !sourceList?.list?.campaignId;
+
+    if ((!scriptFromCampaign || !scriptFromCampaign.trim()) && configMissionId) {
+        // Fallback: check if the mission has another active campaign with a script
+        const fallbackCamp = await prisma.campaign.findFirst({
+            where: {
+                missionId: configMissionId,
+                isActive: true,
+                script: { not: null },
+            },
+            orderBy: { createdAt: "asc" },
+            select: { script: true, name: true, rules: true },
+        });
+        if (fallbackCamp?.script?.trim()) {
+            scriptFromCampaign = fallbackCamp.script;
+            if (!effectiveStrategyName) {
+                effectiveStrategyName = fallbackCamp.name;
+            }
+            isInheritedStrategy = true;
+        }
+    }
+
     const scriptFromOnboarding = onboarding?.scripts;
     const scriptCompanion = (campaignMeta?.rules as {
         scriptCompanion?: {
@@ -480,7 +503,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             phone: next.company_phone || null,
         },
         campaignId: next.campaign_id,
-        strategyName: campaignMeta?.name ?? null,
+        strategyName: effectiveStrategyName,
+        isInheritedStrategy,
         sourceListId,
         sourceListName,
         channel: next.mission_channel,

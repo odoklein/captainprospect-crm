@@ -197,14 +197,39 @@ export const GET = withErrorHandler(async (
     });
 
     // Per-list strategy readiness + mission-level rollup
-    type LinkedCampaign = { icp: string | null; pitch: string | null; script: string | null } | null;
+    type LinkedCampaign = {
+        id: string;
+        name: string;
+        icp: string | null;
+        pitch: string | null;
+        script: string | null;
+        isActive?: boolean;
+    } | null;
+
+    const defaultMissionCampaign = mission.campaigns.find((c) => c.isActive) || mission.campaigns[0] || null;
+
     const computeReadiness = (campaign: LinkedCampaign) => {
-        const hasIcp = !!campaign?.icp?.trim();
-        const hasPitch = !!campaign?.pitch?.trim();
-        const hasScript = !!campaign?.script?.trim();
-        const hasStrategy = !!campaign;
+        const isCustom = !!campaign;
+        const effectiveCampaign = campaign || (defaultMissionCampaign ? {
+            id: defaultMissionCampaign.id,
+            name: defaultMissionCampaign.name,
+            icp: defaultMissionCampaign.icp,
+            pitch: defaultMissionCampaign.pitch,
+            script: defaultMissionCampaign.script,
+        } : null);
+
+        const hasIcp = !!effectiveCampaign?.icp?.trim();
+        const hasPitch = !!effectiveCampaign?.pitch?.trim();
+        const hasScript = !!effectiveCampaign?.script?.trim();
+        const hasStrategy = !!effectiveCampaign;
+        const isInherited = !campaign && !!defaultMissionCampaign;
+
         return {
             hasStrategy,
+            isCustom,
+            isInherited,
+            inheritedCampaignId: isInherited ? defaultMissionCampaign?.id : null,
+            inheritedCampaignName: isInherited ? defaultMissionCampaign?.name : null,
             hasIcp,
             hasPitch,
             hasScript,
@@ -223,6 +248,8 @@ export const GET = withErrorHandler(async (
     const missionReadiness = {
         activeLists: activeListsWithReadiness.length,
         readyLists: activeListsWithReadiness.filter((l) => l.readiness.isReady).length,
+        customStrategyLists: activeListsWithReadiness.filter((l) => l.readiness.isCustom).length,
+        inheritedStrategyLists: activeListsWithReadiness.filter((l) => l.readiness.isInherited).length,
         missingStrategy: activeListsWithReadiness.filter((l) => !l.readiness.hasStrategy).length,
         missingIcp: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasIcp).length,
         missingPitch: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasPitch).length,

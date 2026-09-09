@@ -104,6 +104,7 @@ interface NextActionData {
     };
     campaignId?: string;
     strategyName?: string | null;
+    isInheritedStrategy?: boolean;
     sourceListId?: string | null;
     sourceListName?: string | null;
     channel?: Channel;
@@ -3017,13 +3018,18 @@ export default function SDRActionPage() {
                             {(currentAction?.strategyName || currentAction?.sourceListName) && (
                                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
                                     {currentAction.strategyName && (
-                                        <span>
+                                        <span className="inline-flex items-center gap-1.5">
                                             Stratégie : <span className="font-medium text-slate-700">{currentAction.strategyName}</span>
+                                            {currentAction.isInheritedStrategy && (
+                                                <span className="text-[10px] font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                                                    Par défaut
+                                                </span>
+                                            )}
                                         </span>
                                     )}
                                     {currentAction.sourceListName && (
                                         <span>
-                                            Liste source : <span className="font-medium text-slate-700">{currentAction.sourceListName}</span>
+                                            Liste : <span className="font-medium text-slate-700">{currentAction.sourceListName}</span>
                                         </span>
                                     )}
                                 </div>
