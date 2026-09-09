@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 5000 -H 0.0.0.0 --webpack",
     "dev:turbo": "next dev -p 5000 -H 0.0.0.0 --turbopack",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "eslint",
     "test:call-enrichment": "tsx --test lib/call-enrichment/allo-response.test.ts",

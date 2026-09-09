@@ -68,6 +68,12 @@ interface Mission {
     isActive: boolean;
     portalLaunchStartedAt?: string | null;
     portalVisibleAt?: string | null;
+    startDate?: string;
+    endDate?: string;
+    client?: {
+        id: string;
+        name: string;
+        interlocuteurs?: {
             id: string;
             firstName: string;
             lastName: string;
