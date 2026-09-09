@@ -8,10 +8,11 @@ import {
     validateRequest,
     withErrorHandler,
 } from "@/lib/api-utils";
+import { buildPhoneLookupHash } from "@/lib/enrichment/phone-match";
 import {
-    buildPhoneLookupHash,
-    findCompanyPhoneViaGoogle,
-} from "@/lib/enrichment/google-places-phone";
+    findCompanyPhone,
+    NoPhoneProviderConfiguredError,
+} from "@/lib/enrichment/company-phone";
 import { hasUsablePhone } from "@/lib/phone-utils";
 
 const ALLOWED_ROLES = ["SDR", "MANAGER", "BUSINESS_DEVELOPER", "BOOKER"];
@@ -40,6 +41,11 @@ function additionalPhonesFromCustomData(customData: unknown): string[] {
     );
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+    MAPBOX: "Mapbox",
+    GOOGLE_PLACES: "Google Places",
+};
+
 function lookupPayload(lookup: {
     id: string;
     suggestedPhone: string | null;
@@ -48,6 +54,7 @@ function lookupPayload(lookup: {
     matchedAddress: string | null;
     confidence: number;
     cacheHit: boolean;
+    provider: string;
 }) {
     if (!lookup.suggestedPhone) {
         return { found: false, cached: lookup.cacheHit };
@@ -57,7 +64,7 @@ function lookupPayload(lookup: {
         found: true,
         lookupId: lookup.id,
         phone: lookup.suggestedPhone,
-        source: "Google Places",
+        source: PROVIDER_LABELS[lookup.provider] ?? lookup.provider,
         sourceUrl: lookup.sourceUrl,
         matchedCompany: lookup.matchedCompanyName,
         matchedAddress: lookup.matchedAddress,
@@ -128,6 +135,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         const copy = await prisma.phoneEnrichmentLookup.create({
             data: {
                 companyId: company.id,
+                provider: cached.provider,
                 queryHash,
                 suggestedPhone:
                     cached.status === "REJECTED" ? null : cached.suggestedPhone,
@@ -147,29 +155,28 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         return successResponse(lookupPayload(copy));
     }
 
-    let suggestion;
+    let result;
     try {
-        suggestion = await findCompanyPhoneViaGoogle(searchInput);
+        result = await findCompanyPhone(searchInput);
     } catch (error) {
-        if (
-            error instanceof Error &&
-            error.message === "GOOGLE_PLACES_API_KEY_MISSING"
-        ) {
+        if (error instanceof NoPhoneProviderConfiguredError) {
             return errorResponse(
-                "La recherche Google n’est pas configurée. Ajoutez GOOGLE_PLACES_API_KEY.",
+                "La recherche de numéro n’est pas configurée. Ajoutez MAPBOX_ACCESS_TOKEN ou GOOGLE_PLACES_API_KEY.",
                 503,
             );
         }
-        console.error("Google Places phone lookup failed:", error);
+        console.error("Company phone lookup failed:", error);
         return errorResponse(
-            "Google Places est temporairement indisponible.",
+            "La recherche de numéro est temporairement indisponible.",
             502,
         );
     }
 
+    const { suggestion, provider } = result;
     const lookup = await prisma.phoneEnrichmentLookup.create({
         data: {
             companyId: company.id,
+            provider,
             queryHash,
             suggestedPhone: suggestion?.phone ?? null,
             sourceUrl: suggestion?.sourceUrl ?? null,

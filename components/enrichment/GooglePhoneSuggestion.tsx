@@ -147,7 +147,7 @@ export function GooglePhoneSuggestion({
                     </span>
                     <span className="min-w-0">
                         <span className="block text-sm font-semibold text-slate-800">
-                            Trouver le téléphone via Google
+                            Trouver le téléphone
                         </span>
                         <span className="block truncate text-xs text-slate-500">
                             Recherche contrôlée pour {companyName}
@@ -182,7 +182,7 @@ export function GooglePhoneSuggestion({
         const content = {
             empty: {
                 title: "Aucun numéro fiable trouvé",
-                detail: "Google Places n’a pas retourné de correspondance suffisamment sûre.",
+                detail: "Aucune source n’a retourné de correspondance suffisamment sûre.",
             },
             rejected: {
                 title: "Suggestion rejetée",
@@ -255,7 +255,7 @@ export function GooglePhoneSuggestion({
             <div className="border-b border-indigo-100 bg-indigo-50/60 px-4 py-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-xs font-semibold text-indigo-800">
-                        Suggestion Google Places
+                        Suggestion {suggestion.source}
                     </span>
                     <span
                         className={cn(

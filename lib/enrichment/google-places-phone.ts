@@ -1,17 +1,14 @@
-import { createHash } from "crypto";
 import {
-    parsePhoneNumberFromString,
-    type CountryCode,
-} from "libphonenumber-js";
+    formatPhone,
+    scoreCandidate,
+    websiteHost,
+    MIN_PHONE_CONFIDENCE,
+    type CompanySearchInput,
+    type PhoneSuggestion,
+} from "./phone-match";
 
 const GOOGLE_PLACES_TEXT_SEARCH_URL =
     "https://places.googleapis.com/v1/places:searchText";
-
-type CompanySearchInput = {
-    name: string;
-    country?: string | null;
-    website?: string | null;
-};
 
 type GooglePlace = {
     displayName?: { text?: string };
@@ -27,108 +24,9 @@ type GooglePlacesResponse = {
     error?: { message?: string };
 };
 
-export type GooglePhoneSuggestion = {
-    phone: string;
-    sourceUrl: string | null;
-    matchedCompanyName: string;
-    matchedAddress: string | null;
-    confidence: number;
-};
-
-function normalizeText(value?: string | null): string {
-    return (value ?? "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, " ")
-        .trim();
-}
-
-function websiteHost(value?: string | null): string {
-    if (!value?.trim()) return "";
-
-    try {
-        const url = new URL(
-            /^https?:\/\//i.test(value) ? value : `https://${value}`,
-        );
-        return url.hostname.toLowerCase().replace(/^www\./, "");
-    } catch {
-        return value
-            .toLowerCase()
-            .replace(/^https?:\/\//, "")
-            .replace(/^www\./, "")
-            .split(/[/?#]/)[0];
-    }
-}
-
-function tokenSimilarity(left: string, right: string): number {
-    const leftTokens = new Set(normalizeText(left).split(" ").filter(Boolean));
-    const rightTokens = new Set(normalizeText(right).split(" ").filter(Boolean));
-    if (!leftTokens.size || !rightTokens.size) return 0;
-
-    const intersection = [...leftTokens].filter((token) =>
-        rightTokens.has(token),
-    ).length;
-    return intersection / Math.max(leftTokens.size, rightTokens.size);
-}
-
-function formatPhone(phone: string, country?: string | null): string | null {
-    const parsed =
-        parsePhoneNumberFromString(
-            phone,
-            country?.length === 2
-                ? (country.toUpperCase() as CountryCode)
-                : undefined,
-        ) ??
-        parsePhoneNumberFromString(phone);
-
-    if (parsed?.isValid()) return parsed.formatInternational();
-
-    const digits = phone.replace(/\D/g, "");
-    return digits.length >= 7 && digits.length <= 15 ? phone.trim() : null;
-}
-
-function scorePlace(place: GooglePlace, input: CompanySearchInput): number {
-    const candidateName = place.displayName?.text ?? "";
-    const nameSimilarity = tokenSimilarity(input.name, candidateName);
-    let score = Math.round(nameSimilarity * 45);
-
-    const inputHost = websiteHost(input.website);
-    const candidateHost = websiteHost(place.websiteUri);
-    if (inputHost && candidateHost) {
-        if (inputHost === candidateHost) score += 45;
-        else if (
-            inputHost.endsWith(`.${candidateHost}`) ||
-            candidateHost.endsWith(`.${inputHost}`)
-        ) {
-            score += 35;
-        }
-    }
-
-    const normalizedCountry = normalizeText(input.country);
-    const normalizedAddress = normalizeText(place.formattedAddress);
-    if (normalizedCountry && normalizedAddress.includes(normalizedCountry)) {
-        score += 10;
-    }
-
-    return Math.min(99, score);
-}
-
-export function buildPhoneLookupHash(input: CompanySearchInput): string {
-    return createHash("sha256")
-        .update(
-            JSON.stringify({
-                name: normalizeText(input.name),
-                country: normalizeText(input.country),
-                website: websiteHost(input.website),
-            }),
-        )
-        .digest("hex");
-}
-
 export async function findCompanyPhoneViaGoogle(
     input: CompanySearchInput,
-): Promise<GooglePhoneSuggestion | null> {
+): Promise<PhoneSuggestion | null> {
     const apiKey = process.env.GOOGLE_PLACES_API_KEY?.trim();
     if (!apiKey) {
         throw new Error("GOOGLE_PLACES_API_KEY_MISSING");
@@ -181,7 +79,14 @@ export async function findCompanyPhoneViaGoogle(
             return {
                 place,
                 phone,
-                confidence: scorePlace(place, input),
+                confidence: scoreCandidate(
+                    {
+                        name: place.displayName?.text,
+                        address: place.formattedAddress,
+                        website: place.websiteUri,
+                    },
+                    input,
+                ),
             };
         })
         .filter(
@@ -196,7 +101,7 @@ export async function findCompanyPhoneViaGoogle(
         .sort((left, right) => right.confidence - left.confidence);
 
     const best = candidates[0];
-    if (!best || best.confidence < 55) return null;
+    if (!best || best.confidence < MIN_PHONE_CONFIDENCE) return null;
 
     return {
         phone: best.phone,
