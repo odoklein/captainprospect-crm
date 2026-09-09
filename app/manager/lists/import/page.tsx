@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Card, Button, Select, FileUpload, useToast, Modal, Input, Badge, Tooltip } from "@/components/ui";
+import { Card, Button, Select, FileUpload, useToast, Modal, ConfirmModal, Input, Badge, Tooltip, RadioCardGroup, StatCard } from "@/components/ui";
+import type { RadioCardOption } from "@/components/ui";
 import {
     ArrowLeft,
     ArrowRight,
@@ -33,6 +34,13 @@ import {
     Users,
     Calendar,
     History,
+    SkipForward,
+    RefreshCw,
+    Archive,
+    Layers,
+    ListChecks,
+    PhoneCall,
+    PlusCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
@@ -56,6 +64,24 @@ interface ListOption {
     id: string;
     name: string;
     missionId: string;
+}
+
+/** Duplicate-handling scenarios shown as cards in step 1. */
+type DuplicateScenario = "smart_merge" | "skip" | "overwrite" | "clean_replace";
+
+interface SimulationMatch {
+    csvName: string;
+    matchedCompanyId: string;
+    listName: string | null;
+    crossList: boolean;
+    alreadyWorked: boolean;
+}
+
+interface SimulationResult {
+    newCompanies: number;
+    existingCompanies: number;
+    alreadyWorked: number;
+    sampleMatches: SimulationMatch[];
 }
 
 interface ColumnMapping {
@@ -169,6 +195,9 @@ const CONTACT_FIELDS = [
 const ALL_FIELDS = [...COMPANY_FIELDS, ...CONTACT_FIELDS];
 
 // Count lines in file by streaming (avoids loading full file; used for progress %)
+/** Upper bound on company names sent to the simulation endpoint (matches the API cap). */
+const SIMULATION_MAX_NAMES = 20000;
+
 async function countFileLines(file: File): Promise<number> {
     const stream = file.stream();
     const reader = stream.getReader();
@@ -242,6 +271,16 @@ export default function ImportListPage() {
     const [lists, setLists] = useState<ListOption[]>([]);
     const [whenAlreadyWorkedOn, setWhenAlreadyWorkedOn] = useState<"skip" | "add_anyway">("skip");
 
+    // Step 1: duplicate handling
+    const [duplicateScenario, setDuplicateScenario] = useState<DuplicateScenario>("smart_merge");
+    const [duplicateScope, setDuplicateScope] = useState<"list" | "mission">("mission");
+    const [confirmCleanReplace, setConfirmCleanReplace] = useState(false);
+
+    // Step 4: pre-import simulation (real DB check, see /api/lists/import/simulate)
+    const [simulation, setSimulation] = useState<SimulationResult | null>(null);
+    const [isSimulating, setIsSimulating] = useState(false);
+    const [simulationError, setSimulationError] = useState<string | null>(null);
+
     // Step 2: Import Type Selection
     const [importType, setImportType] = useState<"companies-only" | "companies-contacts">("companies-contacts");
 
@@ -284,7 +323,11 @@ export default function ImportListPage() {
     // Step 5: Import result
     const [importResult, setImportResult] = useState<{
         companies: number;
+        companiesUpdated: number;
+        companiesSkipped: number;
         contacts: number;
+        contactsUpdated: number;
+        contactsSkipped: number;
         actions?: number;
         errors: number;
     } | null>(null);
@@ -302,6 +345,63 @@ export default function ImportListPage() {
     const requiredMapped = mappings.some(m => m.targetField === "company.name");
     const canGoToType = !!file && !!missionId && (importMode === "new" ? !!listName?.trim() : !!listId);
     const mappingCompletion = csvHeaders.length > 0 ? Math.round((mappedCount / csvHeaders.length) * 100) : 0;
+
+    // "Clean replace" is a list-level action (archive + re-import), the other three are
+    // row-level strategies the API applies per matched company.
+    const replaceList = duplicateScenario === "clean_replace";
+    const duplicateStrategy: "smart_merge" | "skip" | "overwrite" =
+        duplicateScenario === "clean_replace" ? "smart_merge" : duplicateScenario;
+
+    const duplicateScenarioOptions: RadioCardOption<DuplicateScenario>[] = [
+        {
+            value: "smart_merge",
+            title: "Enrichir & compléter",
+            description: "Garde les fiches existantes et remplit uniquement les champs vides (téléphone, site, taille…). Ajoute les nouveaux contacts.",
+            icon: Sparkles,
+            badge: "Recommandé",
+        },
+        {
+            value: "skip",
+            title: "Ignorer les doublons",
+            description: "Ne modifie rien aux fiches existantes. Seules les sociétés et contacts inconnus sont créés.",
+            icon: SkipForward,
+        },
+        {
+            value: "overwrite",
+            title: "Mettre à jour / écraser",
+            description: "Remplace les valeurs existantes par celles du CSV. À utiliser pour rafraîchir des coordonnées obsolètes.",
+            icon: RefreshCw,
+        },
+        {
+            value: "clean_replace",
+            title: "Remplacement propre",
+            description: importMode === "existing"
+                ? "Archive la liste actuelle (conservée en historique) et importe dans une liste neuve."
+                : "Disponible uniquement en ajoutant à une liste existante.",
+            icon: Archive,
+            disabled: importMode !== "existing",
+        },
+    ];
+
+    const duplicateScopeOptions: RadioCardOption<"list" | "mission">[] = [
+        {
+            value: "mission",
+            title: "Toute la mission",
+            description: "Vérifie si la société existe déjà dans n'importe quelle liste de la mission. Évite qu'un même prospect soit appelé par deux SDR.",
+            icon: Layers,
+            badge: "Recommandé",
+        },
+        {
+            value: "list",
+            title: "Cette liste uniquement",
+            description: "Ne vérifie les doublons que dans la liste cible. Les sociétés présentes ailleurs dans la mission seront recréées.",
+            icon: ListChecks,
+        },
+    ];
+
+    const otherMissionListsCount = importMode === "existing"
+        ? lists.filter((l) => l.id !== listId).length
+        : lists.length;
 
     const autoMapStatusValues = () => {
         if (statusMappings.length === 0) return;
@@ -532,9 +632,10 @@ export default function ImportListPage() {
         fetchMissionsAndSdrs();
     }, []);
 
-    // Fetch lists when mission changes (for "add to existing list")
+    // Fetch the mission's lists — needed both to pick a target list and to tell the user
+    // how many other lists mission-scope deduplication will check against.
     useEffect(() => {
-        if (importMode !== "existing" || !missionId) {
+        if (!missionId) {
             setLists([]);
             setListId("");
             return;
@@ -547,7 +648,9 @@ export default function ImportListPage() {
                 if (cancelled || !json.success) return;
                 const items = (json.data ?? []) as { id: string; name: string; missionId: string }[];
                 setLists(items);
-                setListId((prev) => (items.some((l) => l.id === prev) ? prev : items[0]?.id ?? ""));
+                if (importMode === "existing") {
+                    setListId((prev) => (items.some((l) => l.id === prev) ? prev : items[0]?.id ?? ""));
+                }
             } catch {
                 if (!cancelled) setLists([]);
             }
@@ -943,6 +1046,87 @@ export default function ImportListPage() {
     // IMPORT DATA
     // ============================================
 
+    // ============================================
+    // PRE-IMPORT SIMULATION (real DB check)
+    // ============================================
+
+    /** Extract every company name from the file, deduped, so the API can match them against the CRM. */
+    const extractCompanyNames = useCallback(async (): Promise<{ names: string[]; truncated: boolean }> => {
+        const nameMapping = mappings.find((m) => m.targetField === "company.name");
+        if (!file || !nameMapping) return { names: [], truncated: false };
+
+        const text = await file.text();
+        const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+        if (lines.length < 2) return { names: [], truncated: false };
+
+        const delimiter = detectDelimiter(lines[0]);
+        const headers = parseCSVLine(lines[0], delimiter).map((h) => h.replace(/^"|"$/g, ""));
+        const colIndex = headers.indexOf(nameMapping.csvColumn);
+        if (colIndex === -1) return { names: [], truncated: false };
+
+        const unique = new Set<string>();
+        let truncated = false;
+        for (let i = 1; i < lines.length; i++) {
+            const value = parseCSVLine(lines[i], delimiter)[colIndex]?.replace(/^"|"$/g, "").trim();
+            if (!value) continue;
+            if (unique.size >= SIMULATION_MAX_NAMES) {
+                truncated = true;
+                break;
+            }
+            unique.add(value);
+        }
+        return { names: [...unique], truncated };
+    }, [file, mappings]);
+
+    const runSimulation = useCallback(async () => {
+        setIsSimulating(true);
+        setSimulationError(null);
+        try {
+            const { names } = await extractCompanyNames();
+            if (names.length === 0) {
+                setSimulation(null);
+                setSimulationError("Impossible de lire les noms de sociétés du fichier.");
+                return;
+            }
+            const res = await fetch("/api/lists/import/simulate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    companyNames: names,
+                    listId: importMode === "existing" ? listId : "",
+                    missionId,
+                    duplicateScope,
+                }),
+            });
+            const json = await res.json();
+            if (!json.success) {
+                setSimulation(null);
+                setSimulationError(json.error || "La simulation a échoué.");
+                return;
+            }
+            setSimulation(json.data as SimulationResult);
+        } catch {
+            setSimulation(null);
+            setSimulationError("Simulation indisponible — la vérification sera faite pendant l'import.");
+        } finally {
+            setIsSimulating(false);
+        }
+    }, [extractCompanyNames, importMode, listId, missionId, duplicateScope]);
+
+    // Re-run the simulation whenever the user lands on step 4 or changes the scope/target.
+    useEffect(() => {
+        if (step !== 4) return;
+        const timer = setTimeout(() => { void runSimulation(); }, 150);
+        return () => clearTimeout(timer);
+    }, [step, runSimulation]);
+
+    // "Clean replace" only exists for an existing list — fall back if the user switches mode.
+    useEffect(() => {
+        if (importMode !== "existing" && duplicateScenario === "clean_replace") {
+            setDuplicateScenario("smart_merge");
+        }
+    }, [importMode, duplicateScenario]);
+
     const handleImport = async () => {
         if (!file) return;
 
@@ -951,7 +1135,18 @@ export default function ImportListPage() {
 
         try {
             const totalRows = await countFileLines(file);
-            type ImportDoneData = { listId?: string; companiesCreated: number; contactsCreated: number; actionsCreated?: number; errors: number };
+            type ImportDoneData = {
+                listId?: string;
+                replacedListId?: string | null;
+                companiesCreated: number;
+                companiesUpdated?: number;
+                companiesSkipped?: number;
+                contactsCreated: number;
+                contactsUpdated?: number;
+                contactsSkipped?: number;
+                actionsCreated?: number;
+                errors: number;
+            };
             const uploadChunk = async (
                 uploadFile: File,
                 opts: { existingListId?: string; chunkRows?: number; processedRowsBefore?: number; totalRowsAll?: number }
@@ -960,14 +1155,18 @@ export default function ImportListPage() {
                 formData.append("file", uploadFile);
                 if (opts.existingListId) {
                     formData.append("listId", opts.existingListId);
-                    formData.append("whenAlreadyWorkedOn", whenAlreadyWorkedOn);
                 } else if (importMode === "existing" && listId) {
                     formData.append("listId", listId);
-                    formData.append("whenAlreadyWorkedOn", whenAlreadyWorkedOn);
+                    // Only the first request may archive-and-replace; later chunks append to the
+                    // fresh list it created (passed back as existingListId).
+                    if (replaceList) formData.append("replaceList", "true");
                 } else {
                     formData.append("missionId", missionId);
                     formData.append("listName", listName);
                 }
+                formData.append("whenAlreadyWorkedOn", whenAlreadyWorkedOn);
+                formData.append("duplicateStrategy", duplicateStrategy);
+                formData.append("duplicateScope", duplicateScope);
                 formData.append("mappings", JSON.stringify(mappings));
                 formData.append("importType", importType);
                 formData.append("importActions", String(importActions));
@@ -1042,7 +1241,11 @@ export default function ImportListPage() {
                 setImportProgress(100);
                 setImportResult({
                     companies: single.data.companiesCreated,
+                    companiesUpdated: single.data.companiesUpdated ?? 0,
+                    companiesSkipped: single.data.companiesSkipped ?? 0,
                     contacts: single.data.contactsCreated,
+                    contactsUpdated: single.data.contactsUpdated ?? 0,
+                    contactsSkipped: single.data.contactsSkipped ?? 0,
                     actions: single.data.actionsCreated,
                     errors: single.data.errors,
                 });
@@ -1058,9 +1261,15 @@ export default function ImportListPage() {
                 return;
             }
 
-            let targetListId = importMode === "existing" ? listId : "";
+            // With "clean replace" the first chunk must go through the replace path (archive + create
+            // a fresh list); only the chunks after it append to the list that call returns.
+            let targetListId = importMode === "existing" && !replaceList ? listId : "";
             let companiesTotal = 0;
+            let companiesUpdatedTotal = 0;
+            let companiesSkippedTotal = 0;
             let contactsTotal = 0;
+            let contactsUpdatedTotal = 0;
+            let contactsSkippedTotal = 0;
             let actionsTotal = 0;
             let errorsTotal = 0;
             let processedRowsBefore = 0;
@@ -1081,7 +1290,11 @@ export default function ImportListPage() {
                 }
                 targetListId = result.data.listId || targetListId;
                 companiesTotal += result.data.companiesCreated;
+                companiesUpdatedTotal += result.data.companiesUpdated ?? 0;
+                companiesSkippedTotal += result.data.companiesSkipped ?? 0;
                 contactsTotal += result.data.contactsCreated;
+                contactsUpdatedTotal += result.data.contactsUpdated ?? 0;
+                contactsSkippedTotal += result.data.contactsSkipped ?? 0;
                 actionsTotal += result.data.actionsCreated ?? 0;
                 errorsTotal += result.data.errors;
                 processedRowsBefore += chunkRows;
@@ -1091,7 +1304,11 @@ export default function ImportListPage() {
             setImportProgress(100);
             setImportResult({
                 companies: companiesTotal,
+                companiesUpdated: companiesUpdatedTotal,
+                companiesSkipped: companiesSkippedTotal,
                 contacts: contactsTotal,
+                contactsUpdated: contactsUpdatedTotal,
+                contactsSkipped: contactsSkippedTotal,
                 actions: actionsTotal,
                 errors: errorsTotal,
             });
@@ -1124,60 +1341,46 @@ export default function ImportListPage() {
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-white to-indigo-50 p-5">
-                <div className="flex items-center gap-4">
+            {/* Header — compact: title, context, and a slim step rail */}
+            <div className="flex items-center gap-3">
                 <Link href="/manager/lists">
                     <Button variant="ghost" size="sm">
                         <ArrowLeft className="w-4 h-4" />
                     </Button>
                 </Link>
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Importer CSV</h1>
-                    <p className="text-slate-500 mt-1">
-                        Importez des societes, contacts, et historique d&apos;actions en 5 etapes
+                <div className="min-w-0 flex-1">
+                    <h1 className="text-xl font-bold text-slate-900 leading-tight">Importer CSV</h1>
+                    <p className="text-xs text-slate-500 truncate">
+                        {[
+                            file?.name,
+                            missions.find(m => m.id === missionId)?.name,
+                            csvHeaders.length > 0 ? `${mappedCount}/${csvHeaders.length} colonnes` : null,
+                        ].filter(Boolean).join(" · ") || "Sélectionnez un fichier et une mission"}
                     </p>
                 </div>
-            </div>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="rounded-xl bg-white/80 border border-slate-200 p-3">
-                        <p className="text-xs text-slate-500">Fichier</p>
-                        <p className="text-sm font-medium text-slate-900 truncate">{file?.name || "Aucun fichier"}</p>
-                    </div>
-                    <div className="rounded-xl bg-white/80 border border-slate-200 p-3">
-                        <p className="text-xs text-slate-500">Mission</p>
-                        <p className="text-sm font-medium text-slate-900 truncate">{missions.find(m => m.id === missionId)?.name || "Non selectionnee"}</p>
-                    </div>
-                    <div className="rounded-xl bg-white/80 border border-slate-200 p-3">
-                        <p className="text-xs text-slate-500">Mapping</p>
-                        <p className="text-sm font-medium text-slate-900">{mappedCount}/{csvHeaders.length || 0} colonnes</p>
-                    </div>
-                </div>
+                <span className="text-xs font-medium text-slate-500 shrink-0">
+                    Étape {step}/{steps.length} · {steps.find(s => s.num === step)?.label}
+                </span>
             </div>
 
-            {/* Step Indicator */}
-            <div className="flex items-center justify-between">
-                {steps.map((s, i) => (
-                    <div key={s.num} className="flex items-center">
-                        <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${step >= s.num
-                            ? "bg-indigo-50 text-indigo-600"
-                            : "bg-slate-100 text-slate-500"
-                            }`}>
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step > s.num
-                                ? "bg-indigo-500 text-white"
-                                : step === s.num
-                                    ? "bg-indigo-500 text-white"
-                                    : "bg-slate-300 text-slate-600"
-                                }`}>
-                                {step > s.num ? <Check className="w-3 h-3" /> : s.num}
-                            </span>
-                            <span className="text-sm font-medium">{s.label}</span>
-                        </div>
-                        {i < steps.length - 1 && (
-                            <div className={`w-12 h-0.5 mx-2 ${step > s.num ? "bg-indigo-500" : "bg-slate-200"
-                                }`} />
-                        )}
-                    </div>
+            {/* Slim step rail */}
+            <div className="flex gap-1.5">
+                {steps.map((s) => (
+                    <button
+                        key={s.num}
+                        type="button"
+                        onClick={() => { if (s.num < step) setStep(s.num as 1 | 2 | 3 | 4 | 5); }}
+                        disabled={s.num >= step}
+                        title={s.label}
+                        aria-label={`Étape ${s.num} : ${s.label}`}
+                        aria-current={step === s.num ? "step" : undefined}
+                        className={`h-1.5 flex-1 rounded-full transition-colors ${step > s.num
+                            ? "bg-indigo-500 cursor-pointer hover:bg-indigo-600"
+                            : step === s.num
+                                ? "bg-indigo-500"
+                                : "bg-slate-200 cursor-default"
+                            }`}
+                    />
                 ))}
             </div>
 
@@ -1189,30 +1392,26 @@ export default function ImportListPage() {
                             <label className="block text-sm font-medium text-slate-700 mb-2">
                                 Destination
                             </label>
-                            <div className="flex gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setImportMode("new")}
-                                    className={`flex-1 p-4 rounded-xl border-2 text-left transition-all ${importMode === "new"
-                                        ? "border-indigo-500 bg-indigo-50"
-                                        : "border-slate-200 bg-white hover:border-slate-300"
-                                        }`}
-                                >
-                                    <span className="font-semibold text-slate-900">Nouvelle liste</span>
-                                    <p className="text-sm text-slate-500 mt-1">Créer une nouvelle liste dans la mission</p>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setImportMode("existing")}
-                                    className={`flex-1 p-4 rounded-xl border-2 text-left transition-all ${importMode === "existing"
-                                        ? "border-indigo-500 bg-indigo-50"
-                                        : "border-slate-200 bg-white hover:border-slate-300"
-                                        }`}
-                                >
-                                    <span className="font-semibold text-slate-900">Ajouter à une liste existante</span>
-                                    <p className="text-sm text-slate-500 mt-1">Mapper les colonnes et fusionner avec la liste</p>
-                                </button>
-                            </div>
+                            <RadioCardGroup
+                                name="destination"
+                                columns={2}
+                                value={importMode}
+                                onChange={(v) => setImportMode(v)}
+                                options={[
+                                    {
+                                        value: "new",
+                                        title: "Nouvelle liste",
+                                        description: "Créer une nouvelle liste dans la mission",
+                                        icon: PlusCircle,
+                                    },
+                                    {
+                                        value: "existing",
+                                        title: "Ajouter à une liste existante",
+                                        description: "Mapper les colonnes et fusionner avec la liste",
+                                        icon: Layers,
+                                    },
+                                ]}
+                            />
                         </div>
 
                         <Select
@@ -1238,34 +1437,81 @@ export default function ImportListPage() {
                                 />
                             </div>
                         ) : (
-                            <>
-                                <Select
-                                    label="Liste existante *"
-                                    placeholder={missionId ? "Choisir une liste..." : "Sélectionnez d'abord une mission"}
-                                    options={lists.map(l => ({ value: l.id, label: l.name }))}
-                                    value={listId}
-                                    onChange={setListId}
-                                    searchable
-                                    disabled={!missionId || lists.length === 0}
-                                />
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Si la société existe déjà et a déjà été travaillée
-                                    </label>
-                                    <select
-                                        value={whenAlreadyWorkedOn}
-                                        onChange={(e) => setWhenAlreadyWorkedOn(e.target.value as "skip" | "add_anyway")}
-                                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                                    >
-                                        <option value="skip">Ignorer la ligne (ne pas ajouter)</option>
-                                        <option value="add_anyway">Ajouter quand même (nouveaux contacts possibles)</option>
-                                    </select>
-                                    <p className="text-xs text-slate-500 mt-1">
-                                        « Déjà travaillée » = la société a au moins une action enregistrée.
-                                    </p>
-                                </div>
-                            </>
+                            <Select
+                                label="Liste existante *"
+                                placeholder={missionId ? "Choisir une liste..." : "Sélectionnez d'abord une mission"}
+                                options={lists.map(l => ({ value: l.id, label: l.name }))}
+                                value={listId}
+                                onChange={setListId}
+                                searchable
+                                disabled={!missionId || lists.length === 0}
+                            />
                         )}
+
+                        {/* Duplicate handling */}
+                        <div className="pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-medium text-slate-700">
+                                    Que faire des sociétés déjà présentes ?
+                                </label>
+                                <Tooltip content="Une société est reconnue par son nom (insensible à la casse et aux espaces).">
+                                    <Info className="w-4 h-4 text-slate-400" />
+                                </Tooltip>
+                            </div>
+                            <RadioCardGroup
+                                name="duplicate-scenario"
+                                columns={2}
+                                value={duplicateScenario}
+                                onChange={(v) => {
+                                    if (v === "clean_replace") {
+                                        setConfirmCleanReplace(true);
+                                        return;
+                                    }
+                                    setDuplicateScenario(v);
+                                }}
+                                options={duplicateScenarioOptions}
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                Périmètre de détection des doublons
+                            </label>
+                            <RadioCardGroup
+                                name="duplicate-scope"
+                                columns={2}
+                                value={duplicateScope}
+                                onChange={(v) => setDuplicateScope(v)}
+                                options={duplicateScopeOptions}
+                            />
+                            {duplicateScope === "mission" && missionId && (
+                                <div className="mt-2 flex items-start gap-2 text-xs text-slate-500">
+                                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-indigo-400" />
+                                    <span>
+                                        {otherMissionListsCount > 0
+                                            ? `${otherMissionListsCount} autre${otherMissionListsCount > 1 ? "s" : ""} liste${otherMissionListsCount > 1 ? "s" : ""} de cette mission ${otherMissionListsCount > 1 ? "seront vérifiées" : "sera vérifiée"} en plus de la liste cible.`
+                                            : "Aucune autre liste dans cette mission pour le moment — le périmètre équivaut à la liste cible."}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                Si la société a déjà été travaillée
+                            </label>
+                            <select
+                                value={whenAlreadyWorkedOn}
+                                onChange={(e) => setWhenAlreadyWorkedOn(e.target.value as "skip" | "add_anyway")}
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            >
+                                <option value="skip">Ignorer la société (ne pas la relancer)</option>
+                                <option value="add_anyway">Ajouter quand même (nouveaux interlocuteurs possibles)</option>
+                            </select>
+                            <p className="text-xs text-slate-500 mt-1">
+                                « Déjà travaillée » = la société a au moins une action enregistrée{duplicateScope === "mission" ? ", y compris dans une autre liste de la mission" : ""}.
+                            </p>
+                        </div>
 
                         <FileUpload
                             label="Fichier CSV *"
@@ -1977,6 +2223,133 @@ export default function ImportListPage() {
                             </div>
                         )}
 
+                        {/* Pre-import simulation against the real CRM data */}
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="font-medium text-slate-900">Simulation avant import</h3>
+                                <Button variant="ghost" size="sm" onClick={() => void runSimulation()} disabled={isSimulating} className="gap-2">
+                                    <RotateCcw className={`w-3.5 h-3.5 ${isSimulating ? "animate-spin" : ""}`} />
+                                    Recalculer
+                                </Button>
+                            </div>
+
+                            {isSimulating && (
+                                <div className="flex items-center gap-3 text-sm text-slate-500 bg-slate-50 rounded-xl p-4">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Analyse du fichier par rapport au CRM…
+                                </div>
+                            )}
+
+                            {!isSimulating && simulationError && (
+                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700 flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
+                                    <div>
+                                        <p className="font-medium">Simulation indisponible</p>
+                                        <p className="mt-0.5">{simulationError} Vous pouvez lancer l&apos;import : la déduplication sera appliquée normalement.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {!isSimulating && simulation && (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <StatCard
+                                            label="Nouvelles sociétés"
+                                            value={simulation.newCompanies}
+                                            icon={PlusCircle}
+                                            iconBg="bg-emerald-100"
+                                            iconColor="text-emerald-600"
+                                        />
+                                        <StatCard
+                                            label="Doublons détectés"
+                                            value={simulation.existingCompanies}
+                                            icon={Layers}
+                                            iconBg="bg-indigo-100"
+                                            iconColor="text-indigo-600"
+                                            subtitle={
+                                                <Badge variant="primary">
+                                                    {duplicateScenario === "smart_merge" ? "Enrichis"
+                                                        : duplicateScenario === "skip" ? "Ignorés"
+                                                            : duplicateScenario === "overwrite" ? "Écrasés"
+                                                                : "Liste archivée"}
+                                                </Badge>
+                                            }
+                                        />
+                                        <StatCard
+                                            label="Déjà travaillées"
+                                            value={simulation.alreadyWorked}
+                                            icon={PhoneCall}
+                                            iconBg="bg-amber-100"
+                                            iconColor="text-amber-600"
+                                            subtitle={
+                                                <Badge variant={whenAlreadyWorkedOn === "skip" ? "warning" : "default"}>
+                                                    {whenAlreadyWorkedOn === "skip" ? "Ignorées" : "Ajoutées quand même"}
+                                                </Badge>
+                                            }
+                                        />
+                                    </div>
+
+                                    {simulation.existingCompanies === 0 ? (
+                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-700 flex items-center gap-3">
+                                            <CheckCircle2 className="w-5 h-5 shrink-0" />
+                                            Aucun doublon détecté — toutes les sociétés du fichier sont nouvelles.
+                                        </div>
+                                    ) : (
+                                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
+                                            <p className="font-medium mb-1">Voici ce qui va se passer</p>
+                                            <p>
+                                                {simulation.newCompanies} société{simulation.newCompanies > 1 ? "s" : ""} créée{simulation.newCompanies > 1 ? "s" : ""}
+                                                {duplicateScenario === "smart_merge" && `, ${simulation.existingCompanies} enrichie${simulation.existingCompanies > 1 ? "s" : ""} sans perte de données`}
+                                                {duplicateScenario === "skip" && `, ${simulation.existingCompanies} laissée${simulation.existingCompanies > 1 ? "s" : ""} intacte${simulation.existingCompanies > 1 ? "s" : ""}`}
+                                                {duplicateScenario === "overwrite" && `, ${simulation.existingCompanies} mise${simulation.existingCompanies > 1 ? "s" : ""} à jour avec les valeurs du CSV`}
+                                                {duplicateScenario === "clean_replace" && `, la liste actuelle sera archivée avant l'import`}
+                                                {whenAlreadyWorkedOn === "skip" && simulation.alreadyWorked > 0 && `, ${simulation.alreadyWorked} déjà travaillée${simulation.alreadyWorked > 1 ? "s" : ""} ignorée${simulation.alreadyWorked > 1 ? "s" : ""}`}
+                                                .
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {simulation.sampleMatches.length > 0 && (
+                                        <details className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+                                            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                                                Aperçu des correspondances détectées ({simulation.sampleMatches.length}
+                                                {simulation.existingCompanies > simulation.sampleMatches.length ? ` sur ${simulation.existingCompanies}` : ""})
+                                            </summary>
+                                            <div className="overflow-x-auto border-t border-slate-100">
+                                                <table className="w-full text-sm">
+                                                    <thead className="bg-slate-50 text-slate-500">
+                                                        <tr>
+                                                            <th className="text-left font-medium px-4 py-2">Société (CSV)</th>
+                                                            <th className="text-left font-medium px-4 py-2">Trouvée dans</th>
+                                                            <th className="text-left font-medium px-4 py-2">Statut CRM</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100">
+                                                        {simulation.sampleMatches.map((m) => (
+                                                            <tr key={m.matchedCompanyId} className="hover:bg-slate-50">
+                                                                <td className="px-4 py-2 text-slate-900">{m.csvName}</td>
+                                                                <td className="px-4 py-2 text-slate-600">
+                                                                    {m.listName ?? "—"}
+                                                                    {m.crossList && (
+                                                                        <Badge variant="outline" className="ml-2">Autre liste</Badge>
+                                                                    )}
+                                                                </td>
+                                                                <td className="px-4 py-2">
+                                                                    {m.alreadyWorked
+                                                                        ? <Badge variant="warning">Déjà travaillée</Badge>
+                                                                        : <Badge variant="success">Jamais contactée</Badge>}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </details>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="bg-slate-50 rounded-xl p-4">
                             <h3 className="font-medium text-slate-900 mb-2">Résumé de l&apos;import</h3>
                             <ul className="text-sm text-slate-600 space-y-1">
@@ -1985,6 +2358,12 @@ export default function ImportListPage() {
                                 <li>• Type: <span className="text-slate-900 font-medium">
                                     {importType === "companies-only" ? "Sociétés uniquement" : "Sociétés + Contacts"}
                                 </span></li>
+                                <li>• Doublons: <span className="text-slate-900 font-medium">
+                                    {duplicateScenario === "smart_merge" ? "Enrichir & compléter"
+                                        : duplicateScenario === "skip" ? "Ignorer les doublons"
+                                            : duplicateScenario === "overwrite" ? "Mettre à jour / écraser"
+                                                : "Remplacement propre (archivage)"}
+                                </span> — périmètre <span className="text-slate-900 font-medium">{duplicateScope === "mission" ? "mission entière" : "liste cible"}</span></li>
                                 <li>• Fichier: <span className="text-slate-900 font-medium">{file?.name}</span></li>
                                 <li>• Lignes: <span className="text-slate-900 font-medium">{validationResult.valid}</span></li>
                             </ul>
@@ -2031,14 +2410,63 @@ export default function ImportListPage() {
             {/* Step 5: Result */}
             {step === 5 && importResult && (
                 <Card>
-                    <div className="text-center py-12">
-                        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-                            <Check className="w-8 h-8 text-emerald-600" />
+                    <div className="py-8">
+                        <div className="text-center">
+                            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                                <Check className="w-8 h-8 text-emerald-600" />
+                            </div>
+                            <h2 className="text-xl font-semibold text-slate-900">Import terminé !</h2>
+                            <p className="text-slate-500 mt-1">
+                                {importResult.companies} sociétés et {importResult.contacts} contacts importés
+                            </p>
                         </div>
-                        <h2 className="text-xl font-semibold text-slate-900">Import terminé !</h2>
-                        <p className="text-slate-500 mt-1">
-                            {importResult.companies} sociétés et {importResult.contacts} contacts importés
-                        </p>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-8">
+                            <StatCard
+                                label="Sociétés créées"
+                                value={importResult.companies}
+                                icon={PlusCircle}
+                                iconBg="bg-emerald-100"
+                                iconColor="text-emerald-600"
+                            />
+                            <StatCard
+                                label="Sociétés enrichies"
+                                value={importResult.companiesUpdated}
+                                icon={Sparkles}
+                                iconBg="bg-indigo-100"
+                                iconColor="text-indigo-600"
+                            />
+                            <StatCard
+                                label="Doublons évités"
+                                value={importResult.companiesSkipped}
+                                icon={SkipForward}
+                                iconBg="bg-slate-100"
+                                iconColor="text-slate-500"
+                            />
+                            <StatCard
+                                label="Contacts créés"
+                                value={importResult.contacts}
+                                icon={Users}
+                                iconBg="bg-sky-100"
+                                iconColor="text-sky-600"
+                                subtitle={
+                                    importResult.contactsUpdated > 0
+                                        ? <span className="text-slate-500">+{importResult.contactsUpdated} complété{importResult.contactsUpdated > 1 ? "s" : ""}</span>
+                                        : undefined
+                                }
+                            />
+                        </div>
+
+                        {(importResult.actions ?? 0) > 0 && (
+                            <p className="text-sm text-slate-500 text-center mt-4">
+                                {importResult.actions} action{(importResult.actions ?? 0) > 1 ? "s" : ""} d&apos;historique reconstituée{(importResult.actions ?? 0) > 1 ? "s" : ""}.
+                            </p>
+                        )}
+                        {importResult.errors > 0 && (
+                            <p className="text-sm text-amber-600 text-center mt-2">
+                                {importResult.errors} ligne{importResult.errors > 1 ? "s" : ""} en erreur (ignorée{importResult.errors > 1 ? "s" : ""}).
+                            </p>
+                        )}
 
                         <div className="flex justify-center gap-4 mt-8">
                             <Link href="/manager/lists">
@@ -2070,6 +2498,20 @@ export default function ImportListPage() {
                     </div>
                 </Card>
             )}
+            {/* Clean Replace confirmation */}
+            <ConfirmModal
+                isOpen={confirmCleanReplace}
+                onClose={() => setConfirmCleanReplace(false)}
+                onConfirm={() => {
+                    setDuplicateScenario("clean_replace");
+                    setConfirmCleanReplace(false);
+                }}
+                title="Remplacement propre de la liste"
+                message={`La liste « ${lists.find(l => l.id === listId)?.name ?? ""} » sera archivée (conservée en historique, retirée des listes actives) et l'import créera une liste neuve à sa place. Les sociétés, contacts et actions existants restent consultables dans la liste archivée.`}
+                confirmText="Archiver et remplacer"
+                variant="danger"
+            />
+
             {/* Custom Field Modal */}
             <Modal
                 isOpen={customFieldPrompt !== null}

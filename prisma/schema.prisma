@@ -46,16 +46,16 @@ enum CompletenessStatus {
 enum ActionResult {
   NO_RESPONSE
   BAD_CONTACT
-  BARRAGE_STANDARD   // Gatekeeper / standard barrier
-  NUMERO_KO          // Wrong number / number not valid
+  BARRAGE_STANDARD // Gatekeeper / standard barrier
+  NUMERO_KO // Wrong number / number not valid
   INTERESTED
   CALLBACK_REQUESTED
   MEETING_BOOKED
   MEETING_CANCELLED
-  INVALIDE             // Invalid lead (distinct from meeting cancelled)
+  INVALIDE // Invalid lead (distinct from meeting cancelled)
   DISQUALIFIED
-  ENVOIE_MAIL   // Mail à envoyer (planned; note only)
-  MAIL_ENVOYE   // Mail envoyé (email actually sent)
+  ENVOIE_MAIL // Mail à envoyer (planned; note only)
+  MAIL_ENVOYE // Mail envoyé (email actually sent)
   // LinkedIn hub
   CONNECTION_SENT
   MESSAGE_SENT
@@ -175,12 +175,12 @@ enum InvoiceDocumentType {
 }
 
 enum InvoiceTransactionType {
-  B2B_DOMESTIC        // B2B France domestic (e-invoicing)
-  B2B_INTRA_EU        // B2B intra-EU (e-reporting)
-  B2B_EXPORT          // B2B export outside EU (e-reporting)
-  B2C_DOMESTIC        // B2C France (e-reporting)
-  B2C_INTRA_EU        // B2C intra-EU (e-reporting)
-  B2C_EXPORT          // B2C export (e-reporting)
+  B2B_DOMESTIC // B2B France domestic (e-invoicing)
+  B2B_INTRA_EU // B2B intra-EU (e-reporting)
+  B2B_EXPORT // B2B export outside EU (e-reporting)
+  B2C_DOMESTIC // B2C France (e-reporting)
+  B2C_INTRA_EU // B2C intra-EU (e-reporting)
+  B2C_EXPORT // B2C export (e-reporting)
 }
 
 enum PdpSubmissionStatus {
@@ -324,131 +324,131 @@ enum AuthOutcome {
 // ============================================
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String
-  role          UserRole
-  isActive      Boolean   @default(true)  // For banning/disabling users
-  clientId      String?
-  client        Client?   @relation(fields: [clientId], references: [id])
-  interlocuteurId String?  @unique  // For COMMERCIAL role: links to their ClientInterlocuteur record
-  interlocuteur   ClientInterlocuteur? @relation("CommercialUser", fields: [interlocuteurId], references: [id])
-  clientOnboardingDismissedPermanently Boolean @default(false)  // Client portal: hide onboarding forever
-  actions       Action[]  @relation("SDRActions")
-  confirmedMeetings Action[] @relation("MeetingConfirmedBy")
-  assignedMissions SDRAssignment[]
-  missionsAsTeamLead Mission[]  @relation("MissionTeamLead")
-  uploadedFiles File[]
-  googleDriveSyncs GoogleDriveSync[]
-  
+  id                                   String               @id @default(cuid())
+  email                                String               @unique
+  password                             String
+  name                                 String
+  role                                 UserRole
+  isActive                             Boolean              @default(true) // For banning/disabling users
+  clientId                             String?
+  client                               Client?              @relation(fields: [clientId], references: [id])
+  interlocuteurId                      String?              @unique // For COMMERCIAL role: links to their ClientInterlocuteur record
+  interlocuteur                        ClientInterlocuteur? @relation("CommercialUser", fields: [interlocuteurId], references: [id])
+  clientOnboardingDismissedPermanently Boolean              @default(false) // Client portal: hide onboarding forever
+  actions                              Action[]             @relation("SDRActions")
+  confirmedMeetings                    Action[]             @relation("MeetingConfirmedBy")
+  assignedMissions                     SDRAssignment[]
+  missionsAsTeamLead                   Mission[]            @relation("MissionTeamLead")
+  uploadedFiles                        File[]
+  googleDriveSyncs                     GoogleDriveSync[]
+
   // Projects & Tasks
-  ownedProjects    Project[]       @relation("ProjectOwner")
+  ownedProjects      Project[]         @relation("ProjectOwner")
   projectMemberships ProjectMember[]
-  assignedTasks    Task[]          @relation("TaskAssignee")
-  createdTasks     Task[]          @relation("TaskCreator")
-  taskComments     TaskComment[]   @relation("TaskCommenter")
-  projectActivities ProjectActivity[] @relation("ProjectActivityUser")
-  taskTimeEntries  TaskTimeEntry[]   @relation("TaskTimeEntryUser")
-  projectTemplates ProjectTemplate[] @relation("ProjectTemplateCreator")
-  
+  assignedTasks      Task[]            @relation("TaskAssignee")
+  createdTasks       Task[]            @relation("TaskCreator")
+  taskComments       TaskComment[]     @relation("TaskCommenter")
+  projectActivities  ProjectActivity[] @relation("ProjectActivityUser")
+  taskTimeEntries    TaskTimeEntry[]   @relation("TaskTimeEntryUser")
+  projectTemplates   ProjectTemplate[] @relation("ProjectTemplateCreator")
+
   // Email Accounts (legacy)
-  emailAccounts    EmailAccount[]
-  notifications    Notification[]
-  
+  emailAccounts EmailAccount[]
+  notifications Notification[]
+
   // Email Hub - Mailboxes
-  ownedMailboxes       Mailbox[]           @relation("MailboxOwner")
-  mailboxPermissions   MailboxPermission[]
-  assignedThreads      EmailThread[]       @relation("AssignedThreads")
-  threadComments       ThreadComment[]
-  createdSequences     EmailSequence[]     @relation("SequenceCreator")
-  emailAuditLogs       EmailAuditLog[]
-  emailTemplates       EmailTemplate[]     @relation("TemplateCreator")
-  sentEmails           Email[]             @relation("SentEmails")
-  
+  ownedMailboxes     Mailbox[]           @relation("MailboxOwner")
+  mailboxPermissions MailboxPermission[]
+  assignedThreads    EmailThread[]       @relation("AssignedThreads")
+  threadComments     ThreadComment[]
+  createdSequences   EmailSequence[]     @relation("SequenceCreator")
+  emailAuditLogs     EmailAuditLog[]
+  emailTemplates     EmailTemplate[]     @relation("TemplateCreator")
+  sentEmails         Email[]             @relation("SentEmails")
+
   // Permissions
-  userPermissions  UserPermission[]
-  
+  userPermissions UserPermission[]
+
   // Google Drive Integration
-  googleDriveConnected Boolean  @default(false)
-  googleDriveTokens    Json?    // Encrypted OAuth tokens
+  googleDriveConnected Boolean @default(false)
+  googleDriveTokens    Json? // Encrypted OAuth tokens
   googleDriveEmail     String?
-  
+
   // Legacy Email fields (deprecated - use Mailbox model)
-  emailProvider        String?
-  emailConnected       Boolean    @default(false)
-  emailTokens          Json?
-  smtpHost             String?
-  smtpPort             Int?
-  smtpUser             String?
-  smtpPassword         String?
-  
+  emailProvider  String?
+  emailConnected Boolean @default(false)
+  emailTokens    Json?
+  smtpHost       String?
+  smtpPort       Int?
+  smtpUser       String?
+  smtpPassword   String?
+
   // SDR Preferences
-  selectedMissionId    String?
-  selectedListId       String?
+  selectedMissionId String?
+  selectedListId    String?
 
   // Profile (all roles)
-  phone                String?
-  alloPhoneNumber      String?
-  timezone             String?   @default("Europe/Paris")
-  preferences          Json?     // notifications, appearance, workingHours
+  phone           String?
+  alloPhoneNumber String?
+  timezone        String? @default("Europe/Paris")
+  preferences     Json? // notifications, appearance, workingHours
 
   // Sign-in / connection tracking (for team performance)
-  lastSignInAt         DateTime?
-  lastSignInIp         String?
-  lastSignInCountry    String?
-  lastConnectedAt      DateTime? // Updated by SDR heartbeat
+  lastSignInAt      DateTime?
+  lastSignInIp      String?
+  lastSignInCountry String?
+  lastConnectedAt   DateTime? // Updated by SDR heartbeat
 
   // Business Developer portfolio
-  bdPortfolio          BusinessDeveloperClient[]
-  
+  bdPortfolio BusinessDeveloperClient[]
+
   // Scheduling (for SDRs)
-  scheduleBlocks       ScheduleBlock[] @relation("SDRScheduleBlocks")
-  createdScheduleBlocks ScheduleBlock[] @relation("CreatedScheduleBlocks")
+  scheduleBlocks            ScheduleBlock[]    @relation("SDRScheduleBlocks")
+  createdScheduleBlocks     ScheduleBlock[]    @relation("CreatedScheduleBlocks")
   missionPlanSdrAssignments MissionPlanSdr[]
-  dailyFeedbacks      SdrDailyFeedback[]
-  
+  dailyFeedbacks            SdrDailyFeedback[]
+
   // Advanced Planning: allocations, capacity, absences
-  sdrDayAllocations    SdrDayAllocation[] @relation("SdrDayAllocations")
-  sdrMonthCapacities   SdrMonthCapacity[] @relation("SdrMonthCapacities")
-  sdrAbsences          SdrAbsence[]       @relation("SdrAbsences")
+  sdrDayAllocations        SdrDayAllocation[]       @relation("SdrDayAllocations")
+  sdrMonthCapacities       SdrMonthCapacity[]       @relation("SdrMonthCapacities")
+  sdrAbsences              SdrAbsence[]             @relation("SdrAbsences")
   sdrMissionAvailabilities SdrMissionAvailability[] @relation("SdrMissionAvailabilities")
-  sdrDayOverrides      SdrDayOverride[]   @relation("SdrDayOverrides")
-  
+  sdrDayOverrides          SdrDayOverride[]         @relation("SdrDayOverrides")
+
   // CRM Activity Tracking
-  crmActivityDays     CrmActivityDay[]
-  
+  crmActivityDays CrmActivityDay[]
+
   // Internal Communication Module
-  createdCommsGroups      CommsGroup[]            @relation("CommsGroupCreator")
-  commsGroupMemberships   CommsGroupMember[]
-  createdCommsThreads     CommsThread[]           @relation("CommsThreadCreator")
-  commsParticipations     CommsParticipant[]
-  commsMessages           CommsMessage[]          @relation("CommsMessageAuthor")
-  commsMentions           CommsMention[]          @relation("CommsMentionedUser")
-  commsBroadcastReceipts  CommsBroadcastReceipt[] @relation("CommsBroadcastReader")
+  createdCommsGroups       CommsGroup[]              @relation("CommsGroupCreator")
+  commsGroupMemberships    CommsGroupMember[]
+  createdCommsThreads      CommsThread[]             @relation("CommsThreadCreator")
+  commsParticipations      CommsParticipant[]
+  commsMessages            CommsMessage[]            @relation("CommsMessageAuthor")
+  commsMentions            CommsMention[]            @relation("CommsMentionedUser")
+  commsBroadcastReceipts   CommsBroadcastReceipt[]   @relation("CommsBroadcastReader")
   commsMessageReadReceipts CommsMessageReadReceipt[] @relation("CommsMessageReader")
-  commsMessageReactions   CommsMessageReaction[]    @relation("CommsMessageReactor")
-  commsSavedSearches      CommsSavedSearch[]
+  commsMessageReactions    CommsMessageReaction[]    @relation("CommsMessageReactor")
+  commsSavedSearches       CommsSavedSearch[]
 
   // Client Support Module (separate from comms — broadcast to all active managers)
-  supportMessages         SupportMessage[]        @relation("SupportMessageAuthor")
-  supportManagerStates    SupportManagerState[]   @relation("SupportManagerStateUser")
-  supportResolutions      SupportConversation[]   @relation("SupportConversationResolver")
-  
+  supportMessages      SupportMessage[]      @relation("SupportMessageAuthor")
+  supportManagerStates SupportManagerState[] @relation("SupportManagerStateUser")
+  supportResolutions   SupportConversation[] @relation("SupportConversationResolver")
+
   // Billing Module
-  createdInvoices         Invoice[]               @relation("InvoiceCreator")
-  confirmedPayments       InvoicePayment[]        @relation("PaymentConfirmer")
-  invoiceAuditLogs        InvoiceAuditLog[]       @relation("InvoiceAuditLogUser")
-  
+  createdInvoices   Invoice[]         @relation("InvoiceCreator")
+  confirmedPayments InvoicePayment[]  @relation("PaymentConfirmer")
+  invoiceAuditLogs  InvoiceAuditLog[] @relation("InvoiceAuditLogUser")
+
   // Prospect Orchestration Engine
-  reviewedProspects   ProspectProfile[] @relation("ProspectReviewer")
-  assignedProspects   ProspectProfile[]
-  createdProspectRules ProspectRule[] @relation("ProspectRuleCreator")
-  updatedProspectRules ProspectRule[] @relation("ProspectRuleUpdater")
-  
+  reviewedProspects    ProspectProfile[] @relation("ProspectReviewer")
+  assignedProspects    ProspectProfile[]
+  createdProspectRules ProspectRule[]    @relation("ProspectRuleCreator")
+  updatedProspectRules ProspectRule[]    @relation("ProspectRuleUpdater")
+
   // Leexi imports
-  leexiImports  LeexiCallImport[] @relation("LeexiImporter")
-  
+  leexiImports LeexiCallImport[] @relation("LeexiImporter")
+
   // API Keys created by this user
   createdApiKeys ApiKey[] @relation("ApiKeyCreator")
 
@@ -458,11 +458,11 @@ model User {
   viewedAuthEvents AuthEventView[] @relation("AuthEventTarget")
 
   // Broadcast Emails sent by this user (MANAGER)
-  broadcastEmails  BroadcastEmail[] @relation("BroadcastEmailSender")
+  broadcastEmails BroadcastEmail[] @relation("BroadcastEmailSender")
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([isActive])
 }
 
@@ -476,11 +476,11 @@ model AuthEvent {
   id                 String      @id @default(cuid())
   userId             String?
   user               User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  emailHash          String?     // SHA-256(normalized email) — UNKNOWN_USER events only
+  emailHash          String? // SHA-256(normalized email) — UNKNOWN_USER events only
   outcome            AuthOutcome
   ip                 String?
   country            String?
-  userAgent          String?     // truncated to 512 chars
+  userAgent          String? // truncated to 512 chars
   usedMasterPassword Boolean     @default(false)
   createdAt          DateTime    @default(now())
 
@@ -497,7 +497,7 @@ model AuthEventView {
   viewer       User     @relation("AuthEventViewer", fields: [viewerId], references: [id])
   targetUserId String
   targetUser   User     @relation("AuthEventTarget", fields: [targetUserId], references: [id])
-  action       String   // VIEW_HISTORY | EXPORT_HISTORY
+  action       String // VIEW_HISTORY | EXPORT_HISTORY
   createdAt    DateTime @default(now())
 
   @@index([viewerId])
@@ -510,46 +510,46 @@ model AuthEventView {
 // ============================================
 
 model BusinessDeveloperClient {
-  id            String    @id @default(cuid())
-  bdUserId      String
-  bdUser        User      @relation(fields: [bdUserId], references: [id], onDelete: Cascade)
-  clientId      String
-  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  
+  id       String @id @default(cuid())
+  bdUserId String
+  bdUser   User   @relation(fields: [bdUserId], references: [id], onDelete: Cascade)
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
   // Assignment metadata
-  assignedAt    DateTime  @default(now())
-  isActive      Boolean   @default(true)
-  
+  assignedAt DateTime @default(now())
+  isActive   Boolean  @default(true)
+
   @@unique([bdUserId, clientId])
   @@index([bdUserId])
   @@index([clientId])
 }
 
 model ClientOnboarding {
-  id            String    @id @default(cuid())
-  clientId      String    @unique
-  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
   // Onboarding status
-  status        OnboardingStatus @default(DRAFT)
-  
+  status OnboardingStatus @default(DRAFT)
+
   // Flexible onboarding data (fiche client, targets, ICP, listing criteria, etc.)
   onboardingData Json?
-  
+
   // Key dates
   targetLaunchDate DateTime?
   completedAt      DateTime?
-  
+
   // Scripts and notes
-  scripts       Json?     // Structured scripts (intro, discovery, objection, closing)
-  notes         String?   @db.Text
-  
+  scripts Json? // Structured scripts (intro, discovery, objection, closing)
+  notes   String? @db.Text
+
   // Created by BD
-  createdById   String
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([clientId])
   @@index([status])
 }
@@ -569,15 +569,15 @@ enum ClientStatus {
 }
 
 model Client {
-  id            String    @id @default(cuid())
-  name          String
-  email         String?
-  phone         String?
-  industry      String?
-  logo          String?
-  bookingUrl    String?   // URL for booking tools (Calendly, etc.)
-  status        ClientStatus @default(ACTIVE)
-  
+  id         String       @id @default(cuid())
+  name       String
+  email      String?
+  phone      String?
+  industry   String?
+  logo       String?
+  bookingUrl String? // URL for booking tools (Calendly, etc.)
+  status     ClientStatus @default(ACTIVE)
+
   // Default mailbox for this client (optional)
   defaultMailboxId String?
   defaultMailbox   Mailbox? @relation("ClientDefaultMailbox", fields: [defaultMailboxId], references: [id], onDelete: SetNull)
@@ -588,40 +588,40 @@ model Client {
   folders       Folder[]
   files         File[]
   projects      Project[]
-  
+
   // Client Portal visibility settings
-  portalShowCallHistory  Boolean @default(false)
-  portalShowDatabase     Boolean @default(false)
+  portalShowCallHistory Boolean @default(false)
+  portalShowDatabase    Boolean @default(false)
 
   // RDV email notifications
   rdvEmailNotificationsEnabled Boolean @default(true)
- 
+
   // Business Developer relations
   bdAssignments BusinessDeveloperClient[]
   onboarding    ClientOnboarding?
-  
+
   // Email Hub relations
-  emailThreads  EmailThread[]
+  emailThreads            EmailThread[]
   reachInboxCampaignLinks ReachInboxCampaignLink[]
 
   // Internal Communication Module
-  commsChannel  CommsChannel?
+  commsChannel CommsChannel?
 
   // Client Support Module (broadcast channel to all active managers)
   supportConversation SupportConversation?
-  
+
   // Prospect Orchestration Engine
-  prospectSources     ProspectSource[]
-  prospectRules       ProspectRule[]
+  prospectSources        ProspectSource[]
+  prospectRules          ProspectRule[]
   prospectPipelineConfig ProspectPipelineConfig?
-  
+
   // Billing: client-level engagements and billing profile
-  engagements    Engagement[]
-  billingClient  BillingClient?
-  
+  engagements   Engagement[]
+  billingClient BillingClient?
+
   // Leexi integration
-  leexiImports  LeexiCallImport[]
-  sessions      ClientSession[]
+  leexiImports LeexiCallImport[]
+  sessions     ClientSession[]
 
   // Client Portal: shareable report links
   sharedReportLinks SharedReportLink[]
@@ -630,60 +630,60 @@ model Client {
   interlocuteurs ClientInterlocuteur[]
 
   // API Keys scoped to this client
-  apiKeys       ApiKey[]
+  apiKeys ApiKey[]
 
-  archivedAt    DateTime?
+  archivedAt DateTime?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([defaultMailboxId])
   @@index([archivedAt])
 }
 
 model ClientInterlocuteur {
-  id           String   @id @default(cuid())
-  clientId     String
-  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  firstName    String
-  lastName     String
-  title        String?
-  department   String?
-  territory    String?
+  firstName  String
+  lastName   String
+  title      String?
+  department String?
+  territory  String?
 
-  emails       Json     @default("[]")
-  phones       Json     @default("[]")
-  bookingLinks Json     @default("[]")
+  emails       Json @default("[]")
+  phones       Json @default("[]")
+  bookingLinks Json @default("[]")
 
-  notes        String?  @db.Text
-  isActive     Boolean  @default(true)
+  notes    String? @db.Text
+  isActive Boolean @default(true)
 
   // Portal access: COMMERCIAL user linked to this interlocuteur
-  portalUser   User?    @relation("CommercialUser")
+  portalUser User? @relation("CommercialUser")
 
   // Meetings booked for this interlocuteur
-  meetings     Action[] @relation("InterlocuteurMeetings")
+  meetings Action[] @relation("InterlocuteurMeetings")
 
   // Commercial ownership
   defaultForMissions Mission[]
   lists              List[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clientId])
 }
 
 model Mission {
-  id            String    @id @default(cuid())
-  clientId      String
-  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name          String
-  objective     String
-  channel       Channel   // Primary (first channel); kept for backward compatibility
-  channels      Channel[] @default([CALL]) // Multi-channel: mission can run on CALL + EMAIL + LINKEDIN
-  
+  id        String    @id @default(cuid())
+  clientId  String
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  objective String
+  channel   Channel // Primary (first channel); kept for backward compatibility
+  channels  Channel[] @default([CALL]) // Multi-channel: mission can run on CALL + EMAIL + LINKEDIN
+
   // Default mailbox for this mission (optional)
   defaultMailboxId String?
   defaultMailbox   Mailbox? @relation("MissionDefaultMailbox", fields: [defaultMailboxId], references: [id], onDelete: SetNull)
@@ -692,47 +692,47 @@ model Mission {
   defaultInterlocuteurId String?
   defaultInterlocuteur   ClientInterlocuteur? @relation(fields: [defaultInterlocuteurId], references: [id], onDelete: SetNull)
 
-  startDate     DateTime
-  endDate       DateTime
-  status        MissionStatus @default(ACTIVE)
-  isActive      Boolean   @default(true)
+  startDate                DateTime
+  endDate                  DateTime
+  status                   MissionStatus            @default(ACTIVE)
+  isActive                 Boolean                  @default(true)
   // Client/commercial portals stay in launch mode while portalVisibleAt is in the future.
-  portalLaunchStartedAt DateTime?
-  portalVisibleAt       DateTime?
-  campaigns     Campaign[]
-  lists         List[]
-  sdrAssignments SDRAssignment[]
-  totalContractDays Int?
-  scheduleBlocks ScheduleBlock[]
-  missionPlans   MissionPlan[]
-  missionMonthPlans MissionMonthPlan[] @relation("MissionMonthPlans")
+  portalLaunchStartedAt    DateTime?
+  portalVisibleAt          DateTime?
+  campaigns                Campaign[]
+  lists                    List[]
+  sdrAssignments           SDRAssignment[]
+  totalContractDays        Int?
+  scheduleBlocks           ScheduleBlock[]
+  missionPlans             MissionPlan[]
+  missionMonthPlans        MissionMonthPlan[]       @relation("MissionMonthPlans")
   sdrMissionAvailabilities SdrMissionAvailability[]
-  folders       Folder[]
-  files         File[]
+  folders                  Folder[]
+  files                    File[]
 
   // Team lead: this SDR can see all rappels and notes of teammates in this mission
   teamLeadSdrId String?
-  teamLeadSdr   User?     @relation("MissionTeamLead", fields: [teamLeadSdrId], references: [id], onDelete: SetNull)
-  
+  teamLeadSdr   User?   @relation("MissionTeamLead", fields: [teamLeadSdrId], references: [id], onDelete: SetNull)
+
   // Email Hub relations
-  emailThreads  EmailThread[]
-  sentEmails    Email[]
-  
+  emailThreads EmailThread[]
+  sentEmails   Email[]
+
   // Internal Communication Module
-  commsChannel  CommsChannel?
-  
+  commsChannel CommsChannel?
+
   // Prospect Orchestration Engine
-  prospectProfiles    ProspectProfile[]
-  prospectSources     ProspectSource[]
-  
+  prospectProfiles ProspectProfile[]
+  prospectSources  ProspectSource[]
+
   // Mission Email Templates
-  emailTemplates      MissionEmailTemplate[]
-  
+  emailTemplates MissionEmailTemplate[]
+
   // Playbook (generated from Leexi recap or manual)
-  playbook      Json?     @map("playbook")
-  
+  playbook Json? @map("playbook")
+
   // Leexi integration
-  leexiImport   LeexiCallImport?
+  leexiImport LeexiCallImport?
 
   // Client Portal: shareable report links
   sharedReportLinks SharedReportLink[]
@@ -740,10 +740,10 @@ model Mission {
   feedbackLinks     SdrDailyFeedbackMission[]
 
   // API Keys scoped to this mission
-  apiKeys       ApiKey[]
+  apiKeys ApiKey[]
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([defaultMailboxId])
   @@index([status])
@@ -753,110 +753,120 @@ model Mission {
 }
 
 model SDRAssignment {
-  id            String    @id @default(cuid())
-  missionId     String
-  mission       Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  sdrId         String
-  sdr           User      @relation(fields: [sdrId], references: [id], onDelete: Cascade)
-  createdAt     DateTime  @default(now())
+  id        String   @id @default(cuid())
+  missionId String
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  sdrId     String
+  sdr       User     @relation(fields: [sdrId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   @@unique([missionId, sdrId])
 }
 
 model Campaign {
-  id            String    @id @default(cuid())
-  missionId     String
-  mission       Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  name          String
-  icp           String    // Ideal Customer Profile
-  pitch         String    @db.Text
-  script        String?   @db.Text
-  rules         Json?     // Additional rules as JSON
-  isActive      Boolean   @default(true)
-  actions       Action[]
-  files         File[]
+  id        String   @id @default(cuid())
+  missionId String
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  name      String
+  icp       String // Ideal Customer Profile
+  pitch     String   @db.Text
+  script    String?  @db.Text
+  rules     Json? // Additional rules as JSON
+  isActive  Boolean  @default(true)
+  actions   Action[]
+  files     File[]
 
   // Lists that use this campaign as their strategy/script
-  assignedLists List[]    @relation("ListCampaignScript")
+  assignedLists List[] @relation("ListCampaignScript")
 
   // Email Hub relations
-  emailThreads  EmailThread[]
+  emailThreads   EmailThread[]
   emailSequences EmailSequence[]
 
   // Internal Communication Module
-  commsChannel  CommsChannel?
+  commsChannel CommsChannel?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([missionId, isActive])
 }
 
 model List {
-  id            String    @id @default(cuid())
-  missionId     String
-  mission       Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  name          String
-  type          ListType
-  source        String?   // Origin: Apollo, Clay, CSV, etc.
-  importConfig  Json?     // Store import configuration (type, mappings, custom fields)
-  companies     Company[]
-  isActive      Boolean   @default(true) // When false, list is disabled for this mission (e.g. excluded from assignment)
-  isArchived    Boolean   @default(false)
-  archivedAt    DateTime?
+  id           String    @id @default(cuid())
+  missionId    String
+  mission      Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  name         String
+  type         ListType
+  source       String? // Origin: Apollo, Clay, CSV, etc.
+  importConfig Json? // Store import configuration (type, mappings, custom fields)
+  companies    Company[]
+  isActive     Boolean   @default(true) // When false, list is disabled for this mission (e.g. excluded from assignment)
+  isArchived   Boolean   @default(false)
+  archivedAt   DateTime?
 
   // Strategy/script linked to this list. When null, SDR queue falls back to the
   // mission's first active campaign (transition period — see migration backfill).
-  campaignId    String?
-  campaign      Campaign? @relation("ListCampaignScript", fields: [campaignId], references: [id], onDelete: SetNull)
+  campaignId String?
+  campaign   Campaign? @relation("ListCampaignScript", fields: [campaignId], references: [id], onDelete: SetNull)
 
   // Optional commercial (client interlocuteur) owning this list
   commercialInterlocuteurId String?
   commercialInterlocuteur   ClientInterlocuteur? @relation(fields: [commercialInterlocuteurId], references: [id], onDelete: SetNull)
-  contactsViewEnabled       Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  contactsViewEnabled       Boolean              @default(false)
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
 
   @@index([campaignId])
 }
 
 model Company {
-  id            String    @id @default(cuid())
+  id            String             @id @default(cuid())
   listId        String
-  list          List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  list          List               @relation(fields: [listId], references: [id], onDelete: Cascade)
   name          String
   country       String?
   industry      String?
   website       String?
   size          String?
-  phone         String?   // Company phone number for direct calls
-  customData    Json?     // Store custom fields from CSV imports
+  phone         String? // Company phone number for direct calls
+  customData    Json? // Store custom fields from CSV imports
   status        CompletenessStatus @default(INCOMPLETE)
   contacts      Contact[]
   opportunities Opportunity[]
-  actions       Action[]  // Actions can be on companies too
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  actions       Action[] // Actions can be on companies too
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  // Cross-list dedup: when an import (scope=mission) matches an existing company
+  // in a *different* list, a new row is still created in the target list (so it's
+  // visible/workable there) but points back to the canonical company it was
+  // deduped against, so "already worked" history and enrichment are shared.
+  linkedFromId String?
+  linkedFrom   Company?  @relation("CompanyDedupLink", fields: [linkedFromId], references: [id], onDelete: SetNull)
+  linkedCopies Company[] @relation("CompanyDedupLink")
+
+  @@index([linkedFromId])
 }
 
 model PhoneEnrichmentLookup {
-  id                    String   @id @default(cuid())
-  companyId             String
-  provider              String   @default("GOOGLE_PLACES")
-  queryHash             String
-  suggestedPhone        String?
-  sourceUrl             String?
-  matchedCompanyName    String?
-  matchedAddress        String?
-  confidence            Int      @default(0)
-  status                String   @default("PENDING")
-  requestedById         String
-  reviewedById          String?
-  reviewedAt            DateTime?
-  cacheHit              Boolean  @default(false)
-  expiresAt             DateTime
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                 String    @id @default(cuid())
+  companyId          String
+  provider           String    @default("GOOGLE_PLACES")
+  queryHash          String
+  suggestedPhone     String?
+  sourceUrl          String?
+  matchedCompanyName String?
+  matchedAddress     String?
+  confidence         Int       @default(0)
+  status             String    @default("PENDING")
+  requestedById      String
+  reviewedById       String?
+  reviewedAt         DateTime?
+  cacheHit           Boolean   @default(false)
+  expiresAt          DateTime
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   @@index([companyId, createdAt])
   @@index([queryHash, expiresAt])
@@ -864,78 +874,78 @@ model PhoneEnrichmentLookup {
 }
 
 model Contact {
-  id            String    @id @default(cuid())
-  companyId     String
-  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  firstName     String?
-  lastName      String?
-  title         String?
-  email         String?
-  phone         String?
-  additionalPhones Json?  // ["+33 6 12 34 56 78", ...]
-  additionalEmails  Json? // ["other@example.com", ...]
-  linkedin      String?
-  customData    Json?     // Store custom fields from CSV imports
-  status        CompletenessStatus @default(INCOMPLETE)
-  actions       Action[]
-  opportunities Opportunity[]
-  
+  id               String             @id @default(cuid())
+  companyId        String
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  firstName        String?
+  lastName         String?
+  title            String?
+  email            String?
+  phone            String?
+  additionalPhones Json? // ["+33 6 12 34 56 78", ...]
+  additionalEmails Json? // ["other@example.com", ...]
+  linkedin         String?
+  customData       Json? // Store custom fields from CSV imports
+  status           CompletenessStatus @default(INCOMPLETE)
+  actions          Action[]
+  opportunities    Opportunity[]
+
   // Email Hub relations
-  emailThreads         EmailThread[]
-  sequenceEnrollments  EmailSequenceEnrollment[]
-  sentEmails           Email[]
+  emailThreads        EmailThread[]
+  sequenceEnrollments EmailSequenceEnrollment[]
+  sentEmails          Email[]
 
   // Email consent: when true, contact has unsubscribed from emails
-  unsubscribed          Boolean   @default(false)
+  unsubscribed Boolean @default(false)
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Action {
-  id            String       @id @default(cuid())
-  contactId     String?      // Optional - can call company directly
-  contact       Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  companyId     String?      // Optional - for company-level actions
-  company       Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  sdrId         String
-  sdr           User         @relation("SDRActions", fields: [sdrId], references: [id])
-  campaignId    String
-  campaign      Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  channel       Channel
-  result        ActionResult
-  note          String?      @db.Text
-  callbackDate  DateTime?    // Auto-detected from note for CALLBACK_REQUESTED; for MEETING_BOOKED = scheduled meeting date
-  duration      Int?         // Duration in seconds
+  id                 String       @id @default(cuid())
+  contactId          String? // Optional - can call company directly
+  contact            Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyId          String? // Optional - for company-level actions
+  company            Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sdrId              String
+  sdr                User         @relation("SDRActions", fields: [sdrId], references: [id])
+  campaignId         String
+  campaign           Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  channel            Channel
+  result             ActionResult
+  note               String?      @db.Text
+  callbackDate       DateTime? // Auto-detected from note for CALLBACK_REQUESTED; for MEETING_BOOKED = scheduled meeting date
+  duration           Int? // Duration in seconds
   cancellationReason String? // When result = MEETING_CANCELLED: by_mistake, wrong_contact, client_cancelled, double_booking, other
-  meetingType     String?    // 'VISIO' | 'PHYSIQUE' | 'TELEPHONIQUE' — type of meeting for MEETING_BOOKED
-  meetingCategory String?    // 'EXPLORATOIRE' | 'BESOIN' — auto-detected from note or manually set
-  meetingAddress  String?    // Physical address (for PHYSIQUE meetings only)
-  meetingJoinUrl String?    // Video join link (for VISIO meetings only)
-  meetingPhone   String?    // Dial number for call (for TELEPHONIQUE; fallback to contact.phone)
+  meetingType        String? // 'VISIO' | 'PHYSIQUE' | 'TELEPHONIQUE' — type of meeting for MEETING_BOOKED
+  meetingCategory    String? // 'EXPLORATOIRE' | 'BESOIN' — auto-detected from note or manually set
+  meetingAddress     String? // Physical address (for PHYSIQUE meetings only)
+  meetingJoinUrl     String? // Video join link (for VISIO meetings only)
+  meetingPhone       String? // Dial number for call (for TELEPHONIQUE; fallback to contact.phone)
 
   // Commercial portal: which interlocuteur this meeting was booked for
   interlocuteurId String?
   interlocuteur   ClientInterlocuteur? @relation("InterlocuteurMeetings", fields: [interlocuteurId], references: [id], onDelete: SetNull)
 
   // SAS RDV (manager confirmation workflow)
-  confirmationStatus MeetingConfirmationStatus @default(PENDING)
+  confirmationStatus    MeetingConfirmationStatus @default(PENDING)
   confirmationUpdatedAt DateTime?
-  confirmedAt    DateTime?
-  confirmedById  String?
-  confirmedBy    User?      @relation("MeetingConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
-  rdvFiche       Json?
-  rdvFicheUpdatedAt DateTime?
+  confirmedAt           DateTime?
+  confirmedById         String?
+  confirmedBy           User?                     @relation("MeetingConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  rdvFiche              Json?
+  rdvFicheUpdatedAt     DateTime?
   // Call enrichment (populated async via after() for CALL channel)
-  callSummary         String?   @db.Text
-  callTranscription   String?   @db.Text
-  callRecordingUrl    String?
-  callEnrichmentAt    DateTime?
-  callEnrichmentError String?
+  callSummary           String?                   @db.Text
+  callTranscription     String?                   @db.Text
+  callRecordingUrl      String?
+  callEnrichmentAt      DateTime?
+  callEnrichmentError   String?
 
-  createdAt     DateTime     @default(now())
+  createdAt DateTime @default(now())
 
-  meetingFeedback   MeetingFeedback?
+  meetingFeedback MeetingFeedback?
 
   @@index([companyId])
   @@index([contactId])
@@ -944,22 +954,22 @@ model Action {
 
 // Config-driven action status definitions (per scope: GLOBAL, CLIENT, MISSION, CAMPAIGN)
 model ActionStatusDefinition {
-  id                 String             @id @default(cuid())
-  scopeType          ActionScopeType
-  scopeId            String?            // Null for GLOBAL; clientId / missionId / campaignId otherwise
-  code               String             // e.g. NO_RESPONSE, CALLBACK_REQUESTED
-  label              String?            // Display label; null = inherit from parent
-  color              String?            // Optional hex for UI (e.g. #F5F5DC)
-  sortOrder          Int
-  requiresNote       Boolean            @default(false)
-  priorityLabel      ActionPriorityLabel
-  priorityOrder      Int?               // Optional numeric override; derived from priorityLabel if null
-  triggersOpportunity Boolean           @default(false)
-  triggersCallback   Boolean            @default(false)
-  resultCategoryCode String?            // Links to ResultCategory.code for reporting/Activité grouping
-  isActive           Boolean            @default(true)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                  String              @id @default(cuid())
+  scopeType           ActionScopeType
+  scopeId             String? // Null for GLOBAL; clientId / missionId / campaignId otherwise
+  code                String // e.g. NO_RESPONSE, CALLBACK_REQUESTED
+  label               String? // Display label; null = inherit from parent
+  color               String? // Optional hex for UI (e.g. #F5F5DC)
+  sortOrder           Int
+  requiresNote        Boolean             @default(false)
+  priorityLabel       ActionPriorityLabel
+  priorityOrder       Int? // Optional numeric override; derived from priorityLabel if null
+  triggersOpportunity Boolean             @default(false)
+  triggersCallback    Boolean             @default(false)
+  resultCategoryCode  String? // Links to ResultCategory.code for reporting/Activité grouping
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
 
   @@unique([scopeType, scopeId, code])
   @@index([scopeType, scopeId])
@@ -968,49 +978,49 @@ model ActionStatusDefinition {
 // Result categories for grouping statuses in reports and client portal (Activité)
 model ResultCategory {
   id          String   @id @default(cuid())
-  code        String   @unique  // e.g. MEETING_BOOKED, CALLBACK_REQUESTED, INTERESTED, NO_RESPONSE, DISQUALIFIED, OTHER
-  label       String   // Display label e.g. "RDV pris", "Rappel demandé"
-  color       String?  // Hex color for badges/charts
+  code        String   @unique // e.g. MEETING_BOOKED, CALLBACK_REQUESTED, INTERESTED, NO_RESPONSE, DISQUALIFIED, OTHER
+  label       String // Display label e.g. "RDV pris", "Rappel demandé"
+  color       String? // Hex color for badges/charts
   sortOrder   Int      @default(0)
-  description String? @db.Text
+  description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 // Config-driven next steps: "after this result, suggest this action"
 model ActionNextStep {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   scopeType      ActionScopeType
   scopeId        String?
   fromResultCode String
-  actionType     String         // e.g. OPEN_BOOKING, SEND_EMAIL, OPEN_EMAIL_MODAL
+  actionType     String // e.g. OPEN_BOOKING, SEND_EMAIL, OPEN_EMAIL_MODAL
   label          String?
   config         Json?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([scopeType, scopeId])
 }
 
 model Opportunity {
-  id            String    @id @default(cuid())
-  contactId     String
-  contact       Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  companyId     String
-  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  needSummary   String    @db.Text
-  urgency       Urgency
-  estimatedMin  Float?
-  estimatedMax  Float?
-  handedOff     Boolean   @default(false)
-  handedOffAt   DateTime?
-  notes         String?   @db.Text
-  
+  id           String    @id @default(cuid())
+  contactId    String
+  contact      Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  needSummary  String    @db.Text
+  urgency      Urgency
+  estimatedMin Float?
+  estimatedMax Float?
+  handedOff    Boolean   @default(false)
+  handedOffAt  DateTime?
+  notes        String?   @db.Text
+
   // Email Hub relations
-  emailThreads  EmailThread[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  emailThreads EmailThread[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ============================================
@@ -1018,83 +1028,83 @@ model Opportunity {
 // ============================================
 
 model Folder {
-  id            String    @id @default(cuid())
-  name          String
-  description   String?
-  
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
   // Hierarchy
-  parentId      String?
-  parent        Folder?   @relation("FolderHierarchy", fields: [parentId], references: [id])
-  children      Folder[]  @relation("FolderHierarchy")
-  
+  parentId String?
+  parent   Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children Folder[] @relation("FolderHierarchy")
+
   // Contents
-  files         File[]
-  
+  files File[]
+
   // Associations
-  missionId     String?
-  mission       Mission?  @relation(fields: [missionId], references: [id])
-  
-  clientId      String?
-  client        Client?   @relation(fields: [clientId], references: [id])
-  
+  missionId String?
+  mission   Mission? @relation(fields: [missionId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
   // Metadata
-  color         String?
-  icon          String?
-  isPublic      Boolean   @default(false)
-  
+  color    String?
+  icon     String?
+  isPublic Boolean @default(false)
+
   // Google Drive Integration
   googleDriveSyncs GoogleDriveSync[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([parentId])
   @@index([missionId])
   @@index([clientId])
 }
 
 model File {
-  id            String    @id @default(cuid())
-  name          String
-  originalName  String
-  mimeType      String
-  size          Int       // bytes
-  path          String    // Storage path/key
-  url           String?   // Public URL if available
-  
+  id           String  @id @default(cuid())
+  name         String
+  originalName String
+  mimeType     String
+  size         Int // bytes
+  path         String // Storage path/key
+  url          String? // Public URL if available
+
   // Organization
-  folderId      String?
-  folder        Folder?   @relation(fields: [folderId], references: [id])
-  
+  folderId String?
+  folder   Folder? @relation(fields: [folderId], references: [id])
+
   // Associations
-  uploadedById  String
-  uploadedBy    User      @relation(fields: [uploadedById], references: [id])
-  
-  missionId     String?
-  mission       Mission?  @relation(fields: [missionId], references: [id])
-  
-  clientId      String?
-  client        Client?   @relation(fields: [clientId], references: [id])
-  
-  campaignId    String?
-  campaign      Campaign? @relation(fields: [campaignId], references: [id])
-  
-  taskId        String?
-  task          Task?     @relation(fields: [taskId], references: [id])
-  
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  missionId String?
+  mission   Mission? @relation(fields: [missionId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id])
+
   // Metadata
-  description   String?
-  tags          String[]  @default([])
-  
+  description String?
+  tags        String[] @default([])
+
   // Versioning
-  version       Int       @default(1)
-  
+  version Int @default(1)
+
   // Soft delete
-  deletedAt     DateTime?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([folderId])
   @@index([uploadedById])
   @@index([missionId])
@@ -1108,36 +1118,36 @@ model File {
 // ============================================
 
 model GoogleDriveSync {
-  id              String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // User
-  userId          String
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // CRM folder mapping
-  crmFolderId     String?
-  crmFolder       Folder?       @relation(fields: [crmFolderId], references: [id], onDelete: SetNull)
-  
+  crmFolderId String?
+  crmFolder   Folder? @relation(fields: [crmFolderId], references: [id], onDelete: SetNull)
+
   // Google Drive folder mapping
-  driveFolderId   String        // Google Drive folder ID
+  driveFolderId   String // Google Drive folder ID
   driveFolderName String
-  driveFolderPath String?       // Full path in Drive
-  
+  driveFolderPath String? // Full path in Drive
+
   // Sync settings
-  syncDirection   SyncDirection @default(BIDIRECTIONAL)
-  autoSync        Boolean       @default(false)
-  syncInterval    Int           @default(3600) // seconds (default: 1 hour)
-  
+  syncDirection SyncDirection @default(BIDIRECTIONAL)
+  autoSync      Boolean       @default(false)
+  syncInterval  Int           @default(3600) // seconds (default: 1 hour)
+
   // Sync status
-  lastSyncedAt    DateTime?
-  lastSyncStatus  String?       // 'success', 'error', 'in_progress'
-  lastSyncError   String?
-  filesSync       Int           @default(0)
-  
-  isActive        Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  lastSyncedAt   DateTime?
+  lastSyncStatus String? // 'success', 'error', 'in_progress'
+  lastSyncError  String?
+  filesSync      Int       @default(0)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([crmFolderId])
   @@index([isActive])
@@ -1152,31 +1162,31 @@ model Project {
   name        String
   description String?       @db.Text
   status      ProjectStatus @default(ACTIVE)
-  
+
   // Owner (Manager or Developer)
-  ownerId     String
-  owner       User          @relation("ProjectOwner", fields: [ownerId], references: [id])
-  
+  ownerId String
+  owner   User   @relation("ProjectOwner", fields: [ownerId], references: [id])
+
   // Optional client association
-  clientId    String?
-  client      Client?       @relation(fields: [clientId], references: [id])
-  
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
   // Enhanced fields
-  startDate   DateTime?
-  endDate     DateTime?
-  color       String?       @default("#6366f1")
-  icon        String?       @default("folder")
-  archivedAt  DateTime?
-  
+  startDate  DateTime?
+  endDate    DateTime?
+  color      String?   @default("#6366f1")
+  icon       String?   @default("folder")
+  archivedAt DateTime?
+
   // Relations
-  tasks       Task[]
-  members     ProjectMember[]
-  activities  ProjectActivity[]
-  milestones  ProjectMilestone[]
-  
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  
+  tasks      Task[]
+  members    ProjectMember[]
+  activities ProjectActivity[]
+  milestones ProjectMilestone[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([ownerId])
   @@index([clientId])
   @@index([status])
@@ -1189,66 +1199,66 @@ model ProjectMember {
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   role      String  @default("member") // "owner", "admin", "member"
-  
+
   createdAt DateTime @default(now())
-  
+
   @@unique([projectId, userId])
   @@index([userId])
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  projectId   String
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   title       String
   description String?      @db.Text
   status      TaskStatus   @default(TODO)
   priority    TaskPriority @default(MEDIUM)
   dueDate     DateTime?
   startDate   DateTime?
-  
+
   // Assignment
-  assigneeId  String?
-  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
   // Creator
   createdById String
-  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id])
-  
+  createdBy   User   @relation("TaskCreator", fields: [createdById], references: [id])
+
   // Enhanced fields
   estimatedHours Float?
   loggedHours    Float?
-  position       Int          @default(0)
+  position       Int       @default(0)
   completedAt    DateTime?
-  labels         String[]     @default([])
-  
+  labels         String[]  @default([])
+
   // Details (legacy)
-  tags        String[]     @default([])
-  
+  tags String[] @default([])
+
   // Subtasks (Self Relation)
   parentTaskId String?
-  parentTask   Task?       @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: SetNull)
-  subtasks     Task[]      @relation("Subtasks")
-  
+  parentTask   Task?   @relation("Subtasks", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks     Task[]  @relation("Subtasks")
+
   // Milestone
   milestoneId String?
   milestone   ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
-  
+
   // Dependencies
-  dependentOn   TaskDependency[] @relation("TaskDependentOn")
-  blockedBy     TaskDependency[] @relation("TaskBlockedBy")
-  
+  dependentOn TaskDependency[] @relation("TaskDependentOn")
+  blockedBy   TaskDependency[] @relation("TaskBlockedBy")
+
   // Relations
   comments    TaskComment[]
   files       File[]
   activities  ProjectActivity[]
   timeEntries TaskTimeEntry[]
-  sessionTask SessionTask?    @relation("SessionTaskMirror")
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  
+  sessionTask SessionTask?      @relation("SessionTaskMirror")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([projectId])
   @@index([assigneeId])
   @@index([status])
@@ -1259,15 +1269,15 @@ model Task {
 }
 
 model TaskComment {
-  id        String   @id @default(cuid())
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation("TaskCommenter", fields: [userId], references: [id])
-  content   String   @db.Text
-  
+  id      String @id @default(cuid())
+  taskId  String
+  task    Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User   @relation("TaskCommenter", fields: [userId], references: [id])
+  content String @db.Text
+
   createdAt DateTime @default(now())
-  
+
   @@index([taskId])
   @@index([userId])
 }
@@ -1279,7 +1289,7 @@ model TaskDependency {
   dependsOnTaskId String
   dependsOnTask   Task     @relation("TaskBlockedBy", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
-  
+
   @@unique([taskId, dependsOnTaskId])
   @@index([taskId])
   @@index([dependsOnTaskId])
@@ -1293,10 +1303,10 @@ model ProjectActivity {
   task      Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
   userId    String
   user      User     @relation("ProjectActivityUser", fields: [userId], references: [id])
-  action    String   // "task_created", "status_changed", "assigned", "commented", "ai_decomposed", etc.
-  details   Json?    // { from: "TODO", to: "IN_PROGRESS" }
+  action    String // "task_created", "status_changed", "assigned", "commented", "ai_decomposed", etc.
+  details   Json? // { from: "TODO", to: "IN_PROGRESS" }
   createdAt DateTime @default(now())
-  
+
   @@index([projectId, createdAt])
   @@index([taskId])
   @@index([userId])
@@ -1312,10 +1322,10 @@ model ProjectMilestone {
   completedAt DateTime?
   position    Int       @default(0)
   tasks       Task[]
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([projectId])
 }
 
@@ -1329,7 +1339,7 @@ model TaskTimeEntry {
   description String?
   date        DateTime
   createdAt   DateTime @default(now())
-  
+
   @@index([taskId])
   @@index([userId])
   @@index([date])
@@ -1339,7 +1349,7 @@ model ProjectTemplate {
   id          String   @id @default(cuid())
   name        String
   description String?  @db.Text
-  structure   Json     // { tasks: [{ title, description, priority, subtasks: [...] }] }
+  structure   Json // { tasks: [{ title, description, priority, subtasks: [...] }] }
   createdById String
   createdBy   User     @relation("ProjectTemplateCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
@@ -1379,77 +1389,77 @@ enum SuggestionStatus {
 }
 
 model MissionPlan {
-  id               String            @id @default(cuid())
-  missionId        String
-  mission          Mission           @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  frequency        Int               // 1-5 days per week
-  preferredDays    DayOfWeek[]
-  timePreference   TimePreference
-  customStartTime  String?           // HH:mm, only when CUSTOM
-  customEndTime    String?           // HH:mm, only when CUSTOM
-  startDate        DateTime         @db.Date
-  endDate          DateTime?        @db.Date  // null = ongoing
-  status           MissionPlanStatus @default(DRAFT)
-  assignedSdrs     MissionPlanSdr[]
-  scheduleBlocks   ScheduleBlock[]
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id              String            @id @default(cuid())
+  missionId       String
+  mission         Mission           @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  frequency       Int // 1-5 days per week
+  preferredDays   DayOfWeek[]
+  timePreference  TimePreference
+  customStartTime String? // HH:mm, only when CUSTOM
+  customEndTime   String? // HH:mm, only when CUSTOM
+  startDate       DateTime          @db.Date
+  endDate         DateTime?         @db.Date // null = ongoing
+  status          MissionPlanStatus @default(DRAFT)
+  assignedSdrs    MissionPlanSdr[]
+  scheduleBlocks  ScheduleBlock[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@index([missionId])
   @@index([status])
 }
 
 model MissionPlanSdr {
-  id            String     @id @default(cuid())
+  id            String      @id @default(cuid())
   missionPlanId String
   missionPlan   MissionPlan @relation(fields: [missionPlanId], references: [id], onDelete: Cascade)
   sdrId         String
-  sdr           User       @relation(fields: [sdrId], references: [id], onDelete: Cascade)
-  createdAt     DateTime   @default(now())
+  sdr           User        @relation(fields: [sdrId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
 
   @@unique([missionPlanId, sdrId])
   @@index([sdrId])
 }
 
 model ScheduleBlock {
-  id                String    @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // The SDR being scheduled
-  sdrId             String
-  sdr               User      @relation("SDRScheduleBlocks", fields: [sdrId], references: [id], onDelete: Cascade)
-  
+  sdrId String
+  sdr   User   @relation("SDRScheduleBlocks", fields: [sdrId], references: [id], onDelete: Cascade)
+
   // The mission they're working on
-  missionId         String
-  mission           Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  
+  missionId String
+  mission   Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
   // Time slot
-  date              DateTime  @db.Date
-  startTime         String    // HH:mm format (e.g., "09:00")
-  endTime           String    // HH:mm format (e.g., "12:00")
-  
+  date      DateTime @db.Date
+  startTime String // HH:mm format (e.g., "09:00")
+  endTime   String // HH:mm format (e.g., "12:00")
+
   // Optional notes
-  notes             String?
-  
+  notes String?
+
   // Status
-  status            ScheduleBlockStatus @default(SCHEDULED)
-  
+  status ScheduleBlockStatus @default(SCHEDULED)
+
   // Suggestion workflow (null = legacy/manual, treat as CONFIRMED)
-  suggestionStatus  SuggestionStatus?
-  missionPlanId     String?
-  missionPlan       MissionPlan? @relation(fields: [missionPlanId], references: [id], onDelete: SetNull)
-  generatedAt       DateTime?
-  
+  suggestionStatus SuggestionStatus?
+  missionPlanId    String?
+  missionPlan      MissionPlan?      @relation(fields: [missionPlanId], references: [id], onDelete: SetNull)
+  generatedAt      DateTime?
+
   // Link to month-level allocation budget
-  allocationId      String?
-  allocation        SdrDayAllocation? @relation("AllocationBlocks", fields: [allocationId], references: [id], onDelete: SetNull)
+  allocationId String?
+  allocation   SdrDayAllocation? @relation("AllocationBlocks", fields: [allocationId], references: [id], onDelete: SetNull)
 
   // Created by (manager)
-  createdById       String
-  createdBy         User      @relation("CreatedScheduleBlocks", fields: [createdById], references: [id])
-  
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  createdById String
+  createdBy   User   @relation("CreatedScheduleBlocks", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([sdrId])
   @@index([missionId])
   @@index([date])
@@ -1522,17 +1532,17 @@ model MissionMonthPlan {
   id               String                 @id @default(cuid())
   missionId        String
   mission          Mission                @relation("MissionMonthPlans", fields: [missionId], references: [id], onDelete: Cascade)
-  month            String                 // "2025-10" format
+  month            String // "2025-10" format
   targetDays       Int
   status           MissionMonthPlanStatus @default(DRAFT)
-  workingDays      String?                // Comma-separated day numbers: "1,3,5" (1=Mon..7=Sun)
+  workingDays      String? // Comma-separated day numbers: "1,3,5" (1=Mon..7=Sun)
   defaultStartTime String?                @default("09:00")
   defaultEndTime   String?                @default("17:00")
 
   allocations SdrDayAllocation[]
 
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([missionId, month])
   @@index([missionId])
@@ -1541,23 +1551,23 @@ model MissionMonthPlan {
 }
 
 model SdrDayAllocation {
-  id                  String              @id @default(cuid())
-  sdrId               String
-  sdr                 User                @relation("SdrDayAllocations", fields: [sdrId], references: [id], onDelete: Cascade)
-  missionMonthPlanId  String
-  missionMonthPlan    MissionMonthPlan    @relation(fields: [missionMonthPlanId], references: [id], onDelete: Cascade)
-  allocatedDays       Int
-  scheduledDays       Int                 @default(0)
-  status              AllocationStatus    @default(UNCOMMITTED)
+  id                 String           @id @default(cuid())
+  sdrId              String
+  sdr                User             @relation("SdrDayAllocations", fields: [sdrId], references: [id], onDelete: Cascade)
+  missionMonthPlanId String
+  missionMonthPlan   MissionMonthPlan @relation(fields: [missionMonthPlanId], references: [id], onDelete: Cascade)
+  allocatedDays      Int
+  scheduledDays      Int              @default(0)
+  status             AllocationStatus @default(UNCOMMITTED)
 
   // Date-range boundaries for phantom allocation checks
-  effectiveFrom       DateTime?
-  effectiveTo         DateTime?
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
 
-  scheduleBlocks      ScheduleBlock[]     @relation("AllocationBlocks")
+  scheduleBlocks ScheduleBlock[] @relation("AllocationBlocks")
 
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([sdrId, missionMonthPlanId])
   @@index([sdrId])
@@ -1565,15 +1575,15 @@ model SdrDayAllocation {
 }
 
 model SdrMonthCapacity {
-  id                    String    @id @default(cuid())
-  sdrId                 String
-  sdr                   User      @relation("SdrMonthCapacities", fields: [sdrId], references: [id], onDelete: Cascade)
-  month                 String    // "2025-10" format
-  baseWorkingDays       Int
+  id                     String @id @default(cuid())
+  sdrId                  String
+  sdr                    User   @relation("SdrMonthCapacities", fields: [sdrId], references: [id], onDelete: Cascade)
+  month                  String // "2025-10" format
+  baseWorkingDays        Int
   effectiveAvailableDays Int
 
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([sdrId, month])
   @@index([sdrId])
@@ -1590,8 +1600,8 @@ model SdrAbsence {
   impactsPlanning Boolean     @default(true)
   note            String?
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([sdrId])
   @@index([startDate, endDate])
@@ -1603,13 +1613,13 @@ model PlanningConflict {
   severity        ConflictSeverity
   sdrId           String?
   missionId       String?
-  month           String           // "2025-10" format
+  month           String // "2025-10" format
   message         String
   suggestedAction String?
   resolvedAt      DateTime?
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([severity])
   @@index([month])
@@ -1628,16 +1638,16 @@ enum HolidayScope {
 }
 
 model SdrMissionAvailability {
-  id             String   @id @default(cuid())
-  sdrId          String
-  sdr            User     @relation("SdrMissionAvailabilities", fields: [sdrId], references: [id], onDelete: Cascade)
-  missionId      String
-  mission        Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  month          String   // "YYYY-MM" format
-  weeklyPattern  Json     // {"1":1.0,"2":0.5,...} keys=ISO weekday 1=Mon..5=Fri, values=capacity 0|0.5|1.0
+  id            String  @id @default(cuid())
+  sdrId         String
+  sdr           User    @relation("SdrMissionAvailabilities", fields: [sdrId], references: [id], onDelete: Cascade)
+  missionId     String
+  mission       Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  month         String // "YYYY-MM" format
+  weeklyPattern Json // {"1":1.0,"2":0.5,...} keys=ISO weekday 1=Mon..5=Fri, values=capacity 0|0.5|1.0
 
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([sdrId, missionId, month])
   @@index([sdrId])
@@ -1646,15 +1656,15 @@ model SdrMissionAvailability {
 }
 
 model SdrDayOverride {
-  id         String    @id @default(cuid())
-  sdrId      String
-  sdr        User      @relation("SdrDayOverrides", fields: [sdrId], references: [id], onDelete: Cascade)
-  date       DateTime  @db.Date
-  missionId  String?
-  capacity   Float     // 0 | 0.5 | 1.0
-  reason     String?
+  id        String   @id @default(cuid())
+  sdrId     String
+  sdr       User     @relation("SdrDayOverrides", fields: [sdrId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  missionId String?
+  capacity  Float // 0 | 0.5 | 1.0
+  reason    String?
 
-  createdAt  DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([sdrId, date, missionId])
   @@index([sdrId])
@@ -1662,13 +1672,13 @@ model SdrDayOverride {
 }
 
 model PlanningHoliday {
-  id        String        @id @default(cuid())
-  date      DateTime      @db.Date
-  label     String?
-  scope     HolidayScope  @default(GLOBAL)
-  clientId  String?
+  id       String       @id @default(cuid())
+  date     DateTime     @db.Date
+  label    String?
+  scope    HolidayScope @default(GLOBAL)
+  clientId String?
 
-  createdAt DateTime      @default(now())
+  createdAt DateTime @default(now())
 
   @@index([date])
   @@index([scope])
@@ -1679,29 +1689,29 @@ model PlanningHoliday {
 // ============================================
 
 model CrmActivityDay {
-  id                      String    @id @default(cuid())
-  userId                  String
-  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date                    DateTime  @db.Date
-  
+  id     String   @id @default(cuid())
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+
   // Accumulated time for today (in seconds)
-  totalActiveSeconds      Int       @default(0)
-  
+  totalActiveSeconds Int @default(0)
+
   // Current session (null when paused)
   currentSessionStartedAt DateTime?
   lastActivityAt          DateTime?
-  
+
   // Session analytics
-  sessionCount            Int       @default(0)  // Number of sessions started today
-  longestSessionSeconds   Int       @default(0)  // Longest single session duration
-  
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  
+  sessionCount          Int @default(0) // Number of sessions started today
+  longestSessionSeconds Int @default(0) // Longest single session duration
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, date])
   @@index([userId])
   @@index([date])
-  @@index([date, totalActiveSeconds])  // For leaderboards and analytics
+  @@index([date, totalActiveSeconds]) // For leaderboards and analytics
 }
 
 // ============================================
@@ -1709,39 +1719,40 @@ model CrmActivityDay {
 // ============================================
 
 model EmailAccount {
-  id            String        @id @default(cuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Provider info
-  provider      EmailProvider
-  email         String
-  displayName   String?
-  
+  provider    EmailProvider
+  email       String
+  displayName String?
+
   // OAuth tokens (encrypted)
-  accessToken   String?       @db.Text
-  refreshToken  String?       @db.Text
-  tokenExpiry   DateTime?
-  
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
+  tokenExpiry  DateTime?
+
   // SMTP/IMAP settings (for CUSTOM provider)
-  smtpHost      String?
-  smtpPort      Int?
-  imapHost      String?
-  imapPort      Int?
-  password      String?       @db.Text  // Encrypted
-  
+  smtpHost String?
+  smtpPort Int?
+  imapHost String?
+  imapPort Int?
+  password String? @db.Text // Encrypted
+
   // Status
-  isActive      Boolean       @default(true)
-  lastSyncAt    DateTime?
-  syncError     String?
-  
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  
+  isActive   Boolean   @default(true)
+  lastSyncAt DateTime?
+  syncError  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, email])
   @@index([userId])
   @@index([provider])
 }
+
 // ============================================
 // NOTIFICATIONS
 // ============================================
@@ -1752,8 +1763,8 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String
-  type      String   // "info", "success", "warning", "error"
-  link      String?  // Optional link to redirect
+  type      String // "info", "success", "warning", "error"
+  link      String? // Optional link to redirect
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -1767,15 +1778,15 @@ model Notification {
 
 model Permission {
   id          String   @id @default(cuid())
-  code        String   @unique  // e.g., "pages.dashboard", "actions.create_mission"
-  name        String             // Human-readable name
+  code        String   @unique // e.g., "pages.dashboard", "actions.create_mission"
+  name        String // Human-readable name
   description String?
-  category    String             // "pages", "features", "actions"
+  category    String // "pages", "features", "actions"
   createdAt   DateTime @default(now())
-  
+
   rolePermissions RolePermission[]
   userPermissions UserPermission[]
-  
+
   @@index([category])
   @@index([code])
 }
@@ -1786,10 +1797,10 @@ model RolePermission {
   permissionId String
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   granted      Boolean    @default(true)
-  
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([role, permissionId])
   @@index([role])
   @@index([permissionId])
@@ -1801,11 +1812,11 @@ model UserPermission {
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permissionId String
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  granted      Boolean    // true = override grant, false = override deny
-  
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  
+  granted      Boolean // true = override grant, false = override deny
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([userId, permissionId])
   @@index([userId])
   @@index([permissionId])
@@ -1816,78 +1827,78 @@ model UserPermission {
 // ============================================
 
 model Mailbox {
-  id              String            @id @default(cuid())
-  organizationId  String?
-  ownerId         String
-  owner           User              @relation("MailboxOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  
+  id             String  @id @default(cuid())
+  organizationId String?
+  ownerId        String
+  owner          User    @relation("MailboxOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
   // Provider
-  provider        EmailProvider
-  email           String
-  displayName     String?
-  
+  provider    EmailProvider
+  email       String
+  displayName String?
+
   // OAuth (encrypted)
-  accessToken     String?           @db.Text
-  refreshToken    String?           @db.Text
-  tokenExpiry     DateTime?
-  
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
+  tokenExpiry  DateTime?
+
   // IMAP/SMTP settings (for CUSTOM provider)
-  imapHost        String?
-  imapPort        Int?
-  smtpHost        String?
-  smtpPort        Int?
-  password        String?           @db.Text  // Encrypted
-  
+  imapHost String?
+  imapPort Int?
+  smtpHost String?
+  smtpPort Int?
+  password String? @db.Text // Encrypted
+
   // Type & Status
-  type            MailboxType       @default(PERSONAL)
-  syncStatus      MailboxSyncStatus @default(PENDING)
-  warmupStatus    MailboxWarmupStatus @default(NOT_STARTED)
-  warmupDailyLimit Int              @default(20)
-  
+  type             MailboxType         @default(PERSONAL)
+  syncStatus       MailboxSyncStatus   @default(PENDING)
+  warmupStatus     MailboxWarmupStatus @default(NOT_STARTED)
+  warmupDailyLimit Int                 @default(20)
+
   // Throttling
-  dailySendLimit  Int               @default(200)
-  sentToday       Int               @default(0)
-  lastSendReset   DateTime          @default(now())
-  
+  dailySendLimit Int      @default(200)
+  sentToday      Int      @default(0)
+  lastSendReset  DateTime @default(now())
+
   // Signature
-  signature       String?           @db.Text
-  signatureHtml   String?           @db.Text
-  
+  signature     String? @db.Text
+  signatureHtml String? @db.Text
+
   // Health
-  lastSyncAt      DateTime?
-  lastError       String?
-  healthScore     Int               @default(100)
-  
+  lastSyncAt  DateTime?
+  lastError   String?
+  healthScore Int       @default(100)
+
   // Failure tracking for circuit breaker
-  failureCount        Int           @default(0)
-  consecutiveFailures Int           @default(0)
+  failureCount        Int       @default(0)
+  consecutiveFailures Int       @default(0)
   lastFailureAt       DateTime?
   disabledAt          DateTime?
   disabledReason      String?
-  
+
   // Provider-specific throttling
-  providerProfile     String?       // "titan", "gmail", "outlook", "default"
-  syncIntervalMs      Int           @default(300000)  // 5 min default
+  providerProfile String? // "titan", "gmail", "outlook", "default"
+  syncIntervalMs  Int     @default(300000) // 5 min default
 
   // Custom Tracking Domain
-  trackingDomain      String?       // e.g. "https://track.client-domain.com"
-  
+  trackingDomain String? // e.g. "https://track.client-domain.com"
+
   // Relations
-  emails          Email[]
-  threads         EmailThread[]
-  permissions     MailboxPermission[]
-  sequences       EmailSequence[]
-  analyticsDaily  EmailAnalyticsDaily[]
+  emails                  Email[]
+  threads                 EmailThread[]
+  permissions             MailboxPermission[]
+  sequences               EmailSequence[]
+  analyticsDaily          EmailAnalyticsDaily[]
   reachInboxCampaignLinks ReachInboxCampaignLink[]
 
   // Default mappings (optional)
   defaultForClients  Client[]  @relation("ClientDefaultMailbox")
   defaultForMissions Mission[] @relation("MissionDefaultMailbox")
-  
-  isActive        Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([ownerId, email])
   @@index([organizationId])
   @@index([syncStatus])
@@ -1896,20 +1907,20 @@ model Mailbox {
 }
 
 model MailboxPermission {
-  id            String    @id @default(cuid())
-  mailboxId     String
-  mailbox       Mailbox   @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  canRead       Boolean   @default(true)
-  canSend       Boolean   @default(false)
-  canSendAs     Boolean   @default(false)
+  id        String  @id @default(cuid())
+  mailboxId String
+  mailbox   Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  canRead          Boolean @default(true)
+  canSend          Boolean @default(false)
+  canSendAs        Boolean @default(false)
   requiresApproval Boolean @default(false)
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([mailboxId, userId])
   @@index([mailboxId])
   @@index([userId])
@@ -1927,8 +1938,8 @@ model ReachInboxCampaignLink {
   clientId     String
   client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clientId])
   @@index([mailboxId])
@@ -1939,59 +1950,59 @@ model ReachInboxCampaignLink {
 // ============================================
 
 model EmailThread {
-  id            String    @id @default(cuid())
-  mailboxId     String
-  mailbox       Mailbox   @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
-  
+  id        String  @id @default(cuid())
+  mailboxId String
+  mailbox   Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
   // Thread metadata
-  subject       String
-  snippet       String?   @db.Text
+  subject           String
+  snippet           String?  @db.Text
   participantEmails String[] @default([])
-  
+
   // Status
-  isRead        Boolean   @default(false)
-  isStarred     Boolean   @default(false)
-  isArchived    Boolean   @default(false)
-  isTrashed     Boolean   @default(false)
-  
+  isRead     Boolean @default(false)
+  isStarred  Boolean @default(false)
+  isArchived Boolean @default(false)
+  isTrashed  Boolean @default(false)
+
   // CRM Linking
   clientId      String?
-  client        Client?   @relation(fields: [clientId], references: [id])
+  client        Client?      @relation(fields: [clientId], references: [id])
   missionId     String?
-  mission       Mission?  @relation(fields: [missionId], references: [id])
+  mission       Mission?     @relation(fields: [missionId], references: [id])
   campaignId    String?
-  campaign      Campaign? @relation(fields: [campaignId], references: [id])
+  campaign      Campaign?    @relation(fields: [campaignId], references: [id])
   opportunityId String?
   opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
   contactId     String?
-  contact       Contact?  @relation(fields: [contactId], references: [id])
-  
+  contact       Contact?     @relation(fields: [contactId], references: [id])
+
   // Assignment
-  assignedToId  String?
-  assignedTo    User?     @relation("AssignedThreads", fields: [assignedToId], references: [id])
-  
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedThreads", fields: [assignedToId], references: [id])
+
   // Labels
-  labels        String[]  @default([])
-  
+  labels String[] @default([])
+
   // SLA
-  slaDeadline   DateTime?
-  
+  slaDeadline DateTime?
+
   // AI Analysis
-  sentiment     String?   // positive, neutral, negative
-  priority      String?   // high, medium, low
-  summary       String?   @db.Text
-  
+  sentiment String? // positive, neutral, negative
+  priority  String? // high, medium, low
+  summary   String? @db.Text
+
   // Emails
-  emails        Email[]
-  comments      ThreadComment[]
-  
+  emails   Email[]
+  comments ThreadComment[]
+
   // Provider refs
   providerThreadId String?
-  
-  lastEmailAt   DateTime
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+
+  lastEmailAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@index([mailboxId])
   @@index([clientId])
   @@index([missionId])
@@ -2004,68 +2015,69 @@ model EmailThread {
 }
 
 model Email {
-  id            String         @id @default(cuid())
-  mailboxId     String
-  mailbox       Mailbox        @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
-  threadId      String
-  thread        EmailThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  
+  id        String      @id @default(cuid())
+  mailboxId String
+  mailbox   Mailbox     @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  threadId  String
+  thread    EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
   // Email content
-  fromAddress   String
-  fromName      String?
-  toAddresses   String[]
-  ccAddresses   String[]       @default([])
-  bccAddresses  String[]       @default([])
-  replyTo       String?
-  
-  subject       String
-  bodyText      String?        @db.Text
-  bodyHtml      String?        @db.Text
-  snippet       String?
-  
+  fromAddress  String
+  fromName     String?
+  toAddresses  String[]
+  ccAddresses  String[] @default([])
+  bccAddresses String[] @default([])
+  replyTo      String?
+
+  subject  String
+  bodyText String? @db.Text
+  bodyHtml String? @db.Text
+  snippet  String?
+
   // Direction & Status
-  direction     EmailDirection
-  status        EmailStatus    @default(DRAFT)
-  
+  direction EmailDirection
+  status    EmailStatus    @default(DRAFT)
+
   // Attachments
-  attachments   EmailAttachment[]
-  
+  attachments EmailAttachment[]
+
   // Tracking
-  trackingPixelId String?      @unique
-  openCount     Int            @default(0)
-  clickCount    Int            @default(0)
-  firstOpenedAt DateTime?
-  lastOpenedAt  DateTime?
-  
+  trackingPixelId String?   @unique
+  openCount       Int       @default(0)
+  clickCount      Int       @default(0)
+  firstOpenedAt   DateTime?
+  lastOpenedAt    DateTime?
+
   // Sequence relation
-  sequenceStepId String?
-  sequenceStep  EmailSequenceStep? @relation(fields: [sequenceStepId], references: [id])
+  sequenceStepId       String?
+  sequenceStep         EmailSequenceStep?       @relation(fields: [sequenceStepId], references: [id])
   sequenceEnrollmentId String?
-  sequenceEnrollment EmailSequenceEnrollment? @relation(fields: [sequenceEnrollmentId], references: [id])
-  
+  sequenceEnrollment   EmailSequenceEnrollment? @relation(fields: [sequenceEnrollmentId], references: [id])
+
   // Outreach / mission context (quick-send from SDR)
-  contactId     String?
-  contact       Contact?     @relation(fields: [contactId], references: [id])
-  missionId     String?
-  mission       Mission?     @relation(fields: [missionId], references: [id])
-  sentById      String?
-  sentBy        User?        @relation("SentEmails", fields: [sentById], references: [id])
-  templateId    String?
-  template      EmailTemplate? @relation(fields: [templateId], references: [id])
-  
+  contactId  String?
+  contact    Contact?       @relation(fields: [contactId], references: [id])
+  missionId  String?
+  mission    Mission?       @relation(fields: [missionId], references: [id])
+  sentById   String?
+  sentBy     User?          @relation("SentEmails", fields: [sentById], references: [id])
+  templateId String?
+  template   EmailTemplate? @relation(fields: [templateId], references: [id])
+
   // Provider refs
   providerMessageId String?
   providerThreadId  String?
-  
+
   // Error tracking
-  errorMessage  String?
-  bounceType    String?        // hard, soft
-  
-  sentAt        DateTime?
-  receivedAt    DateTime?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  
+  errorMessage String?
+  bounceType   String? // hard, soft
+
+  sentAt     DateTime?
+  receivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([mailboxId, providerMessageId]) // Prevent duplicate ingestion
   @@index([mailboxId])
   @@index([threadId])
   @@index([status])
@@ -2077,38 +2089,37 @@ model Email {
   @@index([contactId])
   @@index([missionId])
   @@index([sentById])
-  @@unique([mailboxId, providerMessageId])  // Prevent duplicate ingestion
 }
 
 model EmailAttachment {
-  id            String    @id @default(cuid())
-  emailId       String
-  email         Email     @relation(fields: [emailId], references: [id], onDelete: Cascade)
-  
-  filename      String
-  mimeType      String
-  size          Int       // bytes
-  storageKey    String?   // S3/storage key
-  url           String?   // Public URL if available
-  
-  createdAt     DateTime  @default(now())
-  
+  id      String @id @default(cuid())
+  emailId String
+  email   Email  @relation(fields: [emailId], references: [id], onDelete: Cascade)
+
+  filename   String
+  mimeType   String
+  size       Int // bytes
+  storageKey String? // S3/storage key
+  url        String? // Public URL if available
+
+  createdAt DateTime @default(now())
+
   @@index([emailId])
 }
 
 model ThreadComment {
-  id            String      @id @default(cuid())
-  threadId      String
-  thread        EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User        @relation(fields: [userId], references: [id])
-  
-  content       String      @db.Text
-  mentions      String[]    @default([]) // user IDs
-  
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
+  id       String      @id @default(cuid())
+  threadId String
+  thread   EmailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User        @relation(fields: [userId], references: [id])
+
+  content  String   @db.Text
+  mentions String[] @default([]) // user IDs
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([threadId])
   @@index([userId])
 }
@@ -2118,44 +2129,44 @@ model ThreadComment {
 // ============================================
 
 model EmailSequence {
-  id            String          @id @default(cuid())
-  mailboxId     String
-  mailbox       Mailbox         @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
-  createdById   String
-  createdBy     User            @relation("SequenceCreator", fields: [createdById], references: [id])
-  
-  name          String
-  description   String?         @db.Text
-  status        SequenceStatus  @default(DRAFT)
-  
+  id          String  @id @default(cuid())
+  mailboxId   String
+  mailbox     Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User    @relation("SequenceCreator", fields: [createdById], references: [id])
+
+  name        String
+  description String?        @db.Text
+  status      SequenceStatus @default(DRAFT)
+
   // Settings
-  stopOnReply   Boolean         @default(true)
-  stopOnBounce  Boolean         @default(true)
-  trackOpens    Boolean         @default(true)
-  trackClicks   Boolean         @default(true)
-  
+  stopOnReply  Boolean @default(true)
+  stopOnBounce Boolean @default(true)
+  trackOpens   Boolean @default(true)
+  trackClicks  Boolean @default(true)
+
   // Schedule settings
-  sendOnWeekends Boolean        @default(false)
-  sendTimeStart  String?        // HH:mm format, e.g., "09:00"
-  sendTimeEnd    String?        // HH:mm format, e.g., "18:00"
-  timezone       String         @default("Europe/Paris")
-  
+  sendOnWeekends Boolean @default(false)
+  sendTimeStart  String? // HH:mm format, e.g., "09:00"
+  sendTimeEnd    String? // HH:mm format, e.g., "18:00"
+  timezone       String  @default("Europe/Paris")
+
   // CRM linking
-  campaignId    String?
-  campaign      Campaign?       @relation(fields: [campaignId], references: [id])
-  
-  steps         EmailSequenceStep[]
-  enrollments   EmailSequenceEnrollment[]
-  
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+
+  steps       EmailSequenceStep[]
+  enrollments EmailSequenceEnrollment[]
+
   // Stats (denormalized for performance)
-  totalEnrolled Int             @default(0)
-  totalCompleted Int            @default(0)
-  totalReplied  Int             @default(0)
-  totalBounced  Int             @default(0)
-  
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  
+  totalEnrolled  Int @default(0)
+  totalCompleted Int @default(0)
+  totalReplied   Int @default(0)
+  totalBounced   Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([mailboxId])
   @@index([campaignId])
   @@index([status])
@@ -2163,79 +2174,79 @@ model EmailSequence {
 }
 
 model EmailSequenceStep {
-  id            String        @id @default(cuid())
-  sequenceId    String
-  sequence      EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-  
-  order         Int
-  name          String?
-  
+  id         String        @id @default(cuid())
+  sequenceId String
+  sequence   EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+
+  order Int
+  name  String?
+
   // Delay from previous step
-  delayDays     Int           @default(0)
-  delayHours    Int           @default(0)
-  delayMinutes  Int           @default(0)
-  
+  delayDays    Int @default(0)
+  delayHours   Int @default(0)
+  delayMinutes Int @default(0)
+
   // Template
-  subject       String
-  bodyHtml      String        @db.Text
-  bodyText      String?       @db.Text
-  
+  subject  String
+  bodyHtml String  @db.Text
+  bodyText String? @db.Text
+
   // A/B Testing
-  isABTest      Boolean       @default(false)
-  variantSubjectB String?
-  variantBodyHtmlB String?    @db.Text
-  abWinnerCriteria String?    // open_rate, reply_rate, click_rate
-  abTestEndDate DateTime?
-  
+  isABTest         Boolean   @default(false)
+  variantSubjectB  String?
+  variantBodyHtmlB String?   @db.Text
+  abWinnerCriteria String? // open_rate, reply_rate, click_rate
+  abTestEndDate    DateTime?
+
   // Conditions
-  skipIfOpened  Boolean       @default(false)
-  skipIfClicked Boolean       @default(false)
-  skipIfReplied Boolean       @default(true)
-  
+  skipIfOpened  Boolean @default(false)
+  skipIfClicked Boolean @default(false)
+  skipIfReplied Boolean @default(true)
+
   // Stats (denormalized)
-  totalSent     Int           @default(0)
-  totalOpened   Int           @default(0)
-  totalClicked  Int           @default(0)
-  totalReplied  Int           @default(0)
-  totalBounced  Int           @default(0)
-  
-  emails        Email[]
-  
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  
+  totalSent    Int @default(0)
+  totalOpened  Int @default(0)
+  totalClicked Int @default(0)
+  totalReplied Int @default(0)
+  totalBounced Int @default(0)
+
+  emails Email[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([sequenceId, order])
   @@index([sequenceId])
 }
 
 model EmailSequenceEnrollment {
-  id            String           @id @default(cuid())
-  sequenceId    String
-  sequence      EmailSequence    @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
-  contactId     String
-  contact       Contact          @relation(fields: [contactId], references: [id])
-  
-  status        EnrollmentStatus @default(ACTIVE)
-  currentStep   Int              @default(0)
-  
+  id         String        @id @default(cuid())
+  sequenceId String
+  sequence   EmailSequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact       @relation(fields: [contactId], references: [id])
+
+  status      EnrollmentStatus @default(ACTIVE)
+  currentStep Int              @default(0)
+
   // Personalization tokens
-  tokens        Json?            // { firstName: "John", company: "Acme" }
-  
+  tokens Json? // { firstName: "John", company: "Acme" }
+
   // Timing
-  enrolledAt    DateTime         @default(now())
-  nextStepAt    DateTime?
-  completedAt   DateTime?
-  exitedAt      DateTime?
-  exitReason    String?
-  
+  enrolledAt  DateTime  @default(now())
+  nextStepAt  DateTime?
+  completedAt DateTime?
+  exitedAt    DateTime?
+  exitReason  String?
+
   // Variant assignment for A/B tests
-  abVariant     String?          // "A" or "B"
-  
-  emails        Email[]
-  
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  
+  abVariant String? // "A" or "B"
+
+  emails Email[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([sequenceId, contactId])
   @@index([sequenceId])
   @@index([contactId])
@@ -2248,48 +2259,48 @@ model EmailSequenceEnrollment {
 // ============================================
 
 model EmailAnalyticsDaily {
-  id            String    @id @default(cuid())
-  mailboxId     String
-  mailbox       Mailbox   @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
-  date          DateTime  @db.Date
-  
+  id        String   @id @default(cuid())
+  mailboxId String
+  mailbox   Mailbox  @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+
   // Counts
-  sent          Int       @default(0)
-  delivered     Int       @default(0)
-  opened        Int       @default(0)
-  uniqueOpened  Int       @default(0)
-  clicked       Int       @default(0)
-  replied       Int       @default(0)
-  bounced       Int       @default(0)
-  
+  sent         Int @default(0)
+  delivered    Int @default(0)
+  opened       Int @default(0)
+  uniqueOpened Int @default(0)
+  clicked      Int @default(0)
+  replied      Int @default(0)
+  bounced      Int @default(0)
+
   // Response metrics (avg in minutes)
-  avgResponseTime Int?
-  totalResponseTime Int   @default(0)
-  responseCount Int       @default(0)
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  avgResponseTime   Int?
+  totalResponseTime Int  @default(0)
+  responseCount     Int  @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([mailboxId, date])
   @@index([mailboxId])
   @@index([date])
 }
 
 model EmailAuditLog {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id])
-  
-  action        String    // send, read, delete, assign, link, archive, etc.
-  resourceType  String    // email, thread, mailbox, sequence
-  resourceId    String
-  
-  metadata      Json?     // Additional context
-  ipAddress     String?
-  userAgent     String?
-  
-  createdAt     DateTime  @default(now())
-  
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  action       String // send, read, delete, assign, link, archive, etc.
+  resourceType String // email, thread, mailbox, sequence
+  resourceId   String
+
+  metadata  Json? // Additional context
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
   @@index([userId])
   @@index([resourceType, resourceId])
   @@index([createdAt])
@@ -2302,29 +2313,29 @@ model EmailAuditLog {
 // ============================================
 
 model EmailTemplate {
-  id            String    @id @default(cuid())
-  createdById   String
-  createdBy     User      @relation("TemplateCreator", fields: [createdById], references: [id])
-  
-  name          String
-  subject       String
-  bodyHtml      String    @db.Text
-  bodyText      String?   @db.Text
-  
-  category      String    @default("general")  // general, sales, follow-up, intro, etc.
-  isShared      Boolean   @default(false)      // Visible to all team members
-  variables     String[]  @default([])         // List of variable names used
-  
-  useCount      Int       @default(0)
-  lastUsedAt    DateTime?
-  
+  id          String @id @default(cuid())
+  createdById String
+  createdBy   User   @relation("TemplateCreator", fields: [createdById], references: [id])
+
+  name     String
+  subject  String
+  bodyHtml String  @db.Text
+  bodyText String? @db.Text
+
+  category  String   @default("general") // general, sales, follow-up, intro, etc.
+  isShared  Boolean  @default(false) // Visible to all team members
+  variables String[] @default([]) // List of variable names used
+
+  useCount   Int       @default(0)
+  lastUsedAt DateTime?
+
   // Mission assignments
-  missionTemplates  MissionEmailTemplate[]
-  sentEmails        Email[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  missionTemplates MissionEmailTemplate[]
+  sentEmails       Email[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([createdById])
   @@index([category])
   @@index([isShared])
@@ -2336,17 +2347,17 @@ model EmailTemplate {
 // ============================================
 
 model MissionEmailTemplate {
-  id          String        @id @default(cuid())
-  missionId   String
-  mission     Mission       @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  templateId  String
-  template    EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  
+  id         String        @id @default(cuid())
+  missionId  String
+  mission    Mission       @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  templateId String
+  template   EmailTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
   // Display order in mission
-  order       Int           @default(0)
-  
-  createdAt   DateTime      @default(now())
-  
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+
   @@unique([missionId, templateId])
   @@index([missionId])
   @@index([templateId])
@@ -2379,96 +2390,96 @@ enum CommsMessageType {
 }
 
 model CommsChannel {
-  id              String            @id @default(cuid())
-  type            CommsChannelType
-  name            String?           // For GROUP type; auto-generated for others
-  
+  id   String           @id @default(cuid())
+  type CommsChannelType
+  name String? // For GROUP type; auto-generated for others
+
   // Polymorphic anchor (only one set based on type)
-  missionId       String?           @unique
-  mission         Mission?          @relation(fields: [missionId], references: [id], onDelete: Cascade)
-  clientId        String?           @unique
-  client          Client?           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  campaignId      String?           @unique
-  campaign        Campaign?         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  groupId         String?           @unique
-  group           CommsGroup?       @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  
+  missionId  String?     @unique
+  mission    Mission?    @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  clientId   String?     @unique
+  client     Client?     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaignId String?     @unique
+  campaign   Campaign?   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  groupId    String?     @unique
+  group      CommsGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
   // For DIRECT channels - stores sorted user IDs for lookup
-  directUserIds   String[]          @default([])
-  
-  threads         CommsThread[]
-  
-  isActive        Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  
+  directUserIds String[] @default([])
+
+  threads CommsThread[]
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([type])
   @@index([directUserIds])
 }
 
 model CommsGroup {
-  id              String              @id @default(cuid())
-  name            String
-  description     String?
-  
-  createdById     String
-  createdBy       User                @relation("CommsGroupCreator", fields: [createdById], references: [id])
-  
-  members         CommsGroupMember[]
-  channel         CommsChannel?
-  
-  isActive        Boolean             @default(true)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  createdById String
+  createdBy   User   @relation("CommsGroupCreator", fields: [createdById], references: [id])
+
+  members CommsGroupMember[]
+  channel CommsChannel?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([createdById])
   @@index([isActive])
 }
 
 model CommsGroupMember {
-  id              String      @id @default(cuid())
-  groupId         String
-  group           CommsGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  role            String      @default("member")  // "admin", "member"
-  joinedAt        DateTime    @default(now())
-  
+  id      String     @id @default(cuid())
+  groupId String
+  group   CommsGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role     String   @default("member") // "admin", "member"
+  joinedAt DateTime @default(now())
+
   @@unique([groupId, userId])
   @@index([groupId])
   @@index([userId])
 }
 
 model CommsThread {
-  id              String            @id @default(cuid())
-  channelId       String
-  channel         CommsChannel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  
-  subject         String
-  status          CommsThreadStatus @default(OPEN)
-  
+  id        String       @id @default(cuid())
+  channelId String
+  channel   CommsChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  subject String
+  status  CommsThreadStatus @default(OPEN)
+
   // Creator
-  createdById     String
-  createdBy       User              @relation("CommsThreadCreator", fields: [createdById], references: [id])
-  
+  createdById String
+  createdBy   User   @relation("CommsThreadCreator", fields: [createdById], references: [id])
+
   // Participants
-  participants    CommsParticipant[]
-  messages        CommsMessage[]
-  
+  participants CommsParticipant[]
+  messages     CommsMessage[]
+
   // Denormalized metadata for query efficiency
-  messageCount    Int               @default(0)
+  messageCount    Int       @default(0)
   lastMessageAt   DateTime?
   lastMessageById String?
-  
+
   // For broadcasts
-  isBroadcast     Boolean           @default(false)
-  broadcastAudience Json?           // { type: "all" | "role" | "mission" | "group", target?: string }
-  readReceipts    CommsBroadcastReceipt[]
-  
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  
+  isBroadcast       Boolean                 @default(false)
+  broadcastAudience Json? // { type: "all" | "role" | "mission" | "group", target?: string }
+  readReceipts      CommsBroadcastReceipt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([channelId])
   @@index([createdById])
   @@index([status])
@@ -2477,21 +2488,21 @@ model CommsThread {
 }
 
 model CommsParticipant {
-  id              String      @id @default(cuid())
-  threadId        String
-  thread          CommsThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id       String      @id @default(cuid())
+  threadId String
+  thread   CommsThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   // Read tracking
-  lastReadAt      DateTime?
-  unreadCount     Int         @default(0)
-  
+  lastReadAt  DateTime?
+  unreadCount Int       @default(0)
+
   // Notification preferences
-  isMuted         Boolean     @default(false)
-  
-  joinedAt        DateTime    @default(now())
-  
+  isMuted Boolean @default(false)
+
+  joinedAt DateTime @default(now())
+
   @@unique([threadId, userId])
   @@index([threadId])
   @@index([userId])
@@ -2499,36 +2510,36 @@ model CommsParticipant {
 }
 
 model CommsMessage {
-  id              String            @id @default(cuid())
-  threadId        String
-  thread          CommsThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  
-  authorId        String
-  author          User              @relation("CommsMessageAuthor", fields: [authorId], references: [id])
-  
+  id       String      @id @default(cuid())
+  threadId String
+  thread   CommsThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("CommsMessageAuthor", fields: [authorId], references: [id])
+
   parentMessageId String?
-  parentMessage   CommsMessage?     @relation("MessageReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
-  replies         CommsMessage[]    @relation("MessageReplies")
-  
-  type            CommsMessageType  @default(TEXT)
-  content         String            @db.Text
-  
+  parentMessage   CommsMessage?  @relation("MessageReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies         CommsMessage[] @relation("MessageReplies")
+
+  type    CommsMessageType @default(TEXT)
+  content String           @db.Text
+
   // Rich content
-  attachments     CommsAttachment[]
-  mentions        CommsMention[]
-  readReceipts    CommsMessageReadReceipt[]
-  reactions       CommsMessageReaction[]
-  
+  attachments  CommsAttachment[]
+  mentions     CommsMention[]
+  readReceipts CommsMessageReadReceipt[]
+  reactions    CommsMessageReaction[]
+
   // Edit tracking
-  isEdited        Boolean           @default(false)
-  editedAt        DateTime?
-  
+  isEdited Boolean   @default(false)
+  editedAt DateTime?
+
   // Soft delete
-  isDeleted       Boolean           @default(false)
-  deletedAt       DateTime?
-  
-  createdAt       DateTime          @default(now())
-  
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
   @@index([threadId])
   @@index([authorId])
   @@index([parentMessageId])
@@ -2537,17 +2548,17 @@ model CommsMessage {
 }
 
 model CommsMention {
-  id              String        @id @default(cuid())
-  messageId       String
-  message         CommsMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User          @relation("CommsMentionedUser", fields: [userId], references: [id], onDelete: Cascade)
-  
+  id        String       @id @default(cuid())
+  messageId String
+  message   CommsMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation("CommsMentionedUser", fields: [userId], references: [id], onDelete: Cascade)
+
   // Notification tracking
-  notified        Boolean       @default(false)
-  
-  createdAt       DateTime      @default(now())
-  
+  notified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
   @@unique([messageId, userId])
   @@index([messageId])
   @@index([userId])
@@ -2555,28 +2566,28 @@ model CommsMention {
 }
 
 model CommsAttachment {
-  id              String        @id @default(cuid())
-  messageId       String
-  message         CommsMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  
-  filename        String
-  mimeType        String
-  size            Int           // bytes
-  storageKey      String
-  url             String?
-  
-  createdAt       DateTime      @default(now())
-  
+  id        String       @id @default(cuid())
+  messageId String
+  message   CommsMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  filename   String
+  mimeType   String
+  size       Int // bytes
+  storageKey String
+  url        String?
+
+  createdAt DateTime @default(now())
+
   @@index([messageId])
 }
 
 model CommsMessageReadReceipt {
-  id          String      @id @default(cuid())
-  messageId   String
-  message     CommsMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User        @relation("CommsMessageReader", fields: [userId], references: [id], onDelete: Cascade)
-  readAt      DateTime    @default(now())
+  id        String       @id @default(cuid())
+  messageId String
+  message   CommsMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation("CommsMessageReader", fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime     @default(now())
 
   @@unique([messageId, userId])
   @@index([messageId])
@@ -2584,11 +2595,11 @@ model CommsMessageReadReceipt {
 }
 
 model CommsMessageReaction {
-  id        String        @id @default(cuid())
+  id        String       @id @default(cuid())
   messageId String
-  message   CommsMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   CommsMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   userId    String
-  user      User          @relation("CommsMessageReactor", fields: [userId], references: [id], onDelete: Cascade)
+  user      User         @relation("CommsMessageReactor", fields: [userId], references: [id], onDelete: Cascade)
   emoji     String
 
   @@unique([messageId, userId, emoji])
@@ -2597,45 +2608,45 @@ model CommsMessageReaction {
 }
 
 model CommsBroadcastReceipt {
-  id              String      @id @default(cuid())
-  threadId        String
-  thread          CommsThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User        @relation("CommsBroadcastReader", fields: [userId], references: [id], onDelete: Cascade)
-  
-  readAt          DateTime    @default(now())
-  
+  id       String      @id @default(cuid())
+  threadId String
+  thread   CommsThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User        @relation("CommsBroadcastReader", fields: [userId], references: [id], onDelete: Cascade)
+
+  readAt DateTime @default(now())
+
   @@unique([threadId, userId])
   @@index([threadId])
   @@index([userId])
 }
 
 model CommsSavedSearch {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  query     String
-  filters   Json?    // { channelType?, authorId?, fromDate?, toDate?, status? }
-  
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name    String
+  query   String
+  filters Json? // { channelType?, authorId?, fromDate?, toDate?, status? }
+
   createdAt DateTime @default(now())
-  
+
   @@index([userId])
 }
 
 model CommsMessageTemplate {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  category    String?  // "greeting", "follow_up", "closing", "custom"
-  content     String   @db.Text
-  variables   String[] @default([]) // ["{{client_name}}", "{{mission_name}}"]
-  isShared    Boolean  @default(false) // If true, visible to all users
-  usageCount  Int      @default(0)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id         String   @id @default(cuid())
+  userId     String
+  name       String
+  category   String? // "greeting", "follow_up", "closing", "custom"
+  content    String   @db.Text
+  variables  String[] @default([]) // ["{{client_name}}", "{{mission_name}}"]
+  isShared   Boolean  @default(false) // If true, visible to all users
+  usageCount Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([isShared])
   @@index([category])
@@ -2646,172 +2657,172 @@ model CommsMessageTemplate {
 // ============================================
 
 model OffreTarif {
-  id            String            @id @default(cuid())
-  nom           String
-  fixeMensuel   Decimal           @db.Decimal(10, 2)
-  prixParRdv    Decimal            @db.Decimal(10, 2)
-  description   String?            @db.Text
-  statut        OffreTarifStatut   @default(ACTIF)
-  
-  engagements   Engagement[]
-  
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  
+  id          String           @id @default(cuid())
+  nom         String
+  fixeMensuel Decimal          @db.Decimal(10, 2)
+  prixParRdv  Decimal          @db.Decimal(10, 2)
+  description String?          @db.Text
+  statut      OffreTarifStatut @default(ACTIF)
+
+  engagements Engagement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([statut])
 }
 
 model Engagement {
-  id               String           @id @default(cuid())
-  clientId         String
-  client           Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  offreTarifId     String
-  offreTarif       OffreTarif       @relation(fields: [offreTarifId], references: [id], onDelete: Restrict)
-  fixeOverride     Decimal?         @db.Decimal(10, 2)
-  rdvOverride      Decimal?         @db.Decimal(10, 2)
-  dureeMois        Int
-  debut            DateTime
-  fin              DateTime
-  statut           EngagementStatut @default(BROUILLON)
-  penaliteResiliation String?        @db.Text
-  renouvellement   String?          @db.Text
-  
-  invoices         Invoice[]
-  
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  
+  id                  String           @id @default(cuid())
+  clientId            String
+  client              Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  offreTarifId        String
+  offreTarif          OffreTarif       @relation(fields: [offreTarifId], references: [id], onDelete: Restrict)
+  fixeOverride        Decimal?         @db.Decimal(10, 2)
+  rdvOverride         Decimal?         @db.Decimal(10, 2)
+  dureeMois           Int
+  debut               DateTime
+  fin                 DateTime
+  statut              EngagementStatut @default(BROUILLON)
+  penaliteResiliation String?          @db.Text
+  renouvellement      String?          @db.Text
+
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([clientId])
   @@index([offreTarifId])
   @@index([statut])
 }
 
 model CompanyIssuer {
-  id            String    @id @default(cuid())
-  legalName     String
-  address       String
-  city          String
-  postalCode    String
-  country       String    @default("France")
-  siret         String    @unique
-  vatNumber     String?
-  email         String?
-  phone         String?
-  logo          String?
-  
+  id         String  @id @default(cuid())
+  legalName  String
+  address    String
+  city       String
+  postalCode String
+  country    String  @default("France")
+  siret      String  @unique
+  vatNumber  String?
+  email      String?
+  phone      String?
+  logo       String?
+
   // Legal information (mandatory French mentions)
-  legalForm     String?   // Forme juridique: SAS, SARL, EURL, SA, etc.
-  capitalSocial String?   // Capital social: e.g., "10 000 €"
-  rcsCity       String?   // Ville du RCS: e.g., "Paris"
-  rcsNumber     String?   // Numéro RCS: e.g., "Paris B 123 456 789"
-  
+  legalForm     String? // Forme juridique: SAS, SARL, EURL, SA, etc.
+  capitalSocial String? // Capital social: e.g., "10 000 €"
+  rcsCity       String? // Ville du RCS: e.g., "Paris"
+  rcsNumber     String? // Numéro RCS: e.g., "Paris B 123 456 789"
+
   // Bank details for payment
-  iban          String?   // IBAN for bank transfer
-  bic           String?   // BIC/SWIFT code
-  
+  iban String? // IBAN for bank transfer
+  bic  String? // BIC/SWIFT code
+
   // Default invoice settings
-  defaultPaymentTermsDays   Int       @default(30)
-  defaultLatePenaltyRate    Decimal   @default(0) @db.Decimal(5, 2) // % penalty rate
+  defaultPaymentTermsDays     Int     @default(30)
+  defaultLatePenaltyRate      Decimal @default(0) @db.Decimal(5, 2) // % penalty rate
   defaultEarlyPaymentDiscount String? // Escompte text, e.g., "Pas d'escompte pour paiement anticipé"
-  
-  invoices      Invoice[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model BillingClient {
-  id            String    @id @default(cuid())
-  legalName     String
-  address       String
-  city          String
-  postalCode    String
-  country       String    @default("France")
-  siret         String?
-  vatNumber     String?
-  email         String?
-  phone         String?
-  
-  clientId      String?   @unique
-  client        Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  
-  invoices      Invoice[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  id         String  @id @default(cuid())
+  legalName  String
+  address    String
+  city       String
+  postalCode String
+  country    String  @default("France")
+  siret      String?
+  vatNumber  String?
+  email      String?
+  phone      String?
+
+  clientId String? @unique
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([siret])
   @@index([vatNumber])
   @@index([clientId])
 }
 
 model Invoice {
-  id              String              @id @default(cuid())
-  invoiceNumber   String?             @unique
-  status          InvoiceStatus       @default(DRAFT)
-  documentType    InvoiceDocumentType @default(INVOICE)
-  
+  id            String              @id @default(cuid())
+  invoiceNumber String?             @unique
+  status        InvoiceStatus       @default(DRAFT)
+  documentType  InvoiceDocumentType @default(INVOICE)
+
   billingClientId String
-  billingClient   BillingClient   @relation(fields: [billingClientId], references: [id], onDelete: Restrict)
-  
+  billingClient   BillingClient @relation(fields: [billingClientId], references: [id], onDelete: Restrict)
+
   companyIssuerId String
-  companyIssuer   CompanyIssuer   @relation(fields: [companyIssuerId], references: [id], onDelete: Restrict)
-  
-  issueDate       DateTime
-  dueDate         DateTime
-  currency        String          @default("EUR")
-  
-  totalHt         Decimal         @default(0) @db.Decimal(10, 2)
-  totalVat        Decimal         @default(0) @db.Decimal(10, 2)
-  totalTtc        Decimal         @default(0) @db.Decimal(10, 2)
-  
+  companyIssuer   CompanyIssuer @relation(fields: [companyIssuerId], references: [id], onDelete: Restrict)
+
+  issueDate DateTime
+  dueDate   DateTime
+  currency  String   @default("EUR")
+
+  totalHt  Decimal @default(0) @db.Decimal(10, 2)
+  totalVat Decimal @default(0) @db.Decimal(10, 2)
+  totalTtc Decimal @default(0) @db.Decimal(10, 2)
+
   // Payment terms & legal mentions
-  paymentTermsDays       Int       @default(30)
-  paymentTermsText       String?   // Custom text, e.g., "Paiement à 30 jours date de facture"
-  latePenaltyRate        Decimal   @default(0) @db.Decimal(5, 2) // Late penalty %
-  earlyPaymentDiscount   String?   // Escompte text
-  notes                  String?   // Free-text notes
-  
-  facturxPdfUrl   String?
-  
+  paymentTermsDays     Int     @default(30)
+  paymentTermsText     String? // Custom text, e.g., "Paiement à 30 jours date de facture"
+  latePenaltyRate      Decimal @default(0) @db.Decimal(5, 2) // Late penalty %
+  earlyPaymentDiscount String? // Escompte text
+  notes                String? // Free-text notes
+
+  facturxPdfUrl String?
+
   // E-reporting / PDP (EU 2026)
-  transactionType      InvoiceTransactionType @default(B2B_DOMESTIC)
-  pdpSubmissionStatus  PdpSubmissionStatus    @default(NOT_SUBMITTED)
-  pdpSubmissionId      String?    // External ID from PDP/PPF
-  pdpSubmittedAt       DateTime?
-  pdpResponseData      Json?      // Response from PDP
-  
+  transactionType     InvoiceTransactionType @default(B2B_DOMESTIC)
+  pdpSubmissionStatus PdpSubmissionStatus    @default(NOT_SUBMITTED)
+  pdpSubmissionId     String? // External ID from PDP/PPF
+  pdpSubmittedAt      DateTime?
+  pdpResponseData     Json? // Response from PDP
+
   // Credit note relation
   relatedInvoiceId String?
   relatedInvoice   Invoice?  @relation("CreditNoteRelation", fields: [relatedInvoiceId], references: [id])
   creditNotes      Invoice[] @relation("CreditNoteRelation")
-  
-  createdById     String
-  createdBy       User            @relation("InvoiceCreator", fields: [createdById], references: [id])
-  
+
+  createdById String
+  createdBy   User   @relation("InvoiceCreator", fields: [createdById], references: [id])
+
   // Engagement-driven invoice (fixed + RDV)
-  engagementId    String?
-  engagement      Engagement?     @relation(fields: [engagementId], references: [id], onDelete: SetNull)
-  periodStart     DateTime?       // First day of invoice month
-  periodEnd       DateTime?       // Last day of invoice month
-  nbRdvTotal      Int?
-  montantFixe     Decimal?        @db.Decimal(10, 2)
-  montantVariable Decimal?        @db.Decimal(10, 2)
-  isAutoGenerated Boolean         @default(false)
-  missionBreakdown Json?          // [{ missionId, missionName, rdvCount }] for display
-  
-  validatedAt     DateTime?
-  sentAt          DateTime?
-  paidAt          DateTime?
-  cancelledAt     DateTime?
-  
-  items           InvoiceItem[]
-  payments        InvoicePayment[]
-  auditLogs       InvoiceAuditLog[]
-  
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
+  engagementId     String?
+  engagement       Engagement? @relation(fields: [engagementId], references: [id], onDelete: SetNull)
+  periodStart      DateTime? // First day of invoice month
+  periodEnd        DateTime? // Last day of invoice month
+  nbRdvTotal       Int?
+  montantFixe      Decimal?    @db.Decimal(10, 2)
+  montantVariable  Decimal?    @db.Decimal(10, 2)
+  isAutoGenerated  Boolean     @default(false)
+  missionBreakdown Json? // [{ missionId, missionName, rdvCount }] for display
+
+  validatedAt DateTime?
+  sentAt      DateTime?
+  paidAt      DateTime?
+  cancelledAt DateTime?
+
+  items     InvoiceItem[]
+  payments  InvoicePayment[]
+  auditLogs InvoiceAuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([invoiceNumber])
   @@index([status])
   @@index([documentType])
@@ -2826,63 +2837,63 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id            String    @id @default(cuid())
-  invoiceId     String
-  invoice       Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
-  description   String
-  quantity      Decimal   @db.Decimal(10, 2)
-  unitPriceHt   Decimal   @db.Decimal(10, 2)
-  vatRate       Decimal   @db.Decimal(5, 2)  // e.g., 20.00 for 20%
-  
-  totalHt       Decimal   @db.Decimal(10, 2)
-  totalVat      Decimal   @db.Decimal(10, 2)
-  totalTtc      Decimal   @db.Decimal(10, 2)
-  
-  order         Int       @default(0)
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  description String
+  quantity    Decimal @db.Decimal(10, 2)
+  unitPriceHt Decimal @db.Decimal(10, 2)
+  vatRate     Decimal @db.Decimal(5, 2) // e.g., 20.00 for 20%
+
+  totalHt  Decimal @db.Decimal(10, 2)
+  totalVat Decimal @db.Decimal(10, 2)
+  totalTtc Decimal @db.Decimal(10, 2)
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([invoiceId])
 }
 
 model InvoicePayment {
-  id                  String              @id @default(cuid())
-  invoiceId           String
-  invoice             Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
-  qontoTransactionId  String              @unique
-  amount              Decimal             @db.Decimal(10, 2)
-  paymentDate         DateTime
-  
-  status              PaymentMatchStatus  @default(MATCHED)
-  
-  matchedAt           DateTime            @default(now())
-  confirmedAt         DateTime?
-  confirmedById       String?
-  confirmedBy         User?               @relation("PaymentConfirmer", fields: [confirmedById], references: [id])
-  
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  qontoTransactionId String   @unique
+  amount             Decimal  @db.Decimal(10, 2)
+  paymentDate        DateTime
+
+  status PaymentMatchStatus @default(MATCHED)
+
+  matchedAt     DateTime  @default(now())
+  confirmedAt   DateTime?
+  confirmedById String?
+  confirmedBy   User?     @relation("PaymentConfirmer", fields: [confirmedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([invoiceId])
   @@index([qontoTransactionId])
   @@index([status])
 }
 
 model InvoiceAuditLog {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  
-  action      String   // CREATED, VALIDATED, SENT, PAID, CANCELLED, CREDIT_NOTE_CREATED
-  userId      String
-  user        User     @relation("InvoiceAuditLogUser", fields: [userId], references: [id])
-  details     Json?    // Additional context (e.g., reason for cancellation)
-  
-  createdAt   DateTime @default(now())
-  
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  action  String // CREATED, VALIDATED, SENT, PAID, CANCELLED, CREDIT_NOTE_CREATED
+  userId  String
+  user    User   @relation("InvoiceAuditLogUser", fields: [userId], references: [id])
+  details Json? // Additional context (e.g., reason for cancellation)
+
+  createdAt DateTime @default(now())
+
   @@index([invoiceId])
   @@index([userId])
   @@index([action])
@@ -2894,27 +2905,27 @@ model InvoiceAuditLog {
 
 // Source configuration
 model ProspectSource {
-  id            String              @id @default(cuid())
-  name          String              // "Website Form", "Partner API", etc.
-  type          ProspectSourceType
-  clientId      String?             // Optional: client-specific source
-  client        Client?             @relation(fields: [clientId], references: [id])
-  
+  id       String             @id @default(cuid())
+  name     String // "Website Form", "Partner API", etc.
+  type     ProspectSourceType
+  clientId String? // Optional: client-specific source
+  client   Client?            @relation(fields: [clientId], references: [id])
+
   // Configuration
-  isActive      Boolean             @default(true)
-  autoActivate  Boolean             @default(false) // Skip review for high-confidence
-  defaultMissionId String?          // Default mission for routing
-  defaultMission Mission?           @relation(fields: [defaultMissionId], references: [id])
-  
+  isActive         Boolean  @default(true)
+  autoActivate     Boolean  @default(false) // Skip review for high-confidence
+  defaultMissionId String? // Default mission for routing
+  defaultMission   Mission? @relation(fields: [defaultMissionId], references: [id])
+
   // Metadata
-  metadata      Json?               // Source-specific config (API keys, webhook URLs, etc.)
-  
-  events        ProspectEvent[]
-  rules         ProspectRule[]
-  
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  
+  metadata Json? // Source-specific config (API keys, webhook URLs, etc.)
+
+  events ProspectEvent[]
+  rules  ProspectRule[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([clientId])
   @@index([type])
   @@index([isActive])
@@ -2922,31 +2933,31 @@ model ProspectSource {
 
 // Immutable event log (append-only)
 model ProspectEvent {
-  id            String              @id @default(cuid())
-  sourceId      String
-  source        ProspectSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  profileId     String?             // Links to ProspectProfile (null until profile created)
-  profile       ProspectProfile?    @relation(fields: [profileId], references: [id])
-  
+  id        String           @id @default(cuid())
+  sourceId  String
+  source    ProspectSource   @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  profileId String? // Links to ProspectProfile (null until profile created)
+  profile   ProspectProfile? @relation(fields: [profileId], references: [id])
+
   // Raw payload (immutable)
-  rawPayload    Json                // Original data as received
-  
+  rawPayload Json // Original data as received
+
   // Event metadata
-  eventType     String              // "intake", "update", "enrichment", "decision"
-  step          ProspectPipelineStep
-  outcome       DecisionOutcome?
-  
+  eventType String // "intake", "update", "enrichment", "decision"
+  step      ProspectPipelineStep
+  outcome   DecisionOutcome?
+
   // Processing context
-  processedAt   DateTime            @default(now())
-  processedBy   String?             // System or userId for manual events
-  errorMessage  String?             // If processing failed
-  
+  processedAt  DateTime @default(now())
+  processedBy  String? // System or userId for manual events
+  errorMessage String? // If processing failed
+
   // Decision log reference
   decisionLogId String?
   decisionLog   ProspectDecisionLog? @relation(fields: [decisionLogId], references: [id])
-  
-  createdAt     DateTime            @default(now())
-  
+
+  createdAt DateTime @default(now())
+
   @@index([sourceId])
   @@index([profileId])
   @@index([step])
@@ -2956,63 +2967,64 @@ model ProspectEvent {
 
 // Evolving prospect profile (derived from events)
 model ProspectProfile {
-  id            String              @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Normalized data (evolves as events are processed)
-  firstName     String?
-  lastName      String?
-  email         String?
-  phone         String?
-  linkedin      String?
-  title         String?
-  companyName   String?
-  companyWebsite String?
+  firstName       String?
+  lastName        String?
+  email           String?
+  phone           String?
+  linkedin        String?
+  title           String?
+  companyName     String?
+  companyWebsite  String?
   companyIndustry String?
-  companyCountry String?
-  companySize   String?
-  
+  companyCountry  String?
+  companySize     String?
+
   // Additional fields (flexible JSON)
-  customFields  Json?               // Source-specific or enrichment data
-  
+  customFields Json? // Source-specific or enrichment data
+
   // Pipeline state
-  currentStep   ProspectPipelineStep @default(INTAKE)
-  status        ProspectStatus       @default(PENDING)
-  
+  currentStep ProspectPipelineStep @default(INTAKE)
+  status      ProspectStatus       @default(PENDING)
+
   // Scoring
-  qualityScore  Int                 @default(0) // 0-100
-  confidenceScore Int               @default(0) // 0-100 (data completeness)
-  
+  qualityScore    Int @default(0) // 0-100
+  confidenceScore Int @default(0) // 0-100 (data completeness)
+
   // Routing
   assignedMissionId String?
-  assignedMission   Mission?        @relation(fields: [assignedMissionId], references: [id])
+  assignedMission   Mission? @relation(fields: [assignedMissionId], references: [id])
   assignedSdrId     String?
-  assignedSdr       User?           @relation(fields: [assignedSdrId], references: [id])
-  
+  assignedSdr       User?    @relation(fields: [assignedSdrId], references: [id])
+
   // Deduplication
-  duplicateOfId     String?         // If merged with another profile
-  duplicateOf       ProspectProfile? @relation("ProspectDuplicates", fields: [duplicateOfId], references: [id])
-  duplicates        ProspectProfile[] @relation("ProspectDuplicates")
-  
+  duplicateOfId String? // If merged with another profile
+  duplicateOf   ProspectProfile?  @relation("ProspectDuplicates", fields: [duplicateOfId], references: [id])
+  duplicates    ProspectProfile[] @relation("ProspectDuplicates")
+
   // Review
-  reviewRequired    Boolean         @default(false)
-  reviewReason      String?         // Why review is needed
-  reviewedById      String?
-  reviewedBy        User?           @relation("ProspectReviewer", fields: [reviewedById], references: [id])
-  reviewedAt        DateTime?
-  reviewNotes       String?         @db.Text
-  
+  reviewRequired Boolean   @default(false)
+  reviewReason   String? // Why review is needed
+  reviewedById   String?
+  reviewedBy     User?     @relation("ProspectReviewer", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  reviewNotes    String?   @db.Text
+
   // Activation
-  activatedAt       DateTime?
-  activatedContactId String?       // Link to created Contact (read-only after activation)
-  activatedCompanyId String?        // Link to created Company
-  
+  activatedAt        DateTime?
+  activatedContactId String? // Link to created Contact (read-only after activation)
+  activatedCompanyId String? // Link to created Company
+
   // Relations
-  events            ProspectEvent[]
-  decisionLogs     ProspectDecisionLog[]
-  
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  
+  events       ProspectEvent[]
+  decisionLogs ProspectDecisionLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email]) // Prevent duplicate emails
   @@index([status])
   @@index([currentStep])
   @@index([qualityScore])
@@ -3021,34 +3033,33 @@ model ProspectProfile {
   @@index([assignedSdrId])
   @@index([email]) // For deduplication
   @@index([phone]) // For deduplication
-  @@unique([email]) // Prevent duplicate emails
 }
 
 // Decision log (explainability)
 model ProspectDecisionLog {
-  id            String              @id @default(cuid())
-  profileId     String
-  profile       ProspectProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  
-  step          ProspectPipelineStep
-  outcome       DecisionOutcome
-  
+  id        String          @id @default(cuid())
+  profileId String
+  profile   ProspectProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  step    ProspectPipelineStep
+  outcome DecisionOutcome
+
   // Rule execution
-  ruleId        String?
-  rule          ProspectRule?       @relation(fields: [ruleId], references: [id])
-  ruleResult   Json?               // Rule evaluation details
-  
+  ruleId     String?
+  rule       ProspectRule? @relation(fields: [ruleId], references: [id])
+  ruleResult Json? // Rule evaluation details
+
   // Decision context
-  inputData     Json                // Profile state at decision time
-  outputData    Json?               // Changes made
-  reason        String               @db.Text // Human-readable explanation
-  
+  inputData  Json // Profile state at decision time
+  outputData Json? // Changes made
+  reason     String @db.Text // Human-readable explanation
+
   // Metadata
-  executedAt    DateTime            @default(now())
-  executedBy    String?             // System or userId
-  
-  events        ProspectEvent[]
-  
+  executedAt DateTime @default(now())
+  executedBy String? // System or userId
+
+  events ProspectEvent[]
+
   @@index([profileId])
   @@index([step])
   @@index([outcome])
@@ -3057,39 +3068,39 @@ model ProspectDecisionLog {
 
 // Rule definitions (manager-configurable)
 model ProspectRule {
-  id            String              @id @default(cuid())
-  name          String
-  description   String?             @db.Text
-  
+  id          String  @id @default(cuid())
+  name        String
+  description String? @db.Text
+
   // Rule scope
-  clientId      String?             // Client-specific rule
-  client        Client?             @relation(fields: [clientId], references: [id])
-  sourceId      String?             // Source-specific rule
-  source        ProspectSource?      @relation(fields: [sourceId], references: [id])
-  
+  clientId String? // Client-specific rule
+  client   Client?         @relation(fields: [clientId], references: [id])
+  sourceId String? // Source-specific rule
+  source   ProspectSource? @relation(fields: [sourceId], references: [id])
+
   // Rule application
-  step          ProspectPipelineStep // Which step this rule applies to
-  priority      Int                 @default(0) // Higher = evaluated first
-  
+  step     ProspectPipelineStep // Which step this rule applies to
+  priority Int                  @default(0) // Higher = evaluated first
+
   // Rule definition (declarative JSON)
-  condition     Json                // { field: "email", operator: "endsWith", value: "@gmail.com" }
-  action        Json                // { type: "adjustScore", value: -30 } or { type: "requireReview", reason: "Free email" }
-  
+  condition Json // { field: "email", operator: "endsWith", value: "@gmail.com" }
+  action    Json // { type: "adjustScore", value: -30 } or { type: "requireReview", reason: "Free email" }
+
   // Versioning
-  version       Int                 @default(1)
-  isActive      Boolean             @default(true)
-  
+  version  Int     @default(1)
+  isActive Boolean @default(true)
+
   // Audit
-  createdById   String
-  createdBy     User                @relation("ProspectRuleCreator", fields: [createdById], references: [id])
-  updatedById   String?
-  updatedBy     User?               @relation("ProspectRuleUpdater", fields: [updatedById], references: [id])
-  
-  decisionLogs  ProspectDecisionLog[]
-  
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  
+  createdById String
+  createdBy   User    @relation("ProspectRuleCreator", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?   @relation("ProspectRuleUpdater", fields: [updatedById], references: [id])
+
+  decisionLogs ProspectDecisionLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([clientId])
   @@index([sourceId])
   @@index([step])
@@ -3099,30 +3110,30 @@ model ProspectRule {
 
 // Pipeline step configuration
 model ProspectPipelineConfig {
-  id            String              @id @default(cuid())
-  clientId      String?
-  client        Client?             @relation(fields: [clientId], references: [id])
-  
+  id       String  @id @default(cuid())
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
   // Step settings
-  enableEnrichment Boolean          @default(false)
-  enrichmentProvider String?        // "clearbit", "apollo", "custom"
-  enrichmentApiKey  String?         // Encrypted
-  
+  enableEnrichment   Boolean @default(false)
+  enrichmentProvider String? // "clearbit", "apollo", "custom"
+  enrichmentApiKey   String? // Encrypted
+
   // Thresholds
-  minQualityScore    Int             @default(50) // Minimum score for auto-approval
-  minConfidenceScore Int             @default(70) // Minimum confidence for auto-approval
-  reviewThreshold    Int             @default(40) // Score below which review required
-  
+  minQualityScore    Int @default(50) // Minimum score for auto-approval
+  minConfidenceScore Int @default(70) // Minimum confidence for auto-approval
+  reviewThreshold    Int @default(40) // Score below which review required
+
   // Deduplication
-  enableDeduplication Boolean        @default(true)
-  dedupeFields        String[]       @default(["email", "phone"]) // Fields to match on
-  
+  enableDeduplication Boolean  @default(true)
+  dedupeFields        String[] @default(["email", "phone"]) // Fields to match on
+
   // Routing
-  defaultRoutingStrategy String      @default("round_robin") // "round_robin", "load_balance", "manual"
-  
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  
+  defaultRoutingStrategy String @default("round_robin") // "round_robin", "load_balance", "manual"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([clientId])
 }
 
@@ -3131,27 +3142,27 @@ model ProspectPipelineConfig {
 // ============================================
 
 model LeexiCallImport {
-  id            String    @id @default(cuid())
-  leexiCallId   String
-  
-  clientId      String?
-  client        Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  
-  missionId     String?   @unique
-  mission       Mission?  @relation(fields: [missionId], references: [id], onDelete: SetNull)
-  
-  importedById  String
-  importedBy    User      @relation("LeexiImporter", fields: [importedById], references: [id], onDelete: Cascade)
-  
+  id          String @id @default(cuid())
+  leexiCallId String
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  missionId String?  @unique
+  mission   Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+
+  importedById String
+  importedBy   User   @relation("LeexiImporter", fields: [importedById], references: [id], onDelete: Cascade)
+
   source        String    @default("api") // "api" | "paste" | "webhook"
   rawRecap      String    @db.Text
   extractedData Json?
   callTitle     String?
   callDate      DateTime?
   callDuration  Int?
-  
-  importedAt    DateTime  @default(now())
-  
+
+  importedAt DateTime @default(now())
+
   @@index([leexiCallId])
   @@index([clientId])
 }
@@ -3161,30 +3172,30 @@ model LeexiCallImport {
 // ============================================
 
 model MeetingFeedback {
-  id                  String              @id @default(cuid())
-  actionId            String              @unique
-  action              Action              @relation(fields: [actionId], references: [id], onDelete: Cascade)
-  outcome             MeetingOutcome
-  recontactRequested  RecontactPreference
-  clientNote          String?             @db.Text
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  id                 String              @id @default(cuid())
+  actionId           String              @unique
+  action             Action              @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  outcome            MeetingOutcome
+  recontactRequested RecontactPreference
+  clientNote         String?             @db.Text
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model SdrDailyFeedback {
-  id             String    @id @default(cuid())
+  id             String                    @id @default(cuid())
   sdrId          String
-  sdr            User      @relation(fields: [sdrId], references: [id], onDelete: Cascade)
-  missionId      String?   // legacy primary mission (first selected mission)
-  mission        Mission?  @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  sdr            User                      @relation(fields: [sdrId], references: [id], onDelete: Cascade)
+  missionId      String? // legacy primary mission (first selected mission)
+  mission        Mission?                  @relation(fields: [missionId], references: [id], onDelete: SetNull)
   missions       SdrDailyFeedbackMission[]
   score          Int
-  review         String    @db.Text
-  objections     String?   @db.Text
-  missionComment String?   @db.Text
+  review         String                    @db.Text
+  objections     String?                   @db.Text
+  missionComment String?                   @db.Text
   pagePath       String?
-  submittedAt    DateTime  @default(now())
-  createdAt      DateTime  @default(now())
+  submittedAt    DateTime                  @default(now())
+  createdAt      DateTime                  @default(now())
 
   @@index([sdrId])
   @@index([missionId])
@@ -3209,15 +3220,15 @@ model SdrDailyFeedbackMission {
 // ============================================
 
 model SharedReportLink {
-  id        String    @id @default(cuid())
-  token     String    @unique
+  id        String   @id @default(cuid())
+  token     String   @unique
   clientId  String
-  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   missionId String?
-  mission   Mission?  @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  mission   Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
   dateFrom  DateTime
   dateTo    DateTime
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
   expiresAt DateTime
 
   @@index([token])
@@ -3229,8 +3240,8 @@ model SharedReportLink {
 // ============================================
 
 model SystemConfig {
-  key       String   @id        // e.g. "masterPasswordHash"
-  value     String   @db.Text   // hashed value
+  key       String   @id // e.g. "masterPasswordHash"
+  value     String   @db.Text // hashed value
   updatedAt DateTime @updatedAt
 }
 
@@ -3239,10 +3250,10 @@ model SystemConfig {
 // ============================================
 
 model SystemEmailTemplate {
-  key      String   @id       // e.g. "rdv_notification"
-  name     String             // Display name for the manager UI
-  subject  String             // Email subject (supports {{variables}})
-  bodyHtml String   @db.Text  // Full HTML body (supports {{variables}})
+  key       String   @id // e.g. "rdv_notification"
+  name      String // Display name for the manager UI
+  subject   String // Email subject (supports {{variables}})
+  bodyHtml  String   @db.Text // Full HTML body (supports {{variables}})
   updatedAt DateTime @updatedAt
 }
 
@@ -3254,9 +3265,9 @@ model ClientSession {
   id           String        @id @default(cuid())
   clientId     String
   client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  type         String        // "Kick-Off" | "Onboarding" | "Validation" | "Reporting" | "Suivi" | "Autre"
+  type         String // "Kick-Off" | "Onboarding" | "Validation" | "Reporting" | "Suivi" | "Autre"
   date         DateTime
-  leexiId      String?       // Leexi call/meeting ID
+  leexiId      String? // Leexi call/meeting ID
   recordingUrl String?
   crMarkdown   String?       @db.Text
   summaryEmail String?       @db.Text
@@ -3269,21 +3280,21 @@ model ClientSession {
 }
 
 model SessionTask {
-  id           String             @id @default(cuid())
+  id           String              @id @default(cuid())
   sessionId    String
-  session      ClientSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session      ClientSession       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   label        String
   assignee     String?
-  assigneeRole SessionTaskRole    @default(ALWAYS)
+  assigneeRole SessionTaskRole     @default(ALWAYS)
   priority     SessionTaskPriority @default(MEDIUM)
   dueDate      DateTime?
   doneAt       DateTime?
 
   // Bidirectional link to mirrored project Task
-  taskId       String?            @unique
-  mirroredTask Task?              @relation("SessionTaskMirror", fields: [taskId], references: [id], onDelete: SetNull)
+  taskId       String? @unique
+  mirroredTask Task?   @relation("SessionTaskMirror", fields: [taskId], references: [id], onDelete: SetNull)
 
-  createdAt    DateTime           @default(now())
+  createdAt DateTime @default(now())
 
   @@index([sessionId])
   @@index([assigneeRole])
@@ -3310,41 +3321,41 @@ enum SessionTaskPriority {
 // ============================================
 
 model ApiKey {
-  id            String    @id @default(cuid())
-  name          String    // e.g., "OpenClaw Integration"
-  keyHash       String    @unique // SHA-256 hash of the key (key itself is shown only once)
-  keyPrefix     String    // First 8 chars for display (e.g., "cp_live_")
-  
+  id        String @id @default(cuid())
+  name      String // e.g., "OpenClaw Integration"
+  keyHash   String @unique // SHA-256 hash of the key (key itself is shown only once)
+  keyPrefix String // First 8 chars for display (e.g., "cp_live_")
+
   // Scoping - what this key can access
-  role          UserRole  @default(MANAGER) // Effective role for permissions
-  clientId      String?   // If set, key is scoped to specific client
-  client        Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  missionId     String?   // If set, key is scoped to specific mission
-  mission       Mission?  @relation(fields: [missionId], references: [id], onDelete: SetNull)
-  
+  role      UserRole @default(MANAGER) // Effective role for permissions
+  clientId  String? // If set, key is scoped to specific client
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  missionId String? // If set, key is scoped to specific mission
+  mission   Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+
   // Allowed endpoints (JSON array of endpoint patterns)
   // e.g., ["/api/stats", "/api/stats/missions-summary"]
-  allowedEndpoints Json   @default("[\"/api/stats\",\"/api/stats/missions-summary\"]")
-  
+  allowedEndpoints Json @default("[\"/api/stats\",\"/api/stats/missions-summary\"]")
+
   // Rate limiting
-  rateLimitPerMinute Int   @default(60)
-  rateLimitPerHour   Int   @default(1000)
-  
+  rateLimitPerMinute Int @default(60)
+  rateLimitPerHour   Int @default(1000)
+
   // Status & metadata
-  isActive      Boolean   @default(true)
-  lastUsedAt    DateTime?
-  expiresAt     DateTime? // Optional expiration
-  
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime? // Optional expiration
+
   // Audit
-  createdById   String
-  createdBy     User      @relation("ApiKeyCreator", fields: [createdById], references: [id])
-  
+  createdById String
+  createdBy   User   @relation("ApiKeyCreator", fields: [createdById], references: [id])
+
   // Usage tracking
-  usageLogs     ApiKeyUsageLog[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  usageLogs ApiKeyUsageLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([keyHash])
   @@index([isActive])
   @@index([clientId])
@@ -3352,37 +3363,37 @@ model ApiKey {
 }
 
 model ApiKeyUsageLog {
-  id            String    @id @default(cuid())
-  apiKeyId      String
-  apiKey        ApiKey    @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
-  
-  endpoint      String    // Full path accessed
-  method        String    // GET, POST, etc.
-  statusCode    Int       // HTTP response status
-  responseTimeMs Int       // Response time in milliseconds
-  
+  id       String @id @default(cuid())
+  apiKeyId String
+  apiKey   ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  endpoint       String // Full path accessed
+  method         String // GET, POST, etc.
+  statusCode     Int // HTTP response status
+  responseTimeMs Int // Response time in milliseconds
+
   // Request context
-  ipAddress     String?
-  userAgent     String?
-  
-  createdAt     DateTime  @default(now())
-  
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
   @@index([apiKeyId])
   @@index([createdAt])
   @@index([endpoint])
 }
 
 model ApiRequestDailyMetric {
-  id            String    @id @default(cuid())
-  date          DateTime  @db.Date
-  provider      String
-  endpoint      String
-  method        String
-  statusCode    Int
-  count         Int       @default(0)
-  lastSeenAt    DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  provider   String
+  endpoint   String
+  method     String
+  statusCode Int
+  count      Int      @default(0)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([date, provider, endpoint, method, statusCode])
   @@index([date])
@@ -3396,41 +3407,41 @@ model ApiRequestDailyMetric {
 // ============================================
 
 model ExternalEndpoint {
-  id            String    @id @default(cuid())
-  path          String    @unique // e.g., "/api/stats"
-  name          String    // Display name: "Dashboard Statistics"
-  description   String?   @db.Text
-  
+  id          String  @id @default(cuid())
+  path        String  @unique // e.g., "/api/stats"
+  name        String // Display name: "Dashboard Statistics"
+  description String? @db.Text
+
   // HTTP methods allowed
-  methods       String[]  @default(["GET"]) // ["GET", "POST"]
-  
+  methods String[] @default(["GET"]) // ["GET", "POST"]
+
   // Required role to access
-  minRole       UserRole  @default(MANAGER)
-  
+  minRole UserRole @default(MANAGER)
+
   // Scoping options
-  supportsClientScope Boolean @default(true)  // Can be scoped to client
+  supportsClientScope  Boolean @default(true) // Can be scoped to client
   supportsMissionScope Boolean @default(true) // Can be scoped to mission
-  
+
   // Is this endpoint enabled for external access?
-  isEnabled     Boolean   @default(false)
-  
+  isEnabled Boolean @default(false)
+
   // Rate limiting defaults
   defaultRateLimitPerMinute Int @default(60)
   defaultRateLimitPerHour   Int @default(1000)
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([isEnabled])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   email     String
-  token     String   @unique
+  token     String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([email])
   @@index([token])
@@ -3441,58 +3452,58 @@ model PasswordResetToken {
 // ============================================
 
 model WeeklyAnalysis {
-  id            String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // Time window
-  weekStart     DateTime
-  weekEnd       DateTime
+  weekStart DateTime
+  weekEnd   DateTime
 
   // Scope
-  missionIds    String[]
-  clientIds     String[]
-  sdrIds        String[]
-  label         String?  // Human-readable label e.g. "Semaine 15 — Mission Alpha"
+  missionIds String[]
+  clientIds  String[]
+  sdrIds     String[]
+  label      String? // Human-readable label e.g. "Semaine 15 — Mission Alpha"
 
   // Raw data snapshot used for this analysis (for reproducibility & audit)
-  dataSnapshot  Json     // { actionCount, callCount, meetingCount, metrics, topObjections, ... }
+  dataSnapshot Json // { actionCount, callCount, meetingCount, metrics, topObjections, ... }
 
   // ---- Core Analysis Output ----
-  executiveSummary      String   @db.Text
-  confidenceScore       Float    // 0.0–1.0 overall confidence
-  dataQualityScore      Float    // 0.0–1.0 data quality / completeness
-  uncertainties         String[] // Explicit uncertainty statements
+  executiveSummary String   @db.Text
+  confidenceScore  Float // 0.0–1.0 overall confidence
+  dataQualityScore Float // 0.0–1.0 data quality / completeness
+  uncertainties    String[] // Explicit uncertainty statements
 
   // Structured deliverables (JSON arrays of typed objects)
-  topInsights           Json     // { insight, evidence[], impact, confidence }[]
-  rootCauses            Json     // { cause, evidence[], affectedArea, severity }[]
-  scriptImprovements    Json     // { section, current, suggested, rationale, expectedLift }[]
-  icpRefinements        Json     // { dimension, finding, action, confidence }[]
-  objectionHandling     Json     // { objection, frequency, currentResponse?, suggestedResponse, whyItWorks, evidence[] }[]
-  sdrCoachingActions    Json     // { sdrId?, sdrName?, issue, action, priority, metric }[]
-  recommendations       Json     // { id, title, priority, category, expectedImpact, confidenceScore, rationale, citations[], actionSteps[] }[]
-  expectedImpacts       Json     // { metric, current, projected, confidence }[]
+  topInsights        Json // { insight, evidence[], impact, confidence }[]
+  rootCauses         Json // { cause, evidence[], affectedArea, severity }[]
+  scriptImprovements Json // { section, current, suggested, rationale, expectedLift }[]
+  icpRefinements     Json // { dimension, finding, action, confidence }[]
+  objectionHandling  Json // { objection, frequency, currentResponse?, suggestedResponse, whyItWorks, evidence[] }[]
+  sdrCoachingActions Json // { sdrId?, sdrName?, issue, action, priority, metric }[]
+  recommendations    Json // { id, title, priority, category, expectedImpact, confidenceScore, rationale, citations[], actionSteps[] }[]
+  expectedImpacts    Json // { metric, current, projected, confidence }[]
 
   // ---- Trend & Comparison (populated when priorAnalysisId exists) ----
-  priorAnalysisId       String?
-  priorAnalysis         WeeklyAnalysis?  @relation("AnalysisChain", fields: [priorAnalysisId], references: [id])
-  nextAnalyses          WeeklyAnalysis[] @relation("AnalysisChain")
-  deltaInsights         Json?    // What changed vs prior week: { improved[], degraded[], new[], resolved[] }
-  trendAlerts           Json?    // { metric, trend, severity, description }[]
+  priorAnalysisId String?
+  priorAnalysis   WeeklyAnalysis?  @relation("AnalysisChain", fields: [priorAnalysisId], references: [id])
+  nextAnalyses    WeeklyAnalysis[] @relation("AnalysisChain")
+  deltaInsights   Json? // What changed vs prior week: { improved[], degraded[], new[], resolved[] }
+  trendAlerts     Json? // { metric, trend, severity, description }[]
 
   // ---- Recommendation Feedback Loop ----
   // After analysis is applied, manager records outcomes
-  recommendationOutcomes Json?   // { recommendationId, status: "applied"|"ignored"|"partial", outcome?, appliedAt }[]
+  recommendationOutcomes Json? // { recommendationId, status: "applied"|"ignored"|"partial", outcome?, appliedAt }[]
 
   // ---- Meta ----
-  status        String   @default("completed") // "running"|"completed"|"failed"
-  errorMessage  String?  @db.Text
-  modelUsed     String   @default("mistral-large-latest")
-  tokensUsed    Int?
-  durationMs    Int?
+  status       String  @default("completed") // "running"|"completed"|"failed"
+  errorMessage String? @db.Text
+  modelUsed    String  @default("mistral-large-latest")
+  tokensUsed   Int?
+  durationMs   Int?
 
-  createdById   String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([weekStart])
   @@index([weekEnd])
@@ -3525,52 +3536,52 @@ enum SupportIntent {
 }
 
 model SupportConversation {
-  id            String                    @id @default(cuid())
-  clientId      String                    @unique
-  client        Client                    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  status        SupportConversationStatus @default(ACTIVE)
+  status SupportConversationStatus @default(ACTIVE)
 
   // Resolution tracking
-  resolvedAt    DateTime?
-  resolvedById  String?
-  resolvedBy    User?                     @relation("SupportConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("SupportConversationResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   // Denormalised metadata
-  messageCount  Int                       @default(0)
+  messageCount  Int            @default(0)
   lastMessageAt DateTime?
   lastIntent    SupportIntent?
 
   // Client notification preference
   emailNotificationOnReply Boolean @default(false)
 
-  messages       SupportMessage[]
-  managerStates  SupportManagerState[]
+  messages      SupportMessage[]
+  managerStates SupportManagerState[]
 
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([lastMessageAt])
 }
 
 model SupportMessage {
-  id              String              @id @default(cuid())
-  conversationId  String
-  conversation    SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id             String              @id @default(cuid())
+  conversationId String
+  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
-  role            SupportMessageRole
+  role     SupportMessageRole
   // Author: null for SYSTEM events
-  authorId        String?
-  author          User?               @relation("SupportMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorId String?
+  author   User?              @relation("SupportMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
-  content         String              @db.Text
-  intent          SupportIntent?
+  content String         @db.Text
+  intent  SupportIntent?
 
   // Optional structured context tags (e.g. { pageLabel, rdvRef })
-  context         Json?
+  context Json?
 
-  createdAt       DateTime            @default(now())
+  createdAt DateTime @default(now())
 
   @@index([conversationId, createdAt])
   @@index([authorId])
@@ -3579,17 +3590,17 @@ model SupportMessage {
 // Per-manager read tracking. Because every active manager sees every support
 // conversation, state is created lazily on first access.
 model SupportManagerState {
-  id              String              @id @default(cuid())
-  conversationId  String
-  conversation    SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  managerId       String
-  manager         User                @relation("SupportManagerStateUser", fields: [managerId], references: [id], onDelete: Cascade)
+  id             String              @id @default(cuid())
+  conversationId String
+  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  managerId      String
+  manager        User                @relation("SupportManagerStateUser", fields: [managerId], references: [id], onDelete: Cascade)
 
-  lastReadAt      DateTime?
-  isPinned        Boolean             @default(false)
+  lastReadAt DateTime?
+  isPinned   Boolean   @default(false)
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([conversationId, managerId])
   @@index([managerId])
@@ -3616,27 +3627,27 @@ enum BroadcastEmailStatus {
 }
 
 model BroadcastEmail {
-  id              String                @id @default(cuid())
-  subject         String
-  bodyHtml        String                @db.Text
+  id       String @id @default(cuid())
+  subject  String
+  bodyHtml String @db.Text
 
-  audienceType    BroadcastAudienceType
+  audienceType BroadcastAudienceType
 
   // Snapshot of recipients at send time: { email: string; name: string }[]
   recipientEmails Json
 
-  recipientCount  Int                   @default(0)
-  sentCount       Int                   @default(0)
-  failedCount     Int                   @default(0)
+  recipientCount Int @default(0)
+  sentCount      Int @default(0)
+  failedCount    Int @default(0)
 
-  status          BroadcastEmailStatus
+  status BroadcastEmailStatus
 
-  sentById        String
-  sentBy          User                  @relation("BroadcastEmailSender", fields: [sentById], references: [id])
-  recipients      BroadcastEmailRecipient[]
+  sentById   String
+  sentBy     User                      @relation("BroadcastEmailSender", fields: [sentById], references: [id])
+  recipients BroadcastEmailRecipient[]
 
-  sentAt          DateTime?
-  createdAt       DateTime              @default(now())
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([sentById])
   @@index([createdAt])
@@ -3647,18 +3658,18 @@ model BroadcastEmailRecipient {
   broadcastEmailId String
   broadcastEmail   BroadcastEmail @relation(fields: [broadcastEmailId], references: [id], onDelete: Cascade)
 
-  email            String
-  name             String?
-  userId           String?
+  email  String
+  name   String?
+  userId String?
 
-  wasSent          Boolean        @default(false)
-  sendError        String?
-  openedAt         DateTime?
-  openCount        Int            @default(0)
-  lastOpenedAt     DateTime?
+  wasSent      Boolean   @default(false)
+  sendError    String?
+  openedAt     DateTime?
+  openCount    Int       @default(0)
+  lastOpenedAt DateTime?
 
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([broadcastEmailId])
   @@index([openedAt])

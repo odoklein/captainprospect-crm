@@ -4,13 +4,26 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import type { ActionResult } from "@prisma/client";
 import { calculateContactCompleteness } from "@/lib/scoring";
+import {
+    normalizeCompanyName,
+    normalizePersonName,
+    normalizeEmail,
+    splitPhoneValues,
+    resolveCompanyMatches,
+    type CompanyMatch,
+    type DuplicateStrategy,
+    type DuplicateScope,
+} from "@/lib/import/dedup";
 
 // ============================================
 // CSV IMPORT API (streaming + batched for performance)
 // ============================================
 // Accepts multipart/form-data: file (raw CSV), mappings (JSON), importType.
 // Either: listId (add to existing list) OR missionId + listName (create new list).
-// whenAlreadyWorkedOn: "skip" | "add_anyway" — when adding to existing list, skip rows whose company already has actions.
+// whenAlreadyWorkedOn: "skip" | "add_anyway" — skip rows whose matched company already has actions.
+// duplicateStrategy: "smart_merge" | "skip" | "overwrite" — how to handle a company that already exists.
+// duplicateScope: "list" | "mission" — check duplicates only in the target list, or across the whole mission.
+// replaceList: when adding to an existing list, archive it and import into a fresh list instead ("Clean Replace").
 // Streams CSV from the uploaded file and processes rows in batches to avoid loading
 // the full file and to reduce per-row DB round-trips.
 // ============================================
@@ -66,26 +79,6 @@ function splitMultiActionCell(raw: string | undefined): string[] {
 
     return trimmed
         .split(/(?:\r?\n|;|\||=>|->|→|»)+/)
-        .map((part) => part.trim())
-        .filter((part) => part.length > 0);
-}
-
-function normalizeCompanyName(value: string): string {
-    return value.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function normalizePersonName(value: string | null | undefined): string {
-    return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function normalizeEmail(value: string | null | undefined): string | null {
-    const normalized = (value ?? "").trim().toLowerCase();
-    return normalized || null;
-}
-
-function splitPhoneValues(value: string | null | undefined): string[] {
-    return (value ?? "")
-        .split(/[;,]/)
         .map((part) => part.trim())
         .filter((part) => part.length > 0);
 }
@@ -263,6 +256,16 @@ export async function POST(req: NextRequest) {
         const whenAlreadyWorkedOn = (formData.get("whenAlreadyWorkedOn") as string) || "add_anyway";
         const assignedSdrIdParam = (formData.get("assignedSdrId") as string | null)?.trim() || null;
 
+        const duplicateStrategyRaw = (formData.get("duplicateStrategy") as string | null) || "smart_merge";
+        const duplicateStrategy: DuplicateStrategy = (
+            ["smart_merge", "skip", "overwrite"] as const
+        ).includes(duplicateStrategyRaw as DuplicateStrategy)
+            ? (duplicateStrategyRaw as DuplicateStrategy)
+            : "smart_merge";
+        const duplicateScope: DuplicateScope =
+            (formData.get("duplicateScope") as string | null) === "mission" ? "mission" : "list";
+        const replaceList = (formData.get("replaceList") as string | null) === "true";
+
         if (!file || !mappingsStr) {
             return NextResponse.json(
                 { success: false, error: "Données manquantes (file, mappings)" },
@@ -363,11 +366,12 @@ export async function POST(req: NextRequest) {
 
         let list: { id: string; missionId: string };
         let missionId: string;
+        let replacedListId: string | null = null;
 
         if (addToExistingList) {
             const existingList = await prisma.list.findUnique({
                 where: { id: listIdParam!.trim() },
-                select: { id: true, missionId: true },
+                select: { id: true, missionId: true, name: true },
             });
             if (!existingList) {
                 return NextResponse.json(
@@ -375,8 +379,44 @@ export async function POST(req: NextRequest) {
                     { status: 404 }
                 );
             }
-            list = existingList;
-            missionId = existingList.missionId;
+
+            if (replaceList) {
+                // "Clean Replace": archive the old list (kept for history, no longer active)
+                // and import into a brand-new list instead of touching its rows in place.
+                const created = await prisma.list.create({
+                    data: {
+                        name: existingList.name,
+                        type: "CLIENT",
+                        source: "CSV Import (remplacement)",
+                        missionId: existingList.missionId,
+                        importConfig: {
+                            importType,
+                            mappings,
+                            importedAt: new Date().toISOString(),
+                            replacedListId: existingList.id,
+                            actionHistory: {
+                                importActions,
+                                actionColumnMapping,
+                                actionColumnMode,
+                                actionColumnGroups,
+                                statusMappings,
+                                channelMappings,
+                            },
+                        },
+                    },
+                    select: { id: true, missionId: true },
+                });
+                await prisma.list.update({
+                    where: { id: existingList.id },
+                    data: { isArchived: true, isActive: false, archivedAt: new Date() },
+                });
+                list = created;
+                missionId = existingList.missionId;
+                replacedListId = existingList.id;
+            } else {
+                list = existingList;
+                missionId = existingList.missionId;
+            }
         } else {
             const mission = await prisma.mission.findUnique({
                 where: { id: missionIdParam! },
@@ -413,7 +453,11 @@ export async function POST(req: NextRequest) {
         }
 
         let companiesCreated = 0;
+        let companiesUpdated = 0;
+        let companiesSkipped = 0;
         let contactsCreated = 0;
+        let contactsUpdated = 0;
+        let contactsSkipped = 0;
         let actionsCreated = 0;
         const errors: string[] = [];
 
@@ -432,6 +476,38 @@ export async function POST(req: NextRequest) {
                     let lineBuffer: string[] = [];
                     let globalRowIndex = 0;
 
+                    const runBatch = async (rows: { rowIndex: number; row: Record<string, string> }[]) => {
+                        const result = await processBatch(
+                            list.id,
+                            rows,
+                            mappings,
+                            importType,
+                            {
+                                importActions,
+                                actionColumnMapping,
+                                actionColumnMode,
+                                actionColumnGroups,
+                                statusMappings,
+                                channelMappings,
+                                missionId,
+                                sdrId: assignedSdrId,
+                                // Honored unconditionally: with Mission-scope dedup, a "new list" import
+                                // can still match already-worked companies from other lists in the mission.
+                                whenAlreadyWorkedOn: whenAlreadyWorkedOn === "skip" ? "skip" : "add_anyway",
+                                duplicateStrategy,
+                                duplicateScope,
+                            }
+                        );
+                        companiesCreated += result.companiesCreated;
+                        companiesUpdated += result.companiesUpdated;
+                        companiesSkipped += result.companiesSkipped;
+                        contactsCreated += result.contactsCreated;
+                        contactsUpdated += result.contactsUpdated;
+                        contactsSkipped += result.contactsSkipped;
+                        actionsCreated += result.actionsCreated;
+                        errors.push(...result.errs);
+                    };
+
                     for await (const line of lineIterator) {
                         const trimmed = line.trim();
                         if (!trimmed) continue;
@@ -447,28 +523,7 @@ export async function POST(req: NextRequest) {
                         if (lineBuffer.length >= BATCH_SIZE) {
                             const rows = parseBatch(lineBuffer, headers, delimiter, globalRowIndex);
                             globalRowIndex += rows.length;
-                            const { companies: batchCompanies, contacts: batchContacts, actions: batchActions, errs } =
-                                await processBatch(
-                                    list.id,
-                                    rows,
-                                    mappings,
-                                    importType,
-                                    {
-                                        importActions,
-                                        actionColumnMapping,
-                                        actionColumnMode,
-                                        actionColumnGroups,
-                                        statusMappings,
-                                        channelMappings,
-                                        missionId,
-                                        sdrId: assignedSdrId,
-                                        whenAlreadyWorkedOn: addToExistingList ? (whenAlreadyWorkedOn === "skip" ? "skip" : "add_anyway") : "add_anyway",
-                                    }
-                                );
-                            companiesCreated += batchCompanies;
-                            contactsCreated += batchContacts;
-                            actionsCreated += batchActions;
-                            errors.push(...errs);
+                            await runBatch(rows);
                             lineBuffer = [];
                             const percent =
                                 totalRows != null && totalRows > 0
@@ -481,28 +536,7 @@ export async function POST(req: NextRequest) {
                     if (lineBuffer.length > 0) {
                         const rows = parseBatch(lineBuffer, headers, delimiter, globalRowIndex);
                         globalRowIndex += rows.length;
-                        const { companies: batchCompanies, contacts: batchContacts, actions: batchActions, errs } =
-                            await processBatch(
-                                list.id,
-                                rows,
-                                mappings,
-                                importType,
-                                {
-                                    importActions,
-                                    actionColumnMapping,
-                                    actionColumnMode,
-                                    actionColumnGroups,
-                                    statusMappings,
-                                    channelMappings,
-                                    missionId,
-                                    sdrId: assignedSdrId,
-                                    whenAlreadyWorkedOn: addToExistingList ? (whenAlreadyWorkedOn === "skip" ? "skip" : "add_anyway") : "add_anyway",
-                                }
-                            );
-                        companiesCreated += batchCompanies;
-                        contactsCreated += batchContacts;
-                        actionsCreated += batchActions;
-                        errors.push(...errs);
+                        await runBatch(rows);
                         send({ type: "progress", percent: 100, processed: globalRowIndex });
                     }
 
@@ -510,8 +544,13 @@ export async function POST(req: NextRequest) {
                         type: "done",
                         data: {
                             listId: list.id,
+                            replacedListId,
                             companiesCreated,
+                            companiesUpdated,
+                            companiesSkipped,
                             contactsCreated,
+                            contactsUpdated,
+                            contactsSkipped,
                             actionsCreated,
                             errors: errors.length,
                             errorDetails: errors.slice(0, 10),
@@ -540,7 +579,31 @@ export async function POST(req: NextRequest) {
     }
 }
 
-/** Process one batch of rows with batched DB queries (same business rules as before). */
+/** Merge a company's existing customData (Json) with the CSV-derived custom fields. */
+function mergeCustomData(
+    existing: unknown,
+    incoming: Record<string, string>,
+    strategy: DuplicateStrategy
+): Record<string, unknown> | undefined {
+    const existingObj: Record<string, unknown> =
+        existing && typeof existing === "object" && !Array.isArray(existing)
+            ? { ...(existing as Record<string, unknown>) }
+            : {};
+    if (Object.keys(incoming).length === 0) return undefined;
+    if (strategy === "overwrite") {
+        return { ...existingObj, ...incoming };
+    }
+    // smart_merge: only fill keys that aren't already set
+    const merged = { ...existingObj };
+    for (const [key, value] of Object.entries(incoming)) {
+        if (merged[key] === undefined || merged[key] === null || merged[key] === "") {
+            merged[key] = value;
+        }
+    }
+    return merged;
+}
+
+/** Process one batch of rows with batched DB queries. */
 async function processBatch(
     listId: string,
     rows: { rowIndex: number; row: Record<string, string> }[],
@@ -562,12 +625,30 @@ async function processBatch(
         missionId: string | null;
         sdrId: string;
         whenAlreadyWorkedOn?: "skip" | "add_anyway";
+        duplicateStrategy?: DuplicateStrategy;
+        duplicateScope?: DuplicateScope;
     }
-): Promise<{ companies: number; contacts: number; actions: number; errs: string[] }> {
+): Promise<{
+    companiesCreated: number;
+    companiesUpdated: number;
+    companiesSkipped: number;
+    contactsCreated: number;
+    contactsUpdated: number;
+    contactsSkipped: number;
+    actionsCreated: number;
+    errs: string[];
+}> {
     const errs: string[] = [];
     let companiesCreated = 0;
+    let companiesUpdated = 0;
+    let companiesSkipped = 0;
     let contactsCreated = 0;
+    let contactsUpdated = 0;
+    let contactsSkipped = 0;
     let actionsCreated = 0;
+
+    const duplicateStrategy: DuplicateStrategy = options?.duplicateStrategy ?? "smart_merge";
+    const duplicateScope: DuplicateScope = options?.duplicateScope ?? "list";
 
     // 1) Build parsed rows with company/contact extraction (same validation as before)
     type RowInfo = {
@@ -622,20 +703,18 @@ async function processBatch(
     const uniqueNormalizedNames = [...new Set(uniqueNames.map((n) => normalizeCompanyName(n)))];
     const skipAlreadyWorked = options?.whenAlreadyWorkedOn === "skip";
 
-    // 2) Preload existing companies for this list and batch names (and action count when skipping "already worked")
-    const existingCompanies = await prisma.company.findMany({
-        where: { listId },
-        select: { id: true, name: true, _count: { select: { actions: true } } },
+    // 2) Resolve existing matches: same-list identity always, plus mission-wide matches
+    // when duplicateScope === "mission" (see lib/import/dedup.ts for the shared logic
+    // reused by the pre-import simulation endpoint).
+    const matches = await resolveCompanyMatches({
+        listId,
+        missionId: options?.missionId ?? null,
+        scope: duplicateScope,
+        normalizedNames: uniqueNormalizedNames,
     });
-    const companyMap = new Map<string, { id: string; hasActions: boolean }>();
-    for (const c of existingCompanies) {
-        companyMap.set(normalizeCompanyName(c.name), {
-            id: c.id,
-            hasActions: (c._count?.actions ?? 0) > 0,
-        });
-    }
+    const companyMap = new Map<string, CompanyMatch>(matches);
 
-    // When "skip": exclude company names that already have actions from this batch (no new company, no new contacts)
+    // When "skip already-worked": exclude company names whose matched record already has actions
     const namesToConsider = skipAlreadyWorked
         ? uniqueNormalizedNames.filter((n) => {
             const existing = companyMap.get(n);
@@ -643,9 +722,33 @@ async function processBatch(
         })
         : uniqueNormalizedNames;
 
-    // 3) Create missing companies: merge duplicate company rows so later rows can
-    // fill missing phone/custom data instead of losing them when the first row is sparse.
-    const namesToCreate = namesToConsider.filter((n) => !companyMap.has(n));
+    // A name needs a *new row* in the target list when there's no match at all, or when the
+    // only match found is in another list (mission scope) — it still gets linked via linkedFromId.
+    // A name needs an *update in place* when it already exists in this exact list and the chosen
+    // strategy asks for it (smart_merge / overwrite); "skip" leaves it untouched.
+    const namesToCreate = namesToConsider.filter((n) => {
+        const m = companyMap.get(n);
+        return !m || m.crossList;
+    });
+    const namesToUpdateInPlace = namesToConsider.filter((n) => {
+        const m = companyMap.get(n);
+        return !!m && !m.crossList && duplicateStrategy !== "skip";
+    });
+    const namesNeedingPayload = new Set([...namesToCreate, ...namesToUpdateInPlace]);
+
+    for (const n of uniqueNormalizedNames) {
+        if (!namesToConsider.includes(n)) {
+            companiesSkipped++; // filtered out by "already worked" + skip
+            continue;
+        }
+        const m = companyMap.get(n);
+        if (m && !m.crossList && duplicateStrategy === "skip") {
+            companiesSkipped++; // exists in this list, strategy says leave it alone
+        }
+    }
+
+    // 3) Merge duplicate CSV rows for the same company name so later rows can fill
+    // missing phone/custom data instead of losing them when the first row is sparse.
     const companyPayloadByName = new Map<
         string,
         {
@@ -656,15 +759,13 @@ async function processBatch(
     >();
     for (const r of validRows) {
         const companyKey = normalizeCompanyName(r.companyName);
-        if (companyMap.has(companyKey)) {
-            continue;
-        }
+        if (!namesNeedingPayload.has(companyKey)) continue;
 
         const existingPayload = companyPayloadByName.get(companyKey);
         if (!existingPayload) {
             companyPayloadByName.set(companyKey, {
-                companyData: r.companyData,
-                companyCustomData: r.companyCustomData,
+                companyData: { ...r.companyData },
+                companyCustomData: { ...r.companyCustomData },
                 companyAdditionalPhones: r.companyAdditionalPhones ?? [],
             });
             continue;
@@ -675,61 +776,79 @@ async function processBatch(
                 existingPayload.companyData[key] = value;
             }
         }
-
         for (const [key, value] of Object.entries(r.companyCustomData)) {
             if (!existingPayload.companyCustomData[key] && value) {
                 existingPayload.companyCustomData[key] = value;
             }
         }
-
         if (r.companyAdditionalPhones && r.companyAdditionalPhones.length > 0) {
             existingPayload.companyAdditionalPhones.push(...r.companyAdditionalPhones);
         }
     }
 
-    // Create missing companies in batch (avoids long sequential DB calls and Vercel 300s timeouts)
+    /** Split a raw phone cell into {primary, extras}. */
+    const splitCompanyPhone = (
+        companyData: Record<string, string>,
+        companyAdditionalPhones: string[]
+    ): { phone: string | null; extraPhones: string[] } => {
+        let phone: string | null = null;
+        let extraPhones: string[] = [];
+        if (companyData.phone) {
+            const parts = splitPhoneValues(companyData.phone);
+            if (parts.length > 0) {
+                phone = parts[0];
+                if (parts.length > 1) extraPhones = parts.slice(1);
+            }
+        }
+        const extraFromColumns = companyAdditionalPhones.flatMap((raw) => splitPhoneValues(raw));
+        if (!phone && extraFromColumns.length > 0) {
+            phone = extraFromColumns[0];
+            extraPhones.push(...extraFromColumns.slice(1));
+        } else {
+            extraPhones.push(...extraFromColumns);
+        }
+        return {
+            phone,
+            extraPhones: Array.from(new Set(extraPhones.filter((p) => !phone || p !== phone))),
+        };
+    };
+
+    // 3a) Create missing / cross-list-linked companies in one batch insert.
     if (namesToCreate.length > 0) {
         const companiesCreateData = namesToCreate
             .map((name) => {
                 const payload = companyPayloadByName.get(name);
                 if (!payload) return null;
+                const match = companyMap.get(name); // crossList match, or undefined for a brand-new company
                 const { companyData, companyCustomData, companyAdditionalPhones } = payload;
 
-                // Normalize company phone: allow multiple numbers in one cell, separated by ; or ,
-                let companyPhone: string | null = null;
-                let companyExtraPhones: string[] = [];
-                if (companyData.phone) {
-                    const parts = splitPhoneValues(companyData.phone);
-                    if (parts.length > 0) {
-                        companyPhone = parts[0];
-                        if (parts.length > 1) companyExtraPhones = parts.slice(1);
-                    }
+                // Cross-list Mission-scope match under Smart Merge: fill still-empty CSV
+                // fields from the canonical record so the new linked row isn't sparser
+                // than what's already known about this company elsewhere in the mission.
+                const effectiveCompanyData = { ...companyData };
+                if (match?.crossList && duplicateStrategy === "smart_merge") {
+                    if (!effectiveCompanyData.industry && match.industry) effectiveCompanyData.industry = match.industry;
+                    if (!effectiveCompanyData.country && match.country) effectiveCompanyData.country = match.country;
+                    if (!effectiveCompanyData.website && match.website) effectiveCompanyData.website = match.website;
+                    if (!effectiveCompanyData.size && match.size) effectiveCompanyData.size = match.size;
+                    if (!effectiveCompanyData.phone && match.phone) effectiveCompanyData.phone = match.phone;
                 }
 
-                const extraFromColumns = companyAdditionalPhones.flatMap((raw) =>
-                    splitPhoneValues(raw)
-                );
-                if (!companyPhone && extraFromColumns.length > 0) {
-                    companyPhone = extraFromColumns[0];
-                    companyExtraPhones.push(...extraFromColumns.slice(1));
-                } else {
-                    companyExtraPhones.push(...extraFromColumns);
-                }
-
-                const normalizedCompanyExtraPhones = Array.from(
-                    new Set(companyExtraPhones.filter((p) => !companyPhone || p !== companyPhone))
+                const { phone: companyPhone, extraPhones: normalizedCompanyExtraPhones } = splitCompanyPhone(
+                    effectiveCompanyData,
+                    companyAdditionalPhones
                 );
 
                 const createData: Record<string, unknown> = {
-                    name: companyData.name,
-                    industry: companyData.industry || null,
-                    country: companyData.country || null,
-                    website: companyData.website || null,
-                    size: companyData.size || null,
+                    name: effectiveCompanyData.name,
+                    industry: effectiveCompanyData.industry || null,
+                    country: effectiveCompanyData.country || null,
+                    website: effectiveCompanyData.website || null,
+                    size: effectiveCompanyData.size || null,
                     listId,
                 };
-
-                if (companyPhone) (createData as Record<string, unknown>).phone = companyPhone;
+                if (match?.crossList) createData.linkedFromId = match.id;
+                if (companyPhone) createData.phone = companyPhone;
 
                 const customData: Record<string, unknown> = { ...companyCustomData };
                 if (normalizedCompanyExtraPhones.length > 0) {
@@ -756,38 +875,100 @@ async function processBatch(
                 select: { id: true, name: true },
             });
             for (const c of createdCompanies) {
-                // hasActions=false for newly created records in this batch
-                companyMap.set(normalizeCompanyName(c.name), { id: c.id, hasActions: false });
+                const key = normalizeCompanyName(c.name);
+                if (companyMap.has(key) && !companyMap.get(key)!.crossList) continue; // already an in-place match
+                companyMap.set(key, {
+                    id: c.id,
+                    listId,
+                    hasActions: false,
+                    crossList: false,
+                    name: c.name,
+                    industry: null,
+                    country: null,
+                    website: null,
+                    size: null,
+                    phone: null,
+                    customData: null,
+                });
             }
         }
     }
 
+    // 3b) Update companies that already exist in this exact list (Smart Merge / Overwrite).
+    if (namesToUpdateInPlace.length > 0) {
+        const updates: Promise<unknown>[] = [];
+        for (const name of namesToUpdateInPlace) {
+            const match = companyMap.get(name);
+            const payload = companyPayloadByName.get(name);
+            if (!match || !payload) continue;
+            const { companyData, companyCustomData, companyAdditionalPhones } = payload;
+            const { phone: csvPhone, extraPhones: csvExtraPhones } = splitCompanyPhone(
+                companyData,
+                companyAdditionalPhones
+            );
 
-    // 4) Contacts: preload existing for all companies in this batch (same dedup as original: email OR firstName+lastName)
+            const updateData: Record<string, unknown> = {};
+            const fields: [keyof CompanyMatch, string | undefined][] = [
+                ["industry", companyData.industry],
+                ["country", companyData.country],
+                ["website", companyData.website],
+                ["size", companyData.size],
+            ];
+            for (const [field, csvValue] of fields) {
+                if (!csvValue) continue;
+                const existingValue = match[field];
+                if (duplicateStrategy === "overwrite" || !existingValue) {
+                    updateData[field] = csvValue;
+                }
+            }
+            if (csvPhone && (duplicateStrategy === "overwrite" || !match.phone)) {
+                updateData.phone = csvPhone;
+            }
+
+            const customDataToMerge: Record<string, string> = { ...companyCustomData };
+            if (csvExtraPhones.length > 0) customDataToMerge.additionalPhones = csvExtraPhones.join(",");
+            const mergedCustomData = mergeCustomData(match.customData, customDataToMerge, duplicateStrategy);
+            if (mergedCustomData !== undefined) updateData.customData = mergedCustomData;
+
+            if (Object.keys(updateData).length > 0) {
+                updates.push(prisma.company.update({ where: { id: match.id }, data: updateData }));
+                companiesUpdated++;
+            }
+        }
+        if (updates.length > 0) await Promise.all(updates);
+    }
+
+    // 4) Contacts: preload existing for all companies in this batch (same dedup as before:
+    // email OR firstName+lastName), plus enough fields to fill in gaps under Smart Merge.
     const companyIds = [...companyMap.values()].map((c) => c.id);
     const existingContacts = await prisma.contact.findMany({
         where: { companyId: { in: companyIds } },
-        select: { companyId: true, email: true, firstName: true, lastName: true },
+        select: { id: true, companyId: true, email: true, firstName: true, lastName: true, phone: true, title: true, linkedin: true },
     });
-    const existingContactKeys = new Set<string>();
+    const existingContactByKey = new Map<string, (typeof existingContacts)[number]>();
     for (const c of existingContacts) {
         const normalizedExistingEmail = normalizeEmail(c.email);
         if (normalizedExistingEmail) {
-            existingContactKeys.add(`${c.companyId}:email:${normalizedExistingEmail}`);
+            existingContactByKey.set(`${c.companyId}:email:${normalizedExistingEmail}`, c);
         }
         if (c.firstName != null || c.lastName != null) {
-            existingContactKeys.add(
-                `${c.companyId}:name:${normalizePersonName(c.firstName)}:${normalizePersonName(c.lastName)}`
+            existingContactByKey.set(
+                `${c.companyId}:name:${normalizePersonName(c.firstName)}:${normalizePersonName(c.lastName)}`,
+                c
             );
         }
     }
 
-    const contactExists = (companyId: string, email: string | null, firstName: string | null, lastName: string | null) =>
-        (!!normalizeEmail(email) && existingContactKeys.has(`${companyId}:email:${normalizeEmail(email)}`)) ||
-        existingContactKeys.has(
+    const findExistingContact = (companyId: string, email: string | null, firstName: string | null, lastName: string | null) => {
+        const normalizedEmail = normalizeEmail(email);
+        if (normalizedEmail) {
+            const byEmail = existingContactByKey.get(`${companyId}:email:${normalizedEmail}`);
+            if (byEmail) return byEmail;
+        }
+        return existingContactByKey.get(
             `${companyId}:name:${normalizePersonName(firstName)}:${normalizePersonName(lastName)}`
         );
-
+    };
     const contactsToCreate: {
         companyId: string;
         firstName: string | null;
@@ -799,6 +980,7 @@ async function processBatch(
         linkedin: string | null;
         customData: Record<string, string> | undefined;
     }[] = [];
+    const contactUpdates: Promise<unknown>[] = [];
 
     for (const r of validRows) {
         const company = companyMap.get(normalizeCompanyName(r.companyName));
@@ -808,13 +990,32 @@ async function processBatch(
         const email = cd.email || null;
         const firstName = cd.firstName || null;
         const lastName = cd.lastName || null;
-        if (contactExists(company.id, email, firstName, lastName)) continue;
+        const existing = findExistingContact(company.id, email, firstName, lastName);
+        if (existing) {
+            if (duplicateStrategy === "smart_merge") {
+                const patch: Record<string, unknown> = {};
+                if (!existing.phone && cd.phone) patch.phone = splitPhoneValues(cd.phone)[0] ?? cd.phone;
+                if (!existing.title && cd.title) patch.title = cd.title;
+                if (!existing.linkedin && cd.linkedin) patch.linkedin = cd.linkedin;
+                if (Object.keys(patch).length > 0) {
+                    contactUpdates.push(prisma.contact.update({ where: { id: existing.id }, data: patch }));
+                    contactsUpdated++;
+                } else {
+                    contactsSkipped++;
+                }
+            } else {
+                contactsSkipped++;
+            }
+            continue;
+        }
         // Mark as seen for this batch (avoid duplicate contacts within batch)
         const normalizedEmail = normalizeEmail(email);
-        if (normalizedEmail) existingContactKeys.add(`${company.id}:email:${normalizedEmail}`);
-        existingContactKeys.add(
-            `${company.id}:name:${normalizePersonName(firstName)}:${normalizePersonName(lastName)}`
-        );
+        const seenKey = normalizedEmail
+            ? `${company.id}:email:${normalizedEmail}`
+            : `${company.id}:name:${normalizePersonName(firstName)}:${normalizePersonName(lastName)}`;
+        existingContactByKey.set(seenKey, {
+            id: "", companyId: company.id, email, firstName, lastName, phone: cd.phone ?? null, title: cd.title ?? null, linkedin: cd.linkedin ?? null,
+        });
         // Normalize contact phone: allow multiple numbers in one cell, separated by ; or ,
         let phone: string | null = null;
         let additionalPhones: string[] = [];
@@ -862,6 +1063,10 @@ async function processBatch(
             customData:
                 r.contactCustomData && Object.keys(r.contactCustomData).length > 0 ? r.contactCustomData : undefined,
         });
+    }
+
+    if (contactUpdates.length > 0) {
+        await Promise.all(contactUpdates);
     }
 
     if (contactsToCreate.length > 0) {
@@ -1118,7 +1323,16 @@ async function processBatch(
         }
     }
 
-    return { companies: companiesCreated, contacts: contactsCreated, actions: actionsCreated, errs };
+    return {
+        companiesCreated,
+        companiesUpdated,
+        companiesSkipped,
+        contactsCreated,
+        contactsUpdated,
+        contactsSkipped,
+        actionsCreated,
+        errs,
+    };
 }
 
 /**
