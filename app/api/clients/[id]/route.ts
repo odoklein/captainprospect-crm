@@ -29,6 +29,8 @@ const updateClientSchema = z.object({
     /** Default outbound mailbox for this client (stored in onboardingData.defaultMailboxId) */
     defaultMailboxId: z.string().optional().or(z.literal('')),
     status: z.enum(['ACTIVE', 'PAUSED', 'STOPPED']).optional(),
+    /** Contracted staffing volume (days/week) — surfaced on the staffing dashboard */
+    contractedDaysPerWeek: z.number().min(0).max(7).nullable().optional(),
 });
 
 // ============================================

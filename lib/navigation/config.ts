@@ -28,6 +28,7 @@ import {
   Activity,
   Key,
   Brain,
+  UserCheck,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 
@@ -94,6 +95,14 @@ export const MANAGER_NAV: NavSection[] = [
   {
     title: "Suivi",
     items: [
+      {
+        href: "/manager/dashboard-projet",
+        icon: UserCheck,
+        label: "Dashboard Projet",
+        // Same audience as "Clients" (not the unrelated "Projets"/pages.projects
+        // permission the initial draft borrowed) — this is a client staffing view.
+        permission: "pages.clients",
+      },
       {
         href: "/manager/clients",
         icon: Building2,

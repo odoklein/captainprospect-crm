@@ -577,6 +577,10 @@ model Client {
   logo          String?
   bookingUrl    String?   // URL for booking tools (Calendly, etc.)
   status        ClientStatus @default(ACTIVE)
+
+  // Contracted staffing volume (days/week the client pays for) — surfaced on the
+  // staffing dashboard; null means "not set yet" and is flagged there.
+  contractedDaysPerWeek Float?
   
   // Default mailbox for this client (optional)
   defaultMailboxId String?
@@ -950,6 +954,9 @@ model Action {
   @@index([companyId])
   @@index([contactId])
   @@index([callbackDate])
+  // Powers "historical bookers per client/mission" aggregation on the staffing
+  // dashboard (groupBy sdrId filtered by campaignId IN (...)).
+  @@index([campaignId])
 }
 
 // Config-driven action status definitions (per scope: GLOBAL, CLIENT, MISSION, CAMPAIGN)
