@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useId } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,13 @@ interface ModalProps {
     closeOnOverlay?: boolean;
     closeOnEscape?: boolean;
     className?: string;
+    /** Overrides the padding/scroll wrapper around children — for dialogs that
+     *  own their full-bleed layout (e.g. sidebar + content split views). */
+    contentClassName?: string;
 }
+
+const FOCUSABLE =
+    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const SIZES = {
     sm: "max-w-md",
@@ -40,9 +46,13 @@ export function Modal({
     closeOnOverlay = true,
     closeOnEscape = true,
     className,
+    contentClassName,
 }: ModalProps) {
     const modalRef = useRef<HTMLDivElement>(null);
     const overlayPointerDownRef = useRef(false);
+    const uid = useId();
+    const titleId = `${uid}-title`;
+    const descId = `${uid}-desc`;
 
     // Handle ESC key
     const handleKeyDown = useCallback(
@@ -97,12 +107,34 @@ export function Modal({
         };
     }, [isOpen, handleKeyDown]);
 
-    // Focus trap
+    // Focus: move into the dialog on open, restore to the trigger on close
     useEffect(() => {
-        if (isOpen && modalRef.current) {
-            modalRef.current.focus();
-        }
+        if (!isOpen) return;
+        const previouslyFocused = document.activeElement as HTMLElement | null;
+        const node = modalRef.current;
+        // Prefer the first meaningful control, fall back to the dialog itself
+        const first = node?.querySelector<HTMLElement>(FOCUSABLE);
+        (first ?? node)?.focus();
+        return () => previouslyFocused?.focus?.();
     }, [isOpen]);
+
+    // Keep Tab cycling inside the dialog
+    const handleTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key !== "Tab" || !modalRef.current) return;
+        const items = Array.from(
+            modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+        ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    };
 
     if (!isOpen) return null;
 
@@ -119,6 +151,11 @@ export function Modal({
             <div
                 ref={modalRef}
                 tabIndex={-1}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={title ? titleId : undefined}
+                aria-describedby={description ? descId : undefined}
+                onKeyDown={handleTabKey}
                 onPointerDown={handleModalPointerDown}
                 className={cn(
                     "relative w-full bg-white border border-slate-200 shadow-xl rounded-2xl overflow-hidden flex flex-col text-slate-900",
@@ -133,12 +170,12 @@ export function Modal({
                     <div className="flex-shrink-0 flex items-start justify-between px-6 py-5 border-b border-slate-200 bg-slate-50">
                         <div className="pr-8">
                             {title && (
-                                <h2 className="text-xl font-bold text-slate-900">
+                                <h2 id={titleId} className="text-xl font-bold text-slate-900">
                                     {title}
                                 </h2>
                             )}
                             {description && (
-                                <p className="text-sm text-slate-600 mt-1.5 font-medium">
+                                <p id={descId} className="text-sm text-slate-600 mt-1.5 font-medium">
                                     {description}
                                 </p>
                             )}
@@ -146,7 +183,8 @@ export function Modal({
                         {showCloseButton && (
                             <button
                                 onClick={onClose}
-                                className="absolute right-4 top-4 p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-full transition-all duration-200 z-10"
+                                aria-label="Fermer"
+                                className="absolute right-4 top-4 p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-full transition-all duration-200 z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -155,7 +193,14 @@ export function Modal({
                 )}
 
                 {/* Content - explicit bg and text so content is never white-on-white */}
-                <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-white text-slate-900">{children}</div>
+                <div
+                    className={cn(
+                        "p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-white text-slate-900",
+                        contentClassName
+                    )}
+                >
+                    {children}
+                </div>
             </div>
         </div>
     );

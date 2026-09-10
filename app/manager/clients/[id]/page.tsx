@@ -280,6 +280,53 @@ const SESSION_MARKDOWN_CLASS =
 
 const CHANNEL_LABELS = { CALL: "Appel", EMAIL: "Email", LINKEDIN: "LinkedIn" };
 
+// Channel is the primary classifier of a mission — give it a colour + icon
+// instead of the grey 11px subtitle it used to be
+const CHANNEL_STYLES = {
+    CALL: { Icon: Phone, icon: "bg-indigo-50 text-indigo-600", badge: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+    EMAIL: { Icon: Mail, icon: "bg-sky-50 text-sky-600", badge: "bg-sky-50 text-sky-700 border-sky-200" },
+    LINKEDIN: { Icon: Briefcase, icon: "bg-violet-50 text-violet-600", badge: "bg-violet-50 text-violet-700 border-violet-200" },
+} as const;
+
+/**
+ * Shared switch — the page previously mixed raw <input type="checkbox">
+ * (portal settings) with a hand-rolled toggle (commercial status).
+ */
+function Toggle({
+    checked,
+    onChange,
+    disabled,
+    label,
+}: {
+    checked: boolean;
+    onChange: (next: boolean) => void;
+    disabled?: boolean;
+    label: string;
+}) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            aria-label={label}
+            disabled={disabled}
+            onClick={() => onChange(!checked)}
+            className={cn(
+                "w-11 h-6 rounded-full relative shrink-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
+                checked ? "bg-emerald-500" : "bg-slate-300",
+                disabled && "opacity-50 cursor-not-allowed"
+            )}
+        >
+            <span
+                className={cn(
+                    "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform",
+                    checked ? "translate-x-[22px]" : "translate-x-1"
+                )}
+            />
+        </button>
+    );
+}
+
 function generateRandomPassword(length = 14): string {
     const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%";
     let out = "";
@@ -383,6 +430,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const [editFormData, setEditFormData] = useState({
         name: "", industry: "", email: "", phone: "", bookingUrl: "",
     });
+    const [isUpdatingClient, setIsUpdatingClient] = useState(false);
     const [showPersonaModal, setShowPersonaModal] = useState(false);
     const [personaValue, setPersonaValue] = useState("");
     const [isSavingPersona, setIsSavingPersona] = useState(false);
@@ -425,6 +473,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     const [isSavingInt, setIsSavingInt] = useState(false);
     const [activatingPortalFor, setActivatingPortalFor] = useState<string | null>(null);
     const [portalCredentials, setPortalCredentials] = useState<{ intId: string; email: string; password: string } | null>(null);
+    // Destructive-action confirmations (commerciaux)
+    const [intToDelete, setIntToDelete] = useState<ClientInterlocuteur | null>(null);
+    const [portalToRevoke, setPortalToRevoke] = useState<ClientInterlocuteur | null>(null);
 
     // Tabs
     const [activeTab, setActiveTab] = useState<"overview" | "missions" | "sessions" | "analytics">("overview");
@@ -1006,7 +1057,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
     // ============================================================
 
     const handleUpdate = async () => {
-        if (!client) return;
+        if (!client || !editFormData.name.trim()) return;
+        setIsUpdatingClient(true);
         try {
             const res = await fetch(`/api/clients/${client.id}`, {
                 method: "PUT",
@@ -1020,6 +1072,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 success("Client mis à jour", `${editFormData.name} a été mis à jour`);
             } else showError("Erreur", json.error);
         } catch { showError("Erreur", "Impossible de mettre à jour le client"); }
+        finally { setIsUpdatingClient(false); }
     };
 
     const handleSavePersona = async () => {
@@ -1422,6 +1475,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             if (json.success) {
                 setInterlocuteurs(prev => prev.filter(i => i.id !== iid));
                 success("Commercial supprimé", "Le commercial a été supprimé");
+                setIntToDelete(null);
             } else showError("Erreur", json.error);
         } catch { showError("Erreur", "Impossible de supprimer le commercial"); }
         finally { setIsDeletingInt(null); }
@@ -1470,6 +1524,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     : i
                 ));
                 success("Portail désactivé", `L'accès portail de ${interl.firstName} a été révoqué`);
+                setPortalToRevoke(null);
             } else showError("Erreur", json.error);
         } catch { showError("Erreur", "Une erreur est survenue"); }
         finally { setActivatingPortalFor(null); }
@@ -1492,6 +1547,21 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
     const clientPortalUsers = (client?.users || []).filter((u) => u.role === "CLIENT");
     const commercialPortalUsers = interlocuteurs.filter((i) => i.portalUser);
+
+    // Primary email of an interlocuteur — same rule the activate-portal route uses
+    const primaryEmailOf = (i: ClientInterlocuteur) =>
+        (i.emails.find((e) => e.isPrimary) || i.emails[0])?.value ?? "";
+
+    // Emails shared by 2+ commerciaux — surfaced as a warning, since the portal
+    // keys accounts by email and a duplicate silently blocks the second activation
+    const duplicateIntEmails = (() => {
+        const seen = new Map<string, number>();
+        interlocuteurs.forEach((i) => {
+            const e = primaryEmailOf(i).toLowerCase();
+            if (e) seen.set(e, (seen.get(e) ?? 0) + 1);
+        });
+        return new Set([...seen.entries()].filter(([, n]) => n > 1).map(([e]) => e));
+    })();
 
     // ============================================================
     // LOADING
@@ -1769,39 +1839,51 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                         {/* LEFT — Missions actives + Sessions récentes */}
-                        <div className="lg:col-span-2 space-y-8">
+                        <div className="lg:col-span-2 space-y-6">
                             {/* Missions actives */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Missions actives</h2>
-                                    <button onClick={() => setActiveTab("missions")} className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Missions actives</h2>
+                                    <button onClick={() => setActiveTab("missions")} className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                                         Tout voir <ArrowUpRight className="w-3 h-3" />
                                     </button>
                                 </div>
                                 {client.missions?.filter(m => m.isActive).length ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {client.missions.filter(m => m.isActive).slice(0, 4).map((mission) => (
-                                            <Link key={mission.id} href={`/manager/missions/${mission.id}`}>
-                                                <Card className="group overflow-hidden border-slate-200 hover:shadow-md transition-all duration-200 h-full">
-                                                    <div className="p-4 space-y-3">
+                                            <Link key={mission.id} href={`/manager/missions/${mission.id}`} className="block h-full group focus:outline-none">
+                                                <Card className="overflow-hidden border-slate-200 hover:shadow-md hover:border-indigo-200 group-focus-visible:ring-2 group-focus-visible:ring-indigo-500 transition-all duration-200 h-full">
+                                                    <div className="p-4 flex flex-col h-full gap-3">
                                                         <div className="flex items-start justify-between gap-2">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-                                                                    <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0", CHANNEL_STYLES[mission.channel].icon)}>
+                                                                    {(() => {
+                                                                        const ChannelIcon = CHANNEL_STYLES[mission.channel].Icon;
+                                                                        return <ChannelIcon className="w-4 h-4" />;
+                                                                    })()}
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <p className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 truncate">{mission.name}</p>
-                                                                    <p className="text-xs text-slate-500 mt-0.5">{CHANNEL_LABELS[mission.channel]}</p>
+                                                                    <Badge className={cn("mt-1 text-[10px] border", CHANNEL_STYLES[mission.channel].badge)}>
+                                                                        {CHANNEL_LABELS[mission.channel]}
+                                                                    </Badge>
                                                                 </div>
                                                             </div>
                                                             <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0 mt-1" />
                                                         </div>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex items-center justify-between text-xs text-slate-500">
-                                                                <span>{mission._count.campaigns} campagne{mission._count.campaigns > 1 ? "s" : ""}</span>
-                                                                <span>{mission._count.lists} liste{mission._count.lists > 1 ? "s" : ""}</span>
-                                                            </div>
-                                                            <ProgressBar value={mission._count.campaigns} max={Math.max(mission._count.campaigns + mission._count.lists, 1)} height="sm" />
+                                                        {/* Two plain counts — the previous ProgressBar plotted campaigns
+                                                            over campaigns+lists, which measured nothing */}
+                                                        <div className="mt-auto flex items-center gap-2">
+                                                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1 text-xs text-slate-600">
+                                                                <Zap className="w-3 h-3 text-slate-400 shrink-0" />
+                                                                <span className="font-semibold text-slate-900">{mission._count.campaigns}</span>
+                                                                campagne{mission._count.campaigns > 1 ? "s" : ""}
+                                                            </span>
+                                                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2 py-1 text-xs text-slate-600">
+                                                                <List className="w-3 h-3 text-slate-400 shrink-0" />
+                                                                <span className="font-semibold text-slate-900">{mission._count.lists}</span>
+                                                                liste{mission._count.lists > 1 ? "s" : ""}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </Card>
@@ -1824,8 +1906,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             {/* Sessions récentes */}
                             <div>
                                 <div className="flex items-center justify-between mb-4">
-                                    <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Sessions récentes</h2>
-                                    <button onClick={() => setActiveTab("sessions")} className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700">
+                                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Sessions récentes</h2>
+                                    <button onClick={() => setActiveTab("sessions")} className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
                                         Tout voir <ArrowUpRight className="w-3 h-3" />
                                     </button>
                                 </div>
@@ -1861,9 +1943,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         <div className="p-8 text-center">
                                             <FileText className="w-10 h-10 text-slate-200 mx-auto mb-2" />
                                             <p className="text-sm text-slate-500">Aucune session enregistrée</p>
-                                            <button onClick={() => setActiveTab("sessions")} className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1">
-                                                Créer la première <ArrowUpRight className="w-3 h-3" />
-                                            </button>
+                                            {/* This only navigates to the Sessions tab — label it accordingly */}
+                                            <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => setActiveTab("sessions")}>
+                                                <Mic className="w-3.5 h-3.5" />
+                                                Ajouter une session
+                                            </Button>
                                         </div>
                                     </Card>
                                 )}
@@ -1885,8 +1969,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                 <Mail className="w-3.5 h-3.5 text-slate-400" />
                                             </div>
                                             <a href={`mailto:${client.email}`} className="text-sm text-slate-700 hover:text-indigo-600 truncate flex-1">{client.email}</a>
-                                            <button onClick={() => { navigator.clipboard.writeText(client.email!); success("Copié", ""); }} className="opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                <Copy className="w-3.5 h-3.5 text-slate-300 hover:text-slate-500" />
+                                            <button
+                                                onClick={() => { navigator.clipboard.writeText(client.email!); success("Copié", "Email copié dans le presse-papiers"); }}
+                                                aria-label="Copier l'email"
+                                                title="Copier l'email"
+                                                className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                            >
+                                                <Copy className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     ) : <p className="text-sm text-slate-400 italic">Email non renseigné</p>}
@@ -1896,8 +1985,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                 <Phone className="w-3.5 h-3.5 text-slate-400" />
                                             </div>
                                             <a href={`tel:${client.phone}`} className="text-sm text-slate-700 hover:text-indigo-600 flex-1">{client.phone}</a>
-                                            <button onClick={() => { navigator.clipboard.writeText(client.phone!); success("Copié", ""); }} className="opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                <Copy className="w-3.5 h-3.5 text-slate-300 hover:text-slate-500" />
+                                            <button
+                                                onClick={() => { navigator.clipboard.writeText(client.phone!); success("Copié", "Téléphone copié dans le presse-papiers"); }}
+                                                aria-label="Copier le téléphone"
+                                                title="Copier le téléphone"
+                                                className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                            >
+                                                <Copy className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
                                     ) : <p className="text-sm text-slate-400 italic">Téléphone non renseigné</p>}
@@ -1935,7 +2029,23 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             {(client.onboarding?.onboardingData as { icp?: string }).icp}
                                         </p>
                                     ) : (
-                                        <p className="text-sm text-slate-400 italic">Persona non renseigné. Cliquez sur Modifier.</p>
+                                        <div className="text-center py-2">
+                                            <p className="text-sm text-slate-500 mb-3">
+                                                Aucun profil cible défini pour ce client.
+                                            </p>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-1.5 text-xs"
+                                                onClick={() => {
+                                                    setPersonaValue((client.onboarding?.onboardingData as { icp?: string } | null)?.icp ?? "");
+                                                    setShowPersonaModal(true);
+                                                }}
+                                            >
+                                                <Target className="w-3.5 h-3.5" />
+                                                Définir le persona
+                                            </Button>
+                                        </div>
                                     )}
                                 </div>
                             </Card>
@@ -1971,7 +2081,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             <div className="space-y-2">
                                                 {interlocuteurs.map((interl) => {
                                                     const primaryEmail = interl.emails.find(e => e.isPrimary) || interl.emails[0];
-                                                    const primaryPhone = interl.phones.find(p => p.isPrimary) || interl.phones[0];
+                                                    const isDuplicateEmail = !!primaryEmail && duplicateIntEmails.has(primaryEmail.value.toLowerCase());
+                                                    const portalEmail = interl.portalUser?.email;
+                                                    const portalEmailStale = !!portalEmail && !!primaryEmail
+                                                        && portalEmail.toLowerCase() !== primaryEmail.value.toLowerCase();
+                                                    const initials = `${interl.firstName[0] ?? ""}${interl.lastName[0] ?? ""}`.toUpperCase();
                                                     const hash = interl.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
                                                     const avatarColors = [
                                                         "bg-indigo-100 text-indigo-700",
@@ -1987,36 +2101,51 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                             <div className="flex items-center justify-between gap-2">
                                                                 <div className="flex items-center gap-2.5 min-w-0">
                                                                     <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0", avatarColor)}>
-                                                                        {interl.firstName[0]}{interl.lastName[0]}
+                                                                        {initials}
                                                                     </div>
                                                                     <div className="min-w-0">
                                                                         <p className={cn("text-sm font-semibold text-slate-900 truncate", !interl.isActive && "line-through text-slate-400")}>
                                                                             {interl.firstName} {interl.lastName}
                                                                         </p>
-                                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                                            {interl.title && <span className="text-[11px] text-slate-500 truncate">{interl.title}</span>}
+                                                                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                                                                            {interl.title && <span className="text-[11px] text-slate-500 truncate shrink-0">{interl.title}</span>}
                                                                             {primaryEmail && (
-                                                                                <span className="text-[11px] text-slate-400 truncate hidden sm:inline">{interl.title ? "·" : ""} {primaryEmail.value}</span>
+                                                                                <span className="text-[11px] text-slate-400 truncate">{interl.title ? "· " : ""}{primaryEmail.value}</span>
                                                                             )}
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                                                                    <Badge className={cn("text-[10px] border-0", interl.isActive ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500")}>
-                                                                        {interl.isActive ? "Actif" : "Inactif"}
-                                                                    </Badge>
-                                                                    <button onClick={() => { setEditingInt(interl); setShowIntModal(true); }} className="p-1 text-slate-400 hover:text-indigo-600 rounded">
+                                                                {/* Actions stay visible: hiding them behind hover made status
+                                                                    unreadable and the row unusable on touch / keyboard */}
+                                                                <div className="flex items-center gap-0.5 shrink-0">
+                                                                    {!interl.isActive && (
+                                                                        <Badge className="text-[10px] border-0 bg-slate-100 text-slate-500">Inactif</Badge>
+                                                                    )}
+                                                                    <button
+                                                                        onClick={() => { setEditingInt(interl); setShowIntModal(true); }}
+                                                                        aria-label={`Modifier ${interl.firstName} ${interl.lastName}`}
+                                                                        title="Modifier"
+                                                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                    >
                                                                         <Edit className="w-3.5 h-3.5" />
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => handleDeleteInterlocuteur(interl.id)}
+                                                                        onClick={() => setIntToDelete(interl)}
                                                                         disabled={isDeletingInt === interl.id}
-                                                                        className="p-1 text-slate-400 hover:text-red-600 rounded"
+                                                                        aria-label={`Supprimer ${interl.firstName} ${interl.lastName}`}
+                                                                        title="Supprimer"
+                                                                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                                                                     >
                                                                         {isDeletingInt === interl.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                                                                     </button>
                                                                 </div>
                                                             </div>
+                                                            {isDuplicateEmail && (
+                                                                <p className="mt-2 ml-10 inline-flex items-start gap-1.5 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                                                                    <AlertCircle className="w-3 h-3 mt-px shrink-0" />
+                                                                    Email partagé avec un autre commercial — un seul portail pourra être activé.
+                                                                </p>
+                                                            )}
                                                             {(interl.territory || interl.department) && (
                                                                 <div className="flex flex-wrap gap-1 mt-2 ml-10">
                                                                     {interl.territory && <Badge className="text-[10px] bg-slate-100 text-slate-600 border-0">{interl.territory}</Badge>}
@@ -2025,33 +2154,58 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                             )}
                                                             {interl.bookingLinks.length > 0 && (
                                                                 <div className="flex flex-wrap gap-1.5 mt-2 ml-10">
-                                                                    {interl.bookingLinks.map((bl, idx) => (
-                                                                        <button
-                                                                            key={idx}
-                                                                            onClick={() => { navigator.clipboard.writeText(bl.url); success("Lien copié", bl.label); }}
-                                                                            className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-2 py-0.5 text-[10px] font-semibold hover:bg-indigo-100 transition-colors"
-                                                                        >
-                                                                            <Calendar className="w-2.5 h-2.5" />
-                                                                            {bl.label} · {bl.durationMinutes}min
-                                                                            <Copy className="w-2.5 h-2.5 ml-0.5 opacity-60" />
-                                                                        </button>
-                                                                    ))}
+                                                                    {interl.bookingLinks.map((bl, idx) => {
+                                                                        // Labels are free text: they can be empty ("· 30min") or already
+                                                                        // carry the duration ("Découverte 30 · 30min"). Normalise both.
+                                                                        const rawLabel = bl.label?.trim() ?? "";
+                                                                        const label = rawLabel.replace(/[\s·-]*\b\d{1,3}\s*(?:min|mn|minutes?)?$/i, "").trim();
+                                                                        const chipText = label
+                                                                            ? `${label} · ${bl.durationMinutes} min`
+                                                                            : `${bl.durationMinutes} min`;
+                                                                        return (
+                                                                            <button
+                                                                                key={idx}
+                                                                                onClick={() => { navigator.clipboard.writeText(bl.url); success("Lien copié", rawLabel || `${bl.durationMinutes} min`); }}
+                                                                                title={`Copier le lien — ${bl.url}`}
+                                                                                aria-label={`Copier le lien de réservation ${chipText}`}
+                                                                                className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-2 py-0.5 text-[10px] font-semibold hover:bg-indigo-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                            >
+                                                                                <Calendar className="w-2.5 h-2.5 shrink-0" />
+                                                                                {chipText}
+                                                                                <Copy className="w-2.5 h-2.5 ml-0.5 opacity-60 shrink-0" />
+                                                                            </button>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             )}
                                                             <div className="mt-2 pt-2 border-t border-slate-100 ml-10">
                                                                 {interl.portalUser ? (
-                                                                    <div className="flex items-center justify-between">
-                                                                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                                                            <ShieldCheck className="w-2.5 h-2.5" /> Portail actif
-                                                                        </span>
-                                                                        <button
-                                                                            onClick={() => handleDeactivatePortal(interl)}
-                                                                            disabled={activatingPortalFor === interl.id}
-                                                                            className="text-[10px] text-red-400 hover:text-red-600 font-medium"
-                                                                            title="Révoquer l'accès portail"
-                                                                        >
-                                                                            {activatingPortalFor === interl.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Révoquer"}
-                                                                        </button>
+                                                                    <div className="space-y-1.5">
+                                                                        <div className="flex items-center justify-between gap-2">
+                                                                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                                                                <ShieldCheck className="w-2.5 h-2.5" /> Portail actif
+                                                                            </span>
+                                                                            <button
+                                                                                onClick={() => setPortalToRevoke(interl)}
+                                                                                disabled={activatingPortalFor === interl.id}
+                                                                                className="text-[10px] text-red-600 hover:text-red-700 hover:underline font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded"
+                                                                                title="Révoquer l'accès portail"
+                                                                            >
+                                                                                {activatingPortalFor === interl.id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Révoquer"}
+                                                                            </button>
+                                                                        </div>
+                                                                        {/* The portal login is frozen at activation time — show it when it
+                                                                            no longer matches the contact email, instead of letting the two
+                                                                            lists silently disagree */}
+                                                                        {portalEmailStale && (
+                                                                            <p className="flex items-start gap-1.5 text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                                                                                <AlertCircle className="w-3 h-3 mt-px shrink-0" />
+                                                                                <span>
+                                                                                    Identifiant de connexion&nbsp;: <span className="font-semibold break-all">{portalEmail}</span>
+                                                                                    {" "}— différent de l&apos;email de contact.
+                                                                                </span>
+                                                                            </p>
+                                                                        )}
                                                                     </div>
                                                                 ) : (
                                                                     <button
@@ -2129,46 +2283,55 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                 ))}
                                             </div>
                                         ) : (
-                                            <p className="text-xs text-slate-500 mb-3">Aucun accès configuré.</p>
+                                            <div className="mb-3 text-center py-3">
+                                                <ShieldCheck className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                                                <p className="text-xs text-slate-500 mb-3">
+                                                    Le client n&apos;a pas encore d&apos;accès au portail.
+                                                </p>
+                                                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setShowCreateUserModal(true)}>
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                    Créer le premier accès
+                                                </Button>
+                                            </div>
                                         )}
-                                        <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2.5">
-                                            <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
-                                                Paramètres du portail client
-                                            </p>
-                                            <label className="flex items-center justify-between gap-3 text-xs text-slate-700">
-                                                <span>Afficher l&apos;historique d&apos;appels</span>
-                                                <input
-                                                    type="checkbox"
-                                                    className="h-4 w-4 accent-indigo-600"
-                                                    checked={client.portalShowCallHistory ?? false}
-                                                    onChange={(e) => handlePortalVisibilityChange("portalShowCallHistory", e.target.checked)}
-                                                    disabled={isSavingPortalSettings}
-                                                />
-                                            </label>
-                                            <label className="flex items-center justify-between gap-3 text-xs text-slate-700">
-                                                <span>Afficher la base de données (contacts / entreprises)</span>
-                                                <input
-                                                    type="checkbox"
-                                                    className="h-4 w-4 accent-indigo-600"
-                                                    checked={client.portalShowDatabase ?? false}
-                                                    onChange={(e) => handlePortalVisibilityChange("portalShowDatabase", e.target.checked)}
-                                                    disabled={isSavingPortalSettings}
-                                                />
-                                            </label>
-                                            {isSavingPortalSettings && (
-                                                <p className="text-[11px] text-slate-500">Mise à jour en cours...</p>
-                                            )}
+                                        {/* Visibility is a *setting*, not an access — separated from the
+                                            user list above by its own labelled group */}
+                                        <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+                                            <div className="flex items-center justify-between gap-2 mb-2.5">
+                                                <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">
+                                                    Ce que le client voit
+                                                </p>
+                                                {isSavingPortalSettings && (
+                                                    <Loader2 className="w-3 h-3 text-slate-400 animate-spin shrink-0" />
+                                                )}
+                                            </div>
+                                            <div className="space-y-2.5">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <span className="text-xs text-slate-700">Historique d&apos;appels</span>
+                                                    <Toggle
+                                                        label="Afficher l'historique d'appels dans le portail client"
+                                                        checked={client.portalShowCallHistory ?? false}
+                                                        onChange={(next) => handlePortalVisibilityChange("portalShowCallHistory", next)}
+                                                        disabled={isSavingPortalSettings}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <span className="text-xs text-slate-700">Base de données <span className="text-slate-400">(contacts / entreprises)</span></span>
+                                                    <Toggle
+                                                        label="Afficher la base de données dans le portail client"
+                                                        checked={client.portalShowDatabase ?? false}
+                                                        onChange={(next) => handlePortalVisibilityChange("portalShowDatabase", next)}
+                                                        disabled={isSavingPortalSettings}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Button variant="primary" size="sm" className="w-full gap-1.5 text-xs" onClick={openManageAccessDialog}>
-                                                <ShieldCheck className="w-3.5 h-3.5" />
-                                                Gérer les accès clients
-                                            </Button>
-                                            <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={() => setShowCreateUserModal(true)}>
-                                                <Plus className="w-3.5 h-3.5" />
-                                                Nouvel accès rapide
-                                            </Button>
-                                        </div>
+                                        {/* One primary path into the access dialog — "Nouvel accès rapide"
+                                            opened a second, near-identical creation form */}
+                                        <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={openManageAccessDialog}>
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                            Gérer les accès clients
+                                        </Button>
                                     </div>
                                 )}
                             </Card>
@@ -2196,29 +2359,48 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 <div className="p-3">
                                     {commercialPortalUsers.length > 0 ? (
                                         <div className="space-y-1.5">
-                                            {commercialPortalUsers.map((interl) => (
-                                                <button
-                                                    key={interl.id}
-                                                    onClick={() => {
-                                                        if (!interl.portalUser) return;
-                                                        setShowManageAccessDialog(true);
-                                                        handleSelectAccessUser(interl.portalUser.id, "COMMERCIAL");
-                                                    }}
-                                                    className="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-slate-50 text-left transition-colors"
-                                                >
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-medium text-slate-900 truncate">
-                                                            {interl.firstName} {interl.lastName}
-                                                        </p>
-                                                        <p className="text-[11px] text-slate-500 truncate">
-                                                            {interl.portalUser?.email}
-                                                        </p>
-                                                    </div>
-                                                    <Badge className="text-[9px] bg-violet-100 text-violet-700 border-0">
-                                                        COMMERCIAL
-                                                    </Badge>
-                                                </button>
-                                            ))}
+                                            {/* This list intentionally shows the LOGIN identity, not the contact
+                                                card — the section above already covers contact details. The
+                                                per-row "COMMERCIAL" badge was dropped: the card title says it. */}
+                                            <p className="px-2 pb-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                                Identifiants de connexion
+                                            </p>
+                                            {commercialPortalUsers.map((interl) => {
+                                                const contactEmail = primaryEmailOf(interl);
+                                                const loginEmail = interl.portalUser?.email ?? "";
+                                                const isStale = !!contactEmail && loginEmail.toLowerCase() !== contactEmail.toLowerCase();
+                                                const isRevoked = interl.portalUser?.isActive === false;
+                                                return (
+                                                    <button
+                                                        key={interl.id}
+                                                        onClick={() => {
+                                                            if (!interl.portalUser) return;
+                                                            setShowManageAccessDialog(true);
+                                                            handleSelectAccessUser(interl.portalUser.id, "COMMERCIAL");
+                                                        }}
+                                                        className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-medium text-slate-900 truncate flex items-center gap-1.5">
+                                                                {interl.firstName} {interl.lastName}
+                                                                {isRevoked && (
+                                                                    <Badge className="text-[9px] bg-red-100 text-red-700 border-0">Révoqué</Badge>
+                                                                )}
+                                                            </p>
+                                                            <p className="text-[11px] text-slate-500 truncate">{loginEmail}</p>
+                                                        </div>
+                                                        {isStale && (
+                                                            <span
+                                                                title={`L'email de contact est ${contactEmail} — la connexion se fait toujours avec ${loginEmail}`}
+                                                                className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5"
+                                                            >
+                                                                <AlertCircle className="w-2.5 h-2.5" />
+                                                                Écart
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     ) : (
                                         <p className="text-xs text-slate-500">
@@ -3508,7 +3690,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             {/* ── EDIT CLIENT MODAL ── */}
             <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Modifier le client" description="Mettez à jour les informations du client">
                 <div className="space-y-5">
-                    <Input label="Nom du client *" value={editFormData.name} onChange={(e) => setEditFormData(p => ({ ...p, name: e.target.value }))} />
+                    <Input
+                        label="Nom du client *"
+                        value={editFormData.name}
+                        onChange={(e) => setEditFormData(p => ({ ...p, name: e.target.value }))}
+                        error={editFormData.name.trim() ? undefined : "Le nom du client est obligatoire"}
+                    />
                     <Input label="Secteur d'activité" value={editFormData.industry} onChange={(e) => setEditFormData(p => ({ ...p, industry: e.target.value }))} />
                     <Input label="Email de contact" type="email" value={editFormData.email} onChange={(e) => setEditFormData(p => ({ ...p, email: e.target.value }))} icon={<Mail className="w-4 h-4 text-slate-400" />} />
                     <Input label="Téléphone" type="tel" value={editFormData.phone} onChange={(e) => setEditFormData(p => ({ ...p, phone: e.target.value }))} icon={<Phone className="w-4 h-4 text-slate-400" />} />
@@ -3518,8 +3705,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     </div>
                 </div>
                 <ModalFooter>
-                    <Button variant="ghost" onClick={() => setShowEditModal(false)}>Annuler</Button>
-                    <Button variant="primary" onClick={handleUpdate}>Enregistrer</Button>
+                    <Button variant="ghost" onClick={() => setShowEditModal(false)} disabled={isUpdatingClient}>Annuler</Button>
+                    <Button
+                        variant="primary"
+                        onClick={handleUpdate}
+                        isLoading={isUpdatingClient}
+                        disabled={!editFormData.name.trim() || isUpdatingClient}
+                    >
+                        Enregistrer
+                    </Button>
                 </ModalFooter>
             </Modal>
 
@@ -3574,13 +3768,50 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 isLoading={isDeletingUser}
             />
 
+            {/* ── DELETE COMMERCIAL MODAL ── */}
+            <ConfirmModal
+                isOpen={!!intToDelete}
+                onClose={() => !isDeletingInt && setIntToDelete(null)}
+                onConfirm={() => intToDelete && handleDeleteInterlocuteur(intToDelete.id)}
+                title="Supprimer le commercial"
+                message={
+                    intToDelete
+                        ? `Supprimer définitivement ${intToDelete.firstName} ${intToDelete.lastName} ?${intToDelete.portalUser ? " Son accès au portail commercial sera également supprimé." : ""} Cette action est irréversible.`
+                        : ""
+                }
+                confirmText="Supprimer"
+                variant="danger"
+                isLoading={isDeletingInt === intToDelete?.id}
+            />
+
+            {/* ── REVOKE COMMERCIAL PORTAL MODAL ── */}
+            <ConfirmModal
+                isOpen={!!portalToRevoke}
+                onClose={() => !activatingPortalFor && setPortalToRevoke(null)}
+                onConfirm={() => portalToRevoke && handleDeactivatePortal(portalToRevoke)}
+                title="Révoquer l'accès portail"
+                message={
+                    portalToRevoke
+                        ? `${portalToRevoke.firstName} ${portalToRevoke.lastName} ne pourra plus se connecter au portail commercial. Le commercial reste dans la fiche client et son accès peut être réactivé (un nouveau mot de passe sera généré).`
+                        : ""
+                }
+                confirmText="Révoquer"
+                variant="danger"
+                isLoading={activatingPortalFor === portalToRevoke?.id}
+            />
+
             {/* ── CREATE PORTAL USER MODAL ── */}
             <Modal
                 isOpen={showCreateUserModal}
-                onClose={() => !isCreatingUser && setShowCreateUserModal(false)}
-                title="Générer un accès Portail Client"
-                description="Créez un compte pour permettre à votre client de suivre ses missions."
+                onClose={() => !isCreatingUser && !createdUserCredentials && setShowCreateUserModal(false)}
+                title={createdUserCredentials ? "Identifiants du portail client" : "Générer un accès Portail Client"}
+                description={createdUserCredentials
+                    ? "Le mot de passe n'est affiché qu'une seule fois."
+                    : "Créez un compte pour permettre à votre client de suivre ses missions."}
                 size="md"
+                showCloseButton={!createdUserCredentials}
+                closeOnOverlay={!createdUserCredentials}
+                closeOnEscape={!createdUserCredentials}
             >
                 {!createdUserCredentials ? (
                     <div className="space-y-5">
@@ -3635,7 +3866,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
             {/* ── PORTAL CREDENTIALS MODAL ── */}
             {portalCredentials && (
-                <Modal isOpen={true} onClose={() => setPortalCredentials(null)} title="Portail commercial activé">
+                <Modal
+                    isOpen={true}
+                    onClose={() => setPortalCredentials(null)}
+                    title="Portail commercial activé"
+                    description="Le mot de passe n'est affiché qu'une seule fois."
+                    showCloseButton={false}
+                    closeOnOverlay={false}
+                    closeOnEscape={false}
+                >
                     <div className="space-y-4 p-1">
                         <p className="text-sm text-slate-600">
                             Le compte portail a été créé. Transmettez ces identifiants au commercial.
@@ -3673,9 +3912,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 onClose={closeManageAccessDialog}
                 size="xl"
                 showCloseButton={false}
-                className="!p-0 max-h-[90vh]"
+                contentClassName="!p-0 !overflow-hidden"
             >
-                <div className="-m-6 md:-m-8 flex flex-col h-[80vh]">
+                <div className="flex flex-col h-[80vh] max-h-[85vh]">
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                         <div className="flex items-center gap-2.5">
@@ -3698,7 +3937,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     {/* Body: sidebar + content */}
                     <div className="flex flex-1 min-h-0">
                         {/* ── SIDEBAR ── */}
-                        <aside className="w-64 border-r border-slate-200 bg-slate-50/40 flex flex-col">
+                        <aside className="w-44 sm:w-56 lg:w-64 shrink-0 border-r border-slate-200 bg-slate-50/40 flex flex-col">
                             <div className="px-3 py-3 border-b border-slate-200">
                                 <button
                                     onClick={handleStartNewAccess}
@@ -4228,6 +4467,22 @@ function InterlocuteurModal({
         }
     }, [isOpen, editing]);
 
+    // Matches the <Input> component's box so identity fields and the repeatable
+    // email / phone / booking rows stop disagreeing on height, radius and focus ring
+    const FIELD = "h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20";
+
+    const emailErrors = form.emails.map((e) =>
+        e.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.value.trim())
+            ? "Format d'email invalide"
+            : ""
+    );
+    const bookingErrors = form.bookingLinks.map((bl) =>
+        bl.url.trim() && !/^https?:\/\/\S+$/i.test(bl.url.trim())
+            ? "L'URL doit commencer par http:// ou https://"
+            : ""
+    );
+    const hasFieldErrors = emailErrors.some(Boolean) || bookingErrors.some(Boolean);
+
     const updateEmails = (idx: number, patch: Partial<ContactEntry>) => {
         setForm(prev => {
             const next = [...prev.emails];
@@ -4318,7 +4573,7 @@ function InterlocuteurModal({
             description={editing ? `${editing.firstName} ${editing.lastName}` : "Ajoutez un commercial de votre client"}
             size="lg"
         >
-            <div className="space-y-6 max-h-[65vh] overflow-y-auto pr-1">
+            <div className="space-y-6">
 
                 {/* Identité */}
                 <div className="space-y-3">
@@ -4338,33 +4593,48 @@ function InterlocuteurModal({
                 <div className="space-y-2">
                     <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Emails</h3>
                     {form.emails.map((entry, idx) => (
-                        <div key={idx} className="flex gap-2 items-center">
-                            <input
-                                type="email"
-                                placeholder="email@exemple.com"
-                                value={entry.value}
-                                onChange={(e) => updateEmails(idx, { value: e.target.value })}
-                                className="flex-1 min-w-0 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                            />
-                            <input
-                                type="text"
-                                placeholder="Pro, Perso…"
-                                value={entry.label}
-                                onChange={(e) => updateEmails(idx, { label: e.target.value })}
-                                className="w-24 h-9 px-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setPrimaryEmail(idx)}
-                                className={cn("shrink-0 text-xs font-semibold px-2 py-1 rounded-md border transition-colors",
-                                    entry.isPrimary ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-white text-slate-400 border-slate-200 hover:text-indigo-600"
-                                )}
-                            >
-                                Principal
-                            </button>
-                            <button type="button" onClick={() => removeEmail(idx)} disabled={form.emails.length <= 1} className="shrink-0 text-slate-400 hover:text-red-500 disabled:opacity-30">
-                                <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                        <div key={idx}>
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="email"
+                                    placeholder="email@exemple.com"
+                                    aria-label={`Email ${idx + 1}`}
+                                    value={entry.value}
+                                    onChange={(e) => updateEmails(idx, { value: e.target.value })}
+                                    className={cn(FIELD, "flex-1 min-w-0", emailErrors[idx] && "border-red-400 focus:border-red-500 focus:ring-red-500/20")}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Pro, Perso…"
+                                    aria-label={`Libellé de l'email ${idx + 1}`}
+                                    value={entry.label}
+                                    onChange={(e) => updateEmails(idx, { label: e.target.value })}
+                                    className={cn(FIELD, "w-24 shrink-0")}
+                                />
+                                <button
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={entry.isPrimary}
+                                    onClick={() => setPrimaryEmail(idx)}
+                                    title="Utiliser comme email principal (identifiant du portail)"
+                                    className={cn("shrink-0 h-10 text-xs font-semibold px-2.5 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
+                                        entry.isPrimary ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:text-indigo-600 hover:border-indigo-300"
+                                    )}
+                                >
+                                    Principal
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => removeEmail(idx)}
+                                    disabled={form.emails.length <= 1}
+                                    aria-label={`Supprimer l'email ${idx + 1}`}
+                                    title={form.emails.length <= 1 ? "Au moins un email est requis" : "Supprimer cet email"}
+                                    className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                            {emailErrors[idx] && <p className="mt-1 text-[11px] text-red-500">{emailErrors[idx]}</p>}
                         </div>
                     ))}
                     <button type="button" onClick={addEmail} className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">+ Ajouter un email</button>
@@ -4378,27 +4648,39 @@ function InterlocuteurModal({
                             <input
                                 type="tel"
                                 placeholder="+33 6 12 34 56 78"
+                                aria-label={`Téléphone ${idx + 1}`}
                                 value={entry.value}
                                 onChange={(e) => updatePhones(idx, { value: e.target.value })}
-                                className="flex-1 min-w-0 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                                className={cn(FIELD, "flex-1 min-w-0")}
                             />
                             <input
                                 type="text"
                                 placeholder="Pro, Perso…"
+                                aria-label={`Libellé du téléphone ${idx + 1}`}
                                 value={entry.label}
                                 onChange={(e) => updatePhones(idx, { label: e.target.value })}
-                                className="w-24 h-9 px-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                                className={cn(FIELD, "w-24 shrink-0")}
                             />
                             <button
                                 type="button"
+                                role="radio"
+                                aria-checked={entry.isPrimary}
                                 onClick={() => setPrimaryPhone(idx)}
-                                className={cn("shrink-0 text-xs font-semibold px-2 py-1 rounded-md border transition-colors",
-                                    entry.isPrimary ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-white text-slate-400 border-slate-200 hover:text-indigo-600"
+                                title="Utiliser comme téléphone principal"
+                                className={cn("shrink-0 h-10 text-xs font-semibold px-2.5 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
+                                    entry.isPrimary ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:text-indigo-600 hover:border-indigo-300"
                                 )}
                             >
                                 Principal
                             </button>
-                            <button type="button" onClick={() => removePhone(idx)} disabled={form.phones.length <= 1} className="shrink-0 text-slate-400 hover:text-red-500 disabled:opacity-30">
+                            <button
+                                type="button"
+                                onClick={() => removePhone(idx)}
+                                disabled={form.phones.length <= 1}
+                                aria-label={`Supprimer le téléphone ${idx + 1}`}
+                                title={form.phones.length <= 1 ? "Au moins un téléphone est requis" : "Supprimer ce téléphone"}
+                                className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                            >
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
                         </div>
@@ -4409,32 +4691,47 @@ function InterlocuteurModal({
                 {/* Booking Links */}
                 <div className="space-y-2">
                     <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Liens de réservation</h3>
+                    {/* Two rows instead of four controls on one line — the old layout
+                        crushed the URL field and overflowed on narrower viewports.
+                        The duration lives in the form, so the label must not repeat it. */}
                     {form.bookingLinks.map((bl, idx) => (
-                        <div key={idx} className="flex gap-2 items-center">
-                            <input
-                                type="text"
-                                placeholder="Appel découverte 30min"
-                                value={bl.label}
-                                onChange={(e) => updateBookingLink(idx, { label: e.target.value })}
-                                className="w-40 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                            />
+                        <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50/50 p-2.5 space-y-2">
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="text"
+                                    placeholder="Appel découverte"
+                                    aria-label={`Libellé du lien ${idx + 1}`}
+                                    value={bl.label}
+                                    onChange={(e) => updateBookingLink(idx, { label: e.target.value })}
+                                    className={cn(FIELD, "flex-1 min-w-0")}
+                                />
+                                <select
+                                    value={bl.durationMinutes}
+                                    aria-label={`Durée du lien ${idx + 1}`}
+                                    onChange={(e) => updateBookingLink(idx, { durationMinutes: Number(e.target.value) })}
+                                    className={cn(FIELD, "w-24 shrink-0")}
+                                >
+                                    {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} min</option>)}
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={() => removeBookingLink(idx)}
+                                    aria-label={`Supprimer le lien ${idx + 1}`}
+                                    title="Supprimer ce lien"
+                                    className="shrink-0 p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                             <input
                                 type="url"
                                 placeholder="https://calendly.com/…"
+                                aria-label={`URL du lien ${idx + 1}`}
                                 value={bl.url}
                                 onChange={(e) => updateBookingLink(idx, { url: e.target.value })}
-                                className="flex-1 min-w-0 h-9 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+                                className={cn(FIELD, "w-full", bookingErrors[idx] && "border-red-400 focus:border-red-500 focus:ring-red-500/20")}
                             />
-                            <select
-                                value={bl.durationMinutes}
-                                onChange={(e) => updateBookingLink(idx, { durationMinutes: Number(e.target.value) })}
-                                className="w-20 h-9 px-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
-                            >
-                                {DURATION_OPTIONS.map(d => <option key={d} value={d}>{d} min</option>)}
-                            </select>
-                            <button type="button" onClick={() => removeBookingLink(idx)} className="shrink-0 text-slate-400 hover:text-red-500">
-                                <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            {bookingErrors[idx] && <p className="text-[11px] text-red-500">{bookingErrors[idx]}</p>}
                         </div>
                     ))}
                     <button type="button" onClick={addBookingLink} className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">+ Ajouter un lien</button>
@@ -4458,32 +4755,33 @@ function InterlocuteurModal({
                         <p className="text-sm font-semibold text-slate-900">Statut</p>
                         <p className="text-xs text-slate-500">{form.isActive ? "Ce commercial est actif et visible" : "Ce commercial est masqué"}</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setForm(p => ({ ...p, isActive: !p.isActive }))}
-                        className={cn(
-                            "w-11 h-6 rounded-full relative transition-colors shrink-0",
-                            form.isActive ? "bg-emerald-500" : "bg-slate-300"
-                        )}
-                    >
-                        <span className={cn(
-                            "absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform",
-                            form.isActive ? "translate-x-[22px]" : "translate-x-1"
-                        )} />
-                    </button>
+                    <Toggle
+                        label="Commercial actif"
+                        checked={form.isActive}
+                        onChange={(next) => setForm(p => ({ ...p, isActive: next }))}
+                    />
                 </div>
             </div>
 
-            <ModalFooter>
-                <Button variant="ghost" onClick={onClose} disabled={isSaving}>Annuler</Button>
-                <Button
-                    variant="primary"
-                    onClick={handleSubmit}
-                    isLoading={isSaving}
-                    disabled={!form.firstName.trim() || !form.lastName.trim() || isSaving}
-                >
-                    Enregistrer
-                </Button>
+            <ModalFooter className="justify-between">
+                <p className="text-[11px] text-slate-500">
+                    {hasFieldErrors
+                        ? "Corrigez les champs en rouge pour enregistrer."
+                        : !form.firstName.trim() || !form.lastName.trim()
+                            ? "Prénom et nom sont obligatoires."
+                            : ""}
+                </p>
+                <div className="flex items-center gap-3">
+                    <Button variant="ghost" onClick={onClose} disabled={isSaving}>Annuler</Button>
+                    <Button
+                        variant="primary"
+                        onClick={handleSubmit}
+                        isLoading={isSaving}
+                        disabled={!form.firstName.trim() || !form.lastName.trim() || hasFieldErrors || isSaving}
+                    >
+                        Enregistrer
+                    </Button>
+                </div>
             </ModalFooter>
         </Modal>
     );
