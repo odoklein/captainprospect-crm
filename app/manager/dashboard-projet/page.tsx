@@ -17,6 +17,7 @@ import Link from "next/link";
 import {
     LayoutDashboard, Users, AlertTriangle, CheckCircle2, Download,
     Search, Pencil, Check, X as XIcon, Loader2, Phone, Mail, Briefcase,
+    Sparkles, Clock, UserCog,
 } from "lucide-react";
 import { DataTable, StatCard, Badge, Button, Input, useToast, type Column } from "@/components/ui";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -27,7 +28,12 @@ interface Booker {
     name: string;
     actionCount?: number;
     lastActionAt?: string | null;
+    /** From the static SDRAssignment roster, shown because there's no real
+     *  call/planning data yet — not an actual measurement. */
+    assignedOnly?: boolean;
 }
+
+type CoverageStatus = "COVERED" | "UPCOMING" | "ASSIGNED_NOT_SCHEDULED" | "MISSING";
 
 interface StaffingRow {
     missionId: string;
@@ -38,8 +44,12 @@ interface StaffingRow {
     clientName: string;
     clientStatus: string;
     contractedDaysPerWeek: number | null;
+    suggestedDaysPerWeek: number | null;
     historicalBookers: Booker[];
     currentBookers: Booker[];
+    upcomingBookers: Booker[];
+    assignedBookers: Booker[];
+    coverageStatus: CoverageStatus;
     missingHeadcount: boolean;
 }
 
@@ -68,18 +78,60 @@ const STATUS_LABEL: Record<StaffingRow["status"], string> = {
     DRAFT: "Brouillon", ACTIVE: "Actif", PAUSED: "En pause", COMPLETED: "Terminé", ARCHIVED: "Archivé",
 };
 
+const COVERAGE_CONFIG: Record<CoverageStatus, { label: string; badge: string; icon: typeof CheckCircle2 }> = {
+    COVERED: { label: "Couvert", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: CheckCircle2 },
+    UPCOMING: { label: "À venir", badge: "bg-sky-50 text-sky-700 border-sky-200", icon: Clock },
+    ASSIGNED_NOT_SCHEDULED: { label: "Assigné, non planifié", badge: "bg-amber-50 text-amber-700 border-amber-200", icon: UserCog },
+    MISSING: { label: "Effectif manquant", badge: "bg-rose-50 text-rose-700 border-rose-200", icon: AlertTriangle },
+};
+
+// Default sort order: worst coverage first, so the thing that needs action is
+// what a manager sees without having to reach for a filter. Lower = more urgent.
+const SEVERITY_RANK: Record<CoverageStatus, number> = {
+    MISSING: 0,
+    ASSIGNED_NOT_SCHEDULED: 1,
+    UPCOMING: 2,
+    COVERED: 3,
+};
+
+function daysAgo(iso: string | null | undefined): number | null {
+    if (!iso) return null;
+    const diffMs = Date.now() - new Date(iso).getTime();
+    return Math.max(0, Math.floor(diffMs / 86_400_000));
+}
+
+function mostRecentCallLabel(bookers: Booker[]): string | null {
+    const real = bookers.filter((b) => !b.assignedOnly && b.lastActionAt);
+    if (real.length === 0) return null;
+    const mostRecent = real.reduce((latest, b) =>
+        new Date(b.lastActionAt!).getTime() > new Date(latest.lastActionAt!).getTime() ? b : latest
+    );
+    const d = daysAgo(mostRecent.lastActionAt);
+    if (d == null) return null;
+    if (d === 0) return "dernier appel aujourd'hui";
+    if (d === 1) return "dernier appel hier";
+    return `dernier appel il y a ${d}j`;
+}
+
 function BookerStack({ bookers, emptyLabel }: { bookers: Booker[]; emptyLabel: string }) {
     if (bookers.length === 0) {
         return <span className="text-xs text-slate-400 italic">{emptyLabel}</span>;
     }
     return (
-        <div className="flex items-center -space-x-1.5" title={bookers.map((b) => b.name).join(", ")}>
+        <div
+            className="flex items-center -space-x-1.5"
+            title={bookers.map((b) => b.name + (b.assignedOnly ? " (assigné, aucun appel)" : "")).join(", ")}
+        >
             {bookers.slice(0, 4).map((b) => (
                 <div
                     key={b.id}
                     className={cn(
                         "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-white shrink-0",
-                        avatarColorForId(b.id)
+                        // Fallback-only entries (no real activity yet) get a dashed,
+                        // muted treatment so they read as "on paper" not "confirmed"
+                        b.assignedOnly
+                            ? "bg-white text-slate-400 border border-dashed border-slate-300"
+                            : avatarColorForId(b.id)
                     )}
                 >
                     {initialsFromName(b.name)}
@@ -94,7 +146,12 @@ function BookerStack({ bookers, emptyLabel }: { bookers: Booker[]; emptyLabel: s
     );
 }
 
-/** Inline "jours/semaine" editor — click to edit, persists via PUT /api/clients/[id]. */
+/**
+ * Inline "jours/semaine" editor — click to edit, persists via PUT /api/clients/[id].
+ * When the manager never filled this in, offers a one-click "Appliquer" using a
+ * value inferred from the client's actual recent scheduling cadence — no typing
+ * required unless the suggestion is wrong.
+ */
 function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientId: string, value: number | null) => void }) {
     const [editing, setEditing] = useState(false);
     const [value, setValue] = useState(row.contractedDaysPerWeek?.toString() ?? "");
@@ -103,9 +160,7 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
 
     useEffect(() => { setValue(row.contractedDaysPerWeek?.toString() ?? ""); }, [row.contractedDaysPerWeek]);
 
-    const save = async () => {
-        const trimmed = value.trim();
-        const parsed = trimmed === "" ? null : Number(trimmed.replace(",", "."));
+    const persist = async (parsed: number | null, toastLabel: string) => {
         if (parsed !== null && (Number.isNaN(parsed) || parsed < 0 || parsed > 7)) {
             showError("Valeur invalide", "Entrez un nombre de jours entre 0 et 7");
             return;
@@ -120,7 +175,7 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
             const json = await res.json();
             if (json.success) {
                 onSaved(row.clientId, parsed);
-                success("Enregistré", `${row.clientName} — ${parsed ?? "non renseigné"} j/semaine`);
+                success(toastLabel, `${row.clientName} — ${parsed ?? "non renseigné"} j/semaine`);
                 setEditing(false);
             } else showError("Erreur", json.error);
         } catch {
@@ -128,6 +183,12 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
         } finally {
             setSaving(false);
         }
+    };
+
+    const save = () => {
+        const trimmed = value.trim();
+        const parsed = trimmed === "" ? null : Number(trimmed.replace(",", "."));
+        void persist(parsed, "Enregistré");
     };
 
     if (editing) {
@@ -141,7 +202,7 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
                     step={0.5}
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") void save(); if (e.key === "Escape") setEditing(false); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
                     className="w-16 h-8 px-2 text-sm border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                 />
                 <button onClick={save} disabled={saving} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
@@ -154,17 +215,39 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
         );
     }
 
+    if (row.contractedDaysPerWeek == null) {
+        return (
+            <div className="flex items-center gap-1.5">
+                <button
+                    onClick={() => setEditing(true)}
+                    className="group/days inline-flex items-center gap-1.5 rounded-lg px-2 py-1 -mx-2 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    title="Modifier le nombre de jours/semaine"
+                >
+                    <Badge className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">À renseigner</Badge>
+                    <Pencil className="w-3 h-3 text-slate-300 group-hover/days:text-indigo-500 transition-colors" />
+                </button>
+                {row.suggestedDaysPerWeek != null && (
+                    <button
+                        onClick={() => void persist(row.suggestedDaysPerWeek, "Valeur suggérée appliquée")}
+                        disabled={saving}
+                        title="Inféré à partir du planning réel des 30 derniers jours"
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-full px-2 py-0.5 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    >
+                        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        {row.suggestedDaysPerWeek} j ?
+                    </button>
+                )}
+            </div>
+        );
+    }
+
     return (
         <button
             onClick={() => setEditing(true)}
             className="group/days inline-flex items-center gap-1.5 rounded-lg px-2 py-1 -mx-2 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             title="Modifier le nombre de jours/semaine"
         >
-            {row.contractedDaysPerWeek != null ? (
-                <span className="text-sm font-semibold text-slate-900 tabular-nums">{row.contractedDaysPerWeek} j</span>
-            ) : (
-                <Badge className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">À renseigner</Badge>
-            )}
+            <span className="text-sm font-semibold text-slate-900 tabular-nums">{row.contractedDaysPerWeek} j</span>
             <Pencil className="w-3 h-3 text-slate-300 group-hover/days:text-indigo-500 transition-colors" />
         </button>
     );
@@ -175,6 +258,7 @@ export default function DashboardProjetPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [missingOnly, setMissingOnly] = useState(false);
+    const [daysMissingOnly, setDaysMissingOnly] = useState(false);
     const [statusFilter, setStatusFilter] = useState<"ALL" | StaffingRow["status"]>("ALL");
     const { error: showError } = useToast();
 
@@ -220,13 +304,18 @@ export default function DashboardProjetPage() {
     const filteredRows = useMemo(() => {
         if (!data) return [];
         const q = search.trim().toLowerCase();
-        return data.rows.filter((r) => {
-            if (missingOnly && !r.missingHeadcount) return false;
-            if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
-            if (q && !r.clientName.toLowerCase().includes(q) && !r.missionName.toLowerCase().includes(q)) return false;
-            return true;
-        });
-    }, [data, search, missingOnly, statusFilter]);
+        return data.rows
+            .filter((r) => {
+                if (missingOnly && !r.missingHeadcount) return false;
+                if (daysMissingOnly && r.contractedDaysPerWeek != null) return false;
+                if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
+                if (q && !r.clientName.toLowerCase().includes(q) && !r.missionName.toLowerCase().includes(q)) return false;
+                return true;
+            })
+            // Worst coverage first by default — DataTable keeps this order until the
+            // user clicks a column header to sort by something else.
+            .sort((a, b) => SEVERITY_RANK[a.coverageStatus] - SEVERITY_RANK[b.coverageStatus]);
+    }, [data, search, missingOnly, daysMissingOnly, statusFilter]);
 
     const columns: Column<StaffingRow>[] = [
         {
@@ -259,31 +348,77 @@ export default function DashboardProjetPage() {
         {
             key: "historicalBookers",
             header: "Historique",
-            render: (_v, row) => <BookerStack bookers={row.historicalBookers} emptyLabel="Aucun appel" />,
+            render: (_v, row) => {
+                const freshness = mostRecentCallLabel(row.historicalBookers);
+                return (
+                    <div className="flex items-center gap-1.5">
+                        <BookerStack bookers={row.historicalBookers} emptyLabel="Aucun appel" />
+                        {freshness && <span className="text-[10px] text-slate-400 whitespace-nowrap">{freshness}</span>}
+                    </div>
+                );
+            },
         },
         {
             key: "currentBookers",
             header: "Actuel (14 j)",
-            render: (_v, row) => <BookerStack bookers={row.currentBookers} emptyLabel="Personne" />,
+            render: (_v, row) => {
+                // Give the fallback tiers real evidence instead of a bare "Personne":
+                // UPCOMING shows who's booked later this month, ASSIGNED_NOT_SCHEDULED
+                // shows the roster that still needs a real calendar slot.
+                if (row.currentBookers.length === 0 && row.coverageStatus === "UPCOMING") {
+                    return (
+                        <div className="flex items-center gap-1.5">
+                            <BookerStack bookers={row.upcomingBookers} emptyLabel="Personne" />
+                            <span className="text-[10px] text-sky-600 font-medium">dans 15-30j</span>
+                        </div>
+                    );
+                }
+                if (row.currentBookers.length === 0 && row.coverageStatus === "ASSIGNED_NOT_SCHEDULED") {
+                    return (
+                        <div className="flex items-center gap-1.5">
+                            <BookerStack
+                                bookers={row.assignedBookers.map((b) => ({ ...b, assignedOnly: true }))}
+                                emptyLabel="Personne"
+                            />
+                            <span className="text-[10px] text-amber-600 font-medium">à planifier</span>
+                        </div>
+                    );
+                }
+                return <BookerStack bookers={row.currentBookers} emptyLabel="Personne" />;
+            },
         },
         {
             key: "status",
             header: "Statut",
             sortable: true,
-            render: (_v, row) =>
-                row.missingHeadcount ? (
-                    <Badge className="text-[10px] gap-1 bg-rose-50 text-rose-700 border-rose-200">
-                        <AlertTriangle className="w-3 h-3" /> Effectif manquant
+            render: (_v, row) => {
+                if (row.status !== "ACTIVE") {
+                    return <Badge className={cn("text-[10px]", STATUS_BADGE[row.status])}>{STATUS_LABEL[row.status]}</Badge>;
+                }
+                // Mission still flagged ACTIVE but the client itself is paused/stopped
+                // elsewhere — normal data drift, not a real gap. Don't show an
+                // alarming coverage badge for something nobody needs to act on.
+                if (row.clientStatus !== "ACTIVE") {
+                    return (
+                        <Badge
+                            className="text-[10px] bg-slate-100 text-slate-500 border-slate-200"
+                            title="Le client est en pause/arrêté — la couverture n'est pas évaluée"
+                        >
+                            Client {row.clientStatus === "PAUSED" ? "en pause" : "arrêté"}
+                        </Badge>
+                    );
+                }
+                const { label, badge, icon: Icon } = COVERAGE_CONFIG[row.coverageStatus];
+                return (
+                    <Badge className={cn("text-[10px] gap-1", badge)} title={
+                        row.coverageStatus === "UPCOMING" ? "Personne cette semaine, mais une planification existe plus tard ce mois-ci"
+                        : row.coverageStatus === "ASSIGNED_NOT_SCHEDULED" ? "Un commercial est affecté à la mission mais rien n'est posé au planning"
+                        : undefined
+                    }>
+                        <Icon className="w-3 h-3" /> {label}
                     </Badge>
-                ) : (
-                    <Badge className={cn("text-[10px]", STATUS_BADGE[row.status])}>
-                        {row.status === "ACTIVE" ? (
-                            <span className="inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Couvert</span>
-                        ) : (
-                            STATUS_LABEL[row.status]
-                        )}
-                    </Badge>
-                ),
+                );
+            },
         },
     ];
 
@@ -328,7 +463,15 @@ export default function DashboardProjetPage() {
                     icon={AlertTriangle}
                     iconBg={kpis?.missingHeadcount ? "bg-rose-100" : "bg-slate-100"}
                     iconColor={kpis?.missingHeadcount ? "text-rose-600" : "text-slate-400"}
-                    subtitle={<span className="text-slate-400">missions actives sans booker planifié</span>}
+                    subtitle={<span className="text-slate-400">missions actives sans booker planifié — cliquer pour filtrer</span>}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setMissingOnly((v) => !v)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMissingOnly((v) => !v); } }}
+                    className={cn(
+                        "cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500",
+                        missingOnly && "ring-2 ring-rose-400 border-rose-300"
+                    )}
                 />
                 <StatCard
                     label="Jours/semaine à renseigner"
@@ -336,7 +479,15 @@ export default function DashboardProjetPage() {
                     icon={Pencil}
                     iconBg={kpis?.clientsMissingDaysPerWeek ? "bg-amber-100" : "bg-slate-100"}
                     iconColor={kpis?.clientsMissingDaysPerWeek ? "text-amber-600" : "text-slate-400"}
-                    subtitle={<span className="text-slate-400">clients sans volume contractuel</span>}
+                    subtitle={<span className="text-slate-400">clients sans volume contractuel — cliquer pour filtrer</span>}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setDaysMissingOnly((v) => !v)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDaysMissingOnly((v) => !v); } }}
+                    className={cn(
+                        "cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500",
+                        daysMissingOnly && "ring-2 ring-amber-400 border-amber-300"
+                    )}
                 />
                 <StatCard
                     label="Jours/semaine moyens"
@@ -383,6 +534,25 @@ export default function DashboardProjetPage() {
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* Legend — the "Statut" column isn't a flat yes/no, explain the tiers once */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-slate-500 px-1">
+                {(Object.keys(COVERAGE_CONFIG) as CoverageStatus[]).map((k) => {
+                    const { label, badge, icon: Icon } = COVERAGE_CONFIG[k];
+                    return (
+                        <span key={k} className="inline-flex items-center gap-1">
+                            <span className={cn("inline-flex items-center justify-center w-4 h-4 rounded-full border", badge)}>
+                                <Icon className="w-2.5 h-2.5" />
+                            </span>
+                            {label}
+                        </span>
+                    );
+                })}
+                <span className="text-slate-300">·</span>
+                <span className="inline-flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-indigo-400" /> jours/semaine suggéré à partir du planning réel
+                </span>
             </div>
 
             {/* Table */}

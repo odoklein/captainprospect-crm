@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, withErrorHandler } from "@/lib/api-utils";
-import { getStaffingOverview } from "@/lib/staffing/clientStaffing";
+import { getStaffingOverview, type CoverageStatus } from "@/lib/staffing/clientStaffing";
 
 function csvCell(value: string): string {
     // Quote if the value contains a comma, quote or newline; escape embedded quotes
     if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
     return value;
 }
+
+const COVERAGE_LABEL: Record<CoverageStatus, string> = {
+    COVERED: "Couvert",
+    UPCOMING: "À venir (planifié plus tard ce mois)",
+    ASSIGNED_NOT_SCHEDULED: "Assigné mais non planifié",
+    MISSING: "Manquant",
+};
 
 /**
  * GET /api/manager/dashboard-projet/export
@@ -18,7 +25,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const header = [
         "Client", "Mission", "Canal", "Statut mission",
-        "Jours/semaine", "Bookers historiques", "Bookers actuels", "Effectif manquant",
+        "Jours/semaine", "Jours/semaine (suggéré)",
+        "Bookers historiques", "Bookers actuels", "Couverture", "Effectif manquant",
     ];
     const lines = [header.map(csvCell).join(",")];
     for (const r of rows) {
@@ -28,8 +36,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             r.channel,
             r.status,
             r.contractedDaysPerWeek != null ? String(r.contractedDaysPerWeek) : "",
-            r.historicalBookers.map((b) => b.name).join(" / "),
+            r.suggestedDaysPerWeek != null ? String(r.suggestedDaysPerWeek) : "",
+            r.historicalBookers.map((b) => b.name + (b.assignedOnly ? " (assigné, pas d'appel)" : "")).join(" / "),
             r.currentBookers.map((b) => b.name).join(" / "),
+            COVERAGE_LABEL[r.coverageStatus],
             r.missingHeadcount ? "OUI" : "NON",
         ].map(csvCell).join(","));
     }
