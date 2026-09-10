@@ -1,7 +1,14 @@
 FROM node:20-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
+# next build needs devDependencies (@tailwindcss/postcss, tailwindcss, typescript,
+# @types/*). Coolify injects the app env — including NODE_ENV=production — into every
+# stage, and npm ci omits devDependencies under that value, so this stage produced an
+# incomplete node_modules and the build stage failed on @tailwindcss/postcss.
+# --include=dev forces them in regardless of where the platform injects its ENV;
+# NODE_ENV=development covers npm config that keys off it. Runtime stage stays production.
+ENV NODE_ENV=development
+RUN npm ci --ignore-scripts --include=dev
 FROM node:20-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
