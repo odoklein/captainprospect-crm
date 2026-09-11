@@ -64,6 +64,8 @@ import {
     sdrUnifiedDrawerMailboxesKey,
     sdrUnifiedDrawerTemplatesKey,
 } from "@/lib/query-keys";
+import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openreplay/events";
+import { openReplayTracker } from "@/lib/openreplay/tracker";
 
 // ============================================
 // TYPES
@@ -699,6 +701,19 @@ export function UnifiedActionDrawer({
         }
     }, [isOpen]);
 
+    useEffect(() => {
+        if (isOpen && (company || contact)) {
+            trackLeadView({
+                leadId: contactId || companyId,
+                companyName: company?.name,
+                contactName: contact ? `${contact.firstName || ""} ${contact.lastName || ""}`.trim() : undefined,
+                status: contact?.status || company?.status,
+                missionId: missionId,
+                campaignId: campaigns[0]?.id,
+            });
+        }
+    }, [isOpen, contactId, companyId, company?.name, contact?.firstName, contact?.lastName, missionId, campaigns]);
+
     const openAlloDialog = useCallback(async () => {
         const phone =
             contact?.phone || (isCallCampaign && company?.phone ? company.phone : null);
@@ -1067,6 +1082,11 @@ export function UnifiedActionDrawer({
             return { recipientEmail, andNext };
         },
         onSuccess: ({ recipientEmail, andNext }) => {
+            trackEmailSent({
+                leadId: contactId || companyId,
+                recipientEmail: recipientEmail || undefined,
+                templateId: emailSelectedTemplateId || undefined,
+            });
             success("Email envoyé", `Email envoyé avec succès à ${recipientEmail}`);
             setNewActionResult("");
             setEmailSelectedTemplateId("");
@@ -1162,6 +1182,15 @@ export function UnifiedActionDrawer({
             return { andNext };
         },
         onSuccess: ({ andNext }) => {
+            trackActionLogged({
+                leadId: contactId || companyId,
+                channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : (campaigns[0]?.mission?.channel ?? "CALL"),
+                result: newActionResult,
+                companyName: company?.name,
+                hasCallbackDate: Boolean(newCallbackDateValue || rdvDate),
+                callbackDate: newCallbackDateValue || rdvDate || undefined,
+                isMeetingBooked: newActionResult === "MEETING_BOOKED",
+            });
             success("Action enregistrée", "L'action a été ajoutée à l'historique");
             setNewActionNote("");
             setNewActionResult("");
@@ -1171,7 +1200,10 @@ export function UnifiedActionDrawer({
             onActionRecorded?.();
             if (andNext && onValidateAndNext) onValidateAndNext();
         },
-        onError: (err: Error) => showError("Erreur", err.message),
+        onError: (err: Error) => {
+            openReplayTracker.trackError(err, { context: "add_action", leadId: contactId || companyId });
+            showError("Erreur", err.message);
+        },
     });
 
     const handleAddAction = (andNext?: boolean) => addActionMutation.mutate({ andNext });

@@ -20,6 +20,7 @@ import {
     CalendarCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { trackMeetingBooked } from "@/lib/openreplay/events";
 
 // ============================================
 // TYPES
@@ -451,6 +452,12 @@ export function BookingDrawer({
                     if (json.success) {
                         setBooked(true);
                         success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
+                        trackMeetingBooked({
+                            leadId: contactId || companyId || "",
+                            companyName: contactInfo?.companyName || undefined,
+                            contactName: contactName,
+                            scheduledAt: effectiveRdvDate ? new Date(effectiveRdvDate).toISOString() : undefined,
+                        });
                         onBookingSuccess?.();
                         setTimeout(onClose, 1800);
                     } else {
@@ -501,6 +508,12 @@ export function BookingDrawer({
             if (json.success) {
                 setBooked(true);
                 success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
+                trackMeetingBooked({
+                    leadId: contactId || companyId || "",
+                    companyName: contactInfo?.companyName || undefined,
+                    contactName: contactName,
+                    scheduledAt: isoRdvDate,
+                });
                 onBookingSuccess?.();
                 setTimeout(onClose, 1800);
             } else {
