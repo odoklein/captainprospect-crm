@@ -65,6 +65,27 @@ export function ManagerSupportSidebarEntry({ isExpanded }: ManagerSupportSidebar
         if (!isWorkspaceOpen) fetchStats();
     }, [isWorkspaceOpen, fetchStats]);
 
+    // Deep link: `?support=1` opens the workspace straight away. The Slack
+    // #clients-live alerts link here so a manager lands on the conversation
+    // instead of having to hunt for the sidebar entry. The param is stripped
+    // once consumed so a refresh doesn't reopen it.
+    useEffect(() => {
+        if (!canRender) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("support") !== "1") return;
+        // Reading location during render would desync SSR, so the open has to
+        // happen here. It fires once, on a param the server never sees.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setIsWorkspaceOpen(true);
+        params.delete("support");
+        const query = params.toString();
+        window.history.replaceState(
+            null,
+            "",
+            `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`,
+        );
+    }, [canRender]);
+
     if (!canRender) return null;
 
     const unread = stats?.totalUnread ?? 0;

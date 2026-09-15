@@ -95,6 +95,10 @@ export const config = {
     slack: {
       enabled: !!process.env.SLACK_WEBHOOK_URL,
       webhookUrl: process.env.SLACK_WEBHOOK_URL,
+      // Incoming webhook pointed at the #clients-live channel. Falls back to
+      // the generic webhook above when not set. See lib/slack/clientsLive.ts.
+      clientsLiveWebhookUrl:
+        process.env.SLACK_CLIENTS_LIVE_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL,
     },
   },
 

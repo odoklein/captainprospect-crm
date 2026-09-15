@@ -13,6 +13,10 @@ import {
 import { cn } from "@/lib/utils";
 import { getMeetingCancellationLabel, MEETING_CANCELLATION_REASONS } from "@/lib/constants/meetingCancellationReasons";
 import { MeetingsSkeleton } from "@/components/client/skeletons";
+import {
+  isNoShowReportWindowOpen,
+  NO_SHOW_REPORT_WINDOW_HOURS,
+} from "@/lib/meetings/noShowWindow";
 
 /* ═══════════════════════════════════════════════════════════════
    DESIGN TOKENS  — single source of truth
@@ -286,19 +290,6 @@ const GLOBAL_CSS = `
   border-right: 1px solid ${tk.border};
 }
 
-/* ── Note quote ── */
-.cp-note-quote {
-  position: relative; padding: 12px 14px 12px 18px; border-radius: 10px;
-  background: linear-gradient(135deg, rgba(91,79,232,0.04), rgba(91,79,232,0.02));
-  border: 1px solid rgba(91,79,232,0.1);
-  font-size: 13px; font-style: italic; color: ${tk.ink3}; line-height: 1.65;
-}
-.cp-note-quote::before {
-  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px;
-  width: 3px; border-radius: 2px;
-  background: linear-gradient(to bottom, ${tk.accentMid}, ${tk.accent});
-}
-
 /* ── AI summary ── */
 .cp-ai-summary {
   padding: 14px 16px; border-radius: 12px;
@@ -346,6 +337,8 @@ const GLOBAL_CSS = `
   transition: all 0.18s ease;
 }
 .cp-choice.sel .cp-choice-ico { background: rgba(217,48,37,0.12); color: ${tk.red}; }
+.cp-choice:disabled { opacity: 0.45; cursor: not-allowed; }
+.cp-choice:disabled:hover { border-color: rgba(0,0,0,0.07); color: ${tk.ink3}; transform: none; }
 
 /* ── Toggle ── */
 .cp-toggle {
@@ -1193,6 +1186,9 @@ function Card({
   onSigRec:(v:string)=>void; onSigNote:(v:string)=>void; onSigSubmit:()=>void;
 }) {
   const st     = getRdvStatus(m);
+  // Past 48h the "Contact absent" signal is refused by the API, so the portal
+  // stops offering it and points to the manager instead.
+  const noShowOpen = isNoShowReportWindowOpen(m.callbackDate);
   const sm     = S[st];
   const fb     = m.meetingFeedback;
   const up     = st==="upcoming";
@@ -1252,7 +1248,6 @@ function Card({
             {m.rdvFiche && (
               <Pill label="Fiche RDV" color={tk.ink3} bg="#F3F4F6" border="rgba(0,0,0,0.07)" />
             )}
-            <span style={{fontSize:11.5,color:tk.ink4}}>{m.campaign.name}</span>
           </div>
 
           {/* Contact */}
@@ -1300,16 +1295,6 @@ function Card({
               </div>
             </div>
           </div>
-
-          {/* SDR note */}
-          {m.note && (
-            <div className="cp-note-quote">
-              <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:tk.ink4,fontStyle:"normal",marginBottom:4}}>
-                Note{m.sdr?.name?` · ${m.sdr.name}`:""}
-              </div>
-              &ldquo;{m.note}&rdquo;
-            </div>
-          )}
 
           {/* Feedback badge */}
           {fb && (
@@ -1361,7 +1346,9 @@ function Card({
               </button>
             </div>
             <div style={{display:"flex",gap:10}}>
-              <button type="button" className={cn("cp-choice")} onClick={onOpenSignalForm} style={{flex:1}}>
+              <button type="button" className={cn("cp-choice")} onClick={onOpenSignalForm} style={{flex:1}}
+                disabled={!noShowOpen}
+                title={noShowOpen?undefined:`Délai de ${NO_SHOW_REPORT_WINDOW_HOURS}h dépassé`}>
                 <span className="cp-choice-ico"><XCircle style={{width:18,height:18}} /></span>
                 Contact absent
               </button>
@@ -1370,6 +1357,12 @@ function Card({
                 Replanifier avec le prospect
               </button>
             </div>
+            {!noShowOpen && (
+              <div style={{marginTop:10,fontSize:11.5,lineHeight:1.5,color:tk.ink3}}>
+                Le signalement « Contact absent » est ouvert pendant {NO_SHOW_REPORT_WINDOW_HOURS}h après le rendez-vous.
+                Ce délai est dépassé : contactez votre manager, qui pourra le remonter manuellement.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1549,13 +1542,6 @@ function DetailModal({ m, onClose, onFeedback, onCancel, onDelete }: {
           </div>
         )}
       </Sec>
-
-      {/* SDR note */}
-      {m.note && (
-        <Sec label={`Note du commercial${m.sdr?.name?` · ${m.sdr.name}`:""}`}>
-          <div className="cp-note-quote">&ldquo;{m.note}&rdquo;</div>
-        </Sec>
-      )}
 
       {/* Fiche RDV (contexte, besoins, solutions, objections, notes) */}
       {m.rdvFiche && (

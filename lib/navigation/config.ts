@@ -29,6 +29,9 @@ import {
   Key,
   Brain,
   UserCheck,
+  UserX,
+  ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 
@@ -79,12 +82,6 @@ export const MANAGER_NAV: NavSection[] = [
         permission: "pages.prospects",
       },
       {
-        href: "/manager/missions",
-        icon: Target,
-        label: "Missions",
-        permission: "pages.missions",
-      },
-      {
         href: "/manager/prospection",
         icon: Phone,
         label: "Appels",
@@ -95,6 +92,13 @@ export const MANAGER_NAV: NavSection[] = [
   {
     title: "Suivi",
     items: [
+      {
+        href: "/manager/assistant",
+        icon: Sparkles,
+        label: "Assistant Projet",
+        // Same audience as the project views it answers questions about.
+        permission: "pages.clients",
+      },
       {
         href: "/manager/dashboard-projet",
         icon: UserCheck,
@@ -113,6 +117,13 @@ export const MANAGER_NAV: NavSection[] = [
         href: "/manager/rdv",
         icon: Calendar,
         label: "SAS RDV",
+        permission: "pages.analytics",
+      },
+      {
+        href: "/manager/rdv-absences",
+        icon: UserX,
+        label: "Signalements absents",
+        // Same audience as SAS RDV — it's the manual tail of the same flow.
         permission: "pages.analytics",
       },
       {
@@ -184,6 +195,14 @@ export const MANAGER_NAV: NavSection[] = [
         href: "/manager/api",
         icon: Key,
         label: "API & Intégrations",
+        permission: "pages.sdrs",
+      },
+      {
+        href: "/manager/acces",
+        icon: ShieldCheck,
+        label: "Coffre d'accès",
+        // Same gate as the other admin tools: these are shared secrets, not
+        // something every manager-side role should browse.
         permission: "pages.sdrs",
       },
       {

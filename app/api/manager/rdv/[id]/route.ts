@@ -146,11 +146,15 @@ export const PUT = withErrorHandler(
           outcome: (body.feedbackOutcome as any) ?? "NEUTRAL",
           recontactRequested: (body.feedbackRecontact as any) ?? "NO",
           clientNote: body.feedbackNote ?? null,
+          source: "MANAGER",
+          reportedById: session.user.id,
         },
         update: {
           ...(body.feedbackOutcome !== undefined && { outcome: body.feedbackOutcome as any }),
           ...(body.feedbackRecontact !== undefined && { recontactRequested: body.feedbackRecontact as any }),
           ...(body.feedbackNote !== undefined && { clientNote: body.feedbackNote }),
+          source: "MANAGER",
+          reportedById: session.user.id,
         },
       });
     }

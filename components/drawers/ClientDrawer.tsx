@@ -20,6 +20,9 @@ import {
     InlineToggle,
     PopoverPanel,
 } from "./_inline/InlineField";
+import { ClientCalCredentials } from "./_sections/ClientCalCredentials";
+import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
+import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
 import {
     MISSION_STATUS_CONFIG,
     type MissionStatusValue,
@@ -38,6 +41,7 @@ import {
     Trash2,
     ShieldCheck,
     ShieldAlert,
+    KeyRound,
     Activity,
     Plus,
     FileText,
@@ -208,9 +212,19 @@ interface ClientDrawerProps {
     client: Client | null;
     onUpdate?: (client: Client) => void;
     onDelete?: () => void;
+    /**
+     * Drill-down state. The parent owns it so it can live in the URL and old
+     * /manager/missions/[id] links can land straight on a mission.
+     */
+    openMissionId?: string | null;
+    onOpenMission?: (missionId: string | null) => void;
+    missionTab?: string;
+    onMissionTabChange?: (tab: string) => void;
 }
 
 type TabId = "apercu" | "missions" | "acces" | "interlocuteurs" | "activite" | "avis-sdr" | "sessions";
+
+const DRAWER_EXPANDED_KEY = "cp:clientDrawerExpanded";
 
 interface ClientSessionLite {
     id: string;
@@ -408,7 +422,17 @@ function StatPill({
 // MAIN
 // ============================================================================
 
-export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: ClientDrawerProps) {
+export function ClientDrawer({
+    isOpen,
+    onClose,
+    client,
+    onUpdate,
+    onDelete,
+    openMissionId,
+    onOpenMission,
+    missionTab,
+    onMissionTabChange,
+}: ClientDrawerProps) {
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
 
@@ -421,6 +445,39 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
     const [savingStatus, setSavingStatus] = useState(false);
     const moreBtnRef = useRef<HTMLButtonElement | null>(null);
     const [moreOpen, setMoreOpen] = useState(false);
+    const [showNewMission, setShowNewMission] = useState(false);
+
+    // Width preference: 1180px by default, near-full for script/BDD work.
+    const [isExpanded, setIsExpanded] = useState(false);
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        setIsExpanded(window.localStorage.getItem(DRAWER_EXPANDED_KEY) === "1");
+    }, []);
+    const toggleExpanded = () => {
+        setIsExpanded((prev) => {
+            const next = !prev;
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(DRAWER_EXPANDED_KEY, next ? "1" : "0");
+            }
+            return next;
+        });
+    };
+
+    // Uncontrolled fallback so the drawer still works without URL wiring.
+    const [internalMissionId, setInternalMissionId] = useState<string | null>(null);
+    const [internalMissionTab, setInternalMissionTab] = useState("general");
+    const activeMissionId = openMissionId !== undefined ? openMissionId : internalMissionId;
+    const activeMissionTab = missionTab ?? internalMissionTab;
+    const openMission = (id: string | null, tab: string = "general") => {
+        if (onOpenMission) onOpenMission(id);
+        else setInternalMissionId(id);
+        if (onMissionTabChange) onMissionTabChange(tab);
+        else setInternalMissionTab(tab);
+    };
+    const changeMissionTab = (tab: string) => {
+        if (onMissionTabChange) onMissionTabChange(tab);
+        else setInternalMissionTab(tab);
+    };
 
     // React Query: full client detail
     const { data: clientDetail } = useQuery({
@@ -860,12 +917,13 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                         {activeMissionsCount > 1 ? "s" : ""}
                     </p>
                 </div>
-                <Link
-                    href={`/manager/missions?clientId=${client.id}`}
+                <button
+                    type="button"
+                    onClick={() => setShowNewMission(true)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
                 >
                     <Plus className="w-4 h-4" /> Nouvelle mission
-                </Link>
+                </button>
             </div>
 
             {missions.length === 0 ? (
@@ -885,7 +943,7 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                             key={m.id}
                             mission={m}
                             isLast={idx === missions.length - 1}
-                            clientId={client.id}
+                            onOpen={(tab) => openMission(m.id, tab)}
                             onScriptClick={() => setScriptModalMission(m)}
                             onStatusChange={async (next) => {
                                 const res = await fetch(`/api/missions/${m.id}`, {
@@ -973,6 +1031,13 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                         })}
                     </div>
                 )}
+            </SectionCard>
+
+            <SectionCard
+                title="Accès agenda client (Cal)"
+                icon={<KeyRound className="w-3.5 h-3.5" />}
+            >
+                <ClientCalCredentials clientId={client.id} />
             </SectionCard>
 
             <SectionCard title="Matrice de permissions" icon={<UserCog className="w-3.5 h-3.5" />} muted>
@@ -1464,29 +1529,76 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                 onClose={onClose}
                 size="full"
                 showCloseButton={false}
-                className="!max-w-[1180px]"
+                className={isExpanded ? "!max-w-[95vw]" : "!max-w-[1180px]"}
             >
-                <div className="-m-6 flex flex-col h-full">
-                    {Header}
+                {activeMissionId ? (
+                    /* Drill-down: the mission workspace takes over the drawer body */
+                    <div className="-m-6 flex flex-col h-full">
+                        <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-6 py-2.5">
+                            <button
+                                type="button"
+                                onClick={() => openMission(null)}
+                                className="truncate text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+                            >
+                                {client.name}
+                            </button>
+                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
+                            <span className="truncate text-sm font-semibold text-slate-900">
+                                {missions.find((m) => m.id === activeMissionId)?.name ?? "Mission"}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="ml-auto rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                aria-label="Fermer"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
 
-                    <div className="sticky top-0 z-10 px-6 bg-white border-b border-slate-100">
-                        <Tabs
-                            tabs={tabDef}
-                            activeTab={activeTab}
-                            onTabChange={(id) => setActiveTab(id as TabId)}
-                        />
+                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
+                            <MissionWorkspace
+                                // Remount per mission: the workspace holds a lot of
+                                // per-mission state (strategy drafts, templates).
+                                key={activeMissionId}
+                                missionId={activeMissionId}
+                                onBack={() => openMission(null)}
+                                onMissionMutated={() => {
+                                    queryClient.invalidateQueries({
+                                        queryKey: clientDetailQueryKey(client.id),
+                                    });
+                                    queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
+                                }}
+                                activeTab={activeMissionTab}
+                                onTabChange={changeMissionTab}
+                                isExpanded={isExpanded}
+                                onToggleExpand={toggleExpanded}
+                            />
+                        </div>
                     </div>
+                ) : (
+                    <div className="-m-6 flex flex-col h-full">
+                        {Header}
 
-                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
-                        {activeTab === "apercu" && OverviewTab}
-                        {activeTab === "missions" && MissionsTab}
-                        {activeTab === "acces" && AccessTab}
-                        {activeTab === "interlocuteurs" && InterlocuteursTab}
-                        {activeTab === "activite" && ActivityTab}
-                        {activeTab === "avis-sdr" && SdrFeedbackTab}
-                        {activeTab === "sessions" && SessionsTab}
+                        <div className="sticky top-0 z-10 px-6 bg-white border-b border-slate-100">
+                            <Tabs
+                                tabs={tabDef}
+                                activeTab={activeTab}
+                                onTabChange={(id) => setActiveTab(id as TabId)}
+                            />
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
+                            {activeTab === "apercu" && OverviewTab}
+                            {activeTab === "missions" && MissionsTab}
+                            {activeTab === "acces" && AccessTab}
+                            {activeTab === "interlocuteurs" && InterlocuteursTab}
+                            {activeTab === "activite" && ActivityTab}
+                            {activeTab === "avis-sdr" && SdrFeedbackTab}
+                            {activeTab === "sessions" && SessionsTab}
+                        </div>
                     </div>
-                </div>
+                )}
             </Drawer>
 
             <ConfirmModal
@@ -1501,8 +1613,22 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
                 isLoading={isDeleting}
             />
 
+            <NewMissionDialog
+                isOpen={showNewMission}
+                onClose={() => setShowNewMission(false)}
+                onCreated={(missionId) => {
+                    setShowNewMission(false);
+                    queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
+                    queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
+                    if (missionId) openMission(missionId);
+                }}
+            />
+
             <ScriptModal
                 mission={scriptModalMission}
+                onOpenFull={() => {
+                    if (scriptModalMission) openMission(scriptModalMission.id, "strategy");
+                }}
                 onClose={() => setScriptModalMission(null)}
             />
         </>
@@ -1516,13 +1642,13 @@ export function ClientDrawer({ isOpen, onClose, client, onUpdate, onDelete }: Cl
 function MissionRow({
     mission,
     isLast,
-    clientId,
+    onOpen,
     onStatusChange,
     onScriptClick,
 }: {
     mission: MissionLite;
     isLast: boolean;
-    clientId: string;
+    onOpen: (tab?: string) => void;
     onStatusChange: (next: MissionStatusValue) => Promise<void>;
     onScriptClick: () => void;
 }) {
@@ -1565,12 +1691,13 @@ function MissionRow({
             </div>
 
             <div className="flex-1 min-w-0">
-                <Link
-                    href={`/manager/missions/${mission.id}`}
-                    className="text-sm font-semibold text-slate-900 hover:text-indigo-600 truncate block"
+                <button
+                    type="button"
+                    onClick={() => onOpen()}
+                    className="text-sm font-semibold text-slate-900 hover:text-indigo-600 truncate block text-left w-full"
                 >
                     {mission.name}
-                </Link>
+                </button>
                 {mission.objective && (
                     <p className="text-xs text-slate-500 truncate mt-0.5">{mission.objective}</p>
                 )}
@@ -1636,35 +1763,51 @@ function MissionRow({
                 align="end"
             >
                 <div className="py-1">
-                    <Link
-                        href={`/manager/missions/${mission.id}`}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMoreOpen(false);
+                            onOpen();
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                     >
                         <ExternalLink className="w-4 h-4 text-slate-400" />
                         Ouvrir la mission
-                    </Link>
-                    <Link
-                        href={`/manager/missions/${mission.id}?tab=assignments`}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMoreOpen(false);
+                            onOpen("audience");
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                     >
                         <UserCog className="w-4 h-4 text-slate-400" />
-                        Gérer les SDRs
-                    </Link>
-                    <Link
-                        href={`/manager/missions/${mission.id}?tab=campaigns`}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        Bases & SDRs
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMoreOpen(false);
+                            onOpen("strategy");
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                     >
                         <FileText className="w-4 h-4 text-slate-400" />
-                        Campagnes & scripts
-                    </Link>
+                        Stratégie & scripts
+                    </button>
                     <div className="border-t border-slate-100 my-1" />
-                    <Link
-                        href={`/manager/missions?clientId=${clientId}`}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setMoreOpen(false);
+                            onOpen("general");
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
                     >
                         <TrendingUp className="w-4 h-4 text-slate-400" />
-                        Voir toutes les missions
-                    </Link>
+                        Insights de la mission
+                    </button>
                 </div>
             </PopoverPanel>
         </div>
@@ -1675,7 +1818,16 @@ function MissionRow({
 // SCRIPT MODAL (popover-style complex edit — routes to campaign UI)
 // ============================================================================
 
-function ScriptModal({ mission, onClose }: { mission: MissionLite | null; onClose: () => void }) {
+function ScriptModal({
+    mission,
+    onClose,
+    onOpenFull,
+}: {
+    mission: MissionLite | null;
+    onClose: () => void;
+    /** Jump from the quick script editor into the full mission workspace. */
+    onOpenFull?: () => void;
+}) {
     if (!mission) return null;
     const { success, error: showError } = useToast();
     const [scriptDraft, setScriptDraft] = useState("");
@@ -1755,12 +1907,16 @@ function ScriptModal({ mission, onClose }: { mission: MissionLite | null; onClos
                     <p className="text-xs text-slate-500 mt-1">
                         Créez d’abord une campagne active depuis la mission pour initialiser un script.
                     </p>
-                    <Link
-                        href={`/manager/missions/${mission.id}?tab=campaigns`}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onClose();
+                            onOpenFull?.();
+                        }}
                         className="inline-flex items-center gap-1.5 mt-4 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium"
                     >
                         <Plus className="w-4 h-4" /> Créer une campagne
-                    </Link>
+                    </button>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -1777,13 +1933,17 @@ function ScriptModal({ mission, onClose }: { mission: MissionLite | null; onClos
                         <Button variant="primary" onClick={saveScript} disabled={isSaving}>
                             {isSaving ? "Enregistrement..." : "Enregistrer"}
                         </Button>
-                        <Link
-                            href={`/manager/missions/${mission.id}?tab=strategy`}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onClose();
+                                onOpenFull?.();
+                            }}
                             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
                         >
                             <Settings2 className="w-4 h-4" />
                             Ouvrir la mission
-                        </Link>
+                        </button>
                     </div>
                 </div>
             )}

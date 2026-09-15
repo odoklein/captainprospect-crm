@@ -139,6 +139,7 @@ export default function ClientSupportRoot() {
     const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
     const [isManagerTyping, setIsManagerTyping] = useState(false);
     const lastMessageAtRef = useRef<string | null>(null);
+    const isOpenRef = useRef(false);
 
     const canRender =
         status === "authenticated" &&
@@ -158,6 +159,16 @@ export default function ClientSupportRoot() {
         },
         [],
     );
+
+    const markRead = useCallback(async () => {
+        await fetch("/api/support/conversation/read", { method: "POST" }).catch(
+            () => undefined,
+        );
+    }, []);
+
+    useEffect(() => {
+        isOpenRef.current = isOpen;
+    }, [isOpen]);
 
     useEffect(() => {
         if (!canRender) return;
@@ -182,36 +193,46 @@ export default function ClientSupportRoot() {
         const intervalId = window.setInterval(async () => {
             const next = await fetchConversation();
             if (!next) return;
+            // Panel open = the client is reading, so keep the marker fresh
+            // instead of letting replies pile up as "unread".
+            let fresh = next;
+            if (isOpenRef.current) {
+                void markRead();
+                fresh = { ...next, unreadCount: 0 };
+            }
             setConversation((current) => {
                 if (!current) {
-                    lastMessageAtRef.current = next.lastMessageAt;
-                    return next;
+                    lastMessageAtRef.current = fresh.lastMessageAt;
+                    return fresh;
                 }
                 const newer =
-                    next.lastMessageAt !== null &&
+                    fresh.lastMessageAt !== null &&
                     (!current.lastMessageAt ||
-                        new Date(next.lastMessageAt).getTime() >
+                        new Date(fresh.lastMessageAt).getTime() >
                             new Date(current.lastMessageAt).getTime());
-                lastMessageAtRef.current = next.lastMessageAt;
-                return newer ? next : { ...current, unreadCount: next.unreadCount };
+                lastMessageAtRef.current = fresh.lastMessageAt;
+                return newer ? fresh : { ...current, unreadCount: fresh.unreadCount };
             });
         }, POLL_INTERVAL_MS);
         return () => window.clearInterval(intervalId);
-    }, [canRender, fetchConversation]);
+    }, [canRender, fetchConversation, markRead]);
 
     const handleOpen = useCallback(async () => {
         setIsOpen(true);
+        // Read marker first, so the refetch below already comes back at 0 and the
+        // badge doesn't flash back on the next poll.
+        await markRead();
         const next = await fetchConversation();
-        if (next) setConversation(next);
-    }, [fetchConversation]);
+        if (next) setConversation({ ...next, unreadCount: 0 });
+    }, [fetchConversation, markRead]);
 
     const handleClose = useCallback(() => {
         setIsOpen(false);
-        if (conversation) {
-            setConversation({ ...conversation, unreadCount: 0 });
-        }
-        fetch("/api/support/conversation/read", { method: "POST" }).catch(() => undefined);
-    }, [conversation]);
+        setConversation((current) =>
+            current ? { ...current, unreadCount: 0 } : current,
+        );
+        void markRead();
+    }, [markRead]);
 
     const handleConversationUpdate = useCallback((next: SupportConversationDetailDTO) => {
         setConversation(next);

@@ -16,6 +16,8 @@ interface Toast {
     title: string;
     message?: string;
     duration?: number;
+    /** Optional inline action, e.g. an "Annuler" button on a reversible change. */
+    action?: { label: string; onClick: () => void };
 }
 
 interface ToastContextType {
@@ -164,6 +166,18 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
                 <p className="font-medium text-slate-900">{toast.title}</p>
                 {toast.message && (
                     <p className="text-sm text-slate-600 mt-0.5">{toast.message}</p>
+                )}
+                {toast.action && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            toast.action?.onClick();
+                            onClose();
+                        }}
+                        className="mt-2 text-sm font-semibold text-indigo-600 underline-offset-2 hover:underline"
+                    >
+                        {toast.action.label}
+                    </button>
                 )}
             </div>
             <button

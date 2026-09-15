@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { SUP_LIGHT, SupportStyles } from "./supportStyles";
 import { AvatarRing, SupportBubble } from "./SupportBubble";
+import {
+    SupportAttachButton,
+    SupportAttachmentPreviews,
+    useSupportAttachments,
+} from "./SupportAttachments";
 import type {
     SupportConversationDetailDTO,
     SupportConversationSummaryDTO,
@@ -84,6 +89,15 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     const [sending, setSending] = useState(false);
     const [resolving, setResolving] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+    const attachments = useSupportAttachments({
+        conversationId: selectedId,
+        disabled: sending,
+    });
+    const canReply =
+        (replyValue.trim().length > 0 || attachments.readyIds.length > 0) &&
+        !sending &&
+        !attachments.isUploading;
 
     const [mode, setMode] = useState<WorkspaceMode>("conversations");
     const [alerts, setAlerts] = useState<ClientAlert[]>([]);
@@ -176,14 +190,25 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [detail?.messages.length]);
 
+    // Switching conversation must never carry a pending image over to another client.
+    const discardAttachments = attachments.discard;
+    useEffect(() => {
+        discardAttachments();
+    }, [selectedId, discardAttachments]);
+
     const filteredConversations = useMemo(() => {
         if (tab === "UNREAD") return conversations.filter((c) => c.unreadCount > 0);
         return conversations;
     }, [conversations, tab]);
 
     const handleReply = async () => {
-        if (!selectedId || !replyValue.trim() || sending) return;
+        if (!selectedId || sending || attachments.isUploading) return;
         const content = replyValue.trim();
+        const attachmentIds = attachments.readyIds;
+        const sentAttachments = attachments.pending
+            .filter((a) => a.status === "ready" && a.remote)
+            .map((a) => a.remote!);
+        if (!content && attachmentIds.length === 0) return;
         setSending(true);
 
         const optimistic: SupportMessageDTO = {
@@ -200,12 +225,14 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     role: "MANAGER",
                 }
                 : null,
+            attachments: sentAttachments,
             createdAt: new Date().toISOString(),
         };
         setDetail((current) =>
             current ? { ...current, messages: [...current.messages, optimistic] } : current,
         );
         setReplyValue("");
+        attachments.clear();
 
         try {
             const res = await fetch(
@@ -213,7 +240,10 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ content }),
+                    body: JSON.stringify({
+                        content,
+                        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
+                    }),
                 },
             );
             const json = await res.json();
@@ -1004,7 +1034,19 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                             flexShrink: 0,
                                         }}
                                     >
+                                        <SupportAttachmentPreviews
+                                            pending={attachments.pending}
+                                            onRemove={attachments.remove}
+                                            theme="light"
+                                        />
+
                                         <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+                                            <SupportAttachButton
+                                                onFiles={attachments.addFiles}
+                                                disabled={sending}
+                                                theme="light"
+                                                size={44}
+                                            />
                                             <div
                                                 style={{
                                                     flex: 1,
@@ -1024,6 +1066,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                             handleReply();
                                                         }
                                                     }}
+                                                    onPaste={attachments.handlePaste}
                                                     placeholder={`Répondre à ${detail.clientName}...`}
                                                     rows={2}
                                                     aria-label="Répondre au client"
@@ -1043,23 +1086,23 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                             <button
                                                 type="button"
                                                 onClick={handleReply}
-                                                disabled={!replyValue.trim() || sending}
+                                                disabled={!canReply}
                                                 aria-label="Envoyer"
                                                 style={{
                                                     width: 44,
                                                     height: 44,
                                                     borderRadius: T.radiusS,
-                                                    background: replyValue.trim()
+                                                    background: canReply
                                                         ? `linear-gradient(135deg, ${T.brand}, ${T.brandStrong})`
                                                         : T.surface,
-                                                    border: replyValue.trim() ? "none" : `1px solid ${T.line}`,
-                                                    color: replyValue.trim() ? "#FFFFFF" : T.ink4,
-                                                    cursor: replyValue.trim() && !sending ? "pointer" : "not-allowed",
+                                                    border: canReply ? "none" : `1px solid ${T.line}`,
+                                                    color: canReply ? "#FFFFFF" : T.ink4,
+                                                    cursor: canReply ? "pointer" : "not-allowed",
                                                     display: "flex",
                                                     alignItems: "center",
                                                     justifyContent: "center",
                                                     transition: "all 200ms cubic-bezier(.34,1.56,.64,1)",
-                                                    boxShadow: replyValue.trim()
+                                                    boxShadow: canReply
                                                         ? "0 6px 14px rgba(99,102,241,0.25)"
                                                         : "none",
                                                 }}

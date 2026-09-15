@@ -19,9 +19,10 @@ import {
     Search, Pencil, Check, X as XIcon, Loader2, Phone, Mail, Briefcase,
     Sparkles, Clock, UserCog,
 } from "lucide-react";
-import { DataTable, StatCard, Badge, Button, Input, useToast, type Column } from "@/components/ui";
+import { DataTable, StatCard, Badge, Button, Input, Drawer, useToast, type Column } from "@/components/ui";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { cn, avatarColorForId, initialsFromName } from "@/lib/utils";
+import AssistantProjetPanel from "@/components/assistant-projet/AssistantProjetPanel";
 
 interface Booker {
     id: string;
@@ -278,6 +279,9 @@ export default function DashboardProjetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fetch once on mount
     useEffect(() => { void fetchData(); }, []);
 
+    /** The mission the assistant panel is currently opened on, if any. */
+    const [assistantFor, setAssistantFor] = useState<StaffingRow | null>(null);
+
     const handleDaysSaved = (clientId: string, value: number | null) => {
         setData((prev) => {
             if (!prev) return prev;
@@ -331,7 +335,7 @@ export default function DashboardProjetPage() {
                         </Link>
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
                             <ChannelIcon className="w-3 h-3 shrink-0" title={CHANNEL_LABEL[row.channel]} />
-                            <Link href={`/manager/missions/${row.missionId}`} className="hover:text-indigo-600 transition-colors truncate">
+                            <Link href={`/manager/clients?client=${row.clientId}&mission=${row.missionId}`} className="hover:text-indigo-600 transition-colors truncate">
                                 {row.missionName}
                             </Link>
                         </div>
@@ -419,6 +423,22 @@ export default function DashboardProjetPage() {
                     </Badge>
                 );
             },
+        },
+        {
+            key: "assistant",
+            header: "",
+            width: "52px",
+            render: (_value, row) => (
+                <button
+                    type="button"
+                    onClick={() => setAssistantFor(row)}
+                    title={`Ouvrir l'assistant sur ${row.clientName} — ${row.missionName}`}
+                    aria-label="Ouvrir l'assistant sur ce projet"
+                    className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-pink-50 hover:text-pink-600"
+                >
+                    <Sparkles className="w-4 h-4" />
+                </button>
+            ),
         },
     ];
 
@@ -576,6 +596,30 @@ export default function DashboardProjetPage() {
                     />
                 )}
             </div>
+
+            {/* The assistant, opened on the project of the row you clicked —
+                bound to that client + mission, with its own conversation. */}
+            <Drawer
+                isOpen={!!assistantFor}
+                onClose={() => setAssistantFor(null)}
+                title="Assistant Projet"
+                description={
+                    assistantFor
+                        ? `${assistantFor.clientName} — ${assistantFor.missionName}`
+                        : undefined
+                }
+                size="lg"
+            >
+                {assistantFor && (
+                    <div className="h-[calc(100vh-190px)]">
+                        <AssistantProjetPanel
+                            key={assistantFor.missionId}
+                            fixedClientId={assistantFor.clientId}
+                            fixedMissionId={assistantFor.missionId}
+                        />
+                    </div>
+                )}
+            </Drawer>
         </div>
     );
 }

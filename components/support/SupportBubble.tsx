@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { SUP_DARK, SUP_LIGHT } from "./supportStyles";
+import { SupportAttachmentGallery } from "./SupportAttachments";
 import type { SupportMessageDTO } from "@/lib/support/types";
 
 type SupportTheme = "light" | "dark";
@@ -107,6 +108,8 @@ export function SupportBubble({ message, viewpoint, theme = "light", isLast, see
 
     const isOwn =
         viewpoint === "client" ? message.role === "CLIENT" : message.role === "MANAGER";
+    const attachments = message.attachments ?? [];
+    const hasText = message.content.trim().length > 0;
     const isManagerViewClientMessage = viewpoint === "manager" && message.role === "CLIENT";
     const senderIsCommercial = message.author?.role === "COMMERCIAL";
     const senderTag = isManagerViewClientMessage
@@ -217,7 +220,14 @@ export function SupportBubble({ message, viewpoint, theme = "light", isLast, see
                         )}
                     </div>
                 )}
-                <div style={bubbleStyle}>{message.content}</div>
+                {hasText && <div style={bubbleStyle}>{message.content}</div>}
+                {attachments.length > 0 && (
+                    <SupportAttachmentGallery
+                        attachments={attachments}
+                        theme={theme}
+                        hasText={hasText}
+                    />
+                )}
                 <div
                     style={{
                         display: "flex",

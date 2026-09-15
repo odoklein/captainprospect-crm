@@ -5,6 +5,7 @@ import {
     buildRdvEmailFromCustomTemplate,
     RdvNotificationData,
 } from "@/lib/email/templates/rdv-notification";
+import { alertClientsLiveSupportMessage } from "@/lib/slack/clientsLive";
 
 interface CreateNotificationParams {
     userId: string;
@@ -441,9 +442,24 @@ export async function notifyManagersClientSupportMessage(data: {
     clientName: string;
     messagePreview: string;
     intent?: string | null;
+    authorName?: string | null;
+    attachmentCount?: number;
+    pageLabel?: string | null;
 }) {
     const intentLabels: Record<string, string> = { RDV: "Question RDV", RAPPORT: "Rapport", PROBLEME: "Probleme", AUTRE: "Autre" };
     const intentStr = data.intent ? ` [${intentLabels[data.intent] ?? data.intent}]` : "";
+
+    // Mirror the in-app notification to #clients-live so the team sees client
+    // messages without sitting in the CRM. No-op when no webhook is configured.
+    void alertClientsLiveSupportMessage({
+        clientName: data.clientName,
+        authorName: data.authorName ?? null,
+        messagePreview: data.messagePreview,
+        intent: data.intent ?? null,
+        attachmentCount: data.attachmentCount,
+        pageLabel: data.pageLabel ?? null,
+    });
+
     return notifyAllManagers({
         title: `Message support : ${data.clientName}${intentStr}`,
         message: data.messagePreview.slice(0, 140),

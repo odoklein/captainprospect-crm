@@ -9,6 +9,10 @@ import {
     ValidationError,
 } from '@/lib/api-utils';
 import { notifyManagersCommercialAbsent, notifyManagersClientFeedback } from '@/lib/notifications';
+import {
+    isNoShowReportWindowOpen,
+    NO_SHOW_WINDOW_CLOSED_MESSAGE,
+} from '@/lib/meetings/noShowWindow';
 
 async function verifyCommercialAccessToAction(actionId: string, interlocuteurId: string) {
     const interlocuteur = await prisma.clientInterlocuteur.findUnique({
@@ -101,6 +105,12 @@ export const POST = withErrorHandler(async (
         throw new AuthError("Ce rendez-vous n'est pas encore confirmé", 403);
     }
 
+    // Same 48h self-service window as the client portal: past it, the no-show
+    // has to be raised by a manager from /manager/rdv-absences.
+    if (outcome === 'NO_SHOW' && !isNoShowReportWindowOpen(action.callbackDate)) {
+        throw new AuthError(NO_SHOW_WINDOW_CLOSED_MESSAGE, 403);
+    }
+
     const existing = await prisma.meetingFeedback.findUnique({ where: { actionId } });
     if (existing) {
         throw new AuthError('Un feedback a déjà été soumis pour ce rendez-vous');
@@ -112,6 +122,8 @@ export const POST = withErrorHandler(async (
             outcome,
             recontactRequested,
             clientNote: clientNote || null,
+            source: 'PORTAL_COMMERCIAL',
+            reportedById: session.user.id,
         },
     });
 
@@ -160,12 +172,24 @@ export const PATCH = withErrorHandler(async (
         throw new NotFoundError('Aucun feedback trouvé pour ce rendez-vous');
     }
 
+    // Switching an existing feedback to NO_SHOW is a new no-show signal, so it
+    // is bound by the same window as creating one.
+    if (
+        outcome === 'NO_SHOW' &&
+        existing.outcome !== 'NO_SHOW' &&
+        !isNoShowReportWindowOpen(action.callbackDate)
+    ) {
+        throw new AuthError(NO_SHOW_WINDOW_CLOSED_MESSAGE, 403);
+    }
+
     const updated = await prisma.meetingFeedback.update({
         where: { actionId },
         data: {
             ...(outcome && { outcome }),
             ...(recontactRequested && { recontactRequested }),
             ...(clientNote !== undefined && { clientNote: clientNote || null }),
+            source: 'PORTAL_COMMERCIAL',
+            reportedById: session.user.id,
         },
     });
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast, Badge } from "@/components/ui";
 import {
@@ -177,8 +178,11 @@ async function fetchLeexiRecapsApi(): Promise<LeexiRecapsData | null> {
 // CLIENTS PAGE
 // ============================================
 
-export default function ClientsPage() {
+function ClientsPageInner() {
     const queryClient = useQueryClient();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const { error: showError } = useToast();
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<ClientStatus | "ALL">("ALL");
@@ -187,9 +191,32 @@ export default function ClientsPage() {
     const [showOnboardingModal, setShowOnboardingModal] = useState(false);
     const [initialRecapText, setInitialRecapText] = useState<string | undefined>(undefined);
 
-    // Drawer state
+    // Drawer state — mirrored in the URL so a mission is linkable and the
+    // back button closes what it opened.
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [showDrawer, setShowDrawer] = useState(false);
+
+    const clientParam = searchParams.get("client");
+    const missionParam = searchParams.get("mission");
+    const missionTabParam = searchParams.get("tab") ?? "general";
+
+    const setDrawerUrl = useCallback(
+        (
+            next: { client?: string | null; mission?: string | null; tab?: string | null },
+            mode: "push" | "replace" = "push",
+        ) => {
+            const params = new URLSearchParams(searchParams.toString());
+            for (const [key, value] of Object.entries(next)) {
+                if (value) params.set(key, value);
+                else params.delete(key);
+            }
+            const query = params.toString();
+            const url = query ? `${pathname}?${query}` : pathname;
+            if (mode === "replace") router.replace(url, { scroll: false });
+            else router.push(url, { scroll: false });
+        },
+        [pathname, router, searchParams],
+    );
 
     // Leexi UI state
     const [showLeexiSection, setShowLeexiSection] = useState(true);
@@ -210,6 +237,17 @@ export default function ClientsPage() {
         queryKey: CLIENTS_QUERY_KEY,
         queryFn: fetchClientsApi,
     });
+
+    useEffect(() => {
+        if (!clientParam) {
+            setShowDrawer(false);
+            return;
+        }
+        const match = clients.find((c) => c.id === clientParam);
+        if (!match) return;
+        setSelectedClient(match);
+        setShowDrawer(true);
+    }, [clientParam, clients]);
 
     // React Query: Leexi recaps (non-blocking, don't throw to UI)
     const {
@@ -283,7 +321,13 @@ export default function ClientsPage() {
     const handleClientClick = (client: Client) => {
         setSelectedClient(client);
         setShowDrawer(true);
+        setDrawerUrl({ client: client.id, mission: null, tab: null });
     };
+
+    const handleDrawerClose = useCallback(() => {
+        setShowDrawer(false);
+        setDrawerUrl({ client: null, mission: null, tab: null });
+    }, [setDrawerUrl]);
 
     const handleStatusChange = async (clientId: string, status: ClientStatus) => {
         setStatusMenuClientId(null);
@@ -794,12 +838,27 @@ export default function ClientsPage() {
             {/* Client Drawer */}
             <ClientDrawer
                 isOpen={showDrawer}
-                onClose={() => setShowDrawer(false)}
+                onClose={handleDrawerClose}
                 client={selectedClient}
                 onUpdate={handleClientUpdate}
+                openMissionId={missionParam}
+                onOpenMission={(missionId) =>
+                    setDrawerUrl({
+                        client: selectedClient?.id ?? clientParam,
+                        mission: missionId,
+                        tab: missionId ? "general" : null,
+                    })
+                }
+                missionTab={missionTabParam}
+                onMissionTabChange={(tab) =>
+                    setDrawerUrl(
+                        { client: selectedClient?.id ?? clientParam, mission: missionParam, tab },
+                        "replace",
+                    )
+                }
                 onDelete={() => {
                     setSelectedClient(null);
-                    setShowDrawer(false);
+                    handleDrawerClose();
                     queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
                     queryClient.invalidateQueries({ queryKey: LEEXI_RECAPS_QUERY_KEY });
                 }}
@@ -816,5 +875,13 @@ export default function ClientsPage() {
                 initialRecapText={initialRecapText}
             />
         </div>
+    );
+}
+
+export default function ClientsPage() {
+    return (
+        <Suspense fallback={null}>
+            <ClientsPageInner />
+        </Suspense>
     );
 }

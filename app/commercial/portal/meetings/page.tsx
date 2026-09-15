@@ -9,6 +9,10 @@ import {
   Building2, MapPin, Video, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  isNoShowReportWindowOpen,
+  NO_SHOW_REPORT_WINDOW_HOURS,
+} from "@/lib/meetings/noShowWindow";
 import { getMeetingCancellationLabel } from "@/lib/constants/meetingCancellationReasons";
 import { MeetingsSkeleton } from "@/components/client/skeletons";
 
@@ -274,19 +278,6 @@ const GLOBAL_CSS = `
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   width: 70px; flex-shrink: 0; padding: 16px 6px;
   border-right: 1px solid ${tk.border};
-}
-
-/* ── Note quote ── */
-.cp-note-quote {
-  position: relative; padding: 12px 14px 12px 18px; border-radius: 10px;
-  background: linear-gradient(135deg, rgba(91,79,232,0.04), rgba(91,79,232,0.02));
-  border: 1px solid rgba(91,79,232,0.1);
-  font-size: 13px; font-style: italic; color: ${tk.ink3}; line-height: 1.65;
-}
-.cp-note-quote::before {
-  content: ''; position: absolute; left: 0; top: 10px; bottom: 10px;
-  width: 3px; border-radius: 2px;
-  background: linear-gradient(to bottom, ${tk.accentMid}, ${tk.accent});
 }
 
 /* ── Field ── */
@@ -989,7 +980,6 @@ function Card({
             {m.rdvFiche && (
               <Pill label="Fiche RDV" color={tk.ink3} bg="#F3F4F6" border="rgba(0,0,0,0.07)" />
             )}
-            <span style={{fontSize:11.5,color:tk.ink4}}>{m.campaign.name}</span>
           </div>
 
           {/* Contact */}
@@ -1037,16 +1027,6 @@ function Card({
               </div>
             </div>
           </div>
-
-          {/* SDR note */}
-          {m.note && (
-            <div className="cp-note-quote">
-              <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",color:tk.ink4,fontStyle:"normal",marginBottom:4}}>
-                Note{m.sdr?.name?` · ${m.sdr.name}`:""}
-              </div>
-              &ldquo;{m.note}&rdquo;
-            </div>
-          )}
 
           {/* Feedback badge */}
           {fb && (
@@ -1200,13 +1180,6 @@ function DetailModal({ m, onClose, onFeedback }: {
         )}
       </Sec>
 
-      {/* SDR note */}
-      {m.note && (
-        <Sec label={`Note du SDR${m.sdr?.name?` · ${m.sdr.name}`:""}`}>
-          <div className="cp-note-quote">&ldquo;{m.note}&rdquo;</div>
-        </Sec>
-      )}
-
       {/* Fiche RDV */}
       {m.rdvFiche && (
         <Sec label="Fiche RDV">
@@ -1265,6 +1238,11 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
   const name = m.contact ? [m.contact.firstName,m.contact.lastName].filter(Boolean).join(" ") || "Contact" : m.company?.name ?? "Contact entreprise";
   const companyName = m.contact?.company?.name ?? m.company?.name ?? "Entreprise inconnue";
   const isEditing = !!m.meetingFeedback;
+  // The API refuses a fresh NO_SHOW past 48h, so don't offer it here. An
+  // already-recorded no-show stays selectable, otherwise editing an old
+  // feedback would be impossible without changing its outcome.
+  const noShowOpen = isNoShowReportWindowOpen(m.callbackDate)
+    || m.meetingFeedback?.outcome === "NO_SHOW";
 
   if (done) return (
     <Modal title="Feedback enregistré" onClose={onClose}
@@ -1295,10 +1273,13 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
           {OUTCOME_OPTS.map(({value,label,Icon})=>{
             const sel=out===value; const meta=OM[value];
+            const locked = value==="NO_SHOW" && !noShowOpen;
             return (
               <button key={value} type="button" aria-pressed={sel} onClick={()=>onOut(value)}
+                disabled={locked}
+                title={locked?`Délai de ${NO_SHOW_REPORT_WINDOW_HOURS}h dépassé`:undefined}
                 className={cn("cp-outcome",sel&&"sel")}
-                style={{borderColor:sel?meta.color:tk.border,background:sel?meta.bg:tk.surface,color:sel?meta.color:tk.ink3,boxShadow:sel?`0 6px 20px -4px ${meta.color}40`:"none"}}>
+                style={{borderColor:sel?meta.color:tk.border,background:sel?meta.bg:tk.surface,color:sel?meta.color:tk.ink3,boxShadow:sel?`0 6px 20px -4px ${meta.color}40`:"none",opacity:locked?0.45:1,cursor:locked?"not-allowed":"pointer"}}>
                 <div className="cp-outcome-ico" style={{background:sel?meta.iconBg:"#F3F4F6",color:sel?"#fff":tk.ink4}}>
                   <Icon style={{width:17,height:17}} />
                 </div>
@@ -1307,6 +1288,12 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
             );
           })}
         </div>
+        {!noShowOpen && (
+          <p style={{fontSize:11.5,lineHeight:1.5,color:tk.ink3,marginTop:10}}>
+            Le signalement « Absent » est ouvert pendant {NO_SHOW_REPORT_WINDOW_HOURS}h après le rendez-vous.
+            Ce délai est dépassé : contactez votre manager, qui pourra le remonter manuellement.
+          </p>
+        )}
       </Sec>
 
       <Sec label="Recontacter ce prospect ? *">

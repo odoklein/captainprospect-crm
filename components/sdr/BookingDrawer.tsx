@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useToast } from "@/components/ui";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import {
@@ -112,16 +112,26 @@ function hashStr(s: string) {
     return s.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 }
 
+/**
+ * Adds the embed flags each known provider needs to run inline and emit booking
+ * events. Unknown providers are embedded as-is — the SDR can still fill the date
+ * by hand, so an unrecognised tool degrades instead of breaking.
+ */
 function getEmbedBookingUrl(rawUrl: string): string {
     try {
         const url = new URL(rawUrl);
-        if (url.hostname.endsWith("cal.com") || url.hostname === "cal.com") {
+        const host = url.hostname.toLowerCase();
+
+        if (host === "cal.com" || host.endsWith(".cal.com")) {
             url.searchParams.set("embed", "true");
         }
-        if (url.hostname.endsWith("calendly.com") || url.hostname === "calendly.com") {
+        if (host === "calendly.com" || host.endsWith(".calendly.com")) {
             url.searchParams.set("embed_domain", typeof window !== "undefined" ? window.location.hostname : "localhost");
             url.searchParams.set("embed_type", "Inline");
             url.searchParams.set("hide_gdpr_banner", "1");
+        }
+        if (host.endsWith("hubspot.com") && url.pathname.includes("/meetings")) {
+            url.searchParams.set("embed", "true");
         }
         return url.toString();
     } catch {
@@ -250,27 +260,132 @@ const MEETING_CATEGORY_LABELS: Record<string, string> = {
     BESOIN: "Analyse de besoin",
 };
 
-// ── Extract date from calendar postMessage event data (client-side mirror of API's extractScheduledStartTime)
-function extractDateFromEventData(eventData: unknown): string | null {
-    if (!eventData || typeof eventData !== "object") return null;
-    const data = eventData as Record<string, unknown>;
-    const candidates = [
-        data.invitee_start_time,
-        data.start_time,
-        data.startTime,
-        data.scheduled_start,
-        data.start,
-        (data.payload as Record<string, unknown> | undefined)?.invitee_start_time,
-        (data.payload as Record<string, unknown> | undefined)?.start_time,
-        (data.event as Record<string, unknown> | undefined)?.start_time,
-        (data.event as Record<string, unknown> | undefined)?.startTime,
-    ];
-    for (const c of candidates) {
-        if (typeof c === "string") {
-            const d = new Date(c);
-            if (!Number.isNaN(d.getTime())) return d.toISOString();
-        }
+// ── Booking-event parsing ──────────────────────────────────────────────
+// Clients use whatever booking tool they already own (Cal.com, Calendly, HubSpot
+// Meetings, TidyCal, SavvyCal, Microsoft Bookings, in-house pages…). Each embeds a
+// different postMessage shape — and several emit nothing at all — so detection is
+// heuristic and the manual date field always stays available as a fallback.
+
+/** Keys whose value is the slot start. */
+const START_KEY_RE = /^(invitee_)?(start|starts?_?(time|at|date)|scheduled_?start|from|begin(s|ning)?)$/i;
+/** Keys that plausibly hold the slot start, used only when no strong key matched. */
+const WEAK_DATE_KEY_RE = /^(date|when|slot|datetime|date_?time|scheduled_?(at|time|for)|meeting_?(date|time)|booking_?(date|time)|appointment_?(date|time))$/i;
+/** Keys that look date-ish but never mean "slot start". */
+const REJECT_DATE_KEY_RE = /(^|_)(end|ends|created|updated|modified|expires?|cancel|deleted|booked_?at|paid|reminder|birth|timezone|tz)/i;
+
+/** Accept only dates a real RDV could plausibly fall on (filters out createdAt, epoch 0, …). */
+function toPlausibleRdvDate(value: unknown): Date | null {
+    let d: Date | null = null;
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        // Bare numeric strings are epoch timestamps, not parseable date strings
+        if (/^\d{10}$/.test(trimmed)) d = new Date(Number(trimmed) * 1000);
+        else if (/^\d{13}$/.test(trimmed)) d = new Date(Number(trimmed));
+        else if (trimmed) d = new Date(trimmed);
+    } else if (typeof value === "number" && Number.isFinite(value)) {
+        d = value > 1e12 ? new Date(value) : new Date(value * 1000);
     }
+    if (!d || Number.isNaN(d.getTime())) return null;
+
+    const now = Date.now();
+    const oneWeekAgo = now - 7 * 24 * 3600 * 1000;
+    const twoYearsAhead = now + 2 * 365 * 24 * 3600 * 1000;
+    if (d.getTime() < oneWeekAgo || d.getTime() > twoYearsAhead) return null;
+    return d;
+}
+
+/**
+ * Walk an arbitrary booking payload and return the slot start as an ISO string.
+ * Provider-agnostic: scores keys rather than matching a fixed list of field paths.
+ */
+function extractDateFromEventData(eventData: unknown): string | null {
+    // Object holder rather than a `let`: TypeScript keeps the initial narrowing for
+    // primitives assigned only inside the closure below.
+    const best: { score: number; date: Date | null } = { score: 0, date: null };
+    const seen = new Set<unknown>();
+
+    const walk = (node: unknown, depth: number) => {
+        if (node == null || depth > 6 || typeof node !== "object" || seen.has(node)) return;
+        seen.add(node);
+
+        if (Array.isArray(node)) {
+            node.forEach((item) => walk(item, depth + 1));
+            return;
+        }
+
+        for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+            if (value && typeof value === "object") {
+                walk(value, depth + 1);
+                continue;
+            }
+            if (REJECT_DATE_KEY_RE.test(key)) continue;
+
+            const score = START_KEY_RE.test(key) ? 2 : WEAK_DATE_KEY_RE.test(key) ? 1 : 0;
+            if (score === 0) continue;
+
+            const date = toPlausibleRdvDate(value);
+            if (!date) continue;
+            // First match at the highest score wins — shallower fields are visited first
+            if (!best.date || score > best.score) {
+                best.score = score;
+                best.date = date;
+            }
+        }
+    };
+
+    walk(eventData, 0);
+    return best.date ? best.date.toISOString() : null;
+}
+
+/**
+ * Whether a postMessage origin belongs to the booking tool we embedded — the host
+ * itself or one of its subdomains, so a provider posting from `assets.<provider>`
+ * still works. Deliberately excludes the parent domain: `embedHost.endsWith("." + host)`
+ * would accept a bare `com`/`co.uk` origin.
+ */
+function isRelatedToBookingHost(origin: string, embedHost: string): boolean {
+    if (!origin || !embedHost) return false;
+    let host: string;
+    try {
+        const url = new URL(origin);
+        if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+        host = url.hostname.toLowerCase();
+    } catch {
+        return false;
+    }
+    return host === embedHost || host.endsWith(`.${embedHost}`);
+}
+
+/** Message `type`/`event`/`action` values that mean "the slot is booked". */
+const BOOKING_EVENT_RE =
+    /(^|[.:_-])(book(ing)?[._-]?(success(ful)?|completed?|confirmed|created|done)|event[._-]?scheduled|(meeting|appointment)[._-]?(booked|scheduled|confirmed|created))([._-]|v\d|$)/i;
+
+/**
+ * Returns the booking payload when a postMessage from the embedded calendar means
+ * "the slot is booked", otherwise null. Recognises the shapes we know
+ * (Cal.com, Calendly, HubSpot) and falls back to a name heuristic for the rest.
+ */
+function getBookingEventPayload(message: unknown): unknown | null {
+    if (!message || typeof message !== "object") return null;
+    const m = message as Record<string, unknown>;
+    const str = (v: unknown) => (typeof v === "string" ? v : "");
+
+    // Calendly — `{ event: "calendly.event_scheduled", payload }`
+    if (str(m.event) === "calendly.event_scheduled") return m.payload ?? m;
+
+    // HubSpot Meetings — `{ meetingBookSucceeded: true, meetingsPayload }`
+    if (m.meetingBookSucceeded === true) return m.meetingsPayload ?? m;
+
+    // Cal.com embed SDK — `{ type: "bookingSuccessful" | "bookingSuccessfulV2", fullType, data }`
+    const fullType = str(m.fullType);
+    if (fullType.startsWith("CAL:booking")) return m.data ?? m;
+
+    // Generic: any provider naming its event "booking succeeded"/"event scheduled"/…
+    const names = [str(m.type), str(m.event), str(m.action), str(m.name), fullType];
+    if (names.some((n) => n && BOOKING_EVENT_RE.test(n))) {
+        return m.data ?? m.payload ?? m.detail ?? m;
+    }
+
     return null;
 }
 
@@ -305,6 +420,8 @@ export function BookingDrawer({
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [booked, setBooked] = useState(false);
+    /** Guards against recording the same booking twice (duplicate embed events / manual confirm). */
+    const bookingHandledRef = useRef(false);
     const [iframeLoading, setIframeLoading] = useState(true);
 
     const [rdvDateLocal, setRdvDateLocal] = useState<string>(rdvDate ?? "");
@@ -355,6 +472,10 @@ export function BookingDrawer({
     const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
     const selectedOption = bookingOptions.find(o => o.id === selectedOptionId) || bookingOptions[0] || null;
     const embedUrl = selectedOption ? getEmbedBookingUrl(selectedOption.url) : "";
+    const embedHost = useMemo(() => {
+        if (!embedUrl) return "";
+        try { return new URL(embedUrl).hostname.toLowerCase(); } catch { return ""; }
+    }, [embedUrl]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -372,6 +493,7 @@ export function BookingDrawer({
         setMeetingPhoneLocal(meetingPhone ?? "");
         setCalendarSyncedDate("");
         setShowManualDate(false);
+        bookingHandledRef.current = false;
     }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const effectiveRdvDate = onRdvDateChange ? (rdvDate ?? "") : rdvDateLocal;
@@ -405,13 +527,15 @@ export function BookingDrawer({
     useEffect(() => {
         if (!isOpen) return;
         const handleMessage = async (event: MessageEvent) => {
-            const origin = event.origin;
+            // Trust the frame we embedded rather than a hardcoded provider allowlist:
+            // clients bring their own booking tool, and several redirect the iframe to a
+            // second origin mid-flow or post from a nested frame of their own.
+            const isFromBookingFrame =
+                !!iframeRef.current?.contentWindow && event.source === iframeRef.current.contentWindow;
             const isAllowed =
-                origin === window.location.origin ||
-                origin.endsWith(".calendly.com") ||
-                origin === "https://calendly.com" ||
-                origin.endsWith(".cal.com") ||
-                origin === "https://cal.com";
+                isFromBookingFrame ||
+                event.origin === window.location.origin ||
+                isRelatedToBookingHost(event.origin, embedHost);
             if (!isAllowed) return;
 
             const processBooking = async (eventData: unknown) => {
@@ -427,6 +551,7 @@ export function BookingDrawer({
                     const resolvedRdvDate = extractedDate || effectiveRdvDate;
 
                     if (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim()) {
+                        bookingHandledRef.current = false;
                         showError("Adresse requise", "Veuillez renseigner une adresse pour un RDV physique.");
                         return;
                     }
@@ -461,9 +586,11 @@ export function BookingDrawer({
                         onBookingSuccess?.();
                         setTimeout(onClose, 1800);
                     } else {
+                        bookingHandledRef.current = false;
                         showError("Erreur", json.error || "Impossible d'enregistrer le rendez-vous");
                     }
                 } catch (err) {
+                    bookingHandledRef.current = false;
                     console.error("Failed to process booking:", err);
                     showError("Erreur", "Impossible d'enregistrer le rendez-vous");
                 } finally {
@@ -471,15 +598,25 @@ export function BookingDrawer({
                 }
             };
 
-            if (event.data.event === "calendly.event_scheduled") await processBooking(event.data.payload);
-            else if (event.data.type === "booking_success" || event.data.event === "booking.completed") await processBooking(event.data);
+            const bookingPayload = getBookingEventPayload(event.data);
+            if (!bookingPayload) return;
+            // Cal.com fires both `bookingSuccessful` and `bookingSuccessfulV2` for the same
+            // booking — record the action only once.
+            if (bookingHandledRef.current) return;
+            bookingHandledRef.current = true;
+            await processBooking(bookingPayload);
         };
 
         window.addEventListener("message", handleMessage);
         return () => window.removeEventListener("message", handleMessage);
-    }, [isOpen, contactId, companyId, contactName, effectiveRdvDate, effectiveMeetingType, effectiveMeetingCategory, effectiveMeetingAddress, effectiveMeetingJoinUrl, effectiveMeetingPhone, selectedOption, onBookingSuccess, onClose, success, showError]);
+    }, [isOpen, embedHost, contactId, companyId, contactName, effectiveRdvDate, effectiveMeetingType, effectiveMeetingCategory, effectiveMeetingAddress, effectiveMeetingJoinUrl, effectiveMeetingPhone, selectedOption, onBookingSuccess, onClose, success, showError]);
 
     const handleConfirmRdv = useCallback(async () => {
+        if (bookingHandledRef.current) return;
+        if (!effectiveRdvDate) {
+            showError("Date requise", "Renseignez la date et l'heure du rendez-vous.");
+            return;
+        }
         if (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim()) {
             showError("Adresse requise", "Veuillez renseigner une adresse pour un RDV physique.");
             return;
@@ -506,6 +643,7 @@ export function BookingDrawer({
             });
             const json = await res.json();
             if (json.success) {
+                bookingHandledRef.current = true;
                 setBooked(true);
                 success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
                 trackMeetingBooked({
@@ -535,6 +673,10 @@ export function BookingDrawer({
         : contactName;
 
     const MeetingTypeIcon = effectiveMeetingType ? MEETING_TYPE_LABELS[effectiveMeetingType]?.icon : null;
+    const confirmDisabled =
+        isProcessing ||
+        !effectiveRdvDate ||
+        (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim());
 
     return (
         <>
@@ -700,33 +842,32 @@ export function BookingDrawer({
                             </p>
 
                             {/* Date: auto-synced from calendar, or manual fallback */}
-                            {calendarSyncedDate ? (
+                            {calendarSyncedDate && !showManualDate ? (
                                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-sm">
                                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                                     <span className="text-emerald-800 font-medium capitalize">
                                         {formatRdvDate(calendarSyncedDate)}
                                     </span>
-                                    <span className="text-emerald-500 text-xs ml-auto">via calendrier</span>
-                                </div>
-                            ) : showManualDate ? (
-                                <DateTimePicker
-                                    label="Date et heure (saisie manuelle)"
-                                    value={effectiveRdvDate}
-                                    onChange={setEffectiveRdvDate}
-                                    placeholder="Choisir date et heure…"
-                                    triggerClassName="border-slate-200 focus:ring-indigo-400/30 focus:border-indigo-400 bg-white"
-                                />
-                            ) : (
-                                <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-indigo-50/60 border border-indigo-100 text-xs text-indigo-600">
-                                    <Calendar className="w-3.5 h-3.5 shrink-0" />
-                                    <span>Le créneau sera récupéré depuis le calendrier</span>
                                     <button
                                         type="button"
                                         onClick={() => setShowManualDate(true)}
-                                        className="ml-auto text-[11px] text-indigo-500 hover:text-indigo-700 underline underline-offset-2 whitespace-nowrap"
+                                        className="ml-auto text-[11px] text-emerald-600 hover:text-emerald-800 underline underline-offset-2 whitespace-nowrap"
                                     >
-                                        Saisie manuelle
+                                        Modifier
                                     </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    <DateTimePicker
+                                        label="Date et heure du RDV"
+                                        value={effectiveRdvDate}
+                                        onChange={setEffectiveRdvDate}
+                                        placeholder="Choisir date et heure…"
+                                        triggerClassName="border-slate-200 focus:ring-indigo-400/30 focus:border-indigo-400 bg-white"
+                                    />
+                                    <p className="text-[11px] text-slate-400">
+                                        Se remplit automatiquement si l&apos;outil de réservation du client transmet le créneau.
+                                    </p>
                                 </div>
                             )}
 
@@ -819,10 +960,10 @@ export function BookingDrawer({
                                 <button
                                     type="button"
                                     onClick={handleConfirmRdv}
-                                    disabled={isProcessing || (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim())}
+                                    disabled={confirmDisabled}
                                     className={cn(
                                         "w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white transition-all",
-                                        isProcessing || (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim())
+                                        confirmDisabled
                                             ? "bg-indigo-300 cursor-not-allowed"
                                             : "bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg"
                                     )}
@@ -833,9 +974,15 @@ export function BookingDrawer({
                                         <><CheckCircle2 className="w-4 h-4" aria-hidden="true" />Confirmer le RDV</>
                                     )}
                                 </button>
-                                <p className="text-[11px] text-slate-400 mt-2 text-center">
-                                    Choisissez un créneau dans le calendrier — la date et l&apos;heure seront récupérées automatiquement.
-                                </p>
+                                {!effectiveRdvDate ? (
+                                    <p className="text-[11px] text-amber-600 mt-2 text-center">
+                                        Renseignez la date du RDV — sans elle, le rendez-vous resterait « à confirmer ».
+                                    </p>
+                                ) : (
+                                    <p className="text-[11px] text-slate-400 mt-2 text-center">
+                                        Date du RDV : <span className="font-medium capitalize text-slate-600">{formatRdvDate(effectiveRdvDate)}</span>
+                                    </p>
+                                )}
                             </div>
                         </div>
 

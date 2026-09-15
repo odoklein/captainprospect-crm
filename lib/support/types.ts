@@ -31,6 +31,35 @@ export interface SupportMessageContext {
     intent?: SupportIntent;
 }
 
+/** Image attached to a support message. `url` is a same-origin streaming route. */
+export interface SupportAttachmentDTO {
+    id: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    width: number | null;
+    height: number | null;
+    url: string;
+}
+
+/** Image types the support composer accepts, on both the client and manager side. */
+export const SUPPORT_ATTACHMENT_MIME_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+] as const;
+
+/** 10 MB — generous for a screenshot, small enough to keep the thread snappy. */
+export const SUPPORT_ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024;
+
+/** Max images per message. */
+export const SUPPORT_ATTACHMENT_MAX_COUNT = 5;
+
+export function supportAttachmentUrl(id: string): string {
+    return `/api/support/attachments/${id}`;
+}
+
 export interface SupportMessageDTO {
     id: string;
     conversationId: string;
@@ -43,6 +72,7 @@ export interface SupportMessageDTO {
         name: string;
         role: string;
     } | null;
+    attachments: SupportAttachmentDTO[];
     createdAt: string;
 }
 
@@ -71,6 +101,8 @@ export interface CreateSupportMessageInput {
     content: string;
     intent?: SupportIntent;
     context?: SupportMessageContext;
+    /** Ids of attachments already uploaded to this conversation, attached on send. */
+    attachmentIds?: string[];
 }
 
 export interface SupportResolveInput {

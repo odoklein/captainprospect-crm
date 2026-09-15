@@ -30,8 +30,10 @@ The **sidebar** on the left is your main navigation tool. It is role-specific �
 - Note: `/manager/users` redirects automatically to Réglages
 
 ### Missions
-- Sidebar → **Prospection** → **Missions** → `/manager/missions`
-- Create new: **"+"** button top right → opens 3-step wizard
+- Missions live **inside the client**: Sidebar → **Suivi** → **Clients** → click a client → **Missions** tab → click a mission
+- The mission workspace opens in the client drawer with Général (insights), Stratégies par liste, Stratégie & Scripts, BDD, Avis SDR and Réglages
+- Deep link: `/manager/clients?client=<clientId>&mission=<missionId>`
+- Create new: **"Nouvelle mission"** in that Missions tab
 
 ### Prospect Lists & Contacts
 - Sidebar → **Prospection** → **Listes & Prospection** → `/manager/lists`

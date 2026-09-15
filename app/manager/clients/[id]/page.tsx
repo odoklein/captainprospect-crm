@@ -47,9 +47,9 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import AITaskExtractor, { type ExtractedTask } from "@/components/sessions/AITaskExtractor";
-import { NewMissionDialog } from "@/app/manager/missions/_components/NewMissionDialog";
+import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
 import { ReachInboxCampaignsPanel } from "@/components/email/ReachInboxCampaignsPanel";
-import { EditMissionDialog } from "@/app/manager/missions/[id]/_components/EditMissionDialog";
+import { EditMissionDialog } from "@/components/missions/EditMissionDialog";
 import { MISSION_STATUS_CONFIG } from "@/lib/constants/missionStatus";
 import type { MissionStatusValue } from "@/lib/constants/missionStatus";
 
@@ -1851,7 +1851,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 {client.missions?.filter(m => m.isActive).length ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {client.missions.filter(m => m.isActive).slice(0, 4).map((mission) => (
-                                            <Link key={mission.id} href={`/manager/missions/${mission.id}`} className="block h-full group focus:outline-none">
+                                            <Link key={mission.id} href={`/manager/clients?client=${client.id}&mission=${mission.id}`} className="block h-full group focus:outline-none">
                                                 <Card className="overflow-hidden border-slate-200 hover:shadow-md hover:border-indigo-200 group-focus-visible:ring-2 group-focus-visible:ring-indigo-500 transition-all duration-200 h-full">
                                                     <div className="p-4 flex flex-col h-full gap-3">
                                                         <div className="flex items-start justify-between gap-2">
@@ -2486,7 +2486,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                         <Edit className="w-3.5 h-3.5" />
                                                         Modifier
                                                     </Button>
-                                                    <Link href={`/manager/missions/${mission.id}`}>
+                                                    <Link href={`/manager/clients?client=${client.id}&mission=${mission.id}`}>
                                                         <Button variant="ghost" size="sm" className="gap-1.5">
                                                             Ouvrir
                                                             <ArrowUpRight className="w-3.5 h-3.5" />

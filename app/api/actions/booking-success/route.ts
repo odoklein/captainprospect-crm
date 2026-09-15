@@ -1,6 +1,7 @@
 // ============================================
 // BOOKING SUCCESS API
-// Handles successful booking events from Calendly, etc.
+// Handles successful booking events from whichever tool the client uses
+// (Cal.com, Calendly, HubSpot Meetings, Microsoft Bookings, in-house pages…).
 // Meeting formats: VISIO (meetingJoinUrl), PHYSIQUE (meetingAddress), TELEPHONIQUE (meetingPhone/contact fallback).
 // Regression: (1) Book with each format from UnifiedActionDrawer (2) Confirm CTAs in SDR, client portal, manager client (3) Cancel/reschedule/feedback unchanged.
 // ============================================
@@ -62,7 +63,14 @@ function isLikelyJoinLink(value: string): boolean {
     const host = url.hostname.toLowerCase();
     const full = candidate.toLowerCase();
 
-    if (host.includes('calendly.com') || host.endsWith('.cal.com') || host === 'cal.com') {
+    // A booking-tool URL is the scheduling page, never the join link — and several of
+    // them ("meetings.hubspot.com", "meet.…") would otherwise match the keyword test below.
+    const BOOKING_TOOL_HOSTS = [
+        'calendly.com', 'cal.com', 'hubspot.com', 'tidycal.com', 'savvycal.com',
+        'youcanbook.me', 'zcal.co', 'zoho.com', 'acuityscheduling.com', 'squarespace-scheduling.com',
+        'bookings.microsoft.com', 'outlook.office.com', 'setmore.com', 'simplybook.me', 'koalendar.com',
+    ];
+    if (BOOKING_TOOL_HOSTS.some((h) => host === h || host.endsWith(`.${h}`))) {
         return false;
     }
 
@@ -91,27 +99,72 @@ function collectNestedUrls(input: unknown, seen = new Set<unknown>(), depth = 0)
     });
 }
 
+// Clients bring their own booking tool, so the payload shape is unknown: score keys
+// rather than matching a fixed list of field paths. Mirrors the client-side helper
+// in components/sdr/BookingDrawer.tsx.
+const START_KEY_RE = /^(invitee_)?(start|starts?_?(time|at|date)|scheduled_?start|from|begin(s|ning)?)$/i;
+const WEAK_DATE_KEY_RE = /^(date|when|slot|datetime|date_?time|scheduled_?(at|time|for)|meeting_?(date|time)|booking_?(date|time)|appointment_?(date|time))$/i;
+const REJECT_DATE_KEY_RE = /(^|_)(end|ends|created|updated|modified|expires?|cancel|deleted|booked_?at|paid|reminder|birth|timezone|tz)/i;
+
+/** Accept only dates a real RDV could plausibly fall on (filters out createdAt, epoch 0, …). */
+function toPlausibleRdvDate(value: unknown): Date | null {
+    let d: Date | null = null;
+    if (value instanceof Date) {
+        d = value;
+    } else if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (/^\d{10}$/.test(trimmed)) d = new Date(Number(trimmed) * 1000);
+        else if (/^\d{13}$/.test(trimmed)) d = new Date(Number(trimmed));
+        else if (trimmed) d = new Date(trimmed);
+    } else if (typeof value === 'number' && Number.isFinite(value)) {
+        d = value > 1e12 ? new Date(value) : new Date(value * 1000);
+    }
+    if (!d || Number.isNaN(d.getTime())) return null;
+
+    const now = Date.now();
+    if (d.getTime() < now - 7 * 24 * 3600 * 1000) return null;
+    if (d.getTime() > now + 2 * 365 * 24 * 3600 * 1000) return null;
+    return d;
+}
+
 function extractScheduledStartTime(eventData: Record<string, unknown> | undefined): Date | null {
     if (!eventData) return null;
-    const candidates = [
-        eventData.invitee_start_time,
-        eventData.start_time,
-        eventData.startTime,
-        eventData.scheduled_start,
-        eventData.start,
-        (eventData.payload as Record<string, unknown> | undefined)?.invitee_start_time,
-        (eventData.payload as Record<string, unknown> | undefined)?.start_time,
-        (eventData.event as Record<string, unknown> | undefined)?.start_time,
-        (eventData.event as Record<string, unknown> | undefined)?.startTime,
-    ];
-    for (const c of candidates) {
-        if (typeof c === 'string') {
-            const d = new Date(c);
-            if (!Number.isNaN(d.getTime())) return d;
+
+    // Object holder rather than a `let`: TypeScript keeps the initial narrowing for
+    // primitives assigned only inside the closure below.
+    const best: { score: number; date: Date | null } = { score: 0, date: null };
+    const seen = new Set<unknown>();
+
+    const walk = (node: unknown, depth: number) => {
+        if (node == null || depth > 6 || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node);
+
+        if (Array.isArray(node)) {
+            node.forEach((item) => walk(item, depth + 1));
+            return;
         }
-        if (c instanceof Date && !Number.isNaN(c.getTime())) return c;
-    }
-    return null;
+
+        for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+            if (value && typeof value === 'object' && !(value instanceof Date)) {
+                walk(value, depth + 1);
+                continue;
+            }
+            if (REJECT_DATE_KEY_RE.test(key)) continue;
+
+            const score = START_KEY_RE.test(key) ? 2 : WEAK_DATE_KEY_RE.test(key) ? 1 : 0;
+            if (score === 0) continue;
+
+            const date = toPlausibleRdvDate(value);
+            if (!date) continue;
+            if (!best.date || score > best.score) {
+                best.score = score;
+                best.date = date;
+            }
+        }
+    };
+
+    walk(eventData, 0);
+    return best.date;
 }
 
 function extractMeetingJoinUrl(eventData: Record<string, unknown> | undefined): string | null {
@@ -157,9 +210,9 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const bookingSourceLabel = interlocuteurName?.trim()
         ? `RDV planifié via calendrier (${interlocuteurName.trim()})`
         : 'RDV planifié via calendrier';
-    const bookingNote = eventData
-        ? `${bookingSourceLabel}: ${JSON.stringify(eventData)}`
-        : bookingSourceLabel;
+    // On ne stocke plus le dump JSON de l'event : il finissait affiché tel quel
+    // (ex. "RDV planifié via calendrier (X): {}") dans les portails client/commercial.
+    const bookingNote = bookingSourceLabel;
 
     const scheduledAt = rdvDate
         ? new Date(rdvDate)

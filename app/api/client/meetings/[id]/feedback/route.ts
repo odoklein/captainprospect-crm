@@ -11,6 +11,10 @@ import {
     notifyManagersClientSignal,
     notifyManagersClientFeedback,
 } from '@/lib/notifications';
+import {
+    isNoShowReportWindowOpen,
+    NO_SHOW_WINDOW_CLOSED_MESSAGE,
+} from '@/lib/meetings/noShowWindow';
 
 export const GET = withErrorHandler(async (
     request: NextRequest,
@@ -99,13 +103,8 @@ export const POST = withErrorHandler(async (
         throw new AuthError('Not authorized to provide feedback for this meeting');
     }
 
-    const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
-    if (outcome === 'NO_SHOW' && action.callbackDate &&
-        Date.now() - action.callbackDate.getTime() > FORTY_EIGHT_HOURS_MS) {
-        throw new AuthError(
-            "Ce rendez-vous a eu lieu il y a plus de 48h, ce signalement n'est plus possible depuis le portail. Contactez votre manager.",
-            403
-        );
+    if (outcome === 'NO_SHOW' && !isNoShowReportWindowOpen(action.callbackDate)) {
+        throw new AuthError(NO_SHOW_WINDOW_CLOSED_MESSAGE, 403);
     }
 
     const feedback = await prisma.meetingFeedback.upsert({
@@ -115,11 +114,15 @@ export const POST = withErrorHandler(async (
             outcome,
             recontactRequested: recontact,
             clientNote: clientNote || null,
+            source: 'PORTAL_CLIENT',
+            reportedById: session.user.id,
         },
         update: {
             outcome,
             recontactRequested: recontact,
             clientNote: clientNote || null,
+            source: 'PORTAL_CLIENT',
+            reportedById: session.user.id,
         },
     });
 

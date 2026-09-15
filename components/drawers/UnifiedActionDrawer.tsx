@@ -61,6 +61,7 @@ import {
     sdrUnifiedDrawerActionsKey,
     sdrUnifiedDrawerCampaignsKey,
     sdrUnifiedDrawerStatusConfigKey,
+    sdrClientBookingKey,
     sdrUnifiedDrawerMailboxesKey,
     sdrUnifiedDrawerTemplatesKey,
 } from "@/lib/query-keys";
@@ -100,6 +101,14 @@ interface Company {
     customData?: Record<string, unknown> | null;
 }
 
+interface ClientInterlocuteur {
+    id: string; firstName: string; lastName: string; title?: string;
+    emails: Array<{ value: string; label: string; isPrimary: boolean }>;
+    phones: Array<{ value: string; label: string; isPrimary: boolean }>;
+    bookingLinks: Array<{ label: string; url: string; durationMinutes: number }>;
+    isActive: boolean;
+}
+
 interface UnifiedActionDrawerProps {
     isOpen: boolean;
     onClose: () => void;
@@ -108,13 +117,7 @@ interface UnifiedActionDrawerProps {
     missionId?: string;
     missionName?: string;
     clientBookingUrl?: string;
-    clientInterlocuteurs?: Array<{
-        id: string; firstName: string; lastName: string; title?: string;
-        emails: Array<{ value: string; label: string; isPrimary: boolean }>;
-        phones: Array<{ value: string; label: string; isPrimary: boolean }>;
-        bookingLinks: Array<{ label: string; url: string; durationMinutes: number }>;
-        isActive: boolean;
-    }>;
+    clientInterlocuteurs?: ClientInterlocuteur[];
     onActionRecorded?: () => void;
     onValidateAndNext?: () => void;
     onContactSelect?: (contactId: string) => void;
@@ -551,6 +554,34 @@ export function UnifiedActionDrawer({
         () => campaigns[0]?.mission?.channel === "CALL",
         [campaigns]
     );
+
+    // React Query: client booking config (booking URL + interlocuteur calendars).
+    // Host pages that already have this data pass it as props; the rest (rappels, historique…)
+    // rely on this fallback so the "Ouvrir le calendrier client" button is available everywhere.
+    const bookingPropsProvided = clientBookingUrl !== undefined || clientInterlocuteurs !== undefined;
+    const { data: fetchedClientBooking } = useQuery<{
+        bookingUrl: string;
+        interlocuteurs: ClientInterlocuteur[];
+    }>({
+        queryKey: sdrClientBookingKey(isOpen && !bookingPropsProvided && missionId ? missionId : null),
+        queryFn: async () => {
+            const r = await fetch(`/api/missions/${missionId}/client-booking`);
+            const j = await r.json();
+            if (!j.success) return { bookingUrl: "", interlocuteurs: [] };
+            return {
+                bookingUrl: j.data?.bookingUrl ?? "",
+                interlocuteurs: Array.isArray(j.data?.interlocuteurs) ? j.data.interlocuteurs : [],
+            };
+        },
+        enabled: isOpen && !!missionId && !bookingPropsProvided,
+        staleTime: 120_000,
+    });
+
+    const effectiveBookingUrl = clientBookingUrl ?? fetchedClientBooking?.bookingUrl ?? "";
+    const effectiveInterlocuteurs = clientInterlocuteurs ?? fetchedClientBooking?.interlocuteurs;
+    const hasClientCalendar =
+        Boolean(effectiveBookingUrl) ||
+        Boolean(effectiveInterlocuteurs?.some((i) => (i.bookingLinks?.length ?? 0) > 0));
 
     // React Query: action status config
     const { data: statusConfig = null } = useQuery<{
@@ -3140,7 +3171,7 @@ export function UnifiedActionDrawer({
                                     {newActionResult === "MEETING_BOOKED" && (
                                         <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-3">
                                             {/* Calendar button — only when a booking URL or at least one interlocuteur calendar exists */}
-                                            {(clientBookingUrl || clientInterlocuteurs?.some(i => (i.bookingLinks?.length ?? 0) > 0)) && (contactId && contact || companyId && company) && (
+                                            {hasClientCalendar && (contactId && contact || companyId && company) && (
                                                 <>
                                                     <Button
                                                         type="button"
@@ -3401,11 +3432,11 @@ export function UnifiedActionDrawer({
                 />
             )}
 
-            {(contactId && contact || companyId && company) && (clientBookingUrl || clientInterlocuteurs?.some(i => (i.bookingLinks?.length ?? 0) > 0)) && (
+            {(contactId && contact || companyId && company) && hasClientCalendar && (
                 <BookingDrawer
                     isOpen={showBookingDrawer}
                     onClose={() => setShowBookingDrawer(false)}
-                    bookingUrl={clientBookingUrl || ""}
+                    bookingUrl={effectiveBookingUrl}
                     contactId={contactId ?? undefined}
                     companyId={companyId}
                     contactName={contact
@@ -3437,7 +3468,7 @@ export function UnifiedActionDrawer({
                     onMeetingAddressChange={setMeetingAddress}
                     onMeetingJoinUrlChange={setMeetingJoinUrl}
                     onMeetingPhoneChange={setMeetingPhone}
-                    interlocuteurs={clientInterlocuteurs}
+                    interlocuteurs={effectiveInterlocuteurs}
                     onBookingSuccess={() => {
                         setShowBookingDrawer(false);
                         setNewActionResult("");

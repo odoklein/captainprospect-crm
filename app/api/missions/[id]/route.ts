@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import {
     successResponse,
     errorResponse,
@@ -196,6 +197,76 @@ export const GET = withErrorHandler(async (
         },
     });
 
+    // ── Insights: 30-day daily series + the previous 30 days to compare against.
+    // Aggregated in SQL: a busy mission would otherwise ship tens of thousands
+    // of rows just to be bucketed by day in JS.
+    const TREND_DAYS = 30;
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    // UTC-aligned throughout: date_trunc runs in the DB session timezone (UTC),
+    // so mixing in local midnight would misfile the boundary buckets.
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+    const windowStart = new Date(startOfToday.getTime() - (TREND_DAYS - 1) * DAY_MS);
+    const previousStart = new Date(windowStart.getTime() - TREND_DAYS * DAY_MS);
+
+    const trendRows = await prisma.$queryRaw<Array<{ day: Date; actions: number; meetings: number }>>(
+        Prisma.sql`
+            SELECT date_trunc('day', a."createdAt") AS day,
+                   COUNT(a.id)::int AS actions,
+                   COUNT(CASE WHEN a."result" = 'MEETING_BOOKED' THEN 1 END)::int AS meetings
+            FROM "Action" a
+            JOIN "Campaign" c ON c.id = a."campaignId"
+            WHERE c."missionId" = ${id}
+              AND a."createdAt" >= ${previousStart}
+            GROUP BY 1
+            ORDER BY 1
+        `
+    );
+
+    const bucketed = new Map<string, { actions: number; meetings: number }>();
+    for (const row of trendRows) {
+        const key = new Date(row.day).toISOString().slice(0, 10);
+        bucketed.set(key, { actions: Number(row.actions), meetings: Number(row.meetings) });
+    }
+
+    const series: Array<{ date: string; actions: number; meetings: number }> = [];
+    for (let i = 0; i < TREND_DAYS; i++) {
+        const date = new Date(windowStart.getTime() + i * DAY_MS).toISOString().slice(0, 10);
+        const hit = bucketed.get(date);
+        series.push({ date, actions: hit?.actions ?? 0, meetings: hit?.meetings ?? 0 });
+    }
+
+    const sumWindow = (from: Date, to: Date) => {
+        let actions = 0;
+        let meetings = 0;
+        for (const [date, value] of bucketed) {
+            const t = new Date(`${date}T00:00:00.000Z`).getTime();
+            if (t >= from.getTime() && t < to.getTime()) {
+                actions += value.actions;
+                meetings += value.meetings;
+            }
+        }
+        return { actions, meetings };
+    };
+
+    const currentWindow = sumWindow(windowStart, new Date(startOfToday.getTime() + DAY_MS));
+    const previousWindow = sumWindow(previousStart, windowStart);
+
+    const opportunityWhere = {
+        contact: { company: { list: { missionId: id } } },
+    };
+    const [currentOpportunities, previousOpportunities] = await Promise.all([
+        prisma.opportunity.count({
+            where: { ...opportunityWhere, createdAt: { gte: windowStart } },
+        }),
+        prisma.opportunity.count({
+            where: {
+                ...opportunityWhere,
+                createdAt: { gte: previousStart, lt: windowStart },
+            },
+        }),
+    ]);
+
     // Per-list strategy readiness + mission-level rollup
     type LinkedCampaign = {
         id: string;
@@ -264,6 +335,20 @@ export const GET = withErrorHandler(async (
             totalActions: stats._count,
             meetingsBooked: meetings,
             opportunities,
+        },
+        insights: {
+            windowDays: TREND_DAYS,
+            series,
+            current: {
+                actions: currentWindow.actions,
+                meetings: currentWindow.meetings,
+                opportunities: currentOpportunities,
+            },
+            previous: {
+                actions: previousWindow.actions,
+                meetings: previousWindow.meetings,
+                opportunities: previousOpportunities,
+            },
         },
     });
 });

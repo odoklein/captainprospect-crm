@@ -1,105 +1,68 @@
-import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+// ============================================
+// POST   /api/clients/[id]/interlocuteurs/[iid]/activate-portal
+// DELETE /api/clients/[id]/interlocuteurs/[iid]/activate-portal
+//
+// Creates (or revokes) the COMMERCIAL portal account of a client's commercial.
+//
+// The creation itself lives in lib/vault/portalAccounts.ts, shared with the
+// access assistant, so an account made from this drawer and one made from a
+// chat instruction are the same account with the same vault entry. This route
+// used to show the generated password once and then lose it forever; it is now
+// stored encrypted, recoverable by a manager, and audited.
+// ============================================
+
+import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
 import {
     successResponse,
     requireRole,
     withErrorHandler,
     NotFoundError,
-    ValidationError,
-} from '@/lib/api-utils';
-import bcrypt from 'bcryptjs';
-
-function generatePassword(length = 12): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-}
-
-// ============================================
-// POST /api/clients/[id]/interlocuteurs/[iid]/activate-portal
-// Create a COMMERCIAL user account for an interlocuteur
-// ============================================
+} from "@/lib/api-utils";
+import { createPortalAccountForInterlocuteur } from "@/lib/vault/portalAccounts";
+import { deleteCredential } from "@/lib/vault/service";
 
 export const POST = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string; iid: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id: clientId, iid: interlocuteurId } = await params;
 
     const interlocuteur = await prisma.clientInterlocuteur.findUnique({
         where: { id: interlocuteurId },
-        include: { portalUser: { select: { id: true, email: true, name: true } } },
+        select: { clientId: true },
     });
-
     if (!interlocuteur || interlocuteur.clientId !== clientId) {
         throw new NotFoundError('Interlocuteur introuvable');
     }
 
-    // Already has a portal account
-    if (interlocuteur.portalUser) {
-        return successResponse({
-            user: interlocuteur.portalUser,
-            alreadyExists: true,
-            generatedPassword: null,
-        });
-    }
+    const result = await createPortalAccountForInterlocuteur(
+        interlocuteurId,
+        session.user.id,
+    );
 
-    // Pick the primary email or first email
-    const emails = Array.isArray(interlocuteur.emails) ? interlocuteur.emails as { value: string; isPrimary: boolean }[] : [];
-    const primaryEmail = emails.find((e) => e.isPrimary)?.value ?? emails[0]?.value;
-
-    if (!primaryEmail) {
-        throw new ValidationError("L'interlocuteur n'a pas d'email configuré");
-    }
-
-    // Check if email is already taken
-    const existingUser = await prisma.user.findUnique({ where: { email: primaryEmail } });
-    if (existingUser) {
-        throw new ValidationError(`L'email ${primaryEmail} est déjà utilisé par un autre compte`);
-    }
-
-    const generatedPassword = generatePassword();
-    const hashedPassword = await bcrypt.hash(generatedPassword, 12);
-
-    const user = await prisma.user.create({
-        data: {
-            email: primaryEmail,
-            password: hashedPassword,
-            name: `${interlocuteur.firstName} ${interlocuteur.lastName}`,
-            role: 'COMMERCIAL',
-            isActive: true,
-            interlocuteurId: interlocuteur.id,
-            clientId: clientId,
+    // Response shape kept as-is: the client drawer reads these three fields.
+    return successResponse(
+        {
+            user: result.user,
+            alreadyExists: !result.created,
+            generatedPassword: result.password,
+            credentialId: result.credential?.id ?? null,
         },
-        select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-        },
-    });
-
-    return successResponse({
-        user,
-        alreadyExists: false,
-        generatedPassword,
-    }, 201);
+        result.created ? 201 : 200,
+    );
 });
 
 // ============================================
-// DELETE /api/clients/[id]/interlocuteurs/[iid]/activate-portal
-// Remove COMMERCIAL portal access for an interlocuteur
+// DELETE — remove COMMERCIAL portal access
 // ============================================
 
 export const DELETE = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string; iid: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id: clientId, iid: interlocuteurId } = await params;
 
     const interlocuteur = await prisma.clientInterlocuteur.findUnique({
@@ -115,7 +78,18 @@ export const DELETE = withErrorHandler(async (
         throw new NotFoundError('Aucun compte portail trouvé');
     }
 
+    // Drop the vault entry too, and do it first: a stored password for an
+    // account that no longer exists is worse than no entry at all. Deleting it
+    // through the service keeps the audit trail honest about why it went.
+    const credentials = await prisma.vaultCredential.findMany({
+        where: { userId: interlocuteur.portalUser.id, type: 'PORTAL' },
+        select: { id: true },
+    });
+    for (const credential of credentials) {
+        await deleteCredential(credential.id, session.user.id);
+    }
+
     await prisma.user.delete({ where: { id: interlocuteur.portalUser.id } });
 
-    return successResponse({ deleted: true });
+    return successResponse({ deleted: true, credentialsRemoved: credentials.length });
 });

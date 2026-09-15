@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SUP_LIGHT } from "./supportStyles";
 import { AvatarRing, SupportBubble, SupportTypingIndicator } from "./SupportBubble";
+import {
+    SupportAttachButton,
+    SupportAttachmentPreviews,
+    useSupportAttachments,
+} from "./SupportAttachments";
 import { SUPPORT_INTENTS } from "@/lib/support/types";
 import type {
     SupportConversationDetailDTO,
@@ -187,7 +192,17 @@ export function ClientSupportPanel({
         setNewMessageCount(0);
     };
 
-    const canSend = inputValue.trim().length > 0 && !sending;
+    const attachments = useSupportAttachments({
+        conversationId: conversation.id,
+        disabled: sending,
+    });
+
+    // An image-only message is legitimate, but never send while an upload is
+    // still running — the ids would not exist yet server-side.
+    const canSend =
+        (inputValue.trim().length > 0 || attachments.readyIds.length > 0) &&
+        !sending &&
+        !attachments.isUploading;
 
     const appendMessage = useCallback(
         (next: SupportMessageDTO) => {
@@ -215,7 +230,11 @@ export function ClientSupportPanel({
 
     const handleSend = async () => {
         const text = inputValue.trim();
-        if (!text || sending) return;
+        const attachmentIds = attachments.readyIds;
+        const sentAttachments = attachments.pending
+            .filter((a) => a.status === "ready" && a.remote)
+            .map((a) => a.remote!);
+        if ((!text && attachmentIds.length === 0) || sending || attachments.isUploading) return;
         setSending(true);
         const optimistic: SupportMessageDTO = {
             id: `tmp-${Date.now()}`,
@@ -225,10 +244,12 @@ export function ClientSupportPanel({
             intent: selectedIntent,
             context: null,
             author: null,
+            attachments: sentAttachments,
             createdAt: new Date().toISOString(),
         };
         appendMessage(optimistic);
         setInputValue("");
+        attachments.clear();
         setShowIntentCard(false);
 
         const ctx: SupportMessageContext = {
@@ -249,6 +270,7 @@ export function ClientSupportPanel({
                     content: text,
                     intent: selectedIntent ?? undefined,
                     context: ctx,
+                    attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
                 }),
             });
             const json = await res.json();
@@ -283,6 +305,7 @@ export function ClientSupportPanel({
                 intent: null,
                 context: null,
                 author: null,
+                attachments: [],
                 createdAt: new Date().toISOString(),
             };
             appendMessage(failureMsg);
@@ -538,7 +561,7 @@ export function ClientSupportPanel({
                     </div>
                 )}
 
-                {hasResolvedHistory && !isResolved && (
+                {hasResolvedHistory && (
                     <div
                         style={{
                             margin: "0 0 12px",
@@ -554,7 +577,9 @@ export function ClientSupportPanel({
                         }}
                     >
                         <span style={{ fontSize: 12, color: T.ink3 }}>
-                            Historique résolu masqué
+                            {showResolvedHistory
+                                ? "Tickets précédents affichés"
+                                : "Tickets précédents masqués"}
                         </span>
                         <button
                             type="button"
@@ -901,6 +926,12 @@ export function ClientSupportPanel({
                         </div>
                     )}
 
+                    <SupportAttachmentPreviews
+                        pending={attachments.pending}
+                        onRemove={attachments.remove}
+                        theme="light"
+                    />
+
                     <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                         <button
                             type="button"
@@ -926,6 +957,12 @@ export function ClientSupportPanel({
                             ⚡
                         </button>
 
+                        <SupportAttachButton
+                            onFiles={attachments.addFiles}
+                            disabled={sending}
+                            theme="light"
+                        />
+
                         <div
                             style={{
                                 flex: 1,
@@ -946,6 +983,7 @@ export function ClientSupportPanel({
                                         handleSend();
                                     }
                                 }}
+                                onPaste={attachments.handlePaste}
                                 placeholder={
                                     selectedIntent === "RDV"
                                         ? "Quel rendez-vous vous pose question ?"
@@ -1029,7 +1067,9 @@ export function ClientSupportPanel({
                                 margin: 0,
                             }}
                         >
-                            Entrée pour envoyer · Maj+Entrée pour saut de ligne
+                            {attachments.isUploading
+                                ? "Envoi de l'image…"
+                                : "Entrée pour envoyer · Maj+Entrée pour saut de ligne"}
                         </p>
                         <label
                             style={{

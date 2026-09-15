@@ -100,10 +100,13 @@ export function GlobalSearchModal({ open, onClose, navigation }: GlobalSearchMod
         );
         const json = await res.json();
         if (!json.success || !Array.isArray(json.data)) return [];
-        return json.data.map((m: { id: string; name: string; client?: { name: string } }) => ({
+        return json.data.map((m: { id: string; name: string; client?: { id?: string; name: string } }) => ({
             type: "mission" as const,
             id: m.id,
-            href: `/manager/missions/${m.id}`,
+            // Missions live inside the client drawer now.
+            href: m.client?.id
+                ? `/manager/clients?client=${m.client.id}&mission=${m.id}`
+                : `/manager/missions/${m.id}`,
             label: m.name,
             subtitle: m.client?.name ?? "",
         }));

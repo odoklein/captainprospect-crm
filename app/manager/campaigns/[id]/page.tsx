@@ -246,7 +246,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 }
             } else {
                 showError("Erreur", json.error || "Campagne non trouvée");
-                router.push("/manager/missions");
+                router.push("/manager/clients");
             }
         } catch (err) {
             console.error("Failed to fetch campaign:", err);
@@ -341,7 +341,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
             if (json.success) {
                 success("Campagne supprimée", "La campagne a été supprimée");
-                router.push("/manager/missions");
+                router.push("/manager/clients");
             } else {
                 showError("Erreur", json.error);
             }

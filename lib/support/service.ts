@@ -15,11 +15,13 @@ import { prisma } from "@/lib/prisma";
 import type {
     CreateSupportMessageInput,
     ManagerInboxFilters,
+    SupportAttachmentDTO,
     SupportConversationDetailDTO,
     SupportConversationSummaryDTO,
     SupportMessageContext,
     SupportMessageDTO,
 } from "./types";
+import { SUPPORT_ATTACHMENT_MAX_COUNT, supportAttachmentUrl } from "./types";
 
 const MESSAGE_PAGE_SIZE = 200;
 
@@ -27,6 +29,19 @@ function previewContent(content: string, limit = 140): string {
     const trimmed = content.replace(/\s+/g, " ").trim();
     if (trimmed.length <= limit) return trimmed;
     return trimmed.slice(0, limit - 1) + "…";
+}
+
+/**
+ * Inbox/preview label for a message. An image-only message has no text, so fall
+ * back to a photo marker instead of rendering an empty preview row.
+ */
+function messagePreview(content: string, attachmentCount: number): string | null {
+    const text = previewContent(content);
+    if (text) return text;
+    if (attachmentCount > 0) {
+        return attachmentCount > 1 ? `📷 ${attachmentCount} images` : "📷 Image";
+    }
+    return null;
 }
 
 function sanitiseContext(context: SupportMessageContext | undefined): Prisma.InputJsonValue | null {
@@ -51,6 +66,37 @@ function sanitiseContext(context: SupportMessageContext | undefined): Prisma.Inp
     return clean as Prisma.InputJsonValue;
 }
 
+/** Columns needed to build a SupportAttachmentDTO. */
+const ATTACHMENT_SELECT = {
+    id: true,
+    fileName: true,
+    mimeType: true,
+    size: true,
+    width: true,
+    height: true,
+} as const;
+
+type AttachmentRow = {
+    id: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    width: number | null;
+    height: number | null;
+};
+
+function toAttachmentDTO(row: AttachmentRow): SupportAttachmentDTO {
+    return {
+        id: row.id,
+        fileName: row.fileName,
+        mimeType: row.mimeType,
+        size: row.size,
+        width: row.width,
+        height: row.height,
+        url: supportAttachmentUrl(row.id),
+    };
+}
+
 function toMessageDTO(message: {
     id: string;
     conversationId: string;
@@ -60,6 +106,7 @@ function toMessageDTO(message: {
     context: unknown;
     createdAt: Date;
     author: { id: string; name: string; role: string } | null;
+    attachments?: AttachmentRow[];
 }): SupportMessageDTO {
     return {
         id: message.id,
@@ -75,6 +122,7 @@ function toMessageDTO(message: {
                 role: message.author.role,
             }
             : null,
+        attachments: (message.attachments ?? []).map(toAttachmentDTO),
         createdAt: message.createdAt.toISOString(),
     };
 }
@@ -104,6 +152,31 @@ export async function getConversationIdForClientUser(userId: string): Promise<st
     });
     if (!user || (user.role !== "CLIENT" && user.role !== "COMMERCIAL") || !user.clientId) return null;
     return getOrCreateClientConversation(user.clientId);
+}
+
+/**
+ * Resolve the conversation a user is allowed to act on.
+ * Managers reach any conversation; clients/commerciaux only ever reach their own,
+ * so a forged `requestedId` can never widen access.
+ * Returns null when access must be refused.
+ */
+export async function resolveAccessibleConversationId(
+    user: { id: string; role: string },
+    requestedId?: string | null,
+): Promise<string | null> {
+    if (user.role === "MANAGER") {
+        if (!requestedId) return null;
+        const conversation = await prisma.supportConversation.findUnique({
+            where: { id: requestedId },
+            select: { id: true },
+        });
+        return conversation?.id ?? null;
+    }
+
+    const ownId = await getConversationIdForClientUser(user.id);
+    if (!ownId) return null;
+    if (requestedId && requestedId !== ownId) return null;
+    return ownId;
 }
 
 async function ensureManagerState(conversationId: string, managerId: string) {
@@ -147,18 +220,31 @@ async function countUnreadForManager(conversationId: string, managerId: string):
 }
 
 async function countUnreadForClient(conversationId: string, clientUserId: string): Promise<number> {
-    // Clients see "unread" as manager replies since they last opened the panel.
-    // We piggyback on SupportManagerState? No — clients are not managers. Use
-    // a dedicated lightweight rule: unread = manager messages created after
-    // the most recent message authored by this client user (approximation
-    // that avoids adding another table). When the panel mounts it also calls
-    // markRead which resets this on the server-side view.
-    const lastClientMessage = await prisma.supportMessage.findFirst({
-        where: { conversationId, authorId: clientUserId, role: "CLIENT" },
-        orderBy: { createdAt: "desc" },
-        select: { createdAt: true },
-    });
-    const cutoff = lastClientMessage?.createdAt;
+    // Unread = manager messages newer than the cutoff, where the cutoff is the
+    // most recent of: the client's own last message, and the read marker written
+    // by markRead() when they open the panel. SupportManagerState is reused as a
+    // generic per-user read marker (its `managerId` points at User, so a client
+    // user fits) — without the marker the badge stayed lit for good until the
+    // client happened to send a new message.
+    const [lastClientMessage, readState] = await Promise.all([
+        prisma.supportMessage.findFirst({
+            where: { conversationId, authorId: clientUserId, role: "CLIENT" },
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true },
+        }),
+        prisma.supportManagerState.findUnique({
+            where: {
+                conversationId_managerId: { conversationId, managerId: clientUserId },
+            },
+            select: { lastReadAt: true },
+        }),
+    ]);
+    const marks = [lastClientMessage?.createdAt, readState?.lastReadAt].filter(
+        (d): d is Date => Boolean(d),
+    );
+    const cutoff = marks.length
+        ? new Date(Math.max(...marks.map((d) => d.getTime())))
+        : null;
     return prisma.supportMessage.count({
         where: {
             conversationId,
@@ -197,6 +283,10 @@ async function loadMessages(conversationId: string, limit = MESSAGE_PAGE_SIZE): 
         take: limit,
         include: {
             author: { select: { id: true, name: true, role: true } },
+            attachments: {
+                select: ATTACHMENT_SELECT,
+                orderBy: { createdAt: "asc" },
+            },
         },
     });
     return messages.map(toMessageDTO);
@@ -219,7 +309,9 @@ export async function getConversationForClientUser(
     const lastMessage = messages.at(-1);
     return {
         ...summary,
-        lastMessagePreview: lastMessage ? previewContent(lastMessage.content) : null,
+        lastMessagePreview: lastMessage
+            ? messagePreview(lastMessage.content, lastMessage.attachments.length)
+            : null,
         messages,
     };
 }
@@ -246,7 +338,9 @@ export async function getConversationForManager(
     const lastMessage = messages.at(-1);
     return {
         ...summary,
-        lastMessagePreview: lastMessage ? previewContent(lastMessage.content) : null,
+        lastMessagePreview: lastMessage
+            ? messagePreview(lastMessage.content, lastMessage.attachments.length)
+            : null,
         messages,
     };
 }
@@ -276,7 +370,7 @@ export async function listManagerInbox(
             messages: {
                 orderBy: { createdAt: "desc" },
                 take: 1,
-                select: { content: true },
+                select: { content: true, _count: { select: { attachments: true } } },
             },
             managerStates: {
                 where: { managerId },
@@ -303,8 +397,8 @@ export async function listManagerInbox(
             clientId: conv.clientId,
             clientName: conv.client.name,
             lastMessageAt: conv.lastMessageAt ? conv.lastMessageAt.toISOString() : null,
-            lastMessagePreview: conv.messages[0]?.content
-                ? previewContent(conv.messages[0].content)
+            lastMessagePreview: conv.messages[0]
+                ? messagePreview(conv.messages[0].content, conv.messages[0]._count.attachments)
                 : null,
             lastIntent: conv.lastIntent,
             messageCount: conv.messageCount,
@@ -378,7 +472,26 @@ export async function postMessage(
     authorRole: "CLIENT" | "MANAGER",
 ): Promise<SupportMessageDTO> {
     const content = input.content.trim();
-    if (!content) {
+
+    // Only claim attachments that were uploaded to THIS conversation by THIS user
+    // and are not already tied to a message — an id from another thread is ignored
+    // rather than trusted.
+    const requestedIds = (input.attachmentIds ?? []).slice(0, SUPPORT_ATTACHMENT_MAX_COUNT);
+    const attachmentIds = requestedIds.length
+        ? (
+            await prisma.supportAttachment.findMany({
+                where: {
+                    id: { in: requestedIds },
+                    conversationId,
+                    messageId: null,
+                    uploadedById: authorUserId,
+                },
+                select: { id: true },
+            })
+        ).map((a) => a.id)
+        : [];
+
+    if (!content && attachmentIds.length === 0) {
         throw new Error("Le message est vide");
     }
     if (content.length > 4000) {
@@ -396,9 +509,16 @@ export async function postMessage(
                 content,
                 intent: input.intent ?? null,
                 context: context ?? Prisma.JsonNull,
+                ...(attachmentIds.length > 0
+                    ? { attachments: { connect: attachmentIds.map((id) => ({ id })) } }
+                    : {}),
             },
             include: {
                 author: { select: { id: true, name: true, role: true } },
+                attachments: {
+                    select: ATTACHMENT_SELECT,
+                    orderBy: { createdAt: "asc" },
+                },
             },
         }),
         prisma.supportConversation.update({
@@ -431,6 +551,7 @@ export async function postMessage(
         intent: message.intent,
         context: message.context,
         createdAt: message.createdAt,
+        attachments: message.attachments,
         author: message.author
             ? {
                 id: message.author.id,
@@ -447,18 +568,15 @@ export async function postMessage(
 export async function markRead(
     conversationId: string,
     userId: string,
-    role: "CLIENT" | "MANAGER",
+    _role: "CLIENT" | "MANAGER",
 ): Promise<void> {
-    if (role === "MANAGER") {
-        await prisma.supportManagerState.upsert({
-            where: { conversationId_managerId: { conversationId, managerId: userId } },
-            update: { lastReadAt: new Date() },
-            create: { conversationId, managerId: userId, lastReadAt: new Date() },
-        });
-    }
-    // Clients don't need a stored read marker: unread is derived from the
-    // latest client-authored message, which updates whenever the client
-    // sends a new message from the panel.
+    // Same row for both sides: SupportManagerState is keyed on a User id, and a
+    // client user gets their own row (managers only ever read their own).
+    await prisma.supportManagerState.upsert({
+        where: { conversationId_managerId: { conversationId, managerId: userId } },
+        update: { lastReadAt: new Date() },
+        create: { conversationId, managerId: userId, lastReadAt: new Date() },
+    });
 }
 
 export async function resolveConversation(

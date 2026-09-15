@@ -1,5 +1,5 @@
 ---
-routes: ["/manager/missions", "/manager/campaigns", "/manager/clients", "/manager/lists"]
+routes: ["/manager/clients", "/manager/campaigns", "/manager/lists"]
 roles: ["MANAGER", "BUSINESS_DEVELOPER"]
 keywords: ["mission", "campaign", "campagne", "créer mission", "nouvelle mission", "lancer", "client", "objectif", "script", "SDR assign", "assigner", "activer", "désactiver", "pause", "archiver", "statut mission", "liste", "prospect", "create mission", "new mission", "launch"]
 priority: 9
@@ -24,7 +24,7 @@ Hierarchy: **Client → Mission → Campaign → List → Company → Contact**
 
 ## Create a New Mission (3-Step Wizard)
 
-**Navigate to:** `/manager/missions/new` or click **"+"** on the missions list.
+**Navigate to:** `/manager/missions/new`, or **Clients** → click a client → onglet **Missions** → **Nouvelle mission**.
 
 ### Step 1 — Mission Details
 - **Nom de la mission** — clear, descriptive name (e.g. "Prospection SaaS Q2 2025")
@@ -73,7 +73,7 @@ To change status: open mission → use the **status button** (top right of missi
 
 ## Edit a Mission
 
-1. Go to `/manager/missions` → find the mission
+1. Go to **Clients** → open the client → onglet **Missions** → find the mission
 2. Click the mission row → opens mission detail
 3. Click **Modifier** (Edit) button
 4. Update fields → **Sauvegarder**
@@ -136,6 +136,6 @@ Missions are not directly "assigned" to SDRs — instead, you **schedule SDR day
 | Problem | Solution |
 |---------|----------|
 | Mission doesn't appear for SDR | Check it's ACTIVE and SDR has a schedule block for it this month |
-| Can't find a mission | Use search/filter on `/manager/missions` — check if it's archived (toggle "Archivées" filter) |
+| Can't find a mission | Open its client from `/manager/clients` → onglet **Missions** — check if it's archived |
 | SDR sees wrong mission | Check their planning allocations at `/manager/planning` |
 | Scripts not showing on call screen | Check campaign has a script and is ACTIVE |

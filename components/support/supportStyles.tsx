@@ -40,6 +40,7 @@ export function SupportStyles() {
                 0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
                 40%           { transform: translateY(-4px); opacity: 1; }
             }
+            @keyframes cpSupSpin { to { transform: rotate(360deg); } }
             @keyframes cpSupBadgePop { from { transform: scale(0); } to { transform: scale(1); } }
             @keyframes cpSupPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
             @keyframes cpSupResolvedWash {

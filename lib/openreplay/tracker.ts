@@ -132,10 +132,8 @@ class OpenReplayClient {
       return;
     }
 
-    // Determine script source: prefer self-hosted static if available, fallback to static.openreplay.com
-    const selfHostedDomain = ingestPoint.replace(/\/ingest\/?$/, "");
-    const scriptSrc = `${selfHostedDomain}/static/openreplay.js`;
-    const fallbackSrc = "https://static.openreplay.com/latest/openreplay.js";
+    // Use the official CDN for the tracker script
+    const scriptSrc = "https://static.openreplay.com/latest/openreplay.js";
 
     // Setup command queue buffering so trackEvent/setUserID work synchronously
     (function (A: string, s: any, a: any, y: any, e: any, r: any) {

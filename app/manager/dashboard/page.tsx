@@ -514,7 +514,7 @@ export default function ManagerDashboard() {
                                 <Target className="w-4 h-4 text-[#2B5F3E]" />
                                 <h3 className="text-[14px] font-bold text-slate-800">Missions proches de l'objectif</h3>
                             </div>
-                            <Link href="/manager/missions" className="text-[12px] font-bold text-[#2B5F3E] hover:text-[#224A31] transition-colors">
+                            <Link href="/manager/clients" className="text-[12px] font-bold text-[#2B5F3E] hover:text-[#224A31] transition-colors">
                                 Voir toutes →
                             </Link>
                         </div>
@@ -527,7 +527,7 @@ export default function ManagerDashboard() {
                                     const pct = Math.min(100, Math.round((m.meetingsThisPeriod / goal) * 100));
                                     const isHot = pct >= 80;
                                     return (
-                                        <Link key={m.id} href={`/manager/missions/${m.id}`} className="block group">
+                                        <Link key={m.id} href={`/manager/clients?client=${m.client.id}&mission=${m.id}`} className="block group">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-2">
                                                     {isHot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
