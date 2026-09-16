@@ -8,7 +8,16 @@ COPY package.json package-lock.json ./
 # --include=dev forces them in regardless of where the platform injects its ENV;
 # NODE_ENV=development covers npm config that keys off it. Runtime stage stays production.
 ENV NODE_ENV=development
-RUN npm ci --ignore-scripts --include=dev
+# The registry fetch is the least reliable step in this build — a single
+# ECONNRESET two minutes in fails the whole deployment. Retries survive that;
+# the cache mount means a retry (and every later build) reuses what already
+# downloaded instead of starting from zero.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --ignore-scripts --include=dev \
+        --fetch-retries=5 \
+        --fetch-retry-mintimeout=20000 \
+        --fetch-retry-maxtimeout=120000 \
+        --fetch-timeout=600000
 FROM node:20-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
