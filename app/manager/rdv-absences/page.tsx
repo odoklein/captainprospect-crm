@@ -371,7 +371,7 @@ export default function RdvAbsencesPage() {
             </div>
 
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <div className="px-4 pt-3 border-b border-slate-200">
+                <div className="px-4 pt-3 border-b border-slate-200 bg-white">
                     <Tabs
                         tabs={[
                             { id: "pending", label: `À traiter (${data?.pending.length ?? 0})` },
@@ -383,7 +383,7 @@ export default function RdvAbsencesPage() {
                 </div>
 
                 {/* Toolbar */}
-                <div className="p-3 border-b border-slate-200 flex items-center gap-2.5 flex-wrap bg-slate-50/60">
+                <div className="sticky top-14 z-20 p-3 border-b border-slate-200 flex items-center gap-2.5 flex-wrap bg-slate-50/95 backdrop-blur">
                     <div className="flex-1 min-w-[220px]">
                         <Input
                             value={query}
@@ -437,7 +437,7 @@ export default function RdvAbsencesPage() {
 
                 {/* Batch bar */}
                 {selectedRows.length > 0 && (
-                    <div className="flex flex-wrap items-center gap-2 border-b border-indigo-100 bg-indigo-50/70 px-4 py-2.5">
+                    <div className="sticky top-[7.25rem] z-20 flex flex-wrap items-center gap-2 border-b border-indigo-100 bg-indigo-50/95 px-4 py-2.5 backdrop-blur">
                         <span className="text-sm font-semibold text-indigo-900">
                             {selectedRows.length} sélectionné{selectedRows.length > 1 ? "s" : ""}
                         </span>

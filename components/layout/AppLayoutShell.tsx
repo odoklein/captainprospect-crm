@@ -340,7 +340,12 @@ function InnerLayout({
     const isEmailHub =
         pathname.startsWith("/manager/emails") ||
         pathname.startsWith("/sdr/emails");
-    const isRdvPage = pathname.startsWith("/manager/rdv");
+    // Only the SAS RDV workspace itself owns its scrolling. A prefix match here
+    // also caught /manager/rdv-absences, which then rendered inside an
+    // overflow-hidden box of fixed height: the page could not scroll and every
+    // row below the fold was unreachable.
+    const isRdvPage =
+        pathname === "/manager/rdv" || pathname.startsWith("/manager/rdv/");
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";
