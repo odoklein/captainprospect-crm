@@ -463,20 +463,49 @@ export function ClientDrawer({
         });
     };
 
-    // Uncontrolled fallback so the drawer still works without URL wiring.
-    const [internalMissionId, setInternalMissionId] = useState<string | null>(null);
-    const [internalMissionTab, setInternalMissionTab] = useState("general");
-    const activeMissionId = openMissionId !== undefined ? openMissionId : internalMissionId;
-    const activeMissionTab = missionTab ?? internalMissionTab;
+    /**
+     * Drill-down state lives here, and the URL mirrors it.
+     *
+     * It used to be the other way round: a click called the parent, which pushed
+     * a new URL, and the drawer only opened once useSearchParams re-rendered.
+     * One broken link in that chain and the click did nothing at all. Owning the
+     * state locally makes the click immediate; the URL still follows so deep
+     * links and the back button keep working, and an external change (a deep
+     * link, the back button) syncs back in through the effect below.
+     */
+    const [activeMissionId, setActiveMissionId] = useState<string | null>(openMissionId ?? null);
+    const [activeMissionTab, setActiveMissionTab] = useState(missionTab ?? "general");
+
+    useEffect(() => {
+        if (openMissionId === undefined) return;
+        setActiveMissionId(openMissionId);
+    }, [openMissionId]);
+
+    useEffect(() => {
+        if (missionTab === undefined) return;
+        setActiveMissionTab(missionTab);
+    }, [missionTab]);
+
+    // A different client means a different mission list: never keep the old one.
+    // Guarded by a ref so this does not fire on mount and wipe out a deep link
+    // (?client=X&mission=Y), which is the one path that has to survive here.
+    const lastClientIdRef = useRef<string | undefined>(client?.id);
+    useEffect(() => {
+        if (lastClientIdRef.current === client?.id) return;
+        lastClientIdRef.current = client?.id;
+        setActiveMissionId(openMissionId ?? null);
+    }, [client?.id, openMissionId]);
+
     const openMission = (id: string | null, tab: string = "general") => {
-        if (onOpenMission) onOpenMission(id);
-        else setInternalMissionId(id);
-        if (onMissionTabChange) onMissionTabChange(tab);
-        else setInternalMissionTab(tab);
+        setActiveMissionId(id);
+        setActiveMissionTab(tab);
+        onOpenMission?.(id);
+        onMissionTabChange?.(tab);
     };
+
     const changeMissionTab = (tab: string) => {
-        if (onMissionTabChange) onMissionTabChange(tab);
-        else setInternalMissionTab(tab);
+        setActiveMissionTab(tab);
+        onMissionTabChange?.(tab);
     };
 
     // React Query: full client detail
@@ -1842,15 +1871,14 @@ function ScriptModal({
     /** Jump from the quick script editor into the full mission workspace. */
     onOpenFull?: () => void;
 }) {
-    if (!mission) return null;
     const { success, error: showError } = useToast();
     const [scriptDraft, setScriptDraft] = useState("");
     const [isSaving, setIsSaving] = useState(false);
 
     const { data: campaigns = [], isLoading } = useQuery({
-        queryKey: ["mission-campaigns-for-script-modal", mission.id],
+        queryKey: ["mission-campaigns-for-script-modal", mission?.id ?? "none"],
         queryFn: async () => {
-            const res = await fetch(`/api/campaigns?missionId=${mission.id}`);
+            const res = await fetch(`/api/campaigns?missionId=${mission!.id}`);
             const json = await res.json();
             if (!json.success || !Array.isArray(json.data)) {
                 throw new Error(json.error || "Impossible de charger les scripts");
@@ -1901,6 +1929,9 @@ function ScriptModal({
             setIsSaving(false);
         }
     };
+
+    // Safe here: every hook above has already run on this render.
+    if (!mission) return null;
 
     return (
         <Modal
