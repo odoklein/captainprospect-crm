@@ -252,6 +252,23 @@ export const GET = withErrorHandler(async (
     const currentWindow = sumWindow(windowStart, new Date(startOfToday.getTime() + DAY_MS));
     const previousWindow = sumWindow(previousStart, windowStart);
 
+    // Per-SDR contribution on this mission: one group-by rather than a request
+    // per assignee, so the Equipe tab stays cheap however big the team is.
+    const teamRows = await prisma.$queryRaw<
+        Array<{ sdrId: string; actions: number; meetings: number; recentActions: number }>
+    >(
+        Prisma.sql`
+            SELECT a."sdrId" AS "sdrId",
+                   COUNT(a.id)::int AS actions,
+                   COUNT(CASE WHEN a."result" = 'MEETING_BOOKED' THEN 1 END)::int AS meetings,
+                   COUNT(CASE WHEN a."createdAt" >= ${windowStart} THEN 1 END)::int AS "recentActions"
+            FROM "Action" a
+            JOIN "Campaign" c ON c.id = a."campaignId"
+            WHERE c."missionId" = ${id}
+            GROUP BY a."sdrId"
+        `
+    );
+
     const opportunityWhere = {
         contact: { company: { list: { missionId: id } } },
     };
@@ -336,6 +353,12 @@ export const GET = withErrorHandler(async (
             meetingsBooked: meetings,
             opportunities,
         },
+        teamStats: teamRows.map((row) => ({
+            sdrId: row.sdrId,
+            actions: Number(row.actions),
+            meetings: Number(row.meetings),
+            recentActions: Number(row.recentActions),
+        })),
         insights: {
             windowDays: TREND_DAYS,
             series,

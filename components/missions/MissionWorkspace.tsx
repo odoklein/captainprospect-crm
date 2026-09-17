@@ -146,6 +146,12 @@ interface Mission {
         meetingsBooked: number;
         opportunities: number;
     };
+    teamStats?: Array<{
+        sdrId: string;
+        actions: number;
+        meetings: number;
+        recentActions: number;
+    }>;
     insights?: {
         windowDays: number;
         series: Array<{ date: string; actions: number; meetings: number }>;
@@ -727,6 +733,15 @@ export function MissionWorkspace({
     const [fieldSaveState, setFieldSaveState] = useState<"saving" | "saved" | null>(null);
     const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+    // Equipe tab
+    const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
+    const [isLoadingAssignable, setIsLoadingAssignable] = useState(false);
+    const [assignPickerOpen, setAssignPickerOpen] = useState(false);
+    const [assignSearch, setAssignSearch] = useState("");
+    const [assigningSdrId, setAssigningSdrId] = useState<string | null>(null);
+    const [unassigningSdrId, setUnassigningSdrId] = useState<string | null>(null);
+    const [sdrToUnassign, setSdrToUnassign] = useState<{ id: string; name: string } | null>(null);
 
     // Inline Strategy (Campaign) state
     const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
@@ -1522,6 +1537,76 @@ export function MissionWorkspace({
         }
     };
 
+    // ============================================
+    // TEAM (SDR ASSIGNMENTS)
+    // ============================================
+
+    const fetchAssignableUsers = async () => {
+        setIsLoadingAssignable(true);
+        try {
+            const res = await fetch("/api/users?role=SDR,BUSINESS_DEVELOPER&status=active&limit=200");
+            const json = await res.json();
+            if (!json.success || !Array.isArray(json.data)) {
+                showError("Erreur", json.error || "Impossible de charger les SDR");
+                return;
+            }
+            setAssignableUsers(json.data as AssignableUser[]);
+        } catch {
+            showError("Erreur", "Impossible de charger les SDR");
+        } finally {
+            setIsLoadingAssignable(false);
+        }
+    };
+
+    const assignSdr = async (sdrId: string) => {
+        if (!mission) return;
+        setAssigningSdrId(sdrId);
+        try {
+            const res = await fetch(`/api/missions/${mission.id}/assign`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ sdrId }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+                showError("Erreur", json.error || "Impossible d'assigner ce SDR");
+                return;
+            }
+            await fetchMission();
+            onMissionMutated?.();
+            setAssignPickerOpen(false);
+            setAssignSearch("");
+            success("SDR assigné", `${json.data?.sdr?.name ?? "Le SDR"} travaille maintenant sur cette mission.`);
+        } catch {
+            showError("Erreur", "Impossible d'assigner ce SDR");
+        } finally {
+            setAssigningSdrId(null);
+        }
+    };
+
+    const unassignSdr = async (sdrId: string) => {
+        if (!mission) return;
+        setUnassigningSdrId(sdrId);
+        try {
+            const res = await fetch(`/api/missions/${mission.id}/assign?sdrId=${sdrId}`, {
+                method: "DELETE",
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+                showError("Erreur", json.error || "Impossible de retirer ce SDR");
+                return;
+            }
+            await fetchMission();
+            onMissionMutated?.();
+            success("SDR retiré", "Ses créneaux de planning sur cette mission ont aussi été libérés.");
+        } catch {
+            showError("Erreur", "Impossible de retirer ce SDR");
+        } finally {
+            setUnassigningSdrId(null);
+            setSdrToUnassign(null);
+        }
+    };
+
     const changeStatus = async (next: MissionStatusValue) => {
         if (!mission || next === mission.status) return;
         const previous = mission.status;
@@ -1761,6 +1846,16 @@ export function MissionWorkspace({
     );
 
     const insights = mission.insights;
+    const teamStatsById = new Map((mission.teamStats ?? []).map((row) => [row.sdrId, row]));
+    const assignedSdrIds = new Set(mission.sdrAssignments.map((a) => a.sdr.id));
+    const assignSearchTerm = assignSearch.trim().toLowerCase();
+    const unassignedUsers = assignableUsers.filter(
+        (u) =>
+            !assignedSdrIds.has(u.id) &&
+            (assignSearchTerm === "" ||
+                u.name.toLowerCase().includes(assignSearchTerm) ||
+                u.email.toLowerCase().includes(assignSearchTerm)),
+    );
 
     // One-click pause/activate, but only when the workflow actually allows it.
     const quickToggle: MissionStatusValue = mission.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
@@ -2012,6 +2107,7 @@ export function MissionWorkspace({
                     onTabChange={onTabChange}
                     tabs={[
                         { id: "general", label: "Général", icon: <Activity className="w-4 h-4" /> },
+                        { id: "equipe", label: "Équipe & campagnes", icon: <Users className="w-4 h-4" /> },
                         { id: "strategies", label: "Stratégies par liste", icon: <Target className="w-4 h-4" /> },
                         { id: "strategy", label: "Stratégie & Scripts (avancé)", icon: <FileText className="w-4 h-4" /> },
                         { id: "audience", label: "BDD", icon: <Users className="w-4 h-4" /> },
@@ -3119,6 +3215,283 @@ export function MissionWorkspace({
                     </div>
                 )}
 
+                {activeTab === "equipe" && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        {/* Team lead */}
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="text-base font-semibold text-slate-900">Référent mission</h2>
+                                    <p className="mt-0.5 text-sm text-slate-500">
+                                        Le SDR référent est le point de contact de l&apos;équipe sur cette mission.
+                                    </p>
+                                </div>
+                                <select
+                                    value={mission.teamLeadSdrId ?? ""}
+                                    onChange={(e) =>
+                                        saveMissionField(
+                                            { teamLeadSdrId: e.target.value || null },
+                                            "Référent mission",
+                                        )
+                                    }
+                                    className="h-9 min-w-[220px] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                                >
+                                    <option value="">Aucun référent</option>
+                                    {mission.sdrAssignments.map((a) => (
+                                        <option key={a.sdr.id} value={a.sdr.id}>
+                                            {a.sdr.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Assigned SDRs */}
+                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                                <div>
+                                    <h2 className="text-base font-semibold text-slate-900">
+                                        SDR assignés
+                                        <span className="ml-2 text-sm font-normal text-slate-400">
+                                            {mission.sdrAssignments.length}
+                                        </span>
+                                    </h2>
+                                    <p className="mt-0.5 text-sm text-slate-500">
+                                        Contribution mesurée sur les actions rattachées à cette mission.
+                                    </p>
+                                </div>
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAssignPickerOpen((v) => !v);
+                                            if (assignableUsers.length === 0) void fetchAssignableUsers();
+                                        }}
+                                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                                    >
+                                        <Plus className="h-4 w-4" /> Assigner un SDR
+                                    </button>
+                                    {assignPickerOpen && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-10"
+                                                onClick={() => setAssignPickerOpen(false)}
+                                                aria-hidden="true"
+                                            />
+                                            <div className="absolute right-0 top-full z-20 mt-1 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                                <div className="border-b border-slate-100 p-2">
+                                                    <input
+                                                        autoFocus
+                                                        value={assignSearch}
+                                                        onChange={(e) => setAssignSearch(e.target.value)}
+                                                        placeholder="Rechercher un SDR…"
+                                                        className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                                                    />
+                                                </div>
+                                                <div className="max-h-72 overflow-y-auto py-1">
+                                                    {isLoadingAssignable ? (
+                                                        <div className="flex items-center gap-2 px-3 py-4 text-sm text-slate-500">
+                                                            <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
+                                                        </div>
+                                                    ) : unassignedUsers.length === 0 ? (
+                                                        <p className="px-3 py-4 text-sm text-slate-500">
+                                                            {assignSearch
+                                                                ? "Aucun SDR ne correspond."
+                                                                : "Tous les SDR sont déjà assignés."}
+                                                        </p>
+                                                    ) : (
+                                                        unassignedUsers.map((u) => (
+                                                            <button
+                                                                key={u.id}
+                                                                type="button"
+                                                                disabled={assigningSdrId === u.id}
+                                                                onClick={() => assignSdr(u.id)}
+                                                                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-slate-50 disabled:opacity-60"
+                                                            >
+                                                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-600">
+                                                                    {u.name.slice(0, 2).toUpperCase()}
+                                                                </span>
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="block truncate text-sm font-medium text-slate-900">
+                                                                        {u.name}
+                                                                    </span>
+                                                                    <span className="block truncate text-xs text-slate-500">
+                                                                        {u.email}
+                                                                    </span>
+                                                                </span>
+                                                                {assigningSdrId === u.id && (
+                                                                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                                                                )}
+                                                            </button>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {mission.sdrAssignments.length === 0 ? (
+                                <div className="px-5 py-12 text-center">
+                                    <Users className="mx-auto mb-3 h-8 w-8 text-slate-300" />
+                                    <p className="text-sm font-medium text-slate-700">Aucun SDR sur cette mission</p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Les SDR assignés voient la mission dans leur portail et peuvent être planifiés.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-slate-100">
+                                    {mission.sdrAssignments.map((a) => {
+                                        const stat = teamStatsById.get(a.sdr.id);
+                                        const isLead = mission.teamLeadSdrId === a.sdr.id;
+                                        return (
+                                            <div key={a.id} className="flex flex-wrap items-center gap-4 px-5 py-3.5">
+                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
+                                                    {a.sdr.name.slice(0, 2).toUpperCase()}
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="truncate text-sm font-semibold text-slate-900">
+                                                            {a.sdr.name}
+                                                        </span>
+                                                        {isLead && (
+                                                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                                                                Référent
+                                                            </span>
+                                                        )}
+                                                        {a.sdr.role === "BUSINESS_DEVELOPER" && (
+                                                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                                                Bizdev
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="truncate text-xs text-slate-500">{a.sdr.email}</p>
+                                                </div>
+
+                                                <div className="flex items-center gap-5 text-center">
+                                                    <div>
+                                                        <div className="text-sm font-bold text-slate-900">
+                                                            {stat?.actions ?? 0}
+                                                        </div>
+                                                        <div className="text-[10px] uppercase tracking-wide text-slate-400">
+                                                            actions
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-bold text-emerald-600">
+                                                            {stat?.meetings ?? 0}
+                                                        </div>
+                                                        <div className="text-[10px] uppercase tracking-wide text-slate-400">
+                                                            RDV
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div className="text-sm font-bold text-slate-900">
+                                                            {stat?.recentActions ?? 0}
+                                                        </div>
+                                                        <div className="text-[10px] uppercase tracking-wide text-slate-400">
+                                                            30 j
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-1.5">
+                                                    {!isLead && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                saveMissionField(
+                                                                    { teamLeadSdrId: a.sdr.id },
+                                                                    "Référent mission",
+                                                                )
+                                                            }
+                                                            className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+                                                        >
+                                                            Définir référent
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSdrToUnassign(a.sdr)}
+                                                        disabled={unassigningSdrId === a.sdr.id}
+                                                        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                                        aria-label={`Retirer ${a.sdr.name} de la mission`}
+                                                    >
+                                                        {unassigningSdrId === a.sdr.id ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <X className="h-4 w-4" />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Campaigns */}
+                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                                <div>
+                                    <h2 className="text-base font-semibold text-slate-900">
+                                        Campagnes
+                                        <span className="ml-2 text-sm font-normal text-slate-400">
+                                            {mission.campaigns.length}
+                                        </span>
+                                    </h2>
+                                    <p className="mt-0.5 text-sm text-slate-500">
+                                        Une campagne porte l&apos;ICP, le pitch et le script utilisés par les SDR.
+                                    </p>
+                                </div>
+                                <a
+                                    href={`/manager/campaigns/new?missionId=${mission.id}`}
+                                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+                                >
+                                    <Plus className="h-4 w-4" /> Nouvelle campagne
+                                </a>
+                            </div>
+                            {mission.campaigns.length === 0 ? (
+                                <div className="px-5 py-10 text-center">
+                                    <FileText className="mx-auto mb-3 h-8 w-8 text-slate-300" />
+                                    <p className="text-sm font-medium text-slate-700">Aucune campagne</p>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        Créez-en une depuis l&apos;onglet Stratégie & Scripts.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-slate-100">
+                                    {mission.campaigns.map((c) => (
+                                        <div key={c.id} className="flex items-center gap-3 px-5 py-3">
+                                            <span
+                                                className={cn(
+                                                    "h-2 w-2 shrink-0 rounded-full",
+                                                    c.isActive ? "bg-emerald-500" : "bg-slate-300",
+                                                )}
+                                            />
+                                            <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+                                                {c.name}
+                                            </span>
+                                            <span className="text-xs text-slate-500">
+                                                {c.isActive ? "Active" : "Inactive"}
+                                            </span>
+                                            <a
+                                                href={`/manager/campaigns/${c.id}`}
+                                                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                                aria-label={`Ouvrir la campagne ${c.name}`}
+                                            >
+                                                <ExternalLink className="h-4 w-4" />
+                                            </a>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {activeTab === "reglages" && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
                         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -4176,6 +4549,24 @@ export function MissionWorkspace({
                 confirmText="Supprimer"
                 variant="danger"
                 isLoading={isDeleting}
+            />
+
+            {/* Unassign confirmation — planning slots go with it, so make that explicit */}
+            <ConfirmModal
+                isOpen={!!sdrToUnassign}
+                onClose={() => setSdrToUnassign(null)}
+                onConfirm={() => {
+                    if (sdrToUnassign) void unassignSdr(sdrToUnassign.id);
+                }}
+                title="Retirer ce SDR de la mission ?"
+                message={
+                    sdrToUnassign
+                        ? `${sdrToUnassign.name} n'aura plus accès à cette mission et ses créneaux de planning sur celle-ci seront libérés.`
+                        : ""
+                }
+                confirmText="Retirer"
+                variant="danger"
+                isLoading={!!unassigningSdrId}
             />
 
             {/* Statuts et workflow drawer */}

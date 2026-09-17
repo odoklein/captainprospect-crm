@@ -28,7 +28,7 @@ export default async function MissionDetailRedirect({
 
     // Tabs the old page linked to that no longer exist as such in the workspace.
     const TAB_ALIASES: Record<string, string> = {
-        assignments: "audience",
+        assignments: "equipe",
         campaigns: "strategy",
         lists: "audience",
     };
