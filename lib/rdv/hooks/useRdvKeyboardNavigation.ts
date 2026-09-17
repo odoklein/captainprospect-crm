@@ -1,23 +1,22 @@
 "use client";
 
 import { useEffect } from "react";
-import type { Meeting } from "../_types";
 
-interface UseRdvKeyboardNavigationParams {
+interface UseRdvKeyboardNavigationParams<T extends { id: string }> {
   panelOpen: boolean;
   selectedMeetingId: string | null;
-  meetings: Meeting[];
+  meetings: T[];
   closePanel: () => void;
-  openPanel: (meeting: Meeting, allMeetings: Meeting[]) => void;
+  openPanel: (meeting: T, allMeetings: T[]) => void;
 }
 
-export function useRdvKeyboardNavigation({
+export function useRdvKeyboardNavigation<T extends { id: string }>({
   panelOpen,
   selectedMeetingId,
   meetings,
   closePanel,
   openPanel,
-}: UseRdvKeyboardNavigationParams) {
+}: UseRdvKeyboardNavigationParams<T>) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && panelOpen) {

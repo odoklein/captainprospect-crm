@@ -10,7 +10,7 @@ import { useFicheRdv } from "../_hooks/useFicheRdv";
 import { useFeedback } from "../_hooks/useFeedback";
 import { useRdvBulkActions } from "../_hooks/useRdvBulkActions";
 import { useRdvEntitySync } from "../_hooks/useRdvEntitySync";
-import { useRdvKeyboardNavigation } from "../_hooks/useRdvKeyboardNavigation";
+import { useRdvKeyboardNavigation } from "@/lib/rdv/hooks/useRdvKeyboardNavigation";
 import { CommandBar } from "./CommandBar";
 import { IntelligenceStrip } from "./IntelligenceStrip";
 import { FilterSidebar } from "./FilterSidebar";

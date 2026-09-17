@@ -52,3 +52,5 @@ export function sdrScriptCompanionCampaignsKey(missionId: string | null) {
 export function sdrScriptCompanionDataKey(campaignId: string | null) {
     return ["sdr", "script-companion", "data", campaignId] as const;
 }
+
+export const SDR_MEETINGS_QUERY_KEY = ["sdr", "meetings"] as const;

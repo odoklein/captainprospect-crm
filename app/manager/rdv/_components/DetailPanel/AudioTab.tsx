@@ -17,6 +17,7 @@ import {
   Phone,
   PhoneOff,
   Copy,
+  Upload,
 } from "lucide-react";
 import type { Meeting } from "../../_types";
 import type { UseFicheRdvReturn } from "../../_hooks/useFicheRdv";
@@ -418,6 +419,10 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
   const [manualDayFilter, setManualDayFilter] = useState<"all" | "today" | "yesterday">("all");
   const [activeSource, setActiveSource] = useState<string>("all");
 
+  // Manual audio upload state
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const autoSearchTriggeredRef = useRef(false);
 
   // Auto-search on mount when no audio
@@ -580,6 +585,73 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
     }
   }, [rawCallsMap, selectedCallId, meeting, updateMeeting, setSelectedMeeting, success, showError, ficheState]);
 
+  const triggerFileSelect = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = ""; // allow re-selecting the same file later
+      if (!file) return;
+
+      if (!file.type.startsWith("audio/")) {
+        showError("Fichier invalide", "Veuillez sélectionner un fichier audio.");
+        return;
+      }
+      const MAX_SIZE = 25 * 1024 * 1024;
+      if (file.size > MAX_SIZE) {
+        showError("Fichier trop volumineux", "La taille maximale autorisée est de 25 Mo.");
+        return;
+      }
+
+      setUploading(true);
+      try {
+        const body = new FormData();
+        body.append("file", file);
+        const res = await fetch(`/api/actions/${meeting.id}/upload-audio`, {
+          method: "POST",
+          body,
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          showError("Échec de l'upload", json?.error ?? "Impossible d'analyser le fichier audio.");
+          return;
+        }
+
+        const d = json.data;
+        const updated: Meeting = {
+          ...meeting,
+          callRecordingUrl: d.callRecordingUrl ?? meeting.callRecordingUrl,
+          callTranscription: d.callTranscription ?? meeting.callTranscription,
+          rdvFiche: d.fiche ?? meeting.rdvFiche,
+          rdvFicheUpdatedAt: d.fiche ? new Date().toISOString() : meeting.rdvFicheUpdatedAt,
+        };
+        setSelectedMeeting(updated);
+        setAutoSearchStatus("found");
+        setShowManualSearch(false);
+
+        if (d.transcriptionError) {
+          showError("Transcription impossible", d.transcriptionError);
+        } else if (d.ficheError) {
+          success("Audio importé", "Enregistrement et transcription enregistrés.");
+          showError("Génération de la fiche impossible", d.ficheError);
+          setFicheGenStatus("error");
+        } else if (d.fiche) {
+          success("Audio analysé", "Transcription effectuée et fiche RDV générée automatiquement.");
+          setFicheGenStatus("done");
+        } else {
+          success("Audio importé", "Enregistrement enregistré avec succès.");
+        }
+      } catch {
+        showError("Erreur réseau", "Impossible d'envoyer le fichier audio.");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [meeting, setSelectedMeeting, success, showError],
+  );
+
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -591,7 +663,23 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
 
   return (
     <div className="space-y-3">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={handleFileSelected}
+        className="hidden"
+      />
+
       {/* ─── Status banners ─── */}
+      {uploading && (
+        <StatusBanner
+          icon={<Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+          colorClass="bg-blue-50 border-blue-100 text-blue-700"
+          title="Analyse du fichier audio en cours…"
+          description="Transcription en français puis génération de la fiche RDV (jusqu'à une minute)."
+        />
+      )}
       {autoSearchStatus === "searching" && (
         <StatusBanner
           icon={<Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
@@ -708,19 +796,37 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
               ? "La recherche automatique n'a pas trouvé d'appel correspondant sur vos lignes Allo."
               : "Liez manuellement un enregistrement Allo à ce RDV."}
           </p>
-          <button
-            onClick={openManualSearch}
-            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-indigo-200/60"
-          >
-            <Search className="w-4 h-4" />
-            Rechercher l&apos;audio manuellement
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={openManualSearch}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-indigo-200/60"
+            >
+              <Search className="w-4 h-4" />
+              Rechercher l&apos;audio manuellement
+            </button>
+            <button
+              onClick={triggerFileSelect}
+              disabled={uploading}
+              className="inline-flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors border border-slate-200 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+              {uploading ? "Analyse en cours…" : "Uploader un fichier audio"}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* ─── Change audio button ─── */}
+      {/* ─── Change audio buttons ─── */}
       {(hasRecording || hasTranscription) && !showManualSearch && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={triggerFileSelect}
+            disabled={uploading}
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 transition-colors bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+            Uploader un audio
+          </button>
           <button
             onClick={openManualSearch}
             className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-1.5 transition-colors bg-white"

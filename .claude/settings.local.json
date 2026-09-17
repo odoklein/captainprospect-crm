@@ -36,7 +36,9 @@
       "Bash(./node_modules/.bin/prisma --version)",
       "Bash(./node_modules/.bin/prisma generate *)",
       "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(sort -t'\"' -k2 -u)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\dell\\\\.claude\\\\plans\" 2>/dev/null; echo ok)"
     ]
   }
 }
