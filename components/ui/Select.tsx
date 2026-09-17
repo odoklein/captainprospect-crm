@@ -29,6 +29,8 @@ interface SelectProps {
     className?: string;
     /** Use on dark headers (e.g. blue-navy): light text on semi-transparent background */
     variant?: "default" | "header-dark";
+    /** Max height (px) of the options list before it scrolls. Defaults to 240px. */
+    maxHeight?: number;
 }
 
 export function Select({
@@ -42,6 +44,7 @@ export function Select({
     searchable = false,
     className,
     variant = "default",
+    maxHeight = 240,
 }: SelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -231,7 +234,7 @@ export function Select({
                         )}
 
                         {/* Options */}
-                        <div className="max-h-60 overflow-y-auto">
+                        <div className="overflow-y-auto" style={{ maxHeight }}>
                             {filteredOptions.length === 0 ? (
                                 <div className="px-4 py-3 text-sm text-slate-500 text-center">
                                     Aucun résultat

@@ -16,6 +16,10 @@ import { actionService, resolveActionResult } from '@/lib/services/ActionService
 import { statusConfigService } from '@/lib/services/StatusConfigService';
 import type { ActionResult } from '@prisma/client';
 import { z } from 'zod';
+import {
+    createClientPortalNotification,
+    sendRdvRescheduledEmailNotification,
+} from '@/lib/notifications';
 
 // ============================================
 // PATCH /api/actions/[id] - Update callback date (reschedule rappel) or meeting (result + note + cancellationReason + callbackDate)
@@ -57,7 +61,15 @@ export const PATCH = withErrorHandler(async (
     const action = await prisma.action.findUnique({
         where: { id },
         include: {
-            campaign: { select: { id: true, missionId: true } },
+            campaign: {
+                select: {
+                    id: true,
+                    missionId: true,
+                    mission: { select: { clientId: true, name: true } },
+                },
+            },
+            contact: { select: { firstName: true, lastName: true, company: { select: { name: true } } } },
+            company: { select: { name: true } },
         },
     });
 
@@ -148,6 +160,47 @@ export const PATCH = withErrorHandler(async (
         }
         return rec;
     });
+
+    // A booked RDV that moves is news for the client: same email as a new
+    // booking, worded as a change and showing the slot it replaces. Silent when
+    // the date did not actually move, or when the RDV is cancelled.
+    const movedTo = updateData.callbackDate;
+    if (
+        isMeetingAction &&
+        movedTo &&
+        (updateData.result ?? action.result) === 'MEETING_BOOKED' &&
+        action.callbackDate?.getTime() !== movedTo.getTime()
+    ) {
+        const clientId = action.campaign?.mission?.clientId;
+        if (clientId) {
+            // Same pair as the manager-side move: portal notification + email.
+            await createClientPortalNotification(clientId, {
+                title: 'RDV déplacé',
+                message: 'Un rendez-vous de vos missions a été déplacé à une nouvelle date.',
+                type: 'info',
+                link: '/client/portal/meetings',
+            });
+
+            void sendRdvRescheduledEmailNotification(clientId, {
+                contactFirstName: action.contact?.firstName ?? null,
+                contactLastName: action.contact?.lastName ?? null,
+                companyName: action.contact?.company?.name ?? action.company?.name ?? null,
+                missionName: action.campaign?.mission?.name ?? null,
+                scheduledAt: movedTo,
+                previousScheduledAt: action.callbackDate ?? null,
+                meetingType:
+                    ((updateData.meetingType ?? action.meetingType) as
+                        | 'VISIO'
+                        | 'PHYSIQUE'
+                        | 'TELEPHONIQUE'
+                        | null) ?? null,
+                meetingJoinUrl: updateData.meetingJoinUrl ?? action.meetingJoinUrl ?? null,
+                meetingAddress: updateData.meetingAddress ?? action.meetingAddress ?? null,
+                meetingPhone: updateData.meetingPhone ?? action.meetingPhone ?? null,
+                interlocuteurId: action.interlocuteurId ?? undefined,
+            });
+        }
+    }
 
     return successResponse(updated);
 });

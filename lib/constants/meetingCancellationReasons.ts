@@ -8,6 +8,9 @@ export const MEETING_CANCELLATION_REASONS = [
     { code: "wrong_contact", label: "Mauvais contact" },
     { code: "client_cancelled", label: "Le client a annulé" },
     { code: "double_booking", label: "Double réservation" },
+    // The RDV did not hold and a new one was booked in its place. Closing the
+    // old one this way is what takes it off the no-show boards.
+    { code: "replaced", label: "RDV replacé" },
     { code: "other", label: "Autre" },
 ] as const;
 

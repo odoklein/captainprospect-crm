@@ -37,6 +37,7 @@ import {
   Video,
   Copy,
   ExternalLink,
+  CalendarClock,
 } from "lucide-react";
 import { downloadICS, proximityLabel } from "../../_lib/formatters";
 import { DetailTab } from "./DetailTab";
@@ -120,6 +121,55 @@ export function DetailPanel({
       confirmedById: null,
     });
     setSelectedMeeting({ ...selectedMeeting, confirmationStatus: "CANCELLED", confirmedAt: null, confirmedById: null });
+  };
+
+  /**
+   * The RDV was re-booked: close this one as cancelled with the "replaced"
+   * reason. That is what removes it from the no-show boards — flagging it
+   * absent was previously the only exit, which misreported what happened.
+   */
+  const handleReplaced = () => {
+    updateMeeting(selectedMeeting.id, {
+      result: "MEETING_CANCELLED",
+      cancellationReason: "replaced",
+    });
+    updateLocalMeeting(selectedMeeting.id, {
+      result: "MEETING_CANCELLED",
+      cancellationReason: "replaced",
+    });
+    setSelectedMeeting({
+      ...selectedMeeting,
+      result: "MEETING_CANCELLED",
+      cancellationReason: "replaced",
+    });
+  };
+
+  const isReplaced =
+    selectedMeeting.result === "MEETING_CANCELLED" &&
+    selectedMeeting.cancellationReason === "replaced";
+
+  /** Undo a mis-click: back to a booked, confirmed RDV. */
+  const handleUndoReplaced = () => {
+    const patch = {
+      result: "MEETING_BOOKED",
+      cancellationReason: null,
+      confirmationStatus: "CONFIRMED",
+    };
+    updateMeeting(selectedMeeting.id, patch);
+    const confirmedAt = new Date().toISOString();
+    updateLocalMeeting(selectedMeeting.id, {
+      result: "MEETING_BOOKED",
+      cancellationReason: null,
+      confirmationStatus: "CONFIRMED",
+      confirmedAt,
+    });
+    setSelectedMeeting({
+      ...selectedMeeting,
+      result: "MEETING_BOOKED",
+      cancellationReason: null,
+      confirmationStatus: "CONFIRMED",
+      confirmedAt,
+    });
   };
 
   const hasAudio = !!selectedMeeting.callRecordingUrl?.trim();
@@ -240,7 +290,35 @@ export function DetailPanel({
           </div>
 
           {/* Prominent SAS Confirmation Action Card */}
-          {isPending && (
+          {isReplaced && (
+            <div
+              style={{
+                background: "rgba(217, 119, 6, 0.07)",
+                border: "1px solid rgba(217, 119, 6, 0.22)",
+                borderRadius: 10,
+                padding: "8px 12px",
+                marginBottom: 14,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--amber)" }}>
+                <CalendarClock size={15} />
+                <span>RDV replacé — un nouveau rendez-vous le remplace</span>
+              </div>
+              <button
+                onClick={handleUndoReplaced}
+                className="rdv-btn rdv-btn-ghost"
+                style={{ fontSize: 11, padding: "3px 8px" }}
+                title="Annuler le marquage et remettre le RDV en confirmé"
+              >
+                <Check size={11} /> Rétablir
+              </button>
+            </div>
+          )}
+
+          {isPending && !isReplaced && (
             <div
               style={{
                 background: "rgba(245, 158, 11, 0.08)",
@@ -284,11 +362,19 @@ export function DetailPanel({
                 >
                   <X size={14} /> Rejeter / Annuler
                 </button>
+                <button
+                  className="rdv-btn rdv-btn-ghost"
+                  style={{ padding: "7px 14px" }}
+                  onClick={handleReplaced}
+                  title="Le RDV a été replacé : un nouveau RDV le remplace"
+                >
+                  <CalendarClock size={14} /> RDV replacé
+                </button>
               </div>
             </div>
           )}
 
-          {isConfirmed && (
+          {isConfirmed && !isReplaced && (
             <div
               style={{
                 background: "rgba(5, 150, 105, 0.07)",
@@ -310,23 +396,39 @@ export function DetailPanel({
                   </span>
                 )}
               </div>
-              <button
-                onClick={handleCancel}
-                style={{
-                  fontSize: 11,
-                  color: "var(--ink3)",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  textDecoration: "underline",
-                }}
-              >
-                Annuler
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  onClick={handleReplaced}
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink3)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                  title="Le RDV a été replacé : un nouveau RDV le remplace"
+                >
+                  RDV replacé
+                </button>
+                <button
+                  onClick={handleCancel}
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink3)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Annuler
+                </button>
+              </div>
             </div>
           )}
 
-          {isCancelled && (
+          {isCancelled && !isReplaced && (
             <div
               style={{
                 background: "rgba(225, 29, 72, 0.06)",
@@ -340,7 +442,7 @@ export function DetailPanel({
               }}
             >
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red)" }}>
-                ✕ Rendez-vous Annulé
+                ✕ {isReplaced ? "Rendez-vous replacé" : "Rendez-vous Annulé"}
               </span>
               <button
                 onClick={handleConfirm}

@@ -553,7 +553,7 @@ export async function sendNewRdvEmailNotification(
 
         if (recipients.size > 0) {
             // Use custom DB template if available, otherwise use default dynamic builder
-            const { subject, html } = customTemplate
+            const { subject, html } = customTemplate && data.variant !== "rescheduled"
                 ? buildRdvEmailFromCustomTemplate(customTemplate.subject, customTemplate.bodyHtml, data)
                 : buildRdvNotificationEmail(data);
 
@@ -569,7 +569,7 @@ export async function sendNewRdvEmailNotification(
                 ...data,
                 portalPath: "/commercial/portal/meetings",
             };
-            const { subject, html } = customTemplate
+            const { subject, html } = customTemplate && data.variant !== "rescheduled"
                 ? buildRdvEmailFromCustomTemplate(
                       customTemplate.subject,
                       customTemplate.bodyHtml,
@@ -586,4 +586,16 @@ export async function sendNewRdvEmailNotification(
     } catch (error) {
         console.error("[sendNewRdvEmailNotification] Failed:", error);
     }
+}
+
+/**
+ * Tell the client their RDV moved to a new slot. Same recipients and same
+ * per-client toggle as a new booking — only the wording differs, and the old
+ * slot is shown so nobody has to guess what changed.
+ */
+export async function sendRdvRescheduledEmailNotification(
+    clientId: string,
+    data: RdvEmailNotificationData & { previousScheduledAt?: Date | null }
+): Promise<void> {
+    return sendNewRdvEmailNotification(clientId, { ...data, variant: "rescheduled" });
 }

@@ -121,6 +121,15 @@ interface List {
 type RdvStatus = "upcoming" | "past" | "rescheduled" | "cancelled";
 type DetailDrawerTab = "detail" | "note" | "history";
 
+/**
+ * An absence still to deal with: flagged NO_SHOW and not yet closed. Once the
+ * RDV has been replaced it is cancelled with the "replaced" reason, and it
+ * drops off the absence boards instead of sitting there for good.
+ */
+function isOpenNoShow(m: Meeting): boolean {
+    return m.meetingFeedback?.outcome === "NO_SHOW" && m.result !== "MEETING_CANCELLED";
+}
+
 function getRdvStatus(m: Meeting): RdvStatus {
     if (m.result === "MEETING_CANCELLED") return "cancelled";
     if (!m.callbackDate) return "upcoming";
@@ -185,13 +194,13 @@ export default function SDRMeetingsPage() {
         const rescheduled = meetings.filter((m) => getRdvStatus(m) === "rescheduled").length;
         const cancelled = meetings.filter((m) => getRdvStatus(m) === "cancelled").length;
         const confirmed = meetings.filter((m) => m.confirmationStatus === "CONFIRMED" && m.result !== "MEETING_CANCELLED").length;
-        const absent = meetings.filter((m) => m.meetingFeedback?.outcome === "NO_SHOW").length;
+        const absent = meetings.filter(isOpenNoShow).length;
         return { upcoming, past, rescheduled, cancelled, confirmed, absent, all: meetings.length };
     }, [meetings]);
 
     const absentMeetings = useMemo(() =>
         meetings
-            .filter((m) => m.meetingFeedback?.outcome === "NO_SHOW")
+            .filter(isOpenNoShow)
             .sort((a, b) => {
                 const da = a.meetingFeedback?.createdAt ? new Date(a.meetingFeedback.createdAt).getTime() : 0;
                 const db = b.meetingFeedback?.createdAt ? new Date(b.meetingFeedback.createdAt).getTime() : 0;
@@ -207,7 +216,7 @@ export default function SDRMeetingsPage() {
         } else if (statusFilter === "confirmed") {
             statusScoped = meetings.filter((m) => m.confirmationStatus === "CONFIRMED" && m.result !== "MEETING_CANCELLED");
         } else if (statusFilter === "absent") {
-            statusScoped = meetings.filter((m) => m.meetingFeedback?.outcome === "NO_SHOW");
+            statusScoped = meetings.filter(isOpenNoShow);
         } else {
             statusScoped = meetings.filter((m) => getRdvStatus(m) === statusFilter);
         }

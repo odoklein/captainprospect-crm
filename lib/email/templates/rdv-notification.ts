@@ -12,6 +12,13 @@ export interface RdvNotificationData {
   appUrl?: string;
   /** Override the portal path used in the CTA button. Defaults to /client/portal/meetings. */
   portalPath?: string;
+  /**
+   * "rescheduled" re-uses this layout to announce a date change rather than a
+   * new booking: the wording changes and the old slot is shown struck through.
+   */
+  variant?: "new" | "rescheduled";
+  /** The slot the RDV used to occupy. Only read when variant is "rescheduled". */
+  previousScheduledAt?: Date | null;
 }
 
 function formatDate(date: Date): string {
@@ -161,7 +168,25 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
   const typeIcon = meetingTypeIcon(data.meetingType);
   const channelLabel = meetingChannelLabel(data.meetingChannel);
 
-  const subject = `Nouveau RDV confirmé — ${contactName} (${company})`;
+  const isRescheduled = data.variant === "rescheduled";
+
+  const subject = isRescheduled
+    ? `RDV déplacé — ${contactName} (${company})`
+    : `Nouveau RDV confirmé — ${contactName} (${company})`;
+
+  const previousDateRow =
+    isRescheduled && data.previousScheduledAt
+      ? `<tr>
+        <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
+          <table cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">🕓 Ancien créneau</td>
+              <td style="font-size: 13px; color: #9ca3af; font-weight: 500; text-decoration: line-through;">${capitalize(formatDate(data.previousScheduledAt))} à ${formatTime(data.previousScheduledAt)}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>`
+      : "";
 
   const dateRow = data.scheduledAt
     ? `<tr>
@@ -220,24 +245,28 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
               <!-- Success badge -->
               <table cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 20px; padding: 5px 14px; display: inline-block;">
-                    <span style="font-size: 12px; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.06em;">
-                      ✅ Nouveau RDV confirmé
+                  <td style="background-color: ${isRescheduled ? "#fffbeb" : "#f0fdf4"}; border: 1px solid ${isRescheduled ? "#fcd34d" : "#86efac"}; border-radius: 20px; padding: 5px 14px; display: inline-block;">
+                    <span style="font-size: 12px; font-weight: 700; color: ${isRescheduled ? "#b45309" : "#15803d"}; text-transform: uppercase; letter-spacing: 0.06em;">
+                      ${isRescheduled ? "🕓 RDV déplacé" : "✅ Nouveau RDV confirmé"}
                     </span>
                   </td>
                 </tr>
               </table>
 
               <h1 style="margin: 18px 0 8px; font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.3;">
-                Bonne nouvelle !
+                ${isRescheduled ? "Votre rendez-vous a été déplacé" : "Bonne nouvelle !"}
               </h1>
               <p style="margin: 0 0 24px; font-size: 15px; color: #475569; line-height: 1.6;">
-                Un nouveau rendez-vous a été réservé sur votre mission
-                <strong style="color: #0f172a;">${mission}</strong>.
+                ${
+                  isRescheduled
+                    ? `La date du rendez-vous avec <strong style="color: #0f172a;">${contactName}</strong> (${company}) sur votre mission <strong style="color: #0f172a;">${mission}</strong> a changé. Voici le nouveau créneau :`
+                    : `Un nouveau rendez-vous a été réservé sur votre mission <strong style="color: #0f172a;">${mission}</strong>.`
+                }
               </p>
 
               <!-- Details table -->
               <table cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
+                ${previousDateRow}
                 <tr>
                   <td style="padding: 20px 20px 0;">
                     <p style="margin: 0 0 12px; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em;">

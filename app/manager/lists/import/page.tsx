@@ -171,6 +171,7 @@ function inferDataType(samples: string[]): ColumnStats["dataType"] {
 
 const COMPANY_FIELDS = [
     { value: "", label: "Ignorer" },
+    { value: "__custom_company__", label: "➕ Champ personnalisé société..." },
     { value: "company.name", label: "Nom de société *" },
     { value: "company.industry", label: "Industrie" },
     { value: "company.country", label: "Pays" },
@@ -178,10 +179,10 @@ const COMPANY_FIELDS = [
     { value: "company.phone", label: "Téléphone société" },
     { value: "company.additionalPhones", label: "Téléphones société (suppl.)" },
     { value: "company.size", label: "Taille" },
-    { value: "__custom_company__", label: "➕ Champ personnalisé société..." },
 ];
 
 const CONTACT_FIELDS = [
+    { value: "__custom_contact__", label: "➕ Champ personnalisé contact..." },
     { value: "contact.firstName", label: "Prénom" },
     { value: "contact.lastName", label: "Nom" },
     { value: "contact.email", label: "Email" },
@@ -189,7 +190,6 @@ const CONTACT_FIELDS = [
      { value: "contact.additionalPhones", label: "Téléphones (suppl.)" },
     { value: "contact.title", label: "Fonction" },
     { value: "contact.linkedin", label: "LinkedIn" },
-    { value: "__custom_contact__", label: "➕ Champ personnalisé contact..." },
 ];
 
 const ALL_FIELDS = [...COMPANY_FIELDS, ...CONTACT_FIELDS];
@@ -345,6 +345,20 @@ export default function ImportListPage() {
     const requiredMapped = mappings.some(m => m.targetField === "company.name");
     const canGoToType = !!file && !!missionId && (importMode === "new" ? !!listName?.trim() : !!listId);
     const mappingCompletion = csvHeaders.length > 0 ? Math.round((mappedCount / csvHeaders.length) * 100) : 0;
+
+    // Columns mapped to the same target field (e.g. "contact.title" chosen twice) — flagged live
+    // next to each affected field so the user sees the blocker without having to click "Valider".
+    const duplicateFieldColumns = mappings.reduce((map, m) => {
+        if (!m.targetField) return map;
+        const existing = map.get(m.targetField) ?? [];
+        existing.push(m.csvColumn);
+        map.set(m.targetField, existing);
+        return map;
+    }, new Map<string, string[]>());
+    for (const [field, cols] of duplicateFieldColumns) {
+        if (cols.length < 2) duplicateFieldColumns.delete(field);
+    }
+    const hasDuplicateMappings = duplicateFieldColumns.size > 0;
 
     // "Clean replace" is a list-level action (archive + re-import), the other three are
     // row-level strategies the API applies per matched company.
@@ -1042,6 +1056,12 @@ export default function ImportListPage() {
         }
     };
 
+    // Clear a failed validation result as soon as the user touches anything it depends on,
+    // so the error banner in step 3 doesn't linger once the blocker has been fixed.
+    useEffect(() => {
+        setValidationResult((prev) => (prev && prev.errors.length > 0 ? null : prev));
+    }, [mappings, importType, importActions, assignedSdrId, actionColumnMode, actionColumnGroups, actionColumnMapping, statusMappings]);
+
     // ============================================
     // IMPORT DATA
     // ============================================
@@ -1655,7 +1675,31 @@ export default function ImportListPage() {
                             {!requiredMapped && (
                                 <p className="text-xs text-rose-600 mt-2">Le champ obligatoire `Nom de société` n&apos;est pas encore mappé.</p>
                             )}
+                            {hasDuplicateMappings && (
+                                <p className="text-xs text-rose-600 mt-2 flex items-center gap-1">
+                                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                    {duplicateFieldColumns.size > 1
+                                        ? `${duplicateFieldColumns.size} champs sont mappés par plusieurs colonnes à la fois (voir en rouge ci-dessous).`
+                                        : "Un champ est mappé par plusieurs colonnes à la fois (voir en rouge ci-dessous)."}
+                                </p>
+                            )}
                         </div>
+
+                        {validationResult && validationResult.errors.length > 0 && (
+                            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                                    <p className="text-sm font-semibold text-rose-800">
+                                        La validation a échoué — voici ce qui bloque :
+                                    </p>
+                                </div>
+                                <ul className="space-y-1 pl-6 list-disc">
+                                    {validationResult.errors.map((err, i) => (
+                                        <li key={i} className="text-sm text-rose-700">{err}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
 
                         {/* Bulk Actions Toolbar */}
                         <div className="flex flex-col gap-3">
@@ -1728,8 +1772,19 @@ export default function ImportListPage() {
                                     return null;
                                 };
 
+                                const duplicateColumns = currentTarget ? duplicateFieldColumns.get(currentTarget) : undefined;
+                                const isDuplicate = !!duplicateColumns;
+                                const otherDuplicateColumns = duplicateColumns?.filter(c => c !== mapping.csvColumn) ?? [];
+
                                 return (
-                                    <div key={mapping.csvColumn} className="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors">
+                                    <div
+                                        key={mapping.csvColumn}
+                                        className={
+                                            isDuplicate
+                                                ? "flex items-center gap-4 p-4 bg-rose-50 border-2 border-rose-300 rounded-xl transition-colors"
+                                                : "flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors"
+                                        }
+                                    >
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <p className="text-sm font-semibold text-slate-900">{mapping.csvColumn}</p>
@@ -1738,6 +1793,12 @@ export default function ImportListPage() {
                                             <p className="text-xs text-slate-500 truncate">
                                                 Exemple: {previewData[0]?.[mapping.csvColumn] || "—"}
                                             </p>
+                                            {isDuplicate && (
+                                                <p className="text-xs text-rose-700 font-medium mt-1 flex items-center gap-1">
+                                                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                                    Doublon : aussi mappé par {otherDuplicateColumns.map(c => `"${c}"`).join(", ")}
+                                                </p>
+                                            )}
                                             {(() => {
                                                 const stat = columnStats.find(s => s.column === mapping.csvColumn);
                                                 if (!stat) return null;
@@ -1761,6 +1822,8 @@ export default function ImportListPage() {
                                         <Select
                                             options={availableFields}
                                             value={mapping.targetField}
+                                            error={isDuplicate ? "Doublon" : undefined}
+                                            maxHeight={420}
                                             onChange={(value) => {
                                                 const newMappings = [...mappings];
                                                 const actualIndex = mappings.findIndex(m => m.csvColumn === mapping.csvColumn);
@@ -1775,7 +1838,7 @@ export default function ImportListPage() {
                                                     setMappings(newMappings);
                                                 }
                                             }}
-                                            className="w-56 flex-shrink-0"
+                                            className="w-72 flex-shrink-0"
                                         />
                                     </div>
                                 );

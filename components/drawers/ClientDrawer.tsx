@@ -1673,8 +1673,19 @@ function MissionRow({
 
     return (
         <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onOpen()}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onOpen();
+                }
+            }}
+            aria-label={`Ouvrir la mission ${mission.name}`}
             className={
-                "flex items-center gap-4 px-5 py-4 hover:bg-slate-50/60 transition-colors " +
+                "group flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50/60 transition-colors " +
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 " +
                 (isLast ? "" : "border-b border-slate-100")
             }
         >
@@ -1691,13 +1702,9 @@ function MissionRow({
             </div>
 
             <div className="flex-1 min-w-0">
-                <button
-                    type="button"
-                    onClick={() => onOpen()}
-                    className="text-sm font-semibold text-slate-900 hover:text-indigo-600 truncate block text-left w-full"
-                >
+                <span className="block truncate text-left text-sm font-semibold text-slate-900 transition-colors group-hover:text-indigo-600">
                     {mission.name}
-                </button>
+                </span>
                 {mission.objective && (
                     <p className="text-xs text-slate-500 truncate mt-0.5">{mission.objective}</p>
                 )}
@@ -1723,6 +1730,12 @@ function MissionRow({
                 </div>
             </div>
 
+            {/* Row controls: these act on the mission, they don't open it */}
+            <div
+                className="flex items-center gap-4"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+            >
             {/* Status inline edit */}
             <InlineSelect
                 value={mission.status}
@@ -1810,6 +1823,7 @@ function MissionRow({
                     </button>
                 </div>
             </PopoverPanel>
+            </div>
         </div>
     );
 }

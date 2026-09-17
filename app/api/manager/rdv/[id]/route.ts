@@ -10,7 +10,11 @@ import {
 } from "@/lib/api-utils";
 import { z } from "zod";
 import { detectMeetingCategoryFromNote } from "@/lib/services/ActionService";
-import { createClientPortalNotification, sendNewRdvEmailNotification } from "@/lib/notifications";
+import {
+  createClientPortalNotification,
+  sendNewRdvEmailNotification,
+  sendRdvRescheduledEmailNotification,
+} from "@/lib/notifications";
 
 const updateSchema = z.object({
   note: z.string().optional(),
@@ -27,7 +31,7 @@ const updateSchema = z.object({
   meetingJoinUrl: z.string().optional(),
   meetingPhone: z.string().optional(),
   channel: z.enum(["CALL", "EMAIL", "LINKEDIN"]).optional(),
-  cancellationReason: z.string().optional(),
+  cancellationReason: z.string().nullable().optional(),
   feedbackOutcome: z.enum(["POSITIVE", "NEUTRAL", "NEGATIVE", "NO_SHOW"]).optional(),
   feedbackRecontact: z.enum(["YES", "NO", "MAYBE"]).optional(),
   feedbackNote: z.string().optional(),
@@ -50,6 +54,7 @@ export const PUT = withErrorHandler(
     const action = await prisma.action.findUnique({ where: { id } });
     if (!action) throw new NotFoundError("RDV introuvable");
 
+    const previousCallbackDate = action.callbackDate;
     const actionUpdate: Record<string, unknown> = {};
     if (body.note !== undefined) actionUpdate.note = body.note;
     // Backward compatibility: accept managerNote payloads from UI and store in note.
@@ -102,6 +107,44 @@ export const PUT = withErrorHandler(
         interlocuteur: { select: { id: true, firstName: true, lastName: true, title: true } },
       },
     });
+
+    // Date moved: tell the client, so they are not left with the old slot in
+    // their calendar. Only for real meetings, and only when the date actually
+    // changed (saving the fiche without touching the date sends nothing).
+    const newCallbackDate = updated.callbackDate;
+    const dateChanged =
+        body.callbackDate !== undefined &&
+        newCallbackDate instanceof Date &&
+        previousCallbackDate?.getTime() !== newCallbackDate.getTime();
+
+    if (dateChanged && updated.result === "MEETING_BOOKED") {
+        const clientId = updated.campaign?.mission?.clientId;
+        if (clientId) {
+            await createClientPortalNotification(clientId, {
+                title: "RDV déplacé",
+                message: `Le rendez-vous avec ${updated.contact?.firstName ?? "le contact"} ${updated.contact?.lastName ?? ""}`.trim()
+                    + " a été déplacé à une nouvelle date.",
+                type: "info",
+                link: "/client/portal/meetings",
+            });
+
+            void sendRdvRescheduledEmailNotification(clientId, {
+                contactFirstName: updated.contact?.firstName ?? null,
+                contactLastName: updated.contact?.lastName ?? null,
+                companyName: updated.contact?.company?.name ?? null,
+                missionName: updated.campaign?.mission?.name ?? null,
+                scheduledAt: newCallbackDate,
+                previousScheduledAt: previousCallbackDate ?? null,
+                meetingChannel: (updated.channel as any) ?? "CALL",
+                meetingType: (updated.meetingType as any) ?? null,
+                meetingJoinUrl: updated.meetingJoinUrl ?? null,
+                meetingAddress: updated.meetingAddress ?? null,
+                meetingPhone: updated.meetingPhone ?? null,
+                interlocuteurId:
+                    updated.interlocuteur?.id ?? (updated as any).interlocuteurId ?? undefined,
+            });
+        }
+    }
 
     // SAS RDV: notify client ONLY when RDV becomes CONFIRMED
     if (
