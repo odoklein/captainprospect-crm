@@ -11,6 +11,7 @@
     "test:call-enrichment": "tsx --test lib/call-enrichment/allo-response.test.ts",
     "test:list-health": "tsx --test lib/services/ListHealthService.test.ts",
     "test:ai-tools": "tsx --test lib/ai/tools/guard.test.ts",
+    "test:tickets": "tsx --test lib/tickets/tickets.test.ts",
     "db:reset": "tsx prisma/reset.ts",
     "db:verify": "tsx prisma/verify-reset.ts",
     "db:seed-endpoints": "tsx prisma/seed-endpoints.ts",

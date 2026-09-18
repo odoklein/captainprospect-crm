@@ -95,6 +95,14 @@ const PERMISSIONS: PermissionDef[] = [
     { code: "features.review_prospects", name: "Réviser prospects", description: "Peut approuver ou rejeter les prospects", category: "features" },
     { code: "features.configure_prospect_sources", name: "Configurer sources prospects", description: "Peut configurer les sources de prospects", category: "features" },
     { code: "features.activate_prospects", name: "Activer prospects", description: "Peut activer manuellement les prospects", category: "features" },
+
+    // Support Technique — development tickets
+    { code: "pages.tickets", name: "Support technique", description: "Accès aux tickets de développement", category: "pages" },
+    { code: "pages.client_roadmap", name: "Roadmap client", description: "Accès à la roadmap et aux nouveautés côté client", category: "pages" },
+    { code: "features.create_ticket", name: "Créer ticket", description: "Peut créer des tickets de développement", category: "features" },
+    { code: "features.assign_ticket", name: "Assigner ticket", description: "Peut assigner un ticket à un développeur", category: "features" },
+    { code: "features.publish_ticket_roadmap", name: "Publier sur la roadmap", description: "Peut publier un ticket sur la roadmap client", category: "features" },
+    { code: "features.delete_ticket", name: "Supprimer ticket", description: "Peut supprimer un ticket", category: "features" },
 ];
 
 // Role-based default permissions
@@ -114,8 +122,11 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
         // Billing features
         "pages.billing", "features.create_invoice", "features.validate_invoice", "features.sync_payments", "features.confirm_payment",
         // Prospect Orchestration Engine
-        "pages.prospects", "features.manage_prospect_rules", "features.review_prospects", 
+        "pages.prospects", "features.manage_prospect_rules", "features.review_prospects",
         "features.configure_prospect_sources", "features.activate_prospects",
+        // Support Technique
+        "pages.tickets", "features.create_ticket", "features.assign_ticket",
+        "features.publish_ticket_roadmap", "features.delete_ticket",
         // All actions
         "actions.make_calls", "actions.send_emails", "actions.send_linkedin", 
         "actions.book_meetings", "actions.create_opportunity", "actions.edit_contacts",
@@ -156,12 +167,15 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     CLIENT: [
         // Client pages only
         "pages.dashboard", "pages.analytics", "pages.files",
+        // Read-only roadmap + changelog (no access to the internal ticket board)
+        "pages.client_roadmap",
         // No features
         // No actions
     ],
     DEVELOPER: [
         // Developer pages
         "pages.dashboard", "pages.projects", "pages.settings", "pages.files", "pages.comms",
+        "pages.tickets",
         // Developer features
         "features.upload_files", "features.manage_folders",
         // No actions

@@ -490,6 +490,13 @@ model User {
   // Broadcast Emails sent by this user (MANAGER)
   broadcastEmails BroadcastEmail[] @relation("BroadcastEmailSender")
 
+  // Support Technique — development tickets
+  requestedTickets     Ticket[]             @relation("TicketRequester")
+  assignedTickets      Ticket[]             @relation("TicketAssignee")
+  ticketComments       TicketComment[]      @relation("TicketCommentAuthor")
+  ticketHistoryEntries TicketHistory[]      @relation("TicketHistoryActor")
+  ticketReleaseChecks  TicketReleaseCheck[] @relation("TicketReleaseChecker")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -678,6 +685,9 @@ model Client {
   // API Keys scoped to this client
   apiKeys ApiKey[]
 
+  // Support Technique — development tickets
+  tickets Ticket[]
+
   archivedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -798,6 +808,9 @@ model Mission {
   assistantConversations AssistantConversation[]
   assistantActions       AssistantActionLog[]
   assistantArtifacts     AssistantArtifact[]
+
+  // Support Technique — development tickets
+  tickets Ticket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1152,6 +1165,9 @@ model File {
   taskId String?
   task   Task?   @relation(fields: [taskId], references: [id])
 
+  ticketId String?
+  ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
   // Metadata
   description String?
   tags        String[] @default([])
@@ -1170,6 +1186,7 @@ model File {
   @@index([missionId])
   @@index([clientId])
   @@index([campaignId])
+  @@index([ticketId])
   @@index([deletedAt])
 }
 
@@ -3652,6 +3669,9 @@ model SupportMessage {
 
   attachments SupportAttachment[]
 
+  /// Development tickets opened from this client message.
+  convertedTickets Ticket[] @relation("TicketSourceSupportMessage")
+
   createdAt DateTime @default(now())
 
   @@index([conversationId, createdAt])
@@ -4065,4 +4085,149 @@ model AssistantArtifact {
 
   @@index([clientId, missionId, createdAt])
   @@index([conversationId])
+}
+
+// ============================================
+// SUPPORT TECHNIQUE — DEVELOPMENT TICKETS
+// Centralises technical requests (bugs, improvements, feature
+// requests, technical support) that used to live in Slack threads.
+//
+// Deliberately separate from Task/Project: that module is generic
+// project management shared by SDR/BD/Manager, with its own ad-hoc
+// permission logic. Tickets carry a client-facing surface (roadmap,
+// changelog), so their visibility rules must not be entangled with it.
+// ============================================
+
+enum TicketCategory {
+  BUG
+  IMPROVEMENT
+  FEATURE_REQUEST
+  TECHNICAL_SUPPORT
+}
+
+enum TicketScope {
+  INTERNAL
+  CLIENT_FACING
+  MISSION_RELATED
+}
+
+enum TicketStatus {
+  NEW
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  TESTING
+  COMPLETED
+}
+
+model Ticket {
+  id     String @id @default(cuid())
+  /// Human-readable reference shown in the UI as #TC-0001.
+  number Int    @unique @default(autoincrement())
+
+  title       String
+  description String?        @db.Text
+  category    TicketCategory
+  scope       TicketScope    @default(INTERNAL)
+  /// Roles whose experience this ticket changes. Drives the pre-release
+  /// checklist: one TicketReleaseCheck row is created per role.
+  affectedRoles UserRole[]   @default([])
+
+  priority TaskPriority @default(MEDIUM)
+  status   TicketStatus @default(NEW)
+
+  // Client roadmap publication. Deliberately decoupled from `scope` and
+  // `status`: a CLIENT_FACING ticket stays invisible to the client until a
+  // manager publishes it with a rewritten, client-safe wording.
+  publishToRoadmap  Boolean @default(false)
+  publicTitle       String?
+  publicDescription String? @db.Text
+
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  missionId String?
+  mission   Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+
+  requesterId String
+  requester   User    @relation("TicketRequester", fields: [requesterId], references: [id])
+  assigneeId  String?
+  assignee    User?   @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  /// Set when the ticket was opened from a client support message.
+  sourceSupportMessageId String?
+  sourceSupportMessage   SupportMessage? @relation("TicketSourceSupportMessage", fields: [sourceSupportMessageId], references: [id], onDelete: SetNull)
+
+  attachments   File[]
+  comments      TicketComment[]
+  history       TicketHistory[]
+  releaseChecks TicketReleaseCheck[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([scope])
+  @@index([clientId])
+  @@index([missionId])
+  @@index([assigneeId])
+  @@index([requesterId])
+  @@index([publishToRoadmap, status])
+  @@index([dueDate])
+}
+
+model TicketComment {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation("TicketCommentAuthor", fields: [userId], references: [id])
+
+  content String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+  @@index([userId])
+}
+
+/// Append-only audit of every field change, rendered inline in the ticket thread.
+model TicketHistory {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User   @relation("TicketHistoryActor", fields: [userId], references: [id])
+
+  /// "status" | "priority" | "assignee" | "scope" | "affectedRoles" | "publishToRoadmap" | "created"
+  field     String
+  fromValue String?
+  toValue   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+  @@index([userId])
+}
+
+/// One row per affected role. A ticket cannot reach COMPLETED while any row
+/// is unchecked — enforced in the API, not just the UI.
+model TicketReleaseCheck {
+  id       String @id @default(cuid())
+  ticketId String
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  role        UserRole
+  checked     Boolean   @default(false)
+  checkedById String?
+  checkedBy   User?     @relation("TicketReleaseChecker", fields: [checkedById], references: [id], onDelete: SetNull)
+  checkedAt   DateTime?
+  notes       String?
+
+  @@unique([ticketId, role])
+  @@index([ticketId])
 }

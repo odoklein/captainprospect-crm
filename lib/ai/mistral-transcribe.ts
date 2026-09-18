@@ -1,15 +1,17 @@
 // ============================================
-// Audio transcription via OpenAI Whisper (audio/transcriptions).
+// Audio transcription via Mistral Voxtral (audio/transcriptions).
 // Used by the manual audio-upload flow to turn an uploaded recording
-// into a French transcription before fiche extraction.
+// into a French transcription before fiche extraction. Kept on the
+// same provider as the fiche-generation step (lib/ai/mistral-fiche.ts)
+// so the whole audio pipeline only depends on MISTRAL_API_KEY.
 // ============================================
 
 export type TranscribeResult =
   | { ok: true; text: string }
   | { ok: false; message: string; status: number };
 
-const OPENAI_TRANSCRIPTIONS_URL = "https://api.openai.com/v1/audio/transcriptions";
-const WHISPER_MODEL = process.env.OPENAI_WHISPER_MODEL || "whisper-1";
+const MISTRAL_TRANSCRIPTIONS_URL = "https://api.mistral.ai/v1/audio/transcriptions";
+const VOXTRAL_MODEL = process.env.MISTRAL_VOXTRAL_MODEL || "voxtral-mini-latest";
 
 /**
  * Transcribes an audio buffer, forcing French ("fr") since the CRM's
@@ -20,9 +22,9 @@ export async function transcribeAudioFr(
   filename: string,
   mimeType: string,
 ): Promise<TranscribeResult> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
-    return { ok: false, message: "Clé API OpenAI non configurée (OPENAI_API_KEY)", status: 503 };
+    return { ok: false, message: "Clé API Mistral non configurée (MISTRAL_API_KEY)", status: 503 };
   }
 
   const form = new FormData();
@@ -31,31 +33,31 @@ export async function transcribeAudioFr(
     new Blob([new Uint8Array(buffer)], { type: mimeType || "audio/mpeg" }),
     filename || "audio.mp3",
   );
-  form.append("model", WHISPER_MODEL);
+  form.append("model", VOXTRAL_MODEL);
   form.append("language", "fr");
-  form.append("response_format", "json");
 
   let response: Response;
   try {
-    response = await fetch(OPENAI_TRANSCRIPTIONS_URL, {
+    response = await fetch(MISTRAL_TRANSCRIPTIONS_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}` },
       body: form,
       signal: AbortSignal.timeout(120_000),
     });
   } catch (e) {
-    console.error("OpenAI transcription fetch error:", e);
-    return { ok: false, message: "Impossible de contacter le service de transcription OpenAI", status: 502 };
+    console.error("Mistral transcription fetch error:", e);
+    return { ok: false, message: "Impossible de contacter le service de transcription Mistral", status: 502 };
   }
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     const message =
-      (err as { error?: { message?: string } })?.error?.message ||
+      (err as { error?: { message?: string }; message?: string })?.error?.message ||
+      (err as { message?: string })?.message ||
       (response.status === 429
-        ? "Trop de requêtes vers OpenAI (transcription). Veuillez patienter quelques instants."
+        ? "Trop de requêtes vers Mistral (transcription). Veuillez patienter quelques instants."
         : "Erreur lors de la transcription audio");
-    console.error("OpenAI transcription error:", response.status, err);
+    console.error("Mistral transcription error:", response.status, err);
     return { ok: false, message, status: response.status >= 500 ? 502 : response.status };
   }
 

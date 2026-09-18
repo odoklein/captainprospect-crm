@@ -32,6 +32,8 @@ import {
   UserX,
   ShieldCheck,
   Sparkles,
+  LifeBuoy,
+  Map,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 
@@ -178,6 +180,12 @@ export const MANAGER_NAV: NavSection[] = [
         icon: FolderKanban,
         label: "Projets",
         permission: "pages.projects",
+      },
+      {
+        href: "/manager/tickets",
+        icon: LifeBuoy,
+        label: "Support technique",
+        permission: "pages.tickets",
       },
     ],
   },
@@ -469,6 +477,12 @@ export const DEVELOPER_NAV: NavSection[] = [
         permission: "pages.projects",
       },
       {
+        href: "/developer/tickets",
+        icon: LifeBuoy,
+        label: "Support technique",
+        permission: "pages.tickets",
+      },
+      {
         href: "/developer/integrations",
         icon: Settings,
         label: "Integrations",
@@ -514,6 +528,18 @@ export const CLIENT_NAV: NavSection[] = [
         icon: Activity,
         label: "Activité",
         permission: "pages.dashboard",
+      },
+      {
+        href: "/client/portal/roadmap",
+        icon: Map,
+        label: "Roadmap",
+        permission: "pages.client_roadmap",
+      },
+      {
+        href: "/client/portal/changelog",
+        icon: Sparkles,
+        label: "Nouveautés",
+        permission: "pages.client_roadmap",
       },
     ],
   },

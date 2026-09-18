@@ -87,6 +87,13 @@ export type PermissionCode =
     | "features.comms_resolve_thread"
     | "features.comms_delete_message"
     | "features.comms_manage_groups"
+    // Support Technique — development tickets
+    | "pages.tickets"
+    | "pages.client_roadmap"
+    | "features.create_ticket"
+    | "features.assign_ticket"
+    | "features.publish_ticket_roadmap"
+    | "features.delete_ticket"
     // Billing Module
     | "pages.billing"
     | "features.create_invoice"

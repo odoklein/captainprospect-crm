@@ -1,0 +1,336 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    AlertTriangle,
+    Ban,
+    CalendarClock,
+    LifeBuoy,
+    MessageSquare,
+    Paperclip,
+    Plus,
+    Search,
+    Activity,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button, Input, EmptyState, LoadingState, StatCard, useToast } from "@/components/ui";
+import { TICKET_STATUS_LABELS, formatTicketRef } from "@/lib/tickets/constants";
+import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge } from "./TicketBadges";
+import { TicketThread } from "./TicketThread";
+import { TicketSidePanel } from "./TicketSidePanel";
+import { TicketFormModal } from "./TicketFormModal";
+import type { TicketDashboardCounts, TicketDetail, TicketListItem, TicketStatus } from "./types";
+
+interface TicketWorkspaceProps {
+    currentUserId: string;
+    isManager: boolean;
+    developers: { id: string; name: string }[];
+    clients: { id: string; name: string }[];
+}
+
+type StatusFilter = "ALL" | "OPEN" | TicketStatus;
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+    { value: "OPEN", label: "Ouverts" },
+    { value: "ALL", label: "Tous" },
+    { value: "NEW", label: TICKET_STATUS_LABELS.NEW },
+    { value: "IN_PROGRESS", label: TICKET_STATUS_LABELS.IN_PROGRESS },
+    { value: "BLOCKED", label: TICKET_STATUS_LABELS.BLOCKED },
+    { value: "TESTING", label: TICKET_STATUS_LABELS.TESTING },
+    { value: "COMPLETED", label: TICKET_STATUS_LABELS.COMPLETED },
+];
+
+export function TicketWorkspace({ currentUserId, isManager, developers, clients }: TicketWorkspaceProps) {
+    const toast = useToast();
+
+    const [tickets, setTickets] = useState<TicketListItem[]>([]);
+    const [counts, setCounts] = useState<TicketDashboardCounts | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [detail, setDetail] = useState<TicketDetail | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isDetailLoading, setIsDetailLoading] = useState(false);
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("OPEN");
+    const [onlyMine, setOnlyMine] = useState(false);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editing, setEditing] = useState<TicketDetail | null>(null);
+
+    const fetchTickets = useCallback(async () => {
+        const params = new URLSearchParams();
+        if (statusFilter === "OPEN") {
+            params.set("status", "NEW,TODO,IN_PROGRESS,BLOCKED,TESTING");
+        } else if (statusFilter !== "ALL") {
+            params.set("status", statusFilter);
+        }
+        if (onlyMine) params.set("assigneeId", currentUserId);
+        if (search.trim()) params.set("search", search.trim());
+
+        try {
+            const response = await fetch(`/api/tickets?${params.toString()}`);
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Chargement impossible");
+            }
+            setTickets(result.data);
+            return result.data as TicketListItem[];
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur serveur");
+            return [];
+        } finally {
+            setIsLoading(false);
+        }
+    }, [statusFilter, onlyMine, search, currentUserId, toast]);
+
+    const fetchCounts = useCallback(async () => {
+        try {
+            const response = await fetch("/api/tickets/dashboard");
+            const result = await response.json();
+            if (response.ok && result.success) setCounts(result.data);
+        } catch {
+            // Counters are decorative — a failure here must not block the board.
+        }
+    }, []);
+
+    const fetchDetail = useCallback(async (ticketId: string) => {
+        setIsDetailLoading(true);
+        try {
+            const response = await fetch(`/api/tickets/${ticketId}`);
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Ticket introuvable");
+            }
+            setDetail(result.data);
+        } catch {
+            setDetail(null);
+        } finally {
+            setIsDetailLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchTickets();
+        fetchCounts();
+    }, [fetchTickets, fetchCounts]);
+
+    useEffect(() => {
+        if (selectedId) fetchDetail(selectedId);
+        else setDetail(null);
+    }, [selectedId, fetchDetail]);
+
+    // Keep a selection so the thread pane is never empty on first load.
+    useEffect(() => {
+        if (!selectedId && tickets.length) setSelectedId(tickets[0].id);
+    }, [tickets, selectedId]);
+
+    const refreshAll = useCallback(async () => {
+        await Promise.all([fetchTickets(), fetchCounts()]);
+        if (selectedId) await fetchDetail(selectedId);
+    }, [fetchTickets, fetchCounts, fetchDetail, selectedId]);
+
+    const statCards = useMemo(
+        () => [
+            { label: "Urgents", value: counts?.urgent ?? 0, icon: AlertTriangle, iconBg: "bg-red-100", iconColor: "text-red-600" },
+            { label: "Bloqués", value: counts?.blocked ?? 0, icon: Ban, iconBg: "bg-orange-100", iconColor: "text-orange-600" },
+            { label: "En cours", value: counts?.active ?? 0, icon: Activity, iconBg: "bg-indigo-100", iconColor: "text-indigo-600" },
+            { label: "En retard", value: counts?.overdue ?? 0, icon: CalendarClock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+        ],
+        [counts],
+    );
+
+    return (
+        <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">Support technique</h1>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Bugs, améliorations et demandes de fonctionnalités, centralisés.
+                    </p>
+                </div>
+                {isManager && (
+                    <Button
+                        onClick={() => {
+                            setEditing(null);
+                            setIsFormOpen(true);
+                        }}
+                    >
+                        <Plus className="w-4 h-4" />
+                        Nouveau ticket
+                    </Button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {statCards.map((card) => (
+                    <StatCard key={card.label} {...card} />
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px] gap-4 h-[calc(100vh-20rem)] min-h-[32rem]">
+                {/* Left: ticket list */}
+                <div className="flex flex-col min-h-0 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    <div className="p-4 space-y-3 border-b border-slate-200">
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Rechercher un ticket…"
+                            icon={<Search className="w-4 h-4 text-slate-400" />}
+                        />
+                        <div className="flex flex-wrap gap-1.5">
+                            {STATUS_FILTERS.map((filter) => (
+                                <button
+                                    key={filter.value}
+                                    type="button"
+                                    onClick={() => setStatusFilter(filter.value)}
+                                    className={cn(
+                                        "px-2.5 py-1 text-xs font-medium rounded-full border transition-colors",
+                                        statusFilter === filter.value
+                                            ? "bg-slate-900 text-white border-slate-900"
+                                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300",
+                                    )}
+                                >
+                                    {filter.label}
+                                </button>
+                            ))}
+                        </div>
+                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={onlyMine}
+                                onChange={(event) => setOnlyMine(event.target.checked)}
+                                className="rounded border-slate-300"
+                            />
+                            Uniquement mes tickets
+                        </label>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto">
+                        {isLoading ? (
+                            <LoadingState />
+                        ) : tickets.length === 0 ? (
+                            <EmptyState variant="inline" icon={LifeBuoy} title="Aucun ticket" />
+                        ) : (
+                            <ul className="divide-y divide-slate-100">
+                                {tickets.map((ticket) => (
+                                    <li key={ticket.id}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedId(ticket.id)}
+                                            className={cn(
+                                                "w-full text-left px-4 py-3 transition-colors",
+                                                selectedId === ticket.id ? "bg-indigo-50/60" : "hover:bg-slate-50",
+                                            )}
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-xs font-semibold text-slate-400">
+                                                    {formatTicketRef(ticket.number)}
+                                                </span>
+                                                <TicketPriorityBadge priority={ticket.priority} />
+                                            </div>
+                                            <p className="mt-1 text-sm font-medium text-slate-900 line-clamp-2">
+                                                {ticket.title}
+                                            </p>
+                                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                                                <TicketStatusBadge status={ticket.status} />
+                                                <TicketCategoryBadge category={ticket.category} />
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
+                                                <span>{ticket.assignee?.name ?? "Non assigné"}</span>
+                                                {ticket._count.comments > 0 && (
+                                                    <span className="inline-flex items-center gap-1">
+                                                        <MessageSquare className="w-3 h-3" />
+                                                        {ticket._count.comments}
+                                                    </span>
+                                                )}
+                                                {ticket._count.attachments > 0 && (
+                                                    <span className="inline-flex items-center gap-1">
+                                                        <Paperclip className="w-3 h-3" />
+                                                        {ticket._count.attachments}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+
+                {/* Middle: thread */}
+                <div className="flex flex-col min-h-0 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+                    {isDetailLoading && !detail ? (
+                        <LoadingState />
+                    ) : !detail ? (
+                        <EmptyState
+                            variant="inline"
+                            icon={LifeBuoy}
+                            title="Sélectionnez un ticket"
+                            description="Le fil de discussion et l'historique s'affichent ici."
+                        />
+                    ) : (
+                        <>
+                            <div className="flex items-center justify-between gap-3 px-5 py-4 bg-white border-b border-slate-200">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-slate-400">
+                                        {formatTicketRef(detail.number)}
+                                    </p>
+                                    <h2 className="text-base font-semibold text-slate-900 truncate">{detail.title}</h2>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <TicketStatusBadge status={detail.status} />
+                                    {isManager && (
+                                        <Button
+                                            size="sm"
+                                            variant="secondary"
+                                            onClick={() => {
+                                                setEditing(detail);
+                                                setIsFormOpen(true);
+                                            }}
+                                        >
+                                            Modifier
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex-1 min-h-0">
+                                <TicketThread
+                                    ticket={detail}
+                                    currentUserId={currentUserId}
+                                    canComment
+                                    onRefresh={refreshAll}
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Right: metadata + checklist (folds under the thread below xl) */}
+                <div className="hidden xl:flex flex-col min-h-0 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                    {detail ? (
+                        <TicketSidePanel
+                            ticket={detail}
+                            currentUserId={currentUserId}
+                            isManager={isManager}
+                            onRefresh={refreshAll}
+                        />
+                    ) : (
+                        <EmptyState variant="inline" icon={LifeBuoy} title="Aucun ticket sélectionné" />
+                    )}
+                </div>
+            </div>
+
+            {isManager && (
+                <TicketFormModal
+                    isOpen={isFormOpen}
+                    onClose={() => setIsFormOpen(false)}
+                    onSaved={refreshAll}
+                    ticket={editing}
+                    developers={developers}
+                    clients={clients}
+                />
+            )}
+        </div>
+    );
+}
+
+export default TicketWorkspace;

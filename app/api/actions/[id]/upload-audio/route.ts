@@ -1,7 +1,7 @@
 // ============================================
 // POST /api/actions/[id]/upload-audio
 // Manual audio upload for a meeting/RDV: stores the recording,
-// transcribes it in French (OpenAI Whisper), then extracts a
+// transcribes it in French (Mistral Voxtral), then extracts a
 // "fiche RDV" from the transcription (Mistral) and saves both on
 // the Action. Every failure step is returned explicitly instead of
 // leaving fields silently blank.
@@ -19,10 +19,10 @@ import {
   NotFoundError,
 } from "@/lib/api-utils";
 import { storageService } from "@/lib/storage/storage-service";
-import { transcribeAudioFr } from "@/lib/ai/openai-transcribe";
+import { transcribeAudioFr } from "@/lib/ai/mistral-transcribe";
 import { generateFicheFromTranscription } from "@/lib/ai/mistral-fiche";
 
-// OpenAI Whisper's hard limit for the audio/transcriptions endpoint.
+// Practical upload cap for the audio/transcriptions endpoint.
 const MAX_AUDIO_SIZE = 25 * 1024 * 1024;
 
 async function assertCanUploadActionAudio(
