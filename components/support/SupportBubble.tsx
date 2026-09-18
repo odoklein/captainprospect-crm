@@ -1,5 +1,6 @@
 "use client";
 import { useState, type CSSProperties } from "react";
+import { Shield } from "lucide-react";
 import { SUP_DARK, SUP_LIGHT } from "./supportStyles";
 import { SupportAttachmentGallery } from "./SupportAttachments";
 import type { SupportMessageDTO } from "@/lib/support/types";
@@ -95,7 +96,7 @@ export function AvatarRing({ name, size = 28, status = "online", role, theme = "
                     boxShadow: `0 0 0 1.5px ${surface}, 0 2px 5px rgba(0,0,0,0.12)`,
                 }}
             >
-                {isManagerOrSupport && size >= 32 ? "🛡️" : initialsFor(name)}
+                {isManagerOrSupport && size >= 32 ? <Shield className="w-4 h-4 text-white" /> : initialsFor(name)}
             </div>
             {size >= 24 && (
                 <span

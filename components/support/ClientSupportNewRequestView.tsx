@@ -1,8 +1,20 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import {
+    ArrowLeft,
+    X,
+    Send,
+    Loader2,
+    Sparkles,
+    CheckCircle2,
+    Compass,
+    AlertCircle,
+    Paperclip,
+} from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 import { INTENT_CARD_CONFIG } from "@/lib/support/constants";
+import { getIntentLucideIcon } from "./SupportIntentSelector";
 import { SupportAttachButton, SupportAttachmentPreviews, useSupportAttachments } from "./SupportAttachments";
 import type { SupportIntent, SupportMessageContext } from "@/lib/support/types";
 
@@ -133,17 +145,18 @@ export function ClientSupportNewRequestView({
                             background: T.paperSunken,
                             border: `1px solid ${T.line}`,
                             borderRadius: T.radiusS,
-                            padding: "4px 8px",
+                            padding: "5px 9px",
                             color: T.ink2,
                             cursor: "pointer",
                             fontSize: 12,
                             fontWeight: 600,
                             display: "flex",
                             alignItems: "center",
-                            gap: 4,
+                            gap: 5,
                         }}
                     >
-                        ← Retour
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Retour</span>
                     </button>
                     <span style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>
                         Nouvelle demande
@@ -165,10 +178,9 @@ export function ClientSupportNewRequestView({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 14,
                     }}
                 >
-                    ✕
+                    <X className="w-4 h-4" />
                 </button>
             </div>
 
@@ -224,7 +236,9 @@ export function ClientSupportNewRequestView({
                                 >
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                            <span style={{ fontSize: 15 }}>{card.icon}</span>
+                                            <span style={{ color: isSelected ? card.color : T.ink2 }}>
+                                                {getIntentLucideIcon(id, "w-4 h-4")}
+                                            </span>
                                             <span
                                                 style={{
                                                     fontSize: 12,
@@ -236,7 +250,7 @@ export function ClientSupportNewRequestView({
                                             </span>
                                         </div>
                                         {isSelected && (
-                                            <span style={{ color: card.color, fontSize: 11, fontWeight: 700 }}>✓</span>
+                                            <CheckCircle2 className="w-3.5 h-3.5" style={{ color: card.color }} />
                                         )}
                                     </div>
                                     <div
@@ -348,6 +362,7 @@ export function ClientSupportNewRequestView({
                             onChange={(e) => setIncludeContext(e.target.checked)}
                             style={{ accentColor: T.brand }}
                         />
+                        <Compass className="w-3.5 h-3.5 text-indigo-600" />
                         <span style={{ fontSize: 12, color: T.ink2 }}>
                             Joindre le contexte de ma page actuelle : <strong>{pageLabel}</strong>
                         </span>
@@ -388,16 +403,20 @@ export function ClientSupportNewRequestView({
                             color: T.danger,
                             fontSize: 12,
                             fontWeight: 600,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
                         }}
                     >
-                        {error}
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>{error}</span>
                     </div>
                 )}
 
                 {/* Service Promise Notice */}
                 <div
                     style={{
-                        padding: "8px 12px",
+                        padding: "9px 12px",
                         borderRadius: T.radiusS,
                         background: T.brandSofter,
                         border: "1px solid rgba(99,102,241,0.2)",
@@ -406,7 +425,7 @@ export function ClientSupportNewRequestView({
                         gap: 8,
                     }}
                 >
-                    <span style={{ fontSize: 14 }}>⚡</span>
+                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
                     <span style={{ fontSize: 11.5, color: T.brandStrong, fontWeight: 500, lineHeight: 1.3 }}>
                         Prise en charge directe par l&apos;équipe des managers. Un accusé de réception automatique vous confirme la création du ticket.
                     </span>
@@ -453,20 +472,14 @@ export function ClientSupportNewRequestView({
                     >
                         {submitting ? (
                             <>
-                                <span
-                                    style={{
-                                        width: 12,
-                                        height: 12,
-                                        border: "2px solid #fff",
-                                        borderTopColor: "transparent",
-                                        borderRadius: "50%",
-                                        animation: "cpSupSpin 0.8s linear infinite",
-                                    }}
-                                />
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                 <span>Création en cours…</span>
                             </>
                         ) : (
-                            <span>Envoyer la demande</span>
+                            <>
+                                <span>Envoyer la demande</span>
+                                <Send className="w-3.5 h-3.5" />
+                            </>
                         )}
                     </button>
                 </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft, Plus, X, CheckCircle2 } from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 
 const T = SUP_LIGHT;
@@ -49,12 +50,13 @@ export function SupportHeader({
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
-                        gap: 4,
+                        gap: 5,
                         flexShrink: 0,
-                        transition: "background 150ms ease",
+                        transition: "all 150ms ease",
                     }}
                 >
-                    ← Demandes
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Demandes</span>
                 </button>
             )}
 
@@ -84,7 +86,25 @@ export function SupportHeader({
                         gap: 6,
                     }}
                 >
-                    <span>{isResolved ? "✓ Résolue" : "● En cours"}</span>
+                    {isResolved ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: T.accentEmerald }}>
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Résolue</span>
+                        </span>
+                    ) : (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: T.brand }}>
+                            <span
+                                style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: T.brand,
+                                    display: "inline-block",
+                                }}
+                            />
+                            <span>En cours</span>
+                        </span>
+                    )}
                     <span>·</span>
                     <span>{statusText}</span>
                 </div>
@@ -96,7 +116,7 @@ export function SupportHeader({
                     onClick={onNewRequest}
                     title="Ouvrir une nouvelle demande"
                     style={{
-                        padding: "4px 10px",
+                        padding: "5px 11px",
                         borderRadius: 999,
                         background: T.brandSoft,
                         border: `1px solid rgba(99,102,241,0.25)`,
@@ -111,7 +131,8 @@ export function SupportHeader({
                         transition: "all 150ms ease",
                     }}
                 >
-                    + Nouvelle
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Nouvelle</span>
                 </button>
             )}
 
@@ -130,7 +151,6 @@ export function SupportHeader({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 15,
                     transition: "all 150ms ease",
                 }}
                 onMouseEnter={(e) => {
@@ -142,7 +162,7 @@ export function SupportHeader({
                     e.currentTarget.style.color = T.ink3;
                 }}
             >
-                ✕
+                <X className="w-4 h-4" />
             </button>
         </header>
     );

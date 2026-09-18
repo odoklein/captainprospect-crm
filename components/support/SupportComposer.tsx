@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Sparkles, Send, X, Loader2 } from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 import { INTENT_CARD_CONFIG } from "@/lib/support/constants";
+import { getIntentLucideIcon } from "./SupportIntentSelector";
 import { SupportMeetingTags } from "./SupportMeetingTags";
 import { SupportQuickReplies } from "./SupportQuickReplies";
 import { SupportAttachButton, SupportAttachmentPreviews } from "./SupportAttachments";
@@ -73,7 +75,7 @@ export function SupportComposer({
             }}
         >
             {/* Active Intent Chip */}
-            {activeIntentConfig && (
+            {activeIntentConfig && selectedIntent && (
                 <div
                     style={{
                         marginBottom: 8,
@@ -85,7 +87,7 @@ export function SupportComposer({
                             display: "inline-flex",
                             alignItems: "center",
                             gap: 6,
-                            padding: "3px 9px",
+                            padding: "3px 10px",
                             borderRadius: 999,
                             background: activeIntentConfig.bg,
                             border: `1px solid ${activeIntentConfig.border}`,
@@ -94,7 +96,7 @@ export function SupportComposer({
                             fontWeight: 600,
                         }}
                     >
-                        <span>{activeIntentConfig.icon}</span>
+                        {getIntentLucideIcon(selectedIntent, "w-3.5 h-3.5")}
                         <span>{activeIntentConfig.label}</span>
                         <button
                             type="button"
@@ -105,11 +107,12 @@ export function SupportComposer({
                                 border: "none",
                                 color: activeIntentConfig.color,
                                 cursor: "pointer",
-                                fontSize: 12,
                                 padding: "0 2px",
+                                display: "inline-flex",
+                                alignItems: "center",
                             }}
                         >
-                            ✕
+                            <X className="w-3 h-3" />
                         </button>
                     </span>
                 </div>
@@ -158,11 +161,10 @@ export function SupportComposer({
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        fontSize: 16,
                         transition: "all 150ms ease",
                     }}
                 >
-                    ⚡
+                    <Sparkles className="w-4 h-4" />
                 </button>
 
                 <SupportAttachButton
@@ -236,30 +238,9 @@ export function SupportComposer({
                     }}
                 >
                     {isSending ? (
-                        <span
-                            style={{
-                                width: 14,
-                                height: 14,
-                                border: "2px solid #FFFFFF",
-                                borderTopColor: "transparent",
-                                borderRadius: "50%",
-                                animation: "cpSupSpin 0.8s linear infinite",
-                            }}
-                        />
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
                     ) : (
-                        <svg
-                            width={16}
-                            height={16}
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth={2.5}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        >
-                            <path d="M22 2 11 13" />
-                            <path d="M22 2 15 22 11 13 2 9l20-7z" />
-                        </svg>
+                        <Send className="w-4 h-4" />
                     )}
                 </button>
             </div>
@@ -292,7 +273,7 @@ export function SupportComposer({
                     style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 5,
+                        gap: 6,
                         cursor: "pointer",
                         flexShrink: 0,
                     }}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Calendar, BarChart3, Wrench, MessageSquare, HelpCircle } from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 import { INTENT_CARD_CONFIG } from "@/lib/support/constants";
 import type { SupportIntent } from "@/lib/support/types";
@@ -8,6 +9,20 @@ const T = SUP_LIGHT;
 
 interface SupportIntentSelectorProps {
     onSelectIntent: (intent: SupportIntent) => void;
+}
+
+export function getIntentLucideIcon(intent: SupportIntent, className = "w-4 h-4") {
+    switch (intent) {
+        case "RDV":
+            return <Calendar className={className} />;
+        case "RAPPORT":
+            return <BarChart3 className={className} />;
+        case "PROBLEME":
+            return <Wrench className={className} />;
+        case "AUTRE":
+        default:
+            return <MessageSquare className={className} />;
+    }
 }
 
 export function SupportIntentSelector({ onSelectIntent }: SupportIntentSelectorProps) {
@@ -21,22 +36,25 @@ export function SupportIntentSelector({ onSelectIntent }: SupportIntentSelectorP
                 borderRadius: T.radiusM,
                 border: `1px solid ${T.line}`,
                 background: T.paperRaised,
-                boxShadow: "0 1px 3px rgba(31,43,31,0.04)",
+                boxShadow: "0 2px 8px rgba(31,43,31,0.04)",
                 animation: "cpSupBubbleIn 0.3s ease both",
             }}
         >
-            <p
-                style={{
-                    fontSize: 11,
-                    color: T.ink3,
-                    marginBottom: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                }}
-            >
-                Que puis-je faire pour vous ?
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                <HelpCircle className="w-3.5 h-3.5" style={{ color: T.brand }} />
+                <p
+                    style={{
+                        fontSize: 11,
+                        color: T.ink3,
+                        margin: 0,
+                        fontWeight: 700,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                    }}
+                >
+                    Que puis-je faire pour vous ?
+                </p>
+            </div>
             <div
                 style={{
                     display: "grid",
@@ -64,18 +82,20 @@ export function SupportIntentSelector({ onSelectIntent }: SupportIntentSelectorP
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 8,
-                                transition: "transform 150ms ease, box-shadow 150ms ease",
+                                transition: "all 150ms ease",
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = "translateY(-1px)";
-                                e.currentTarget.style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)";
+                                e.currentTarget.style.boxShadow = "0 4px 10px rgba(0,0,0,0.06)";
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = "translateY(0)";
                                 e.currentTarget.style.boxShadow = "none";
                             }}
                         >
-                            <span style={{ fontSize: 16 }}>{cfg.icon}</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                                {getIntentLucideIcon(id, "w-4 h-4")}
+                            </span>
                             <span>{cfg.label}</span>
                         </button>
                     );

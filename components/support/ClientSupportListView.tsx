@@ -1,8 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import {
+    MessageSquare,
+    Search,
+    Plus,
+    X,
+    User,
+    Users,
+    Inbox,
+    FolderArchive,
+    ArrowRight,
+    Clock,
+    CheckCircle2,
+    Sparkles,
+} from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 import { INTENT_CARD_CONFIG } from "@/lib/support/constants";
+import { getIntentLucideIcon } from "./SupportIntentSelector";
 import type { SupportConversationSummaryDTO, SupportIntent } from "@/lib/support/types";
 
 const T = SUP_LIGHT;
@@ -114,10 +129,23 @@ export function ClientSupportListView({
                             gap: 8,
                         }}
                     >
-                        <span>💬</span>
+                        <div
+                            style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: 7,
+                                background: T.brandSoft,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: T.brandStrong,
+                            }}
+                        >
+                            <MessageSquare className="w-4 h-4" />
+                        </div>
                         <span>Assistance & Demandes</span>
                     </div>
-                    <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2 }}>
+                    <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2, paddingLeft: 34 }}>
                         {userRole === "COMMERCIAL"
                             ? "Vos demandes d'assistance dédiées"
                             : "Demandes de votre entreprise"}
@@ -131,7 +159,7 @@ export function ClientSupportListView({
                         style={{
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: 6,
+                            gap: 5,
                             padding: "6px 12px",
                             borderRadius: 999,
                             background: `linear-gradient(135deg, ${T.brand}, ${T.brandStrong})`,
@@ -150,7 +178,7 @@ export function ClientSupportListView({
                             e.currentTarget.style.transform = "translateY(0)";
                         }}
                     >
-                        <span style={{ fontSize: 13, fontWeight: 700 }}>+</span>
+                        <Plus className="w-3.5 h-3.5" />
                         <span>Nouvelle</span>
                     </button>
 
@@ -169,10 +197,9 @@ export function ClientSupportListView({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 14,
                         }}
                     >
-                        ✕
+                        <X className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -201,7 +228,7 @@ export function ClientSupportListView({
                         border: `1px solid ${T.line}`,
                     }}
                 >
-                    <span style={{ fontSize: 13, color: T.ink3 }}>🔍</span>
+                    <Search className="w-3.5 h-3.5" style={{ color: T.ink3 }} />
                     <input
                         type="text"
                         value={searchQuery}
@@ -225,11 +252,12 @@ export function ClientSupportListView({
                                 border: "none",
                                 color: T.ink3,
                                 cursor: "pointer",
-                                fontSize: 11,
                                 padding: 0,
+                                display: "flex",
+                                alignItems: "center",
                             }}
                         >
-                            ✕
+                            <X className="w-3.5 h-3.5" />
                         </button>
                     )}
                 </div>
@@ -268,7 +296,7 @@ export function ClientSupportListView({
                                 style={{
                                     fontSize: 10,
                                     fontWeight: 700,
-                                    padding: "1px 5px",
+                                    padding: "1px 6px",
                                     borderRadius: 999,
                                     background: activeUnread > 0 ? T.danger : T.line,
                                     color: activeUnread > 0 ? "#fff" : T.ink2,
@@ -296,12 +324,15 @@ export function ClientSupportListView({
                                 boxShadow: statusTab === "RESOLVED" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
                             }}
                         >
-                            <span>Résolues</span>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                <span>Résolues</span>
+                            </span>
                             <span
                                 style={{
                                     fontSize: 10,
                                     fontWeight: 700,
-                                    padding: "1px 5px",
+                                    padding: "1px 6px",
                                     borderRadius: 999,
                                     background: T.line,
                                     color: T.ink2,
@@ -319,7 +350,7 @@ export function ClientSupportListView({
                                 type="button"
                                 onClick={() => setScopeFilter((prev) => (prev === "ALL" ? "MINE" : "ALL"))}
                                 style={{
-                                    padding: "4px 8px",
+                                    padding: "4px 9px",
                                     borderRadius: 6,
                                     fontSize: 11,
                                     fontWeight: 600,
@@ -327,9 +358,22 @@ export function ClientSupportListView({
                                     border: `1px solid ${scopeFilter === "MINE" ? "rgba(99,102,241,0.25)" : T.line}`,
                                     color: scopeFilter === "MINE" ? T.brandStrong : T.ink3,
                                     cursor: "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 4,
                                 }}
                             >
-                                {scopeFilter === "MINE" ? "👤 Mes demandes" : "👥 Toutes"}
+                                {scopeFilter === "MINE" ? (
+                                    <>
+                                        <User className="w-3 h-3" />
+                                        <span>Mes demandes</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Users className="w-3 h-3" />
+                                        <span>Toutes</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     )}
@@ -361,17 +405,21 @@ export function ClientSupportListView({
                     >
                         <div
                             style={{
-                                width: 50,
-                                height: 50,
+                                width: 48,
+                                height: 48,
                                 borderRadius: "50%",
                                 background: T.brandSoft,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                fontSize: 22,
+                                color: T.brandStrong,
                             }}
                         >
-                            {statusTab === "ACTIVE" ? "🤝" : "📁"}
+                            {statusTab === "ACTIVE" ? (
+                                <Inbox className="w-6 h-6" />
+                            ) : (
+                                <FolderArchive className="w-6 h-6" />
+                            )}
                         </div>
                         <div style={{ fontSize: 13.5, fontWeight: 700, color: T.ink }}>
                             {statusTab === "ACTIVE"
@@ -387,7 +435,7 @@ export function ClientSupportListView({
                             }}
                         >
                             {statusTab === "ACTIVE"
-                                ? "Besoin d'un éclaircissement ou d'une assistance sur votre mission ? Choisissez un sujet ci-dessous :"
+                                ? "Besoin d'un accompagnement sur votre mission ? Démarrez une nouvelle demande :"
                                 : "Les demandes traitées et archivées apparaîtront ici."}
                         </div>
 
@@ -405,7 +453,7 @@ export function ClientSupportListView({
                                     type="button"
                                     onClick={() => onNewRequest("RDV")}
                                     style={{
-                                        padding: "8px 12px",
+                                        padding: "9px 12px",
                                         borderRadius: T.radiusS,
                                         background: T.paperRaised,
                                         border: `1px solid ${T.line}`,
@@ -416,16 +464,23 @@ export function ClientSupportListView({
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
+                                        transition: "all 150ms ease",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = T.brand;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = T.line;
                                     }}
                                 >
-                                    <span>📅</span>
+                                    {getIntentLucideIcon("RDV", "w-4 h-4 text-indigo-600")}
                                     <span>Question sur un rendez-vous</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => onNewRequest("RAPPORT")}
                                     style={{
-                                        padding: "8px 12px",
+                                        padding: "9px 12px",
                                         borderRadius: T.radiusS,
                                         background: T.paperRaised,
                                         border: `1px solid ${T.line}`,
@@ -436,16 +491,23 @@ export function ClientSupportListView({
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
+                                        transition: "all 150ms ease",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = T.brand;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = T.line;
                                     }}
                                 >
-                                    <span>📊</span>
+                                    {getIntentLucideIcon("RAPPORT", "w-4 h-4 text-cyan-600")}
                                     <span>Demander un rapport de campagne</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => onNewRequest("PROBLEME")}
                                     style={{
-                                        padding: "8px 12px",
+                                        padding: "9px 12px",
                                         borderRadius: T.radiusS,
                                         background: T.paperRaised,
                                         border: `1px solid ${T.line}`,
@@ -456,9 +518,16 @@ export function ClientSupportListView({
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
+                                        transition: "all 150ms ease",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.currentTarget.style.borderColor = T.brand;
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.currentTarget.style.borderColor = T.line;
                                     }}
                                 >
-                                    <span>🔧</span>
+                                    {getIntentLucideIcon("PROBLEME", "w-4 h-4 text-amber-600")}
                                     <span>Signaler un problème technique</span>
                                 </button>
                             </div>
@@ -491,11 +560,14 @@ export function ClientSupportListView({
                             >
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                                        {intentCfg && (
+                                        {intentCfg && conv.lastIntent && (
                                             <span
                                                 style={{
-                                                    padding: "2px 6px",
-                                                    borderRadius: 4,
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    gap: 4,
+                                                    padding: "2px 7px",
+                                                    borderRadius: 6,
                                                     fontSize: 10.5,
                                                     fontWeight: 600,
                                                     background: intentCfg.bg,
@@ -504,7 +576,8 @@ export function ClientSupportListView({
                                                     flexShrink: 0,
                                                 }}
                                             >
-                                                {intentCfg.icon} {intentCfg.label}
+                                                {getIntentLucideIcon(conv.lastIntent, "w-3 h-3")}
+                                                <span>{intentCfg.label}</span>
                                             </span>
                                         )}
                                         <span
@@ -538,8 +611,15 @@ export function ClientSupportListView({
                                         )}
                                         <span
                                             className="cp-support-root-mono"
-                                            style={{ fontSize: 10.5, color: T.ink3 }}
+                                            style={{
+                                                fontSize: 10.5,
+                                                color: T.ink3,
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                gap: 3,
+                                            }}
                                         >
+                                            <Clock className="w-3 h-3" />
                                             {formatRelative(conv.lastMessageAt || conv.updatedAt)}
                                         </span>
                                     </div>
@@ -575,7 +655,18 @@ export function ClientSupportListView({
                                         {conv.createdByName ? `Par ${conv.createdByName}` : "Demande"}
                                         {conv.createdByRole ? ` (${conv.createdByRole === "COMMERCIAL" ? "Commercial" : "Client"})` : ""}
                                     </span>
-                                    <span style={{ color: T.brandStrong, fontWeight: 600 }}>Ouvrir →</span>
+                                    <span
+                                        style={{
+                                            color: T.brandStrong,
+                                            fontWeight: 600,
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: 3,
+                                        }}
+                                    >
+                                        <span>Ouvrir</span>
+                                        <ArrowRight className="w-3 h-3" />
+                                    </span>
                                 </div>
                             </button>
                         );

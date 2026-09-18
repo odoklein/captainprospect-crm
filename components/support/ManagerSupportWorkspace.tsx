@@ -2,6 +2,31 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import {
+    LifeBuoy,
+    MessageSquare,
+    MessagesSquare,
+    Bell,
+    Pin,
+    CheckCircle2,
+    RotateCcw,
+    Wrench,
+    Ticket,
+    Search,
+    X,
+    Send,
+    ArrowLeft,
+    Clock,
+    AlertTriangle,
+    XCircle,
+    Mail,
+    Lightbulb,
+    ExternalLink,
+    Loader2,
+    Calendar,
+    BarChart3,
+    Sparkles,
+} from "lucide-react";
 import { SUP_LIGHT, SupportStyles } from "./supportStyles";
 import { AvatarRing, SupportBubble } from "./SupportBubble";
 import {
@@ -53,13 +78,13 @@ function formatRelative(value: string | null): string {
     return new Date(ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-const ALERT_TYPE_CONFIG: Record<string, { icon: string; color: string; bg: string; border: string }> = {
-    "Signal client": { icon: "🚨", color: "#8B1A14", bg: "#FDE8E7", border: "rgba(217,48,37,0.18)" },
-    "Avis client": { icon: "💬", color: "#4238D0", bg: "#EEEDFB", border: "rgba(91,79,232,0.18)" },
-    "Demande report": { icon: "📅", color: "#8A4A00", bg: "#FEF6E4", border: "rgba(201,123,42,0.22)" },
-    "Annulation client": { icon: "❌", color: "#8B1A14", bg: "#FDE8E7", border: "rgba(217,48,37,0.18)" },
-    "Message support": { icon: "✉️", color: "#155B7A", bg: "#E4EEF4", border: "rgba(21,91,122,0.18)" },
-    "Suggestion SDR": { icon: "💡", color: "#B45309", bg: "#FEF3C7", border: "rgba(245,158,11,0.25)" },
+const ALERT_TYPE_CONFIG: Record<string, { color: string; bg: string; border: string }> = {
+    "Signal client": { color: "#8B1A14", bg: "#FDE8E7", border: "rgba(217,48,37,0.18)" },
+    "Avis client": { color: "#4238D0", bg: "#EEEDFB", border: "rgba(91,79,232,0.18)" },
+    "Demande report": { color: "#8A4A00", bg: "#FEF6E4", border: "rgba(201,123,42,0.22)" },
+    "Annulation client": { color: "#8B1A14", bg: "#FDE8E7", border: "rgba(217,48,37,0.18)" },
+    "Message support": { color: "#155B7A", bg: "#E4EEF4", border: "rgba(21,91,122,0.18)" },
+    "Suggestion SDR": { color: "#B45309", bg: "#FEF3C7", border: "rgba(245,158,11,0.25)" },
 };
 
 function getAlertTypeFromTitle(title: string): keyof typeof ALERT_TYPE_CONFIG {
@@ -69,10 +94,29 @@ function getAlertTypeFromTitle(title: string): keyof typeof ALERT_TYPE_CONFIG {
     return "Message support";
 }
 
+function renderAlertIcon(type: string, className = "w-4 h-4") {
+    switch (type) {
+        case "Signal client":
+            return <AlertTriangle className={className} />;
+        case "Avis client":
+            return <MessageSquare className={className} />;
+        case "Demande report":
+            return <Calendar className={className} />;
+        case "Annulation client":
+            return <XCircle className={className} />;
+        case "Message support":
+            return <Mail className={className} />;
+        case "Suggestion SDR":
+            return <Lightbulb className={className} />;
+        default:
+            return <Bell className={className} />;
+    }
+}
+
 function formatAlertTime(iso: string): string {
     const ts = new Date(iso).getTime();
     const diff = Date.now() - ts;
-    if (diff < 60_000) return "a l'instant";
+    if (diff < 60_000) return "à l'instant";
     if (diff < 3_600_000) return `il y a ${Math.floor(diff / 60_000)} min`;
     if (diff < 86_400_000) return `il y a ${Math.floor(diff / 3_600_000)} h`;
     if (diff < 172_800_000) return "hier";
@@ -200,42 +244,49 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     }, [selectedId, discardAttachments]);
 
     const filteredConversations = useMemo(() => {
-        if (tab === "UNREAD") return conversations.filter((c) => c.unreadCount > 0);
-        return conversations;
+        return conversations.filter((c) => {
+            if (tab === "ACTIVE" && c.status !== "ACTIVE") return false;
+            if (tab === "RESOLVED" && c.status !== "RESOLVED") return false;
+            if (tab === "UNREAD" && c.unreadCount === 0) return false;
+            return true;
+        });
     }, [conversations, tab]);
 
     const handleReply = async () => {
-        if (!selectedId || sending || attachments.isUploading) return;
-        const content = replyValue.trim();
-        const attachmentIds = attachments.readyIds;
-        const sentAttachments = attachments.pending
-            .filter((a) => a.status === "ready" && a.remote)
-            .map((a) => a.remote!);
-        if (!content && attachmentIds.length === 0) return;
+        if (!selectedId || !canReply) return;
+        const text = replyValue.trim();
+        const readyAttachments = attachments.readyIds;
         setSending(true);
 
         const optimistic: SupportMessageDTO = {
             id: `tmp-${Date.now()}`,
             conversationId: selectedId,
             role: "MANAGER",
-            content,
-            intent: null,
-            context: null,
-            author: session?.user
-                ? {
-                    id: session.user.id,
-                    name: session.user.name ?? "Vous",
-                    role: "MANAGER",
-                }
-                : null,
-            attachments: sentAttachments,
+            author: {
+                id: session?.user?.id ?? "me",
+                name: session?.user?.name ?? "Support",
+                email: session?.user?.email ?? "",
+                role: "MANAGER",
+            },
+            content: text,
+            attachments: attachments.pending
+                .filter((p) => readyAttachments.includes(p.id))
+                .map((p) => ({
+                    id: p.id,
+                    filename: p.filename,
+                    byteSize: p.byteSize,
+                    mimeType: p.mimeType,
+                    url: p.previewUrl,
+                })),
+            isInternal: false,
             createdAt: new Date().toISOString(),
         };
+
         setDetail((current) =>
-            current ? { ...current, messages: [...current.messages, optimistic] } : current,
+            current ? { ...current, messages: [...(current.messages || []), optimistic] } : current,
         );
         setReplyValue("");
-        attachments.clear();
+        attachments.discard();
 
         try {
             const res = await fetch(
@@ -244,26 +295,23 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        content,
-                        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
+                        content: text,
+                        attachmentIds: readyAttachments.length > 0 ? readyAttachments : undefined,
                     }),
                 },
             );
             const json = await res.json();
-            if (!res.ok || !json?.success) throw new Error(json?.error ?? "Erreur");
+            if (!json?.success) {
+                throw new Error(json?.error ?? "Erreur d'envoi");
+            }
             const saved = json.data as SupportMessageDTO;
             setDetail((current) =>
                 current
                     ? {
                         ...current,
-                        messages: current.messages
-                            .filter((m) => m.id !== optimistic.id)
-                            .concat(saved),
-                        messageCount: current.messageCount + 1,
-                        lastMessageAt: saved.createdAt,
-                        status: "ACTIVE",
-                        resolvedAt: null,
-                        resolvedBy: null,
+                        messages: (current.messages || []).map((m) =>
+                            m.id === optimistic.id ? saved : m,
+                        ),
                     }
                     : current,
             );
@@ -273,7 +321,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                 current
                     ? {
                         ...current,
-                        messages: current.messages.filter((m) => m.id !== optimistic.id),
+                        messages: (current.messages || []).filter((m) => m.id !== optimistic.id),
                     }
                     : current,
             );
@@ -318,14 +366,14 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     if (!isOpen) return null;
 
     const tabButtonStyle = (active: boolean): React.CSSProperties => ({
-        padding: "6px 12px",
+        padding: "5px 11px",
         borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 600,
+        fontSize: 11.5,
+        fontWeight: active ? 700 : 500,
         cursor: "pointer",
         border: "none",
         background: active ? T.brandSoft : "transparent",
-        color: active ? T.brand : T.ink3,
+        color: active ? T.brandStrong : T.ink3,
         transition: "all 150ms ease",
     });
 
@@ -341,7 +389,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     position: "fixed",
                     inset: 0,
                     zIndex: 110,
-                    background: "rgba(15,23,42,0.18)",
+                    background: "rgba(15,23,42,0.45)",
                     backdropFilter: "blur(6px)",
                     display: "flex",
                     justifyContent: "flex-end",
@@ -353,7 +401,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
             >
                 <aside
                     style={{
-                        width: "min(1080px, 100%)",
+                        width: "min(1120px, 100%)",
                         height: "100%",
                         display: "flex",
                         background: T.surface,
@@ -365,8 +413,8 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     {/* LIST column */}
                     <div
                         style={{
-                            width: 340,
-                            minWidth: 280,
+                            width: 360,
+                            minWidth: 300,
                             borderRight: `1px solid ${T.line}`,
                             display: "flex",
                             flexDirection: "column",
@@ -375,7 +423,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     >
                         <div
                             style={{
-                                padding: "18px 18px 12px",
+                                padding: "16px 18px 12px",
                                 borderBottom: `1px solid ${T.lineSoft}`,
                                 flexShrink: 0,
                             }}
@@ -388,61 +436,61 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                     marginBottom: 12,
                                 }}
                             >
-                                <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                     <div
                                         style={{
-                                            fontSize: 11,
-                                            color: T.ink4,
-                                            fontWeight: 700,
-                                            letterSpacing: "0.08em",
-                                            textTransform: "uppercase",
+                                            display: "inline-flex",
+                                            padding: 3,
+                                            borderRadius: 999,
+                                            background: T.surfaceRaised,
+                                            border: `1px solid ${T.line}`,
                                         }}
                                     >
-                                        Support
-                                    </div>
-                                    <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
                                         <button
                                             type="button"
                                             onClick={() => { setMode("conversations"); setSelectedAlert(null); }}
                                             style={{
-                                                padding: "3px 10px",
+                                                padding: "4px 12px",
                                                 borderRadius: 999,
                                                 fontSize: 12,
                                                 fontWeight: 700,
                                                 cursor: "pointer",
                                                 border: "none",
-                                                background: mode === "conversations" ? T.brand : "transparent",
+                                                background: mode === "conversations" ? `linear-gradient(135deg, ${T.brand}, ${T.brandStrong})` : "transparent",
                                                 color: mode === "conversations" ? "#fff" : T.ink2,
                                                 transition: "all 150ms ease",
-                                                letterSpacing: "-0.01em",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 5,
                                             }}
                                         >
-                                            Conversations
+                                            <MessagesSquare className="w-3.5 h-3.5" />
+                                            <span>Support</span>
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => { setMode("alerts"); setSelectedId(null); setDetail(null); }}
                                             style={{
-                                                padding: "3px 10px",
+                                                padding: "4px 12px",
                                                 borderRadius: 999,
                                                 fontSize: 12,
                                                 fontWeight: 700,
                                                 cursor: "pointer",
                                                 border: "none",
-                                                background: mode === "alerts" ? T.brand : "transparent",
+                                                background: mode === "alerts" ? `linear-gradient(135deg, ${T.brand}, ${T.brandStrong})` : "transparent",
                                                 color: mode === "alerts" ? "#fff" : T.ink2,
                                                 transition: "all 150ms ease",
-                                                letterSpacing: "-0.01em",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 5,
                                                 position: "relative",
                                             }}
                                         >
-                                            Alertes
+                                            <Bell className="w-3.5 h-3.5" />
+                                            <span>Alertes</span>
                                             {alertsUnread > 0 && (
                                                 <span
                                                     style={{
-                                                        position: "absolute",
-                                                        top: -4,
-                                                        right: -4,
                                                         minWidth: 16,
                                                         height: 16,
                                                         padding: "0 4px",
@@ -468,42 +516,56 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                     onClick={onClose}
                                     aria-label="Fermer"
                                     style={{
-                                        width: 28,
-                                        height: 28,
+                                        width: 30,
+                                        height: 30,
                                         borderRadius: T.radiusS,
                                         background: T.surfaceRaised,
                                         border: `1px solid ${T.line}`,
                                         color: T.ink3,
                                         cursor: "pointer",
-                                        fontSize: 14,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
                                     }}
                                 >
-                                    ✕
+                                    <X className="w-4 h-4" />
                                 </button>
                             </div>
+
                             {mode === "conversations" && (
                                 <>
-                                    <input
-                                        type="search"
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") fetchList();
-                                        }}
-                                        placeholder="Rechercher un client..."
+                                    <div
                                         style={{
-                                            width: "100%",
-                                            padding: "8px 12px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                            padding: "6px 10px",
                                             borderRadius: T.radiusS,
-                                            border: `1px solid ${T.line}`,
                                             background: T.surfaceRaised,
-                                            color: T.ink,
-                                            fontSize: 13,
-                                            fontFamily: "inherit",
-                                            outline: "none",
+                                            border: `1px solid ${T.line}`,
                                         }}
-                                    />
-                                    <div style={{ display: "flex", gap: 4, marginTop: 10 }}>
+                                    >
+                                        <Search className="w-3.5 h-3.5 text-slate-400" />
+                                        <input
+                                            type="search"
+                                            value={search}
+                                            onChange={(e) => setSearch(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") fetchList();
+                                            }}
+                                            placeholder="Rechercher un client..."
+                                            style={{
+                                                width: "100%",
+                                                background: "transparent",
+                                                border: "none",
+                                                color: T.ink,
+                                                fontSize: 12.5,
+                                                fontFamily: "inherit",
+                                                outline: "none",
+                                            }}
+                                        />
+                                    </div>
+                                    <div style={{ display: "flex", gap: 3, marginTop: 8 }}>
                                         <button type="button" style={tabButtonStyle(tab === "ACTIVE")} onClick={() => setTab("ACTIVE")}>
                                             Actives
                                         </button>
@@ -527,19 +589,25 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                             {mode === "conversations" ? (
                                 <>
                                     {loadingList && conversations.length === 0 ? (
-                                        <div style={{ padding: 16, color: T.ink3, fontSize: 13 }}>
-                                            Chargement…
+                                        <div style={{ padding: 24, color: T.ink3, fontSize: 13, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                                            <span>Chargement…</span>
                                         </div>
                                     ) : filteredConversations.length === 0 ? (
                                         <div
                                             style={{
-                                                padding: 24,
+                                                padding: 32,
                                                 textAlign: "center",
                                                 color: T.ink3,
                                                 fontSize: 13,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                alignItems: "center",
+                                                gap: 8,
                                             }}
                                         >
-                                            Aucune conversation.
+                                            <LifeBuoy className="w-8 h-8 text-slate-300" />
+                                            <span>Aucune conversation trouvée.</span>
                                         </div>
                                     ) : (
                                         filteredConversations.map((conv) => {
@@ -664,9 +732,13 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                                     background: T.brandSoft,
                                                                     color: T.brand,
                                                                     fontWeight: 600,
+                                                                    display: "inline-flex",
+                                                                    alignItems: "center",
+                                                                    gap: 3,
                                                                 }}
                                                             >
-                                                                Résolu
+                                                                <CheckCircle2 className="w-2.5 h-2.5" />
+                                                                <span>Résolu</span>
                                                             </span>
                                                         )}
                                                         {conv.lastIntent && (
@@ -684,7 +756,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                             </span>
                                                         )}
                                                         {conv.isPinned && (
-                                                            <span style={{ fontSize: 10, color: T.accentAmber }}>📌</span>
+                                                            <Pin className="w-3 h-3 text-amber-500" />
                                                         )}
                                                     </div>
                                                 </button>
@@ -695,20 +767,25 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                             ) : (
                                 <>
                                     {loadingAlerts && alerts.length === 0 ? (
-                                        <div style={{ padding: 16, color: T.ink3, fontSize: 13 }}>
-                                            Chargement…
+                                        <div style={{ padding: 24, color: T.ink3, fontSize: 13, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                                            <span>Chargement…</span>
                                         </div>
                                     ) : alerts.length === 0 ? (
                                         <div
                                             style={{
-                                                padding: 24,
+                                                padding: 32,
                                                 textAlign: "center",
                                                 color: T.ink3,
                                                 fontSize: 13,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                alignItems: "center",
+                                                gap: 8,
                                             }}
                                         >
-                                            <span style={{ fontSize: 28, display: "block", marginBottom: 8 }}>🔔</span>
-                                            Aucune alerte client pour le moment.
+                                            <Bell className="w-8 h-8 text-slate-300" />
+                                            <span>Aucune alerte client pour le moment.</span>
                                         </div>
                                     ) : (
                                         alerts.map((alert) => {
@@ -747,11 +824,11 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                             display: "flex",
                                                             alignItems: "center",
                                                             justifyContent: "center",
-                                                            fontSize: 14,
+                                                            color: cfg.color,
                                                             flexShrink: 0,
                                                         }}
                                                     >
-                                                        {cfg.icon}
+                                                        {renderAlertIcon(aType, "w-4 h-4")}
                                                     </span>
                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                         <div
@@ -848,17 +925,30 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                         alignItems: "center",
                                         justifyContent: "center",
                                         color: T.ink3,
-                                        gap: 10,
-                                        padding: 24,
+                                        gap: 12,
+                                        padding: 32,
                                         textAlign: "center",
                                     }}
                                 >
-                                    <span style={{ fontSize: 32 }}>🔔</span>
-                                    <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>
-                                        Alertes clients
+                                    <div
+                                        style={{
+                                            width: 56,
+                                            height: 56,
+                                            borderRadius: "50%",
+                                            background: T.brandSoft,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: T.brandStrong,
+                                        }}
+                                    >
+                                        <Bell className="w-7 h-7" />
                                     </div>
-                                    <div style={{ fontSize: 13, maxWidth: 360, lineHeight: 1.6 }}>
-                                        Retrouvez ici toutes les actions de vos clients : signalements, demandes de report, avis, annulations et messages support. Sélectionnez une alerte pour voir le détail.
+                                    <div style={{ fontSize: 16, fontWeight: 700, color: T.ink }}>
+                                        Alertes clients & Actions directes
+                                    </div>
+                                    <div style={{ fontSize: 13, maxWidth: 400, lineHeight: 1.6 }}>
+                                        Retrouvez ici toutes les alertes de vos clients : signalements de rendez-vous, demandes de report, avis de satisfaction, et messages support. Sélectionnez une alerte pour afficher son contexte.
                                     </div>
                                     {alerts.length > 0 && (
                                         <div
@@ -879,7 +969,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                         style={{
                                                             display: "inline-flex",
                                                             alignItems: "center",
-                                                            gap: 5,
+                                                            gap: 6,
                                                             padding: "5px 12px",
                                                             borderRadius: 999,
                                                             background: cfg.bg,
@@ -889,7 +979,8 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                             fontWeight: 600,
                                                         }}
                                                     >
-                                                        {cfg.icon} {key}
+                                                        {renderAlertIcon(key, "w-3.5 h-3.5")}
+                                                        <span>{key}</span>
                                                         <span
                                                             style={{
                                                                 background: cfg.color,
@@ -923,17 +1014,30 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                     alignItems: "center",
                                     justifyContent: "center",
                                     color: T.ink3,
-                                    gap: 10,
-                                    padding: 24,
+                                    gap: 12,
+                                    padding: 32,
                                     textAlign: "center",
                                 }}
                             >
-                                <span style={{ fontSize: 32 }}>🎧</span>
-                                <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>
+                                <div
+                                    style={{
+                                        width: 56,
+                                        height: 56,
+                                        borderRadius: "50%",
+                                        background: T.brandSoft,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: T.brandStrong,
+                                    }}
+                                >
+                                    <MessagesSquare className="w-7 h-7" />
+                                </div>
+                                <div style={{ fontSize: 16, fontWeight: 700, color: T.ink }}>
                                     Sélectionnez une conversation
                                 </div>
-                                <div style={{ fontSize: 13, maxWidth: 360 }}>
-                                    Toutes les demandes de support clients sont visibles par l'équipe des managers.
+                                <div style={{ fontSize: 13, maxWidth: 360, lineHeight: 1.5 }}>
+                                    Toutes les demandes de support clients sont centralisées ici. Répondez directement ou créez un ticket d&apos;escalade pour l&apos;équipe technique.
                                 </div>
                             </div>
                         ) : (
@@ -1009,7 +1113,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                         onClick={() => setShowDevTicketModal(true)}
                                         title="Convertir cette demande en ticket de développement pour les développeurs"
                                         style={{
-                                            padding: "6px 11px",
+                                            padding: "6px 12px",
                                             borderRadius: T.radiusS,
                                             background: "#F5F3FF",
                                             border: "1px solid #DDD6FE",
@@ -1019,10 +1123,11 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                             cursor: "pointer",
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: 5,
+                                            gap: 6,
+                                            transition: "all 150ms ease",
                                         }}
                                     >
-                                        <span>🛠️</span>
+                                        <Ticket className="w-3.5 h-3.5 text-purple-600" />
                                         <span>Créer ticket Dev</span>
                                     </button>
                                     <button
@@ -1030,7 +1135,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                         onClick={handlePinToggle}
                                         aria-label={detail.isPinned ? "Détacher" : "Épingler"}
                                         style={{
-                                            padding: "6px 10px",
+                                            padding: "6px 11px",
                                             borderRadius: T.radiusS,
                                             background: detail.isPinned ? T.accentAmberSoft : T.surface,
                                             border: `1px solid ${detail.isPinned ? "rgba(244,181,96,0.3)" : T.line}`,
@@ -1038,9 +1143,14 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                             fontSize: 12,
                                             fontWeight: 600,
                                             cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 5,
+                                            transition: "all 150ms ease",
                                         }}
                                     >
-                                        {detail.isPinned ? "📌 Épinglé" : "Épingler"}
+                                        <Pin className="w-3.5 h-3.5" />
+                                        <span>{detail.isPinned ? "Épinglé" : "Épingler"}</span>
                                     </button>
                                     <button
                                         type="button"
@@ -1052,14 +1162,28 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                             background:
                                                 detail.status === "RESOLVED" ? T.surface : T.brandSoft,
                                             border: `1px solid ${detail.status === "RESOLVED" ? T.line : "rgba(124,92,252,0.35)"}`,
-                                            color: detail.status === "RESOLVED" ? T.ink2 : T.brand,
+                                            color: detail.status === "RESOLVED" ? T.ink2 : T.brandStrong,
                                             fontSize: 12,
                                             fontWeight: 600,
                                             cursor: resolving ? "not-allowed" : "pointer",
                                             opacity: resolving ? 0.5 : 1,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 5,
+                                            transition: "all 150ms ease",
                                         }}
                                     >
-                                        {detail.status === "RESOLVED" ? "Rouvrir" : "✓ Marquer résolu"}
+                                        {detail.status === "RESOLVED" ? (
+                                            <>
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                                <span>Rouvrir</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                <span>Marquer résolu</span>
+                                            </>
+                                        )}
                                     </button>
                                 </div>
 
@@ -1077,14 +1201,14 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                         transition: "background 0.4s ease",
                                     }}
                                 >
-                                    {detail.messages.map((m, i) => (
+                                    {(detail.messages || []).map((m, i) => (
                                         <SupportBubble
                                             key={m.id}
                                             message={m}
                                             viewpoint="manager"
                                             theme="light"
                                             isLast={
-                                                i === detail.messages.length - 1 && m.role === "MANAGER"
+                                                i === (detail.messages || []).length - 1 && m.role === "MANAGER"
                                             }
                                             seen
                                         />
@@ -1175,19 +1299,11 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                         : "none",
                                                 }}
                                             >
-                                                <svg
-                                                    width={18}
-                                                    height={18}
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth={2.5}
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                >
-                                                    <path d="M22 2 11 13" />
-                                                    <path d="M22 2 15 22 11 13 2 9l20-7z" />
-                                                </svg>
+                                                {sending ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                                ) : (
+                                                    <Send className="w-4 h-4" />
+                                                )}
                                             </button>
                                         </div>
                                         <p
@@ -1215,11 +1331,14 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                             flexShrink: 0,
                                         }}
                                     >
-                                        <div style={{ fontSize: 13, color: T.brand, fontWeight: 600 }}>
-                                            ✓ Conversation résolue{" "}
-                                            {detail.resolvedAt
-                                                ? `le ${new Date(detail.resolvedAt).toLocaleString("fr-FR")}`
-                                                : ""}
+                                        <div style={{ fontSize: 13, color: T.brandStrong, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                            <span>
+                                                Conversation résolue{" "}
+                                                {detail.resolvedAt
+                                                    ? `le ${new Date(detail.resolvedAt).toLocaleString("fr-FR")}`
+                                                    : ""}
+                                            </span>
                                         </div>
                                         <button
                                             type="button"
@@ -1230,13 +1349,17 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                 borderRadius: T.radiusS,
                                                 background: T.brandSoft,
                                                 border: "1px solid rgba(124,92,252,0.35)",
-                                                color: T.brand,
+                                                color: T.brandStrong,
                                                 fontSize: 12,
                                                 fontWeight: 600,
                                                 cursor: "pointer",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 5,
                                             }}
                                         >
-                                            Rouvrir
+                                            <RotateCcw className="w-3.5 h-3.5" />
+                                            <span>Rouvrir</span>
                                         </button>
                                     </div>
                                 )}
@@ -1245,15 +1368,16 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     </div>
                 </aside>
             </div>
-            <ConvertSupportToTicketModal
-                isOpen={showDevTicketModal}
-                onClose={() => setShowDevTicketModal(false)}
-                conversation={detail}
-                onSuccess={() => {
-                    // Refresh conversation or show toast if needed
-                    fetchList();
-                }}
-            />
+            {detail && (
+                <ConvertSupportToTicketModal
+                    isOpen={showDevTicketModal}
+                    onClose={() => setShowDevTicketModal(false)}
+                    conversation={detail}
+                    onSuccess={() => {
+                        fetchList();
+                    }}
+                />
+            )}
         </>
     );
 }
@@ -1295,13 +1419,12 @@ function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => 
                         border: `1px solid ${T.line}`,
                         color: T.ink3,
                         cursor: "pointer",
-                        fontSize: 14,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                     }}
                 >
-                    ←
+                    <ArrowLeft className="w-4 h-4" />
                 </button>
                 <div style={{ flex: 1 }}>
                     <div
@@ -1326,14 +1449,18 @@ function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => 
                             borderRadius: T.radiusS,
                             background: T.brandSoft,
                             border: "1px solid rgba(124,92,252,0.35)",
-                            color: T.brand,
+                            color: T.brandStrong,
                             fontSize: 12,
                             fontWeight: 600,
                             textDecoration: "none",
                             cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 5,
                         }}
                     >
-                        Voir le RDV →
+                        <span>Voir le RDV</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                 )}
             </div>
@@ -1364,11 +1491,11 @@ function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => 
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 22,
+                            color: cfg.color,
                             flexShrink: 0,
                         }}
                     >
-                        {cfg.icon}
+                        {renderAlertIcon(aType, "w-6 h-6")}
                     </span>
                     <div>
                         <span
@@ -1464,8 +1591,28 @@ function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => 
                         >
                             Type
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
-                            {alert.type === "warning" ? "⚠️ Attention requise" : alert.type === "error" ? "🚨 Urgent" : alert.type === "success" ? "✅ Positif" : "ℹ️ Information"}
+                        <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, display: "flex", alignItems: "center", gap: 5 }}>
+                            {alert.type === "warning" ? (
+                                <>
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                    <span>Attention requise</span>
+                                </>
+                            ) : alert.type === "error" ? (
+                                <>
+                                    <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                                    <span>Urgent</span>
+                                </>
+                            ) : alert.type === "success" ? (
+                                <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                    <span>Positif</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                                    <span>Information</span>
+                                </>
+                            )}
                         </div>
                     </div>
                     <div
@@ -1489,8 +1636,9 @@ function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => 
                         >
                             Reçu le
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
-                            {formattedDate}
+                        <div style={{ fontSize: 13, fontWeight: 600, color: T.ink, display: "flex", alignItems: "center", gap: 5 }}>
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{formattedDate}</span>
                         </div>
                     </div>
                 </div>

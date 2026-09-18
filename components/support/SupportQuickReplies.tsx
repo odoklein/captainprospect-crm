@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles, X } from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 import { DEFAULT_QUICK_REPLIES } from "@/lib/support/constants";
 
@@ -34,30 +35,36 @@ export function SupportQuickReplies({
                     marginBottom: 10,
                 }}
             >
-                <span
-                    style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: T.ink3,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                    }}
-                >
-                    Réponses rapides
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span
+                        style={{
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: T.ink3,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                        }}
+                    >
+                        Réponses rapides
+                    </span>
+                </div>
                 <button
                     type="button"
                     onClick={onClose}
+                    aria-label="Fermer les réponses rapides"
                     style={{
                         background: "none",
                         border: "none",
                         color: T.ink3,
                         cursor: "pointer",
-                        fontSize: 14,
                         padding: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                     }}
                 >
-                    ✕
+                    <X className="w-3.5 h-3.5" />
                 </button>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

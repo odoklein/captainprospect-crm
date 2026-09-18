@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Calendar, X } from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 import { supportApi, type UpcomingMeetingDTO } from "@/lib/support/api";
 
@@ -52,7 +53,7 @@ export function SupportMeetingTags({
                         type="button"
                         onClick={() => (isAttached ? onRemoveRef(m.label) : onAddRef(m.label))}
                         style={{
-                            padding: "3px 9px",
+                            padding: "4px 10px",
                             borderRadius: 999,
                             fontSize: 11.5,
                             fontWeight: 600,
@@ -62,13 +63,13 @@ export function SupportMeetingTags({
                             cursor: "pointer",
                             display: "flex",
                             alignItems: "center",
-                            gap: 4,
+                            gap: 5,
                             transition: "all 150ms ease",
                         }}
                     >
-                        <span>📅</span>
+                        <Calendar className="w-3 h-3" />
                         <span>{m.label}</span>
-                        {isAttached && <span style={{ fontSize: 10 }}>✕</span>}
+                        {isAttached && <X className="w-3 h-3" />}
                     </button>
                 );
             })}
