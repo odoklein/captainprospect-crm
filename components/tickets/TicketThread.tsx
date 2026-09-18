@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import { Send, Paperclip } from "lucide-react";
+import { Send, Paperclip, Copy, Check, GitBranch } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { Button, useToast } from "@/components/ui";
 import {
@@ -9,6 +11,7 @@ import {
     TICKET_SCOPE_LABELS,
     TICKET_STATUS_LABELS,
     USER_ROLE_LABELS,
+    formatTicketRef,
 } from "@/lib/tickets/constants";
 import type { TicketDetail, TicketComment, TicketHistoryEntry } from "./types";
 
@@ -80,11 +83,84 @@ function initials(name: string) {
         .toUpperCase();
 }
 
+function getGitBranchCommand(ticket: { number: number; title: string; category: string }): string {
+    const ref = `tc-${ticket.number}`;
+    const prefix = ticket.category === "FEATURE_REQUEST" ? "feature" : ticket.category === "IMPROVEMENT" ? "feat" : "fix";
+    const slug = ticket.title
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 30);
+    return `git checkout -b ${prefix}/${ref}-${slug}`;
+}
+
+function TicketMarkdown({ content, className, isMine }: { content: string; className?: string; isMine?: boolean }) {
+    return (
+        <div className={cn("prose prose-sm max-w-none break-words text-sm", isMine ? "text-slate-800" : "text-slate-700", className)}>
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
+                    li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                    a: ({ href, children }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 underline">
+                            {children}
+                        </a>
+                    ),
+                    code: ({ className: codeClassName, children, ...props }) => {
+                        const isBlock = String(codeClassName ?? "").includes("language-");
+                        if (isBlock) {
+                            return (
+                                <pre className="rounded-xl p-3 text-xs overflow-x-auto my-2.5 bg-slate-900 text-slate-100 font-mono">
+                                    <code {...props}>{children}</code>
+                                </pre>
+                            );
+                        }
+                        return (
+                            <code className="rounded px-1.5 py-0.5 text-xs font-mono bg-slate-100 text-slate-800 border border-slate-200" {...props}>
+                                {children}
+                            </code>
+                        );
+                    },
+                    blockquote: ({ children }) => (
+                        <blockquote className="border-l-2 border-indigo-400 pl-3 italic text-slate-600 my-2">
+                            {children}
+                        </blockquote>
+                    ),
+                }}
+            >
+                {content}
+            </ReactMarkdown>
+        </div>
+    );
+}
+
 export function TicketThread({ ticket, currentUserId, canComment, onRefresh }: TicketThreadProps) {
     const toast = useToast();
     const [message, setMessage] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [copiedBranch, setCopiedBranch] = useState(false);
+    const [copiedRef, setCopiedRef] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
+
+    const handleCopyBranch = () => {
+        const cmd = getGitBranchCommand(ticket);
+        navigator.clipboard.writeText(cmd);
+        setCopiedBranch(true);
+        toast.success("Commande Git copiée !");
+        setTimeout(() => setCopiedBranch(false), 2000);
+    };
+
+    const handleCopyRef = () => {
+        navigator.clipboard.writeText(formatTicketRef(ticket.number));
+        setCopiedRef(true);
+        toast.success("Référence copiée !");
+        setTimeout(() => setCopiedRef(false), 2000);
+    };
 
     const feed = useMemo<FeedEntry[]>(() => {
         const entries: FeedEntry[] = [
@@ -125,14 +201,34 @@ export function TicketThread({ ticket, currentUserId, canComment, onRefresh }: T
     return (
         <div className="flex flex-col h-full min-h-0">
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
-                <div className="bg-white border border-slate-200 rounded-2xl p-4">
-                    <p className="text-sm font-semibold text-slate-900 mb-1">{ticket.title}</p>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                        {ticket.description || "Aucune description fournie."}
-                    </p>
-                    <p className="mt-3 text-xs text-slate-400">
-                        Ouvert par {ticket.requester.name} · {formatTime(ticket.createdAt)}
-                    </p>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5 border-b border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={handleCopyRef}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                                title="Copier la référence du ticket"
+                            >
+                                {copiedRef ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                                <span>{formatTicketRef(ticket.number)}</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCopyBranch}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors"
+                                title="Copier la commande git checkout -b ..."
+                            >
+                                {copiedBranch ? <Check className="w-3 h-3 text-emerald-600" /> : <GitBranch className="w-3 h-3 text-indigo-500" />}
+                                <span>Branche Git</span>
+                            </button>
+                        </div>
+                        <span className="text-xs text-slate-400">
+                            Ouvert par {ticket.requester.name} · {formatTime(ticket.createdAt)}
+                        </span>
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900 mb-2">{ticket.title}</p>
+                    <TicketMarkdown content={ticket.description || "*Aucune description fournie.*"} />
                 </div>
 
                 {ticket.attachments.length > 0 && (
@@ -213,13 +309,13 @@ function CommentBubble({ comment, isMine }: { comment: TicketComment; isMine: bo
             <div className={cn("max-w-[75%]", isMine && "text-right")}>
                 <div
                     className={cn(
-                        "inline-block px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap text-left",
+                        "inline-block px-4 py-2.5 rounded-2xl text-sm text-left shadow-2xs",
                         isMine
                             ? "bg-indigo-50 text-slate-800 border border-indigo-100"
                             : "bg-white text-slate-700 border border-slate-200",
                     )}
                 >
-                    {comment.content}
+                    <TicketMarkdown content={comment.content} isMine={isMine} />
                 </div>
                 <p className="mt-1 text-[11px] text-slate-400">
                     {comment.user.name} · {formatTime(comment.createdAt)}

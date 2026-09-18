@@ -14,21 +14,36 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Input, EmptyState, LoadingState, StatCard, useToast } from "@/components/ui";
-import { TICKET_STATUS_LABELS, formatTicketRef } from "@/lib/tickets/constants";
 import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge } from "./TicketBadges";
 import { TicketThread } from "./TicketThread";
 import { TicketSidePanel } from "./TicketSidePanel";
 import { TicketFormModal } from "./TicketFormModal";
-import type { TicketDashboardCounts, TicketDetail, TicketListItem, TicketStatus } from "./types";
+import type {
+    TaskPriority,
+    TicketCategory,
+    TicketDashboardCounts,
+    TicketDetail,
+    TicketListItem,
+    TicketStatus,
+} from "./types";
+import {
+    TICKET_CATEGORY_LABELS,
+    TICKET_PRIORITY_LABELS,
+    TICKET_STATUS_LABELS,
+    formatTicketRef,
+} from "@/lib/tickets/constants";
 
 interface TicketWorkspaceProps {
     currentUserId: string;
     isManager: boolean;
     developers: { id: string; name: string }[];
     clients: { id: string; name: string }[];
+    defaultOnlyMine?: boolean;
 }
 
 type StatusFilter = "ALL" | "OPEN" | TicketStatus;
+type PriorityFilter = "ALL" | TaskPriority;
+type CategoryFilter = "ALL" | TicketCategory;
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
     { value: "OPEN", label: "Ouverts" },
@@ -40,7 +55,36 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
     { value: "COMPLETED", label: TICKET_STATUS_LABELS.COMPLETED },
 ];
 
-export function TicketWorkspace({ currentUserId, isManager, developers, clients }: TicketWorkspaceProps) {
+const PRIORITY_FILTERS: { value: PriorityFilter; label: string }[] = [
+    { value: "ALL", label: "Toutes priorités" },
+    { value: "URGENT", label: TICKET_PRIORITY_LABELS.URGENT },
+    { value: "HIGH", label: TICKET_PRIORITY_LABELS.HIGH },
+    { value: "MEDIUM", label: TICKET_PRIORITY_LABELS.MEDIUM },
+    { value: "LOW", label: TICKET_PRIORITY_LABELS.LOW },
+];
+
+const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
+    { value: "ALL", label: "Toutes catégories" },
+    { value: "BUG", label: TICKET_CATEGORY_LABELS.BUG },
+    { value: "IMPROVEMENT", label: TICKET_CATEGORY_LABELS.IMPROVEMENT },
+    { value: "FEATURE_REQUEST", label: TICKET_CATEGORY_LABELS.FEATURE_REQUEST },
+    { value: "TECHNICAL_SUPPORT", label: TICKET_CATEGORY_LABELS.TECHNICAL_SUPPORT },
+];
+
+const PRIORITY_ACCENT: Record<TaskPriority, string> = {
+    URGENT: "border-l-4 border-l-red-500",
+    HIGH: "border-l-4 border-l-orange-500",
+    MEDIUM: "border-l-3 border-l-amber-400",
+    LOW: "border-l-2 border-l-slate-200",
+};
+
+export function TicketWorkspace({
+    currentUserId,
+    isManager,
+    developers,
+    clients,
+    defaultOnlyMine = false,
+}: TicketWorkspaceProps) {
     const toast = useToast();
 
     const [tickets, setTickets] = useState<TicketListItem[]>([]);
@@ -51,7 +95,10 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("OPEN");
-    const [onlyMine, setOnlyMine] = useState(false);
+    const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("ALL");
+    const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
+    const [onlyMine, setOnlyMine] = useState(defaultOnlyMine);
+    const [activeMobileTab, setActiveMobileTab] = useState<"thread" | "details">("thread");
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editing, setEditing] = useState<TicketDetail | null>(null);
 
@@ -62,6 +109,8 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
         } else if (statusFilter !== "ALL") {
             params.set("status", statusFilter);
         }
+        if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
+        if (categoryFilter !== "ALL") params.set("category", categoryFilter);
         if (onlyMine) params.set("assigneeId", currentUserId);
         if (search.trim()) params.set("search", search.trim());
 
@@ -79,7 +128,7 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
         } finally {
             setIsLoading(false);
         }
-    }, [statusFilter, onlyMine, search, currentUserId, toast]);
+    }, [statusFilter, priorityFilter, categoryFilter, onlyMine, search, currentUserId, toast]);
 
     const fetchCounts = useCallback(async () => {
         try {
@@ -184,7 +233,7 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
                                     className={cn(
                                         "px-2.5 py-1 text-xs font-medium rounded-full border transition-colors",
                                         statusFilter === filter.value
-                                            ? "bg-slate-900 text-white border-slate-900"
+                                            ? "bg-slate-900 text-white border-slate-900 shadow-2xs"
                                             : "bg-white text-slate-600 border-slate-200 hover:border-slate-300",
                                     )}
                                 >
@@ -192,15 +241,39 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
                                 </button>
                             ))}
                         </div>
-                        <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={onlyMine}
-                                onChange={(event) => setOnlyMine(event.target.checked)}
-                                className="rounded border-slate-300"
-                            />
-                            Uniquement mes tickets
-                        </label>
+                        <div className="flex items-center justify-between gap-2 pt-0.5">
+                            <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={onlyMine}
+                                    onChange={(event) => setOnlyMine(event.target.checked)}
+                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span>Mes tickets</span>
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                                <select
+                                    value={priorityFilter}
+                                    onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
+                                    className="text-[11px] font-medium py-1 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    aria-label="Filtrer par priorité"
+                                >
+                                    {PRIORITY_FILTERS.map((f) => (
+                                        <option key={f.value} value={f.value}>{f.label}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    value={categoryFilter}
+                                    onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
+                                    className="text-[11px] font-medium py-1 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    aria-label="Filtrer par catégorie"
+                                >
+                                    {CATEGORY_FILTERS.map((f) => (
+                                        <option key={f.value} value={f.value}>{f.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
@@ -214,10 +287,14 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
                                     <li key={ticket.id}>
                                         <button
                                             type="button"
-                                            onClick={() => setSelectedId(ticket.id)}
+                                            onClick={() => {
+                                                setSelectedId(ticket.id);
+                                                setActiveMobileTab("thread");
+                                            }}
                                             className={cn(
                                                 "w-full text-left px-4 py-3 transition-colors",
-                                                selectedId === ticket.id ? "bg-indigo-50/60" : "hover:bg-slate-50",
+                                                PRIORITY_ACCENT[ticket.priority],
+                                                selectedId === ticket.id ? "bg-indigo-50/70" : "hover:bg-slate-50",
                                             )}
                                         >
                                             <div className="flex items-center justify-between gap-2">
@@ -277,6 +354,35 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
                                     <h2 className="text-base font-semibold text-slate-900 truncate">{detail.title}</h2>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
+                                    {/* Mobile / Tablet Tab switch (< xl) */}
+                                    <div className="flex xl:hidden items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200 text-xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveMobileTab("thread")}
+                                            className={cn(
+                                                "px-2.5 py-1 rounded-md font-medium transition-colors",
+                                                activeMobileTab === "thread"
+                                                    ? "bg-white text-slate-900 shadow-2xs"
+                                                    : "text-slate-600 hover:text-slate-900",
+                                            )}
+                                        >
+                                            Discussion
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveMobileTab("details")}
+                                            className={cn(
+                                                "px-2.5 py-1 rounded-md font-medium transition-colors flex items-center gap-1.5",
+                                                activeMobileTab === "details"
+                                                    ? "bg-white text-slate-900 shadow-2xs"
+                                                    : "text-slate-600 hover:text-slate-900",
+                                            )}
+                                        >
+                                            <span>Détails</span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                                        </button>
+                                    </div>
+
                                     <TicketStatusBadge status={detail.status} />
                                     {isManager && (
                                         <Button
@@ -292,13 +398,25 @@ export function TicketWorkspace({ currentUserId, isManager, developers, clients 
                                     )}
                                 </div>
                             </div>
-                            <div className="flex-1 min-h-0">
-                                <TicketThread
-                                    ticket={detail}
-                                    currentUserId={currentUserId}
-                                    canComment
-                                    onRefresh={refreshAll}
-                                />
+                            <div className="flex-1 min-h-0 relative">
+                                {/* On < xl, display SidePanel if activeMobileTab === "details" */}
+                                <div className={cn("h-full", activeMobileTab === "details" ? "block xl:hidden" : "hidden")}>
+                                    <TicketSidePanel
+                                        ticket={detail}
+                                        currentUserId={currentUserId}
+                                        isManager={isManager}
+                                        onRefresh={refreshAll}
+                                    />
+                                </div>
+                                {/* Thread is visible when activeMobileTab === "thread" OR on >= xl */}
+                                <div className={cn("h-full", activeMobileTab === "thread" ? "block" : "hidden xl:block")}>
+                                    <TicketThread
+                                        ticket={detail}
+                                        currentUserId={currentUserId}
+                                        canComment
+                                        onRefresh={refreshAll}
+                                    />
+                                </div>
                             </div>
                         </>
                     )}

@@ -17,6 +17,7 @@ export default function DeveloperTicketsPage() {
             isManager={false}
             developers={[]}
             clients={[]}
+            defaultOnlyMine={true}
         />
     );
 }
