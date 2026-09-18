@@ -75,6 +75,7 @@ enum ActionResult {
   BARRAGE_SECRETAIRE
   MAIL_DOC
   HORS_CIBLE
+  DOUBLON
 }
 
 // Config-driven action status and workflow

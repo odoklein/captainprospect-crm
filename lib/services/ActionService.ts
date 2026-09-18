@@ -60,6 +60,7 @@ const VALID_ACTION_RESULTS: Set<ActionResult> = new Set<ActionResult>([
     "BARRAGE_SECRETAIRE",
     "MAIL_DOC",
     "HORS_CIBLE",
+    "DOUBLON",
 ]);
 
 const ACTION_RESULT_ALIASES: Record<string, ActionResult> = {
