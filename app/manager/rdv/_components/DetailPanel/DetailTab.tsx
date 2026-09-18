@@ -60,6 +60,12 @@ interface InterlocuteurOption {
   isActive: boolean;
 }
 
+interface SdrOption {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export function DetailTab({
   meeting,
   setSelectedMeeting,
@@ -85,6 +91,13 @@ export function DetailTab({
   const [interlocuteurSaving, setInterlocuteurSaving] = useState(false);
   const [interlocuteursClientId, setInterlocuteursClientId] = useState<string | null>(null);
   const latestClientIdRef = useRef<string | null>(meeting.client?.id ?? null);
+
+  // Inline SDR selector state
+  const [showSdrSelect, setShowSdrSelect] = useState(false);
+  const [sdrOptions, setSdrOptions] = useState<SdrOption[]>([]);
+  const [sdrOptionsLoaded, setSdrOptionsLoaded] = useState(false);
+  const [sdrLoading, setSdrLoading] = useState(false);
+  const [sdrSaving, setSdrSaving] = useState(false);
 
   useEffect(() => {
     latestClientIdRef.current = meeting.client?.id ?? null;
@@ -126,7 +139,53 @@ export function DetailTab({
     setShowInterlocuteurSelect(false);
     setInterlocuteurOptions([]);
     setInterlocuteursClientId(null);
+    setShowSdrSelect(false);
   }, [meeting.id, meeting.client?.id]);
+
+  // Fetch active SDRs when the selector opens (loaded once, reused across meetings).
+  const fetchSdrOptions = useCallback(async () => {
+    setSdrLoading(true);
+    try {
+      const res = await fetch(`/api/users?role=SDR&status=active&excludeSelf=false&limit=200`);
+      if (res.ok) {
+        const json = await res.json();
+        const data: SdrOption[] = (json.data?.users ?? json.users ?? []) || [];
+        setSdrOptions(data);
+        setSdrOptionsLoaded(true);
+      }
+    } catch (e) {
+      console.error("Failed to fetch SDRs:", e);
+    } finally {
+      setSdrLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showSdrSelect || sdrOptionsLoaded) return;
+    fetchSdrOptions();
+  }, [showSdrSelect, sdrOptionsLoaded, fetchSdrOptions]);
+
+  const handleSdrChange = async (sdrId: string) => {
+    if (sdrId === meeting.sdr.id) {
+      setShowSdrSelect(false);
+      return;
+    }
+    setSdrSaving(true);
+    try {
+      await updateMeeting(meeting.id, { sdrId });
+      const selected = sdrOptions.find((s) => s.id === sdrId);
+      const patch: Partial<Meeting> = selected
+        ? { sdr: { id: selected.id, name: selected.name, email: selected.email } }
+        : {};
+      updateLocalMeeting(meeting.id, patch);
+      setSelectedMeeting({ ...meeting, ...patch });
+    } catch (e) {
+      console.error("Failed to update SDR:", e);
+    } finally {
+      setSdrSaving(false);
+      setShowSdrSelect(false);
+    }
+  };
 
   const effectiveChannel = meeting.channel ?? "CALL";
 
@@ -447,9 +506,74 @@ export function DetailTab({
       )}
 
       <DetailRow label="SDR">
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Avatar name={meeting.sdr.name} size={26} />
-          <span style={{ color: "var(--ink)", fontWeight: 500 }}>{meeting.sdr.name}</span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+            <Avatar name={meeting.sdr.name} size={26} />
+            <span style={{ color: "var(--ink)", fontWeight: 500 }}>{meeting.sdr.name}</span>
+            <button
+              type="button"
+              className="rdv-btn rdv-btn-ghost"
+              style={{ fontSize: 11, padding: "3px 8px", marginLeft: 4 }}
+              onClick={() => setShowSdrSelect((v) => !v)}
+              disabled={sdrSaving}
+            >
+              {sdrSaving ? (
+                <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <UserRoundCog size={12} />
+              )}
+              {" "}Changer
+            </button>
+          </div>
+
+          {showSdrSelect && (
+            <div style={{
+              width: "100%",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              background: "var(--surface)",
+              padding: 6,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              maxHeight: 220,
+              overflowY: "auto",
+            }}>
+              {sdrLoading ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 0" }}>
+                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite", color: "var(--ink3)" }} />
+                  <span style={{ fontSize: 12, color: "var(--ink3)" }}>Chargement…</span>
+                </div>
+              ) : sdrOptions.length === 0 ? (
+                <div style={{ fontSize: 12, color: "var(--ink3)", padding: "10px 8px", textAlign: "center", fontStyle: "italic" }}>
+                  Aucun SDR actif trouvé
+                </div>
+              ) : (
+                sdrOptions.map((opt) => {
+                  const isSelected = meeting.sdr.id === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleSdrChange(opt.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
+                        borderRadius: 8, border: "none", background: isSelected ? "var(--surface2)" : "transparent",
+                        cursor: "pointer", width: "100%", textAlign: "left", fontSize: 12,
+                        color: "var(--ink)", transition: "background 0.15s",
+                      }}
+                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--surface2)"; }}
+                      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <Avatar name={opt.name} size={22} />
+                      <span style={{ fontWeight: isSelected ? 600 : 400 }}>{opt.name}</span>
+                      {isSelected && <Check size={13} style={{ marginLeft: "auto", color: "var(--accent)" }} />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
         </div>
       </DetailRow>
 
