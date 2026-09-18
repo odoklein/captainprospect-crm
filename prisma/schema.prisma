@@ -454,6 +454,7 @@ model User {
   commsSavedSearches       CommsSavedSearch[]
 
   // Client Support Module (separate from comms — broadcast to all active managers)
+  supportCreatedConversations SupportConversation[] @relation("SupportConversationCreator")
   supportMessages      SupportMessage[]      @relation("SupportMessageAuthor")
   supportManagerStates SupportManagerState[] @relation("SupportManagerStateUser")
   supportResolutions   SupportConversation[] @relation("SupportConversationResolver")
@@ -650,7 +651,7 @@ model Client {
   commsChannel CommsChannel?
 
   // Client Support Module (broadcast channel to all active managers)
-  supportConversation SupportConversation?
+  supportConversations SupportConversation[]
 
   // Prospect Orchestration Engine
   prospectSources        ProspectSource[]
@@ -3623,10 +3624,17 @@ enum SupportIntent {
 
 model SupportConversation {
   id       String @id @default(cuid())
-  clientId String @unique
+  clientId String
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
+  // Subject / Title of the request
+  subject  String @default("Demande d'assistance")
+
   status SupportConversationStatus @default(ACTIVE)
+
+  // Creator tracking (client or commercial)
+  createdById String?
+  createdBy   User?   @relation("SupportConversationCreator", fields: [createdById], references: [id], onDelete: SetNull)
 
   // Resolution tracking
   resolvedAt   DateTime?
@@ -3648,6 +3656,8 @@ model SupportConversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([clientId])
+  @@index([createdById])
   @@index([status])
   @@index([lastMessageAt])
 }

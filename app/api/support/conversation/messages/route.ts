@@ -16,6 +16,7 @@ import {
 import {
     getConversationIdForClientUser,
     postMessage,
+    resolveAccessibleConversationId,
 } from "@/lib/support/service";
 import { notifyManagersClientSupportMessage } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,7 @@ import type { SupportIntent } from "@prisma/client";
 
 const PostBody = z
     .object({
+        conversationId: z.string().optional(),
         // May be empty when the message carries images only.
         content: z.string().max(4000).default(""),
         intent: z.enum(["RDV", "RAPPORT", "PROBLEME", "AUTRE"]).optional(),
@@ -49,9 +51,12 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     }
     const body = await validateRequest(request, PostBody);
 
-    const conversationId = await getConversationIdForClientUser(session.user.id);
+    const conversationId = await resolveAccessibleConversationId(
+        session.user,
+        body.conversationId,
+    );
     if (!conversationId) {
-        throw new NotFoundError("Aucune conversation de support disponible");
+        throw new NotFoundError("Conversation de support introuvable ou accès refusé");
     }
 
     const message = await postMessage(

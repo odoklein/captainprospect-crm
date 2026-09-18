@@ -58,6 +58,7 @@ interface AbsenceRow {
 interface AbsencesPayload {
     pending: AbsenceRow[];
     reported: AbsenceRow[];
+    sdrs?: { id: string; name: string; email: string }[];
     kpis: {
         pending: number;
         pendingLate: number;
@@ -131,6 +132,7 @@ export default function RdvAbsencesPage() {
     const [reportTargets, setReportTargets] = useState<AbsenceRow[]>([]);
     const [recontact, setRecontact] = useState<string>("YES");
     const [note, setNote] = useState("");
+    const [selectedSdrId, setSelectedSdrId] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [replaceTargets, setReplaceTargets] = useState<AbsenceRow[]>([]);
@@ -213,6 +215,7 @@ export default function RdvAbsencesPage() {
         setReportTargets(rowsToReport);
         setRecontact("YES");
         setNote("");
+        setSelectedSdrId(rowsToReport.length === 1 && rowsToReport[0].sdr?.id ? rowsToReport[0].sdr.id : "");
     }
 
     async function submitReport() {
@@ -228,6 +231,7 @@ export default function RdvAbsencesPage() {
                             actionId: row.id,
                             recontactRequested: recontact,
                             note: note.trim() || undefined,
+                            reassignSdrId: selectedSdrId || undefined,
                         }),
                     });
                     const json = await res.json();
@@ -448,6 +452,12 @@ export default function RdvAbsencesPage() {
                                 Signaler absents
                             </Button>
                         )}
+                        {tab === "reported" && (
+                            <Button variant="primary" size="sm" onClick={() => openReport(selectedRows)}>
+                                <RefreshCw className="w-4 h-4" />
+                                Réaffecter SDR
+                            </Button>
+                        )}
                         <Button variant="outline" size="sm" onClick={() => setReplaceTargets(selectedRows)}>
                             <CalendarClock className="w-4 h-4" />
                             Marquer replacés
@@ -595,6 +605,12 @@ export default function RdvAbsencesPage() {
                                                     Signaler absent
                                                 </Button>
                                             )}
+                                            {tab === "reported" && (
+                                                <Button variant="outline" size="sm" onClick={() => openReport([row])}>
+                                                    <RefreshCw className="w-4 h-4" />
+                                                    Réaffecter
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="outline"
                                                 size="sm"
@@ -714,6 +730,27 @@ export default function RdvAbsencesPage() {
                                 La même précision sera enregistrée sur les {reportTargets.length} RDV.
                             </p>
                         )}
+                    </div>
+
+                    <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                            Assigner / Réaffecter au SDR
+                        </label>
+                        <select
+                            value={selectedSdrId}
+                            onChange={(e) => setSelectedSdrId(e.target.value)}
+                            className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                            <option value="">Conserver le télépro initial</option>
+                            {data?.sdrs?.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                    {s.name} ({s.email})
+                                </option>
+                            ))}
+                        </select>
+                        <p className="mt-1 text-xs text-slate-500">
+                            Le prospect remontera tout en haut de la file d&apos;appels du SDR avec le tag d&apos;urgence rouge vif <strong>RDV ABSENT</strong>.
+                        </p>
                     </div>
 
                     <ModalFooter>

@@ -9,6 +9,7 @@ import {
     SupportAttachmentPreviews,
     useSupportAttachments,
 } from "./SupportAttachments";
+import { ConvertSupportToTicketModal } from "./ConvertSupportToTicketModal";
 import type {
     SupportConversationDetailDTO,
     SupportConversationSummaryDTO,
@@ -58,6 +59,7 @@ const ALERT_TYPE_CONFIG: Record<string, { icon: string; color: string; bg: strin
     "Demande report": { icon: "📅", color: "#8A4A00", bg: "#FEF6E4", border: "rgba(201,123,42,0.22)" },
     "Annulation client": { icon: "❌", color: "#8B1A14", bg: "#FDE8E7", border: "rgba(217,48,37,0.18)" },
     "Message support": { icon: "✉️", color: "#155B7A", bg: "#E4EEF4", border: "rgba(21,91,122,0.18)" },
+    "Suggestion SDR": { icon: "💡", color: "#B45309", bg: "#FEF3C7", border: "rgba(245,158,11,0.25)" },
 };
 
 function getAlertTypeFromTitle(title: string): keyof typeof ALERT_TYPE_CONFIG {
@@ -88,6 +90,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     const [replyValue, setReplyValue] = useState("");
     const [sending, setSending] = useState(false);
     const [resolving, setResolving] = useState(false);
+    const [showDevTicketModal, setShowDevTicketModal] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
     const attachments = useSupportAttachments({
@@ -602,6 +605,23 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                                     {formatRelative(conv.lastMessageAt)}
                                                                 </span>
                                                             </div>
+                                                            {conv.createdByName && (
+                                                                <div style={{ fontSize: 11, color: T.brand, fontWeight: 500 }}>
+                                                                    par {conv.createdByName} {conv.createdByRole === "COMMERCIAL" ? "(Commercial)" : ""}
+                                                                </div>
+                                                            )}
+                                                            <div
+                                                                style={{
+                                                                    fontSize: 12.5,
+                                                                    fontWeight: 600,
+                                                                    color: T.ink,
+                                                                    whiteSpace: "nowrap",
+                                                                    overflow: "hidden",
+                                                                    textOverflow: "ellipsis",
+                                                                }}
+                                                            >
+                                                                {conv.subject}
+                                                            </div>
                                                             <div
                                                                 style={{
                                                                     fontSize: 12,
@@ -943,20 +963,68 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                 fontWeight: 700,
                                                 color: T.ink,
                                                 letterSpacing: "-0.01em",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 8,
+                                                flexWrap: "wrap",
                                             }}
                                         >
-                                            {detail.clientName}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>
-                                            {detail.messageCount} messages ·{" "}
-                                            {detail.status === "ACTIVE"
-                                                ? "Conversation active"
-                                                : "Résolu"}
-                                            {detail.resolvedBy && detail.status === "RESOLVED" && (
-                                                <> · par {detail.resolvedBy.name}</>
+                                            <span>{detail.subject || detail.clientName}</span>
+                                            {detail.subject && (
+                                                <span
+                                                    style={{
+                                                        fontSize: 11,
+                                                        fontWeight: 600,
+                                                        padding: "1px 6px",
+                                                        borderRadius: 4,
+                                                        background: T.surfaceSunken,
+                                                        color: T.ink2,
+                                                        border: `1px solid ${T.line}`,
+                                                    }}
+                                                >
+                                                    {detail.clientName}
+                                                </span>
                                             )}
                                         </div>
+                                        <div style={{ fontSize: 12, color: T.ink3, marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                            {detail.createdByName && (
+                                                <span>
+                                                    Par <strong>{detail.createdByName}</strong>
+                                                    {detail.createdByRole ? ` (${detail.createdByRole})` : ""} ·
+                                                </span>
+                                            )}
+                                            <span>
+                                                {detail.messageCount} messages ·{" "}
+                                                {detail.status === "ACTIVE"
+                                                    ? "Conversation active"
+                                                    : "Résolu"}
+                                                {detail.resolvedBy && detail.status === "RESOLVED" && (
+                                                    <> · par {detail.resolvedBy.name}</>
+                                                )}
+                                            </span>
+                                        </div>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowDevTicketModal(true)}
+                                        title="Convertir cette demande en ticket de développement pour les développeurs"
+                                        style={{
+                                            padding: "6px 11px",
+                                            borderRadius: T.radiusS,
+                                            background: "#F5F3FF",
+                                            border: "1px solid #DDD6FE",
+                                            color: "#6D28D9",
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 5,
+                                        }}
+                                    >
+                                        <span>🛠️</span>
+                                        <span>Créer ticket Dev</span>
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={handlePinToggle}
@@ -1177,6 +1245,15 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     </div>
                 </aside>
             </div>
+            <ConvertSupportToTicketModal
+                isOpen={showDevTicketModal}
+                onClose={() => setShowDevTicketModal(false)}
+                conversation={detail}
+                onSuccess={() => {
+                    // Refresh conversation or show toast if needed
+                    fetchList();
+                }}
+            />
         </>
     );
 }

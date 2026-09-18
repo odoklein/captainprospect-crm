@@ -12,7 +12,9 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { notifyManagersClientSupportMessage } from "@/lib/notifications";
 import type {
+    CreateSupportConversationInput,
     CreateSupportMessageInput,
     ManagerInboxFilters,
     SupportAttachmentDTO,
@@ -131,15 +133,31 @@ function toMessageDTO(message: {
  * Fetch (or create) the single support conversation for a client company.
  * Used by the client portal bubble.
  */
-export async function getOrCreateClientConversation(clientId: string): Promise<string> {
-    const existing = await prisma.supportConversation.findUnique({
-        where: { clientId },
+/**
+ * Fetch (or create) the primary/active support conversation for a client company.
+ * Used by the client portal bubble by default.
+ */
+export async function getOrCreateClientConversation(clientId: string, userId?: string): Promise<string> {
+    const existing = await prisma.supportConversation.findFirst({
+        where: { clientId, status: "ACTIVE" },
+        orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
         select: { id: true },
     });
     if (existing) return existing.id;
 
+    const anyExisting = await prisma.supportConversation.findFirst({
+        where: { clientId },
+        orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
+        select: { id: true },
+    });
+    if (anyExisting) return anyExisting.id;
+
     const created = await prisma.supportConversation.create({
-        data: { clientId },
+        data: {
+            clientId,
+            createdById: userId ?? null,
+            subject: "Demande d'assistance",
+        } as any,
         select: { id: true },
     });
     return created.id;
@@ -151,14 +169,38 @@ export async function getConversationIdForClientUser(userId: string): Promise<st
         select: { clientId: true, role: true },
     });
     if (!user || (user.role !== "CLIENT" && user.role !== "COMMERCIAL") || !user.clientId) return null;
-    return getOrCreateClientConversation(user.clientId);
+
+    if (user.role === "COMMERCIAL") {
+        const commercialActive = await prisma.supportConversation.findFirst({
+            where: {
+                clientId: user.clientId,
+                createdById: userId,
+                status: "ACTIVE",
+            } as any,
+            orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
+            select: { id: true },
+        });
+        if (commercialActive) return commercialActive.id;
+
+        const commercialAny = await prisma.supportConversation.findFirst({
+            where: {
+                clientId: user.clientId,
+                createdById: userId,
+            } as any,
+            orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
+            select: { id: true },
+        });
+        if (commercialAny) return commercialAny.id;
+    }
+
+    return getOrCreateClientConversation(user.clientId, userId);
 }
 
 /**
  * Resolve the conversation a user is allowed to act on.
- * Managers reach any conversation; clients/commerciaux only ever reach their own,
- * so a forged `requestedId` can never widen access.
- * Returns null when access must be refused.
+ * Managers reach any conversation.
+ * Commercials reach only conversations they created or legacy company conversations.
+ * Clients (admins) reach all conversations of their company.
  */
 export async function resolveAccessibleConversationId(
     user: { id: string; role: string },
@@ -173,10 +215,25 @@ export async function resolveAccessibleConversationId(
         return conversation?.id ?? null;
     }
 
-    const ownId = await getConversationIdForClientUser(user.id);
-    if (!ownId) return null;
-    if (requestedId && requestedId !== ownId) return null;
-    return ownId;
+    const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { clientId: true, role: true },
+    });
+    if (!dbUser || !dbUser.clientId) return null;
+
+    if (requestedId) {
+        const target = await prisma.supportConversation.findUnique({
+            where: { id: requestedId },
+            select: { id: true, clientId: true, createdById: true } as any,
+        });
+        if (!target || target.clientId !== dbUser.clientId) return null;
+        if (dbUser.role === "COMMERCIAL" && (target as any).createdById && (target as any).createdById !== user.id) {
+            return null;
+        }
+        return target.id;
+    }
+
+    return getConversationIdForClientUser(user.id);
 }
 
 async function ensureManagerState(conversationId: string, managerId: string) {
@@ -198,6 +255,7 @@ async function loadConversationCore(conversationId: string) {
         include: {
             client: { select: { id: true, name: true } },
             resolvedBy: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, name: true, role: true } } as any,
         },
     });
 }
@@ -261,6 +319,10 @@ function buildSummary(core: Awaited<ReturnType<typeof loadConversationCore>>, un
         status: core.status,
         clientId: core.clientId,
         clientName: core.client.name,
+        subject: (core as any).subject ?? "Demande d'assistance",
+        createdById: (core as any).createdById ?? null,
+        createdByName: (core as any).createdBy?.name ?? null,
+        createdByRole: (core as any).createdBy?.role ?? null,
         lastMessageAt: core.lastMessageAt ? core.lastMessageAt.toISOString() : null,
         lastMessagePreview: null,
         lastIntent: core.lastIntent,
@@ -293,13 +355,99 @@ async function loadMessages(conversationId: string, limit = MESSAGE_PAGE_SIZE): 
 }
 
 /**
+ * List all conversations accessible to the current client or commercial user.
+ * - Commercials only see conversations they created (or legacy ones without createdById).
+ * - Client Admins (role CLIENT) see all conversations of their company.
+ */
+export async function listConversationsForClientUser(
+    userId: string,
+): Promise<SupportConversationSummaryDTO[]> {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, clientId: true, role: true },
+    });
+    if (!user || !user.clientId) return [];
+
+    const where: any = { clientId: user.clientId };
+    if (user.role === "COMMERCIAL") {
+        where.OR = [{ createdById: userId }, { createdById: null }];
+    }
+
+    const conversations = await prisma.supportConversation.findMany({
+        where,
+        orderBy: [{ status: "asc" }, { lastMessageAt: "desc" }, { createdAt: "desc" }],
+        include: {
+            client: { select: { id: true, name: true } },
+            resolvedBy: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, name: true, role: true } } as any,
+            messages: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { content: true, _count: { select: { attachments: true } } },
+            },
+        },
+    });
+
+    const results: SupportConversationSummaryDTO[] = [];
+    for (const conv of conversations) {
+        const unreadCount = await countUnreadForClient(conv.id, userId);
+        const lastMsg = conv.messages[0];
+        results.push({
+            id: conv.id,
+            status: conv.status,
+            clientId: conv.clientId,
+            clientName: conv.client.name,
+            subject: (conv as any).subject ?? "Demande d'assistance",
+            createdById: (conv as any).createdById ?? null,
+            createdByName: (conv as any).createdBy?.name ?? null,
+            createdByRole: (conv as any).createdBy?.role ?? null,
+            lastMessageAt: conv.lastMessageAt ? conv.lastMessageAt.toISOString() : null,
+            lastMessagePreview: lastMsg
+                ? messagePreview(lastMsg.content, lastMsg._count.attachments)
+                : null,
+            lastIntent: conv.lastIntent,
+            messageCount: conv.messageCount,
+            unreadCount,
+            resolvedAt: conv.resolvedAt ? conv.resolvedAt.toISOString() : null,
+            resolvedBy: conv.resolvedBy
+                ? { id: conv.resolvedBy.id, name: conv.resolvedBy.name }
+                : null,
+            updatedAt: conv.updatedAt.toISOString(),
+            emailNotificationOnReply: conv.emailNotificationOnReply,
+        });
+    }
+
+    return results;
+}
+
+/**
  * Fetch the full conversation payload for the client portal bubble.
  */
 export async function getConversationForClientUser(
     userId: string,
+    specificConversationId?: string | null,
 ): Promise<SupportConversationDetailDTO | null> {
-    const conversationId = await getConversationIdForClientUser(userId);
+    let conversationId: string | null = null;
+    if (specificConversationId) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { clientId: true, role: true },
+        });
+        if (!user || !user.clientId) return null;
+        const target = await prisma.supportConversation.findUnique({
+            where: { id: specificConversationId },
+            select: { id: true, clientId: true, createdById: true } as any,
+        });
+        if (!target || target.clientId !== user.clientId) return null;
+        if (user.role === "COMMERCIAL" && (target as any).createdById && (target as any).createdById !== userId) {
+            return null;
+        }
+        conversationId = target.id;
+    } else {
+        conversationId = await getConversationIdForClientUser(userId);
+    }
     if (!conversationId) return null;
+
     const core = await loadConversationCore(conversationId);
     if (!core) return null;
     const unread = await countUnreadForClient(conversationId, userId);
@@ -314,6 +462,98 @@ export async function getConversationForClientUser(
             : null,
         messages,
     };
+}
+
+/**
+ * Creates a brand new support conversation/ticket for a client or commercial,
+ * posts the initial message, sends the automatic acknowledgment ("SYSTEM"),
+ * and notifies managers & Slack #clients-live.
+ */
+export async function createClientConversation(
+    userId: string,
+    input: CreateSupportConversationInput,
+): Promise<SupportConversationDetailDTO> {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            name: true,
+            role: true,
+            clientId: true,
+            client: { select: { name: true } },
+        },
+    });
+    if (!user || !user.clientId) {
+        throw new Error("Utilisateur sans société cliente rattachée");
+    }
+
+    const firstLine = input.content.split("\n")[0].trim();
+    const derivedSubject = input.subject?.trim() ||
+        (firstLine.length > 50 ? `${firstLine.slice(0, 47)}...` : firstLine) ||
+        "Nouvelle demande";
+
+    // 1. Create the conversation
+    const conv = await prisma.supportConversation.create({
+        data: {
+            clientId: user.clientId,
+            createdById: userId,
+            subject: derivedSubject,
+            status: "ACTIVE",
+            lastIntent: input.intent ?? null,
+        } as any,
+    });
+
+    const context = sanitiseContext(input.context);
+
+    // 2. Post client's initial message
+    const clientMessage = await prisma.supportMessage.create({
+        data: {
+            conversationId: conv.id,
+            role: "CLIENT",
+            authorId: userId,
+            content: input.content,
+            intent: input.intent ?? null,
+            context: context ?? Prisma.JsonNull,
+            ...(input.attachmentIds && input.attachmentIds.length > 0
+                ? { attachments: { connect: input.attachmentIds.map((id) => ({ id })) } }
+                : {}),
+        },
+    });
+
+    // 3. Post immediate automatic acknowledgment
+    await prisma.supportMessage.create({
+        data: {
+            conversationId: conv.id,
+            role: "SYSTEM",
+            content: "Bonjour ! Notre équipe commerciale et support a bien reçu votre demande. Nous vous répondons d'ici quelques minutes.",
+        },
+    });
+
+    // 4. Update conversation metadata (2 messages: client + auto-ack)
+    await prisma.supportConversation.update({
+        where: { id: conv.id },
+        data: {
+            messageCount: 2,
+            lastMessageAt: new Date(),
+        },
+    });
+
+    // 5. Notify managers & Slack #clients-live
+    void notifyManagersClientSupportMessage({
+        clientName: user.client?.name ?? "Client",
+        authorName: user.name ?? null,
+        messagePreview: input.content.trim() || "Nouvelle demande",
+        intent: input.intent ?? null,
+        attachmentCount: input.attachmentIds?.length ?? 0,
+        pageLabel: input.context?.pageLabel ?? null,
+    }).catch(() => {});
+
+    // 6. Return loaded conversation detail
+    const detail = await getConversationForClientUser(userId, conv.id);
+    if (!detail) {
+        throw new Error("Impossible de recharger la conversation créée");
+    }
+    return detail;
 }
 
 /**
@@ -367,6 +607,7 @@ export async function listManagerInbox(
         include: {
             client: { select: { id: true, name: true } },
             resolvedBy: { select: { id: true, name: true } },
+            createdBy: { select: { id: true, name: true, role: true } } as any,
             messages: {
                 orderBy: { createdAt: "desc" },
                 take: 1,
@@ -396,6 +637,10 @@ export async function listManagerInbox(
             status: conv.status,
             clientId: conv.clientId,
             clientName: conv.client.name,
+            subject: (conv as any).subject ?? "Demande d'assistance",
+            createdById: (conv as any).createdById ?? null,
+            createdByName: (conv as any).createdBy?.name ?? null,
+            createdByRole: (conv as any).createdBy?.role ?? null,
             lastMessageAt: conv.lastMessageAt ? conv.lastMessageAt.toISOString() : null,
             lastMessagePreview: conv.messages[0]
                 ? messagePreview(conv.messages[0].content, conv.messages[0]._count.attachments)
@@ -409,6 +654,7 @@ export async function listManagerInbox(
                 : null,
             updatedAt: conv.updatedAt.toISOString(),
             isPinned: state?.isPinned ?? false,
+            emailNotificationOnReply: conv.emailNotificationOnReply,
         };
         if (filters.unreadOnly && summary.unreadCount === 0) continue;
         summaries.push(summary);

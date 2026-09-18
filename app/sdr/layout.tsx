@@ -2,6 +2,7 @@
 
 import { AppLayoutShell } from "@/components/layout/AppLayoutShell";
 import { SDR_NAV } from "@/lib/navigation/config";
+import { SdrSuggestionLauncher } from "@/components/sdr/SdrSuggestionLauncher";
 
 export default function SDRLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -10,6 +11,7 @@ export default function SDRLayout({ children }: { children: React.ReactNode }) {
             customNavigation={SDR_NAV}
         >
             {children}
+            <SdrSuggestionLauncher />
         </AppLayoutShell>
     );
 }

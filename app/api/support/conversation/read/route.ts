@@ -15,6 +15,7 @@ import {
 import {
     getConversationIdForClientUser,
     markRead,
+    resolveAccessibleConversationId,
 } from "@/lib/support/service";
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
@@ -22,7 +23,20 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     if (session.user.role !== "CLIENT" && session.user.role !== "COMMERCIAL") {
         throw new AuthError("Réservé aux clients/commerciaux", 403);
     }
-    const conversationId = await getConversationIdForClientUser(session.user.id);
+    let bodyConversationId: string | undefined;
+    try {
+        const body = await request.json().catch(() => ({}));
+        if (body?.conversationId && typeof body.conversationId === "string") {
+            bodyConversationId = body.conversationId;
+        }
+    } catch {
+        // Body was empty or invalid JSON
+    }
+
+    const conversationId = await resolveAccessibleConversationId(
+        session.user,
+        bodyConversationId,
+    );
     if (!conversationId) {
         throw new NotFoundError("Aucune conversation de support disponible");
     }

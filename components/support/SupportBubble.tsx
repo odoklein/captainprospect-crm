@@ -1,11 +1,41 @@
 "use client";
-
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { SUP_DARK, SUP_LIGHT } from "./supportStyles";
 import { SupportAttachmentGallery } from "./SupportAttachments";
 import type { SupportMessageDTO } from "@/lib/support/types";
 
 type SupportTheme = "light" | "dark";
+
+function FormattedContent({ content, isOwn }: { content: string; isOwn: boolean }) {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = content.split(urlRegex);
+    return (
+        <>
+            {parts.map((part, i) => {
+                if (part.match(urlRegex)) {
+                    return (
+                        <a
+                            key={i}
+                            href={part}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                color: isOwn ? "#FFFFFF" : "#4F46E5",
+                                textDecoration: "underline",
+                                textUnderlineOffset: "2px",
+                                fontWeight: 600,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {part}
+                        </a>
+                    );
+                }
+                return <span key={i}>{part}</span>;
+            })}
+        </>
+    );
+}
 
 function tokensFor(theme: SupportTheme) {
     return theme === "light" ? SUP_LIGHT : SUP_DARK;
@@ -24,49 +54,61 @@ interface AvatarRingProps {
     name: string | null | undefined;
     size?: number;
     status?: "online" | "away" | "offline";
+    role?: string | null;
     theme?: SupportTheme;
 }
 
-export function AvatarRing({ name, size = 28, status = "online", theme = "light" }: AvatarRingProps) {
+export function AvatarRing({ name, size = 28, status = "online", role, theme = "light" }: AvatarRingProps) {
     const t = tokensFor(theme);
     const surface = theme === "light" ? t.paper : (t as typeof SUP_DARK).surface;
-    const color =
+    const isManagerOrSupport = role === "MANAGER" || !role || name?.toLowerCase().includes("support") || name?.toLowerCase().includes("équipe");
+    const isCommercial = role === "COMMERCIAL";
+
+    const bgGradient = isManagerOrSupport
+        ? `linear-gradient(135deg, #7C5CFC 0%, #6366F1 100%)`
+        : isCommercial
+            ? `linear-gradient(135deg, #059669 0%, #10B981 100%)`
+            : `linear-gradient(135deg, #2563EB 0%, #3B82F6 100%)`;
+
+    const statusColor =
         status === "online"
-            ? t.brand
+            ? (isManagerOrSupport ? "#10B981" : t.brand)
             : status === "away"
                 ? t.accentAmber
                 : t.ink4;
+
     return (
-        <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
+        <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }} title={name ?? undefined}>
             <div
                 style={{
                     width: size,
                     height: size,
                     borderRadius: "50%",
-                    background: `linear-gradient(135deg, ${t.brand}, ${t.brandStrong})`,
+                    background: bgGradient,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: size * 0.36,
-                    fontWeight: 600,
+                    fontSize: Math.max(10, Math.floor(size * 0.36)),
+                    fontWeight: 700,
                     color: "#fff",
                     letterSpacing: "-0.01em",
-                    boxShadow: `0 0 0 2px ${surface}, 0 0 0 3.5px ${color}`,
+                    boxShadow: `0 0 0 1.5px ${surface}, 0 2px 5px rgba(0,0,0,0.12)`,
                 }}
             >
-                {initialsFor(name)}
+                {isManagerOrSupport && size >= 32 ? "🛡️" : initialsFor(name)}
             </div>
-            {size >= 28 && (
+            {size >= 24 && (
                 <span
                     style={{
                         position: "absolute",
-                        bottom: 0,
-                        right: 0,
-                        width: Math.max(8, size * 0.3),
-                        height: Math.max(8, size * 0.3),
+                        bottom: -1,
+                        right: -1,
+                        width: Math.max(8, Math.floor(size * 0.28)),
+                        height: Math.max(8, Math.floor(size * 0.28)),
                         borderRadius: "50%",
-                        background: color,
+                        background: statusColor,
                         border: `1.5px solid ${surface}`,
+                        boxShadow: "0 0 0 0.5px rgba(0,0,0,0.1)",
                     }}
                 />
             )}
@@ -80,9 +122,19 @@ interface SupportBubbleProps {
     theme?: SupportTheme;
     isLast?: boolean;
     seen?: boolean;
+    isGrouped?: boolean;
+    showAvatar?: boolean;
 }
 
-export function SupportBubble({ message, viewpoint, theme = "light", isLast, seen = true }: SupportBubbleProps) {
+export function SupportBubble({
+    message,
+    viewpoint,
+    theme = "light",
+    isLast,
+    seen = true,
+    isGrouped = false,
+    showAvatar = true,
+}: SupportBubbleProps) {
     const t = tokensFor(theme);
 
     if (message.role === "SYSTEM") {
@@ -129,12 +181,14 @@ export function SupportBubble({ message, viewpoint, theme = "light", isLast, see
     const otherInk = theme === "light" ? t.ink : t.ink;
     const ownShadow =
         theme === "light"
-            ? "0 6px 18px rgba(99,102,241,0.24)"
-            : "0 6px 18px rgba(79,158,107,0.22)";
+            ? "0 4px 14px rgba(99,102,241,0.22)"
+            : "0 4px 14px rgba(79,158,107,0.22)";
 
     const bubbleStyle: CSSProperties = {
         padding: "10px 14px",
-        borderRadius: isOwn ? `${t.radiusM}px ${t.radiusM}px 6px ${t.radiusM}px` : `6px ${t.radiusM}px ${t.radiusM}px ${t.radiusM}px`,
+        borderRadius: isOwn
+            ? `${t.radiusM}px ${t.radiusM}px ${isGrouped ? t.radiusM : 4}px ${t.radiusM}px`
+            : `${isGrouped ? t.radiusM : 4}px ${t.radiusM}px ${t.radiusM}px ${t.radiusM}px`,
         background: isOwn ? ownBg : otherBg,
         border: isOwn ? "none" : `1px solid ${otherBorder}`,
         color: isOwn ? "#fff" : otherInk,
@@ -153,11 +207,22 @@ export function SupportBubble({ message, viewpoint, theme = "light", isLast, see
                 flexDirection: isOwn ? "row-reverse" : "row",
                 alignItems: "flex-end",
                 gap: 8,
-                marginBottom: 8,
+                marginBottom: isGrouped ? 4 : 8,
                 animation: "cpSupBubbleIn 0.28s cubic-bezier(.34,1.56,.64,1) both",
             }}
         >
-            {!isOwn && <AvatarRing name={message.author?.name ?? null} size={28} theme={theme} />}
+            {!isOwn && (
+                showAvatar ? (
+                    <AvatarRing
+                        name={message.author?.name ?? (message.role === "MANAGER" ? "Support" : null)}
+                        role={message.author?.role ?? (message.role === "MANAGER" ? "MANAGER" : null)}
+                        size={28}
+                        theme={theme}
+                    />
+                ) : (
+                    <div style={{ width: 28, height: 28, flexShrink: 0 }} aria-hidden="true" />
+                )
+            )}
             <div
                 style={{
                     maxWidth: "72%",
@@ -167,7 +232,7 @@ export function SupportBubble({ message, viewpoint, theme = "light", isLast, see
                     minWidth: 0,
                 }}
             >
-                {!isOwn && (message.author?.name || senderTag) && (
+                {!isOwn && !isGrouped && (message.author?.name || senderTag) && (
                     <div
                         style={{
                             display: "flex",
@@ -220,7 +285,11 @@ export function SupportBubble({ message, viewpoint, theme = "light", isLast, see
                         )}
                     </div>
                 )}
-                {hasText && <div style={bubbleStyle}>{message.content}</div>}
+                {hasText && (
+                    <div style={bubbleStyle}>
+                        <FormattedContent content={message.content} isOwn={isOwn} />
+                    </div>
+                )}
                 {attachments.length > 0 && (
                     <SupportAttachmentGallery
                         attachments={attachments}

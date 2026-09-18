@@ -1,7 +1,6 @@
 // ============================================
-// GET & POST /api/support/conversation
-// GET: Returns the support conversation for authenticated client/commercial.
-//      Accepts optional ?id= to fetch a specific conversation.
+// GET & POST /api/support/conversations
+// GET: Returns list of support conversations accessible to current client/commercial user.
 // POST: Creates a new support request with automated acknowledgment.
 // ============================================
 
@@ -9,14 +8,13 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import {
     successResponse,
-    errorResponse,
     requireAuth,
     withErrorHandler,
     validateRequest,
     AuthError,
 } from "@/lib/api-utils";
 import {
-    getConversationForClientUser,
+    listConversationsForClientUser,
     createClientConversation,
 } from "@/lib/support/service";
 import { SUPPORT_ATTACHMENT_MAX_COUNT } from "@/lib/support/types";
@@ -44,15 +42,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     if (session.user.role !== "CLIENT" && session.user.role !== "COMMERCIAL") {
         throw new AuthError("Réservé aux clients/commerciaux", 403);
     }
-    const specificId = request.nextUrl.searchParams.get("id");
-    const conversation = await getConversationForClientUser(session.user.id, specificId);
-    if (!conversation) {
-        return errorResponse(
-            "Aucune conversation disponible",
-            404,
-        );
-    }
-    return successResponse(conversation);
+    const conversations = await listConversationsForClientUser(session.user.id);
+    return successResponse(conversations);
 });
 
 export const POST = withErrorHandler(async (request: NextRequest) => {

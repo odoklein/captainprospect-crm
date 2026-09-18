@@ -81,6 +81,10 @@ export interface SupportConversationSummaryDTO {
     status: SupportConversationStatus;
     clientId: string;
     clientName: string;
+    subject: string;
+    createdById?: string | null;
+    createdByName?: string | null;
+    createdByRole?: string | null;
     lastMessageAt: string | null;
     lastMessagePreview: string | null;
     lastIntent: SupportIntent | null;
@@ -95,6 +99,14 @@ export interface SupportConversationSummaryDTO {
 
 export interface SupportConversationDetailDTO extends SupportConversationSummaryDTO {
     messages: SupportMessageDTO[];
+}
+
+export interface CreateSupportConversationInput {
+    subject?: string;
+    content: string;
+    intent?: SupportIntent;
+    context?: SupportMessageContext;
+    attachmentIds?: string[];
 }
 
 export interface CreateSupportMessageInput {

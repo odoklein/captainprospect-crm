@@ -122,13 +122,18 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         callbackDate: { gte: lookbackFrom, lt: now },
     };
 
-    const [pendingRows, reportedRows] = await Promise.all([
+    const [pendingRows, reportedRows, sdrs] = await Promise.all([
         scope === "reported"
             ? Promise.resolve([] as MeetingRow[])
             : fetchMeetings({ ...baseWhere, meetingFeedback: { is: null } }),
         scope === "pending"
             ? Promise.resolve([] as MeetingRow[])
             : fetchMeetings({ ...baseWhere, meetingFeedback: { is: { outcome: "NO_SHOW" } } }),
+        prisma.user.findMany({
+            where: { role: { in: ["SDR", "BOOKER"] }, isActive: true },
+            select: { id: true, name: true, email: true },
+            orderBy: { name: "asc" },
+        }),
     ]);
 
     const pending = pendingRows.map(serialise);
@@ -137,10 +142,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     return successResponse({
         pending,
         reported,
+        sdrs,
         kpis: {
+            absents: reported.length,
             pending: pending.length,
-            // What Jeff actually asked for: the ones the client can no longer
-            // signal from the portal, which is why this space exists.
             pendingLate: pending.filter((m) => !m.portalWindowOpen).length,
             reportedManually: reported.filter((m) => m.feedback?.source === "MANAGER_MANUAL").length,
             windowHours: NO_SHOW_REPORT_WINDOW_HOURS,
@@ -152,14 +157,16 @@ const ReportBody = z.object({
     actionId: z.string().min(1),
     recontactRequested: z.enum(["YES", "NO", "MAYBE"]).default("YES"),
     note: z.string().max(1000).optional(),
+    reassignSdrId: z.string().optional(),
 });
 
 /**
  * POST /api/manager/rdv-absences
  *
- * Records a NO_SHOW by hand. Because the SDR dashboard reads
- * `meetingFeedback.outcome === "NO_SHOW"`, writing it here is all it takes for
- * the RDV to appear there — no separate sync.
+ * Records a NO_SHOW or reassigns an existing NO_SHOW to an SDR.
+ * Because the SDR dashboard reads `meetingFeedback.outcome === "NO_SHOW"`,
+ * and prioritises ABSENT_RDV at the top of the queue, writing it here pushes
+ * it directly to the SDR's active calling view.
  */
 export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
@@ -172,9 +179,6 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     if (!action) throw new NotFoundError("RDV introuvable");
     if (action.result !== "MEETING_BOOKED") {
         throw new ValidationError("Cette action n'est pas un rendez-vous");
-    }
-    if (action.meetingFeedback?.outcome === "NO_SHOW") {
-        throw new ValidationError("Ce rendez-vous est déjà signalé absent");
     }
 
     const note = body.note?.trim() || null;
@@ -192,11 +196,20 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         update: {
             outcome: "NO_SHOW",
             recontactRequested: body.recontactRequested,
-            clientNote: note,
-            source: "MANAGER_MANUAL",
+            ...(note !== null ? { clientNote: note } : {}),
             reportedById: session.user.id,
         },
     });
+
+    // Reassign SDR if a target SDR was selected and differs from current
+    let targetSdrId = action.sdr?.id;
+    if (body.reassignSdrId && body.reassignSdrId !== action.sdrId) {
+        await prisma.action.update({
+            where: { id: action.id },
+            data: { sdrId: body.reassignSdrId },
+        });
+        targetSdrId = body.reassignSdrId;
+    }
 
     const clientName = action.campaign?.mission?.client?.name ?? "Client";
     const contact = contactName(action);
@@ -215,14 +228,14 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         clientNote: note,
     }).catch(() => {});
 
-    // The SDR who booked it is the one who has to rework the prospect.
-    if (action.sdr?.id) {
+    // Notify the SDR (initial or newly reassigned) that this contact is a priority absent RDV
+    if (targetSdrId) {
         createNotification({
-            userId: action.sdr.id,
-            title: `RDV absent : ${contact}`,
-            message: `${company} — ${clientName}. Signalé absent par ${reporter}.`,
+            userId: targetSdrId,
+            title: `⚠ RDV absent à relancer : ${contact}`,
+            message: `${company} — ${clientName}. Signalé absent par ${reporter}. À rappeler en priorité absolue.`,
             type: "warning",
-            link: "/sdr/meetings",
+            link: "/sdr/action",
         }).catch(() => {});
     }
 

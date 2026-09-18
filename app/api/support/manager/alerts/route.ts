@@ -23,6 +23,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 { title: { startsWith: "Demande report" } },
                 { title: { startsWith: "Annulation client" } },
                 { title: { startsWith: "Message support" } },
+                { title: { startsWith: "Suggestion SDR" } },
             ],
         },
         orderBy: { createdAt: "desc" },
@@ -39,6 +40,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 { title: { startsWith: "Demande report" } },
                 { title: { startsWith: "Annulation client" } },
                 { title: { startsWith: "Message support" } },
+                { title: { startsWith: "Suggestion SDR" } },
             ],
         },
     });
@@ -63,6 +65,7 @@ export const PATCH = withErrorHandler(async (request: NextRequest) => {
                 { title: { startsWith: "Demande report" } },
                 { title: { startsWith: "Annulation client" } },
                 { title: { startsWith: "Message support" } },
+                { title: { startsWith: "Suggestion SDR" } },
             ],
         },
         data: { isRead: true },

@@ -2845,17 +2845,41 @@ export default function SDRActionPage() {
                                             </a>
                                         ) : null;
                                     })()}
-                                    {currentAction.contact.linkedin && (
-                                        <a
-                                            href={currentAction.contact.linkedin.startsWith("http") ? currentAction.contact.linkedin : `https://${currentAction.contact.linkedin}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-[400] text-sky-700 bg-sky-50 border border-sky-200/60 hover:bg-sky-100 rounded-xl transition-colors"
-                                        >
-                                            <Linkedin className="w-3.5 h-3.5" />
-                                            LinkedIn
-                                        </a>
-                                    )}
+                                    {/* LinkedIn & Site Web directs */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {currentAction.contact.linkedin ? (
+                                            <a
+                                                href={currentAction.contact.linkedin.startsWith("http") ? currentAction.contact.linkedin : `https://${currentAction.contact.linkedin}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-[400] text-sky-700 bg-sky-50 border border-sky-200/60 hover:bg-sky-100 rounded-xl transition-colors"
+                                            >
+                                                <Linkedin className="w-3.5 h-3.5" />
+                                                LinkedIn
+                                            </a>
+                                        ) : (
+                                            <div className="flex items-center justify-center gap-1.5 h-10 w-full text-[12px] text-slate-400 bg-slate-50 border border-slate-200/60 rounded-xl">
+                                                <Linkedin className="w-3.5 h-3.5 opacity-40" />
+                                                Pas de LinkedIn
+                                            </div>
+                                        )}
+                                        {currentAction.company?.website ? (
+                                            <a
+                                                href={currentAction.company.website.startsWith("http") ? currentAction.company.website : `https://${currentAction.company.website}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-[400] text-emerald-700 bg-emerald-50 border border-emerald-200/60 hover:bg-emerald-100 rounded-xl transition-colors"
+                                            >
+                                                <Globe className="w-3.5 h-3.5" />
+                                                Site Web
+                                            </a>
+                                        ) : (
+                                            <div className="flex items-center justify-center gap-1.5 h-10 w-full text-[12px] text-slate-400 bg-slate-50 border border-slate-200/60 rounded-xl">
+                                                <Globe className="w-3.5 h-3.5 opacity-40" />
+                                                Pas de site
+                                            </div>
+                                        )}
+                                    </div>
                                     {/* Warnings for missing contact info */}
                                     {(() => {
                                         const phone = currentAction.contact.phone || (currentAction.channel === 'CALL' && currentAction.company?.phone ? currentAction.company.phone : null);

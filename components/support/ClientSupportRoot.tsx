@@ -1,10 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { SUP_LIGHT, SupportStyles } from "./supportStyles";
 import { ClientSupportPanel } from "./ClientSupportPanel";
-import type { SupportConversationDetailDTO } from "@/lib/support/types";
+import { ClientSupportListView } from "./ClientSupportListView";
+import { ClientSupportNewRequestView } from "./ClientSupportNewRequestView";
+import type {
+    SupportConversationDetailDTO,
+    SupportConversationSummaryDTO,
+    SupportIntent,
+    SupportMessageContext,
+} from "@/lib/support/types";
+
+import { supportApi } from "@/lib/support/api";
 
 const POLL_INTERVAL_MS = 15_000;
 const T = SUP_LIGHT;
@@ -128,31 +137,37 @@ function SupportFab({ isOpen, unread, isManagerTyping, onClick }: FabProps) {
 
 /**
  * Client portal support launcher + panel. Mounted once from the client layout
- * so the FAB is available on every `/client/*` route without per-page work.
+ * so the FAB is available on every `/client/*` and `/commercial/*` route without per-page work.
+ * Supports multi-demand navigation: List of requests, Active thread, and New request form.
  */
 export default function ClientSupportRoot() {
     const { data: session, status } = useSession();
     const [isOpen, setIsOpen] = useState(false);
-    const [conversation, setConversation] =
+    const [view, setView] = useState<"LIST" | "THREAD" | "NEW">("THREAD");
+    const [prefillIntent, setPrefillIntent] = useState<SupportIntent | undefined>();
+    const [conversations, setConversations] = useState<SupportConversationSummaryDTO[]>([]);
+    const [activeConversation, setActiveConversation] =
         useState<SupportConversationDetailDTO | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
-    const [isManagerTyping, setIsManagerTyping] = useState(false);
-    const lastMessageAtRef = useRef<string | null>(null);
     const isOpenRef = useRef(false);
 
     const canRender =
         status === "authenticated" &&
         (session?.user?.role === "CLIENT" || session?.user?.role === "COMMERCIAL");
 
-    const fetchConversation = useCallback(
-        async (): Promise<SupportConversationDetailDTO | null> => {
+    const fetchConversationsList = useCallback(async (): Promise<SupportConversationSummaryDTO[]> => {
+        try {
+            return await supportApi.listConversations();
+        } catch {
+            return [];
+        }
+    }, []);
+
+    const fetchConversationDetail = useCallback(
+        async (id?: string | null): Promise<SupportConversationDetailDTO | null> => {
             try {
-                const res = await fetch("/api/support/conversation");
-                if (!res.ok) return null;
-                const json = await res.json();
-                if (!json?.success) return null;
-                return json.data as SupportConversationDetailDTO;
+                return await supportApi.getConversation(id);
             } catch {
                 return null;
             }
@@ -160,87 +175,154 @@ export default function ClientSupportRoot() {
         [],
     );
 
-    const markRead = useCallback(async () => {
-        await fetch("/api/support/conversation/read", { method: "POST" }).catch(
-            () => undefined,
-        );
+    const markRead = useCallback(async (conversationId?: string) => {
+        await supportApi.markRead(conversationId);
     }, []);
 
     useEffect(() => {
         isOpenRef.current = isOpen;
     }, [isOpen]);
 
+    // Initial load
     useEffect(() => {
         if (!canRender) return;
         let cancelled = false;
         setIsLoading(true);
-        fetchConversation().then((next) => {
-            if (cancelled) return;
-            if (next) {
-                setConversation(next);
-                lastMessageAtRef.current = next.lastMessageAt;
-            }
-            setHasFetchedOnce(true);
-            setIsLoading(false);
-        });
+
+        Promise.all([fetchConversationsList(), fetchConversationDetail()]).then(
+            ([list, detail]) => {
+                if (cancelled) return;
+                setConversations(list);
+                if (detail) {
+                    setActiveConversation(detail);
+                }
+                setHasFetchedOnce(true);
+                setIsLoading(false);
+            },
+        );
+
         return () => {
             cancelled = true;
         };
-    }, [canRender, fetchConversation]);
+    }, [canRender, fetchConversationsList, fetchConversationDetail]);
 
+    // Periodic polling
     useEffect(() => {
         if (!canRender) return;
         const intervalId = window.setInterval(async () => {
-            const next = await fetchConversation();
-            if (!next) return;
-            // Panel open = the client is reading, so keep the marker fresh
-            // instead of letting replies pile up as "unread".
-            let fresh = next;
-            if (isOpenRef.current) {
-                void markRead();
-                fresh = { ...next, unreadCount: 0 };
-            }
-            setConversation((current) => {
-                if (!current) {
-                    lastMessageAtRef.current = fresh.lastMessageAt;
-                    return fresh;
+            const list = await fetchConversationsList();
+            setConversations(list);
+
+            if (activeConversation?.id) {
+                const detail = await fetchConversationDetail(activeConversation.id);
+                if (detail) {
+                    let fresh = detail;
+                    if (isOpenRef.current) {
+                        void markRead(detail.id);
+                        fresh = { ...detail, unreadCount: 0 };
+                    }
+                    setActiveConversation(fresh);
                 }
-                const newer =
-                    fresh.lastMessageAt !== null &&
-                    (!current.lastMessageAt ||
-                        new Date(fresh.lastMessageAt).getTime() >
-                            new Date(current.lastMessageAt).getTime());
-                lastMessageAtRef.current = fresh.lastMessageAt;
-                return newer ? fresh : { ...current, unreadCount: fresh.unreadCount };
-            });
+            }
         }, POLL_INTERVAL_MS);
+
         return () => window.clearInterval(intervalId);
-    }, [canRender, fetchConversation, markRead]);
+    }, [canRender, activeConversation?.id, fetchConversationsList, fetchConversationDetail, markRead]);
+
+    // Select a conversation from list
+    const handleSelectConversation = useCallback(
+        async (id: string) => {
+            setIsLoading(true);
+            const detail = await fetchConversationDetail(id);
+            if (detail) {
+                setActiveConversation(detail);
+                setView("THREAD");
+                void markRead(id);
+                setConversations((prev) =>
+                    prev.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
+                );
+            }
+            setIsLoading(false);
+        },
+        [fetchConversationDetail, markRead],
+    );
+
+    // Create a new conversation
+    const handleCreateConversation = useCallback(
+        async (data: {
+            subject: string;
+            content: string;
+            intent?: SupportIntent;
+            attachmentIds?: string[];
+            context?: SupportMessageContext;
+        }) => {
+            const created = await supportApi.createConversation(data);
+            setActiveConversation(created);
+            setView("THREAD");
+            const updatedList = await fetchConversationsList();
+            setConversations(updatedList);
+        },
+        [fetchConversationsList],
+    );
 
     const handleOpen = useCallback(async () => {
         setIsOpen(true);
-        // Read marker first, so the refetch below already comes back at 0 and the
-        // badge doesn't flash back on the next poll.
-        await markRead();
-        const next = await fetchConversation();
-        if (next) setConversation({ ...next, unreadCount: 0 });
-    }, [fetchConversation, markRead]);
+        const list = await fetchConversationsList();
+        setConversations(list);
+
+        if (list.length === 0) {
+            setView("NEW");
+        } else if (list.length === 1) {
+            await handleSelectConversation(list[0].id);
+            setView("THREAD");
+        } else {
+            // If there's an unread conversation, open it
+            const unreadConv = list.find((c) => c.unreadCount > 0);
+            if (unreadConv) {
+                await handleSelectConversation(unreadConv.id);
+                setView("THREAD");
+            } else if (activeConversation) {
+                setView("THREAD");
+            } else {
+                setView("LIST");
+            }
+        }
+    }, [fetchConversationsList, handleSelectConversation, activeConversation]);
 
     const handleClose = useCallback(() => {
         setIsOpen(false);
-        setConversation((current) =>
-            current ? { ...current, unreadCount: 0 } : current,
-        );
-        void markRead();
-    }, [markRead]);
+        if (activeConversation) {
+            void markRead(activeConversation.id);
+            setActiveConversation((cur) => (cur ? { ...cur, unreadCount: 0 } : cur));
+        }
+    }, [activeConversation, markRead]);
 
     const handleConversationUpdate = useCallback((next: SupportConversationDetailDTO) => {
-        setConversation(next);
+        setActiveConversation(next);
+        setConversations((prev) =>
+            prev.map((c) =>
+                c.id === next.id
+                    ? {
+                        ...c,
+                        lastMessageAt: next.lastMessageAt,
+                        lastMessagePreview: next.lastMessagePreview,
+                        messageCount: next.messageCount,
+                        status: next.status,
+                    }
+                    : c,
+            ),
+        );
     }, []);
 
     if (!canRender) return null;
 
-    const unread = conversation?.unreadCount ?? 0;
+    // Total unread count across all accessible conversations
+    const totalUnread = useMemo(() => {
+        if (conversations.length > 0) {
+            return conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        }
+        return activeConversation?.unreadCount ?? 0;
+    }, [conversations, activeConversation]);
 
     return (
         <>
@@ -251,41 +333,61 @@ export default function ClientSupportRoot() {
             >
                 <SupportFab
                     isOpen={isOpen}
-                    unread={unread}
-                    isManagerTyping={isManagerTyping}
+                    unread={totalUnread}
+                    isManagerTyping={false}
                     onClick={() => (isOpen ? handleClose() : handleOpen())}
                 />
             </div>
-            {isOpen && conversation && (
-                <ClientSupportPanel
-                    conversation={conversation}
+
+            {isOpen && view === "LIST" && (
+                <ClientSupportListView
+                    conversations={conversations}
+                    onSelectConversation={handleSelectConversation}
+                    onNewRequest={(intent) => {
+                        setPrefillIntent(intent);
+                        setView("NEW");
+                    }}
                     onClose={handleClose}
-                    onConversationUpdate={handleConversationUpdate}
-                    onManagerTypingChange={setIsManagerTyping}
+                    userRole={session?.user?.role}
+                    currentUserId={session?.user?.id}
                 />
             )}
-            {isOpen && !conversation && hasFetchedOnce && !isLoading && (
-                <div
-                    className="cp-support-root"
-                    role="alert"
-                    style={{
-                        position: "fixed",
-                        bottom: 96,
-                        right: 24,
-                        zIndex: 99,
-                        width: 320,
-                        padding: 16,
-                        borderRadius: T.radiusM,
-                        background: T.paperRaised,
-                        border: `1px solid ${T.line}`,
-                        color: T.ink,
-                        fontSize: 13,
-                        animation: "cpSupPanelIn 0.3s ease both",
+
+            {isOpen && view === "NEW" && (
+                <ClientSupportNewRequestView
+                    onSubmit={handleCreateConversation}
+                    prefillIntent={prefillIntent}
+                    onCancel={() => {
+                        if (conversations.length > 0) {
+                            setView(activeConversation ? "THREAD" : "LIST");
+                        } else {
+                            handleClose();
+                        }
                     }}
-                >
-                    Le support est indisponible pour le moment. Réessayez dans quelques
-                    minutes.
-                </div>
+                    onClose={handleClose}
+                />
+            )}
+
+            {isOpen && view === "THREAD" && activeConversation && (
+                <ClientSupportPanel
+                    conversation={activeConversation}
+                    onClose={handleClose}
+                    onConversationUpdate={handleConversationUpdate}
+                    onBackToList={() => setView("LIST")}
+                    onNewRequest={() => {
+                        setPrefillIntent(undefined);
+                        setView("NEW");
+                    }}
+                />
+            )}
+
+            {isOpen && !activeConversation && conversations.length === 0 && view === "THREAD" && hasFetchedOnce && !isLoading && (
+                <ClientSupportNewRequestView
+                    onSubmit={handleCreateConversation}
+                    prefillIntent={prefillIntent}
+                    onCancel={handleClose}
+                    onClose={handleClose}
+                />
             )}
         </>
     );
