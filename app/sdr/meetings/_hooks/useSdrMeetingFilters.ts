@@ -9,11 +9,10 @@ export function useSdrMeetingFilters(meetings: Meeting[]) {
     const stats = useMemo(() => {
         const upcoming = meetings.filter((m) => getRdvStatus(m) === "upcoming").length;
         const past = meetings.filter((m) => getRdvStatus(m) === "past").length;
-        const rescheduled = meetings.filter((m) => getRdvStatus(m) === "rescheduled").length;
         const cancelled = meetings.filter((m) => getRdvStatus(m) === "cancelled").length;
         const confirmed = meetings.filter((m) => m.confirmationStatus === "CONFIRMED" && m.result !== "MEETING_CANCELLED").length;
         const absent = meetings.filter(isOpenNoShow).length;
-        return { upcoming, past, rescheduled, cancelled, confirmed, absent, all: meetings.length };
+        return { upcoming, past, cancelled, confirmed, absent, all: meetings.length };
     }, [meetings]);
 
     const absentMeetings = useMemo(

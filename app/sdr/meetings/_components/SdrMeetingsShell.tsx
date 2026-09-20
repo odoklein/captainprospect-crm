@@ -97,7 +97,9 @@ export function SdrMeetingsShell() {
             setCancelModalMeeting(null);
             showSuccess("RDV annulé");
         } catch (err) {
-            drawer.setSavingError(err instanceof Error ? err.message : "Erreur réseau");
+            const msg = err instanceof Error ? err.message : "Erreur réseau";
+            drawer.setSavingError(msg);
+            showError(msg);
         }
     };
 
@@ -117,7 +119,9 @@ export function SdrMeetingsShell() {
             setRescheduleMeeting(null);
             showSuccess("RDV reprogrammé");
         } catch (err) {
-            drawer.setSavingError(err instanceof Error ? err.message : "Erreur réseau");
+            const msg = err instanceof Error ? err.message : "Erreur réseau";
+            drawer.setSavingError(msg);
+            showError(msg);
         }
     };
 

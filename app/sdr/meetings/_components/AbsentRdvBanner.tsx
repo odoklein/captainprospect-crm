@@ -30,10 +30,11 @@ export function AbsentRdvBanner({ absentMeetings, onOpen }: AbsentRdvBannerProps
                             const wantsRecontact = m.meetingFeedback?.recontactRequested === "YES";
                             const maybeRecontact = m.meetingFeedback?.recontactRequested === "MAYBE";
                             return (
-                                <div
+                                <button
                                     key={m.id}
-                                    className="flex items-center gap-3 rounded-xl border border-red-100 bg-white/80 px-3 py-2.5 cursor-pointer hover:bg-white transition"
+                                    type="button"
                                     onClick={() => onOpen(m)}
+                                    className="w-full text-left flex items-center gap-3 rounded-xl border border-red-100 bg-white/80 px-3 py-2.5 cursor-pointer hover:bg-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                                 >
                                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-700">
                                         {m.contact.firstName?.[0] ?? "?"}{m.contact.lastName?.[0] ?? ""}
@@ -58,7 +59,7 @@ export function AbsentRdvBanner({ absentMeetings, onOpen }: AbsentRdvBannerProps
                                         </span>
                                     )}
                                     <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                </div>
+                                </button>
                             );
                         })}
                         {absentMeetings.length > 5 && (
