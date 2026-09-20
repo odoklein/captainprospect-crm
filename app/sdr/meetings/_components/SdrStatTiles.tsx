@@ -9,7 +9,6 @@ interface SdrStatTilesProps {
         past: number;
         confirmed: number;
         absent: number;
-        rescheduled: number;
         cancelled: number;
     };
     statusFilter: StatusFilter;
@@ -21,13 +20,12 @@ const TILES = [
     { key: "past" as const, label: "Passés", icon: History, iconBg: "bg-slate-100", iconColor: "text-slate-500", activeBg: "bg-slate-100/80", activeBorder: "border-slate-200" },
     { key: "confirmed" as const, label: "Confirmés", icon: CheckCircle2, iconBg: "bg-blue-100", iconColor: "text-blue-600", activeBg: "bg-blue-50/70", activeBorder: "border-blue-200" },
     { key: "absent" as const, label: "Absents", icon: XCircle, iconBg: "bg-red-100", iconColor: "text-red-600", activeBg: "bg-red-50/80", activeBorder: "border-red-200" },
-    { key: "rescheduled" as const, label: "Reportés", icon: CalendarClock, iconBg: "bg-amber-100", iconColor: "text-amber-600", activeBg: "bg-amber-50/80", activeBorder: "border-amber-200" },
     { key: "cancelled" as const, label: "Annulés", icon: XCircle, iconBg: "bg-red-100", iconColor: "text-red-500", activeBg: "bg-red-50/80", activeBorder: "border-red-200" },
 ];
 
 export function SdrStatTiles({ stats, statusFilter, onSelect }: SdrStatTilesProps) {
     return (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             {TILES.map((t) => {
                 const isActive = statusFilter === t.key;
                 return (

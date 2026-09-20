@@ -74,6 +74,6 @@ export interface List {
     };
 }
 
-export type RdvStatus = "upcoming" | "past" | "rescheduled" | "cancelled";
+export type RdvStatus = "upcoming" | "past" | "cancelled";
 export type DetailDrawerTab = "detail" | "note" | "history";
 export type StatusFilter = RdvStatus | "all" | "confirmed" | "absent";

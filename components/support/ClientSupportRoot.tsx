@@ -385,6 +385,49 @@ export default function ClientSupportRoot() {
                 />
             )}
 
+            {isOpen && view === "THREAD" && !activeConversation && (isLoading || !hasFetchedOnce) && (
+                <div
+                    className="cp-support-root cp-support-panel-responsive"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Chargement de l'assistance"
+                    style={{
+                        position: "fixed",
+                        bottom: 96,
+                        right: 24,
+                        zIndex: 99,
+                        width: 420,
+                        maxWidth: "calc(100vw - 32px)",
+                        height: 380,
+                        borderRadius: T.radiusXL,
+                        overflow: "hidden",
+                        background: T.paper,
+                        border: `1px solid ${T.line}`,
+                        boxShadow: T.shadowPanel,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 12,
+                        color: T.ink3,
+                    }}
+                >
+                    <div
+                        style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "50%",
+                            border: `3px solid ${T.line}`,
+                            borderTopColor: T.brand,
+                            animation: "cpSupSpin 0.8s linear infinite",
+                        }}
+                    />
+                    <p style={{ fontSize: 13, color: T.ink2, fontWeight: 500 }}>
+                        Chargement de vos échanges...
+                    </p>
+                </div>
+            )}
+
             {isOpen && !activeConversation && conversations.length === 0 && view === "THREAD" && hasFetchedOnce && !isLoading && (
                 <ClientSupportNewRequestView
                     onSubmit={handleCreateConversation}
