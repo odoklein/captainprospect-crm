@@ -414,10 +414,23 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     // Source list for provenance — the company's list (one company belongs to one list)
     const sourceList = await prisma.company.findUnique({
         where: { id: next.company_id },
-        select: { list: { select: { id: true, name: true, campaignId: true } } },
+        select: { list: { select: { id: true, name: true, campaignId: true, commercialInterlocuteurId: true } } },
     });
     const sourceListName = sourceList?.list?.name ?? null;
     const sourceListId = sourceList?.list?.id ?? null;
+
+    // "Base de données par commercial": when the list being worked is owned by a
+    // specific commercial (or, failing that, the mission has a default commercial),
+    // the booking view surfaces that commercial's calendar first. This is only a
+    // preference hint — the SDR can still expand and pick any other calendar.
+    let preferredInterlocuteurId = sourceList?.list?.commercialInterlocuteurId ?? null;
+    if (!preferredInterlocuteurId && configMissionId) {
+        const missionDefault = await prisma.mission.findUnique({
+            where: { id: configMissionId },
+            select: { defaultInterlocuteurId: true },
+        });
+        preferredInterlocuteurId = missionDefault?.defaultInterlocuteurId ?? null;
+    }
 
     const onboarding = await prisma.clientOnboarding.findFirst({
         where: { clientId: next.client_id },
@@ -514,6 +527,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         scriptDefaultTab: scriptCompanion?.defaultTab ?? "base",
         clientBookingUrl,
         clientInterlocuteurs,
+        preferredInterlocuteurId,
         lastAction: next.last_action_result ? {
             result: next.last_action_result,
             note: next.last_action_note,

@@ -120,6 +120,9 @@ interface NextActionData {
         bookingLinks: Array<{ label: string; url: string; durationMinutes: number }>;
         isActive: boolean;
     }>;
+    /** Commercial that owns the current list (or the mission default) — the
+     *  booking view pre-selects and surfaces this commercial's calendar first. */
+    preferredInterlocuteurId?: string | null;
     lastAction?: {
         result: string;
         note?: string;
@@ -3515,6 +3518,7 @@ export default function SDRActionPage() {
                     rdvDate={rdvDate ? new Date(rdvDate).toISOString() : undefined}
                     meetingCategory={meetingCat || undefined}
                     interlocuteurs={currentAction.clientInterlocuteurs}
+                    preferredInterlocuteurId={currentAction.preferredInterlocuteurId}
                     onBookingSuccess={() => {
                         setShowBookingDrawer(false);
                         setRdvDate("");
