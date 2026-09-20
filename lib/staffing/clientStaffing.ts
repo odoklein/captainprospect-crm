@@ -232,6 +232,7 @@ export async function getStaffingOverview(): Promise<StaffingOverview> {
     const allSdrIds = new Set<string>();
     historicalByMission.forEach((m) => m.forEach((_, sdrId) => allSdrIds.add(sdrId)));
     currentByMission.forEach((s) => s.forEach((sdrId) => allSdrIds.add(sdrId)));
+    upcomingByMission.forEach((s) => s.forEach((sdrId) => allSdrIds.add(sdrId)));
     assignedByMission.forEach((s) => s.forEach((sdrId) => allSdrIds.add(sdrId)));
     const sdrs = allSdrIds.size
         ? await prisma.user.findMany({ where: { id: { in: [...allSdrIds] } }, select: { id: true, name: true } })

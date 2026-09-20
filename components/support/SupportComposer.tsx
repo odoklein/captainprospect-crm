@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { Sparkles, Send, X, Loader2 } from "lucide-react";
 import { SUP_LIGHT } from "./supportStyles";
 import { INTENT_CARD_CONFIG } from "@/lib/support/constants";
@@ -31,6 +31,8 @@ interface SupportComposerProps {
     onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
     emailNotif: boolean;
     onToggleEmailNotif: () => void;
+    /** Shared with the composer hook so its focus() calls target the real field. */
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 export function SupportComposer({
@@ -52,9 +54,8 @@ export function SupportComposer({
     onKeyDown,
     emailNotif,
     onToggleEmailNotif,
+    textareaRef,
 }: SupportComposerProps) {
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
     // Auto-resize textarea smoothly
     useEffect(() => {
         const ta = textareaRef.current;

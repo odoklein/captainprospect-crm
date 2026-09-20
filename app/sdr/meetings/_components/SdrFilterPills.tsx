@@ -26,6 +26,8 @@ export function SdrFilterPills({ statusFilter, onSelect, counts }: SdrFilterPill
                         key={f.key}
                         type="button"
                         onClick={() => onSelect(f.key)}
+                        aria-pressed={statusFilter === f.key}
+                        aria-label={`Filtrer : ${f.label} (${count})`}
                         className={cn(
                             "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm transition",
                             statusFilter === f.key

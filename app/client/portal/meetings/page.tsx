@@ -642,8 +642,9 @@ function genCSV(meetings: Meeting[]) {
     const d=m.callbackDate ? new Date(m.callbackDate) : null, fb=m.meetingFeedback;
     const c = m.contact;
     const co = c?.company ?? m.company;
+    const commercial = m.interlocuteur ? [m.interlocuteur.firstName, m.interlocuteur.lastName].filter(Boolean).join(" ") : "";
     return [d ? d.toLocaleDateString("fr-FR",{timeZone:DISPLAY_TZ}) : "",d ? d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",timeZone:DISPLAY_TZ}) : "",
-      S[getRdvStatus(m)].label,m.campaign.mission.name,m.campaign.name,
+      S[getRdvStatus(m)].label,m.campaign.mission.name,m.campaign.name,commercial,
       c?.firstName??"",c?.lastName??"",c?.title??"",c?.email??"",
       c?.phone??"",c?.linkedin??"",co?.name??"",
       co?.industry??"",co?.country??"",
@@ -652,7 +653,7 @@ function genCSV(meetings: Meeting[]) {
       fb?.recontactRequested??"",fb?.clientNote??"",
     ].map(String).map(esc);
   });
-  const hdrs=["Date","Heure","Statut","Mission","Campagne","Prénom","Nom","Poste","Email","Téléphone",
+  const hdrs=["Date","Heure","Statut","Mission","Campagne","Commercial","Prénom","Nom","Poste","Email","Téléphone",
     "LinkedIn","Entreprise","Secteur","Pays","Taille","Site web","Note SDR","Retour","Recontact","Commentaire"];
   const csv=[hdrs.join(","),...rows.map(r=>r.join(","))].join("\n");
   const a=Object.assign(document.createElement("a"),{

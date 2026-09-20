@@ -1228,6 +1228,9 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                         style={{
                                             borderTop: `1px solid ${T.line}`,
                                             padding: "12px 20px",
+                                            // Reserve room on the right so the send button never sits under
+                                            // the floating manager assistant FAB (bottom-right, ~68px zone).
+                                            paddingRight: 76,
                                             background: T.surfaceRaised,
                                             flexShrink: 0,
                                         }}
@@ -1329,6 +1332,8 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                     <div
                                         style={{
                                             padding: "14px 20px",
+                                            // Clear the floating assistant FAB in the bottom-right corner.
+                                            paddingRight: 76,
                                             borderTop: `1px solid ${T.line}`,
                                             background: "rgba(124,92,252,0.08)",
                                             display: "flex",

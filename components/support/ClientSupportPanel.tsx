@@ -157,6 +157,7 @@ export function ClientSupportPanel({
                     onKeyDown={composer.handleKeyDown}
                     emailNotif={emailNotif}
                     onToggleEmailNotif={toggleEmailNotif}
+                    textareaRef={composer.textareaRef}
                 />
             )}
         </div>

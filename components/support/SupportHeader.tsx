@@ -87,7 +87,7 @@ export function SupportHeader({
                     }}
                 >
                     {isResolved ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: T.accentEmerald }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: T.success }}>
                             <CheckCircle2 className="w-3 h-3" />
                             <span>Résolue</span>
                         </span>

@@ -111,7 +111,7 @@ export function TicketSidePanel({ ticket, currentUserId, isManager, onRefresh }:
                             { status: "NEW", label: "Nouveau" },
                             { status: "TODO", label: "À faire" },
                             { status: "IN_PROGRESS", label: "En cours" },
-                            { status: "TESTING", label: "Recette" },
+                            { status: "TESTING", label: TICKET_STATUS_LABELS.TESTING },
                             { status: "COMPLETED", label: "Terminé" },
                         ].map((step, idx) => {
                             const isPassed = currentStepIndex >= idx;
@@ -212,6 +212,7 @@ export function TicketSidePanel({ ticket, currentUserId, isManager, onRefresh }:
                                         type="button"
                                         disabled={!canToggle || isBusy}
                                         onClick={() => toggleCheck(check.role, !check.checked)}
+                                        aria-pressed={check.checked}
                                         className={cn(
                                             "w-7 h-7 shrink-0 rounded-lg border flex items-center justify-center transition-colors",
                                             check.checked
@@ -380,11 +381,11 @@ function Row({
 }) {
     return (
         <div className="flex items-center justify-between gap-3">
-            <dt className="flex items-center gap-2 text-slate-500">
+            <dt className="flex items-center gap-2 text-slate-500 shrink-0">
                 <Icon className="w-3.5 h-3.5" />
                 {label}
             </dt>
-            <dd className="text-slate-800 font-medium text-right truncate">{value}</dd>
+            <dd className="text-slate-800 font-medium text-right truncate min-w-0">{value}</dd>
         </div>
     );
 }

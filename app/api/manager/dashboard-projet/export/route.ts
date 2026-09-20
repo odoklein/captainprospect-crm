@@ -3,9 +3,13 @@ import { requireRole, withErrorHandler } from "@/lib/api-utils";
 import { getStaffingOverview, type CoverageStatus } from "@/lib/staffing/clientStaffing";
 
 function csvCell(value: string): string {
-    // Quote if the value contains a comma, quote or newline; escape embedded quotes
-    if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-    return value;
+    // Neutralize spreadsheet formula injection: a value beginning with = + - @
+    // (or tab/CR) is executed as a formula by Excel/Sheets. Prefix with a single
+    // quote to force plain-text interpretation.
+    const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+    // Quote if the value contains a comma, quote, CR or newline; escape embedded quotes.
+    if (/[",\r\n]/.test(safe)) return `"${safe.replace(/"/g, '""')}"`;
+    return safe;
 }
 
 const COVERAGE_LABEL: Record<CoverageStatus, string> = {

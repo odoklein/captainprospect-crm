@@ -92,7 +92,8 @@ function getGitBranchCommand(ticket: { number: number; title: string; category: 
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
-        .slice(0, 30);
+        .slice(0, 30)
+        .replace(/-+$/g, "");
     return `git checkout -b ${prefix}/${ref}-${slug}`;
 }
 
@@ -147,19 +148,34 @@ export function TicketThread({ ticket, currentUserId, canComment, onRefresh }: T
     const [copiedRef, setCopiedRef] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    const handleCopyBranch = () => {
-        const cmd = getGitBranchCommand(ticket);
-        navigator.clipboard.writeText(cmd);
-        setCopiedBranch(true);
-        toast.success("Commande Git copiée !");
-        setTimeout(() => setCopiedBranch(false), 2000);
+    const handleCopyBranch = async () => {
+        if (!navigator.clipboard?.writeText) {
+            toast.error("Copie non supportée par ce navigateur");
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(getGitBranchCommand(ticket));
+            setCopiedBranch(true);
+            toast.success("Commande Git copiée !");
+            setTimeout(() => setCopiedBranch(false), 2000);
+        } catch {
+            toast.error("Copie impossible");
+        }
     };
 
-    const handleCopyRef = () => {
-        navigator.clipboard.writeText(formatTicketRef(ticket.number));
-        setCopiedRef(true);
-        toast.success("Référence copiée !");
-        setTimeout(() => setCopiedRef(false), 2000);
+    const handleCopyRef = async () => {
+        if (!navigator.clipboard?.writeText) {
+            toast.error("Copie non supportée par ce navigateur");
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(formatTicketRef(ticket.number));
+            setCopiedRef(true);
+            toast.success("Référence copiée !");
+            setTimeout(() => setCopiedRef(false), 2000);
+        } catch {
+            toast.error("Copie impossible");
+        }
     };
 
     const feed = useMemo<FeedEntry[]>(() => {

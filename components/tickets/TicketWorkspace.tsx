@@ -49,6 +49,7 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
     { value: "OPEN", label: "Ouverts" },
     { value: "ALL", label: "Tous" },
     { value: "NEW", label: TICKET_STATUS_LABELS.NEW },
+    { value: "TODO", label: TICKET_STATUS_LABELS.TODO },
     { value: "IN_PROGRESS", label: TICKET_STATUS_LABELS.IN_PROGRESS },
     { value: "BLOCKED", label: TICKET_STATUS_LABELS.BLOCKED },
     { value: "TESTING", label: TICKET_STATUS_LABELS.TESTING },
@@ -74,7 +75,7 @@ const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
 const PRIORITY_ACCENT: Record<TaskPriority, string> = {
     URGENT: "border-l-4 border-l-red-500",
     HIGH: "border-l-4 border-l-orange-500",
-    MEDIUM: "border-l-3 border-l-amber-400",
+    MEDIUM: "border-l-[3px] border-l-amber-400",
     LOW: "border-l-2 border-l-slate-200",
 };
 
@@ -93,6 +94,7 @@ export function TicketWorkspace({
     const [detail, setDetail] = useState<TicketDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isDetailLoading, setIsDetailLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("OPEN");
     const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("ALL");
@@ -121,9 +123,12 @@ export function TicketWorkspace({
                 throw new Error(result.error || "Chargement impossible");
             }
             setTickets(result.data);
+            setError(null);
             return result.data as TicketListItem[];
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Erreur serveur");
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Erreur serveur";
+            setError(message);
+            toast.error(message);
             return [];
         } finally {
             setIsLoading(false);
@@ -156,10 +161,19 @@ export function TicketWorkspace({
         }
     }, []);
 
+    // Refetch the list when the actual filters change — deliberately NOT keyed on
+    // the `fetchTickets` identity. That callback closes over the toast context,
+    // whose identity churns every time any toast appears, which would otherwise
+    // turn a single failing request into a refetch + error-toast storm.
     useEffect(() => {
         fetchTickets();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [statusFilter, priorityFilter, categoryFilter, onlyMine, search, currentUserId]);
+
+    // Dashboard counters are global and don't depend on the filters — load once.
+    useEffect(() => {
         fetchCounts();
-    }, [fetchTickets, fetchCounts]);
+    }, [fetchCounts]);
 
     useEffect(() => {
         if (selectedId) fetchDetail(selectedId);
@@ -253,7 +267,7 @@ export function TicketWorkspace({
                                     type="checkbox"
                                     checked={onlyMine}
                                     onChange={(event) => setOnlyMine(event.target.checked)}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    className="rounded border-slate-300 accent-indigo-600 focus:ring-indigo-500"
                                 />
                                 <span>Mes tickets</span>
                             </label>
@@ -261,7 +275,7 @@ export function TicketWorkspace({
                                 <select
                                     value={priorityFilter}
                                     onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
-                                    className="text-[11px] font-medium py-1 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    className="text-xs font-medium py-1.5 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                     aria-label="Filtrer par priorité"
                                 >
                                     {PRIORITY_FILTERS.map((f) => (
@@ -271,7 +285,7 @@ export function TicketWorkspace({
                                 <select
                                     value={categoryFilter}
                                     onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
-                                    className="text-[11px] font-medium py-1 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500"
+                                    className="text-xs font-medium py-1.5 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                     aria-label="Filtrer par catégorie"
                                 >
                                     {CATEGORY_FILTERS.map((f) => (
@@ -285,6 +299,25 @@ export function TicketWorkspace({
                     <div className="flex-1 overflow-y-auto">
                         {isLoading ? (
                             <LoadingState />
+                        ) : error ? (
+                            <EmptyState
+                                variant="inline"
+                                icon={AlertTriangle}
+                                title="Chargement impossible"
+                                description={error}
+                                action={
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        onClick={() => {
+                                            setIsLoading(true);
+                                            void fetchTickets();
+                                        }}
+                                    >
+                                        Réessayer
+                                    </Button>
+                                }
+                            />
                         ) : tickets.length === 0 ? (
                             <EmptyState variant="inline" icon={LifeBuoy} title="Aucun ticket" />
                         ) : (
@@ -297,6 +330,7 @@ export function TicketWorkspace({
                                                 setSelectedId(ticket.id);
                                                 setActiveMobileTab("thread");
                                             }}
+                                            aria-current={selectedId === ticket.id ? "true" : undefined}
                                             className={cn(
                                                 "w-full text-left px-4 py-3 transition-colors",
                                                 PRIORITY_ACCENT[ticket.priority],
@@ -316,16 +350,16 @@ export function TicketWorkspace({
                                                 <TicketStatusBadge status={ticket.status} />
                                                 <TicketCategoryBadge category={ticket.category} />
                                             </div>
-                                            <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
-                                                <span>{ticket.assignee?.name ?? "Non assigné"}</span>
+                                            <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500 min-w-0">
+                                                <span className="truncate">{ticket.assignee?.name ?? "Non assigné"}</span>
                                                 {ticket._count.comments > 0 && (
-                                                    <span className="inline-flex items-center gap-1">
+                                                    <span className="inline-flex items-center gap-1 shrink-0">
                                                         <MessageSquare className="w-3 h-3" />
                                                         {ticket._count.comments}
                                                     </span>
                                                 )}
                                                 {ticket._count.attachments > 0 && (
-                                                    <span className="inline-flex items-center gap-1">
+                                                    <span className="inline-flex items-center gap-1 shrink-0">
                                                         <Paperclip className="w-3 h-3" />
                                                         {ticket._count.attachments}
                                                     </span>
@@ -385,7 +419,9 @@ export function TicketWorkspace({
                                             )}
                                         >
                                             <span>Détails</span>
-                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                                            {detail.releaseChecks?.some((c) => !c.checked) && (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" aria-hidden />
+                                            )}
                                         </button>
                                     </div>
 

@@ -94,7 +94,10 @@ export const PATCH = withErrorHandler(async (request: NextRequest, { params }: P
             await syncReleaseChecks(tx, id, input.affectedRoles);
         }
 
-        const entries = diffTicketFields(existing, { ...data, ...input }, EDITABLE_FIELDS);
+        // Diff against `data` (DB-bound values: dueDate is a Date, not the raw
+        // "YYYY-MM-DD" form string) so an unchanged due date doesn't log a false
+        // "échéance modifiée" entry on every edit.
+        const entries = diffTicketFields(existing, data, EDITABLE_FIELDS);
         await recordHistory(tx, id, session.user.id, entries);
 
         return updated;

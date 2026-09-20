@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toLocalDatetimeInput } from "../_lib/formatters";
 import type { DetailDrawerTab, Meeting, MeetingResult } from "../_types";
 
 export function useSdrDetailDrawer() {
@@ -19,7 +20,7 @@ export function useSdrDetailDrawer() {
         if (selectedMeeting) {
             setEditNote(selectedMeeting.note ?? "");
             setEditResult((selectedMeeting.result as MeetingResult) || "MEETING_BOOKED");
-            setEditCallbackDate(selectedMeeting.callbackDate ? new Date(selectedMeeting.callbackDate).toISOString().slice(0, 16) : "");
+            setEditCallbackDate(selectedMeeting.callbackDate ? toLocalDatetimeInput(new Date(selectedMeeting.callbackDate)) : "");
             setEditMeetingType(selectedMeeting.meetingType ?? "");
             setEditMeetingCategory(selectedMeeting.meetingCategory ?? "");
             setEditMeetingAddress(selectedMeeting.meetingAddress ?? "");

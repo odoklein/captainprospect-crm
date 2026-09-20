@@ -109,6 +109,10 @@ export function useSupportComposer({
 
             onReconcile(tempId, saved);
         } catch (err: any) {
+            // Restore what the user typed so a failed send doesn't lose their message.
+            setInputValue(text);
+            setSelectedIntent(currentIntent);
+            setAttachedRdvRefs(currentRdvRefs);
             onRollback(tempId, err?.message || "Impossible d'envoyer le message");
         } finally {
             setIsSending(false);
@@ -131,7 +135,7 @@ export function useSupportComposer({
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 sendMessage();
             }

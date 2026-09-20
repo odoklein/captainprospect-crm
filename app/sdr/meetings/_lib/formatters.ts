@@ -19,6 +19,17 @@ export function getMeetingDisplayDate(m: Meeting): Date | null {
     return m.callbackDate ? new Date(m.callbackDate) : null;
 }
 
+/**
+ * Format a Date for an <input type="datetime-local">, which expects a LOCAL
+ * wall-clock string ("YYYY-MM-DDTHH:mm"). Using toISOString().slice(0,16) here
+ * emits a UTC string that the input then re-reads as local time, silently
+ * shifting the stored RDV by the browser's UTC offset on every open + save.
+ */
+export function toLocalDatetimeInput(date: Date): string {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function getInitials(m: Meeting): string {
     const f = m.contact.firstName?.[0] ?? "";
     const l = m.contact.lastName?.[0] ?? "";

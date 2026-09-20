@@ -18,6 +18,7 @@ import { CancelMeetingModal } from "./modals/CancelMeetingModal";
 import { RescheduleMeetingModal } from "./modals/RescheduleMeetingModal";
 import { DeleteMeetingConfirmDialog } from "./modals/DeleteMeetingConfirmDialog";
 import { SdrImportRdvModal } from "./ImportRdvModal";
+import { toLocalDatetimeInput } from "../_lib/formatters";
 import type { Meeting } from "../_types";
 import "../../../manager/rdv/_components/rdv-shell.css";
 
@@ -52,7 +53,7 @@ export function SdrMeetingsShell() {
     const openRescheduleModal = (meeting: Meeting) => {
         setRescheduleMeeting(meeting);
         const base = meeting.callbackDate ? new Date(meeting.callbackDate) : new Date();
-        setRescheduleDateValue(base.toISOString().slice(0, 16));
+        setRescheduleDateValue(toLocalDatetimeInput(base));
         setRescheduleNote("");
     };
 

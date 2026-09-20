@@ -29,7 +29,7 @@ export function SdrStatTiles({ stats, statusFilter, onSelect }: SdrStatTilesProp
             {TILES.map((t) => {
                 const isActive = statusFilter === t.key;
                 return (
-                    <button key={t.key} type="button" onClick={() => onSelect(t.key)} className="w-full text-left">
+                    <button key={t.key} type="button" onClick={() => onSelect(t.key)} aria-pressed={isActive} aria-label={`Filtrer : ${t.label} (${stats[t.key]})`} className="w-full text-left">
                         <StatCard
                             label={t.label}
                             value={stats[t.key]}

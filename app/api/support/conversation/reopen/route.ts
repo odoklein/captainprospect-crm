@@ -12,7 +12,7 @@ import {
     NotFoundError,
 } from "@/lib/api-utils";
 import {
-    getConversationIdForClientUser,
+    resolveAccessibleConversationId,
     reopenConversation,
 } from "@/lib/support/service";
 
@@ -21,7 +21,11 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     if (session.user.role !== "CLIENT" && session.user.role !== "COMMERCIAL") {
         throw new AuthError("Réservé aux clients/commerciaux", 403);
     }
-    const conversationId = await getConversationIdForClientUser(session.user.id);
+    // Honor the conversation the client is actually looking at (multi-conversation
+    // model); fall back to their primary conversation when none is supplied.
+    const body = await request.json().catch(() => ({}));
+    const requestedId = typeof body?.conversationId === "string" ? body.conversationId : null;
+    const conversationId = await resolveAccessibleConversationId(session.user, requestedId);
     if (!conversationId) {
         throw new NotFoundError("Aucune conversation de support disponible");
     }

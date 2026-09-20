@@ -19,7 +19,7 @@ import {
     Search, Pencil, Check, X as XIcon, Loader2, Phone, Mail, Briefcase,
     Sparkles, Clock, UserCog,
 } from "lucide-react";
-import { DataTable, StatCard, Badge, Button, Input, Drawer, useToast, type Column } from "@/components/ui";
+import { DataTable, StatCard, Badge, Button, Input, Drawer, useToast, EmptyState, type Column } from "@/components/ui";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { cn, avatarColorForId, initialsFromName } from "@/lib/utils";
 import AssistantProjetPanel from "@/components/assistant-projet/AssistantProjetPanel";
@@ -257,6 +257,8 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
 export default function DashboardProjetPage() {
     const [data, setData] = useState<StaffingOverview | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
+    const [exporting, setExporting] = useState(false);
     const [search, setSearch] = useState("");
     const [missingOnly, setMissingOnly] = useState(false);
     const [daysMissingOnly, setDaysMissingOnly] = useState(false);
@@ -264,15 +266,47 @@ export default function DashboardProjetPage() {
     const { error: showError } = useToast();
 
     const fetchData = async () => {
+        setLoading(true);
+        setError(false);
         try {
             const res = await fetch("/api/manager/dashboard-projet");
             const json = await res.json();
             if (json.success) setData(json.data);
-            else showError("Erreur", json.error || "Impossible de charger les données");
+            else {
+                setError(true);
+                showError("Erreur", json.error || "Impossible de charger les données");
+            }
         } catch {
+            setError(true);
             showError("Erreur", "Erreur réseau");
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Download the CSV via fetch+blob so a failed/unauthorized export surfaces a
+    // toast instead of dumping a raw JSON error into an orphan browser tab.
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            const res = await fetch("/api/manager/dashboard-projet/export");
+            if (!res.ok) {
+                const j = await res.json().catch(() => null);
+                throw new Error(j?.error || "Export impossible");
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `dashboard-projet-${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            showError("Export impossible", e instanceof Error ? e.message : "Erreur réseau");
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -334,7 +368,9 @@ export default function DashboardProjetPage() {
                             {row.clientName}
                         </Link>
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
-                            <ChannelIcon className="w-3 h-3 shrink-0" title={CHANNEL_LABEL[row.channel]} />
+                            <span title={CHANNEL_LABEL[row.channel]} className="inline-flex shrink-0">
+                                <ChannelIcon className="w-3 h-3" aria-hidden />
+                            </span>
                             <Link href={`/manager/clients?client=${row.clientId}&mission=${row.missionId}`} className="hover:text-indigo-600 transition-colors truncate">
                                 {row.missionName}
                             </Link>
@@ -460,7 +496,9 @@ export default function DashboardProjetPage() {
                     variant="outline"
                     size="sm"
                     className="gap-1.5"
-                    onClick={() => window.open("/api/manager/dashboard-projet/export", "_blank")}
+                    onClick={handleExport}
+                    isLoading={exporting}
+                    disabled={exporting || loading || !data?.rows.length}
                 >
                     <Download className="w-3.5 h-3.5" />
                     Exporter en CSV
@@ -485,6 +523,7 @@ export default function DashboardProjetPage() {
                     iconColor={kpis?.missingHeadcount ? "text-rose-600" : "text-slate-400"}
                     subtitle={<span className="text-slate-400">missions actives sans booker planifié — cliquer pour filtrer</span>}
                     role="button"
+                    aria-pressed={missingOnly}
                     tabIndex={0}
                     onClick={() => setMissingOnly((v) => !v)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMissingOnly((v) => !v); } }}
@@ -501,6 +540,7 @@ export default function DashboardProjetPage() {
                     iconColor={kpis?.clientsMissingDaysPerWeek ? "text-amber-600" : "text-slate-400"}
                     subtitle={<span className="text-slate-400">clients sans volume contractuel — cliquer pour filtrer</span>}
                     role="button"
+                    aria-pressed={daysMissingOnly}
                     tabIndex={0}
                     onClick={() => setDaysMissingOnly((v) => !v)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setDaysMissingOnly((v) => !v); } }}
@@ -604,8 +644,20 @@ export default function DashboardProjetPage() {
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
                 {loading ? (
                     <div className="p-6">
-                        <TableSkeleton rows={6} columns={5} />
+                        <TableSkeleton rows={6} columns={6} />
                     </div>
+                ) : error ? (
+                    <EmptyState
+                        variant="inline"
+                        icon={AlertTriangle}
+                        title="Impossible de charger les données"
+                        description="Une erreur est survenue lors du chargement du dashboard."
+                        action={
+                            <Button variant="outline" size="sm" onClick={() => void fetchData()}>
+                                Réessayer
+                            </Button>
+                        }
+                    />
                 ) : (
                     <DataTable
                         data={filteredRows}
@@ -613,6 +665,15 @@ export default function DashboardProjetPage() {
                         keyField="missionId"
                         pagination
                         pageSize={15}
+                        getRowClassName={(r) =>
+                            r.status === "ACTIVE" && r.clientStatus === "ACTIVE"
+                                ? r.coverageStatus === "MISSING"
+                                    ? "bg-rose-50/50 [&>td:first-child]:border-l-4 [&>td:first-child]:border-rose-400"
+                                    : r.coverageStatus === "ASSIGNED_NOT_SCHEDULED"
+                                        ? "bg-amber-50/30 [&>td:first-child]:border-l-4 [&>td:first-child]:border-amber-300"
+                                        : ""
+                                : ""
+                        }
                         emptyMessage={
                             data?.rows.length
                                 ? "Aucune mission ne correspond aux filtres"
