@@ -166,9 +166,15 @@ export function TicketWorkspace({
         else setDetail(null);
     }, [selectedId, fetchDetail]);
 
-    // Keep a selection so the thread pane is never empty on first load.
+    // Keep selection in sync with the current ticket list (first load, filter switch, search)
     useEffect(() => {
-        if (!selectedId && tickets.length) setSelectedId(tickets[0].id);
+        if (tickets.length > 0) {
+            if (!selectedId || !tickets.some((t) => t.id === selectedId)) {
+                setSelectedId(tickets[0].id);
+            }
+        } else {
+            setSelectedId(null);
+        }
     }, [tickets, selectedId]);
 
     const refreshAll = useCallback(async () => {

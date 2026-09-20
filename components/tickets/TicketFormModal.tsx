@@ -26,7 +26,10 @@ interface TicketFormModalProps {
 }
 
 const CATEGORY_OPTIONS = Object.entries(TICKET_CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
-const SCOPE_OPTIONS = Object.entries(TICKET_SCOPE_LABELS).map(([value, label]) => ({ value, label }));
+const SCOPE_OPTIONS = [
+    { value: "INTERNAL", label: TICKET_SCOPE_LABELS.INTERNAL },
+    { value: "CLIENT_FACING", label: TICKET_SCOPE_LABELS.CLIENT_FACING },
+];
 const PRIORITY_OPTIONS = Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => ({ value, label }));
 const ROLE_OPTIONS = TICKET_AFFECTED_ROLE_OPTIONS.map((role) => ({ value: role, label: USER_ROLE_LABELS[role] }));
 

@@ -224,10 +224,10 @@ export async function resolveAccessibleConversationId(
     if (requestedId) {
         const target = await prisma.supportConversation.findUnique({
             where: { id: requestedId },
-            select: { id: true, clientId: true, createdById: true } as any,
+            select: { id: true, clientId: true, createdById: true },
         });
         if (!target || target.clientId !== dbUser.clientId) return null;
-        if (dbUser.role === "COMMERCIAL" && (target as any).createdById && (target as any).createdById !== user.id) {
+        if (dbUser.role === "COMMERCIAL" && target.createdById && target.createdById !== user.id) {
             return null;
         }
         return target.id;
@@ -436,10 +436,10 @@ export async function getConversationForClientUser(
         if (!user || !user.clientId) return null;
         const target = await prisma.supportConversation.findUnique({
             where: { id: specificConversationId },
-            select: { id: true, clientId: true, createdById: true } as any,
+            select: { id: true, clientId: true, createdById: true },
         });
         if (!target || target.clientId !== user.clientId) return null;
-        if (user.role === "COMMERCIAL" && (target as any).createdById && (target as any).createdById !== userId) {
+        if (user.role === "COMMERCIAL" && target.createdById && target.createdById !== userId) {
             return null;
         }
         conversationId = target.id;

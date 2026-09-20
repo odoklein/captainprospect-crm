@@ -24,14 +24,32 @@ export default function ManagerTicketsPage() {
 
             const usersResult = await usersResponse.json();
             if (usersResponse.ok && usersResult.success) {
+                const userList = Array.isArray(usersResult.data?.users)
+                    ? usersResult.data.users
+                    : Array.isArray(usersResult.data)
+                    ? usersResult.data
+                    : [];
                 setDevelopers(
-                    (usersResult.data.users as Option[]).map((user) => ({ id: user.id, name: user.name })),
+                    userList.map((user: { id: string; name?: string | null; email?: string | null }) => ({
+                        id: user.id,
+                        name: user.name?.trim() || user.email?.trim() || "Utilisateur",
+                    })),
                 );
             }
 
             const clientsResult = await clientsResponse.json();
             if (clientsResponse.ok && clientsResult.success) {
-                setClients((clientsResult.data as Option[]).map((client) => ({ id: client.id, name: client.name })));
+                const clientList = Array.isArray(clientsResult.data)
+                    ? clientsResult.data
+                    : Array.isArray(clientsResult.data?.clients)
+                    ? clientsResult.data.clients
+                    : [];
+                setClients(
+                    clientList.map((client: { id: string; name?: string | null }) => ({
+                        id: client.id,
+                        name: client.name?.trim() || "Client",
+                    })),
+                );
             }
         };
 

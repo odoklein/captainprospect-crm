@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
     X,
     CheckCircle2,
@@ -28,6 +29,7 @@ export function ConvertSupportToTicketModal({
     conversation,
     onSuccess,
 }: ConvertSupportToTicketModalProps) {
+    const [mounted, setMounted] = useState(false);
     const [title, setTitle] = useState("");
     const [category, setCategory] = useState<"BUG" | "IMPROVEMENT" | "FEATURE_REQUEST" | "TECHNICAL_SUPPORT">("TECHNICAL_SUPPORT");
     const [priority, setPriority] = useState<"LOW" | "MEDIUM" | "HIGH" | "URGENT">("MEDIUM");
@@ -35,6 +37,10 @@ export function ConvertSupportToTicketModal({
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [createdTicket, setCreatedTicket] = useState<{ id: string; number: number; title: string } | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Synchronize form fields whenever conversation changes or modal opens
     useEffect(() => {
@@ -68,7 +74,7 @@ ${messages
         setCreatedTicket(null);
     }, [conversation, isOpen]);
 
-    if (!isOpen || !conversation) return null;
+    if (!isOpen || !conversation || !mounted) return null;
 
     const lastClientMsg = (conversation.messages || []).filter((m) => m.role === "CLIENT").at(-1);
 
@@ -92,7 +98,7 @@ ${messages
                     category,
                     priority,
                     scope: "CLIENT_FACING",
-                    affectedRoles: ["CLIENT"],
+                    affectedRoles: ["DEVELOPER", "CLIENT"],
                     clientId: conversation.clientId,
                     sourceSupportMessageId: lastClientMsg?.id ?? undefined,
                 }),
@@ -116,10 +122,10 @@ ${messages
         }
     };
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-            style={{ zIndex: 200 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+            style={{ zIndex: 9999 }}
             onClick={(e) => {
                 if (e.target === e.currentTarget && !submitting) onClose();
             }}
@@ -275,6 +281,7 @@ ${messages
                     </form>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

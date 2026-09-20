@@ -314,15 +314,19 @@ export default function ClientSupportRoot() {
         );
     }, []);
 
-    if (!canRender) return null;
-
-    // Total unread count across all accessible conversations
+    // Total unread count across all accessible conversations.
+    // NOTE: this hook must run on every render — it stays above the `canRender`
+    // early return below so the hook order is stable when the session flips from
+    // "loading" to "authenticated" (otherwise React throws "rendered more hooks
+    // than during the previous render" and the support widget crashes).
     const totalUnread = useMemo(() => {
         if (conversations.length > 0) {
             return conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
         }
         return activeConversation?.unreadCount ?? 0;
     }, [conversations, activeConversation]);
+
+    if (!canRender) return null;
 
     return (
         <>

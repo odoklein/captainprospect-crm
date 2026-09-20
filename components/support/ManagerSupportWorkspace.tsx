@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import {
     LifeBuoy,
@@ -135,7 +136,12 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     const [sending, setSending] = useState(false);
     const [resolving, setResolving] = useState(false);
     const [showDevTicketModal, setShowDevTicketModal] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const attachments = useSupportAttachments({
         conversationId: selectedId,
@@ -363,7 +369,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
     const tabButtonStyle = (active: boolean): React.CSSProperties => ({
         padding: "5px 11px",
@@ -377,7 +383,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
         transition: "all 150ms ease",
     });
 
-    return (
+    return createPortal(
         <>
             <SupportStyles />
             <div
@@ -1378,7 +1384,8 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                     }}
                 />
             )}
-        </>
+        </>,
+        document.body,
     );
 }
 
