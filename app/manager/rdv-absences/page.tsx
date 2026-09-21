@@ -16,6 +16,10 @@
  * "Replacé" cancels it with the `replaced` reason, which takes it off this list
  * and off the SDR absence board.
  *
+ * And one that is neither — nothing to do with it today, but not closed either —
+ * goes to "Absent en stand by": the no-show stays recorded, the RDV leaves the
+ * SDR's absence banner and calling queue, and a manager can reactivate it here.
+ *
  * This is a backlog, so the page is built to clear one: filter, sort oldest
  * first, and act on a batch in one go.
  */
@@ -23,7 +27,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     AlertTriangle, CalendarX2, CheckCircle2, Clock, Loader2, RefreshCw,
-    Search, UserX, Users, Building2, Send, CalendarClock, X,
+    Search, UserX, Users, Building2, Send, CalendarClock, X, PauseCircle, PlayCircle,
 } from "lucide-react";
 import {
     Badge, Button, Input, Modal, ModalFooter, StatCard, Tabs, useToast,
@@ -52,17 +56,23 @@ interface AbsenceRow {
         source: string | null;
         reportedBy: string | null;
         reportedAt: string;
+        standByAt: string | null;
+        standByReason: string | null;
+        standByBy: string | null;
     } | null;
 }
 
 interface AbsencesPayload {
     pending: AbsenceRow[];
     reported: AbsenceRow[];
+    /** Absences set aside on purpose: on record, but off the SDR boards. */
+    standby?: AbsenceRow[];
     sdrs?: { id: string; name: string; email: string }[];
     kpis: {
         pending: number;
         pendingLate: number;
         reportedManually: number;
+        standby?: number;
         windowHours: number;
     };
 }
@@ -80,6 +90,7 @@ const RECONTACT_OPTS = [
     { value: "NO", label: "Non, clôturer" },
 ] as const;
 
+type TabKey = "pending" | "reported" | "standby";
 type SortKey = "oldest" | "newest";
 
 function fmtDate(iso: string | null): string {
@@ -120,7 +131,7 @@ export default function RdvAbsencesPage() {
     const [data, setData] = useState<AbsencesPayload | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [tab, setTab] = useState<"pending" | "reported">("pending");
+    const [tab, setTab] = useState<TabKey>("pending");
     const [query, setQuery] = useState("");
     const [lateOnly, setLateOnly] = useState(true);
     const [clientFilter, setClientFilter] = useState<string>("all");
@@ -137,6 +148,11 @@ export default function RdvAbsencesPage() {
 
     const [replaceTargets, setReplaceTargets] = useState<AbsenceRow[]>([]);
     const [isReplacing, setIsReplacing] = useState(false);
+
+    const [standByTargets, setStandByTargets] = useState<AbsenceRow[]>([]);
+    const [standByReason, setStandByReason] = useState("");
+    const [isStandingBy, setIsStandingBy] = useState(false);
+    const [isReactivating, setIsReactivating] = useState(false);
 
     const load = useCallback(async (silent = false) => {
         if (silent) setIsRefreshing(true);
@@ -162,7 +178,7 @@ export default function RdvAbsencesPage() {
     const clientOptions = useMemo(() => {
         if (!data) return [];
         const seen = new Map<string, string>();
-        for (const row of [...data.pending, ...data.reported]) {
+        for (const row of [...data.pending, ...data.reported, ...(data.standby ?? [])]) {
             if (row.clientId) seen.set(row.clientId, row.clientName);
         }
         return Array.from(seen, ([id, name]) => ({ id, name }))
@@ -171,7 +187,7 @@ export default function RdvAbsencesPage() {
 
     const rows = useMemo(() => {
         if (!data) return [];
-        const base = tab === "pending" ? data.pending : data.reported;
+        const base = tab === "pending" ? data.pending : tab === "standby" ? (data.standby ?? []) : data.reported;
         let scoped = tab === "pending" && lateOnly
             ? base.filter((r) => !r.portalWindowOpen)
             : base;
@@ -307,8 +323,79 @@ export default function RdvAbsencesPage() {
         }
     }
 
+    /**
+     * Stand by: the absence is real and stays on record, but nobody should be
+     * calling this contact right now. It is the exit that was missing — the only
+     * other ways out were cancelling the RDV or flagging it replaced, both of
+     * which say something that did not happen.
+     */
+    async function patchStandBy(targets: AbsenceRow[], standBy: boolean, reason?: string) {
+        const results = await Promise.allSettled(
+            targets.map(async (row) => {
+                const res = await fetch("/api/manager/rdv-absences", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        actionId: row.id,
+                        standBy,
+                        reason: reason?.trim() || undefined,
+                    }),
+                });
+                const json = await res.json();
+                if (!res.ok || !json.success) throw new Error(json.error || "Échec");
+                return row.id;
+            }),
+        );
+        const ok = results.filter((r) => r.status === "fulfilled").length;
+        return { ok, failed: results.length - ok };
+    }
+
+    async function submitStandBy() {
+        if (standByTargets.length === 0) return;
+        setIsStandingBy(true);
+        try {
+            const { ok, failed } = await patchStandBy(standByTargets, true, standByReason);
+            if (ok > 0) {
+                success(
+                    ok > 1 ? `${ok} RDV mis en stand by` : "RDV mis en stand by",
+                    "Ils sortent du tableau des absents côté SDR et de la file d'appels.",
+                );
+            }
+            if (failed > 0) showError(`${failed} RDV n'ont pas pu être mis en stand by`);
+            setStandByTargets([]);
+            setStandByReason("");
+            setSelected(new Set());
+            await load(true);
+        } finally {
+            setIsStandingBy(false);
+        }
+    }
+
+    async function reactivate(targets: AbsenceRow[]) {
+        if (targets.length === 0) return;
+        setIsReactivating(true);
+        try {
+            const { ok, failed } = await patchStandBy(targets, false);
+            if (ok > 0) {
+                success(
+                    ok > 1 ? `${ok} RDV réactivés` : "RDV réactivé",
+                    "Ils reviennent dans les absents à traiter, côté SDR aussi.",
+                );
+            }
+            if (failed > 0) showError(`${failed} RDV n'ont pas pu être réactivés`);
+            setSelected(new Set());
+            await load(true);
+        } finally {
+            setIsReactivating(false);
+        }
+    }
+
     const kpis = data?.kpis;
-    const totalInTab = tab === "pending" ? data?.pending.length ?? 0 : data?.reported.length ?? 0;
+    const totalInTab = tab === "pending"
+        ? data?.pending.length ?? 0
+        : tab === "standby"
+            ? data?.standby?.length ?? 0
+            : data?.reported.length ?? 0;
 
     return (
         <div className="space-y-5">
@@ -332,7 +419,7 @@ export default function RdvAbsencesPage() {
             </div>
 
             {/* KPIs double as filters: clicking one scopes the list below. */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     label={`Hors délai ${NO_SHOW_REPORT_WINDOW_HOURS}h`}
                     value={kpis?.pendingLate ?? 0}
@@ -372,6 +459,19 @@ export default function RdvAbsencesPage() {
                         tab === "reported" && "ring-2 ring-indigo-200",
                     )}
                 />
+                <StatCard
+                    label="En stand by"
+                    value={kpis?.standby ?? 0}
+                    icon={PauseCircle}
+                    iconBg="bg-slate-100"
+                    iconColor="text-slate-600"
+                    subtitle={<span className="text-slate-500">Mis de côté — retirés des listes SDR</span>}
+                    onClick={() => setTab("standby")}
+                    className={cn(
+                        "cursor-pointer transition-shadow hover:shadow-md",
+                        tab === "standby" && "ring-2 ring-slate-300",
+                    )}
+                />
             </div>
 
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -380,9 +480,10 @@ export default function RdvAbsencesPage() {
                         tabs={[
                             { id: "pending", label: `À traiter (${data?.pending.length ?? 0})` },
                             { id: "reported", label: `Déjà absents (${data?.reported.length ?? 0})` },
+                            { id: "standby", label: `En stand by (${data?.standby?.length ?? 0})` },
                         ]}
                         activeTab={tab}
-                        onTabChange={(id) => setTab(id as "pending" | "reported")}
+                        onTabChange={(id) => setTab(id as TabKey)}
                     />
                 </div>
 
@@ -458,10 +559,24 @@ export default function RdvAbsencesPage() {
                                 Réaffecter SDR
                             </Button>
                         )}
-                        <Button variant="outline" size="sm" onClick={() => setReplaceTargets(selectedRows)}>
-                            <CalendarClock className="w-4 h-4" />
-                            Marquer replacés
-                        </Button>
+                        {tab === "reported" && (
+                            <Button variant="outline" size="sm" onClick={() => { setStandByReason(""); setStandByTargets(selectedRows); }}>
+                                <PauseCircle className="w-4 h-4" />
+                                Mettre en stand by
+                            </Button>
+                        )}
+                        {tab === "standby" && (
+                            <Button variant="primary" size="sm" onClick={() => reactivate(selectedRows)} disabled={isReactivating}>
+                                {isReactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                                Réactiver
+                            </Button>
+                        )}
+                        {tab !== "standby" && (
+                            <Button variant="outline" size="sm" onClick={() => setReplaceTargets(selectedRows)}>
+                                <CalendarClock className="w-4 h-4" />
+                                Marquer replacés
+                            </Button>
+                        )}
                         <button
                             type="button"
                             onClick={() => setSelected(new Set())}
@@ -481,7 +596,9 @@ export default function RdvAbsencesPage() {
                         <p className="text-sm font-medium text-slate-700">
                             {tab === "pending"
                                 ? "Aucun rendez-vous en attente de signalement."
-                                : "Aucun rendez-vous marqué absent."}
+                                : tab === "standby"
+                                    ? "Aucun rendez-vous en stand by."
+                                    : "Aucun rendez-vous marqué absent."}
                         </p>
                         {(query || clientFilter !== "all" || (tab === "pending" && lateOnly)) && totalInTab > 0 && (
                             <button
@@ -551,7 +668,10 @@ export default function RdvAbsencesPage() {
                                                 {tab === "pending" && row.portalWindowOpen && (
                                                     <Badge variant="warning">Le client peut encore signaler</Badge>
                                                 )}
-                                                {tab === "reported" && row.feedback?.source && (
+                                                {tab === "standby" && (
+                                                    <Badge variant="default">En stand by</Badge>
+                                                )}
+                                                {tab !== "pending" && row.feedback?.source && (
                                                     <Badge variant={row.feedback.source === "MANAGER_MANUAL" ? "primary" : "default"}>
                                                         {SOURCE_LABEL[row.feedback.source] ?? row.feedback.source}
                                                     </Badge>
@@ -591,9 +711,17 @@ export default function RdvAbsencesPage() {
                                                     {row.feedback.note}
                                                 </p>
                                             )}
-                                            {tab === "reported" && row.feedback?.reportedBy && (
+                                            {tab !== "pending" && row.feedback?.reportedBy && (
                                                 <p className="mt-1 text-xs text-slate-400">
                                                     Signalé par {row.feedback.reportedBy} le {fmtDate(row.feedback.reportedAt)}
+                                                </p>
+                                            )}
+                                            {tab === "standby" && row.feedback?.standByAt && (
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    <PauseCircle className="mr-1 inline w-3 h-3 align-[-1px]" />
+                                                    En stand by depuis le {fmtDate(row.feedback.standByAt)}
+                                                    {row.feedback.standByBy ? ` — ${row.feedback.standByBy}` : ""}
+                                                    {row.feedback.standByReason ? ` · ${row.feedback.standByReason}` : ""}
                                                 </p>
                                             )}
                                         </div>
@@ -606,20 +734,45 @@ export default function RdvAbsencesPage() {
                                                 </Button>
                                             )}
                                             {tab === "reported" && (
-                                                <Button variant="outline" size="sm" onClick={() => openReport([row])}>
-                                                    <RefreshCw className="w-4 h-4" />
-                                                    Réaffecter
+                                                <>
+                                                    <Button variant="outline" size="sm" onClick={() => openReport([row])}>
+                                                        <RefreshCw className="w-4 h-4" />
+                                                        Réaffecter
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => { setStandByReason(""); setStandByTargets([row]); }}
+                                                        title="Laisser ce RDV absent de côté : il sort des listes SDR sans être clôturé"
+                                                    >
+                                                        <PauseCircle className="w-4 h-4" />
+                                                        Stand by
+                                                    </Button>
+                                                </>
+                                            )}
+                                            {tab === "standby" && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => reactivate([row])}
+                                                    disabled={isReactivating}
+                                                    title="Remettre ce RDV absent dans les listes SDR"
+                                                >
+                                                    {isReactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
+                                                    Réactiver
                                                 </Button>
                                             )}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setReplaceTargets([row])}
-                                                title="Le RDV a été replacé : le sortir de cette liste"
-                                            >
-                                                <CalendarClock className="w-4 h-4" />
-                                                Replacé
-                                            </Button>
+                                            {tab !== "standby" && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => setReplaceTargets([row])}
+                                                    title="Le RDV a été replacé : le sortir de cette liste"
+                                                >
+                                                    <CalendarClock className="w-4 h-4" />
+                                                    Replacé
+                                                </Button>
+                                            )}
                                         </div>
                                     </li>
                                 );
@@ -628,6 +781,73 @@ export default function RdvAbsencesPage() {
                     </>
                 )}
             </div>
+
+            {/* Stand by — single or batch */}
+            <Modal
+                isOpen={standByTargets.length > 0}
+                onClose={() => (isStandingBy ? undefined : setStandByTargets([]))}
+                title={standByTargets.length > 1 ? `Mettre ${standByTargets.length} RDV absents en stand by` : "Mettre ce RDV absent en stand by"}
+            >
+                <div className="space-y-4">
+                    {standByTargets.length === 1 ? (
+                        <div className="rounded-lg bg-slate-50 p-3 text-sm">
+                            <p className="font-semibold text-slate-900">{standByTargets[0].contactName}</p>
+                            <p className="text-slate-500">
+                                {standByTargets[0].companyName} · {fmtDate(standByTargets[0].callbackDate)}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-3 text-sm">
+                            <ul className="space-y-1">
+                                {standByTargets.map((r) => (
+                                    <li key={r.id} className="flex justify-between gap-3">
+                                        <span className="truncate font-medium text-slate-800">{r.contactName}</span>
+                                        <span className="shrink-0 text-xs text-slate-500">{r.companyName}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <p className="text-sm text-slate-600">
+                        Le RDV reste <strong>enregistré comme absent</strong> : rien n&apos;est clôturé ni réécrit.
+                        Il sort simplement du tableau des absents côté SDR et de la file d&apos;appels prioritaire,
+                        et vient se ranger dans l&apos;onglet <strong>En stand by</strong>.
+                    </p>
+                    <p className="text-sm text-slate-500">
+                        Un clic sur <strong>Réactiver</strong> le remet dans les listes SDR à tout moment.
+                    </p>
+
+                    <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                            Motif (optionnel)
+                        </label>
+                        <textarea
+                            value={standByReason}
+                            onChange={(e) => setStandByReason(e.target.value)}
+                            rows={3}
+                            maxLength={1000}
+                            placeholder="Pourquoi on le laisse de côté…"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                        />
+                        {standByTargets.length > 1 && (
+                            <p className="mt-1 text-xs text-slate-400">
+                                Le même motif sera enregistré sur les {standByTargets.length} RDV.
+                            </p>
+                        )}
+                    </div>
+
+                    <ModalFooter>
+                        <Button variant="ghost" onClick={() => setStandByTargets([])} disabled={isStandingBy}>
+                            Annuler
+                        </Button>
+                        <Button variant="primary" onClick={submitStandBy} disabled={isStandingBy}>
+                            {isStandingBy ? <Loader2 className="w-4 h-4 animate-spin" /> : <PauseCircle className="w-4 h-4" />}
+                            Mettre en stand by
+                        </Button>
+                    </ModalFooter>
+                </div>
+            </Modal>
 
             {/* Replacé — single or batch */}
             <Modal

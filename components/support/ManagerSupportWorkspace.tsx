@@ -124,6 +124,72 @@ function formatAlertTime(iso: string): string {
     return new Date(ts).toLocaleDateString("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" });
 }
 
+function Skel({ w, h, radius = 8 }: { w: number | string; h: number; radius?: number }) {
+    return <div className="cp-sup-skel" style={{ width: w, height: h, borderRadius: radius }} />;
+}
+
+/** Placeholder rows for the left rail while the first page of cards loads. */
+function ListSkeleton({ rows = 5 }: { rows?: number }) {
+    return (
+        <div aria-hidden="true">
+            {Array.from({ length: rows }).map((_, i) => (
+                <div
+                    key={i}
+                    style={{
+                        display: "flex",
+                        gap: 10,
+                        padding: "12px 16px",
+                        borderBottom: `1px solid ${T.lineSoft}`,
+                        opacity: 1 - i * 0.14,
+                    }}
+                >
+                    <Skel w={28} h={28} radius={999} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                            <Skel w={`${45 + ((i * 13) % 25)}%`} h={11} />
+                            <Skel w={34} h={9} />
+                        </div>
+                        <Skel w={`${70 + ((i * 7) % 25)}%`} h={9} />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/** Placeholder bubbles for the message stream while a thread loads. */
+function ThreadSkeleton() {
+    const rows: Array<{ mine: boolean; w: number; h: number }> = [
+        { mine: false, w: 62, h: 46 },
+        { mine: true, w: 48, h: 34 },
+        { mine: false, w: 54, h: 60 },
+        { mine: true, w: 40, h: 34 },
+    ];
+    return (
+        <div
+            aria-hidden="true"
+            style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+                padding: "20px 24px",
+                overflow: "hidden",
+            }}
+        >
+            <div style={{ display: "flex", justifyContent: "center" }}>
+                <Skel w={78} h={16} radius={999} />
+            </div>
+            {rows.map((r, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: r.mine ? "flex-end" : "flex-start", gap: 8 }}>
+                    {!r.mine && <Skel w={28} h={28} radius={999} />}
+                    <Skel w={`${r.w}%`} h={r.h} radius={14} />
+                </div>
+            ))}
+        </div>
+    );
+}
+
 export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorkspaceProps) {
     const { data: session } = useSession();
     const [conversations, setConversations] = useState<SupportConversationSummaryDTO[]>([]);
@@ -131,6 +197,10 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     const [detail, setDetail] = useState<SupportConversationDetailDTO | null>(null);
     const [tab, setTab] = useState<TabFilter>("ACTIVE");
     const [search, setSearch] = useState("");
+    // Debounced mirror of `search`. `fetchList` keys off this one so typing does
+    // not fire a request per keystroke (and does not tear down the poll interval
+    // on every character).
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [loadingList, setLoadingList] = useState(false);
     const [replyValue, setReplyValue] = useState("");
     const [sending, setSending] = useState(false);
@@ -138,10 +208,16 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     const [showDevTicketModal, setShowDevTicketModal] = useState(false);
     const [mounted, setMounted] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    useEffect(() => {
+        const id = window.setTimeout(() => setDebouncedSearch(search), 300);
+        return () => window.clearTimeout(id);
+    }, [search]);
 
     const attachments = useSupportAttachments({
         conversationId: selectedId,
@@ -203,7 +279,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
             const params = new URLSearchParams();
             if (tab === "ACTIVE" || tab === "RESOLVED") params.set("status", tab);
             if (tab === "UNREAD") params.set("unreadOnly", "true");
-            if (search.trim()) params.set("search", search.trim());
+            if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
             const res = await fetch(`/api/support/manager/conversations?${params.toString()}`);
             const json = await res.json();
             if (!json?.success) return;
@@ -211,7 +287,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
         } finally {
             setLoadingList(false);
         }
-    }, [tab, search]);
+    }, [tab, debouncedSearch]);
 
     const fetchDetail = useCallback(async (id: string) => {
         const res = await fetch(`/api/support/manager/conversations/${id}`);
@@ -242,6 +318,48 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [detail?.messages.length]);
+
+    // Keyboard: Esc backs out one level at a time (alert detail → thread → panel),
+    // Cmd/Ctrl+K jumps to the conversation search.
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                setMode("conversations");
+                // The search input only exists in conversations mode, so wait a
+                // frame for it to mount before focusing.
+                requestAnimationFrame(() => {
+                    searchInputRef.current?.focus();
+                    searchInputRef.current?.select();
+                });
+                return;
+            }
+
+            if (e.key !== "Escape") return;
+
+            // Let the attachment lightbox / dev-ticket modal own Esc while open.
+            if (showDevTicketModal) return;
+            if (document.body.hasAttribute("data-cp-sup-lightbox")) return;
+
+            if (mode === "alerts" && selectedAlert) {
+                e.preventDefault();
+                setSelectedAlert(null);
+                return;
+            }
+            if (mode === "conversations" && selectedId) {
+                e.preventDefault();
+                setSelectedId(null);
+                return;
+            }
+            e.preventDefault();
+            onClose();
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [isOpen, mode, selectedAlert, selectedId, showDevTicketModal, onClose]);
 
     // Switching conversation must never carry a pending image over to another client.
     const discardAttachments = attachments.discard;
@@ -553,13 +671,20 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                     >
                                         <Search className="w-3.5 h-3.5 text-slate-400" />
                                         <input
+                                            ref={searchInputRef}
                                             type="search"
                                             value={search}
                                             onChange={(e) => setSearch(e.target.value)}
                                             onKeyDown={(e) => {
-                                                if (e.key === "Enter") fetchList();
+                                                // Enter flushes the debounce instead of firing a
+                                                // second, redundant request.
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault();
+                                                    setDebouncedSearch(search);
+                                                }
                                             }}
-                                            placeholder="Rechercher un client..."
+                                            aria-label="Rechercher une conversation"
+                                            placeholder="Rechercher un client... (⌘K)"
                                             style={{
                                                 width: "100%",
                                                 background: "transparent",
@@ -595,10 +720,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                             {mode === "conversations" ? (
                                 <>
                                     {loadingList && conversations.length === 0 ? (
-                                        <div style={{ padding: 24, color: T.ink3, fontSize: 13, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                                            <span>Chargement…</span>
-                                        </div>
+                                        <ListSkeleton rows={6} />
                                     ) : filteredConversations.length === 0 ? (
                                         <div
                                             style={{
@@ -773,10 +895,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                             ) : (
                                 <>
                                     {loadingAlerts && alerts.length === 0 ? (
-                                        <div style={{ padding: 24, color: T.ink3, fontSize: 13, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                                            <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                                            <span>Chargement…</span>
-                                        </div>
+                                        <ListSkeleton rows={5} />
                                     ) : alerts.length === 0 ? (
                                         <div
                                             style={{
@@ -1011,6 +1130,11 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                     )}
                                 </div>
                             )
+                        ) : selectedId && (!detail || detail.id !== selectedId) ? (
+                            // A thread is selected but its messages have not landed yet — show the
+                            // stream skeleton rather than the "pick a conversation" empty state, and
+                            // never leave the previous client's messages on screen.
+                            <ThreadSkeleton />
                         ) : !detail ? (
                             <div
                                 style={{
@@ -1262,7 +1386,14 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                                     value={replyValue}
                                                     onChange={(e) => setReplyValue(e.target.value)}
                                                     onKeyDown={(e) => {
-                                                        if (e.key === "Enter" && !e.shiftKey) {
+                                                        // `isComposing` guards IME/dead-key input
+                                                        // (accents, CJK) so Enter does not send a
+                                                        // half-composed word.
+                                                        if (
+                                                            e.key === "Enter" &&
+                                                            !e.shiftKey &&
+                                                            !e.nativeEvent.isComposing
+                                                        ) {
                                                             e.preventDefault();
                                                             handleReply();
                                                         }
@@ -1394,9 +1525,18 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     );
 }
 
+/** Severity chip for the alert detail header, driven by the alert's own `type`. */
+const ALERT_SEVERITY: Record<ClientAlert["type"], { label: string; color: string; bg: string }> = {
+    error: { label: "Critique", color: "#8B1A14", bg: "#FDE8E7" },
+    warning: { label: "À traiter", color: "#8A4A00", bg: "#FEF6E4" },
+    success: { label: "Résolu", color: "#1B5E20", bg: "#E6F4E7" },
+    info: { label: "Information", color: "#155B7A", bg: "#E4EEF4" },
+};
+
 function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => void }) {
     const aType = getAlertTypeFromTitle(alert.title);
     const cfg = ALERT_TYPE_CONFIG[aType];
+    const severity = ALERT_SEVERITY[alert.type] ?? ALERT_SEVERITY.info;
     const formattedDate = new Date(alert.createdAt).toLocaleString("fr-FR", {
         weekday: "long",
         day: "numeric",
@@ -1449,8 +1589,29 @@ function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => 
                     >
                         Détail de l&apos;alerte
                     </div>
-                    <div style={{ fontSize: 11, color: T.ink3, marginTop: 2 }}>
-                        {formattedDate}
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 7,
+                            marginTop: 3,
+                        }}
+                    >
+                        <span
+                            style={{
+                                padding: "1px 7px",
+                                borderRadius: 999,
+                                background: severity.bg,
+                                color: severity.color,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                letterSpacing: "0.02em",
+                                textTransform: "uppercase",
+                            }}
+                        >
+                            {severity.label}
+                        </span>
+                        <span style={{ fontSize: 11, color: T.ink3 }}>{formattedDate}</span>
                     </div>
                 </div>
                 {alert.link && (

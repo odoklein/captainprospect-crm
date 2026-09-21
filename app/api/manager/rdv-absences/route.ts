@@ -43,7 +43,10 @@ const MEETING_INCLUDE = {
             clientNote: true,
             source: true,
             updatedAt: true,
+            standByAt: true,
+            standByReason: true,
             reportedBy: { select: { id: true, name: true } },
+            standBy: { select: { id: true, name: true } },
         },
     },
     campaign: {
@@ -97,6 +100,9 @@ function serialise(m: MeetingRow) {
                 source: m.meetingFeedback.source,
                 reportedBy: m.meetingFeedback.reportedBy?.name ?? null,
                 reportedAt: m.meetingFeedback.updatedAt.toISOString(),
+                standByAt: m.meetingFeedback.standByAt?.toISOString() ?? null,
+                standByReason: m.meetingFeedback.standByReason,
+                standByBy: m.meetingFeedback.standBy?.name ?? null,
             }
             : null,
     };
@@ -105,9 +111,10 @@ function serialise(m: MeetingRow) {
 /**
  * GET /api/manager/rdv-absences?scope=all|pending|reported
  *
- * `all` (default) returns both lists, which is what the page needs in one trip:
+ * `all` (default) returns the three lists, which is what the page needs in one trip:
  * `pending`  — past meetings with no verdict yet, the ones to act on.
  * `reported` — no-shows already recorded, so a mistake can be spotted.
+ * `standby`  — no-shows set aside: still recorded, but off the SDR boards.
  */
 export const GET = withErrorHandler(async (request: NextRequest) => {
     await requireRole(["MANAGER"], request);
@@ -137,17 +144,23 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     ]);
 
     const pending = pendingRows.map(serialise);
-    const reported = reportedRows.map(serialise);
+    const allReported = reportedRows.map(serialise);
+    // A no-show set aside is still a no-show on record — it just belongs in its
+    // own list rather than in the active backlog everyone is working through.
+    const reported = allReported.filter((m) => !m.feedback?.standByAt);
+    const standby = allReported.filter((m) => m.feedback?.standByAt);
 
     return successResponse({
         pending,
         reported,
+        standby,
         sdrs,
         kpis: {
             absents: reported.length,
             pending: pending.length,
             pendingLate: pending.filter((m) => !m.portalWindowOpen).length,
             reportedManually: reported.filter((m) => m.feedback?.source === "MANAGER_MANUAL").length,
+            standby: standby.length,
             windowHours: NO_SHOW_REPORT_WINDOW_HOURS,
         },
     });
@@ -198,6 +211,11 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             recontactRequested: body.recontactRequested,
             ...(note !== null ? { clientNote: note } : {}),
             reportedById: session.user.id,
+            // Re-flagging or reassigning an absence means it is live again:
+            // it would be pushed to an SDR who cannot see it otherwise.
+            standByAt: null,
+            standByReason: null,
+            standById: null,
         },
     });
 
@@ -248,6 +266,54 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         sdrName: action.sdr?.name ?? null,
         reportedBy: reporter,
         note,
+    });
+
+    const refreshed = await prisma.action.findUnique({
+        where: { id: action.id },
+        include: MEETING_INCLUDE,
+    });
+
+    return successResponse(refreshed ? serialise(refreshed) : null);
+});
+
+const StandByBody = z.object({
+    actionId: z.string().min(1),
+    /** true = set aside, false = put it back in the active backlog. */
+    standBy: z.boolean(),
+    reason: z.string().max(1000).optional(),
+});
+
+/**
+ * PATCH /api/manager/rdv-absences
+ *
+ * "Absent en stand by": the absence is real and stays on record, but it is not
+ * something anyone should be calling right now. Stamping `standByAt` is what
+ * takes it off the SDR absence banner and out of the priority calling queue —
+ * the alternative was to cancel or re-flag the RDV, which misreports what
+ * happened. Sending `standBy: false` puts it straight back.
+ */
+export const PATCH = withErrorHandler(async (request: NextRequest) => {
+    const session = await requireRole(["MANAGER"], request);
+    const body = await validateRequest(request, StandByBody);
+
+    const action = await prisma.action.findUnique({
+        where: { id: body.actionId },
+        include: MEETING_INCLUDE,
+    });
+    if (!action) throw new NotFoundError("RDV introuvable");
+    if (!action.meetingFeedback || action.meetingFeedback.outcome !== "NO_SHOW") {
+        throw new ValidationError("Ce RDV n'est pas signalé absent");
+    }
+
+    await prisma.meetingFeedback.update({
+        where: { actionId: action.id },
+        data: body.standBy
+            ? {
+                standByAt: new Date(),
+                standByReason: body.reason?.trim() || null,
+                standById: session.user.id,
+            }
+            : { standByAt: null, standByReason: null, standById: null },
     });
 
     const refreshed = await prisma.action.findUnique({

@@ -270,24 +270,38 @@ export default function ClientSupportRoot() {
         const list = await fetchConversationsList();
         setConversations(list);
 
+        // Auto-routing, in priority order:
+        //  1. no request yet          → NEW (straight to the form)
+        //  2. exactly one request     → THREAD on it
+        //  3. something unread        → THREAD on the most recent unread one
+        //  4. otherwise               → LIST
         if (list.length === 0) {
             setView("NEW");
-        } else if (list.length === 1) {
+            return;
+        }
+
+        if (list.length === 1) {
             await handleSelectConversation(list[0].id);
             setView("THREAD");
-        } else {
-            // If there's an unread conversation, open it
-            const unreadConv = list.find((c) => c.unreadCount > 0);
-            if (unreadConv) {
-                await handleSelectConversation(unreadConv.id);
-                setView("THREAD");
-            } else if (activeConversation) {
-                setView("THREAD");
-            } else {
-                setView("LIST");
-            }
+            return;
         }
-    }, [fetchConversationsList, handleSelectConversation, activeConversation]);
+
+        const newestUnread = list
+            .filter((c) => c.unreadCount > 0)
+            .sort(
+                (a, b) =>
+                    new Date(b.lastMessageAt ?? 0).getTime() -
+                    new Date(a.lastMessageAt ?? 0).getTime(),
+            )[0];
+
+        if (newestUnread) {
+            await handleSelectConversation(newestUnread.id);
+            setView("THREAD");
+            return;
+        }
+
+        setView("LIST");
+    }, [fetchConversationsList, handleSelectConversation]);
 
     const handleClose = useCallback(() => {
         setIsOpen(false);
@@ -296,6 +310,28 @@ export default function ClientSupportRoot() {
             setActiveConversation((cur) => (cur ? { ...cur, unreadCount: 0 } : cur));
         }
     }, [activeConversation, markRead]);
+
+    // Esc backs out one level: THREAD/NEW → LIST when there is a list to go back
+    // to, otherwise it closes the widget.
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            // The image lightbox owns Esc while it is open.
+            if (document.body.hasAttribute("data-cp-sup-lightbox")) return;
+
+            e.preventDefault();
+            if (view !== "LIST" && conversations.length > 1) {
+                setView("LIST");
+                return;
+            }
+            handleClose();
+        };
+
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [isOpen, view, conversations.length, handleClose]);
 
     const handleConversationUpdate = useCallback((next: SupportConversationDetailDTO) => {
         setActiveConversation(next);

@@ -20,6 +20,7 @@ const EMPTY_DESCRIPTIONS: Record<StatusFilter, string> = {
     past: "Aucun rendez-vous passé.",
     confirmed: "Aucun rendez-vous confirmé.",
     absent: "Aucun rendez-vous marqué absent.",
+    negative: "Aucun retour négatif sur vos rendez-vous.",
     cancelled: "Aucun rendez-vous annulé.",
 };
 

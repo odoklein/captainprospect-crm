@@ -2,6 +2,7 @@ import { Check, FileText, History, Loader2, MessageSquare, Save, X } from "lucid
 import { Button, Drawer } from "@/components/ui";
 import { formatScheduledDate, getAvatarColor, getInitials, getRdvStatus } from "../../_lib/formatters";
 import { StatusBadge } from "../StatusBadge";
+import { MeetingFeedbackPanel } from "../MeetingFeedbackPanel";
 import { DetailTab } from "./DetailTab";
 import { NoteTab } from "./NoteTab";
 import { HistoryTab } from "./HistoryTab";
@@ -94,6 +95,12 @@ export function DetailDrawer({ meeting, drawer, isSaving, isCancelling, onClose,
                         </span>
                     </div>
                 </div>
+
+                {/* The client's verdict and, above all, its comment: at the top of the
+                    fiche, before the tabs, so it is read without hunting for it. */}
+                {meeting.meetingFeedback && (
+                    <MeetingFeedbackPanel feedback={meeting.meetingFeedback} />
+                )}
 
                 {/* Tabs, matching the manager drawer's own tab bar visual language */}
                 <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border)" }}>

@@ -466,6 +466,7 @@ model User {
 
   // Manual no-show reports raised past the 48h portal window
   reportedMeetingFeedbacks MeetingFeedback[] @relation("MeetingFeedbackReportedBy")
+  standByMeetingFeedbacks  MeetingFeedback[] @relation("MeetingFeedbackStandBy")
 
   // Billing Module
   createdInvoices   Invoice[]         @relation("InvoiceCreator")
@@ -3262,11 +3263,19 @@ model MeetingFeedback {
   source             MeetingFeedbackSource?
   reportedById       String?
   reportedBy         User?                  @relation("MeetingFeedbackReportedBy", fields: [reportedById], references: [id], onDelete: SetNull)
+  /// "Absent en stand by" — the no-show stays on record but is set aside: it
+  /// leaves the SDR absence banner and the priority calling queue, without
+  /// being closed, cancelled or rewritten as something it was not.
+  standByAt          DateTime?
+  standByReason      String?                @db.Text
+  standById          String?
+  standBy            User?                  @relation("MeetingFeedbackStandBy", fields: [standById], references: [id], onDelete: SetNull)
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
   @@index([source])
   @@index([reportedById])
+  @@index([standByAt])
 }
 
 model SdrDailyFeedback {

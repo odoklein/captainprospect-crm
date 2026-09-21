@@ -481,7 +481,14 @@ function SupportImageLightbox({
             if (e.key === "Escape") onClose();
         };
         window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+        // Flag the lightbox on <body> so the panel/workspace Esc handlers stand
+        // down while it is up — otherwise one Esc closes the image *and* the
+        // surface behind it.
+        document.body.setAttribute("data-cp-sup-lightbox", "open");
+        return () => {
+            window.removeEventListener("keydown", onKey);
+            document.body.removeAttribute("data-cp-sup-lightbox");
+        };
     }, [onClose]);
 
     // Rendered in a portal: the support panel animates with `transform`, which

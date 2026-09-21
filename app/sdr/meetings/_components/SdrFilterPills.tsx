@@ -12,6 +12,7 @@ const FILTERS = [
     { key: "upcoming" as const, label: "À venir" },
     { key: "confirmed" as const, label: "Confirmés" },
     { key: "absent" as const, label: "Absents" },
+    { key: "negative" as const, label: "Négatifs" },
     { key: "past" as const, label: "Passés" },
     { key: "cancelled" as const, label: "Annulés" },
 ];

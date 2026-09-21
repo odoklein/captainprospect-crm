@@ -52,6 +52,26 @@ export function SupportStyles() {
             @keyframes cpSupScaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
             @keyframes cpSupSlideLeft { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
 
+            @keyframes cpSupShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+            /* Skeleton placeholder used by the list + message-stream loaders.
+               The shimmer is purely decorative, so it is dropped entirely when
+               the visitor asked for reduced motion. */
+            .cp-sup-skel {
+                border-radius: 8px;
+                background: linear-gradient(
+                    90deg,
+                    rgba(43,58,43,0.06) 0%,
+                    rgba(43,58,43,0.12) 50%,
+                    rgba(43,58,43,0.06) 100%
+                );
+                background-size: 200% 100%;
+                animation: cpSupShimmer 1.4s ease-in-out infinite;
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .cp-sup-skel { animation: none; }
+            }
+
             .cp-support-root .cp-sup-scroll-hidden::-webkit-scrollbar { display: none; }
             .cp-support-root .cp-sup-scroll-hidden { scrollbar-width: none; -ms-overflow-style: none; }
 

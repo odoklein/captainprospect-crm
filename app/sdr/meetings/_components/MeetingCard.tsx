@@ -6,13 +6,15 @@ import {
     Linkedin,
     Mail,
     MapPin,
+    MessageSquareQuote,
+    PauseCircle,
     Phone,
     Video,
     XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { getAvatarColor, getInitials, getMeetingDisplayDate, getRdvStatus, formatCardMonth, formatCardTime } from "../_lib/formatters";
+import { getAvatarColor, getDisplayNote, getInitials, getMeetingDisplayDate, getRdvStatus, formatCardMonth, formatCardTime, isOpenNoShow } from "../_lib/formatters";
 import { StatusBadge } from "./StatusBadge";
 import type { Meeting } from "../_types";
 
@@ -27,12 +29,15 @@ interface MeetingCardProps {
 export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContextMenu }: MeetingCardProps) {
     const d = getMeetingDisplayDate(meeting);
     const status = getRdvStatus(meeting);
+    const feedback = meeting.meetingFeedback;
+    const openNoShow = isOpenNoShow(meeting);
+    const displayNote = getDisplayNote(meeting);
 
     return (
         <div
             className={cn(
                 "group overflow-hidden rounded-[22px] border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
-                meeting.meetingFeedback?.outcome === "NO_SHOW"
+                openNoShow
                     ? "border-red-300 bg-red-50/30 ring-1 ring-red-100 hover:border-red-400"
                     : "border-slate-200 bg-white hover:border-slate-300"
             )}
@@ -74,21 +79,27 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                                 En attente
                             </span>
                         )}
-                        {meeting.meetingFeedback?.outcome === "NO_SHOW" && (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border bg-red-50 text-red-700 border-red-200 animate-pulse">
-                                <XCircle className="w-2.5 h-2.5" />
-                                Absent
-                                {meeting.meetingFeedback.recontactRequested === "YES" && " — A recontacter"}
-                            </span>
-                        )}
-                        {meeting.meetingFeedback && meeting.meetingFeedback.outcome !== "NO_SHOW" && (
+                        {feedback?.outcome === "NO_SHOW" && (
                             <span className={cn(
                                 "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border",
-                                meeting.meetingFeedback.outcome === "POSITIVE" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
-                                meeting.meetingFeedback.outcome === "NEUTRAL" ? "bg-slate-50 text-slate-700 border-slate-200" :
+                                openNoShow
+                                    ? "bg-red-50 text-red-700 border-red-200 animate-pulse"
+                                    : "bg-slate-50 text-slate-600 border-slate-200",
+                            )}>
+                                {openNoShow ? <XCircle className="w-2.5 h-2.5" /> : <PauseCircle className="w-2.5 h-2.5" />}
+                                Absent
+                                {!openNoShow && feedback.standByAt && " — en stand by"}
+                                {openNoShow && feedback.recontactRequested === "YES" && " — A recontacter"}
+                            </span>
+                        )}
+                        {feedback && feedback.outcome !== "NO_SHOW" && (
+                            <span className={cn(
+                                "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border",
+                                feedback.outcome === "POSITIVE" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                feedback.outcome === "NEUTRAL" ? "bg-slate-50 text-slate-700 border-slate-200" :
                                 "bg-orange-50 text-orange-700 border-orange-200"
                             )}>
-                                {meeting.meetingFeedback.outcome === "POSITIVE" ? "Positif" : meeting.meetingFeedback.outcome === "NEUTRAL" ? "Neutre" : "Négatif"}
+                                {feedback.outcome === "POSITIVE" ? "Positif" : feedback.outcome === "NEUTRAL" ? "Neutre" : "Négatif"}
                             </span>
                         )}
                         {meeting.meetingType && (
@@ -171,9 +182,32 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                         )}
                     </div>
 
-                    {meeting.note && (
+                    {/* Why the RDV got that verdict. "Négatif" on its own leaves the
+                        team guessing, so the client's comment is carried on the card
+                        itself rather than being buried one click away. */}
+                    {feedback?.clientNote && (
+                        <div className={cn(
+                            "rounded-r border-l-2 py-2 pl-3 text-sm",
+                            feedback.outcome === "POSITIVE" ? "border-emerald-300 bg-emerald-50/60" :
+                            feedback.outcome === "NEGATIVE" ? "border-orange-300 bg-orange-50/60" :
+                            feedback.outcome === "NO_SHOW" ? "border-red-300 bg-red-50/60" :
+                            "border-slate-300 bg-slate-50",
+                        )}>
+                            <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                                <MessageSquareQuote className="h-3 w-3" />
+                                <span>Retour du client</span>
+                                {feedback.recontactRequested === "YES" && <span>· à recontacter</span>}
+                                {feedback.recontactRequested === "NO" && <span>· ne pas recontacter</span>}
+                            </div>
+                            <p className="whitespace-pre-wrap break-words italic leading-relaxed text-slate-700">
+                                &ldquo;{feedback.clientNote}&rdquo;
+                            </p>
+                        </div>
+                    )}
+
+                    {displayNote && (
                         <div className="text-sm text-slate-600 bg-slate-50 border-l-2 border-slate-300 pl-3 py-2 rounded-r italic">
-                            &ldquo;{meeting.note}&rdquo;
+                            &ldquo;{displayNote}&rdquo;
                         </div>
                     )}
                 </div>

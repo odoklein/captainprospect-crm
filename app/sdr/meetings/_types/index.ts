@@ -6,6 +6,9 @@ export interface MeetingFeedbackData {
     recontactRequested: "YES" | "NO" | "MAYBE";
     clientNote?: string | null;
     createdAt: string;
+    /** Set when a manager put the absence on stand by — it leaves the SDR boards. */
+    standByAt?: string | null;
+    standByReason?: string | null;
 }
 
 export interface Meeting {
@@ -76,4 +79,4 @@ export interface List {
 
 export type RdvStatus = "upcoming" | "past" | "cancelled";
 export type DetailDrawerTab = "detail" | "note" | "history";
-export type StatusFilter = RdvStatus | "all" | "confirmed" | "absent";
+export type StatusFilter = RdvStatus | "all" | "confirmed" | "absent" | "negative";

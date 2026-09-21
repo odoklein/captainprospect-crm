@@ -130,6 +130,8 @@ export async function GET(request: NextRequest) {
                         recontactRequested: true,
                         clientNote: true,
                         createdAt: true,
+                        standByAt: true,
+                        standByReason: true,
                     },
                 },
             },

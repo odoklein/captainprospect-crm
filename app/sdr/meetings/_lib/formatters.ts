@@ -4,9 +4,30 @@ import type { Meeting, RdvStatus } from "../_types";
  * An absence still to deal with: flagged NO_SHOW and not yet closed. Once the
  * RDV has been replaced it is cancelled with the "replaced" reason, and it
  * drops off the absence boards instead of sitting there for good.
+ *
+ * A manager can also park one ("absent en stand by") from /manager/rdv-absences:
+ * it stays recorded, but it is not the SDR's problem today, so it leaves here too.
  */
 export function isOpenNoShow(m: Meeting): boolean {
-    return m.meetingFeedback?.outcome === "NO_SHOW" && m.result !== "MEETING_CANCELLED";
+    return (
+        m.meetingFeedback?.outcome === "NO_SHOW"
+        && !m.meetingFeedback.standByAt
+        && m.result !== "MEETING_CANCELLED"
+    );
+}
+
+/**
+ * Bookings made through a client calendar carry a machine-written note
+ * ("RDV planifié via calendrier (X)", historically followed by an empty JSON
+ * dump). It says nothing to whoever reads the card, so it is hidden here the
+ * same way it already is in the client and commercial portals.
+ */
+const BOOKING_TRACE_NOTE = /^RDV planifié via calendrier[\s\S]*$/;
+
+export function getDisplayNote(m: Meeting): string | null {
+    const note = m.note?.trim();
+    if (!note || BOOKING_TRACE_NOTE.test(note)) return null;
+    return note;
 }
 
 export function getRdvStatus(m: Meeting): RdvStatus {
