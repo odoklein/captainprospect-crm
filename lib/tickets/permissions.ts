@@ -8,9 +8,12 @@ import type { UserRole } from "@prisma/client";
  * Summary:
  *  - MANAGER   : full control, sole owner of priority, assignment and publication
  *  - DEVELOPER : reads every ticket, moves the status of the ones assigned to them
- *  - everyone else (CLIENT, SDR, BD, COMMERCIAL, BOOKER) : no access to the
- *    internal surface at all. Clients only ever reach the roadmap/changelog
- *    endpoints, which read from a separate, field-allowlisted query.
+ *  - SDR / BD / BOOKER (sales team) : may file a request and read their own,
+ *    nothing more. The request waits in the "À valider" queue until a manager
+ *    accepts it — see canSubmitTicketRequest / canValidateTicket.
+ *  - CLIENT, COMMERCIAL : no access to the internal surface at all. Clients only
+ *    ever reach the roadmap/changelog endpoints, which read from a separate,
+ *    field-allowlisted query.
  */
 
 export interface TicketActor {
@@ -25,8 +28,35 @@ export interface TicketOwnership {
 /** Roles allowed anywhere near the internal ticket surface. */
 export const TICKET_INTERNAL_ROLES: UserRole[] = ["MANAGER", "DEVELOPER"];
 
+/**
+ * The internal sales team. They may file a request and follow their own, but
+ * never see the board — so a ticket about another team's client stays out of
+ * reach. A request of theirs lands as PENDING validation, never as work.
+ */
+export const TICKET_REQUESTER_ROLES: UserRole[] = ["SDR", "BUSINESS_DEVELOPER", "BOOKER"];
+
 export function canAccessTickets(actor: TicketActor): boolean {
     return TICKET_INTERNAL_ROLES.includes(actor.role);
+}
+
+/** Filing a request is not creating a ticket: no priority, no assignee, no scope. */
+export function canSubmitTicketRequest(actor: TicketActor): boolean {
+    return TICKET_REQUESTER_ROLES.includes(actor.role);
+}
+
+/** Accepting or rejecting a pending request — the manager's triage decision. */
+export function canValidateTicket(actor: TicketActor): boolean {
+    return actor.role === "MANAGER";
+}
+
+/**
+ * A requester reads their own submissions and nothing else; the internal roles
+ * read everything. Used by the detail endpoint, where "my request" is a
+ * legitimate read even though the board is not.
+ */
+export function canReadOwnRequest(actor: TicketActor, ticket: { requesterId: string }): boolean {
+    if (canAccessTickets(actor)) return true;
+    return canSubmitTicketRequest(actor) && ticket.requesterId === actor.id;
 }
 
 export function canViewTicket(actor: TicketActor): boolean {

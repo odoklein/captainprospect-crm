@@ -1,4 +1,4 @@
-import { Prisma, type TicketStatus, type UserRole } from "@prisma/client";
+import { Prisma, type TicketScope, type TicketStatus, type UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ValidationError } from "@/lib/api-utils";
 import { TICKET_STATUS_TRANSITIONS, TICKET_STATUS_LABELS, USER_ROLE_LABELS } from "./constants";
@@ -43,6 +43,19 @@ export function assertStatusTransition(from: TicketStatus, to: TicketStatus) {
         throw new ValidationError(
             `Transition impossible : ${TICKET_STATUS_LABELS[from]} → ${TICKET_STATUS_LABELS[to]}`,
         );
+    }
+}
+
+/**
+ * A client-facing ticket changes what the client sees, so CLIENT always belongs
+ * in `affectedRoles` — otherwise the release checklist signs the ticket off on
+ * the developer's word alone and nobody ever verifies the client side.
+ * Enforced here rather than only in the form so a crafted POST/PATCH cannot
+ * drop the role.
+ */
+export function assertAffectedRolesMatchScope(scope: TicketScope, affectedRoles: UserRole[]) {
+    if (scope === "CLIENT_FACING" && !affectedRoles.includes("CLIENT")) {
+        throw new ValidationError("Un ticket client doit inclure le rôle Client dans les rôles impactés");
     }
 }
 

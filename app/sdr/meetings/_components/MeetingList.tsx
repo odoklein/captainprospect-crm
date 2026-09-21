@@ -18,7 +18,7 @@ const EMPTY_DESCRIPTIONS: Record<StatusFilter, string> = {
     all: "Vos rendez-vous validés apparaîtront ici.",
     upcoming: "Aucun rendez-vous à venir.",
     past: "Aucun rendez-vous passé.",
-    confirmed: "Aucun rendez-vous confirmé.",
+    valid: "Aucun rendez-vous éligible aux primes pour le moment.",
     absent: "Aucun rendez-vous marqué absent.",
     negative: "Aucun retour négatif sur vos rendez-vous.",
     cancelled: "Aucun rendez-vous annulé.",

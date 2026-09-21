@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
         const userId = session.user.id;
 
-        const [projectCount, taskCount, pendingTaskCount, emailCount] = await Promise.all([
+        const [projectCount, taskCount, pendingTaskCount, emailCount, ticketCount, pendingTicketCount] = await Promise.all([
             // Projects: Owner or Member
             prisma.project.count({
                 where: {
@@ -37,6 +37,25 @@ export async function GET(req: NextRequest) {
             prisma.emailAccount.count({
                 where: { userId },
             }),
+            // Support Tickets assigned to user or created by user
+            prisma.ticket.count({
+                where: {
+                    OR: [
+                        { assigneeId: userId },
+                        { authorId: userId },
+                    ],
+                },
+            }),
+            // Pending Support Tickets
+            prisma.ticket.count({
+                where: {
+                    OR: [
+                        { assigneeId: userId },
+                        { authorId: userId },
+                    ],
+                    status: { notIn: ["RESOLVED", "CLOSED"] },
+                },
+            }),
         ]);
 
         return NextResponse.json({
@@ -46,6 +65,8 @@ export async function GET(req: NextRequest) {
                 tasks: taskCount,
                 pendingTasks: pendingTaskCount,
                 emailAccounts: emailCount,
+                tickets: ticketCount,
+                pendingTickets: pendingTicketCount,
             },
         });
     } catch (error) {

@@ -1,6 +1,13 @@
-import type { TaskPriority, TicketCategory, TicketScope, TicketStatus, UserRole } from "@prisma/client";
+import type {
+    TaskPriority,
+    TicketCategory,
+    TicketScope,
+    TicketStatus,
+    TicketValidation,
+    UserRole,
+} from "@prisma/client";
 
-export type { TaskPriority, TicketCategory, TicketScope, TicketStatus, UserRole };
+export type { TaskPriority, TicketCategory, TicketScope, TicketStatus, TicketValidation, UserRole };
 
 interface UserRef {
     id: string;
@@ -23,6 +30,9 @@ export interface TicketListItem {
     updatedAt: string;
     createdAt: string;
     publishToRoadmap: boolean;
+    /** PENDING = filed by the sales team, waiting on a manager's ruling. */
+    validation: TicketValidation;
+    rejectionReason: string | null;
     assigneeId: string | null;
     requester: UserRef;
     assignee: UserRef | null;

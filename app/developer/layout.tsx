@@ -8,7 +8,10 @@ import {
     LayoutDashboard,
     FolderKanban,
     CheckSquare,
-    Mail,
+    Inbox,
+    LifeBuoy,
+    MessageSquare,
+    Radio,
     Settings,
     LogOut,
     Code2,
@@ -22,7 +25,10 @@ const NAV_ITEMS = [
     { href: "/developer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/developer/projects", icon: FolderKanban, label: "Projets" },
     { href: "/developer/tasks", icon: CheckSquare, label: "Tâches" },
-    { href: "/developer/integrations", icon: Mail, label: "Intégrations" },
+    { href: "/developer/mailbox", icon: Inbox, label: "Mailbox" },
+    { href: "/developer/tickets", icon: LifeBuoy, label: "Support Technique" },
+    { href: "/developer/comms", icon: MessageSquare, label: "Communications" },
+    { href: "/developer/integrations", icon: Radio, label: "Intégrations" },
     { href: "/developer/settings", icon: Settings, label: "Paramètres" },
 ];
 
@@ -141,7 +147,12 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
                     </div>
                     <NotificationBell />
                 </header>
-                <div className="max-w-6xl mx-auto p-6 w-full">{children}</div>
+                {/* Main Content Area */}
+                {pathname.startsWith("/developer/mailbox") || pathname.startsWith("/developer/tickets") || pathname.startsWith("/developer/comms") ? (
+                    <div className="flex-1 w-full h-[calc(100vh-57px)] overflow-hidden">{children}</div>
+                ) : (
+                    <div className="max-w-6xl mx-auto p-6 w-full">{children}</div>
+                )}
             </main>
         </div>
     );

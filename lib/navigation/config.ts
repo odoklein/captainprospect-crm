@@ -306,6 +306,12 @@ export const SDR_NAV: NavSection[] = [
         label: "Planning",
         permission: "pages.planning",
       },
+      {
+        href: "/sdr/support-technique",
+        icon: LifeBuoy,
+        label: "Support technique",
+        permission: "pages.ticket_requests",
+      },
     ],
   },
 ];
@@ -364,6 +370,12 @@ export const BOOKER_NAV: NavSection[] = [
         icon: Calendar,
         label: "Mes RDV",
         permission: "pages.opportunities",
+      },
+      {
+        href: "/sdr/support-technique",
+        icon: LifeBuoy,
+        label: "Support technique",
+        permission: "pages.ticket_requests",
       },
     ],
   },
@@ -440,6 +452,12 @@ export const BD_NAV: NavSection[] = [
         icon: Settings,
         label: "Mon profil",
         permission: "pages.settings",
+      },
+      {
+        href: "/sdr/support-technique",
+        icon: LifeBuoy,
+        label: "Support technique",
+        permission: "pages.ticket_requests",
       },
     ],
   },

@@ -331,6 +331,41 @@ enum AuthOutcome {
 }
 
 // ============================================
+// MESSAGING INTEGRATION ENUMS
+// ============================================
+
+enum MessagingProvider {
+  SLACK
+  DISCORD
+  TEAMS
+  GOOGLE_CHAT
+  GENERIC_WEBHOOK
+}
+
+enum MessagingDeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  DEAD_LETTER
+  SKIPPED
+}
+
+enum MessagingEntityType {
+  ACTION
+  SUPPORT_CONVERSATION
+  TICKET
+  DIGEST
+  MISSION
+  CLIENT
+}
+
+enum MessagingVisibility {
+  INTERNAL
+  CLIENT_SHARED
+}
+
+// ============================================
 // MODELS
 // ============================================
 
@@ -496,9 +531,15 @@ model User {
   // Support Technique — development tickets
   requestedTickets     Ticket[]             @relation("TicketRequester")
   assignedTickets      Ticket[]             @relation("TicketAssignee")
+  validatedTickets     Ticket[]             @relation("TicketValidator")
+  outOfScopeFeedbacks  MeetingFeedback[]    @relation("MeetingFeedbackOutOfScope")
   ticketComments       TicketComment[]      @relation("TicketCommentAuthor")
   ticketHistoryEntries TicketHistory[]      @relation("TicketHistoryActor")
   ticketReleaseChecks  TicketReleaseCheck[] @relation("TicketReleaseChecker")
+
+  // Messaging Integration
+  messagingWorkspacesInstalled MessagingWorkspace[] @relation("MessagingWorkspaceInstaller")
+  messagingIdentities          MessagingIdentity[]  @relation("MessagingIdentityUser")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -691,6 +732,9 @@ model Client {
   // Support Technique — development tickets
   tickets Ticket[]
 
+  // Messaging Integration
+  messagingRoutes MessagingRoute[] @relation("MessagingRouteClient")
+
   archivedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -814,6 +858,9 @@ model Mission {
 
   // Support Technique — development tickets
   tickets Ticket[]
+
+  // Messaging Integration
+  messagingRoutes MessagingRoute[] @relation("MessagingRouteMission")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3270,12 +3317,20 @@ model MeetingFeedback {
   standByReason      String?                @db.Text
   standById          String?
   standBy            User?                  @relation("MeetingFeedbackStandBy", fields: [standById], references: [id], onDelete: SetNull)
+  /// "Hors scope" — the absence will never be replaced, so it is retired from
+  /// the space for good. Distinct from stand by, which is a pause the manager
+  /// expects to undo: an out-of-scope RDV is a decision, not a deferral.
+  outOfScopeAt       DateTime?
+  outOfScopeReason   String?                @db.Text
+  outOfScopeById     String?
+  outOfScopeBy       User?                  @relation("MeetingFeedbackOutOfScope", fields: [outOfScopeById], references: [id], onDelete: SetNull)
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
   @@index([source])
   @@index([reportedById])
   @@index([standByAt])
+  @@index([outOfScopeAt])
 }
 
 model SdrDailyFeedback {
@@ -4140,6 +4195,17 @@ enum TicketStatus {
   COMPLETED
 }
 
+/// Whether a ticket still has to be accepted by a manager before it counts as
+/// work. Manager-created tickets skip this entirely (NOT_REQUIRED); requests
+/// filed by the internal sales team land as PENDING and show up in the
+/// "À valider" queue of Support Technique until a manager rules on them.
+enum TicketValidation {
+  NOT_REQUIRED
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 model Ticket {
   id     String @id @default(cuid())
   /// Human-readable reference shown in the UI as #TC-0001.
@@ -4155,6 +4221,14 @@ model Ticket {
 
   priority TaskPriority @default(MEDIUM)
   status   TicketStatus @default(NEW)
+
+  /// Intake gate for tickets filed by the sales team — see TicketValidation.
+  validation       TicketValidation @default(NOT_REQUIRED)
+  validatedAt      DateTime?
+  validatedById    String?
+  validatedBy      User?            @relation("TicketValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  /// Why a request was turned down, so the requester gets an answer and not silence.
+  rejectionReason  String?          @db.Text
 
   // Client roadmap publication. Deliberately decoupled from `scope` and
   // `status`: a CLIENT_FACING ticket stays invisible to the client until a
@@ -4198,6 +4272,7 @@ model Ticket {
   @@index([requesterId])
   @@index([publishToRoadmap, status])
   @@index([dueDate])
+  @@index([validation, createdAt])
 }
 
 model TicketComment {
@@ -4250,4 +4325,144 @@ model TicketReleaseCheck {
 
   @@unique([ticketId, role])
   @@index([ticketId])
+}
+
+// ============================================
+// MESSAGING INTEGRATION
+// ============================================
+
+/// One installed workspace / guild / tenant.
+model MessagingWorkspace {
+  id               String            @id @default(cuid())
+  provider         MessagingProvider
+  externalTeamId   String                       // Slack T…, Discord guild id
+  teamName         String?
+  /// AES-256-GCM via lib/encryption.ts. Never returned to the browser.
+  botTokenEnc      String?
+  signingSecretEnc String?
+  botUserId        String?                      // echo suppression
+  appId            String?
+  scopes           String[]          @default([])
+  isActive         Boolean           @default(true)
+  installedById    String?
+  installedBy      User?             @relation("MessagingWorkspaceInstaller", fields: [installedById], references: [id], onDelete: SetNull)
+  lastHealthyAt    DateTime?
+  lastErrorAt      DateTime?
+  lastError        String?           @db.Text
+  routes           MessagingRoute[]
+  links            MessagingLink[]
+  identities       MessagingIdentity[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@unique([provider, externalTeamId])
+}
+
+/// Routing rule: which events, for which scope, go to which channel.
+/// Most specific wins: mission > client > global.
+model MessagingRoute {
+  id           String              @id @default(cuid())
+  workspaceId  String
+  workspace    MessagingWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  label        String
+  channelId    String                            // C… / channel id / webhook url
+  channelName  String?
+  /// Empty = every event type. Otherwise ["rdv.booked", "support.*"] (glob ok).
+  eventTypes   String[]            @default([])
+  clientId     String?
+  client       Client?             @relation("MessagingRouteClient", fields: [clientId], references: [id], onDelete: Cascade)
+  missionId    String?
+  mission      Mission?            @relation("MessagingRouteMission", fields: [missionId], references: [id], onDelete: Cascade)
+  visibility   MessagingVisibility @default(INTERNAL)
+  /// Only fire when severity >= this (e.g. NEGATIVE / NO_SHOW only).
+  minSeverity  Int                 @default(0)
+  isActive     Boolean             @default(true)
+  /// Accept inbound replies from this channel back into the CRM.
+  allowInbound Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([workspaceId, isActive])
+  @@index([clientId])
+  @@index([missionId])
+}
+
+/// CRM entity ⇄ posted message. The keystone.
+model MessagingLink {
+  id           String              @id @default(cuid())
+  workspaceId  String
+  workspace    MessagingWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  entityType   MessagingEntityType
+  entityId     String
+  channelId    String
+  messageTs    String                            // Slack ts / Discord message id
+  /// Parent when this row is a thread reply we posted.
+  rootTs       String?
+  /// Hash of the last rendered payload — skip a no-op edit.
+  renderHash   String?
+  isRoot       Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([workspaceId, channelId, messageTs])
+  @@index([entityType, entityId])
+  @@index([workspaceId, rootTs])
+}
+
+/// Durable outbound queue. Survives a serverless cold stop.
+model MessagingOutbox {
+  id            String                  @id @default(cuid())
+  workspaceId   String
+  routeId       String?
+  eventType     String
+  entityType    MessagingEntityType
+  entityId      String
+  /// Render-agnostic payload; the adapter formats at send time.
+  payload       Json
+  /// Same key = same logical message. Blocks double-posting on retry.
+  dedupeKey     String                  @unique
+  /// Rows sharing a serialKey are processed in order (one RDV = one lane).
+  serialKey     String
+  status        MessagingDeliveryStatus @default(PENDING)
+  attempts      Int                     @default(0)
+  nextAttemptAt DateTime?
+  lastError     String?                 @db.Text
+  sentAt        DateTime?
+  createdAt     DateTime                @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([serialKey])
+  @@index([entityType, entityId])
+}
+
+/// Chat user ⇄ CRM user. Required before any inbound mutation is honoured.
+model MessagingIdentity {
+  id             String             @id @default(cuid())
+  workspaceId    String
+  workspace      MessagingWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  externalUserId String                        // Slack U…
+  externalName   String?
+  userId         String
+  user           User               @relation("MessagingIdentityUser", fields: [userId], references: [id], onDelete: Cascade)
+  linkedAt       DateTime           @default(now())
+  lastSeenAt     DateTime?
+
+  @@unique([workspaceId, externalUserId])
+  @@index([userId])
+}
+
+/// Inbound idempotency + audit of anything done from chat.
+model MessagingInboundEvent {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  /// Slack event_id / Discord interaction id. Providers retry aggressively.
+  externalEventId String   @unique
+  kind            String                        // message | interaction | command
+  rawPayload      Json
+  handledAt       DateTime?
+  resultSummary   String?
+  error           String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
 }

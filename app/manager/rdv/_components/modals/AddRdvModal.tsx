@@ -77,6 +77,8 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
     bookingLinks: Array<{ label: string; url: string; durationMinutes: number }>;
     isActive: boolean;
   }>>([]);
+  /** Commercial the RDV is for. Empty string = no choice made, every calendar stays listed. */
+  const [selectedInterlocuteurId, setSelectedInterlocuteurId] = useState<string>("");
   const [showBookingDrawer, setShowBookingDrawer] = useState(false);
 
   const fetchMissions = useCallback(async () => {
@@ -112,6 +114,7 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
       setQuickListName("");
       setClientBookingUrl("");
       setClientInterlocuteurs([]);
+      setSelectedInterlocuteurId("");
       setShowBookingDrawer(false);
       setError(null);
     }
@@ -144,6 +147,8 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
   }, [missionId, missions]);
 
   useEffect(() => {
+    // The commercial belongs to the previous mission's client — never carry it over.
+    setSelectedInterlocuteurId("");
     if (!missionId) {
       setClientBookingUrl("");
       setClientInterlocuteurs([]);
@@ -597,6 +602,8 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
                   <select
                     className="rdv-input"
                     style={{ width: "100%" }}
+                    value={selectedInterlocuteurId}
+                    onChange={(e) => setSelectedInterlocuteurId(e.target.value)}
                   >
                     <option value="">Tous les commerciaux disponibles</option>
                     {clientInterlocuteurs
@@ -784,6 +791,7 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
         meetingJoinUrl={meetingJoinUrl}
         meetingPhone={meetingPhone}
         interlocuteurs={clientInterlocuteurs}
+        preferredInterlocuteurId={selectedInterlocuteurId || null}
         onRdvDateChange={(val) => setCallbackDate(val || "")}
         onMeetingTypeChange={setMeetingType}
         onMeetingCategoryChange={setMeetingCategory}

@@ -2,7 +2,20 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { FolderKanban, CheckSquare, Mail, ArrowRight, TrendingUp, Clock, Sparkles } from "lucide-react";
+import {
+    FolderKanban,
+    CheckSquare,
+    Mail,
+    Inbox,
+    LifeBuoy,
+    MessageSquare,
+    ArrowRight,
+    TrendingUp,
+    Clock,
+    Sparkles,
+    AlertCircle,
+    Send,
+} from "lucide-react";
 import Link from "next/link";
 
 interface Stats {
@@ -10,11 +23,20 @@ interface Stats {
     tasks: number;
     pendingTasks: number;
     emailAccounts: number;
+    tickets?: number;
+    pendingTickets?: number;
 }
 
 export default function DeveloperDashboard() {
     const { data: session } = useSession();
-    const [stats, setStats] = useState<Stats>({ projects: 0, tasks: 0, pendingTasks: 0, emailAccounts: 0 });
+    const [stats, setStats] = useState<Stats>({
+        projects: 0,
+        tasks: 0,
+        pendingTasks: 0,
+        emailAccounts: 0,
+        tickets: 0,
+        pendingTickets: 0,
+    });
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
@@ -64,21 +86,35 @@ export default function DeveloperDashboard() {
             description: "Total assignées",
         },
         {
-            title: "Comptes Email",
+            title: "Support Technique",
+            value: stats.tickets ?? 0,
+            subtitle: `${stats.pendingTickets ?? 0} ouverts`,
+            icon: LifeBuoy,
+            href: "/developer/tickets",
+            gradient: "from-amber-500 to-amber-600",
+            iconBg: "bg-amber-100",
+            iconColor: "text-amber-600",
+            description: "Tickets & bugs",
+        },
+        {
+            title: "Mailbox",
             value: stats.emailAccounts,
-            icon: Mail,
-            href: "/developer/integrations",
+            subtitle: "Boîte de réception",
+            icon: Inbox,
+            href: "/developer/mailbox",
             gradient: "from-violet-500 to-violet-600",
             iconBg: "bg-violet-100",
             iconColor: "text-violet-600",
-            description: "Connectés",
+            description: `${stats.emailAccounts} compte${stats.emailAccounts > 1 ? 's' : ''} lié${stats.emailAccounts > 1 ? 's' : ''}`,
         },
     ];
 
     const quickActions = [
-        { label: "Nouveau projet", href: "/developer/projects", icon: FolderKanban },
-        { label: "Voir mes tâches", href: "/developer/tasks", icon: CheckSquare },
-        { label: "Connecter un email", href: "/developer/integrations", icon: Mail },
+        { label: "Ouvrir la Mailbox", href: "/developer/mailbox", icon: Inbox, desc: "Consulter vos messages et répondre" },
+        { label: "Support Technique", href: "/developer/tickets", icon: LifeBuoy, desc: "Résoudre ou créer des tickets" },
+        { label: "Nouveau projet", href: "/developer/projects", icon: FolderKanban, desc: "Consulter ou initier un projet" },
+        { label: "Mes tâches", href: "/developer/tasks", icon: CheckSquare, desc: "Voir le Kanban et vos priorités" },
+        { label: "Discussions d'équipe", href: "/developer/comms", icon: MessageSquare, desc: "Échanger avec vos collaborateurs" },
     ];
 
     return (
@@ -104,7 +140,7 @@ export default function DeveloperDashboard() {
             </div>
 
             {/* Premium Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {cards.map((card, index) => (
                     <Link
                         key={card.title}
@@ -141,25 +177,28 @@ export default function DeveloperDashboard() {
                 <div className="flex items-center justify-between mb-5">
                     <div>
                         <h2 className="text-lg font-semibold text-slate-900">Actions rapides</h2>
-                        <p className="text-sm text-slate-500">Accédez rapidement aux fonctionnalités principales</p>
+                        <p className="text-sm text-slate-500">Accédez rapidement à vos outils développeur</p>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {quickActions.map((action, index) => (
                         <Link
                             key={action.label}
                             href={action.href}
-                            className="group flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200"
+                            className="group flex items-start gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200"
                         >
-                            <div className="w-12 h-12 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-200">
-                                <action.icon className="w-6 h-6 text-slate-500 group-hover:text-blue-600 transition-colors duration-200" />
+                            <div className="w-11 h-11 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-200 flex-shrink-0">
+                                <action.icon className="w-5 h-5 text-slate-500 group-hover:text-blue-600 transition-colors duration-200" />
                             </div>
-                            <div className="flex-1">
-                                <p className="text-sm font-medium text-slate-900 group-hover:text-blue-600 transition-colors duration-200">
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors duration-200">
                                     {action.label}
                                 </p>
+                                <p className="text-xs text-slate-500 mt-0.5 truncate">
+                                    {action.desc}
+                                </p>
                             </div>
-                            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200" />
+                            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
                         </Link>
                     ))}
                 </div>

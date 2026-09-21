@@ -21,7 +21,7 @@ import {
     NO_SHOW_REPORT_WINDOW_HOURS,
 } from "@/lib/meetings/noShowWindow";
 import { notifyManagersClientSignal, createNotification } from "@/lib/notifications";
-import { alertClientsLiveLateNoShow } from "@/lib/slack/clientsLive";
+import { emitCrmEvent } from "@/lib/integrations/messaging/events";
 
 /** How far back the list looks. Older than this and a no-show is history, not a task. */
 const LOOKBACK_DAYS = 120;
@@ -45,14 +45,20 @@ const MEETING_INCLUDE = {
             updatedAt: true,
             standByAt: true,
             standByReason: true,
+            outOfScopeAt: true,
+            outOfScopeReason: true,
             reportedBy: { select: { id: true, name: true } },
             standBy: { select: { id: true, name: true } },
+            outOfScopeBy: { select: { id: true, name: true } },
         },
     },
     campaign: {
         select: {
             name: true,
-            mission: { select: { id: true, name: true, client: { select: { id: true, name: true } } } },
+            // clientId/missionId are read by the emitCrmEvent payload below —
+            // the relations alone don't expose them.
+            missionId: true,
+            mission: { select: { id: true, name: true, clientId: true, client: { select: { id: true, name: true } } } },
         },
     },
 } as const;
@@ -103,6 +109,9 @@ function serialise(m: MeetingRow) {
                 standByAt: m.meetingFeedback.standByAt?.toISOString() ?? null,
                 standByReason: m.meetingFeedback.standByReason,
                 standByBy: m.meetingFeedback.standBy?.name ?? null,
+                outOfScopeAt: m.meetingFeedback.outOfScopeAt?.toISOString() ?? null,
+                outOfScopeReason: m.meetingFeedback.outOfScopeReason,
+                outOfScopeBy: m.meetingFeedback.outOfScopeBy?.name ?? null,
             }
             : null,
     };
@@ -160,13 +169,18 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const allReported = reportedRows.map(serialise);
     // A no-show set aside is still a no-show on record — it just belongs in its
     // own list rather than in the active backlog everyone is working through.
-    const reported = allReported.filter((m) => !m.feedback?.standByAt);
-    const standby = allReported.filter((m) => m.feedback?.standByAt);
+    // Hors scope wins over stand by: a RDV retired for good must not reappear
+    // in the stand-by list waiting to be reactivated.
+    const outOfScope = allReported.filter((m) => m.feedback?.outOfScopeAt);
+    const stillOpen = allReported.filter((m) => !m.feedback?.outOfScopeAt);
+    const reported = stillOpen.filter((m) => !m.feedback?.standByAt);
+    const standby = stillOpen.filter((m) => m.feedback?.standByAt);
 
     return successResponse({
         pending,
         reported,
         standby,
+        outOfScope,
         sdrs,
         kpis: {
             absents: reported.length,
@@ -174,6 +188,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             pendingLate: pending.filter((m) => !m.portalWindowOpen).length,
             reportedManually: reported.filter((m) => m.feedback?.source === "MANAGER_MANUAL").length,
             standby: standby.length,
+            outOfScope: outOfScope.length,
             windowHours: NO_SHOW_REPORT_WINDOW_HOURS,
         },
     });
@@ -270,15 +285,26 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         }).catch(() => {});
     }
 
-    void alertClientsLiveLateNoShow({
-        clientName,
-        contactName: contact,
-        companyName: company,
-        missionName: action.campaign?.mission?.name ?? null,
-        meetingDate,
-        sdrName: action.sdr?.name ?? null,
-        reportedBy: reporter,
-        note,
+    // Emit to the messaging event bus (replaces the old fire-and-forget
+    // webhook call to lib/slack/clientsLive.ts). The outbox worker delivers
+    // to Slack reliably, with retry and deduplication.
+    void emitCrmEvent({
+        type: "rdv.no_show_reported",
+        entityType: "ACTION",
+        entityId: action.id,
+        severity: 3,
+        clientId: action.campaign?.mission?.clientId ?? undefined,
+        missionId: action.campaign?.missionId ?? undefined,
+        payload: {
+            clientName,
+            contactName: contact,
+            companyName: company,
+            missionName: action.campaign?.mission?.name ?? null,
+            meetingDate,
+            sdrName: action.sdr?.name ?? null,
+            reportedBy: reporter,
+            note,
+        },
     });
 
     const refreshed = await prisma.action.findUnique({
@@ -292,8 +318,12 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 const StandByBody = z.object({
     actionId: z.string().min(1),
     /** true = set aside, false = put it back in the active backlog. */
-    standBy: z.boolean(),
+    standBy: z.boolean().optional(),
+    /** true = retire for good, false = bring it back to the active backlog. */
+    outOfScope: z.boolean().optional(),
     reason: z.string().max(1000).optional(),
+}).refine((v) => v.standBy !== undefined || v.outOfScope !== undefined, {
+    message: "Indiquez standBy ou outOfScope",
 });
 
 /**
@@ -304,6 +334,10 @@ const StandByBody = z.object({
  * takes it off the SDR absence banner and out of the priority calling queue —
  * the alternative was to cancel or re-flag the RDV, which misreports what
  * happened. Sending `standBy: false` puts it straight back.
+ *
+ * `outOfScope: true` is the terminal version of the same idea: the absence will
+ * never be replaced, so it leaves the space for good rather than waiting in
+ * stand by to be reactivated. `outOfScope: false` brings it back.
  */
 export const PATCH = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
@@ -318,16 +352,29 @@ export const PATCH = withErrorHandler(async (request: NextRequest) => {
         throw new ValidationError("Ce RDV n'est pas signalé absent");
     }
 
-    await prisma.meetingFeedback.update({
-        where: { actionId: action.id },
-        data: body.standBy
-            ? {
-                standByAt: new Date(),
-                standByReason: body.reason?.trim() || null,
-                standById: session.user.id,
-            }
-            : { standByAt: null, standByReason: null, standById: null },
-    });
+    // Hors scope is the stronger statement of the two, so it also clears any
+    // stand by: a RDV cannot be both "paused, come back to it" and "retired".
+    const data =
+        body.outOfScope !== undefined
+            ? body.outOfScope
+                ? {
+                    outOfScopeAt: new Date(),
+                    outOfScopeReason: body.reason?.trim() || null,
+                    outOfScopeById: session.user.id,
+                    standByAt: null,
+                    standByReason: null,
+                    standById: null,
+                }
+                : { outOfScopeAt: null, outOfScopeReason: null, outOfScopeById: null }
+            : body.standBy
+                ? {
+                    standByAt: new Date(),
+                    standByReason: body.reason?.trim() || null,
+                    standById: session.user.id,
+                }
+                : { standByAt: null, standByReason: null, standById: null };
+
+    await prisma.meetingFeedback.update({ where: { actionId: action.id }, data });
 
     const refreshed = await prisma.action.findUnique({
         where: { id: action.id },

@@ -1547,6 +1547,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
     const clientPortalUsers = (client?.users || []).filter((u) => u.role === "CLIENT");
     const commercialPortalUsers = interlocuteurs.filter((i) => i.portalUser);
+    /** Everyone shown in the unified "Accès et interlocuteurs" card. */
+    const peopleCount = clientPortalUsers.length + interlocuteurs.length;
 
     // Primary email of an interlocuteur — same rule the activate-portal route uses
     const primaryEmailOf = (i: ClientInterlocuteur) =>
@@ -2060,23 +2062,70 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     >
                                         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
                                             <Users className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                                            Commerciaux
-                                            {interlocuteurs.length > 0 && (
-                                                <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-0 ml-1">{interlocuteurs.length}</Badge>
+                                            Accès et interlocuteurs
+                                            {peopleCount > 0 && (
+                                                <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-0 ml-1">{peopleCount}</Badge>
                                             )}
                                         </h2>
                                         {showInterlocuteurs ? <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => { setEditingInt(null); setShowIntModal(true); }}
-                                        className="text-xs text-indigo-600 font-semibold hover:text-indigo-700 shrink-0"
-                                    >
-                                        + Ajouter
-                                    </button>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => { setEditingInt(null); setShowIntModal(true); }}
+                                            className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
+                                        >
+                                            + Ajouter
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={openManageAccessDialog}
+                                            className="text-xs text-slate-500 font-semibold hover:text-indigo-700"
+                                        >
+                                            Gestion
+                                        </button>
+                                    </div>
                                 </div>
                                 {showInterlocuteurs && (
                                     <div className="p-3">
+                                        {/* One list, one badge per profile — the "Accès" and
+                                            "Interlocuteurs" cards used to split these apart even
+                                            though the same person often appears as both. */}
+                                        {clientPortalUsers.length > 0 && (
+                                            <div className="space-y-1.5 mb-3">
+                                                {clientPortalUsers.map((u) => (
+                                                    <button
+                                                        key={u.id}
+                                                        onClick={() => {
+                                                            setShowManageAccessDialog(true);
+                                                            setManageAccessMode("view");
+                                                            setManageAccessSelectedId(u.id);
+                                                            setManageAccessSelectedType("CLIENT_USER");
+                                                            setResetPasswordResult(null);
+                                                            setAccessNewPassword("");
+                                                            void loadAccessUserDetails(u.id);
+                                                        }}
+                                                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                    >
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">
+                                                                {u.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-sm font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                                                                    {u.name}
+                                                                    <Badge className="text-[9px] bg-indigo-100 text-indigo-700 border-0">Accès portail client</Badge>
+                                                                    {u.isActive === false && (
+                                                                        <Badge className="text-[9px] bg-red-100 text-red-700 border-0">Révoqué</Badge>
+                                                                    )}
+                                                                </p>
+                                                                <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                         {interlocuteurs.length > 0 ? (
                                             <div className="space-y-2">
                                                 {interlocuteurs.map((interl) => {
@@ -2104,8 +2153,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                                         {initials}
                                                                     </div>
                                                                     <div className="min-w-0">
-                                                                        <p className={cn("text-sm font-semibold text-slate-900 truncate", !interl.isActive && "line-through text-slate-400")}>
+                                                                        <p className={cn("text-sm font-semibold text-slate-900 truncate flex items-center gap-1.5 flex-wrap", !interl.isActive && "line-through text-slate-400")}>
                                                                             {interl.firstName} {interl.lastName}
+                                                                            <Badge className="text-[9px] bg-slate-100 text-slate-600 border-0">Interlocuteur</Badge>
+                                                                            {interl.portalUser && (
+                                                                                <Badge className="text-[9px] bg-violet-100 text-violet-700 border-0">Commercial</Badge>
+                                                                            )}
                                                                         </p>
                                                                         <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                                                                             {interl.title && <span className="text-[11px] text-slate-500 truncate shrink-0">{interl.title}</span>}
@@ -2232,68 +2285,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                 </Button>
                                             </div>
                                         )}
-                                    </div>
-                                )}
-                            </Card>
-
-                            {/* Accès portail clients */}
-                            <Card className="overflow-hidden border-slate-200 hover:shadow-md transition-shadow duration-200">
-                                <button
-                                    onClick={() => setShowPortalAccess(!showPortalAccess)}
-                                    className="w-full px-4 py-3 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between"
-                                >
-                                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                        <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                                        Portail clients
-                                        {clientPortalUsers.length > 0 && (
-                                            <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-0 ml-1">{clientPortalUsers.length}</Badge>
-                                        )}
-                                    </h2>
-                                    {showPortalAccess ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
-                                </button>
-                                {showPortalAccess && (
-                                    <div className="p-3">
-                                        {clientPortalUsers.length > 0 ? (
-                                            <div className="space-y-1.5 mb-3">
-                                                {clientPortalUsers.map((u) => (
-                                                    <button
-                                                        key={u.id}
-                                                        onClick={() => {
-                                                            setShowManageAccessDialog(true);
-                                                            setManageAccessMode("view");
-                                                            setManageAccessSelectedId(u.id);
-                                                            setManageAccessSelectedType("CLIENT_USER");
-                                                            setResetPasswordResult(null);
-                                                            setAccessNewPassword("");
-                                                            void loadAccessUserDetails(u.id);
-                                                        }}
-                                                        className="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-slate-50 text-left transition-colors"
-                                                    >
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-medium text-slate-900 truncate flex items-center gap-1.5">
-                                                                {u.name}
-                                                                {u.isActive === false && (
-                                                                    <Badge className="text-[9px] bg-red-100 text-red-700 border-0">Révoqué</Badge>
-                                                                )}
-                                                            </p>
-                                                            <p className="text-[11px] text-slate-500 truncate">{u.email}</p>
-                                                        </div>
-                                                        <ChevronUp className="w-3.5 h-3.5 text-slate-300 rotate-90" />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="mb-3 text-center py-3">
-                                                <ShieldCheck className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                                                <p className="text-xs text-slate-500 mb-3">
-                                                    Le client n&apos;a pas encore d&apos;accès au portail.
-                                                </p>
-                                                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setShowCreateUserModal(true)}>
-                                                    <Plus className="w-3.5 h-3.5" />
-                                                    Créer le premier accès
-                                                </Button>
-                                            </div>
-                                        )}
                                         {/* Visibility is a *setting*, not an access — separated from the
                                             user list above by its own labelled group */}
                                         <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
@@ -2326,89 +2317,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                 </div>
                                             </div>
                                         </div>
-                                        {/* One primary path into the access dialog — "Nouvel accès rapide"
-                                            opened a second, near-identical creation form */}
                                         <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={openManageAccessDialog}>
                                             <ShieldCheck className="w-3.5 h-3.5" />
-                                            Gérer les accès clients
+                                            Gérer les accès
                                         </Button>
                                     </div>
                                 )}
                             </Card>
 
-                            {/* Portail commerciaux */}
-                            <Card className="overflow-hidden border-slate-200 hover:shadow-md transition-shadow duration-200">
-                                <div className="w-full px-4 py-3 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
-                                    <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                        <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
-                                        Portail commerciaux
-                                        {commercialPortalUsers.length > 0 && (
-                                            <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-0 ml-1">
-                                                {commercialPortalUsers.length}
-                                            </Badge>
-                                        )}
-                                    </h2>
-                                    <button
-                                        type="button"
-                                        onClick={openManageAccessDialog}
-                                        className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
-                                    >
-                                        Gérer
-                                    </button>
-                                </div>
-                                <div className="p-3">
-                                    {commercialPortalUsers.length > 0 ? (
-                                        <div className="space-y-1.5">
-                                            {/* This list intentionally shows the LOGIN identity, not the contact
-                                                card — the section above already covers contact details. The
-                                                per-row "COMMERCIAL" badge was dropped: the card title says it. */}
-                                            <p className="px-2 pb-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                                                Identifiants de connexion
-                                            </p>
-                                            {commercialPortalUsers.map((interl) => {
-                                                const contactEmail = primaryEmailOf(interl);
-                                                const loginEmail = interl.portalUser?.email ?? "";
-                                                const isStale = !!contactEmail && loginEmail.toLowerCase() !== contactEmail.toLowerCase();
-                                                const isRevoked = interl.portalUser?.isActive === false;
-                                                return (
-                                                    <button
-                                                        key={interl.id}
-                                                        onClick={() => {
-                                                            if (!interl.portalUser) return;
-                                                            setShowManageAccessDialog(true);
-                                                            handleSelectAccessUser(interl.portalUser.id, "COMMERCIAL");
-                                                        }}
-                                                        className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                                                    >
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-medium text-slate-900 truncate flex items-center gap-1.5">
-                                                                {interl.firstName} {interl.lastName}
-                                                                {isRevoked && (
-                                                                    <Badge className="text-[9px] bg-red-100 text-red-700 border-0">Révoqué</Badge>
-                                                                )}
-                                                            </p>
-                                                            <p className="text-[11px] text-slate-500 truncate">{loginEmail}</p>
-                                                        </div>
-                                                        {isStale && (
-                                                            <span
-                                                                title={`L'email de contact est ${contactEmail} — la connexion se fait toujours avec ${loginEmail}`}
-                                                                className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5"
-                                                            >
-                                                                <AlertCircle className="w-2.5 h-2.5" />
-                                                                Écart
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-slate-500">
-                                            Aucun portail commercial actif. Activez un portail dans la section Commerciaux.
-                                        </p>
-                                    )}
-                                </div>
-                            </Card>
                         </div>
 
                     </div>

@@ -555,7 +555,7 @@ export function MonthCalendar() {
                             Dupliquer → S+1
                         </button>
 
-                        {selectedDates.length > 0 && (
+                        {selectedDates.length > 1 && (
                             <div className="flex items-center gap-1.5">
                                 <span className="text-[11px] text-slate-500">
                                     {selectedDates.length} jour{selectedDates.length > 1 ? 's' : ''} sélectionné{selectedDates.length > 1 ? 's' : ''}
@@ -598,6 +598,15 @@ export function MonthCalendar() {
                                     const normalized = [...new Set(next)].sort((a, b) => a.localeCompare(b));
                                     setSelectedDate(normalized[0] ?? null);
                                     return normalized;
+                                });
+                            }}
+                            onToggleCellDate={(date, append) => {
+                                setSelectedDates((current) => {
+                                    if (!append) return [date];
+                                    const next = current.includes(date)
+                                        ? current.filter((d) => d !== date)
+                                        : [...current, date];
+                                    return [...new Set(next)].sort((a, b) => a.localeCompare(b));
                                 });
                             }}
                             hoveredSdrId={hoveredSdrId}

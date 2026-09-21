@@ -21,13 +21,22 @@ import {
     canDeleteTicket,
     canEditTicketFields,
     canPublishToRoadmap,
+    canReadOwnRequest,
+    canSubmitTicketRequest,
     canToggleReleaseCheck,
+    canValidateTicket,
     canViewTicket,
 } from "./permissions";
 import { assertStatusTransition } from "./service";
 import { ROADMAP_BUCKET_BY_STATUS, TICKET_STATUS_TRANSITIONS, formatTicketRef } from "./constants";
 import { clientChangelogWhere, clientRoadmapWhere, CLIENT_TICKET_SELECT, toRoadmapItem } from "./public";
-import { createTicketSchema, publishTicketSchema, updateStatusSchema } from "./schemas";
+import {
+    createTicketSchema,
+    publishTicketSchema,
+    submitTicketRequestSchema,
+    updateStatusSchema,
+    validateTicketSchema,
+} from "./schemas";
 
 const MANAGER = { id: "m1", role: "MANAGER" as UserRole };
 const DEV = { id: "d1", role: "DEVELOPER" as UserRole };
@@ -138,7 +147,7 @@ test("a client-facing ticket must name a client", () => {
     const base = {
         title: "Corriger le filtre",
         category: "BUG" as const,
-        affectedRoles: ["DEVELOPER" as const],
+        affectedRoles: ["DEVELOPER" as const, "CLIENT" as const],
     };
 
     assert.equal(createTicketSchema.safeParse({ ...base, scope: "CLIENT_FACING" }).success, false);
@@ -148,6 +157,20 @@ test("a client-facing ticket must name a client", () => {
         true,
     );
     assert.equal(createTicketSchema.safeParse({ ...base, scope: "INTERNAL" }).success, true);
+});
+
+test("a client-facing ticket must list CLIENT among the affected roles", () => {
+    const base = {
+        title: "Corriger le filtre",
+        category: "BUG" as const,
+        scope: "CLIENT_FACING" as const,
+        clientId: "clh1234567890abcdefghijk",
+    };
+
+    // Without CLIENT the release checklist would be signed off by the developer
+    // alone and the client side would never be verified.
+    assert.equal(createTicketSchema.safeParse({ ...base, affectedRoles: ["DEVELOPER"] }).success, false);
+    assert.equal(createTicketSchema.safeParse({ ...base, affectedRoles: ["DEVELOPER", "CLIENT"] }).success, true);
 });
 
 test("at least one affected role is required", () => {
@@ -222,4 +245,71 @@ test("ticket references are zero-padded", () => {
     assert.equal(formatTicketRef(1), "#TC-0001");
     assert.equal(formatTicketRef(1234), "#TC-1234");
     assert.equal(formatTicketRef(12345), "#TC-12345");
+});
+
+// ============================================
+// SALES-TEAM REQUEST INTAKE (TC-0032)
+// ============================================
+
+const BD = { id: "b1", role: "BUSINESS_DEVELOPER" as UserRole };
+const BOOKER = { id: "bk1", role: "BOOKER" as UserRole };
+const COMMERCIAL = { id: "co1", role: "COMMERCIAL" as UserRole };
+
+test("the sales team may file a request but never reach the board", () => {
+    for (const actor of [SDR, BD, BOOKER]) {
+        assert.equal(canSubmitTicketRequest(actor), true, `${actor.role} must be able to file`);
+        // Filing is not creating: the board and its manager powers stay closed.
+        assert.equal(canAccessTickets(actor), false, `${actor.role} must not read the board`);
+        assert.equal(canCreateTicket(actor), false, `${actor.role} must not create a ticket outright`);
+        assert.equal(canValidateTicket(actor), false, `${actor.role} must not validate`);
+    }
+
+    // Clients and client-side commercials keep no access at all.
+    assert.equal(canSubmitTicketRequest(CLIENT), false);
+    assert.equal(canSubmitTicketRequest(COMMERCIAL), false);
+    assert.equal(canSubmitTicketRequest(MANAGER), false);
+});
+
+test("only a manager rules on a pending request", () => {
+    assert.equal(canValidateTicket(MANAGER), true);
+    assert.equal(canValidateTicket(DEV), false);
+    assert.equal(canValidateTicket(CLIENT), false);
+});
+
+test("a requester reads their own request and nobody else's", () => {
+    assert.equal(canReadOwnRequest(SDR, { requesterId: SDR.id }), true);
+    assert.equal(canReadOwnRequest(SDR, { requesterId: "someone-else" }), false);
+    // Internal roles keep reading everything.
+    assert.equal(canReadOwnRequest(DEV, { requesterId: "someone-else" }), true);
+    assert.equal(canReadOwnRequest(MANAGER, { requesterId: "someone-else" }), true);
+    // A client is not a requester, so ownership never grants them a read.
+    assert.equal(canReadOwnRequest(CLIENT, { requesterId: CLIENT.id }), false);
+});
+
+test("a request carries only what the requester may decide", () => {
+    const valid = { title: "Le filtre saute", description: "Il se réinitialise à chaque retour.", category: "BUG" };
+    assert.equal(submitTicketRequestSchema.safeParse(valid).success, true);
+
+    assert.equal(submitTicketRequestSchema.safeParse({ ...valid, description: "court" }).success, false);
+    assert.equal(submitTicketRequestSchema.safeParse({ ...valid, title: "ab" }).success, false);
+
+    // Priority and assignee are triage decisions — stripped, not accepted.
+    const parsed = submitTicketRequestSchema.parse({ ...valid, priority: "URGENT", assigneeId: "x" } as never);
+    assert.equal("priority" in parsed, false);
+    assert.equal("assigneeId" in parsed, false);
+});
+
+test("a refusal needs a reason and an acceptance needs affected roles", () => {
+    assert.equal(validateTicketSchema.safeParse({ decision: "REJECTED" }).success, false);
+    assert.equal(validateTicketSchema.safeParse({ decision: "REJECTED", rejectionReason: "  " }).success, false);
+    assert.equal(
+        validateTicketSchema.safeParse({ decision: "REJECTED", rejectionReason: "Doublon de TC-0012" }).success,
+        true,
+    );
+
+    assert.equal(validateTicketSchema.safeParse({ decision: "ACCEPTED" }).success, false);
+    assert.equal(
+        validateTicketSchema.safeParse({ decision: "ACCEPTED", affectedRoles: ["SDR"], priority: "HIGH" }).success,
+        true,
+    );
 });

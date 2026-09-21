@@ -5,7 +5,7 @@ import {
     buildRdvEmailFromCustomTemplate,
     RdvNotificationData,
 } from "@/lib/email/templates/rdv-notification";
-import { alertClientsLiveSupportMessage } from "@/lib/slack/clientsLive";
+import { emitCrmEvent } from "@/lib/integrations/messaging/events";
 
 interface CreateNotificationParams {
     userId: string;
@@ -449,15 +449,21 @@ export async function notifyManagersClientSupportMessage(data: {
     const intentLabels: Record<string, string> = { RDV: "Question RDV", RAPPORT: "Rapport", PROBLEME: "Probleme", AUTRE: "Autre" };
     const intentStr = data.intent ? ` [${intentLabels[data.intent] ?? data.intent}]` : "";
 
-    // Mirror the in-app notification to #clients-live so the team sees client
-    // messages without sitting in the CRM. No-op when no webhook is configured.
-    void alertClientsLiveSupportMessage({
-        clientName: data.clientName,
-        authorName: data.authorName ?? null,
-        messagePreview: data.messagePreview,
-        intent: data.intent ?? null,
-        attachmentCount: data.attachmentCount,
-        pageLabel: data.pageLabel ?? null,
+    // Emit to the messaging event bus so the message reaches Slack (or any
+    // configured provider) durably through the outbox. Replaces the old
+    // fire-and-forget webhook call to lib/slack/clientsLive.ts.
+    void emitCrmEvent({
+        type: "support.conversation_created",
+        entityType: "SUPPORT_CONVERSATION",
+        entityId: "", // filled by the caller (support/service.ts) when available
+        payload: {
+            clientName: data.clientName,
+            authorName: data.authorName ?? null,
+            messagePreview: data.messagePreview,
+            intent: data.intent ?? null,
+            attachmentCount: data.attachmentCount,
+            pageLabel: data.pageLabel ?? null,
+        },
     });
 
     return notifyAllManagers({

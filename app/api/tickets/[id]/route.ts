@@ -11,11 +11,18 @@ import {
 import {
     canDeleteTicket,
     canEditTicketFields,
+    canReadOwnRequest,
     canViewTicket,
     type TicketActor,
 } from "@/lib/tickets/permissions";
 import { updateTicketSchema } from "@/lib/tickets/schemas";
-import { TICKET_DETAIL_INCLUDE, diffTicketFields, recordHistory, syncReleaseChecks } from "@/lib/tickets/service";
+import {
+    TICKET_DETAIL_INCLUDE,
+    assertAffectedRolesMatchScope,
+    diffTicketFields,
+    recordHistory,
+    syncReleaseChecks,
+} from "@/lib/tickets/service";
 import { notifyTicketAssigned, notifyTicketUrgent } from "@/lib/tickets/notifications";
 
 type Params = { params: Promise<{ id: string }> };
@@ -38,14 +45,16 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: Par
     const session = await requireAuth(request);
     const actor: TicketActor = { id: session.user.id, role: session.user.role as TicketActor["role"] };
 
-    if (!canViewTicket(actor)) {
-        throw new AuthError("Accès non autorisé", 403);
-    }
-
     const { id } = await params;
     const ticket = await prisma.ticket.findUnique({ where: { id }, include: TICKET_DETAIL_INCLUDE });
 
     if (!ticket) throw new NotFoundError("Ticket introuvable");
+
+    // Internal roles read the whole board; a sales requester reads only the
+    // requests they filed, so the ownership check needs the loaded ticket.
+    if (!canViewTicket(actor) && !canReadOwnRequest(actor, ticket)) {
+        throw new AuthError("Accès non autorisé", 403);
+    }
 
     return successResponse(ticket);
 });
@@ -68,6 +77,11 @@ export const PATCH = withErrorHandler(async (request: NextRequest, { params }: P
     const scope = input.scope ?? existing.scope;
     const clientId = input.clientId !== undefined ? input.clientId : existing.clientId;
     const missionId = input.missionId !== undefined ? input.missionId : existing.missionId;
+
+    // Both fields are independently optional here, so the scope/roles rule has
+    // to be checked against the merged state — a PATCH that only flips scope to
+    // CLIENT_FACING would otherwise slip past it.
+    assertAffectedRolesMatchScope(scope, input.affectedRoles ?? existing.affectedRoles);
 
     const data = {
         ...(input.title !== undefined ? { title: input.title } : {}),

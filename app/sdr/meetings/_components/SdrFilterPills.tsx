@@ -10,10 +10,10 @@ interface SdrFilterPillsProps {
 const FILTERS = [
     { key: "all" as const, label: "Tous" },
     { key: "upcoming" as const, label: "À venir" },
-    { key: "confirmed" as const, label: "Confirmés" },
+    { key: "past" as const, label: "Passés" },
+    { key: "valid" as const, label: "Valides" },
     { key: "absent" as const, label: "Absents" },
     { key: "negative" as const, label: "Négatifs" },
-    { key: "past" as const, label: "Passés" },
     { key: "cancelled" as const, label: "Annulés" },
 ];
 

@@ -32,7 +32,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     AlertTriangle, CalendarX2, CheckCircle2, Clock, Loader2, RefreshCw,
-    Search, UserX, Users, Building2, Send, CalendarClock, X, PauseCircle, PlayCircle,
+    Search, UserX, Users, Building2, Send, CalendarClock, X, PauseCircle, PlayCircle, Ban,
 } from "lucide-react";
 import {
     Badge, Button, Input, Modal, ModalFooter, StatCard, Tabs, useToast,
@@ -64,6 +64,9 @@ interface AbsenceRow {
         standByAt: string | null;
         standByReason: string | null;
         standByBy: string | null;
+        outOfScopeAt: string | null;
+        outOfScopeReason: string | null;
+        outOfScopeBy: string | null;
     } | null;
 }
 
@@ -72,12 +75,14 @@ interface AbsencesPayload {
     reported: AbsenceRow[];
     /** Absences set aside on purpose: on record, but off the SDR boards. */
     standby?: AbsenceRow[];
+    outOfScope?: AbsenceRow[];
     sdrs?: { id: string; name: string; email: string }[];
     kpis: {
         pending: number;
         pendingLate: number;
         reportedManually: number;
         standby?: number;
+        outOfScope?: number;
         windowHours: number;
     };
 }
@@ -95,7 +100,7 @@ const RECONTACT_OPTS = [
     { value: "NO", label: "Non, clôturer" },
 ] as const;
 
-type TabKey = "reported" | "standby";
+type TabKey = "reported" | "standby" | "outofscope";
 type SortKey = "oldest" | "newest";
 
 function fmtDate(iso: string | null): string {
@@ -155,6 +160,9 @@ export default function RdvAbsencesPage() {
 
     const [standByTargets, setStandByTargets] = useState<AbsenceRow[]>([]);
     const [standByReason, setStandByReason] = useState("");
+    const [outOfScopeTargets, setOutOfScopeTargets] = useState<AbsenceRow[]>([]);
+    const [outOfScopeReason, setOutOfScopeReason] = useState("");
+    const [isSettingOutOfScope, setIsSettingOutOfScope] = useState(false);
     const [isStandingBy, setIsStandingBy] = useState(false);
     const [isReactivating, setIsReactivating] = useState(false);
 
@@ -193,7 +201,12 @@ export default function RdvAbsencesPage() {
 
     const rows = useMemo(() => {
         if (!data) return [];
-        const base = tab === "standby" ? (data.standby ?? []) : data.reported;
+        const base =
+            tab === "standby"
+                ? (data.standby ?? [])
+                : tab === "outofscope"
+                    ? (data.outOfScope ?? [])
+                    : data.reported;
         let scoped = base;
         if (clientFilter !== "all") {
             scoped = scoped.filter((r) => r.clientId === clientFilter);
@@ -333,7 +346,12 @@ export default function RdvAbsencesPage() {
      * other ways out were cancelling the RDV or flagging it replaced, both of
      * which say something that did not happen.
      */
-    async function patchStandBy(targets: AbsenceRow[], standBy: boolean, reason?: string) {
+    async function patchDisposition(
+        targets: AbsenceRow[],
+        field: "standBy" | "outOfScope",
+        value: boolean,
+        reason?: string,
+    ) {
         const results = await Promise.allSettled(
             targets.map(async (row) => {
                 const res = await fetch("/api/manager/rdv-absences", {
@@ -341,7 +359,7 @@ export default function RdvAbsencesPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         actionId: row.id,
-                        standBy,
+                        ...(field === "outOfScope" ? { outOfScope: value } : { standBy: value }),
                         reason: reason?.trim() || undefined,
                     }),
                 });
@@ -358,7 +376,7 @@ export default function RdvAbsencesPage() {
         if (standByTargets.length === 0) return;
         setIsStandingBy(true);
         try {
-            const { ok, failed } = await patchStandBy(standByTargets, true, standByReason);
+            const { ok, failed } = await patchDisposition(standByTargets, "standBy", true, standByReason);
             if (ok > 0) {
                 success(
                     ok > 1 ? `${ok} RDV mis en stand by` : "RDV mis en stand by",
@@ -375,11 +393,42 @@ export default function RdvAbsencesPage() {
         }
     }
 
+    /**
+     * Hors scope: the absence will never be replaced. Stand by was the only exit
+     * and it is a pause — a manager still had to come back to every row they had
+     * already decided about. This retires them.
+     */
+    async function submitOutOfScope() {
+        if (outOfScopeTargets.length === 0) return;
+        setIsSettingOutOfScope(true);
+        try {
+            const { ok, failed } = await patchDisposition(
+                outOfScopeTargets,
+                "outOfScope",
+                true,
+                outOfScopeReason,
+            );
+            if (ok > 0) {
+                success(
+                    ok > 1 ? `${ok} RDV passés hors scope` : "RDV passé hors scope",
+                    "Ils quittent le backlog des absents et les tableaux SDR.",
+                );
+            }
+            if (failed > 0) showError(`${failed} RDV n'ont pas pu être passés hors scope`);
+            setOutOfScopeTargets([]);
+            setOutOfScopeReason("");
+            setSelected(new Set());
+            await load(true);
+        } finally {
+            setIsSettingOutOfScope(false);
+        }
+    }
+
     async function reactivate(targets: AbsenceRow[]) {
         if (targets.length === 0) return;
         setIsReactivating(true);
         try {
-            const { ok, failed } = await patchStandBy(targets, false);
+            const { ok, failed } = await patchDisposition(targets, tab === "outofscope" ? "outOfScope" : "standBy", false);
             if (ok > 0) {
                 success(
                     ok > 1 ? `${ok} RDV réactivés` : "RDV réactivé",
@@ -401,7 +450,9 @@ export default function RdvAbsencesPage() {
         [data],
     );
 
-    const totalInTab = tab === "standby"
+    const totalInTab = tab === "outofscope"
+        ? data?.outOfScope?.length ?? 0
+        : tab === "standby"
         ? data?.standby?.length ?? 0
         : data?.reported.length ?? 0;
 
@@ -479,6 +530,7 @@ export default function RdvAbsencesPage() {
                         tabs={[
                             { id: "reported", label: `À traiter (${data?.reported.length ?? 0})` },
                             { id: "standby", label: `En stand by (${data?.standby?.length ?? 0})` },
+                            { id: "outofscope", label: `Hors scope (${data?.outOfScope?.length ?? 0})` },
                         ]}
                         activeTab={tab}
                         onTabChange={(id) => setTab(id as TabKey)}
@@ -542,13 +594,19 @@ export default function RdvAbsencesPage() {
                                 Mettre en stand by
                             </Button>
                         )}
-                        {tab === "standby" && (
+                        {(tab === "standby" || tab === "outofscope") && (
                             <Button variant="primary" size="sm" onClick={() => reactivate(selectedRows)} disabled={isReactivating}>
                                 {isReactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlayCircle className="w-4 h-4" />}
                                 Réactiver
                             </Button>
                         )}
-                        {tab !== "standby" && (
+                        {tab !== "outofscope" && (
+                            <Button variant="outline" size="sm" onClick={() => { setOutOfScopeReason(""); setOutOfScopeTargets(selectedRows); }}>
+                                <Ban className="w-4 h-4" />
+                                Mettre hors scope
+                            </Button>
+                        )}
+                        {tab === "reported" && (
                             <Button variant="outline" size="sm" onClick={() => setReplaceTargets(selectedRows)}>
                                 <CalendarClock className="w-4 h-4" />
                                 Marquer replacés
@@ -571,7 +629,9 @@ export default function RdvAbsencesPage() {
                     <div className="p-12 text-center">
                         <CalendarX2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                         <p className="text-sm font-medium text-slate-700">
-                            {tab === "standby"
+                            {tab === "outofscope"
+                                ? "Aucun rendez-vous hors scope."
+                                : tab === "standby"
                                 ? "Aucun rendez-vous en stand by."
                                 : "Aucun absent à traiter. Le backlog est vide."}
                         </p>
@@ -685,6 +745,13 @@ export default function RdvAbsencesPage() {
                                                     Signalé par {row.feedback.reportedBy} le {fmtDate(row.feedback.reportedAt)}
                                                 </p>
                                             )}
+                                            {tab === "outofscope" && row.feedback?.outOfScopeAt && (
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    Hors scope
+                                                    {row.feedback.outOfScopeBy ? ` par ${row.feedback.outOfScopeBy}` : ""}
+                                                    {row.feedback.outOfScopeReason ? ` — ${row.feedback.outOfScopeReason}` : ""}
+                                                </p>
+                                            )}
                                             {tab === "standby" && row.feedback?.standByAt && (
                                                 <p className="mt-1 text-xs text-slate-500">
                                                     <PauseCircle className="mr-1 inline w-3 h-3 align-[-1px]" />
@@ -713,7 +780,7 @@ export default function RdvAbsencesPage() {
                                                     </Button>
                                                 </>
                                             )}
-                                            {tab === "standby" && (
+                                            {(tab === "standby" || tab === "outofscope") && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -725,7 +792,18 @@ export default function RdvAbsencesPage() {
                                                     Réactiver
                                                 </Button>
                                             )}
-                                            {tab !== "standby" && (
+                                            {tab !== "outofscope" && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => { setOutOfScopeReason(""); setOutOfScopeTargets([row]); }}
+                                                    title="Ce RDV ne sera jamais replacé : le retirer définitivement de cet espace"
+                                                >
+                                                    <Ban className="w-4 h-4" />
+                                                    Hors scope
+                                                </Button>
+                                            )}
+                                            {tab === "reported" && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -744,6 +822,73 @@ export default function RdvAbsencesPage() {
                     </>
                 )}
             </div>
+
+            {/* Hors scope — single or batch */}
+            <Modal
+                isOpen={outOfScopeTargets.length > 0}
+                onClose={() => (isSettingOutOfScope ? undefined : setOutOfScopeTargets([]))}
+                title={outOfScopeTargets.length > 1 ? `Passer ${outOfScopeTargets.length} RDV absents hors scope` : "Passer ce RDV absent hors scope"}
+            >
+                <div className="space-y-4">
+                    {outOfScopeTargets.length === 1 ? (
+                        <div className="rounded-lg bg-slate-50 p-3 text-sm">
+                            <p className="font-semibold text-slate-900">{outOfScopeTargets[0].contactName}</p>
+                            <p className="text-slate-500">
+                                {outOfScopeTargets[0].companyName} · {fmtDate(outOfScopeTargets[0].callbackDate)}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-3 text-sm">
+                            <ul className="space-y-1">
+                                {outOfScopeTargets.map((r) => (
+                                    <li key={r.id} className="flex justify-between gap-3">
+                                        <span className="truncate font-medium text-slate-800">{r.contactName}</span>
+                                        <span className="shrink-0 text-xs text-slate-500">{r.companyName}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <p className="text-sm text-slate-600">
+                        À utiliser quand le RDV <strong>ne sera jamais replacé</strong>. Il reste enregistré comme
+                        absent, mais quitte le backlog à traiter et les tableaux SDR, et se range dans
+                        l&apos;onglet <strong>Hors scope</strong>.
+                    </p>
+                    <p className="text-sm text-slate-500">
+                        Contrairement au stand by, ce n&apos;est pas une pause — mais <strong>Réactiver</strong>
+                        {" "}reste possible depuis cet onglet si c&apos;est une erreur.
+                    </p>
+
+                    <div>
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                            Motif (optionnel)
+                        </label>
+                        <textarea
+                            value={outOfScopeReason}
+                            onChange={(e) => setOutOfScopeReason(e.target.value)}
+                            rows={3}
+                            maxLength={1000}
+                            placeholder="Pourquoi ce RDV sort du scope…"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                        />
+                        {outOfScopeTargets.length > 1 && (
+                            <p className="mt-1 text-xs text-slate-400">
+                                Le même motif sera enregistré sur les {outOfScopeTargets.length} RDV.
+                            </p>
+                        )}
+                    </div>
+                </div>
+                <ModalFooter>
+                    <Button variant="outline" onClick={() => setOutOfScopeTargets([])} disabled={isSettingOutOfScope}>
+                        Annuler
+                    </Button>
+                    <Button variant="primary" onClick={submitOutOfScope} disabled={isSettingOutOfScope}>
+                        {isSettingOutOfScope ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                        Confirmer hors scope
+                    </Button>
+                </ModalFooter>
+            </Modal>
 
             {/* Stand by — single or batch */}
             <Modal

@@ -95,3 +95,41 @@ export async function notifyTicketUrgent(ticket: TicketRef, priority: TaskPriori
         ),
     );
 }
+
+/**
+ * A request nobody is told about is exactly the problem TC-0032 describes, so
+ * every active manager gets pinged the moment the sales team files one.
+ */
+export async function notifyTicketRequestSubmitted(ticket: TicketRef, requesterName: string) {
+    const managerIds = await getActiveManagerIds();
+    await Promise.all(
+        managerIds.map((userId) =>
+            createNotification({
+                userId,
+                title: "Demande à valider",
+                message: `${formatTicketRef(ticket.number)} · "${ticket.title}" — déposée par ${requesterName}`,
+                type: "warning",
+                link: `/manager/tickets?validation=PENDING&ticket=${ticket.id}`,
+            }),
+        ),
+    );
+}
+
+/** The requester gets an answer either way — an accepted request, or a reason. */
+export async function notifyTicketRequestDecided(
+    ticket: TicketRef,
+    requesterId: string,
+    decision: "ACCEPTED" | "REJECTED",
+    rejectionReason?: string | null,
+) {
+    return createNotification({
+        userId: requesterId,
+        title: decision === "ACCEPTED" ? "Demande acceptée" : "Demande refusée",
+        message:
+            decision === "ACCEPTED"
+                ? `${formatTicketRef(ticket.number)} · "${ticket.title}" a été acceptée et part en développement`
+                : `${formatTicketRef(ticket.number)} · "${ticket.title}" a été refusée — ${rejectionReason?.trim() || "sans motif précisé"}`,
+        type: decision === "ACCEPTED" ? "success" : "info",
+        link: `/tickets/mes-demandes?ticket=${ticket.id}`,
+    });
+}

@@ -42,7 +42,10 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
     const [category, setCategory] = useState("BUG");
     const [scope, setScope] = useState("INTERNAL");
     const [priority, setPriority] = useState("MEDIUM");
-    const [affectedRoles, setAffectedRoles] = useState<string[]>(["DEVELOPER"]);
+    // No default: "DEVELOPER" used to be pre-filled, so tickets nobody edited
+    // shipped with a developer-only release checklist regardless of who the
+    // change actually affected. An empty field forces a deliberate answer.
+    const [affectedRoles, setAffectedRoles] = useState<string[]>([]);
     const [clientId, setClientId] = useState("");
     const [assigneeId, setAssigneeId] = useState("");
     const [dueDate, setDueDate] = useState("");
@@ -55,11 +58,20 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
         setCategory(ticket?.category ?? "BUG");
         setScope(ticket?.scope ?? "INTERNAL");
         setPriority(ticket?.priority ?? "MEDIUM");
-        setAffectedRoles(ticket?.affectedRoles?.length ? ticket.affectedRoles : ["DEVELOPER"]);
+        setAffectedRoles(ticket?.affectedRoles ?? []);
         setClientId(ticket?.client?.id ?? "");
         setAssigneeId(ticket?.assignee?.id ?? "");
         setDueDate(ticket?.dueDate ? ticket.dueDate.slice(0, 10) : "");
     }, [isOpen, ticket]);
+
+    // Switching to a client ticket implies the client experience changes, so
+    // pre-select CLIENT instead of letting the checklist be signed off without it.
+    const handleScopeChange = (next: string) => {
+        setScope(next);
+        if (next === "CLIENT_FACING" && !affectedRoles.includes("CLIENT")) {
+            setAffectedRoles([...affectedRoles, "CLIENT"]);
+        }
+    };
 
     const handleSubmit = async () => {
         if (title.trim().length < 3) {
@@ -72,6 +84,10 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
         }
         if (scope === "CLIENT_FACING" && !clientId) {
             toast.error("Un ticket client doit être rattaché à un client");
+            return;
+        }
+        if (scope === "CLIENT_FACING" && !affectedRoles.includes("CLIENT")) {
+            toast.error("Un ticket client doit inclure le rôle Client dans les rôles impactés");
             return;
         }
 
@@ -140,7 +156,7 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Select label="Catégorie" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
                     <Select label="Priorité" options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
-                    <Select label="Portée" options={SCOPE_OPTIONS} value={scope} onChange={setScope} />
+                    <Select label="Portée" options={SCOPE_OPTIONS} value={scope} onChange={handleScopeChange} />
                     <Select
                         label="Développeur assigné"
                         options={[{ value: "", label: "Non assigné" }, ...developers.map((dev) => ({ value: dev.id, label: dev.name }))]}

@@ -34,11 +34,58 @@ export const createTicketSchema = z
                 message: "Un ticket client doit être rattaché à un client",
             });
         }
+        // The client's side of a client-facing change has to be signed off too.
+        if (value.scope === "CLIENT_FACING" && !value.affectedRoles.includes("CLIENT")) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["affectedRoles"],
+                message: "Un ticket client doit inclure le rôle Client dans les rôles impactés",
+            });
+        }
         if (value.scope === "MISSION_RELATED" && !value.missionId) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 path: ["missionId"],
                 message: "Un ticket mission doit être rattaché à une mission",
+            });
+        }
+    });
+
+/**
+ * What the sales team may send. Deliberately a fraction of createTicketSchema:
+ * priority, scope, assignee, due date and affected roles are triage decisions
+ * the manager makes when accepting, not things the requester declares.
+ */
+export const submitTicketRequestSchema = z.object({
+    title: z.string().trim().min(3, "Titre trop court").max(200),
+    description: z.string().trim().min(10, "Décrivez le problème en quelques mots").max(10000),
+    category: ticketCategory,
+});
+
+/** Manager's ruling on a pending request. A refusal has to say why. */
+export const validateTicketSchema = z
+    .object({
+        decision: z.enum(["ACCEPTED", "REJECTED"]),
+        /** Applied on acceptance only — the triage the requester could not set. */
+        priority: ticketPriority.optional(),
+        affectedRoles: z.array(affectedRole).min(1).optional(),
+        assigneeId: z.string().cuid().nullish(),
+        dueDate: nullableDate,
+        rejectionReason: z.string().trim().max(2000).nullish(),
+    })
+    .superRefine((value, ctx) => {
+        if (value.decision === "REJECTED" && !value.rejectionReason?.trim()) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["rejectionReason"],
+                message: "Expliquez le refus au demandeur",
+            });
+        }
+        if (value.decision === "ACCEPTED" && !value.affectedRoles?.length) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["affectedRoles"],
+                message: "Au moins un rôle impacté est requis pour accepter",
             });
         }
     });
@@ -99,6 +146,8 @@ export const releaseCheckSchema = z.object({
 });
 
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
+export type SubmitTicketRequestInput = z.infer<typeof submitTicketRequestSchema>;
+export type ValidateTicketInput = z.infer<typeof validateTicketSchema>;
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
 export type UpdateStatusInput = z.infer<typeof updateStatusSchema>;
 export type PublishTicketInput = z.infer<typeof publishTicketSchema>;

@@ -25,6 +25,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const { searchParams } = new URL(request.url);
     const where: Prisma.TicketWhereInput = {};
 
+    // A pending sales request is not work yet, so it stays off the default
+    // board and lives in its own "À valider" queue (?validation=PENDING).
+    // Without this it would sit among triaged tickets as a plain NEW.
+    const validation = searchParams.get("validation");
+    where.validation = validation ? { in: validation.split(",") as any } : { not: "PENDING" };
+
     const status = searchParams.get("status");
     if (status) where.status = { in: status.split(",") as TicketStatus[] };
 

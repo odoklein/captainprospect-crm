@@ -102,6 +102,18 @@ export const config = {
     },
   },
 
+  messaging: {
+    outboxMaxAttempts: parseInt(process.env.MESSAGING_OUTBOX_MAX_ATTEMPTS || '6'),
+    outboxPollIntervalMs: 2000,
+    slackAppId: process.env.SLACK_APP_ID || '',
+    slackClientId: process.env.SLACK_CLIENT_ID || '',
+    slackClientSecret: process.env.SLACK_CLIENT_SECRET || '',
+    slackSigningSecret: process.env.SLACK_SIGNING_SECRET || '',
+    // Legacy webhooks — kept for one release as fallback
+    slackWebhookUrl: process.env.SLACK_WEBHOOK_URL || '',
+    slackClientsLiveWebhookUrl: process.env.SLACK_CLIENTS_LIVE_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL || '',
+  },
+
   // ============================================
   // SECURITY CONFIGURATION
   // ============================================

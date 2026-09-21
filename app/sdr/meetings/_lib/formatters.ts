@@ -30,6 +30,18 @@ export function getDisplayNote(m: Meeting): string | null {
     return note;
 }
 
+/**
+ * "Valides" — the RDV an SDR is actually paid a prime on: the date has passed
+ * AND the client came back neutral or positive. A negative verdict, a no-show
+ * or a RDV nobody has given feedback on yet is not prime-eligible, so it stays
+ * out. Deliberately narrower than "Passés", which is date-only.
+ */
+export function isPrimeEligible(m: Meeting): boolean {
+    if (getRdvStatus(m) !== "past") return false;
+    const outcome = m.meetingFeedback?.outcome;
+    return outcome === "POSITIVE" || outcome === "NEUTRAL";
+}
+
 export function getRdvStatus(m: Meeting): RdvStatus {
     if (m.result === "MEETING_CANCELLED") return "cancelled";
     if (!m.callbackDate) return "upcoming";
