@@ -15,6 +15,7 @@ import {
   sendNewRdvEmailNotification,
   sendRdvRescheduledEmailNotification,
 } from "@/lib/notifications";
+import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from "@/lib/meetings/clientEmailGate";
 
 const updateSchema = z.object({
   note: z.string().optional(),
@@ -128,21 +129,27 @@ export const PUT = withErrorHandler(
                 link: "/client/portal/meetings",
             });
 
-            void sendRdvRescheduledEmailNotification(clientId, {
-                contactFirstName: updated.contact?.firstName ?? null,
-                contactLastName: updated.contact?.lastName ?? null,
-                companyName: updated.contact?.company?.name ?? null,
-                missionName: updated.campaign?.mission?.name ?? null,
-                scheduledAt: newCallbackDate,
-                previousScheduledAt: previousCallbackDate ?? null,
-                meetingChannel: (updated.channel as any) ?? "CALL",
-                meetingType: (updated.meetingType as any) ?? null,
-                meetingJoinUrl: updated.meetingJoinUrl ?? null,
-                meetingAddress: updated.meetingAddress ?? null,
-                meetingPhone: updated.meetingPhone ?? null,
-                interlocuteurId:
-                    updated.interlocuteur?.id ?? (updated as any).interlocuteurId ?? undefined,
-            });
+            // Same rule as a new booking: nothing leaves by mail while the RDV
+            // is still unconfirmed — the client has heard nothing about it yet.
+            if (canEmailClientAboutMeeting(updated.confirmationStatus)) {
+                void sendRdvRescheduledEmailNotification(clientId, {
+                    contactFirstName: updated.contact?.firstName ?? null,
+                    contactLastName: updated.contact?.lastName ?? null,
+                    companyName: updated.contact?.company?.name ?? null,
+                    missionName: updated.campaign?.mission?.name ?? null,
+                    scheduledAt: newCallbackDate,
+                    previousScheduledAt: previousCallbackDate ?? null,
+                    meetingChannel: (updated.channel as any) ?? "CALL",
+                    meetingType: (updated.meetingType as any) ?? null,
+                    meetingJoinUrl: updated.meetingJoinUrl ?? null,
+                    meetingAddress: updated.meetingAddress ?? null,
+                    meetingPhone: updated.meetingPhone ?? null,
+                    interlocuteurId:
+                        updated.interlocuteur?.id ?? (updated as any).interlocuteurId ?? undefined,
+                });
+            } else {
+                console.info(meetingEmailSkippedReason(updated.id, updated.confirmationStatus));
+            }
         }
     }
 

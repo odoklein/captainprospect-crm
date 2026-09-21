@@ -2,11 +2,16 @@
 
 /**
  * ============================================================
- * SIGNALEMENTS ABSENTS — manual no-show reporting
+ * SIGNALEMENTS ABSENTS — the absences still to deal with
  * ============================================================
- * Clients and commerciaux can flag a "Contact absent" from their portal for 48h
- * after the meeting. Past that, the portal button is closed and the no-show has
- * to be raised here, by hand.
+ * This space shows one thing and one thing only: RDV that were *flagged absent*
+ * and are *not dealt with yet*. Past meetings that simply have no feedback are
+ * deliberately NOT listed — they are not absences, nobody should be acting on
+ * them from here, and mixing them in made the real backlog unreadable.
+ *
+ * Flagging a late no-show by hand now happens where the RDV is, from the
+ * "Signaler absent" button at the top of the fiche RDV, which also lets the
+ * manager pick the SDR who picks it back up.
  *
  * A report writes a MeetingFeedback with outcome NO_SHOW, which is exactly what
  * the SDR ("télépro") dashboard reads — so it shows up there immediately, with
@@ -90,7 +95,7 @@ const RECONTACT_OPTS = [
     { value: "NO", label: "Non, clôturer" },
 ] as const;
 
-type TabKey = "pending" | "reported" | "standby";
+type TabKey = "reported" | "standby";
 type SortKey = "oldest" | "newest";
 
 function fmtDate(iso: string | null): string {
@@ -131,9 +136,8 @@ export default function RdvAbsencesPage() {
     const [data, setData] = useState<AbsencesPayload | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [tab, setTab] = useState<TabKey>("pending");
+    const [tab, setTab] = useState<TabKey>("reported");
     const [query, setQuery] = useState("");
-    const [lateOnly, setLateOnly] = useState(true);
     const [clientFilter, setClientFilter] = useState<string>("all");
     const [sort, setSort] = useState<SortKey>("oldest");
 
@@ -158,7 +162,9 @@ export default function RdvAbsencesPage() {
         if (silent) setIsRefreshing(true);
         else setIsLoading(true);
         try {
-            const res = await fetch("/api/manager/rdv-absences");
+            // scope=reported: this space no longer lists the RDV without any
+            // feedback, so there is no reason to go and fetch them.
+            const res = await fetch("/api/manager/rdv-absences?scope=reported");
             const json = await res.json();
             if (json.success) setData(json.data as AbsencesPayload);
             else showError("Chargement impossible", json.error);
@@ -173,12 +179,12 @@ export default function RdvAbsencesPage() {
     useEffect(() => { load(); }, [load]);
 
     // Switching list or filters must not leave invisible rows selected.
-    useEffect(() => { setSelected(new Set()); }, [tab, clientFilter, lateOnly, query]);
+    useEffect(() => { setSelected(new Set()); }, [tab, clientFilter, query]);
 
     const clientOptions = useMemo(() => {
         if (!data) return [];
         const seen = new Map<string, string>();
-        for (const row of [...data.pending, ...data.reported, ...(data.standby ?? [])]) {
+        for (const row of [...data.reported, ...(data.standby ?? [])]) {
             if (row.clientId) seen.set(row.clientId, row.clientName);
         }
         return Array.from(seen, ([id, name]) => ({ id, name }))
@@ -187,10 +193,8 @@ export default function RdvAbsencesPage() {
 
     const rows = useMemo(() => {
         if (!data) return [];
-        const base = tab === "pending" ? data.pending : tab === "standby" ? (data.standby ?? []) : data.reported;
-        let scoped = tab === "pending" && lateOnly
-            ? base.filter((r) => !r.portalWindowOpen)
-            : base;
+        const base = tab === "standby" ? (data.standby ?? []) : data.reported;
+        let scoped = base;
         if (clientFilter !== "all") {
             scoped = scoped.filter((r) => r.clientId === clientFilter);
         }
@@ -206,7 +210,7 @@ export default function RdvAbsencesPage() {
             const tb = b.callbackDate ? new Date(b.callbackDate).getTime() : 0;
             return sort === "oldest" ? ta - tb : tb - ta;
         });
-    }, [data, tab, lateOnly, clientFilter, query, sort]);
+    }, [data, tab, clientFilter, query, sort]);
 
     const selectedRows = useMemo(
         () => rows.filter((r) => selected.has(r.id)),
@@ -391,11 +395,15 @@ export default function RdvAbsencesPage() {
     }
 
     const kpis = data?.kpis;
-    const totalInTab = tab === "pending"
-        ? data?.pending.length ?? 0
-        : tab === "standby"
-            ? data?.standby?.length ?? 0
-            : data?.reported.length ?? 0;
+    /** How much of the backlog has been sitting past the portal's own window. */
+    const lateCount = useMemo(
+        () => (data?.reported ?? []).filter((r) => agingTone(r.callbackDate) !== "fresh").length,
+        [data],
+    );
+
+    const totalInTab = tab === "standby"
+        ? data?.standby?.length ?? 0
+        : data?.reported.length ?? 0;
 
     return (
         <div className="space-y-5">
@@ -406,8 +414,9 @@ export default function RdvAbsencesPage() {
                         Signalements absents
                     </h1>
                     <p className="text-sm text-slate-500 mt-1 max-w-2xl">
-                        Le portail client laisse {NO_SHOW_REPORT_WINDOW_HOURS}h pour signaler un contact absent.
-                        Passé ce délai, le signalement se fait ici — il remonte directement au dashboard télépro.
+                        Uniquement les RDV <strong>signalés absents et non traités</strong> : ni replacés, ni mis
+                        en stand by. Pour signaler un absent hors délai, passez par le bouton
+                        <strong> Signaler absent</strong> en haut de la fiche RDV.
                     </p>
                 </div>
                 <Button variant="secondary" size="sm" onClick={() => load(true)} disabled={isRefreshing}>
@@ -421,30 +430,25 @@ export default function RdvAbsencesPage() {
             {/* KPIs double as filters: clicking one scopes the list below. */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
-                    label={`Hors délai ${NO_SHOW_REPORT_WINDOW_HOURS}h`}
-                    value={kpis?.pendingLate ?? 0}
+                    label="Absents à traiter"
+                    value={data?.reported.length ?? 0}
                     icon={AlertTriangle}
                     iconBg="bg-rose-100"
                     iconColor="text-rose-600"
-                    subtitle={<span className="text-slate-500">RDV passés sans retour, non signalables par le client</span>}
-                    onClick={() => { setTab("pending"); setLateOnly(true); }}
+                    subtitle={<span className="text-slate-500">Signalés absents, ni replacés ni mis de côté</span>}
+                    onClick={() => setTab("reported")}
                     className={cn(
                         "cursor-pointer transition-shadow hover:shadow-md",
-                        tab === "pending" && lateOnly && "ring-2 ring-rose-200",
+                        tab === "reported" && "ring-2 ring-rose-200",
                     )}
                 />
                 <StatCard
-                    label="En attente de retour"
-                    value={kpis?.pending ?? 0}
+                    label="En retard"
+                    value={lateCount}
                     icon={Clock}
                     iconBg="bg-amber-100"
                     iconColor="text-amber-600"
-                    subtitle={<span className="text-slate-500">Tous les RDV passés sans avis</span>}
-                    onClick={() => { setTab("pending"); setLateOnly(false); }}
-                    className={cn(
-                        "cursor-pointer transition-shadow hover:shadow-md",
-                        tab === "pending" && !lateOnly && "ring-2 ring-amber-200",
-                    )}
+                    subtitle={<span className="text-slate-500">À traiter depuis plus de {NO_SHOW_REPORT_WINDOW_HOURS}h</span>}
                 />
                 <StatCard
                     label="Signalés à la main"
@@ -452,12 +456,7 @@ export default function RdvAbsencesPage() {
                     icon={CheckCircle2}
                     iconBg="bg-indigo-100"
                     iconColor="text-indigo-600"
-                    subtitle={<span className="text-slate-500">Remontés depuis cet espace</span>}
-                    onClick={() => setTab("reported")}
-                    className={cn(
-                        "cursor-pointer transition-shadow hover:shadow-md",
-                        tab === "reported" && "ring-2 ring-indigo-200",
-                    )}
+                    subtitle={<span className="text-slate-500">Remontés par un manager, pas par le portail</span>}
                 />
                 <StatCard
                     label="En stand by"
@@ -478,8 +477,7 @@ export default function RdvAbsencesPage() {
                 <div className="px-4 pt-3 border-b border-slate-200 bg-white">
                     <Tabs
                         tabs={[
-                            { id: "pending", label: `À traiter (${data?.pending.length ?? 0})` },
-                            { id: "reported", label: `Déjà absents (${data?.reported.length ?? 0})` },
+                            { id: "reported", label: `À traiter (${data?.reported.length ?? 0})` },
                             { id: "standby", label: `En stand by (${data?.standby?.length ?? 0})` },
                         ]}
                         activeTab={tab}
@@ -520,21 +518,6 @@ export default function RdvAbsencesPage() {
                         <option value="newest">Plus récents d&apos;abord</option>
                     </select>
 
-                    {tab === "pending" && (
-                        <button
-                            type="button"
-                            onClick={() => setLateOnly((v) => !v)}
-                            className={cn(
-                                "h-9 rounded-lg border px-3 text-sm font-medium transition-colors",
-                                lateOnly
-                                    ? "border-rose-200 bg-rose-50 text-rose-700"
-                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
-                            )}
-                        >
-                            Hors délai uniquement
-                        </button>
-                    )}
-
                     <span className="text-xs text-slate-500 whitespace-nowrap">
                         {rows.length} / {totalInTab}
                     </span>
@@ -547,12 +530,6 @@ export default function RdvAbsencesPage() {
                             {selectedRows.length} sélectionné{selectedRows.length > 1 ? "s" : ""}
                         </span>
                         <div className="flex-1" />
-                        {tab === "pending" && (
-                            <Button variant="danger" size="sm" onClick={() => openReport(selectedRows)}>
-                                <UserX className="w-4 h-4" />
-                                Signaler absents
-                            </Button>
-                        )}
                         {tab === "reported" && (
                             <Button variant="primary" size="sm" onClick={() => openReport(selectedRows)}>
                                 <RefreshCw className="w-4 h-4" />
@@ -594,16 +571,14 @@ export default function RdvAbsencesPage() {
                     <div className="p-12 text-center">
                         <CalendarX2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                         <p className="text-sm font-medium text-slate-700">
-                            {tab === "pending"
-                                ? "Aucun rendez-vous en attente de signalement."
-                                : tab === "standby"
-                                    ? "Aucun rendez-vous en stand by."
-                                    : "Aucun rendez-vous marqué absent."}
+                            {tab === "standby"
+                                ? "Aucun rendez-vous en stand by."
+                                : "Aucun absent à traiter. Le backlog est vide."}
                         </p>
-                        {(query || clientFilter !== "all" || (tab === "pending" && lateOnly)) && totalInTab > 0 && (
+                        {(query || clientFilter !== "all") && totalInTab > 0 && (
                             <button
                                 type="button"
-                                onClick={() => { setQuery(""); setClientFilter("all"); setLateOnly(false); }}
+                                onClick={() => { setQuery(""); setClientFilter("all"); }}
                                 className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
                             >
                                 Réinitialiser les filtres ({totalInTab} au total)
@@ -662,16 +637,10 @@ export default function RdvAbsencesPage() {
                                                     <Building2 className="w-3.5 h-3.5 text-slate-400" />
                                                     {row.companyName}
                                                 </span>
-                                                {tab === "pending" && !row.portalWindowOpen && (
-                                                    <Badge variant="danger">Hors délai {NO_SHOW_REPORT_WINDOW_HOURS}h</Badge>
-                                                )}
-                                                {tab === "pending" && row.portalWindowOpen && (
-                                                    <Badge variant="warning">Le client peut encore signaler</Badge>
-                                                )}
                                                 {tab === "standby" && (
                                                     <Badge variant="default">En stand by</Badge>
                                                 )}
-                                                {tab !== "pending" && row.feedback?.source && (
+                                                {row.feedback?.source && (
                                                     <Badge variant={row.feedback.source === "MANAGER_MANUAL" ? "primary" : "default"}>
                                                         {SOURCE_LABEL[row.feedback.source] ?? row.feedback.source}
                                                     </Badge>
@@ -711,7 +680,7 @@ export default function RdvAbsencesPage() {
                                                     {row.feedback.note}
                                                 </p>
                                             )}
-                                            {tab !== "pending" && row.feedback?.reportedBy && (
+                                            {row.feedback?.reportedBy && (
                                                 <p className="mt-1 text-xs text-slate-400">
                                                     Signalé par {row.feedback.reportedBy} le {fmtDate(row.feedback.reportedAt)}
                                                 </p>
@@ -727,12 +696,6 @@ export default function RdvAbsencesPage() {
                                         </div>
 
                                         <div className="flex flex-shrink-0 items-center gap-2">
-                                            {tab === "pending" && (
-                                                <Button variant="danger" size="sm" onClick={() => openReport([row])}>
-                                                    <UserX className="w-4 h-4" />
-                                                    Signaler absent
-                                                </Button>
-                                            )}
                                             {tab === "reported" && (
                                                 <>
                                                     <Button variant="outline" size="sm" onClick={() => openReport([row])}>

@@ -27,6 +27,7 @@ function buildQuery(filters: MeetingFiltersState, page = 1): string {
   filters.selectedSdrs.forEach((id) => p.append("sdrIds[]", id));
   if (filters.statusFilter !== "all") p.append("status[]", filters.statusFilter);
   if (filters.confirmationFilter !== "all") p.append("confirmationStatus[]", filters.confirmationFilter);
+  if (filters.noShowFilter !== "all") p.set("noShow", filters.noShowFilter);
   filters.selectedMeetingTypes.forEach((t) => p.append("meetingType[]", t));
   filters.selectedMeetingCategories.forEach((c) => p.append("meetingCategory[]", c));
   filters.selectedOutcomes.forEach((o) => {
@@ -100,6 +101,7 @@ export function useMeetings(filters: MeetingFiltersState): UseMeetingsReturn {
       filters.dateRange,
       filters.statusFilter,
       filters.confirmationFilter,
+      filters.noShowFilter,
       filters.selectedClients,
       filters.selectedMissions,
       filters.selectedSdrs,

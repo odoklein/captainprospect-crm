@@ -45,6 +45,7 @@ import { FicheTab } from "./FicheTab";
 import { FeedbackTab } from "./FeedbackTab";
 import { AudioTab } from "./AudioTab";
 import { HistoryTab } from "./HistoryTab";
+import { NoShowActions } from "./NoShowActions";
 import type { UseDetailPanelReturn } from "../../_hooks/useDetailPanel";
 import type { UseFicheRdvReturn } from "../../_hooks/useFicheRdv";
 import type { UseFeedbackReturn } from "../../_hooks/useFeedback";
@@ -288,6 +289,19 @@ export function DetailPanel({
               </div>
             </div>
           </div>
+
+          {/* Absence — flagging a late no-show happens here, on the RDV itself,
+              and answers "who picks it back up?" in the same move. Above the SAS
+              cards because an absence outranks a confirmation question. */}
+          {!isReplaced && (
+            <NoShowActions
+              meeting={selectedMeeting}
+              onUpdated={(patch) => {
+                updateLocalMeeting(selectedMeeting.id, patch);
+                setSelectedMeeting({ ...selectedMeeting, ...patch });
+              }}
+            />
+          )}
 
           {/* Prominent SAS Confirmation Action Card */}
           {isReplaced && (

@@ -62,6 +62,11 @@ export interface Meeting {
     outcome: string;
     recontact: string;
     note: string | null;
+    /** Set when the absence was parked: on record, off the SDR boards. */
+    standByAt?: string | null;
+    standByReason?: string | null;
+    reportedBy?: string | null;
+    reportedAt?: string | null;
   } | null;
 }
 
@@ -93,11 +98,13 @@ export interface FilterOption {
 
 export type ViewMode = "list" | "calendar";
 export type StatusFilter = "all" | "upcoming" | "past" | "cancelled";
-export type DatePreset = "today" | "7days" | "30days" | "3months" | "custom";
+export type DatePreset = "today" | "7days" | "30days" | "3months" | "all" | "custom";
 export type MeetingTypeFilter = "VISIO" | "PHYSIQUE" | "TELEPHONIQUE";
 export type MeetingCategoryFilter = "EXPLORATOIRE" | "BESOIN";
 export type OutcomeFilter = "POSITIVE" | "NEUTRAL" | "NEGATIVE" | "NO_SHOW" | "NONE";
 export type ConfirmationFilter = "all" | "PENDING" | "CONFIRMED" | "CANCELLED";
+/** Absences: "open" = signalés absents et non traités · "standby" = mis de côté. */
+export type NoShowFilter = "all" | "open" | "standby";
 export type PanelTab = "detail" | "fiche" | "feedback" | "audio" | "history";
 export type SortField = "createdAt" | "callbackDate" | "duration" | "contactName" | "companyName" | "sdrName";
 export type SortDir = "asc" | "desc";
@@ -111,6 +118,7 @@ export interface QuickPreset {
 }
 
 export const QUICK_PRESETS: QuickPreset[] = [
+  { id: "absent_open", label: "Absents à traiter", icon: "🚨", description: "Signalés absents, ni replacés ni mis de côté" },
   { id: "to_confirm", label: "À confirmer", icon: "⏳", description: "RDV à venir en attente de confirmation" },
   { id: "past_no_feedback", label: "Sans feedback", icon: "💬", description: "RDV passés sans retour renseigné" },
   { id: "no_audio", label: "Sans audio", icon: "🎙️", description: "RDV sans enregistrement Allo lié" },
@@ -122,6 +130,7 @@ export interface MeetingFilters {
   search: string;
   statusFilter: StatusFilter;
   confirmationFilter: ConfirmationFilter;
+  noShowFilter: NoShowFilter;
   datePreset: DatePreset;
   dateFrom: string;
   dateTo: string;

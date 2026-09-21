@@ -115,11 +115,24 @@ function serialise(m: MeetingRow) {
  * `pending`  — past meetings with no verdict yet, the ones to act on.
  * `reported` — no-shows already recorded, so a mistake can be spotted.
  * `standby`  — no-shows set aside: still recorded, but off the SDR boards.
+ * `sdrs`     — just the SDR list, for the "Signaler absent" form on the fiche RDV.
  */
 export const GET = withErrorHandler(async (request: NextRequest) => {
     await requireRole(["MANAGER"], request);
 
     const scope = request.nextUrl.searchParams.get("scope") ?? "all";
+
+    // The fiche RDV only needs who it can hand the absence to — no point
+    // running two 400-row backlog queries to populate a <select>.
+    if (scope === "sdrs") {
+        const sdrs = await prisma.user.findMany({
+            where: { role: { in: ["SDR", "BOOKER"] }, isActive: true },
+            select: { id: true, name: true, email: true },
+            orderBy: { name: "asc" },
+        });
+        return successResponse({ sdrs });
+    }
+
     const now = new Date();
     const lookbackFrom = new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000);
 

@@ -7,6 +7,7 @@ import type {
   MeetingCategoryFilter,
   OutcomeFilter,
   ConfirmationFilter,
+  NoShowFilter,
   DatePreset,
   ChannelFilter,
   SortField,
@@ -89,6 +90,7 @@ function ToggleFilter({ label, value, onChange }: {
 export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen, onClose, onOpen }: FilterSidebarProps) {
   const {
     datePreset, setDatePreset, dateFrom, setDateFrom, dateTo, setDateTo,
+    noShowFilter, setNoShowFilter,
     clientOptions, selectedClients, setSelectedClients,
     missionOptions, selectedMissions, setSelectedMissions,
     sdrOptions, selectedSdrs, setSelectedSdrs,
@@ -226,7 +228,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
       {/* ─── Period ─── */}
       <FilterSection title="Période">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {([["today", "Aujourd'hui"], ["7days", "7 jours"], ["30days", "30 jours"], ["3months", "3 mois"], ["custom", "Personnalisée"]] as [DatePreset, string][]).map(([key, label]) => (
+          {([["today", "Aujourd'hui"], ["7days", "7 jours"], ["30days", "30 jours"], ["3months", "3 mois"], ["all", "Tout"], ["custom", "Personnalisée"]] as [DatePreset, string][]).map(([key, label]) => (
             <button
               key={key}
               className="rdv-btn"
@@ -434,6 +436,30 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
               {label}
             </button>
           ))}
+        </div>
+      </FilterSection>
+
+      {/* ─── Absences ─── */}
+      <FilterSection title="Absences">
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+          {([["open", "🚨 À traiter"], ["standby", "⏸ En stand by"]] as [Exclude<NoShowFilter, "all">, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              className="rdv-pill"
+              style={{
+                cursor: "pointer", padding: "4px 10px", fontSize: 11,
+                background: noShowFilter === key ? "var(--accentLight)" : "var(--surface2)",
+                color: noShowFilter === key ? "var(--accent)" : "var(--ink3)",
+                border: `1px solid ${noShowFilter === key ? "var(--accent)" : "transparent"}`,
+              }}
+              onClick={() => setNoShowFilter(noShowFilter === key ? "all" : key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 10, color: "var(--ink3)", marginTop: 6, lineHeight: 1.4 }}>
+          « À traiter » = signalés absents, ni replacés ni mis de côté.
         </div>
       </FilterSection>
 

@@ -28,6 +28,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const channels = sp.getAll("channel[]");
   const hasAudioParam = sp.get("hasAudio");
   const hasFeedbackParam = sp.get("hasFeedback");
+  /** "open" = signalé absent et pas encore traité · "standby" = mis de côté. */
+  const noShowParam = sp.get("noShow");
   const sortByParam = sp.get("sortBy") ?? "createdAt";
   const sortDirParam = (sp.get("sortDir") ?? "desc") as "asc" | "desc";
   const sortDir: "asc" | "desc" = sortDirParam === "asc" ? "asc" : "desc";
@@ -185,6 +187,21 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     andClauses.push({ meetingFeedback: { isNot: null } });
   } else if (hasFeedbackParam === "0") {
     andClauses.push({ meetingFeedback: null });
+  }
+
+  // "Absents à traiter": flagged NO_SHOW and nothing done about it yet — not
+  // replaced (which cancels the RDV), not parked on stand by. This is the one
+  // view that matters day to day, so it gets a filter of its own rather than
+  // asking anyone to combine three others by hand.
+  if (noShowParam === "open") {
+    andClauses.push({
+      result: "MEETING_BOOKED",
+      meetingFeedback: { is: { outcome: "NO_SHOW", standByAt: null } },
+    });
+  } else if (noShowParam === "standby") {
+    andClauses.push({
+      meetingFeedback: { is: { outcome: "NO_SHOW", standByAt: { not: null } } },
+    });
   }
 
   if (andClauses.length > 0) where.AND = andClauses;
@@ -386,6 +403,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
           outcome: m.meetingFeedback.outcome,
           recontact: m.meetingFeedback.recontactRequested,
           note: m.meetingFeedback.clientNote,
+          standByAt: m.meetingFeedback.standByAt?.toISOString() ?? null,
+          standByReason: m.meetingFeedback.standByReason ?? null,
+          reportedAt: m.meetingFeedback.updatedAt?.toISOString() ?? null,
         }
       : null,
   }));

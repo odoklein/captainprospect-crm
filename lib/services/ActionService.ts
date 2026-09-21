@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { ActionResult } from '@prisma/client';
 import { parseDateFromNote } from '@/lib/utils/parseDateFromNote';
 import { createClientPortalNotification, sendNewRdvEmailNotification, createNotification } from '@/lib/notifications';
+import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from '@/lib/meetings/clientEmailGate';
 import type { EffectiveStatusDefinition } from './StatusConfigService';
 
 // ============================================
@@ -274,19 +275,27 @@ export class ActionService {
                     } | null | undefined;
 
                     const anyRecord = actionRecord as any;
-                    void sendNewRdvEmailNotification(clientId, {
-                        contactFirstName: contactData?.firstName,
-                        contactLastName: contactData?.lastName,
-                        companyName: contactData?.company?.name,
-                        missionName: campaign?.mission?.name,
-                        scheduledAt: anyRecord.callbackDate ?? undefined,
-                        meetingChannel: anyRecord.channel ?? "CALL",
-                        meetingType: anyRecord.meetingType ?? undefined,
-                        meetingJoinUrl: anyRecord.meetingJoinUrl ?? undefined,
-                        meetingAddress: anyRecord.meetingAddress ?? undefined,
-                        meetingPhone: anyRecord.meetingPhone ?? undefined,
-                        interlocuteurId: anyRecord.interlocuteurId ?? undefined,
-                    });
+                    // A freshly booked RDV is PENDING: no automatic mail to the
+                    // client yet. It goes out when the RDV is confirmed — from
+                    // /manager/rdv, or by the 24h auto-confirm — which is where
+                    // the send now lives.
+                    if (canEmailClientAboutMeeting(anyRecord.confirmationStatus)) {
+                        void sendNewRdvEmailNotification(clientId, {
+                            contactFirstName: contactData?.firstName,
+                            contactLastName: contactData?.lastName,
+                            companyName: contactData?.company?.name,
+                            missionName: campaign?.mission?.name,
+                            scheduledAt: anyRecord.callbackDate ?? undefined,
+                            meetingChannel: anyRecord.channel ?? "CALL",
+                            meetingType: anyRecord.meetingType ?? undefined,
+                            meetingJoinUrl: anyRecord.meetingJoinUrl ?? undefined,
+                            meetingAddress: anyRecord.meetingAddress ?? undefined,
+                            meetingPhone: anyRecord.meetingPhone ?? undefined,
+                            interlocuteurId: anyRecord.interlocuteurId ?? undefined,
+                        });
+                    } else {
+                        console.info(meetingEmailSkippedReason(actionRecord.id, anyRecord.confirmationStatus));
+                    }
                 } else {
                     await createClientPortalNotification(clientId, {
                         title: 'Nouvelle opportunité',

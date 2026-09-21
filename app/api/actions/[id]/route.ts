@@ -20,6 +20,7 @@ import {
     createClientPortalNotification,
     sendRdvRescheduledEmailNotification,
 } from '@/lib/notifications';
+import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from '@/lib/meetings/clientEmailGate';
 
 // ============================================
 // PATCH /api/actions/[id] - Update callback date (reschedule rappel) or meeting (result + note + cancellationReason + callbackDate)
@@ -181,24 +182,32 @@ export const PATCH = withErrorHandler(async (
                 link: '/client/portal/meetings',
             });
 
-            void sendRdvRescheduledEmailNotification(clientId, {
-                contactFirstName: action.contact?.firstName ?? null,
-                contactLastName: action.contact?.lastName ?? null,
-                companyName: action.contact?.company?.name ?? action.company?.name ?? null,
-                missionName: action.campaign?.mission?.name ?? null,
-                scheduledAt: movedTo,
-                previousScheduledAt: action.callbackDate ?? null,
-                meetingType:
-                    ((updateData.meetingType ?? action.meetingType) as
-                        | 'VISIO'
-                        | 'PHYSIQUE'
-                        | 'TELEPHONIQUE'
-                        | null) ?? null,
-                meetingJoinUrl: updateData.meetingJoinUrl ?? action.meetingJoinUrl ?? null,
-                meetingAddress: updateData.meetingAddress ?? action.meetingAddress ?? null,
-                meetingPhone: updateData.meetingPhone ?? action.meetingPhone ?? null,
-                interlocuteurId: action.interlocuteurId ?? undefined,
-            });
+            // Only if the client was told about this RDV in the first place:
+            // moving a RDV they never received a mail for would announce a
+            // change to something they have never seen.
+            const confirmation = updateData.confirmationStatus ?? action.confirmationStatus;
+            if (canEmailClientAboutMeeting(confirmation)) {
+                void sendRdvRescheduledEmailNotification(clientId, {
+                    contactFirstName: action.contact?.firstName ?? null,
+                    contactLastName: action.contact?.lastName ?? null,
+                    companyName: action.contact?.company?.name ?? action.company?.name ?? null,
+                    missionName: action.campaign?.mission?.name ?? null,
+                    scheduledAt: movedTo,
+                    previousScheduledAt: action.callbackDate ?? null,
+                    meetingType:
+                        ((updateData.meetingType ?? action.meetingType) as
+                            | 'VISIO'
+                            | 'PHYSIQUE'
+                            | 'TELEPHONIQUE'
+                            | null) ?? null,
+                    meetingJoinUrl: updateData.meetingJoinUrl ?? action.meetingJoinUrl ?? null,
+                    meetingAddress: updateData.meetingAddress ?? action.meetingAddress ?? null,
+                    meetingPhone: updateData.meetingPhone ?? action.meetingPhone ?? null,
+                    interlocuteurId: action.interlocuteurId ?? undefined,
+                });
+            } else {
+                console.info(meetingEmailSkippedReason(action.id, confirmation));
+            }
         }
     }
 

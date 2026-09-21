@@ -243,6 +243,9 @@ export function buildDateRange(
       return { from: fmt(startOfMonth), to: fmt(endOfMonth) };
     }
     case "3months": { const d = new Date(); d.setMonth(d.getMonth() - 3); return { from: fmt(d), to: fmt(now) }; }
+    // No bound at all: an absence backlog goes back further than 3 months,
+    // and a date window would quietly hide the oldest ones.
+    case "all": return { from: "", to: "" };
     case "custom": return { from: dateFrom, to: dateTo };
   }
 }

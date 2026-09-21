@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import type {
   StatusFilter,
   ConfirmationFilter,
+  NoShowFilter,
   DatePreset,
   MeetingTypeFilter,
   MeetingCategoryFilter,
@@ -20,6 +21,7 @@ export interface MeetingFiltersState extends MeetingFilters {
   setSearch: (v: string) => void;
   setStatusFilter: (v: StatusFilter) => void;
   setConfirmationFilter: (v: ConfirmationFilter) => void;
+  setNoShowFilter: (v: NoShowFilter) => void;
   setDatePreset: (v: DatePreset) => void;
   setDateFrom: (v: string) => void;
   setDateTo: (v: string) => void;
@@ -52,6 +54,7 @@ export function useMeetingFilters(): MeetingFiltersState {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [confirmationFilter, setConfirmationFilter] = useState<ConfirmationFilter>("all");
+  const [noShowFilter, setNoShowFilter] = useState<NoShowFilter>("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("3months");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -94,6 +97,7 @@ export function useMeetingFilters(): MeetingFiltersState {
     setSearch("");
     setStatusFilter("all");
     setConfirmationFilter("all");
+    setNoShowFilter("all");
     setDatePreset("3months");
     setDateFrom("");
     setDateTo("");
@@ -111,6 +115,14 @@ export function useMeetingFilters(): MeetingFiltersState {
 
     // Then apply preset-specific overrides
     switch (id) {
+      case "absent_open":
+        // The one-click "absent" view: flagged absent, still to deal with,
+        // oldest first because that is the one going cold.
+        setNoShowFilter("open");
+        setDatePreset("all");
+        setSortBy("callbackDate");
+        setSortDir("asc");
+        break;
       case "to_confirm":
         setStatusFilter("upcoming");
         setConfirmationFilter("PENDING");
@@ -145,6 +157,7 @@ export function useMeetingFilters(): MeetingFiltersState {
     setSearch("");
     setStatusFilter("all");
     setConfirmationFilter("all");
+    setNoShowFilter("all");
     setDatePreset("3months");
     setDateFrom("");
     setDateTo("");
@@ -166,6 +179,7 @@ export function useMeetingFilters(): MeetingFiltersState {
     if (search) c++;
     if (statusFilter !== "all") c++;
     if (confirmationFilter !== "all") c++;
+    if (noShowFilter !== "all") c++;
     if (selectedClients.size > 0) c++;
     if (selectedMissions.size > 0) c++;
     if (selectedSdrs.size > 0) c++;
@@ -177,7 +191,7 @@ export function useMeetingFilters(): MeetingFiltersState {
     if (hasFeedback !== null) c++;
     return c;
   }, [
-    search, statusFilter, confirmationFilter,
+    search, statusFilter, confirmationFilter, noShowFilter,
     selectedClients, selectedMissions, selectedSdrs,
     selectedMeetingTypes, selectedMeetingCategories, selectedOutcomes,
     selectedChannels, hasAudio, hasFeedback,
@@ -195,6 +209,7 @@ export function useMeetingFilters(): MeetingFiltersState {
     search, setSearch,
     statusFilter, setStatusFilter,
     confirmationFilter, setConfirmationFilter,
+    noShowFilter, setNoShowFilter,
     datePreset, setDatePreset,
     dateFrom, setDateFrom,
     dateTo, setDateTo,
