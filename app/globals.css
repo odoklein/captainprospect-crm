@@ -5252,3 +5252,11 @@ textarea::placeholder {
 @media (prefers-reduced-motion: reduce) {
     .ap-root *, .ap-root *::before { animation: none !important; transition: none !important; }
 }
+
+/* Shared by the client portal's activity views and the manager client drawer.
+   Previously declared per-page in <style jsx>, which left the extracted
+   CallActivity components un-animated anywhere else they were mounted. */
+@keyframes dashFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}

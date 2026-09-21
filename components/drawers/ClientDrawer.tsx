@@ -15,6 +15,11 @@ import {
 } from "@/components/ui";
 import { CLIENTS_QUERY_KEY, clientDetailQueryKey } from "@/lib/query-keys";
 import {
+    DayBlock,
+    useActionStatusConfig,
+    type NormalizedCall,
+} from "@/components/activity/CallActivity";
+import {
     InlineText,
     InlineSelect,
     InlineToggle,
@@ -222,7 +227,7 @@ interface ClientDrawerProps {
     onMissionTabChange?: (tab: string) => void;
 }
 
-type TabId = "apercu" | "missions" | "acces" | "interlocuteurs" | "activite" | "avis-sdr" | "sessions";
+type TabId = "apercu" | "missions" | "acces" | "activite" | "avis-sdr" | "sessions";
 
 const DRAWER_EXPANDED_KEY = "cp:clientDrawerExpanded";
 
@@ -1041,6 +1046,9 @@ export function ClientDrawer({
                                             <Badge variant={role.variant} className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0">
                                                 {role.label}
                                             </Badge>
+                                            <Badge variant="primary" className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0">
+                                                Accès portail client
+                                            </Badge>
                                             {!u.isActive && (
                                                 <Badge variant="danger" className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0">
                                                     Désactivé
@@ -1155,6 +1163,16 @@ export function ClientDrawer({
                                     <p className="text-sm font-semibold text-slate-900 truncate">
                                         {i.firstName} {i.lastName}
                                     </p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-1">
+                                        <Badge variant="default" className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0">
+                                            Interlocuteur
+                                        </Badge>
+                                        {i.portalUser && (
+                                            <Badge variant="primary" className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0">
+                                                Commercial
+                                            </Badge>
+                                        )}
+                                    </div>
                                     {i.jobTitle && (
                                         <p className="text-xs text-slate-500 truncate mt-0.5">{i.jobTitle}</p>
                                     )}
@@ -1315,6 +1333,37 @@ export function ClientDrawer({
         return groups;
     }, {});
 
+    // Same palette and ordering the client portal resolves, from the same
+    // endpoint — otherwise "the same view" would drift on colour alone.
+    const { resultMeta, statusOrder } = useActionStatusConfig();
+
+    /**
+     * The drawer's actions carry the SDR, which the client's own feed does not.
+     * Mapping them onto the portal's call shape lets the exact same components
+     * render here, with the SDR added through CallCard's extra slot rather than
+     * a forked card.
+     */
+    const sdrByCallId = new Map(recentActions.map((a) => [a.id, a.sdr?.name ?? null]));
+    const toNormalizedCalls = (actions: ClientActionInsight[]): NormalizedCall[] =>
+        actions.map((a) => ({
+            id: a.id,
+            createdAt: a.createdAt,
+            callbackDate: a.callbackDate ?? null,
+            result: a.result,
+            note: a.note ?? null,
+            duration: a.duration ?? null,
+            company: a.company ? { name: a.company.name } : null,
+            contact: {
+                firstName: a.contact?.firstName ?? null,
+                lastName: a.contact?.lastName ?? null,
+                title: a.contact?.title ?? null,
+                email: null,
+                phone: null,
+                company: { name: a.contact?.company?.name ?? a.company?.name ?? "\u2014" },
+            },
+            campaign: { name: a.campaign.name, mission: { name: a.campaign.mission.name } },
+        }));
+
     const ActivityTab = (
         <div className="space-y-4">
             <div>
@@ -1340,81 +1389,26 @@ export function ClientDrawer({
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {Object.entries(actionsByDay).map(([day, actions]) => {
-                        const meetings = actions.filter((action) => action.result === "MEETING_BOOKED").length;
-                        return (
-                            <div key={day} className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                                <div className="flex items-center justify-between gap-4 px-4 py-3 bg-slate-50/70 border-b border-slate-100">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex flex-col items-center justify-center">
-                                            <span className="text-[9px] uppercase font-bold">
-                                                {new Date(`${day}T12:00:00`).toLocaleDateString("fr-FR", { month: "short" })}
-                                            </span>
-                                            <span className="text-base font-bold leading-none">
-                                                {new Date(`${day}T12:00:00`).getDate()}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-bold text-slate-900">
-                                                {actions.length} action{actions.length > 1 ? "s" : ""}
-                                            </p>
-                                            <p className="text-xs text-slate-500">
-                                                {meetings} RDV · {new Set(actions.map((action) => action.sdr.id)).size} SDR
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span className="text-xs font-semibold text-slate-500">
-                                        {new Date(`${day}T12:00:00`).toLocaleDateString("fr-FR", {
-                                            weekday: "long",
-                                            day: "numeric",
-                                            month: "long",
-                                        })}
+                    {Object.entries(actionsByDay).map(([day, actions], index) => (
+                        <DayBlock
+                            key={day}
+                            dateKey={day}
+                            calls={toNormalizedCalls(actions)}
+                            statusOrder={statusOrder}
+                            resultMeta={resultMeta}
+                            defaultOpen={index === 0}
+                            renderCallExtra={(call) => {
+                                const sdr = sdrByCallId.get(call.id);
+                                return sdr ? (
+                                    <span className="flex items-center gap-1 text-[11px] font-semibold text-[#7C5CFC]">
+                                        <UserIcon className="w-3 h-3" />
+                                        {sdr}
                                     </span>
-                                </div>
-                                <div className="divide-y divide-slate-100">
-                                    {actions.map((action) => {
-                                        const contactName = [
-                                            action.contact?.firstName,
-                                            action.contact?.lastName,
-                                        ].filter(Boolean).join(" ");
-                                        const companyName =
-                                            action.contact?.company?.name || action.company?.name || "Société non renseignée";
-                                        return (
-                                            <div key={action.id} className="px-4 py-3 hover:bg-slate-50/60 transition-colors">
-                                                <div className="flex items-start justify-between gap-4">
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className="text-sm font-semibold text-slate-900">
-                                                                {contactName || companyName}
-                                                            </span>
-                                                            <Badge
-                                                                variant={action.result === "MEETING_BOOKED" ? "success" : "default"}
-                                                                className="text-[9px] uppercase tracking-wider"
-                                                            >
-                                                                {ACTION_LABELS[action.result] || action.result}
-                                                            </Badge>
-                                                        </div>
-                                                        <p className="text-xs text-slate-500 mt-1">
-                                                            {companyName} · {action.campaign.mission.name} · {action.sdr.name || "SDR"}
-                                                        </p>
-                                                        {action.note && (
-                                                            <p className="text-xs text-slate-600 mt-2 line-clamp-2">{action.note}</p>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-xs text-slate-400 flex-shrink-0">
-                                                        {new Date(action.createdAt).toLocaleTimeString("fr-FR", {
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                        })}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
+                                ) : null;
+                            }}
+                        />
+                    ))}
+                    {AdministrativeActivityTimeline}
                 </div>
             )}
         </div>
@@ -1501,11 +1495,28 @@ export function ClientDrawer({
         </div>
     );
 
+    /**
+     * "Accès et interlocuteurs" — the two tabs merged (TC-0029). The same person
+     * was routinely both a portal user and an interlocuteur, so splitting them
+     * meant checking two tabs to answer one question. Each row carries the badge
+     * that says which profile it is.
+     */
+    const AccessAndContactsTab = (
+        <div className="space-y-6">
+            {InterlocuteursTab}
+            {AccessTab}
+        </div>
+    );
+
     const tabDef = [
         { id: "apercu", label: "Aperçu", icon: <Building2 className="w-3.5 h-3.5" /> },
         { id: "missions", label: "Missions", icon: <Target className="w-3.5 h-3.5" />, badge: missions.length || undefined },
-        { id: "acces", label: "Accès", icon: <ShieldCheck className="w-3.5 h-3.5" />, badge: usersList.length || undefined },
-        { id: "interlocuteurs", label: "Interlocuteurs", icon: <Users className="w-3.5 h-3.5" />, badge: interlocuteurs.length || undefined },
+        {
+            id: "acces",
+            label: "Accès et interlocuteurs",
+            icon: <ShieldCheck className="w-3.5 h-3.5" />,
+            badge: (usersList.length + interlocuteurs.length) || undefined,
+        },
         { id: "activite", label: "Activité", icon: <Activity className="w-3.5 h-3.5" /> },
         { id: "avis-sdr", label: "Avis SDR", icon: <MessageSquare className="w-3.5 h-3.5" />, badge: sdrFeedback.length || undefined },
         { id: "sessions", label: "CR & Sessions", icon: <FileText className="w-3.5 h-3.5" />, badge: sessions.length || undefined },
@@ -1620,8 +1631,7 @@ export function ClientDrawer({
                         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
                             {activeTab === "apercu" && OverviewTab}
                             {activeTab === "missions" && MissionsTab}
-                            {activeTab === "acces" && AccessTab}
-                            {activeTab === "interlocuteurs" && InterlocuteursTab}
+                            {activeTab === "acces" && AccessAndContactsTab}
                             {activeTab === "activite" && ActivityTab}
                             {activeTab === "avis-sdr" && SdrFeedbackTab}
                             {activeTab === "sessions" && SessionsTab}
