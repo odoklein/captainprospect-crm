@@ -10,20 +10,43 @@ import { actionService } from "@/lib/services/ActionService";
 
 const ALLO_HOST = "api.withallo.com";
 const ALLO_RECORDINGS_PATH_PREFIX = "/v1/assets/recordings/";
+const VAULT_RECORDING_PATH_SUFFIX = "/recording";
 
-function parseAllowedAlloRecordingUrl(urlString: string): URL {
+type Upstream = { url: URL; authHeader: string };
+
+/**
+ * Resolves a stored callRecordingUrl to an allowed upstream + the auth header it needs. Two
+ * sources are legitimate: WithAllo directly (legacy rows, and the ALLO_API_KEY fallback path in
+ * lib/call-enrichment/provider.ts) and call-vault (its stable /api/calls/:id/recording redirect —
+ * see lib/call-vault-client.ts's vaultRecordingProxyUrl). Anything else is rejected outright.
+ */
+function resolveUpstream(urlString: string): Upstream {
     let u: URL;
     try {
         u = new URL(urlString.trim());
     } catch {
         throw new NotFoundError("Enregistrement introuvable");
     }
-    if (u.protocol !== "https:") throw new NotFoundError("Enregistrement introuvable");
-    if (u.hostname !== ALLO_HOST) throw new NotFoundError("Enregistrement introuvable");
-    if (!u.pathname.startsWith(ALLO_RECORDINGS_PATH_PREFIX)) {
+    if (u.protocol !== "https:" && u.protocol !== "http:") {
         throw new NotFoundError("Enregistrement introuvable");
     }
-    return u;
+
+    if (u.protocol === "https:" && u.hostname === ALLO_HOST && u.pathname.startsWith(ALLO_RECORDINGS_PATH_PREFIX)) {
+        const apiKey = process.env.ALLO_API_KEY;
+        if (!apiKey) throw new NotFoundError("Enregistrement introuvable");
+        return { url: u, authHeader: apiKey };
+    }
+
+    const vaultBase = process.env.VAULT_API_URL;
+    const vaultKey = process.env.VAULT_API_KEY;
+    if (vaultBase && vaultKey) {
+        const vaultUrl = new URL(vaultBase);
+        if (u.hostname === vaultUrl.hostname && u.port === vaultUrl.port && u.pathname.endsWith(VAULT_RECORDING_PATH_SUFFIX)) {
+            return { url: u, authHeader: `Bearer ${vaultKey}` };
+        }
+    }
+
+    throw new NotFoundError("Enregistrement introuvable");
 }
 
 async function assertCanStreamRecording(
@@ -40,7 +63,8 @@ async function assertCanStreamRecording(
     throw new NotFoundError("Enregistrement introuvable");
 }
 
-// GET /api/actions/[id]/recording — stream Allo MP3 with server-side API key (browser cannot send Allo auth)
+// GET /api/actions/[id]/recording — stream the recording (Allo or call-vault) with a server-side
+// key the browser can't send itself.
 export const GET = withErrorHandler(
     async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
         const session = await requireRole(
@@ -64,16 +88,12 @@ export const GET = withErrorHandler(
 
         await assertCanStreamRecording(session.user.id, session.user.role, action);
 
-        const targetUrl = parseAllowedAlloRecordingUrl(action.callRecordingUrl);
-        const apiKey = process.env.ALLO_API_KEY;
-        if (!apiKey) {
-            return errorResponse("ALLO_API_KEY non configuré", 503);
-        }
+        const { url: targetUrl, authHeader } = resolveUpstream(action.callRecordingUrl);
 
         const range = request.headers.get("Range") ?? undefined;
         const upstream = await fetch(targetUrl.toString(), {
             headers: {
-                Authorization: apiKey,
+                Authorization: authHeader,
                 ...(range ? { Range: range } : {}),
             },
             cache: "no-store",

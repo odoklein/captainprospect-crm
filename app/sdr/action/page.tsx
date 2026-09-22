@@ -75,6 +75,9 @@ interface AlloCallItem {
     summary?: string;
     recording_url?: string;
     transcript?: Array<{ source: string; text: string }>;
+    /** Set when the source is call-vault, which already stores one formatted transcript string —
+     *  preferred over rebuilding from `transcript[]` below (that array shape is WithAllo-specific). */
+    transcription?: string;
     created_at?: string;
     start_time?: string | number;
 }
@@ -1676,9 +1679,10 @@ export default function SDRActionPage() {
             const callToLink = linkedAlloCall;
             if (newActionId && currentAction.channel === "CALL" && callToLink) {
                 const transcription =
-                    callToLink.transcript?.length ?
+                    callToLink.transcription ??
+                    (callToLink.transcript?.length ?
                         callToLink.transcript.map((t) => `${t.source}: ${t.text}`).join("\n")
-                    :   null;
+                    :   null);
                 try {
                     const enrichRes = await fetch(`/api/actions/${newActionId}/enrich-call`, {
                         method: "PATCH",

@@ -1009,9 +1009,10 @@ export function UnifiedActionDrawer({
     const summarizeNoteMutation = useMutation({
         mutationFn: async (payload: { text?: string; linkedCall?: AlloCallItem | null }) => {
             const transcription =
-                payload.linkedCall?.transcript?.length ?
+                payload.linkedCall?.transcription ??
+                (payload.linkedCall?.transcript?.length ?
                     payload.linkedCall.transcript.map((t) => `${t.source}: ${t.text}`).join("\n")
-                :   undefined;
+                :   undefined);
 
             const res = await fetch("/api/ai/mistral/note-improve", {
                 method: "POST",
@@ -1038,7 +1039,7 @@ export function UnifiedActionDrawer({
     const handleSummarizeWithAi = () => {
         const trimmed = newActionNote.trim();
         const hasCallData = Boolean(
-            linkedAlloCall?.summary?.trim() || linkedAlloCall?.transcript?.length
+            linkedAlloCall?.summary?.trim() || linkedAlloCall?.transcript?.length || linkedAlloCall?.transcription?.trim()
         );
 
         if (!trimmed && !hasCallData) {
@@ -1184,9 +1185,10 @@ export function UnifiedActionDrawer({
             const missionChannel = (selectedCampaign?.mission?.channel ?? "CALL") as string;
             if (newActionId && missionChannel === "CALL" && callToLink) {
                 const transcription =
-                    callToLink.transcript?.length ?
+                    callToLink.transcription ??
+                    (callToLink.transcript?.length ?
                         callToLink.transcript.map((t) => `${t.source}: ${t.text}`).join("\n")
-                    :   null;
+                    :   null);
                 try {
                     const enrichRes = await fetch(`/api/actions/${newActionId}/enrich-call`, {
                         method: "PATCH",
@@ -3329,7 +3331,8 @@ export function UnifiedActionDrawer({
                                                 disabled={
                                                     (!newActionNote.trim() &&
                                                         !linkedAlloCall?.summary?.trim() &&
-                                                        !linkedAlloCall?.transcript?.length) ||
+                                                        !linkedAlloCall?.transcript?.length &&
+                                                        !linkedAlloCall?.transcription?.trim()) ||
                                                     summarizeNoteMutation.isPending
                                                 }
                                                 aria-label="Résumer avec l'IA"

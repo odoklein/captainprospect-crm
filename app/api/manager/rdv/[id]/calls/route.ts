@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole, withErrorHandler, errorResponse } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
-import { parseAlloCallsListResponse } from "@/lib/call-enrichment/allo-response";
+import { fetchVaultCallMatches, isVaultConfigured, vaultRecordingProxyUrl, type VaultCallMatch } from "@/lib/call-vault-client";
 
 const DEFAULT_COUNTRY = (process.env.PHONE_DEFAULT_COUNTRY ?? "FR") as Parameters<typeof isValidPhoneNumber>[1];
-const BASE_URL = "https://api.withallo.com";
-const GAP_MS = Math.max(0, parseInt(process.env.CALL_ENRICHMENT_ALLO_LINE_GAP_MS ?? "400", 10));
-const RETRIES_429 = Math.max(0, parseInt(process.env.CALL_ENRICHMENT_ALLO_429_RETRIES ?? "6", 10));
+const CANDIDATE_WINDOW_DAYS = 90;
+const CANDIDATE_LIMIT = 50;
 
 type PhoneSourceKey = "contact" | "company" | "meeting";
 
@@ -16,10 +15,7 @@ interface PhoneSourceInfo {
   label: string;
   rawPhone: string;
   normalizedPhone: string;
-  variants: string[];
 }
-
-function sleep(ms: number) { return new Promise<void>((r) => setTimeout(r, ms)); }
 
 function normalizePhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -31,69 +27,26 @@ function normalizePhone(raw: string | null | undefined): string | null {
   }
 }
 
-function extractPhoneCandidates(raw: string): string[] {
-  const text = raw.trim();
-  if (!text) return [];
-  const chunks = text.match(/(?:\+|00)?\d(?:[\d\s()./-]{6,}\d)?/g) ?? [];
-  if (chunks.length === 0) return [text];
-  const candidates = new Set<string>();
-  for (const chunk of chunks) {
-    const cleaned = chunk.replace(/[^\d+]/g, "");
-    if (!cleaned) continue;
-    candidates.add(cleaned);
-    if (cleaned.startsWith("00")) candidates.add(`+${cleaned.slice(2)}`);
-    const d = cleaned.replace(/\D/g, "");
-    if (d.length === 10 && d.startsWith("0")) { candidates.add(d); candidates.add(`+33${d.slice(1)}`); }
-    if (d.length === 11 && d.startsWith("33")) candidates.add(`+${d}`);
-  }
-  return [...candidates];
+function stripSpaces(s: string): string {
+  return s.replace(/\s+/g, "");
 }
 
-function buildPhoneVariants(raw: string): string[] {
-  const normalized = normalizePhone(raw);
-  const base = normalized ?? raw.replace(/[\s()./-]/g, "");
-  const variants = new Set<string>([base]);
-  if (base.startsWith("+33")) variants.add("0" + base.slice(3));
-  if (base.startsWith("+")) variants.add(base.slice(1));
-  // Also add candidates from raw (handles unformatted numbers like "01 23 45 67 89")
-  for (const c of extractPhoneCandidates(raw)) {
-    variants.add(c);
-    const n = normalizePhone(c);
-    if (n) {
-      variants.add(n);
-      if (n.startsWith("+33")) variants.add("0" + n.slice(3));
-      if (n.startsWith("+")) variants.add(n.slice(1));
-    }
-  }
-  return [...variants].filter(Boolean);
+/** Same E.164/local/no-plus variant set the vault matches against — used here only to attribute
+ *  a returned call back to whichever phone source(s) it matched, for the UI's per-source grouping. */
+function phoneVariants(e164: string): string[] {
+  const variants = new Set([e164]);
+  if (e164.startsWith("+33")) variants.add("0" + e164.slice(3));
+  if (e164.startsWith("+")) variants.add(e164.slice(1));
+  return [...variants];
 }
 
-async function fetchAlloCallsForVariant(
-  apiKey: string,
-  alloNumber: string,
-  contactPhone: string,
-): Promise<unknown[]> {
-  const url = new URL(`${BASE_URL}/v1/api/calls`);
-  url.searchParams.set("allo_number", alloNumber);
-  url.searchParams.set("contact_number", contactPhone);
-  url.searchParams.set("size", "50");
-  url.searchParams.set("page", "0");
-
-  for (let attempt = 0; attempt <= RETRIES_429; attempt++) {
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: apiKey },
-      next: { revalidate: 0 },
-    });
-    if (res.status === 429 && attempt < RETRIES_429) {
-      await sleep(Math.min(750 * 2 ** attempt, 30_000));
-      continue;
-    }
-    if (!res.ok) return [];
-    const data = await res.json();
-    const { rawCalls } = parseAlloCallsListResponse(data);
-    return rawCalls;
-  }
-  return [];
+function callMatchesSource(call: VaultCallMatch, variants: string[]): boolean {
+  const from = stripSpaces(call.fromNumber ?? "").toLowerCase();
+  const to = stripSpaces(call.toNumber ?? "").toLowerCase();
+  return variants.some((v) => {
+    const q = stripSpaces(v).toLowerCase();
+    return q.length > 0 && (from.includes(q) || to.includes(q));
+  });
 }
 
 export const GET = withErrorHandler(async (
@@ -115,11 +68,7 @@ export const GET = withErrorHandler(async (
 
   if (!action) return errorResponse("RDV introuvable", 404);
 
-  const apiKey = process.env.ALLO_API_KEY;
-  if (!apiKey) return errorResponse("ALLO_API_KEY non configuré", 503);
-
-  const alloNumbers = (process.env.ALLO_NUMBERS ?? "").split(",").map((n) => n.trim()).filter(Boolean);
-  if (!alloNumbers.length) return errorResponse("ALLO_NUMBERS non configuré", 503);
+  if (!isVaultConfigured()) return errorResponse("VAULT_API_URL/VAULT_API_KEY non configuré", 503);
 
   // Build unique phone sources (deduplicated by normalized phone)
   const seenNormalized = new Set<string>();
@@ -148,50 +97,47 @@ export const GET = withErrorHandler(async (
     const normalized = normalizePhone(raw) ?? raw.replace(/[\s()./-]/g, "");
     if (!normalized || seenNormalized.has(normalized)) continue;
     seenNormalized.add(normalized);
-    phoneSources.push({
-      key,
-      label,
-      rawPhone: raw,
-      normalizedPhone: normalized,
-      variants: buildPhoneVariants(raw),
-    });
+    phoneSources.push({ key, label, rawPhone: raw, normalizedPhone: normalized });
   }
 
   if (!phoneSources.length) {
     return NextResponse.json({
       success: true,
-      data: { calls: [], phoneSources: [], alloLineCount: alloNumbers.length, totalCalls: 0 },
+      data: { calls: [], phoneSources: [], alloLineCount: null, totalCalls: 0 },
     });
   }
 
-  // Fetch calls for each phone source × allo line × variant (serial to avoid 429)
-  const callMap = new Map<string, { call: unknown; sources: PhoneSourceKey[] }>();
+  const windowEnd = new Date();
+  const windowStart = new Date(windowEnd.getTime() - CANDIDATE_WINDOW_DAYS * 86400_000);
 
-  for (const source of phoneSources) {
-    for (let li = 0; li < alloNumbers.length; li++) {
-      const alloNumber = alloNumbers[li]!;
-      for (let vi = 0; vi < source.variants.length; vi++) {
-        const variant = source.variants[vi]!;
-        const rawCalls = await fetchAlloCallsForVariant(apiKey, alloNumber, variant);
-        for (const call of rawCalls) {
-          const c = call as Record<string, unknown>;
-          const callId = c.id != null ? String(c.id) : "";
-          if (!callId) continue;
-          if (!callMap.has(callId)) callMap.set(callId, { call, sources: [] });
-          const entry = callMap.get(callId)!;
-          if (!entry.sources.includes(source.key)) entry.sources.push(source.key);
-        }
-        if (vi < source.variants.length - 1 && GAP_MS > 0) await sleep(GAP_MS);
-      }
-      if (li < alloNumbers.length - 1 && GAP_MS > 0) await sleep(GAP_MS);
-    }
-  }
+  const matches = await fetchVaultCallMatches({
+    phones: phoneSources.map((s) => s.normalizedPhone),
+    windowStart,
+    windowEnd,
+    limit: CANDIDATE_LIMIT,
+  });
 
-  const calls = [...callMap.entries()]
-    .map(([, { call, sources }]) => ({ ...(call as Record<string, unknown>), _matchedSources: sources }))
-    .sort((a: any, b: any) => {
-      const ta = new Date(a.start_time ?? a.created_at ?? 0).getTime();
-      const tb = new Date(b.start_time ?? b.created_at ?? 0).getTime();
+  const sourceVariants = phoneSources.map((s) => ({ key: s.key, variants: phoneVariants(s.normalizedPhone) }));
+
+  const calls = matches
+    .map((m) => ({
+      id: m.callId,
+      from: m.fromNumber,
+      to: m.toNumber,
+      duration: m.durationSec,
+      direction: m.direction,
+      outcome: m.status ?? undefined,
+      summary: m.summary ?? undefined,
+      // Stable reference, not the presigned URL the vault returned inline — AudioTab.tsx persists
+      // this via updateMeeting({ callRecordingUrl }), and a presigned URL would expire within the hour.
+      recording_url: m.recordingUrl ? (vaultRecordingProxyUrl(m.callId) ?? undefined) : undefined,
+      transcription: m.transcription ?? undefined,
+      start_time: m.startedAt ?? undefined,
+      _matchedSources: sourceVariants.filter(({ variants }) => callMatchesSource(m, variants)).map((s) => s.key),
+    }))
+    .sort((a, b) => {
+      const ta = a.start_time ? new Date(a.start_time).getTime() : 0;
+      const tb = b.start_time ? new Date(b.start_time).getTime() : 0;
       return tb - ta;
     });
 
@@ -204,10 +150,13 @@ export const GET = withErrorHandler(async (
         label: s.label,
         phone: s.normalizedPhone,
         rawPhone: s.rawPhone,
-        callCount: [...callMap.values()].filter(({ sources }) => sources.includes(s.key)).length,
+        callCount: calls.filter((c) => c._matchedSources.includes(s.key)).length,
       })),
-      alloLineCount: alloNumbers.length,
-      totalCalls: callMap.size,
+      // No longer a meaningful "lines queried" count once matching runs against the vault's
+      // already-synced data instead of live-querying each WithAllo line — left null, the UI
+      // already hides this badge when it's null.
+      alloLineCount: null,
+      totalCalls: calls.length,
     },
   });
 });
