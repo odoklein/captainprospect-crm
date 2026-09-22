@@ -17,7 +17,7 @@ import {
     UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, Input, EmptyState, LoadingState, StatCard, useToast } from "@/components/ui";
+import { Button, Input, EmptyState, LoadingState, useToast } from "@/components/ui";
 import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge } from "./TicketBadges";
 import { TicketThread } from "./TicketThread";
 import { TicketSidePanel } from "./TicketSidePanel";
@@ -306,7 +306,7 @@ export function TicketWorkspace({
     );
 
     return (
-        <div className="space-y-5">
+        <div className="flex h-full min-h-0 flex-col gap-3 px-5 py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Support technique</h1>
@@ -351,16 +351,27 @@ export function TicketWorkspace({
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-                {statCards.map(({ onClick, ...card }) => (
+            {/* A compact strip, not five tall cards: every pixel of chrome above
+                the table is a row you cannot see. Same information, one line. */}
+            <div className="flex flex-wrap gap-2">
+                {statCards.map(({ onClick, label, value, icon: Icon, iconBg, iconColor }) => (
                     <button
-                        key={card.label}
+                        key={label}
                         type="button"
                         onClick={onClick}
-                        className="text-left transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-2xl"
-                        aria-label={`Filtrer : ${card.label} (${card.value})`}
+                        aria-label={`Filtrer : ${label} (${value})`}
+                        className={cn(
+                            "inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 transition-colors",
+                            "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40",
+                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
+                            value === 0 && "opacity-60",
+                        )}
                     >
-                        <StatCard {...card} />
+                        <span className={cn("flex h-6 w-6 items-center justify-center rounded-lg", iconBg)}>
+                            <Icon className={cn("h-3.5 w-3.5", iconColor)} />
+                        </span>
+                        <span className="text-lg font-bold leading-none tabular-nums text-slate-900">{value}</span>
+                        <span className="text-xs font-medium text-slate-500">{label}</span>
                     </button>
                 ))}
             </div>
@@ -486,7 +497,7 @@ export function TicketWorkspace({
             )}
 
             {viewMode === "table" ? (
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
                     {isLoading ? (
                         <LoadingState />
                     ) : error ? (
@@ -517,9 +528,11 @@ export function TicketWorkspace({
                             }
                         />
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="min-h-0 flex-1 overflow-auto">
                             <table className="w-full min-w-[1180px] text-sm">
-                                <thead className="border-b border-slate-200 bg-slate-50 text-left">
+                                {/* Sticky: scrolling 200 rows without column
+                                    headers is guesswork by row 20. */}
+                                <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-left shadow-[0_1px_0_0_rgb(226_232_240)]">
                                     <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                                         <th className="px-3 py-2.5">Réf</th>
                                         <th className="px-3 py-2.5">Titre</th>
@@ -628,7 +641,7 @@ export function TicketWorkspace({
                     )}
                 </div>
             ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px] gap-4 h-[calc(100vh-20rem)] min-h-[32rem]">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_320px]">
                 {/* Left: ticket list */}
                 <div className="flex flex-col min-h-0 bg-white border border-slate-200 rounded-2xl overflow-hidden">
                     <div className="p-4 space-y-3 border-b border-slate-200">

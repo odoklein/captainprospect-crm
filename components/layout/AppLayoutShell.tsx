@@ -346,6 +346,11 @@ function InnerLayout({
     // row below the fold was unreachable.
     const isRdvPage =
         pathname === "/manager/rdv" || pathname.startsWith("/manager/rdv/");
+    // Support Technique is a board you work from, not a document you read: it
+    // owns its own scrolling so the rows fill the screen instead of sitting
+    // under a page-height stack of chrome, capped at 1440px.
+    const isTicketBoard =
+        pathname === "/manager/tickets" || pathname === "/developer/tickets";
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";
@@ -510,7 +515,7 @@ function InnerLayout({
                     </div>
                 </header>
 
-                {isEmailHub || isRdvPage ? (
+                {isEmailHub || isRdvPage || isTicketBoard ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
                     <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 56px)' }}>
                         {children}
