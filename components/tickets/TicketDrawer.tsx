@@ -7,7 +7,7 @@ import { Button, Drawer, LoadingState, ConfirmModal, useToast } from "@/componen
 import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge } from "./TicketBadges";
 import { TicketThread } from "./TicketThread";
 import { TicketSidePanel } from "./TicketSidePanel";
-import { formatTicketRef } from "@/lib/tickets/constants";
+import { USER_ROLE_LABELS, formatTicketRef } from "@/lib/tickets/constants";
 import type { TicketDetail } from "./types";
 
 interface TicketDrawerProps {
@@ -125,6 +125,12 @@ export function TicketDrawer({
                                     Sur la roadmap
                                 </span>
                             )}
+                            {/* Who asked is part of the decision, not a detail to
+                                go hunting for once the drawer is open. */}
+                            <span className="text-xs text-slate-500">
+                                Demandé par <span className="font-medium text-slate-700">{ticket.requester.name}</span>
+                                {ticket.requester.role ? ` · ${USER_ROLE_LABELS[ticket.requester.role]}` : ""}
+                            </span>
 
                             <div className="ml-auto flex flex-wrap items-center gap-2">
                                 {isManager && ticket.validation === "PENDING" && (

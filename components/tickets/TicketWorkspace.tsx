@@ -13,6 +13,8 @@ import {
     Activity,
     Rows3,
     Columns3,
+    Inbox,
+    UserPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Input, EmptyState, LoadingState, StatCard, useToast } from "@/components/ui";
@@ -34,6 +36,7 @@ import {
     TICKET_CATEGORY_LABELS,
     TICKET_PRIORITY_LABELS,
     TICKET_STATUS_LABELS,
+    USER_ROLE_LABELS,
     formatTicketRef,
 } from "@/lib/tickets/constants";
 
@@ -50,10 +53,19 @@ type StatusFilter = "ALL" | "OPEN" | "PENDING_VALIDATION" | TicketStatus;
 type PriorityFilter = "ALL" | TaskPriority;
 type CategoryFilter = "ALL" | TicketCategory;
 
-const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+/**
+ * Two different questions, so two different controls. "Which pile am I in"
+ * (scope) is a segmented control; "which lifecycle state" is a chip row. They
+ * used to be nine identical pills in one line, which read as one flat list of
+ * equal options and buried the validation queue at position two.
+ */
+const SCOPE_FILTERS: { value: StatusFilter; label: string }[] = [
     { value: "OPEN", label: "Ouverts" },
     { value: "PENDING_VALIDATION", label: "À valider" },
     { value: "ALL", label: "Tous" },
+];
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
     { value: "NEW", label: TICKET_STATUS_LABELS.NEW },
     { value: "TODO", label: TICKET_STATUS_LABELS.TODO },
     { value: "IN_PROGRESS", label: TICKET_STATUS_LABELS.IN_PROGRESS },
@@ -61,6 +73,33 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
     { value: "TESTING", label: TICKET_STATUS_LABELS.TESTING },
     { value: "COMPLETED", label: TICKET_STATUS_LABELS.COMPLETED },
 ];
+
+/** Teams that can file a request, for the "qui demande" filter. */
+const REQUESTER_FILTERS: { value: string; label: string }[] = [
+    { value: "ALL", label: "Tous les demandeurs" },
+    { value: "SDR,BUSINESS_DEVELOPER,BOOKER", label: "Équipe sales" },
+    { value: "MANAGER", label: "Manager" },
+    { value: "DEVELOPER", label: "Développeur" },
+];
+
+/** Colour-codes the requester's team so a row is placeable at a glance. */
+const REQUESTER_ROLE_TONE: Record<string, string> = {
+    SDR: "bg-sky-100 text-sky-700",
+    BUSINESS_DEVELOPER: "bg-teal-100 text-teal-700",
+    BOOKER: "bg-cyan-100 text-cyan-700",
+    MANAGER: "bg-slate-200 text-slate-700",
+    DEVELOPER: "bg-violet-100 text-violet-700",
+};
+
+/** Ages a ticket so a three-week-old NEW stops looking like this morning's. */
+function ageLabel(iso: string): { label: string; tone: string } {
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+    if (days <= 0) return { label: "auj.", tone: "text-slate-400" };
+    if (days === 1) return { label: "1 j", tone: "text-slate-400" };
+    if (days < 7) return { label: `${days} j`, tone: "text-slate-500" };
+    if (days < 30) return { label: `${Math.floor(days / 7)} sem`, tone: "text-amber-600" };
+    return { label: `${Math.floor(days / 30)} mois`, tone: "font-semibold text-red-600" };
+}
 
 const PRIORITY_FILTERS: { value: PriorityFilter; label: string }[] = [
     { value: "ALL", label: "Toutes priorités" },
@@ -106,6 +145,7 @@ export function TicketWorkspace({
     const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("ALL");
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
     const [onlyMine, setOnlyMine] = useState(defaultOnlyMine);
+    const [requesterFilter, setRequesterFilter] = useState("ALL");
     const [activeMobileTab, setActiveMobileTab] = useState<"thread" | "details">("thread");
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editing, setEditing] = useState<TicketDetail | null>(null);
@@ -128,6 +168,7 @@ export function TicketWorkspace({
         }
         if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
         if (categoryFilter !== "ALL") params.set("category", categoryFilter);
+        if (requesterFilter !== "ALL") params.set("requesterRole", requesterFilter);
         if (onlyMine) params.set("assigneeId", currentUserId);
         if (search.trim()) params.set("search", search.trim());
 
@@ -148,7 +189,7 @@ export function TicketWorkspace({
         } finally {
             setIsLoading(false);
         }
-    }, [statusFilter, priorityFilter, categoryFilter, onlyMine, search, currentUserId, toast]);
+    }, [statusFilter, priorityFilter, categoryFilter, requesterFilter, onlyMine, search, currentUserId, toast]);
 
     const fetchCounts = useCallback(async () => {
         try {
@@ -183,7 +224,7 @@ export function TicketWorkspace({
     useEffect(() => {
         fetchTickets();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [statusFilter, priorityFilter, categoryFilter, onlyMine, search, currentUserId]);
+    }, [statusFilter, priorityFilter, categoryFilter, requesterFilter, onlyMine, search, currentUserId]);
 
     // Dashboard counters are global and don't depend on the filters — load once.
     useEffect(() => {
@@ -211,12 +252,55 @@ export function TicketWorkspace({
         if (selectedId) await fetchDetail(selectedId);
     }, [fetchTickets, fetchCounts, fetchDetail, selectedId]);
 
+    /**
+     * Counters a manager can act on come first. The old set reported the board's
+     * state (urgent / blocked / active / overdue) but never asked anything of the
+     * person reading it — so requests sat unvalidated and triaged tickets sat
+     * unowned. Each tile is a filter, because a number you cannot click is a
+     * dead end.
+     */
     const statCards = useMemo(
         () => [
-            { label: "Urgents", value: counts?.urgent ?? 0, icon: AlertTriangle, iconBg: "bg-red-100", iconColor: "text-red-600" },
-            { label: "Bloqués", value: counts?.blocked ?? 0, icon: Ban, iconBg: "bg-orange-100", iconColor: "text-orange-600" },
-            { label: "En cours", value: counts?.active ?? 0, icon: Activity, iconBg: "bg-indigo-100", iconColor: "text-indigo-600" },
-            { label: "En retard", value: counts?.overdue ?? 0, icon: CalendarClock, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
+            {
+                label: "À valider",
+                value: counts?.pendingValidation ?? 0,
+                icon: Inbox,
+                iconBg: "bg-amber-100",
+                iconColor: "text-amber-600",
+                onClick: () => setStatusFilter("PENDING_VALIDATION"),
+            },
+            {
+                label: "Non assignés",
+                value: counts?.unassigned ?? 0,
+                icon: UserPlus,
+                iconBg: "bg-sky-100",
+                iconColor: "text-sky-600",
+                onClick: () => { setStatusFilter("OPEN"); setOnlyMine(false); },
+            },
+            {
+                label: "Urgents",
+                value: counts?.urgent ?? 0,
+                icon: AlertTriangle,
+                iconBg: "bg-red-100",
+                iconColor: "text-red-600",
+                onClick: () => { setStatusFilter("OPEN"); setPriorityFilter("URGENT"); },
+            },
+            {
+                label: "Bloqués",
+                value: counts?.blocked ?? 0,
+                icon: Ban,
+                iconBg: "bg-orange-100",
+                iconColor: "text-orange-600",
+                onClick: () => setStatusFilter("BLOCKED"),
+            },
+            {
+                label: "En retard",
+                value: counts?.overdue ?? 0,
+                icon: CalendarClock,
+                iconBg: "bg-amber-100",
+                iconColor: "text-amber-600",
+                onClick: () => setStatusFilter("OPEN"),
+            },
         ],
         [counts],
     );
@@ -267,11 +351,41 @@ export function TicketWorkspace({
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {statCards.map((card) => (
-                    <StatCard key={card.label} {...card} />
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+                {statCards.map(({ onClick, ...card }) => (
+                    <button
+                        key={card.label}
+                        type="button"
+                        onClick={onClick}
+                        className="text-left transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-2xl"
+                        aria-label={`Filtrer : ${card.label} (${card.value})`}
+                    >
+                        <StatCard {...card} />
+                    </button>
                 ))}
             </div>
+
+            {/* The queue TC-0032 was about. A banner rather than a filter pill:
+                a request waiting on a ruling is an inbox item, and the previous
+                design hid it behind a chip nobody had a reason to click. */}
+            {isManager && statusFilter !== "PENDING_VALIDATION" && (counts?.pendingValidation ?? 0) > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                    <Inbox className="h-5 w-5 shrink-0 text-amber-600" />
+                    <p className="text-sm text-amber-900">
+                        <span className="font-semibold">
+                            {counts?.pendingValidation} demande{(counts?.pendingValidation ?? 0) > 1 ? "s" : ""}
+                        </span>{" "}
+                        de l&apos;équipe sales {(counts?.pendingValidation ?? 0) > 1 ? "attendent" : "attend"} votre validation.
+                    </p>
+                    <Button
+                        size="sm"
+                        className="ml-auto"
+                        onClick={() => setStatusFilter("PENDING_VALIDATION")}
+                    >
+                        Traiter
+                    </Button>
+                </div>
+            )}
 
             {/* Table-view filter bar. The split view carries its own in the left
                 column, so rendering this there would duplicate every control. */}
@@ -285,6 +399,36 @@ export function TicketWorkspace({
                         icon={<Search className="w-4 h-4 text-slate-400" />}
                     />
                 </div>
+                {/* Scope: which pile. Visually distinct from the status chips
+                    below, because they answer different questions. */}
+                <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5">
+                    {SCOPE_FILTERS.map((filter) => {
+                        const isPending = filter.value === "PENDING_VALIDATION";
+                        const pending = counts?.pendingValidation ?? 0;
+                        return (
+                            <button
+                                key={filter.value}
+                                type="button"
+                                onClick={() => setStatusFilter(filter.value)}
+                                aria-pressed={statusFilter === filter.value}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                                    statusFilter === filter.value
+                                        ? "bg-white text-slate-900 shadow-sm"
+                                        : "text-slate-500 hover:text-slate-800",
+                                )}
+                            >
+                                {filter.label}
+                                {isPending && pending > 0 && (
+                                    <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                                        {pending}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
                 <div className="flex flex-wrap items-center gap-1.5">
                     {STATUS_FILTERS.map((filter) => (
                         <button
@@ -302,6 +446,14 @@ export function TicketWorkspace({
                         </button>
                     ))}
                 </div>
+                <select
+                    value={requesterFilter}
+                    onChange={(e) => setRequesterFilter(e.target.value)}
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-indigo-500 focus:outline-none"
+                    aria-label="Filtrer par demandeur"
+                >
+                    {REQUESTER_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                </select>
                 <select
                     value={priorityFilter}
                     onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
@@ -350,10 +502,23 @@ export function TicketWorkspace({
                             }
                         />
                     ) : tickets.length === 0 ? (
-                        <EmptyState variant="inline" icon={LifeBuoy} title="Aucun ticket" />
+                        <EmptyState
+                            variant="inline"
+                            icon={statusFilter === "PENDING_VALIDATION" ? Inbox : LifeBuoy}
+                            title={
+                                statusFilter === "PENDING_VALIDATION"
+                                    ? "Aucune demande à valider"
+                                    : "Aucun ticket"
+                            }
+                            description={
+                                statusFilter === "PENDING_VALIDATION"
+                                    ? "Les demandes déposées par l'équipe sales arriveront ici."
+                                    : "Aucun ticket ne correspond à ces filtres."
+                            }
+                        />
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[1000px] text-sm">
+                            <table className="w-full min-w-[1180px] text-sm">
                                 <thead className="border-b border-slate-200 bg-slate-50 text-left">
                                     <tr className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                                         <th className="px-3 py-2.5">Réf</th>
@@ -361,8 +526,10 @@ export function TicketWorkspace({
                                         <th className="px-3 py-2.5">Statut</th>
                                         <th className="px-3 py-2.5">Priorité</th>
                                         <th className="px-3 py-2.5">Catégorie</th>
+                                        <th className="px-3 py-2.5">Demandeur</th>
                                         <th className="px-3 py-2.5">Assigné</th>
                                         <th className="px-3 py-2.5">Client</th>
+                                        <th className="px-3 py-2.5">Âge</th>
                                         <th className="px-3 py-2.5">Échéance</th>
                                         <th className="px-3 py-2.5 text-right">Actions</th>
                                     </tr>
@@ -405,11 +572,29 @@ export function TicketWorkspace({
                                                 <td className="px-3 py-2.5"><TicketStatusBadge status={ticket.status} /></td>
                                                 <td className="px-3 py-2.5"><TicketPriorityBadge priority={ticket.priority} /></td>
                                                 <td className="px-3 py-2.5"><TicketCategoryBadge category={ticket.category} /></td>
+                                                <td className="whitespace-nowrap px-3 py-2.5">
+                                                    <span className="text-slate-700">{ticket.requester.name}</span>
+                                                    {ticket.requester.role && (
+                                                        <span className={cn(
+                                                            "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                                                            REQUESTER_ROLE_TONE[ticket.requester.role] ?? "bg-slate-100 text-slate-600",
+                                                        )}>
+                                                            {USER_ROLE_LABELS[ticket.requester.role]}
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
-                                                    {ticket.assignee?.name ?? <span className="text-slate-400">Non assigné</span>}
+                                                    {ticket.assignee?.name ?? (
+                                                        <span className="inline-flex items-center gap-1 text-sky-600">
+                                                            <UserPlus className="h-3 w-3" />À assigner
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">
                                                     {ticket.client?.name ?? <span className="text-slate-300">—</span>}
+                                                </td>
+                                                <td className={cn("whitespace-nowrap px-3 py-2.5 text-xs", ageLabel(ticket.createdAt).tone)}>
+                                                    {ageLabel(ticket.createdAt).label}
                                                 </td>
                                                 <td className={cn(
                                                     "whitespace-nowrap px-3 py-2.5 text-xs",

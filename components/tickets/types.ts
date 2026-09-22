@@ -91,4 +91,8 @@ export interface TicketDashboardCounts {
     blocked: number;
     active: number;
     overdue: number;
+    /** Requests from the sales team waiting on a manager's ruling. */
+    pendingValidation: number;
+    /** Triaged work with no owner — the other thing only a manager can fix. */
+    unassigned: number;
 }

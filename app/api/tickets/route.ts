@@ -46,6 +46,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const affectedRole = searchParams.get("affectedRole");
     if (affectedRole) where.affectedRoles = { has: affectedRole as any };
 
+    // "Which SDRs have tickets" is a question the board could not answer before
+    // the sales team could file: filter by the requester's team, not just theirs.
+    const requesterRole = searchParams.get("requesterRole");
+    if (requesterRole) where.requester = { role: { in: requesterRole.split(",") as any } };
+
     const assigneeId = searchParams.get("assigneeId");
     if (assigneeId) where.assigneeId = assigneeId === "unassigned" ? null : assigneeId;
 

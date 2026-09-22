@@ -30,8 +30,10 @@ export const TICKET_DETAIL_INCLUDE = {
 
 /** Shape returned by the internal list endpoint — no comment/history payload. */
 export const TICKET_LIST_INCLUDE = {
-    requester: { select: { id: true, name: true } },
-    assignee: { select: { id: true, name: true } },
+    // `role` matters on the board now that the sales team files requests:
+    // "who asked, and from which team" is the first triage signal.
+    requester: { select: { id: true, name: true, role: true } },
+    assignee: { select: { id: true, name: true, role: true } },
     client: { select: { id: true, name: true } },
     _count: { select: { comments: true, attachments: true } },
 } satisfies Prisma.TicketInclude;
@@ -146,16 +148,27 @@ function normalise(value: unknown): string | null {
 export async function getTicketDashboardCounts() {
     const now = new Date();
 
-    const [urgent, blocked, active, overdue] = await Promise.all([
+    const [urgent, blocked, active, overdue, pendingValidation, unassigned] = await Promise.all([
         prisma.ticket.count({
-            where: { priority: "URGENT", status: { not: "COMPLETED" } },
+            where: { priority: "URGENT", status: { not: "COMPLETED" }, validation: { not: "PENDING" } },
         }),
         prisma.ticket.count({ where: { status: "BLOCKED" } }),
         prisma.ticket.count({ where: { status: { in: ["TODO", "IN_PROGRESS", "TESTING"] } } }),
         prisma.ticket.count({
-            where: { dueDate: { lt: now }, status: { not: "COMPLETED" } },
+            where: { dueDate: { lt: now }, status: { not: "COMPLETED" }, validation: { not: "PENDING" } },
+        }),
+        // The two counters a manager can actually act on: requests waiting on a
+        // ruling, and triaged work nobody owns. Without them the board reports
+        // its own state but never asks anything of the person reading it.
+        prisma.ticket.count({ where: { validation: "PENDING" } }),
+        prisma.ticket.count({
+            where: {
+                assigneeId: null,
+                status: { notIn: ["COMPLETED"] },
+                validation: { not: "PENDING" },
+            },
         }),
     ]);
 
-    return { urgent, blocked, active, overdue };
+    return { urgent, blocked, active, overdue, pendingValidation, unassigned };
 }
