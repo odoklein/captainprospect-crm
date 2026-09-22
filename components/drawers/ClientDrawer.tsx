@@ -610,6 +610,12 @@ export function ClientDrawer({
         }
     };
 
+    // Same palette and ordering the client portal resolves, from the same
+    // endpoint — otherwise "the same view" would drift on colour alone.
+    // Must stay above the `!client` early return: it is a hook, and running it
+    // only when a client is set changes the hook count between renders.
+    const { resultMeta, statusOrder } = useActionStatusConfig();
+
     if (!client) return null;
 
     const missions: MissionLite[] = (clientDetail?.missions ?? []) as MissionLite[];
@@ -1332,10 +1338,6 @@ export function ClientDrawer({
         (groups[day] ||= []).push(action);
         return groups;
     }, {});
-
-    // Same palette and ordering the client portal resolves, from the same
-    // endpoint — otherwise "the same view" would drift on colour alone.
-    const { resultMeta, statusOrder } = useActionStatusConfig();
 
     /**
      * The drawer's actions carry the SDR, which the client's own feed does not.
