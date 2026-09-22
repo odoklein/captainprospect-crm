@@ -82,7 +82,33 @@ export const GET = withErrorHandler(async (
         return errorResponse('Société non trouvée', 404);
     }
 
-    return successResponse(company);
+    // Why this row is not callable, resolved here so the drawer can explain
+    // itself in one request instead of leaving an SDR guessing.
+    const exclusion = company.exclusionId
+        ? await prisma.exclusion.findUnique({
+              where: { id: company.exclusionId },
+              select: {
+                  id: true,
+                  target: true,
+                  reason: true,
+                  createdAt: true,
+                  expiresAt: true,
+                  createdById: true,
+              },
+          })
+        : null;
+
+    const createdByName = exclusion
+        ? (await prisma.user.findUnique({
+              where: { id: exclusion.createdById },
+              select: { name: true },
+          }))?.name ?? null
+        : null;
+
+    return successResponse({
+        ...company,
+        exclusion: exclusion ? { ...exclusion, createdByName } : null,
+    });
 });
 
 // ============================================

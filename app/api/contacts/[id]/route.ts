@@ -76,6 +76,8 @@ export const GET = withErrorHandler(async (
                     industry: true,
                     phone: true,
                     customData: true,
+                    excludedAt: true,
+                    exclusionId: true,
                     list: {
                         select: {
                             id: true,
@@ -103,7 +105,34 @@ export const GET = withErrorHandler(async (
         return errorResponse('Contact non trouvé', 404);
     }
 
-    return successResponse(contact);
+    // The contact's own rule wins; otherwise the company-level one that covers
+    // them, so "toute la société" is explained on every contact it caught.
+    const exclusionId = contact.exclusionId ?? contact.company?.exclusionId ?? null;
+    const exclusion = exclusionId
+        ? await prisma.exclusion.findUnique({
+              where: { id: exclusionId },
+              select: {
+                  id: true,
+                  target: true,
+                  reason: true,
+                  createdAt: true,
+                  expiresAt: true,
+                  createdById: true,
+              },
+          })
+        : null;
+
+    const createdByName = exclusion
+        ? (await prisma.user.findUnique({
+              where: { id: exclusion.createdById },
+              select: { name: true },
+          }))?.name ?? null
+        : null;
+
+    return successResponse({
+        ...contact,
+        exclusion: exclusion ? { ...exclusion, createdByName } : null,
+    });
 });
 
 // ============================================

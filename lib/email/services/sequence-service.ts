@@ -84,10 +84,22 @@ export class SequenceService {
             // Get contact
             const contact = await prisma.contact.findUnique({
                 where: { id: contactId },
+                include: { company: { select: { excludedAt: true } } },
             });
 
             if (!contact || !contact.email) {
                 return { success: false, error: 'Contact not found or has no email' };
+            }
+
+            // "Ne plus contacter" spans every channel: a company taken off the
+            // phone must not keep receiving a sequence. Checked on the company
+            // too, so a COMPANY-level rule covers contacts added afterwards.
+            if (contact.excludedAt || contact.company?.excludedAt) {
+                return { success: false, error: 'Contact exclu (ne plus contacter)' };
+            }
+
+            if (contact.unsubscribed) {
+                return { success: false, error: 'Contact désinscrit' };
             }
 
             // Calculate first step timing

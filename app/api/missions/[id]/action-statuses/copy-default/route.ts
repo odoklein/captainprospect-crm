@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 import type { ActionScopeType, ActionPriorityLabel } from "@prisma/client";
 import { MISSION_STATUS_PRESETS } from "@/lib/constants/actionStatusPresets";
+import { DEFAULT_EXCLUSION_TARGETS } from "@/lib/services/StatusConfigService";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -60,6 +61,11 @@ export const POST = withErrorHandler(async (request: NextRequest, { params }: Ro
                     priorityOrder: s.priorityOrder ?? undefined,
                     triggersOpportunity: s.triggersOpportunity,
                     triggersCallback: s.triggersCallback,
+                    // A mission copied from a preset inherits the same notion of
+                    // "final" as a fresh install, so a new mission is not quietly
+                    // born without any exclusion-triggering status.
+                    triggersExclusion: DEFAULT_EXCLUSION_TARGETS[s.code] !== undefined,
+                    exclusionTarget: DEFAULT_EXCLUSION_TARGETS[s.code] ?? undefined,
                     resultCategoryCode: categoryByCode.get(s.code) ?? undefined,
                     isActive: true,
                 },

@@ -1,4 +1,5 @@
 import {
+  Ban,
   LayoutDashboard,
   Building2,
   Target,
@@ -88,6 +89,12 @@ export const MANAGER_NAV: NavSection[] = [
         icon: Phone,
         label: "Appels",
         permission: "pages.missions",
+      },
+      {
+        href: "/manager/exclusions",
+        icon: Ban,
+        label: "Ne plus contacter",
+        permission: "pages.prospects",
       },
     ],
   },
@@ -545,6 +552,12 @@ export const CLIENT_NAV: NavSection[] = [
         href: "/client/portal/activite",
         icon: Activity,
         label: "Activité",
+        permission: "pages.dashboard",
+      },
+      {
+        href: "/client/portal/exclusions",
+        icon: Ban,
+        label: "Ne plus contacter",
         permission: "pages.dashboard",
       },
       {

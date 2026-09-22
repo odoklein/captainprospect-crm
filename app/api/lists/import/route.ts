@@ -14,6 +14,7 @@ import {
     type DuplicateStrategy,
     type DuplicateScope,
 } from "@/lib/import/dedup";
+import { applyActiveExclusionsToList } from "@/lib/exclusions/service";
 
 // ============================================
 // CSV IMPORT API (streaming + batched for performance)
@@ -540,6 +541,20 @@ export async function POST(req: NextRequest) {
                         send({ type: "progress", percent: 100, processed: globalRowIndex });
                     }
 
+                    // Re-arm every "ne plus contacter" rule that reaches this
+                    // list. Without this pass a re-upload of the same CSV puts
+                    // an excluded company straight back into the SDR queue,
+                    // since the freshly created rows carry no action history.
+                    let exclusionsApplied = { companies: 0, contacts: 0 };
+                    try {
+                        exclusionsApplied = await applyActiveExclusionsToList(list.id);
+                    } catch (err) {
+                        // An import that succeeded must not be reported as failed
+                        // because of this pass — but it must be loud, since the
+                        // consequence is prospects being called again.
+                        console.error("Exclusion re-apply after import failed:", err);
+                    }
+
                     send({
                         type: "done",
                         data: {
@@ -552,6 +567,7 @@ export async function POST(req: NextRequest) {
                             contactsUpdated,
                             contactsSkipped,
                             actionsCreated,
+                            exclusionsApplied,
                             errors: errors.length,
                             errorDetails: errors.slice(0, 10),
                         },

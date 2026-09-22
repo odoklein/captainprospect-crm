@@ -11,6 +11,8 @@ import {
 } from '@/lib/api-utils';
 import { actionService } from '@/lib/services/ActionService';
 import { statusConfigService } from '@/lib/services/StatusConfigService';
+import { createExclusionFromRow } from '@/lib/exclusions/service';
+import { prisma } from '@/lib/prisma';
 import { enqueueActionCallEnrichment } from '@/lib/call-enrichment/scheduler';
 import { z } from 'zod';
 
@@ -32,6 +34,18 @@ const createActionSchema = z.object({
     meetingAddress: z.string().max(500).optional(),
     meetingJoinUrl: z.string().url('Lien de rejoindre invalide').max(2000).optional(),
     meetingPhone: z.string().max(50).optional(),
+    /**
+     * Optional "ne plus contacter" carried by the same call, so an SDR closing a
+     * refusal does it in one gesture instead of a second trip through a manager.
+     * The scope id is resolved server-side from the campaign — never sent — so a
+     * crafted payload cannot exclude a prospect for another client.
+     */
+    exclusion: z.object({
+        target: z.enum(['COMPANY', 'CONTACT']),
+        scope: z.enum(['CLIENT', 'MISSION']),
+        reason: z.string().trim().min(3, 'Motif requis').max(500, 'Motif trop long'),
+        duration: z.enum(['permanent', '3m', '6m', '12m']).default('permanent'),
+    }).optional(),
 }).refine(data => data.contactId || data.companyId, {
     message: 'Contact ou Company requis',
     path: ['contactId'],
@@ -141,5 +155,47 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         after(() => enqueueActionCallEnrichment(action.id));
     }
 
-    return successResponse(action, 201);
+    // The exclusion is applied after the action is safely stored: a failure here
+    // must not lose the SDR's call outcome. It is reported back so the drawer can
+    // say what actually happened instead of assuming success.
+    let exclusion: { id: string; label: string; appliedCompanies: number; appliedContacts: number } | null = null;
+    let exclusionError: string | null = null;
+
+    if (data.exclusion) {
+        try {
+            const campaign = await prisma.campaign.findUnique({
+                where: { id: data.campaignId },
+                select: { missionId: true, mission: { select: { clientId: true } } },
+            });
+            if (!campaign) throw new Error('Campagne introuvable');
+
+            const scopeId = data.exclusion.scope === 'MISSION'
+                ? campaign.missionId
+                : campaign.mission.clientId;
+
+            const rule = await createExclusionFromRow({
+                target: data.exclusion.target,
+                scope: data.exclusion.scope,
+                scopeId,
+                companyId: data.companyId ?? null,
+                contactId: data.contactId ?? null,
+                reason: data.exclusion.reason,
+                duration: data.exclusion.duration,
+                source: session.user.role === 'MANAGER' ? 'MANAGER' : 'SDR_ACTION',
+                actorId: session.user.id,
+            });
+
+            exclusion = {
+                id: rule.id,
+                label: rule.label,
+                appliedCompanies: rule.appliedCompanies,
+                appliedContacts: rule.appliedContacts,
+            };
+        } catch (err) {
+            console.error('Exclusion from action failed:', err);
+            exclusionError = err instanceof Error ? err.message : 'Exclusion impossible';
+        }
+    }
+
+    return successResponse({ ...action, exclusion, exclusionError }, 201);
 });

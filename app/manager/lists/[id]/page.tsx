@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ProspectionHealthPanel } from "@/components/lists/ProspectionHealthPanel";
+import { ExclusionBadge } from "@/components/exclusions/ExclusionBadge";
 
 const UnifiedActionDrawer = dynamic(
     () => import("@/components/drawers/UnifiedActionDrawer").then((m) => ({ default: m.UnifiedActionDrawer })),
@@ -68,6 +69,9 @@ interface Company {
         contacts: number;
     };
     contacts: Contact[];
+    excludedAt?: string | null;
+    exclusionReason?: string | null;
+    exclusionExpiresAt?: string | null;
 }
 
 interface Contact {
@@ -461,7 +465,23 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                         <Building2 className="w-5 h-5 text-indigo-500" />
                     </div>
                     <div>
-                        <p className="font-medium text-slate-900">{company.name}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-slate-900">{company.name}</p>
+                            {/* Excluded rows stay in the list, greyed by the badge
+                                rather than removed: a company that simply vanished
+                                reads as data loss and gets re-imported. */}
+                            {company.excludedAt && (
+                                <ExclusionBadge
+                                    size="sm"
+                                    info={{
+                                        reason: company.exclusionReason,
+                                        createdAt: company.excludedAt,
+                                        expiresAt: company.exclusionExpiresAt,
+                                        target: "COMPANY",
+                                    }}
+                                />
+                            )}
+                        </div>
                         {company.website && (
                             <a
                                 href={company.website.startsWith("http") ? company.website : `https://${company.website}`}

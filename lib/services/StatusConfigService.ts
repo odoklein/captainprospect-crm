@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { ActionScopeType, ActionPriorityLabel } from "@prisma/client";
+import type { ActionScopeType, ActionPriorityLabel, ExclusionTarget } from "@prisma/client";
 import { MISSION_STATUS_PRESETS } from "@/lib/constants/actionStatusPresets";
 
 // ============================================
@@ -19,6 +19,10 @@ export interface EffectiveStatusDefinition {
     priorityOrder: number;
     triggersOpportunity: boolean;
     triggersCallback: boolean;
+    /** This status is a real dead end, not a parked row — see Exclusion. */
+    triggersExclusion: boolean;
+    /** Level the SDR drawer pre-arms when triggersExclusion is set. */
+    exclusionTarget: ExclusionTarget | null;
     resultCategoryCode: string | null;
 }
 
@@ -45,6 +49,8 @@ const CORE_FALLBACK_STATUSES: EffectiveStatusDefinition[] = [
         priorityOrder: 999,
         triggersOpportunity: true,
         triggersCallback: false,
+        triggersExclusion: false,
+        exclusionTarget: null,
         resultCategoryCode: null,
     },
 ];
@@ -90,6 +96,21 @@ const LEGACY_PRIORITY: Record<string, { order: number; label: ActionPriorityLabe
     MAIL_UNIQUEMENT: { order: 999, label: "SKIP" },
     MAIL_DOC: { order: 999, label: "SKIP" },
     HORS_CIBLE: { order: 999, label: "SKIP" },
+};
+
+/**
+ * Which result codes mean "final" out of the box, and at which level.
+ *
+ * priorityLabel SKIP is not enough to decide this: MEETING_BOOKED and
+ * MAIL_UNIQUEMENT are also SKIP, and excluding a booked meeting would be a
+ * serious bug. Only a genuine dead end belongs here. Installs can override the
+ * whole map per scope via ActionStatusDefinition.triggersExclusion.
+ */
+export const DEFAULT_EXCLUSION_TARGETS: Record<string, ExclusionTarget> = {
+    REFUS_CATEGORIQUE: "COMPANY",
+    HORS_CIBLE: "COMPANY",
+    NOT_INTERESTED: "CONTACT",
+    DISQUALIFIED: "CONTACT",
 };
 
 export interface ScopeContext {
@@ -174,6 +195,8 @@ export async function getEffectiveStatusConfig(
             priorityOrder: r.priorityOrder ?? DEFAULT_PRIORITY_ORDER[r.priorityLabel],
             triggersOpportunity: r.triggersOpportunity,
             triggersCallback: r.triggersCallback,
+            triggersExclusion: r.triggersExclusion,
+            exclusionTarget: r.exclusionTarget ?? (r.triggersExclusion ? "CONTACT" : null),
             resultCategoryCode: r.resultCategoryCode ?? null,
         }));
 
@@ -199,6 +222,8 @@ export async function getEffectiveStatusConfig(
                         priorityOrder: p.priorityOrder ?? DEFAULT_PRIORITY_ORDER[p.priorityLabel],
                         triggersOpportunity: p.triggersOpportunity,
                         triggersCallback: p.triggersCallback,
+                        triggersExclusion: DEFAULT_EXCLUSION_TARGETS[p.code] !== undefined,
+                        exclusionTarget: DEFAULT_EXCLUSION_TARGETS[p.code] ?? null,
                         resultCategoryCode: null,
                     });
                 }

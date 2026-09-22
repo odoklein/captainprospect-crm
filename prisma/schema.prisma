@@ -94,6 +94,32 @@ enum ActionPriorityLabel {
   SKIP
 }
 
+// ============================================
+// EXCLUSIONS ("ne plus contacter")
+// ============================================
+// A SKIP status only ever drops one row out of one queue, and a re-import
+// brings it straight back. An Exclusion is the durable rule: it is matched on
+// normalized keys (company name, domain, phone, email) rather than on row ids,
+// so it survives deletion, re-import and cross-list duplication.
+
+enum ExclusionTarget {
+  COMPANY // the whole company and every contact under it
+  CONTACT // one person; the rest of the company stays workable
+}
+
+enum ExclusionScope {
+  GLOBAL // every client, every mission — legal / RGPD level
+  CLIENT // one client's prospection only (the common case)
+  MISSION // one mission only
+}
+
+enum ExclusionSource {
+  SDR_ACTION // auto-created from a terminal action status
+  MANAGER // added by hand from the manager console
+  CLIENT_PORTAL // the client excluded it themselves
+  IMPORT // matched an existing rule while importing a list
+}
+
 // VoIP call workflow: in-progress until SDR validates
 enum SyncDirection {
   CRM_TO_DRIVE
@@ -490,10 +516,10 @@ model User {
 
   // Client Support Module (separate from comms — broadcast to all active managers)
   supportCreatedConversations SupportConversation[] @relation("SupportConversationCreator")
-  supportMessages      SupportMessage[]      @relation("SupportMessageAuthor")
-  supportManagerStates SupportManagerState[] @relation("SupportManagerStateUser")
-  supportResolutions   SupportConversation[] @relation("SupportConversationResolver")
-  supportAttachments   SupportAttachment[]   @relation("SupportAttachmentUploader")
+  supportMessages             SupportMessage[]      @relation("SupportMessageAuthor")
+  supportManagerStates        SupportManagerState[] @relation("SupportManagerStateUser")
+  supportResolutions          SupportConversation[] @relation("SupportConversationResolver")
+  supportAttachments          SupportAttachment[]   @relation("SupportAttachmentUploader")
 
   // Client calendar credentials (onboarding hand-off) — who edited / last revealed
   calCredentialEdits   ClientCalCredential[] @relation("ClientCalCredentialEditor")
@@ -966,7 +992,15 @@ model Company {
   linkedFrom   Company?  @relation("CompanyDedupLink", fields: [linkedFromId], references: [id], onDelete: SetNull)
   linkedCopies Company[] @relation("CompanyDedupLink")
 
+  // Materialized exclusion stamp. The Exclusion row is the source of truth;
+  // this is what every hot query filters on, so the SDR queue never has to
+  // join or re-evaluate matching rules. Kept in sync by ExclusionService.
+  excludedAt  DateTime?
+  exclusionId String?
+
   @@index([linkedFromId])
+  @@index([listId, excludedAt])
+  @@index([exclusionId])
 }
 
 model PhoneEnrichmentLookup {
@@ -1018,8 +1052,16 @@ model Contact {
   // Email consent: when true, contact has unsubscribed from emails
   unsubscribed Boolean @default(false)
 
+  // Materialized exclusion stamp — see Company.excludedAt. Set either by a
+  // CONTACT-target rule or by the COMPANY-target rule covering its company.
+  excludedAt  DateTime?
+  exclusionId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([companyId, excludedAt])
+  @@index([exclusionId])
 }
 
 model Action {
@@ -1089,6 +1131,12 @@ model ActionStatusDefinition {
   priorityOrder       Int? // Optional numeric override; derived from priorityLabel if null
   triggersOpportunity Boolean             @default(false)
   triggersCallback    Boolean             @default(false)
+  // When true, logging this status proposes an exclusion, pre-armed in the SDR
+  // drawer at exclusionTarget level. Distinguishes a real dead end ("refus
+  // catégorique") from a SKIP that only parks the row (MEETING_BOOKED,
+  // MAIL_UNIQUEMENT) — both share priorityLabel SKIP, only the first is final.
+  triggersExclusion   Boolean             @default(false)
+  exclusionTarget     ExclusionTarget? // Defaults to CONTACT when triggersExclusion is set
   resultCategoryCode  String? // Links to ResultCategory.code for reporting/Activité grouping
   isActive            Boolean             @default(true)
   createdAt           DateTime            @default(now())
@@ -1096,6 +1144,59 @@ model ActionStatusDefinition {
 
   @@unique([scopeType, scopeId, code])
   @@index([scopeType, scopeId])
+}
+
+/**
+ * A durable "ne plus contacter" rule.
+ * Deliberately self-contained: every matching key and the display label are
+ * denormalized onto the row, so the rule keeps working after the Company it
+ * came from is deleted, re-imported into another list, or duplicated across
+ * missions. companyId / contactId are traceability only — never the match.
+ * A prospect is excluded when ANY non-null key matches AND the rule's scope
+ * covers the mission being worked. Enforcement is materialized onto
+ * Company.excludedAt / Contact.excludedAt by ExclusionService.
+ */
+model Exclusion {
+  id String @id @default(cuid())
+
+  target  ExclusionTarget
+  scope   ExclusionScope
+  scopeId String? // clientId when scope=CLIENT, missionId when scope=MISSION, null when GLOBAL
+
+  // --- Matching keys (normalized; see lib/exclusions/matching.ts) ----------
+  companyNameKey String? // normalized company name
+  domainKey      String? // registrable domain from website or email
+  phoneKey       String? // last 9 significant digits, country-agnostic
+  emailKey       String? // full lowercased email
+  contactNameKey String? // "prenom nom", only meaningful with companyNameKey
+
+  // --- Traceability -------------------------------------------------------
+  companyId String? // the row that triggered it; may be deleted later
+  contactId String?
+  label     String // what humans see: "BRAND TO DESIGN" or "Jean Dupont — BRAND TO DESIGN"
+  reason    String          @db.Text
+  source    ExclusionSource
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  // --- Lifecycle ----------------------------------------------------------
+  expiresAt  DateTime? // null = permanent
+  liftedAt   DateTime? // non-null = no longer enforced, kept for audit
+  liftedById String?
+  liftReason String?
+
+  // Last apply pass, surfaced in the UI so a manager sees the blast radius
+  appliedCompanies Int       @default(0)
+  appliedContacts  Int       @default(0)
+  lastAppliedAt    DateTime?
+
+  @@index([scope, scopeId, liftedAt])
+  @@index([companyNameKey])
+  @@index([domainKey])
+  @@index([phoneKey])
+  @@index([emailKey])
+  @@index([createdAt])
 }
 
 // Result categories for grouping statuses in reports and client portal (Activité)
@@ -3692,7 +3793,7 @@ model SupportConversation {
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   // Subject / Title of the request
-  subject  String @default("Demande d'assistance")
+  subject String @default("Demande d'assistance")
 
   status SupportConversationStatus @default(ACTIVE)
 
@@ -4211,24 +4312,24 @@ model Ticket {
   /// Human-readable reference shown in the UI as #TC-0001.
   number Int    @unique @default(autoincrement())
 
-  title       String
-  description String?        @db.Text
-  category    TicketCategory
-  scope       TicketScope    @default(INTERNAL)
+  title         String
+  description   String?        @db.Text
+  category      TicketCategory
+  scope         TicketScope    @default(INTERNAL)
   /// Roles whose experience this ticket changes. Drives the pre-release
   /// checklist: one TicketReleaseCheck row is created per role.
-  affectedRoles UserRole[]   @default([])
+  affectedRoles UserRole[]     @default([])
 
   priority TaskPriority @default(MEDIUM)
   status   TicketStatus @default(NEW)
 
   /// Intake gate for tickets filed by the sales team — see TicketValidation.
-  validation       TicketValidation @default(NOT_REQUIRED)
-  validatedAt      DateTime?
-  validatedById    String?
-  validatedBy      User?            @relation("TicketValidator", fields: [validatedById], references: [id], onDelete: SetNull)
+  validation      TicketValidation @default(NOT_REQUIRED)
+  validatedAt     DateTime?
+  validatedById   String?
+  validatedBy     User?            @relation("TicketValidator", fields: [validatedById], references: [id], onDelete: SetNull)
   /// Why a request was turned down, so the requester gets an answer and not silence.
-  rejectionReason  String?          @db.Text
+  rejectionReason String?          @db.Text
 
   // Client roadmap publication. Deliberately decoupled from `scope` and
   // `status`: a CLIENT_FACING ticket stays invisible to the client until a
@@ -4333,27 +4434,27 @@ model TicketReleaseCheck {
 
 /// One installed workspace / guild / tenant.
 model MessagingWorkspace {
-  id               String            @id @default(cuid())
+  id               String              @id @default(cuid())
   provider         MessagingProvider
-  externalTeamId   String                       // Slack T…, Discord guild id
+  externalTeamId   String // Slack T…, Discord guild id
   teamName         String?
   /// AES-256-GCM via lib/encryption.ts. Never returned to the browser.
   botTokenEnc      String?
   signingSecretEnc String?
-  botUserId        String?                      // echo suppression
+  botUserId        String? // echo suppression
   appId            String?
-  scopes           String[]          @default([])
-  isActive         Boolean           @default(true)
+  scopes           String[]            @default([])
+  isActive         Boolean             @default(true)
   installedById    String?
-  installedBy      User?             @relation("MessagingWorkspaceInstaller", fields: [installedById], references: [id], onDelete: SetNull)
+  installedBy      User?               @relation("MessagingWorkspaceInstaller", fields: [installedById], references: [id], onDelete: SetNull)
   lastHealthyAt    DateTime?
   lastErrorAt      DateTime?
-  lastError        String?           @db.Text
+  lastError        String?             @db.Text
   routes           MessagingRoute[]
   links            MessagingLink[]
   identities       MessagingIdentity[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@unique([provider, externalTeamId])
 }
@@ -4365,7 +4466,7 @@ model MessagingRoute {
   workspaceId  String
   workspace    MessagingWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   label        String
-  channelId    String                            // C… / channel id / webhook url
+  channelId    String // C… / channel id / webhook url
   channelName  String?
   /// Empty = every event type. Otherwise ["rdv.booked", "support.*"] (glob ok).
   eventTypes   String[]            @default([])
@@ -4389,20 +4490,20 @@ model MessagingRoute {
 
 /// CRM entity ⇄ posted message. The keystone.
 model MessagingLink {
-  id           String              @id @default(cuid())
-  workspaceId  String
-  workspace    MessagingWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  entityType   MessagingEntityType
-  entityId     String
-  channelId    String
-  messageTs    String                            // Slack ts / Discord message id
+  id          String              @id @default(cuid())
+  workspaceId String
+  workspace   MessagingWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  entityType  MessagingEntityType
+  entityId    String
+  channelId   String
+  messageTs   String // Slack ts / Discord message id
   /// Parent when this row is a thread reply we posted.
-  rootTs       String?
+  rootTs      String?
   /// Hash of the last rendered payload — skip a no-op edit.
-  renderHash   String?
-  isRoot       Boolean             @default(true)
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  renderHash  String?
+  isRoot      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   @@unique([workspaceId, channelId, messageTs])
   @@index([entityType, entityId])
@@ -4440,7 +4541,7 @@ model MessagingIdentity {
   id             String             @id @default(cuid())
   workspaceId    String
   workspace      MessagingWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  externalUserId String                        // Slack U…
+  externalUserId String // Slack U…
   externalName   String?
   userId         String
   user           User               @relation("MessagingIdentityUser", fields: [userId], references: [id], onDelete: Cascade)
@@ -4453,16 +4554,16 @@ model MessagingIdentity {
 
 /// Inbound idempotency + audit of anything done from chat.
 model MessagingInboundEvent {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   workspaceId     String
   /// Slack event_id / Discord interaction id. Providers retry aggressively.
-  externalEventId String   @unique
-  kind            String                        // message | interaction | command
+  externalEventId String    @unique
+  kind            String // message | interaction | command
   rawPayload      Json
   handledAt       DateTime?
   resultSummary   String?
-  error           String?  @db.Text
-  createdAt       DateTime @default(now())
+  error           String?   @db.Text
+  createdAt       DateTime  @default(now())
 
   @@index([workspaceId, createdAt])
 }

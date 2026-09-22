@@ -97,6 +97,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             INNER JOIN "Campaign" camp ON camp."missionId" = m.id
             WHERE m."isActive" = true
               AND camp."isActive" = true
+              -- Mirrors the SDR queue: an excluded prospect is out of reach for
+              -- everyone, or the two queues would disagree on who is callable.
+              AND c."excludedAt" IS NULL
+              AND co."excludedAt" IS NULL
               AND (
                   (m.channel = 'CALL' AND (c.phone IS NOT NULL AND c.phone != '' OR co.phone IS NOT NULL AND co.phone != '')) OR
                   (m.channel = 'EMAIL' AND c.email IS NOT NULL AND c.email != '') OR
@@ -131,6 +135,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             INNER JOIN "Campaign" camp ON camp."missionId" = m.id
             WHERE m."isActive" = true
               AND camp."isActive" = true
+              AND co."excludedAt" IS NULL
               AND m.channel = 'CALL'
               AND co.phone IS NOT NULL
               AND co.phone != ''

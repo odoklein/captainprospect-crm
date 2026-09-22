@@ -54,6 +54,21 @@ import { ContactDrawer } from "./ContactDrawer";
 import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+
+interface ExclusionDetail {
+    id: string;
+    target: "COMPANY" | "CONTACT";
+    reason: string;
+    createdAt: string;
+    expiresAt: string | null;
+    createdByName: string | null;
+}
+import { ExclusionBanner } from "@/components/exclusions/ExclusionBadge";
+import {
+    ExclusionActionPanel,
+    EMPTY_EXCLUSION_PANEL,
+    type ExclusionPanelState,
+} from "@/components/exclusions/ExclusionActionPanel";
 import { hasUsablePhone } from "@/lib/phone-utils";
 import {
     sdrUnifiedDrawerCompanyKey,
@@ -585,7 +600,14 @@ export function UnifiedActionDrawer({
 
     // React Query: action status config
     const { data: statusConfig = null } = useQuery<{
-        statuses: Array<{ code: string; label: string; requiresNote: boolean; triggersCallback?: boolean }>;
+        statuses: Array<{
+            code: string;
+            label: string;
+            requiresNote: boolean;
+            triggersCallback?: boolean;
+            triggersExclusion?: boolean;
+            exclusionTarget?: "COMPANY" | "CONTACT" | null;
+        }>;
     } | null>({
         queryKey: sdrUnifiedDrawerStatusConfigKey(isOpen && missionId ? missionId : null),
         queryFn: async () => {
@@ -603,6 +625,9 @@ export function UnifiedActionDrawer({
     const [newActionNote, setNewActionNote] = useState("");
     const [newCallbackDateValue, setNewCallbackDateValue] = useState("");
     const noteRef = useRef<HTMLTextAreaElement>(null);
+
+    // "Ne plus contacter" carried by the same submit as the action itself.
+    const [exclusionPanel, setExclusionPanel] = useState<ExclusionPanelState>(EMPTY_EXCLUSION_PANEL);
 
     // Edit / delete an existing history entry (re-qualify a status in place
     // instead of creating a duplicate action record)
@@ -990,6 +1015,37 @@ export function UnifiedActionDrawer({
     const noteRequiredForResult = newActionResult ? getRequiresNote(newActionResult) : false;
     const isRefusalResult = newActionResult === "REFUS";
     const isOutOfTargetResult = newActionResult === "HORS_CIBLE";
+
+    // Either endpoint may carry it: a contact inherits its company's rule.
+    const activeExclusion = useMemo(() => {
+        const raw =
+            (contact as { exclusion?: ExclusionDetail | null } | null)?.exclusion ??
+            (company as { exclusion?: ExclusionDetail | null } | null)?.exclusion ??
+            null;
+        return raw ?? null;
+    }, [contact, company]);
+
+    const selectedStatusDef = useMemo(
+        () => statusConfig?.statuses?.find((s) => s.code === newActionResult) ?? null,
+        [statusConfig, newActionResult]
+    );
+    const statusIsFinal = !!selectedStatusDef?.triggersExclusion;
+
+    // Pre-arm on a status that genuinely means "dead end", and stand down on any
+    // other. Without the reset, picking "Refus catégorique" then switching to
+    // "Rappel" would silently keep the exclusion armed.
+    useEffect(() => {
+        if (statusIsFinal) {
+            setExclusionPanel((prev) => ({
+                armed: true,
+                target: selectedStatusDef?.exclusionTarget ?? (contactId ? "CONTACT" : "COMPANY"),
+                reason: prev.reason,
+                duration: prev.duration,
+            }));
+        } else {
+            setExclusionPanel(EMPTY_EXCLUSION_PANEL);
+        }
+    }, [statusIsFinal, selectedStatusDef?.exclusionTarget, contactId]);
     const textFieldRequiredForResult = noteRequiredForResult || isRefusalResult || isOutOfTargetResult;
     const notePlaceholder = useMemo(() => {
         switch (newActionResult) {
@@ -1175,10 +1231,33 @@ export function UnifiedActionDrawer({
                         meetingJoinUrl: meetingJoinUrl?.trim() || undefined,
                         meetingPhone: meetingPhone?.trim() || undefined,
                     }),
+                    ...(exclusionPanel.armed && exclusionPanel.reason.trim().length >= 3
+                        ? {
+                              exclusion: {
+                                  target: exclusionPanel.target,
+                                  // An SDR excludes for the client they are working
+                                  // for; the scope id is resolved server-side.
+                                  scope: "CLIENT" as const,
+                                  reason: exclusionPanel.reason.trim(),
+                                  duration: exclusionPanel.duration,
+                              },
+                          }
+                        : {}),
                 }),
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || "Impossible d'enregistrer l'action");
+
+            // The action is stored even if the exclusion failed — say so rather
+            // than letting the SDR believe the prospect is off the list.
+            if (json.data?.exclusionError) {
+                showError("Exclusion non enregistrée", json.data.exclusionError);
+            } else if (json.data?.exclusion) {
+                success(
+                    "Retiré de la prospection",
+                    `${json.data.exclusion.label} — ${json.data.exclusion.appliedContacts} contact(s) concerné(s).`
+                );
+            }
 
             const newActionId = json.data?.id as string | undefined;
             const callToLink = linkedAlloCallRef.current;
@@ -1226,6 +1305,7 @@ export function UnifiedActionDrawer({
             });
             success("Action enregistrée", "L'action a été ajoutée à l'historique");
             setNewActionNote("");
+            setExclusionPanel(EMPTY_EXCLUSION_PANEL);
             setNewActionResult("");
             setNewCallbackDateValue("");
             setLinkedAlloCall(null);
@@ -1420,6 +1500,9 @@ export function UnifiedActionDrawer({
         !!newActionResult &&
         !requiresSavedInterlocutorBeforeSubmit &&
         (!textFieldRequiredForResult || newActionNote.trim().length > 0) &&
+        // An armed exclusion without a motive would be silently dropped by the
+        // API; block here instead, so the SDR sees why the button is disabled.
+        (!exclusionPanel.armed || exclusionPanel.reason.trim().length >= 3) &&
         !addActionMutation.isPending;
 
     const sortedHistoryActions = useMemo(() => {
@@ -1489,6 +1572,21 @@ export function UnifiedActionDrawer({
                 </div>
             ) : (
                 <div className="flex flex-col gap-4 pb-4" role="main" aria-label="Actions sur le contact">
+
+                    {/* An excluded prospect stays open and readable — only the
+                        queue drops it. The banner is the first thing read, so
+                        nobody calls anyway or files a ticket about a "bug". */}
+                    {activeExclusion && (
+                        <ExclusionBanner
+                            info={{
+                                reason: activeExclusion.reason,
+                                createdByName: activeExclusion.createdByName,
+                                createdAt: activeExclusion.createdAt,
+                                expiresAt: activeExclusion.expiresAt,
+                                target: activeExclusion.target,
+                            }}
+                        />
+                    )}
 
                     {/* ── Unified history section (moved to top) ── */}
                     <section
@@ -3373,6 +3471,25 @@ export function UnifiedActionDrawer({
                                     </div>
                                     )}
 
+                                    {/* Ne plus contacter — shown only for statuses that are a real
+                                        dead end, so the routine SKIPs stay a single click. */}
+                                    {newActionResult !== "ENVOIE_MAIL" && statusIsFinal && (
+                                        <ExclusionActionPanel
+                                            state={exclusionPanel}
+                                            onChange={setExclusionPanel}
+                                            companyName={company?.name ?? null}
+                                            contactName={
+                                                contactId
+                                                    ? [contact?.firstName, contact?.lastName]
+                                                          .filter(Boolean)
+                                                          .join(" ") || "Ce contact"
+                                                    : null
+                                            }
+                                            statusLabel={selectedStatusDef?.label ?? newActionResult}
+                                            disabled={addActionMutation.isPending}
+                                        />
+                                    )}
+
                                     {/* Submit — hidden when ENVOIE_MAIL (email panel has its own send) */}
                                     {newActionResult !== "ENVOIE_MAIL" && (
                                     <div className="flex flex-col sm:flex-row gap-2 pt-3 mt-1 border-t border-indigo-100">
@@ -3476,6 +3593,7 @@ export function UnifiedActionDrawer({
                         setShowBookingDrawer(false);
                         setNewActionResult("");
                         setNewActionNote("");
+                        setExclusionPanel(EMPTY_EXCLUSION_PANEL);
                         setRdvDate("");
                         setMeetingType("");
                         setMeetingCat("");

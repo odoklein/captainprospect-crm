@@ -158,6 +158,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               AND (l."isActive" IS NULL OR l."isActive" = true)
               AND (l."isArchived" IS NULL OR l."isArchived" = false)
               AND camp."isActive" = true
+              -- "Ne plus contacter": the materialized stamp maintained by
+              -- lib/exclusions/service.ts. Unlike a SKIP status, this survives
+              -- a re-import and covers every list the rule reaches.
+              AND c."excludedAt" IS NULL
+              AND co."excludedAt" IS NULL
               ${sdrAssignmentWhere}
               ${missionFilter}
               ${sdrTodayMissionFilter}
@@ -207,6 +212,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               AND (l."isActive" IS NULL OR l."isActive" = true)
               AND (l."isArchived" IS NULL OR l."isArchived" = false)
               AND camp."isActive" = true
+              AND co."excludedAt" IS NULL
               ${sdrAssignmentWhere}
               AND NOT EXISTS (
                   SELECT 1 FROM "Contact" c2

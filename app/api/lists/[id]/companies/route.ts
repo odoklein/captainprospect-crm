@@ -43,7 +43,29 @@ export const GET = withErrorHandler(async (
         orderBy: { createdAt: 'desc' },
     });
 
-    return successResponse(companies);
+    // Flatten the exclusion motive onto each row so the list can explain a
+    // greyed-out company without one request per line.
+    const exclusionIds = [
+        ...new Set(companies.map((c) => c.exclusionId).filter((value): value is string => !!value)),
+    ];
+    const exclusions = exclusionIds.length
+        ? await prisma.exclusion.findMany({
+              where: { id: { in: exclusionIds } },
+              select: { id: true, reason: true, expiresAt: true },
+          })
+        : [];
+    const exclusionById = new Map(exclusions.map((e) => [e.id, e]));
+
+    return successResponse(
+        companies.map((company) => {
+            const exclusion = company.exclusionId ? exclusionById.get(company.exclusionId) : null;
+            return {
+                ...company,
+                exclusionReason: exclusion?.reason ?? null,
+                exclusionExpiresAt: exclusion?.expiresAt ?? null,
+            };
+        })
+    );
 });
 
 // ============================================
