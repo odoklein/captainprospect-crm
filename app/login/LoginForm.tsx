@@ -4,22 +4,13 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-    Shield,
-    Lock,
-    Mail,
     Eye,
     EyeOff,
     AlertCircle,
     ArrowRight,
     Loader2,
-    CheckCircle2,
-    User,
-    UserPlus,
     X,
-    Laptop,
-    KeyRound,
-    Building2,
-    Check
+    Check,
 } from "lucide-react";
 
 interface SavedAccount {
@@ -31,42 +22,14 @@ interface SavedAccount {
 
 const STORAGE_KEY = "cp_enterprise_saved_accounts";
 
-const ROLE_METADATA: Record<string, { label: string; badgeCls: string; dotCls: string }> = {
-    MANAGER: {
-        label: "Direction & Management",
-        badgeCls: "bg-indigo-950/70 text-indigo-300 border-indigo-700/60",
-        dotCls: "bg-indigo-400",
-    },
-    SDR: {
-        label: "Sales Development Rep",
-        badgeCls: "bg-blue-950/70 text-blue-300 border-blue-700/60",
-        dotCls: "bg-blue-400",
-    },
-    BOOKER: {
-        label: "Prise de Rendez-vous",
-        badgeCls: "bg-cyan-950/70 text-cyan-300 border-cyan-700/60",
-        dotCls: "bg-cyan-400",
-    },
-    BUSINESS_DEVELOPER: {
-        label: "Business Development",
-        badgeCls: "bg-purple-950/70 text-purple-300 border-purple-700/60",
-        dotCls: "bg-purple-400",
-    },
-    CLIENT: {
-        label: "Espace Client Partenaire",
-        badgeCls: "bg-emerald-950/70 text-emerald-300 border-emerald-700/60",
-        dotCls: "bg-emerald-400",
-    },
-    COMMERCIAL: {
-        label: "Commercial Partenaire",
-        badgeCls: "bg-amber-950/70 text-amber-300 border-amber-700/60",
-        dotCls: "bg-amber-400",
-    },
-    DEVELOPER: {
-        label: "Ingénierie & Système",
-        badgeCls: "bg-rose-950/70 text-rose-300 border-rose-700/60",
-        dotCls: "bg-rose-400",
-    },
+const ROLE_METADATA: Record<string, { label: string; dotCls: string }> = {
+    MANAGER: { label: "Manager", dotCls: "bg-indigo-500" },
+    SDR: { label: "SDR", dotCls: "bg-blue-500" },
+    BOOKER: { label: "Booker", dotCls: "bg-cyan-500" },
+    BUSINESS_DEVELOPER: { label: "Business Developer", dotCls: "bg-violet-500" },
+    CLIENT: { label: "Client", dotCls: "bg-emerald-500" },
+    COMMERCIAL: { label: "Commercial", dotCls: "bg-amber-500" },
+    DEVELOPER: { label: "Développeur", dotCls: "bg-rose-500" },
 };
 
 function getRoleDashboardPath(role?: string): string {
@@ -338,462 +301,260 @@ export default function LoginForm() {
 
     const activeMeta = activeAccount?.role ? ROLE_METADATA[activeAccount.role] : null;
 
+    const inputCls =
+        "w-full h-11 px-3.5 bg-white border border-neutral-200 rounded-lg text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:ring-4 focus:ring-neutral-900/5 transition disabled:bg-neutral-50 disabled:text-neutral-500";
+
+    const renderPasswordField = (id: string) => (
+        <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+                <label htmlFor={id} className="text-sm font-medium text-neutral-800">
+                    Mot de passe
+                </label>
+                <button
+                    type="button"
+                    onClick={() => router.push("/forgot-password")}
+                    className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                >
+                    Mot de passe oublié ?
+                </button>
+            </div>
+            <div className="relative">
+                <input
+                    ref={passwordInputRef}
+                    id={id}
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyUp={handleKeyUp}
+                    onKeyDown={handleKeyDown}
+                    disabled={isLoading || isSuccess}
+                    autoComplete="current-password"
+                    required
+                    className={`${inputCls} pr-11`}
+                />
+                <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 px-3.5 flex items-center text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+            </div>
+            {capsLockActive && (
+                <p className="text-xs text-amber-600 pt-0.5">Verrouillage majuscule activé</p>
+            )}
+        </div>
+    );
+
+    const submitButton = (
+        <button
+            type="submit"
+            disabled={isLoading || isSuccess}
+            className={`w-full h-11 rounded-lg text-[15px] font-medium transition flex items-center justify-center gap-2 cursor-pointer ${
+                isSuccess
+                    ? "bg-emerald-600 text-white"
+                    : "bg-neutral-900 hover:bg-neutral-800 text-white active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
+            }`}
+        >
+            {isLoading ? (
+                <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Connexion…</span>
+                </>
+            ) : isSuccess ? (
+                <>
+                    <Check className="w-4 h-4" />
+                    <span>Connecté</span>
+                </>
+            ) : (
+                <>
+                    <span>Se connecter</span>
+                    <ArrowRight className="w-4 h-4" />
+                </>
+            )}
+        </button>
+    );
+
+    const isQuickConnect = !isManualMode && !!activeAccount;
+
     return (
-        <div className="min-h-screen w-full flex flex-col justify-between bg-[#080c14] text-slate-100 font-sans selection:bg-indigo-500/30 relative overflow-hidden">
-            {/* Enterprise structural background */}
-            <div className="fixed inset-0 pointer-events-none">
-                {/* Micro-grid texture */}
-                <div
-                    className="absolute inset-0 opacity-[0.03]"
-                    style={{
-                        backgroundImage: `linear-gradient(to right, #94a3b8 1px, transparent 1px), linear-gradient(to bottom, #94a3b8 1px, transparent 1px)`,
-                        backgroundSize: "32px 32px",
+        <div
+            className="min-h-screen w-full flex flex-col bg-white text-neutral-900 antialiased"
+            style={{ fontFamily: "var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif" }}
+        >
+            <header className="px-6 sm:px-10 py-6">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src="/logocaptainblue-rose.png"
+                    alt="Captain Prospect"
+                    className="h-7 w-auto object-contain"
+                    onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
                     }}
                 />
-                {/* Subtle deep ambient glow */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-950/20 blur-[130px] rounded-full" />
-                <div className="absolute -bottom-20 right-0 w-[500px] h-[300px] bg-slate-800/10 blur-[120px] rounded-full" />
-            </div>
-
-            {/* Top Enterprise Security Banner */}
-            <header className="relative z-10 w-full border-b border-slate-800/70 bg-[#090e18]/80 backdrop-blur-md px-6 py-3.5">
-                <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-md bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
-                            <Shield className="w-3.5 h-3.5 text-indigo-400" />
-                        </div>
-                        <span className="font-semibold tracking-wider uppercase text-slate-300 text-[11px]">
-                            Captain Prospect <span className="text-slate-500 font-normal">| Console Entreprise</span>
-                        </span>
-                    </div>
-
-                    <div className="hidden sm:flex items-center gap-4 text-slate-400 text-[11px]">
-                        <div className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-slate-300 font-medium">Systèmes nominaux</span>
-                        </div>
-                        <span className="text-slate-700">|</span>
-                        <span>TLS 1.3 / Chiffrement SHA-256</span>
-                        <span className="text-slate-700">|</span>
-                        <span className="text-slate-500 font-mono">v3.4.1</span>
-                    </div>
-                </div>
             </header>
 
-            {/* Main Center Console */}
-            <main className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-6 my-auto">
+            <main className="flex-1 flex items-center justify-center px-4 pb-16">
                 <div
                     key={shakeKey}
-                    className={`w-full max-w-[430px] transition-all duration-300 ${
-                        mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
+                    className={`w-full max-w-[380px] transition-all duration-300 ${
+                        mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
                     } ${shakeKey > 0 ? "animate-[shake_0.35s_ease-in-out]" : ""}`}
                 >
-                    {/* Console Card */}
-                    <div className="bg-[#0e1422]/95 border border-slate-800/90 rounded-xl shadow-2xl shadow-black/80 overflow-hidden relative backdrop-blur-xl">
-                        {/* Top decorative status line */}
-                        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-80" />
+                    <div className="mb-8">
+                        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+                            {isQuickConnect ? "Bon retour" : "Connexion"}
+                        </h1>
+                        <p className="mt-2 text-[15px] text-neutral-500">
+                            {isQuickConnect
+                                ? "Saisissez votre mot de passe pour continuer."
+                                : "Accédez à votre espace Captain Prospect."}
+                        </p>
+                    </div>
 
-                        <div className="p-7 sm:p-8">
-                            {/* Brand Header */}
-                            <div className="flex flex-col items-center text-center mb-6">
-                                <div className="mb-3.5 relative">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src="/logocaptainblue-rose.png"
-                                        alt="Captain Prospect"
-                                        className="h-9 w-auto object-contain filter drop-shadow-[0_2px_8px_rgba(99,102,241,0.2)]"
-                                        onError={(e) => {
-                                            (e.target as HTMLElement).style.display = "none";
-                                        }}
-                                    />
-                                </div>
-                                <h1 className="text-lg font-semibold tracking-tight text-white">
-                                    Authentification Terminal
-                                </h1>
-                                <p className="text-xs text-slate-400 mt-1 max-w-[280px]">
-                                    Accès contrôlé au CRM opérationnel & espace d&apos;analyse
-                                </p>
-                            </div>
+                    {errorMessage && (
+                        <div
+                            role="alert"
+                            className="mb-5 px-3.5 py-3 rounded-lg bg-red-50 border border-red-100 text-red-700 text-sm flex items-start gap-2.5 animate-fadeIn"
+                        >
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <div className="flex-1 leading-relaxed">{errorMessage}</div>
+                        </div>
+                    )}
 
-                            {/* Error Alert Box */}
-                            {errorMessage && (
-                                <div
-                                    role="alert"
-                                    className="mb-5 p-3 rounded-lg bg-red-950/40 border border-red-800/60 text-red-300 text-xs flex items-start gap-2.5 animate-fadeIn"
-                                >
-                                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                                    <div className="flex-1 leading-relaxed">{errorMessage}</div>
-                                </div>
-                            )}
-
-                            {/* MODE 1: QUICK CONNECT (Returning User) */}
-                            {!isManualMode && activeAccount ? (
-                                <form onSubmit={handleSubmit} noValidate className="space-y-4">
-                                    {/* Active Profile Station */}
-                                    <div className="p-3.5 rounded-lg bg-slate-900/90 border border-slate-800 flex items-center justify-between relative group hover:border-slate-700/80 transition-all">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            {/* Avatar with role ring */}
-                                            <div className="relative">
-                                                <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-sm tracking-wider text-slate-200">
-                                                    {getInitials(activeAccount.name, activeAccount.email)}
-                                                </div>
-                                                {activeMeta && (
-                                                    <span
-                                                        className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-[#0e1422] ${activeMeta.dotCls}`}
-                                                    />
-                                                )}
-                                            </div>
-
-                                            {/* Identity Details */}
-                                            <div className="min-w-0 text-left">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-medium text-slate-100 truncate">
-                                                        {activeAccount.name}
-                                                    </span>
-                                                    {activeMeta && (
-                                                        <span
-                                                            className={`text-[9.5px] px-1.5 py-0.5 rounded border uppercase tracking-wider font-semibold shrink-0 ${activeMeta.badgeCls}`}
-                                                        >
-                                                            {activeAccount.role}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="text-[11px] text-slate-400 font-mono truncate mt-0.5">
-                                                    {activeAccount.email}
-                                                </div>
-                                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                                    Dernière session : {formatTimeAgo(activeAccount.lastLogin)}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Remove Profile Button */}
-                                        <button
-                                            type="button"
-                                            onClick={(e) => removeSavedAccount(activeAccount.email, e)}
-                                            className="text-slate-500 hover:text-red-400 p-1.5 rounded hover:bg-slate-800/80 transition-colors cursor-pointer"
-                                            title="Oublier ce profil sur cet appareil"
-                                            aria-label="Oublier ce profil"
-                                        >
-                                            <X className="w-3.5 h-3.5" />
-                                        </button>
+                    {isQuickConnect && activeAccount ? (
+                        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                            {/* Active saved profile */}
+                            <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50/60 flex items-center gap-3">
+                                <div className="relative shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium">
+                                        {getInitials(activeAccount.name, activeAccount.email)}
                                     </div>
-
-                                    {/* Multi-Account Selector Switcher */}
-                                    {savedAccounts.length > 1 && (
-                                        <div className="pt-1">
-                                            <div className="text-[10.5px] uppercase tracking-wider font-semibold text-slate-400 mb-1.5">
-                                                Changer de profil enregistré :
-                                            </div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {savedAccounts.map((acc) => {
-                                                    const isCurrent = acc.email.toLowerCase() === activeAccount.email.toLowerCase();
-                                                    return (
-                                                        <button
-                                                            key={acc.email}
-                                                            type="button"
-                                                            onClick={() => selectSavedAccount(acc)}
-                                                            className={`text-xs px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-all cursor-pointer ${
-                                                                isCurrent
-                                                                    ? "bg-indigo-950/80 border-indigo-600/70 text-indigo-200 font-medium"
-                                                                    : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700"
-                                                            }`}
-                                                        >
-                                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                                            <span className="truncate max-w-[130px]">{acc.name}</span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Password field */}
-                                    <div className="space-y-1.5 pt-1">
-                                        <div className="flex items-center justify-between">
-                                            <label
-                                                htmlFor="qc-password"
-                                                className="text-[11px] font-semibold uppercase tracking-wider text-slate-300"
-                                            >
-                                                Mot de passe
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={() => router.push("/forgot-password")}
-                                                className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-                                            >
-                                                Oublié ?
-                                            </button>
-                                        </div>
-
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                                <KeyRound className="w-4 h-4" />
-                                            </div>
-                                            <input
-                                                ref={passwordInputRef}
-                                                id="qc-password"
-                                                type={showPassword ? "text" : "password"}
-                                                placeholder="••••••••••••"
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                                onKeyUp={handleKeyUp}
-                                                onKeyDown={handleKeyDown}
-                                                disabled={isLoading || isSuccess}
-                                                autoComplete="current-password"
-                                                required
-                                                className="w-full h-10 pl-9 pr-10 bg-slate-950/90 border border-slate-700/80 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                                                tabIndex={-1}
-                                                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                                            >
-                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        </div>
-
-                                        {/* Caps lock alert */}
-                                        {capsLockActive && (
-                                            <div className="flex items-center gap-1.5 text-[11px] text-amber-400 pt-0.5">
-                                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                                <span>Verrouillage majuscule activé</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Action button */}
-                                    <button
-                                        type="submit"
-                                        disabled={isLoading || isSuccess}
-                                        className={`w-full h-10 rounded-lg font-medium text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                                            isSuccess
-                                                ? "bg-emerald-600 text-white"
-                                                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/50 hover:shadow-indigo-900/40 active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
-                                        }`}
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span>Validation du profil...</span>
-                                            </>
-                                        ) : isSuccess ? (
-                                            <>
-                                                <Check className="w-4 h-4" />
-                                                <span>Accès autorisé • Redirection</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>Déverrouiller la session</span>
-                                                <ArrowRight className="w-4 h-4" />
-                                            </>
-                                        )}
-                                    </button>
-
-                                    {/* Switch to manual account */}
-                                    <div className="pt-2 text-center">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setIsManualMode(true);
-                                                setEmail("");
-                                                setPassword("");
-                                                setErrorMessage("");
-                                                setTimeout(() => emailInputRef.current?.focus(), 50);
-                                            }}
-                                            className="text-xs text-slate-400 hover:text-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                                        >
-                                            <UserPlus className="w-3.5 h-3.5 text-indigo-400" />
-                                            <span>Se connecter avec un autre identifiant</span>
-                                        </button>
-                                    </div>
-                                </form>
-                            ) : (
-                                /* MODE 2: MANUAL CREDENTIAL INPUT */
-                                <form onSubmit={handleSubmit} noValidate className="space-y-4">
-                                    {/* Email */}
-                                    <div className="space-y-1.5">
-                                        <label
-                                            htmlFor="lp-email"
-                                            className="block text-[11px] font-semibold uppercase tracking-wider text-slate-300"
-                                        >
-                                            Identifiant ou Email
-                                        </label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                                <Mail className="w-4 h-4" />
-                                            </div>
-                                            <input
-                                                ref={emailInputRef}
-                                                id="lp-email"
-                                                type="email"
-                                                placeholder="nom.prenom@entreprise.com"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                                disabled={isLoading || isSuccess}
-                                                autoComplete="username"
-                                                required
-                                                className="w-full h-10 pl-9 pr-3 bg-slate-950/90 border border-slate-700/80 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Password */}
-                                    <div className="space-y-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <label
-                                                htmlFor="lp-password"
-                                                className="text-[11px] font-semibold uppercase tracking-wider text-slate-300"
-                                            >
-                                                Mot de passe
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={() => router.push("/forgot-password")}
-                                                className="text-[11px] text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
-                                            >
-                                                Oublié ?
-                                            </button>
-                                        </div>
-
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                                <Lock className="w-4 h-4" />
-                                            </div>
-                                            <input
-                                                ref={passwordInputRef}
-                                                id="lp-password"
-                                                type={showPassword ? "text" : "password"}
-                                                placeholder="••••••••••••"
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                                onKeyUp={handleKeyUp}
-                                                onKeyDown={handleKeyDown}
-                                                disabled={isLoading || isSuccess}
-                                                autoComplete="current-password"
-                                                required
-                                                className="w-full h-10 pl-9 pr-10 bg-slate-950/90 border border-slate-700/80 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
-                                                tabIndex={-1}
-                                                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                                            >
-                                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                            </button>
-                                        </div>
-
-                                        {capsLockActive && (
-                                            <div className="flex items-center gap-1.5 text-[11px] text-amber-400 pt-0.5">
-                                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                                <span>Verrouillage majuscule activé</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Remember device checkbox */}
-                                    <div className="flex items-center gap-2 pt-0.5">
-                                        <input
-                                            id="remember-device"
-                                            type="checkbox"
-                                            checked={rememberDevice}
-                                            onChange={(e) => setRememberDevice(e.target.checked)}
-                                            className="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900 cursor-pointer"
+                                    {activeMeta && (
+                                        <span
+                                            className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-white ${activeMeta.dotCls}`}
                                         />
-                                        <label
-                                            htmlFor="remember-device"
-                                            className="text-xs text-slate-400 cursor-pointer select-none"
-                                        >
-                                            Mémoriser ce poste pour la reconnexion rapide
-                                        </label>
-                                    </div>
-
-                                    {/* Submit button */}
-                                    <button
-                                        type="submit"
-                                        disabled={isLoading || isSuccess}
-                                        className={`w-full h-10 rounded-lg font-medium text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                                            isSuccess
-                                                ? "bg-emerald-600 text-white"
-                                                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/50 hover:shadow-indigo-900/40 active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed"
-                                        }`}
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span>Vérification des accès...</span>
-                                            </>
-                                        ) : isSuccess ? (
-                                            <>
-                                                <Check className="w-4 h-4" />
-                                                <span>Accès autorisé • Redirection</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <span>Connexion au terminal</span>
-                                                <ArrowRight className="w-4 h-4" />
-                                            </>
-                                        )}
-                                    </button>
-
-                                    {/* Return to saved account if exists */}
-                                    {savedAccounts.length > 0 && (
-                                        <div className="pt-2 text-center">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setIsManualMode(false);
-                                                    setActiveAccount(savedAccounts[0]);
-                                                    setEmail(savedAccounts[0].email);
-                                                    setPassword("");
-                                                    setErrorMessage("");
-                                                }}
-                                                className="text-xs text-slate-400 hover:text-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
-                                            >
-                                                <span>← Revenir au profil de {savedAccounts[0].name}</span>
-                                            </button>
-                                        </div>
                                     )}
-                                </form>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-medium truncate">{activeAccount.name}</div>
+                                    <div className="text-[13px] text-neutral-500 truncate">
+                                        {activeAccount.email}
+                                        {activeMeta && <> · {activeMeta.label}</>}
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={(e) => removeSavedAccount(activeAccount.email, e)}
+                                    className="text-neutral-400 hover:text-neutral-900 p-1.5 rounded-md hover:bg-neutral-100 transition-colors cursor-pointer"
+                                    title={`Oublier ce profil · dernière connexion ${formatTimeAgo(activeAccount.lastLogin)}`}
+                                    aria-label="Oublier ce profil"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {savedAccounts.length > 1 && (
+                                <div className="flex flex-wrap gap-1.5 -mt-2">
+                                    {savedAccounts.map((acc) => {
+                                        const isCurrent = acc.email.toLowerCase() === activeAccount.email.toLowerCase();
+                                        return (
+                                            <button
+                                                key={acc.email}
+                                                type="button"
+                                                onClick={() => selectSavedAccount(acc)}
+                                                className={`text-[13px] px-2.5 py-1 rounded-full border transition cursor-pointer max-w-[160px] truncate ${
+                                                    isCurrent
+                                                        ? "bg-neutral-900 border-neutral-900 text-white"
+                                                        : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                                                }`}
+                                            >
+                                                {acc.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             )}
-                        </div>
 
-                        {/* Card bottom security assurance footer */}
-                        <div className="px-6 py-3.5 bg-slate-950/70 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-                            <div className="flex items-center gap-1.5">
-                                <Shield className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Contrôle RBAC Actif</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <Laptop className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Session Protégée</span>
-                            </div>
-                        </div>
-                    </div>
+                            {renderPasswordField("qc-password")}
+                            {submitButton}
 
-                    {/* Outer Footer Notice */}
-                    <div className="mt-4 text-center text-slate-400 text-xs">
-                        Usage strictement réservé aux utilisateurs autorisés. Toute tentative d&apos;accès non autorisée est tracée et consignée.
-                    </div>
+                            <div className="text-center">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsManualMode(true);
+                                        setEmail("");
+                                        setPassword("");
+                                        setErrorMessage("");
+                                        setTimeout(() => emailInputRef.current?.focus(), 50);
+                                    }}
+                                    className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                                >
+                                    Utiliser un autre compte
+                                </button>
+                            </div>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                            <div className="space-y-1.5">
+                                <label htmlFor="lp-email" className="block text-sm font-medium text-neutral-800">
+                                    Email
+                                </label>
+                                <input
+                                    ref={emailInputRef}
+                                    id="lp-email"
+                                    type="email"
+                                    placeholder="vous@entreprise.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    disabled={isLoading || isSuccess}
+                                    autoComplete="username"
+                                    required
+                                    className={inputCls}
+                                />
+                            </div>
+
+                            {renderPasswordField("lp-password")}
+
+                            <label className="flex items-center gap-2.5 text-sm text-neutral-600 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberDevice}
+                                    onChange={(e) => setRememberDevice(e.target.checked)}
+                                    className="w-4 h-4 rounded border-neutral-300 accent-neutral-900 cursor-pointer"
+                                />
+                                Se souvenir de moi
+                            </label>
+
+                            {submitButton}
+
+                            {savedAccounts.length > 0 && (
+                                <div className="text-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsManualMode(false);
+                                            setActiveAccount(savedAccounts[0]);
+                                            setEmail(savedAccounts[0].email);
+                                            setPassword("");
+                                            setErrorMessage("");
+                                        }}
+                                        className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                                    >
+                                        ← Continuer en tant que {savedAccounts[0].name}
+                                    </button>
+                                </div>
+                            )}
+                        </form>
+                    )}
                 </div>
             </main>
 
-            {/* Bottom Enterprise Footer */}
-            <footer className="relative z-10 w-full border-t border-slate-800/70 bg-[#090e18]/80 backdrop-blur-md px-6 py-3">
-                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
-                    <p>© {new Date().getFullYear()} Captain Prospect CRM. Tous droits réservés.</p>
-                    <div className="flex items-center gap-4 text-[11px]">
-                        <span>Politique de Confidentialité</span>
-                        <span className="text-slate-700">•</span>
-                        <span>Audits & Conformité</span>
-                        <span className="text-slate-700">•</span>
-                        <span>Support Technique</span>
-                    </div>
-                </div>
+            <footer className="px-6 sm:px-10 py-6 text-[13px] text-neutral-400">
+                © {new Date().getFullYear()} Captain Prospect
             </footer>
         </div>
     );
