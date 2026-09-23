@@ -151,6 +151,10 @@ export default function ClientSupportRoot() {
     const [isLoading, setIsLoading] = useState(false);
     const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
     const isOpenRef = useRef(false);
+    // The conversation the user most recently chose. Async responses (polls,
+    // slow detail fetches, callbacks from a panel being torn down) for any other
+    // id are stale and must be dropped — otherwise an old thread pops back in.
+    const activeIdRef = useRef<string | null>(null);
 
     const canRender =
         status === "authenticated" &&
@@ -183,28 +187,25 @@ export default function ClientSupportRoot() {
         isOpenRef.current = isOpen;
     }, [isOpen]);
 
-    // Initial load
+    // Initial load — only the list (for the FAB badge). No "default" conversation
+    // is pre-selected: that server fallback picked an arbitrary (often resolved)
+    // thread, and handleOpen() routes to the right one anyway.
     useEffect(() => {
         if (!canRender) return;
         let cancelled = false;
         setIsLoading(true);
 
-        Promise.all([fetchConversationsList(), fetchConversationDetail()]).then(
-            ([list, detail]) => {
-                if (cancelled) return;
-                setConversations(list);
-                if (detail) {
-                    setActiveConversation(detail);
-                }
-                setHasFetchedOnce(true);
-                setIsLoading(false);
-            },
-        );
+        fetchConversationsList().then((list) => {
+            if (cancelled) return;
+            setConversations(list);
+            setHasFetchedOnce(true);
+            setIsLoading(false);
+        });
 
         return () => {
             cancelled = true;
         };
-    }, [canRender, fetchConversationsList, fetchConversationDetail]);
+    }, [canRender, fetchConversationsList]);
 
     // Periodic polling
     useEffect(() => {
@@ -213,9 +214,10 @@ export default function ClientSupportRoot() {
             const list = await fetchConversationsList();
             setConversations(list);
 
-            if (activeConversation?.id) {
-                const detail = await fetchConversationDetail(activeConversation.id);
-                if (detail) {
+            const polledId = activeIdRef.current;
+            if (polledId) {
+                const detail = await fetchConversationDetail(polledId);
+                if (detail && detail.id === activeIdRef.current) {
                     let fresh = detail;
                     if (isOpenRef.current) {
                         void markRead(detail.id);
@@ -227,13 +229,16 @@ export default function ClientSupportRoot() {
         }, POLL_INTERVAL_MS);
 
         return () => window.clearInterval(intervalId);
-    }, [canRender, activeConversation?.id, fetchConversationsList, fetchConversationDetail, markRead]);
+    }, [canRender, fetchConversationsList, fetchConversationDetail, markRead]);
 
     // Select a conversation from list
     const handleSelectConversation = useCallback(
         async (id: string) => {
+            activeIdRef.current = id;
             setIsLoading(true);
             const detail = await fetchConversationDetail(id);
+            // User picked another conversation while this one was loading.
+            if (activeIdRef.current !== id) return;
             if (detail) {
                 setActiveConversation(detail);
                 setView("THREAD");
@@ -257,6 +262,7 @@ export default function ClientSupportRoot() {
             context?: SupportMessageContext;
         }) => {
             const created = await supportApi.createConversation(data);
+            activeIdRef.current = created.id;
             setActiveConversation(created);
             setView("THREAD");
             const updatedList = await fetchConversationsList();
@@ -334,7 +340,9 @@ export default function ClientSupportRoot() {
     }, [isOpen, view, conversations.length, handleClose]);
 
     const handleConversationUpdate = useCallback((next: SupportConversationDetailDTO) => {
-        setActiveConversation(next);
+        // A late send/reopen on a thread the user already left updates its list
+        // row, but must not pull that thread back into view.
+        if (next.id === activeIdRef.current) setActiveConversation(next);
         setConversations((prev) =>
             prev.map((c) =>
                 c.id === next.id
@@ -410,6 +418,9 @@ export default function ClientSupportRoot() {
 
             {isOpen && view === "THREAD" && activeConversation && (
                 <ClientSupportPanel
+                    // Remount per thread so draft, pending images (uploaded to one
+                    // conversation) and local message state never bleed into another.
+                    key={activeConversation.id}
                     conversation={activeConversation}
                     onClose={handleClose}
                     onConversationUpdate={handleConversationUpdate}

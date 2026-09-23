@@ -7,9 +7,11 @@ const T = SUP_LIGHT;
 interface SupportResolvedBannerProps {
     onReopen: () => void;
     isReopening: boolean;
+    /** Starts a separate request instead of appending to this resolved thread. */
+    onNewRequest?: () => void;
 }
 
-export function SupportResolvedBanner({ onReopen, isReopening }: SupportResolvedBannerProps) {
+export function SupportResolvedBanner({ onReopen, isReopening, onNewRequest }: SupportResolvedBannerProps) {
     return (
         <div
             style={{
@@ -29,6 +31,26 @@ export function SupportResolvedBanner({ onReopen, isReopening }: SupportResolved
                     Cette demande est marquée comme résolue
                 </span>
             </div>
+            <div style={{ display: "flex", gap: 6 }}>
+            {onNewRequest && (
+                <button
+                    type="button"
+                    onClick={onNewRequest}
+                    style={{
+                        padding: "5px 14px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        background: T.brandStrong,
+                        border: `1px solid ${T.brandStrong}`,
+                        color: "#FFFFFF",
+                        cursor: "pointer",
+                        transition: "all 150ms ease",
+                    }}
+                >
+                    Nouvelle demande
+                </button>
+            )}
             <button
                 type="button"
                 onClick={onReopen}
@@ -48,6 +70,7 @@ export function SupportResolvedBanner({ onReopen, isReopening }: SupportResolved
             >
                 {isReopening ? "Réouverture…" : "Rouvrir"}
             </button>
+            </div>
         </div>
     );
 }

@@ -48,8 +48,17 @@ interface TicketWorkspaceProps {
     defaultOnlyMine?: boolean;
 }
 
-/** "PENDING_VALIDATION" is not a status — it maps to ?validation=PENDING. */
-type StatusFilter = "ALL" | "OPEN" | "PENDING_VALIDATION" | TicketStatus;
+/**
+ * The first four are views, not statuses: "PENDING_VALIDATION" maps to
+ * ?validation=PENDING, "UNASSIGNED" / "URGENT" to open tickets with no owner /
+ * URGENT priority — the same definitions as the dashboard counters.
+ */
+type StatusFilter = "ALL" | "OPEN" | "PENDING_VALIDATION" | "UNASSIGNED" | "URGENT" | TicketStatus;
+
+const OPEN_STATUSES = "NEW,TODO,IN_PROGRESS,BLOCKED,TESTING";
+
+/** "Tous" really means all: the API hides PENDING requests unless asked for them. */
+const ALL_VALIDATIONS = "NOT_REQUIRED,PENDING,ACCEPTED,REJECTED";
 type PriorityFilter = "ALL" | TaskPriority;
 type CategoryFilter = "ALL" | TicketCategory;
 
@@ -59,10 +68,12 @@ type CategoryFilter = "ALL" | TicketCategory;
  * used to be nine identical pills in one line, which read as one flat list of
  * equal options and buried the validation queue at position two.
  */
-const SCOPE_FILTERS: { value: StatusFilter; label: string }[] = [
+const SCOPE_FILTERS: { value: StatusFilter; label: string; count?: keyof TicketDashboardCounts; tone?: string }[] = [
+    { value: "ALL", label: "Toutes les demandes" },
+    { value: "PENDING_VALIDATION", label: "À valider", count: "pendingValidation", tone: "bg-amber-500" },
+    { value: "UNASSIGNED", label: "Non assignés", count: "unassigned", tone: "bg-sky-500" },
+    { value: "URGENT", label: "Urgents", count: "urgent", tone: "bg-red-500" },
     { value: "OPEN", label: "Ouverts" },
-    { value: "PENDING_VALIDATION", label: "À valider" },
-    { value: "ALL", label: "Tous" },
 ];
 
 const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
@@ -157,7 +168,7 @@ export function TicketWorkspace({
     const [isDetailLoading, setIsDetailLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>("OPEN");
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
     const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("ALL");
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
     const [onlyMine, setOnlyMine] = useState(defaultOnlyMine);
@@ -175,19 +186,22 @@ export function TicketWorkspace({
 
     const fetchTickets = useCallback(async () => {
         const params = new URLSearchParams();
-        if (statusFilter === "PENDING_VALIDATION") {
-            // The queue the sales team's requests land in — see TC-0032. The API
-            // hides these from every other view, so the filter is the only way in.
+        if (statusFilter === "ALL") {
+            params.set("validation", ALL_VALIDATIONS);
+        } else if (statusFilter === "PENDING_VALIDATION") {
+            // The queue the sales team's requests land in — see TC-0032.
             params.set("validation", "PENDING");
-        } else if (statusFilter === "OPEN") {
-            params.set("status", "NEW,TODO,IN_PROGRESS,BLOCKED,TESTING");
-        } else if (statusFilter !== "ALL") {
+        } else if (statusFilter === "OPEN" || statusFilter === "UNASSIGNED" || statusFilter === "URGENT") {
+            params.set("status", OPEN_STATUSES);
+        } else {
             params.set("status", statusFilter);
         }
-        if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
+        if (statusFilter === "URGENT") params.set("priority", "URGENT");
+        else if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
         if (categoryFilter !== "ALL") params.set("category", categoryFilter);
         if (requesterFilter !== "ALL") params.set("requesterRole", requesterFilter);
-        if (onlyMine) params.set("assigneeId", currentUserId);
+        if (statusFilter === "UNASSIGNED") params.set("assigneeId", "unassigned");
+        else if (onlyMine) params.set("assigneeId", currentUserId);
         if (search.trim()) params.set("search", search.trim());
 
         try {
@@ -309,7 +323,7 @@ export function TicketWorkspace({
                 icon: UserPlus,
                 iconBg: "bg-sky-100",
                 iconColor: "text-sky-600",
-                onClick: () => { setStatusFilter("OPEN"); setOnlyMine(false); },
+                onClick: () => { setStatusFilter("UNASSIGNED"); setOnlyMine(false); },
             },
             {
                 label: "Urgents",
@@ -317,7 +331,7 @@ export function TicketWorkspace({
                 icon: AlertTriangle,
                 iconBg: "bg-red-100",
                 iconColor: "text-red-600",
-                onClick: () => { setStatusFilter("OPEN"); setPriorityFilter("URGENT"); },
+                onClick: () => { setStatusFilter("URGENT"); setPriorityFilter("ALL"); },
             },
             {
                 label: "Bloqués",
@@ -338,6 +352,50 @@ export function TicketWorkspace({
         ],
         [counts],
     );
+
+    const scopeControl = (
+        <div className="inline-flex flex-wrap rounded-xl border border-slate-200 bg-slate-50 p-0.5">
+            {SCOPE_FILTERS.map((filter) => {
+                const count = filter.count ? counts?.[filter.count] ?? 0 : 0;
+                return (
+                    <button
+                        key={filter.value}
+                        type="button"
+                        onClick={() => {
+                            setStatusFilter(filter.value);
+                            // Those views are defined by owner / priority; a leftover
+                            // "Mes tickets" or priority select would silently narrow them.
+                            if (filter.value === "UNASSIGNED") setOnlyMine(false);
+                            if (filter.value === "URGENT") setPriorityFilter("ALL");
+                        }}
+                        aria-pressed={statusFilter === filter.value}
+                        className={cn(
+                            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                            statusFilter === filter.value
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-800",
+                        )}
+                    >
+                        {filter.label}
+                        {count > 0 && (
+                            <span className={cn("rounded-full px-1.5 text-[10px] font-bold text-white", filter.tone)}>
+                                {count}
+                            </span>
+                        )}
+                    </button>
+                );
+            })}
+        </div>
+    );
+
+    const emptyCopy: { title: string; description: string } =
+        statusFilter === "PENDING_VALIDATION"
+            ? { title: "Aucune demande à valider", description: "Les demandes déposées par l'équipe sales arriveront ici." }
+            : statusFilter === "UNASSIGNED"
+            ? { title: "Tout est assigné", description: "Aucun ticket ouvert n'attend de responsable." }
+            : statusFilter === "URGENT"
+            ? { title: "Aucun ticket urgent", description: "Aucun ticket ouvert n'est marqué urgent." }
+            : { title: "Aucun ticket", description: "Aucun ticket ne correspond à ces filtres." };
 
     return (
         <div className="flex h-full min-h-0 flex-col gap-3 px-5 py-4">
@@ -446,33 +504,7 @@ export function TicketWorkspace({
                 </div>
                 {/* Scope: which pile. Visually distinct from the status chips
                     below, because they answer different questions. */}
-                <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5">
-                    {SCOPE_FILTERS.map((filter) => {
-                        const isPending = filter.value === "PENDING_VALIDATION";
-                        const pending = counts?.pendingValidation ?? 0;
-                        return (
-                            <button
-                                key={filter.value}
-                                type="button"
-                                onClick={() => setStatusFilter(filter.value)}
-                                aria-pressed={statusFilter === filter.value}
-                                className={cn(
-                                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-                                    statusFilter === filter.value
-                                        ? "bg-white text-slate-900 shadow-sm"
-                                        : "text-slate-500 hover:text-slate-800",
-                                )}
-                            >
-                                {filter.label}
-                                {isPending && pending > 0 && (
-                                    <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
-                                        {pending}
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
+                {scopeControl}
 
                 <div className="flex flex-wrap items-center gap-1.5">
                     {STATUS_FILTERS.map((filter) => (
@@ -550,16 +582,8 @@ export function TicketWorkspace({
                         <EmptyState
                             variant="inline"
                             icon={statusFilter === "PENDING_VALIDATION" ? Inbox : LifeBuoy}
-                            title={
-                                statusFilter === "PENDING_VALIDATION"
-                                    ? "Aucune demande à valider"
-                                    : "Aucun ticket"
-                            }
-                            description={
-                                statusFilter === "PENDING_VALIDATION"
-                                    ? "Les demandes déposées par l'équipe sales arriveront ici."
-                                    : "Aucun ticket ne correspond à ces filtres."
-                            }
+                            title={emptyCopy.title}
+                            description={emptyCopy.description}
                         />
                     ) : (
                         <div className="min-h-0 flex-1 overflow-auto">
@@ -685,6 +709,7 @@ export function TicketWorkspace({
                             placeholder="Rechercher un ticket…"
                             icon={<Search className="w-4 h-4 text-slate-400" />}
                         />
+                        {scopeControl}
                         <div className="flex flex-wrap gap-1.5">
                             {STATUS_FILTERS.map((filter) => (
                                 <button
@@ -760,7 +785,7 @@ export function TicketWorkspace({
                                 }
                             />
                         ) : tickets.length === 0 ? (
-                            <EmptyState variant="inline" icon={LifeBuoy} title="Aucun ticket" />
+                            <EmptyState variant="inline" icon={LifeBuoy} title={emptyCopy.title} description={emptyCopy.description} />
                         ) : (
                             <ul className="divide-y divide-slate-100">
                                 {tickets.map((ticket) => (

@@ -136,6 +136,7 @@ export function ClientSupportPanel({
                 <SupportResolvedBanner
                     onReopen={reopen}
                     isReopening={isReopening}
+                    onNewRequest={onNewRequest}
                 />
             ) : (
                 <SupportComposer

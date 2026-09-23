@@ -130,6 +130,7 @@ export async function notifyTicketRequestDecided(
                 ? `${formatTicketRef(ticket.number)} · "${ticket.title}" a été acceptée et part en développement`
                 : `${formatTicketRef(ticket.number)} · "${ticket.title}" a été refusée — ${rejectionReason?.trim() || "sans motif précisé"}`,
         type: decision === "ACCEPTED" ? "success" : "info",
-        link: `/tickets/mes-demandes?ticket=${ticket.id}`,
+        // Shared by SDR, BD and Booker — see lib/navigation/config.ts.
+        link: `/sdr/support-technique?ticket=${ticket.id}`,
     });
 }

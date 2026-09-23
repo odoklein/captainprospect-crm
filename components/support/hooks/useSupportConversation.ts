@@ -137,7 +137,7 @@ export function useSupportConversation({
         const next = !emailNotif;
         setEmailNotif(next);
         try {
-            await supportApi.updateEmailNotification(next);
+            await supportApi.updateEmailNotification(next, conversation.id);
             updateConversationState((prev) => ({
                 ...prev,
                 emailNotificationOnReply: next,
@@ -145,7 +145,7 @@ export function useSupportConversation({
         } catch {
             setEmailNotif(!next); // rollback
         }
-    }, [emailNotif, updateConversationState]);
+    }, [emailNotif, conversation.id, updateConversationState]);
 
     return {
         conversation,

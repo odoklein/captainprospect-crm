@@ -103,10 +103,10 @@ export const supportApi = {
     },
 
     /** Update email notifications preference on reply. */
-    async updateEmailNotification(enabled: boolean): Promise<void> {
+    async updateEmailNotification(enabled: boolean, conversationId?: string): Promise<void> {
         await request<void>("/api/support/conversation/email-notification", {
             method: "POST",
-            body: JSON.stringify({ enabled }),
+            body: JSON.stringify({ enabled, conversationId }),
         });
     },
 

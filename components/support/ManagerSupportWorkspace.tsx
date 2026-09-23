@@ -194,6 +194,8 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     const { data: session } = useSession();
     const [conversations, setConversations] = useState<SupportConversationSummaryDTO[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const selectedIdRef = useRef<string | null>(null);
+    selectedIdRef.current = selectedId;
     const [detail, setDetail] = useState<SupportConversationDetailDTO | null>(null);
     const [tab, setTab] = useState<TabFilter>("ACTIVE");
     const [search, setSearch] = useState("");
@@ -292,7 +294,8 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
     const fetchDetail = useCallback(async (id: string) => {
         const res = await fetch(`/api/support/manager/conversations/${id}`);
         const json = await res.json();
-        if (json?.success) {
+        // Drop a response for a conversation the manager already navigated away from.
+        if (json?.success && selectedIdRef.current === id) {
             setDetail(json.data as SupportConversationDetailDTO);
         }
     }, []);

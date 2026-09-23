@@ -5,7 +5,8 @@ import { LifeBuoy, Plus, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, Input, Select, EmptyState, LoadingState, useToast } from "@/components/ui";
 import { TICKET_CATEGORY_LABELS, formatTicketRef } from "@/lib/tickets/constants";
-import type { TicketCategory, TicketValidation } from "@prisma/client";
+import { TicketStatusBadge } from "@/components/tickets/TicketBadges";
+import type { TicketCategory, TicketStatus, TicketValidation } from "@prisma/client";
 
 interface RequestItem {
     id: string;
@@ -15,7 +16,8 @@ interface RequestItem {
     validation: TicketValidation;
     rejectionReason: string | null;
     createdAt: string;
-    status: string;
+    status: TicketStatus;
+    assignee: { name: string } | null;
 }
 
 const CATEGORY_OPTIONS = Object.entries(TICKET_CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
@@ -171,10 +173,22 @@ export default function SupportTechniquePage() {
                                         {badge.label}
                                     </span>
                                 </div>
-                                <p className="mt-1 text-xs text-slate-500">
-                                    {TICKET_CATEGORY_LABELS[req.category]} ·{" "}
-                                    {new Date(req.createdAt).toLocaleDateString("fr-FR")}
-                                </p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                    <span>
+                                        {TICKET_CATEGORY_LABELS[req.category]} ·{" "}
+                                        {new Date(req.createdAt).toLocaleDateString("fr-FR")}
+                                    </span>
+                                    {/* Once accepted, the request is real work: show where it
+                                        stands so the requester doesn't have to ask. */}
+                                    {req.validation === "ACCEPTED" && (
+                                        <>
+                                            <TicketStatusBadge status={req.status} />
+                                            <span>
+                                                {req.assignee?.name ? `Pris en charge par ${req.assignee.name}` : "En attente d'attribution"}
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
                                 {req.validation === "REJECTED" && req.rejectionReason && (
                                     <p className="mt-2 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
                                         Motif du refus : {req.rejectionReason}

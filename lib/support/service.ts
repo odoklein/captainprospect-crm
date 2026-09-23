@@ -191,6 +191,25 @@ export async function getConversationIdForClientUser(userId: string): Promise<st
             select: { id: true },
         });
         if (commercialAny) return commercialAny.id;
+
+        // Never fall through to another user's thread: a commercial may only land on
+        // a legacy company conversation (no creator) or a fresh one of their own.
+        const legacy = await prisma.supportConversation.findFirst({
+            where: { clientId: user.clientId, createdById: null } as any,
+            orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
+            select: { id: true },
+        });
+        if (legacy) return legacy.id;
+
+        const created = await prisma.supportConversation.create({
+            data: {
+                clientId: user.clientId,
+                createdById: userId,
+                subject: "Demande d'assistance",
+            } as any,
+            select: { id: true },
+        });
+        return created.id;
     }
 
     return getOrCreateClientConversation(user.clientId, userId);
@@ -868,7 +887,7 @@ export async function reopenConversation(
                 role: "SYSTEM",
                 authorId: userId,
                 content: isClientReopen
-                    ? `${userName} a démarré une nouvelle conversation après résolution.`
+                    ? `${userName} a rouvert la demande.`
                     : `${userName} a réouvert la conversation.`,
                 context: {
                     pathname: isClientReopen ? "client-new-thread" : "manager",
