@@ -72,7 +72,10 @@ import {
     Ban,
     RefreshCw,
     Receipt,
+    ChevronUp,
+    Mic,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // TYPES
@@ -231,13 +234,47 @@ type TabId = "apercu" | "missions" | "acces" | "activite" | "avis-sdr" | "sessio
 
 const DRAWER_EXPANDED_KEY = "cp:clientDrawerExpanded";
 
+interface ClientSessionTask {
+    id: string;
+    label: string;
+    assignee?: string | null;
+    assigneeRole?: "SDR" | "MANAGER" | "DEV" | "ALWAYS" | null;
+    priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null;
+    doneAt?: string | null;
+}
+
 interface ClientSessionLite {
     id: string;
     type: string;
     date: string;
+    recordingUrl?: string | null;
     crMarkdown?: string | null;
     summaryEmail?: string | null;
+    tasks?: ClientSessionTask[];
 }
+
+// Same palette as the client portal, so a CR looks the same to the
+// manager and to the client reading it in their portal.
+const SESSION_TYPE_COLORS: Record<string, string> = {
+    "Kick-Off": "bg-indigo-100 text-indigo-700 border-indigo-200",
+    "Onboarding": "bg-emerald-100 text-emerald-700 border-emerald-200",
+    "Validation": "bg-pink-100 text-pink-700 border-pink-200",
+    "Reporting": "bg-amber-100 text-amber-700 border-amber-200",
+    "Suivi": "bg-slate-100 text-slate-600 border-slate-200",
+    "Autre": "bg-purple-100 text-purple-700 border-purple-200",
+};
+const SESSION_ROLE_BADGE: Record<string, { color: string; bg: string; label: string }> = {
+    SDR: { color: "#10B981", bg: "rgba(16,185,129,0.1)", label: "SDR" },
+    MANAGER: { color: "#F59E0B", bg: "rgba(245,158,11,0.1)", label: "Manager" },
+    DEV: { color: "#3B82F6", bg: "rgba(59,130,246,0.1)", label: "Dev" },
+    ALWAYS: { color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", label: "Tous" },
+};
+const SESSION_PRIORITY_INDICATOR: Record<string, { color: string; label: string }> = {
+    URGENT: { color: "#EF4444", label: "⚡" },
+    HIGH: { color: "#F59E0B", label: "↑" },
+    MEDIUM: { color: "#3B82F6", label: "→" },
+    LOW: { color: "#6B7280", label: "↓" },
+};
 
 // ============================================================================
 // HELPERS
@@ -529,6 +566,8 @@ export function ClientDrawer({
     });
 
     // Sessions & CRs (compact read-only view)
+    const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+    const [sessionCrTab, setSessionCrTab] = useState<"cr" | "email">("cr");
     const { data: sessions = [] } = useQuery<ClientSessionLite[]>({
         queryKey: ["client-sessions", client?.id],
         queryFn: async () => {
@@ -1539,26 +1578,174 @@ export function ClientDrawer({
             </div>
             {sessions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
-                    <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <Mic className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                     <p className="text-sm font-medium text-slate-700">Aucune session pour ce client</p>
                 </div>
             ) : (
-                <div className="space-y-2">
-                    {sessions.map((s) => (
-                        <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-3">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-slate-900">{s.type}</span>
-                                <span className="text-xs text-slate-500">
-                                    {new Date(s.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-                                </span>
+                <div className="space-y-3">
+                    {sessions.map((s) => {
+                        const isExpanded = expandedSessionId === s.id;
+                        const tasks = s.tasks ?? [];
+                        const openTasks = tasks.filter((t) => !t.doneAt);
+                        const typeColor = SESSION_TYPE_COLORS[s.type] ?? SESSION_TYPE_COLORS["Autre"];
+                        const crExcerpt = s.crMarkdown
+                            ? s.crMarkdown.split("\n").find((l) => l && !l.startsWith("#"))?.slice(0, 100)
+                            : null;
+                        return (
+                            <div
+                                key={s.id}
+                                className="rounded-xl border border-slate-200 bg-white overflow-hidden hover:border-indigo-200 transition-colors"
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        // Reset to the CR tab when opening a different session,
+                                        // otherwise the previous session's tab choice carries over.
+                                        setExpandedSessionId(isExpanded ? null : s.id);
+                                        if (!isExpanded) setSessionCrTab("cr");
+                                    }}
+                                    className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-slate-50/70 transition-colors"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <Badge className={cn("text-xs border shrink-0", typeColor)}>{s.type}</Badge>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                Session du {new Date(s.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                                            </p>
+                                            {crExcerpt && (
+                                                <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{crExcerpt}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2.5 shrink-0">
+                                        {s.recordingUrl && (
+                                            <a
+                                                href={s.recordingUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
+                                            >
+                                                <Mic className="w-3.5 h-3.5" /> Enregistrement
+                                            </a>
+                                        )}
+                                        {openTasks.length > 0 && (
+                                            <Badge className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                                                {openTasks.length} tâche{openTasks.length > 1 ? "s" : ""}
+                                            </Badge>
+                                        )}
+                                        {isExpanded
+                                            ? <ChevronUp className="w-4 h-4 text-slate-400" />
+                                            : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                                    </div>
+                                </button>
+
+                                {isExpanded && (
+                                    <div className="border-t border-slate-200">
+                                        <div className="flex border-b border-slate-200">
+                                            <button
+                                                type="button"
+                                                onClick={() => setSessionCrTab("cr")}
+                                                className={cn(
+                                                    "px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors",
+                                                    sessionCrTab === "cr"
+                                                        ? "border-indigo-600 text-indigo-600"
+                                                        : "border-transparent text-slate-500 hover:text-slate-900"
+                                                )}
+                                            >
+                                                Compte rendu
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSessionCrTab("email")}
+                                                className={cn(
+                                                    "px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors",
+                                                    sessionCrTab === "email"
+                                                        ? "border-indigo-600 text-indigo-600"
+                                                        : "border-transparent text-slate-500 hover:text-slate-900"
+                                                )}
+                                            >
+                                                Mail de synthèse
+                                            </button>
+                                        </div>
+                                        <div className="p-4">
+                                            {sessionCrTab === "cr" && (
+                                                s.crMarkdown ? (
+                                                    <pre className="whitespace-pre-wrap text-sm text-slate-900 font-sans leading-relaxed">
+                                                        {s.crMarkdown}
+                                                    </pre>
+                                                ) : (
+                                                    <p className="text-sm text-slate-500 italic">Pas de CR disponible.</p>
+                                                )
+                                            )}
+                                            {sessionCrTab === "email" && (
+                                                s.summaryEmail ? (
+                                                    <div className="space-y-3">
+                                                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                                            <pre className="whitespace-pre-wrap text-sm text-slate-900 font-sans leading-relaxed">
+                                                                {s.summaryEmail}
+                                                            </pre>
+                                                        </div>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="gap-2 rounded-xl"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(s.summaryEmail!);
+                                                                success("Copié", "Mail copié dans le presse-papier");
+                                                            }}
+                                                        >
+                                                            <Copy className="w-3.5 h-3.5" />
+                                                            Copier le mail
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm text-slate-500 italic">Pas de mail de synthèse disponible.</p>
+                                                )
+                                            )}
+
+                                            {tasks.length > 0 && (
+                                                <div className="mt-5 pt-5 border-t border-slate-200">
+                                                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+                                                        Tâches d&apos;équipe
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {tasks.map((task) => {
+                                                            const roleBadge = SESSION_ROLE_BADGE[task.assigneeRole || "ALWAYS"] ?? SESSION_ROLE_BADGE.ALWAYS;
+                                                            const priorityInfo = SESSION_PRIORITY_INDICATOR[task.priority || "MEDIUM"] ?? SESSION_PRIORITY_INDICATOR.MEDIUM;
+                                                            return (
+                                                                <div key={task.id} className="flex items-center gap-3">
+                                                                    <div
+                                                                        className={cn(
+                                                                            "w-4 h-4 rounded-full border-2 shrink-0",
+                                                                            task.doneAt ? "bg-emerald-500 border-emerald-500" : "border-slate-300"
+                                                                        )}
+                                                                    />
+                                                                    <span className={cn("text-sm flex-1", task.doneAt ? "line-through text-slate-400" : "text-slate-900")}>
+                                                                        {task.label}
+                                                                    </span>
+                                                                    <span
+                                                                        className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                                                        style={{ color: roleBadge.color, background: roleBadge.bg }}
+                                                                    >
+                                                                        {roleBadge.label}
+                                                                    </span>
+                                                                    <span className="text-[10px] font-medium" style={{ color: priorityInfo.color }}>
+                                                                        {priorityInfo.label}
+                                                                    </span>
+                                                                    {task.assignee && <span className="text-xs text-slate-500">— {task.assignee}</span>}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            {s.crMarkdown ? (
-                                <p className="text-xs text-slate-600 mt-1.5 line-clamp-2">{s.crMarkdown}</p>
-                            ) : (
-                                <p className="text-xs text-slate-400 italic mt-1.5">Pas de CR disponible</p>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
