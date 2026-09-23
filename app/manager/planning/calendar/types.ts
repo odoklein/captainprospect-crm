@@ -26,7 +26,11 @@ export interface CalTeamMember {
 export interface MonthlyData {
     month: string;
     daysInMonth: number;
+    /** Blocks dated inside the month — the only ones month totals may count. */
     blocks: CalBlock[];
+    /** Blocks on the neighbouring-month days of the grid's first/last week.
+     *  Calendar display only: never counted in month totals. */
+    edgeBlocks?: CalBlock[];
     blocksByDate: Record<string, CalBlock[]>;
     team: CalTeamMember[];
     missions: SnapshotMission[];

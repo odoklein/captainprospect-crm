@@ -279,7 +279,7 @@ export function MonthCalendar() {
         const previousData = data;
         setData((prev) => {
             if (!prev) return prev;
-            const blocks = prev.blocks.map((block) =>
+            const moveBlock = (block: CalBlock): CalBlock =>
                 block.id === blockId
                     ? {
                         ...block,
@@ -293,9 +293,12 @@ export function MonthCalendar() {
                             role: prev.team.find((member) => member.id === newSdrId)?.role ?? block.sdr.role,
                         },
                     }
-                    : block,
-            );
-            return { ...prev, blocks, blocksByDate: groupBlocksByDate(blocks) };
+                    : block;
+            // The moved block may be an edge-week one: rebuild the grid map from
+            // both lists, or it would vanish from the calendar until the next reload.
+            const blocks = prev.blocks.map(moveBlock);
+            const edgeBlocks = (prev.edgeBlocks ?? []).map(moveBlock);
+            return { ...prev, blocks, edgeBlocks, blocksByDate: groupBlocksByDate([...blocks, ...edgeBlocks]) };
         });
         setDragState(null);
         setDragOverCell(null);

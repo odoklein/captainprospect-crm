@@ -36,6 +36,9 @@ type Density = keyof typeof DENSITY;
 /** Reference week capacity (in days) used for the per-SDR weekly load bar. */
 const WEEK_REFERENCE_DAYS = 5;
 
+/** Per-viewer convenience: whether the weekend columns are expanded. */
+const WEEKEND_PREF_KEY = 'planning.weekGrid.showWeekend';
+
 export function WeekGrid({
     days,
     data,
@@ -80,7 +83,25 @@ export function WeekGrid({
     deletingBlockId: string | null;
 }) {
     const [density, setDensity] = useState<Density>('compact');
-    const [weekendPref, setWeekendPref] = useState<boolean | null>(null);
+    // The weekend used to auto-expand whenever a block sat on Sat/Sun. Placing
+    // one mission there, or paging to a week that had one, resized every
+    // weekday column at once — the "l'UX se décale" of the planning ticket.
+    // It is now purely the viewer's choice, remembered across weeks and visits.
+    // Lazy read is hydration-safe: the grid only mounts client-side, once the
+    // month snapshot has loaded (MonthCalendar renders a loader until then).
+    const [showWeekend, setShowWeekendState] = useState<boolean>(() => {
+        try {
+            return typeof window !== 'undefined' && window.localStorage.getItem(WEEKEND_PREF_KEY) === '1';
+        } catch {
+            return false; // storage unavailable — keep the default
+        }
+    });
+    const setShowWeekend = (value: boolean) => {
+        setShowWeekendState(value);
+        try {
+            window.localStorage.setItem(WEEKEND_PREF_KEY, value ? '1' : '0');
+        } catch { /* storage unavailable — the choice just won't persist */ }
+    };
 
     const sdrIds = useMemo(() => new Set(sdrs.map((sdr) => sdr.id)), [sdrs]);
 
@@ -120,7 +141,6 @@ export function WeekGrid({
         () => days.slice(5).some((day) => (index.byDate.get(day.dateStr)?.units ?? 0) > 0),
         [days, index],
     );
-    const showWeekend = weekendPref ?? weekendHasBlocks;
 
     const gridCols = useMemo(() => {
         const weekend = showWeekend
@@ -133,96 +153,128 @@ export function WeekGrid({
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden">
-            {/* ── Day header ───────────────────────────────────────────── */}
-            <div
-                className="grid flex-shrink-0 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50/60"
-                style={{ gridTemplateColumns: gridCols }}
-            >
-                <div className="px-3 py-2 border-r border-slate-200 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">SDR</span>
-                    <div className="flex items-center gap-1">
-                        <button
-                            type="button"
-                            onClick={() => setDensity((current) => (current === 'compact' ? 'comfort' : 'compact'))}
-                            className="px-1.5 py-0.5 text-[10px] font-medium rounded-md border border-slate-200 text-slate-500 bg-white hover:border-slate-300 hover:text-slate-700 transition-colors"
-                            title="Hauteur des lignes — la grille garde toujours la même hauteur, seul le nombre de créneaux affichés change"
-                        >
-                            {density === 'compact' ? 'Compact' : 'Confort'}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setWeekendPref(!showWeekend)}
-                            className={cn(
-                                'p-1 rounded-md border transition-colors',
-                                showWeekend
-                                    ? 'border-slate-200 text-slate-500 bg-white hover:text-slate-700'
-                                    : 'border-transparent text-slate-300 hover:text-slate-500',
-                            )}
-                            title={showWeekend ? 'Réduire le week-end' : 'Afficher le week-end'}
-                        >
-                            {showWeekend ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                        </button>
+            {/* Header and rows share ONE scroll container, the header being
+                sticky. With two containers, the rows' vertical scrollbar
+                (always visible on Windows) made the rows narrower than the
+                header, so every day column sat a few pixels off its label. */}
+            <div className="flex-1 overflow-y-auto">
+                {/* ── Day header ───────────────────────────────────────── */}
+                <div
+                    className="grid sticky top-0 z-10 border-b border-slate-200 bg-gradient-to-b from-white to-slate-50"
+                    style={{ gridTemplateColumns: gridCols }}
+                >
+                    <div className="px-3 py-2 border-r border-slate-200 flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">SDR</span>
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => setDensity((current) => (current === 'compact' ? 'comfort' : 'compact'))}
+                                className="px-1.5 py-0.5 text-[10px] font-medium rounded-md border border-slate-200 text-slate-500 bg-white hover:border-slate-300 hover:text-slate-700 transition-colors"
+                                title="Hauteur des lignes — la grille garde toujours la même hauteur, seul le nombre de créneaux affichés change"
+                            >
+                                {density === 'compact' ? 'Compact' : 'Confort'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowWeekend(!showWeekend)}
+                                className={cn(
+                                    'relative p-1 rounded-md border transition-colors',
+                                    showWeekend
+                                        ? 'border-slate-200 text-slate-500 bg-white hover:text-slate-700'
+                                        : weekendHasBlocks
+                                            ? 'border-indigo-200 text-indigo-500 bg-indigo-50 hover:text-indigo-700'
+                                            : 'border-transparent text-slate-300 hover:text-slate-500',
+                                )}
+                                title={
+                                    showWeekend
+                                        ? 'Réduire le week-end'
+                                        : weekendHasBlocks
+                                            ? 'Des créneaux sont planifiés ce week-end — cliquer pour les afficher'
+                                            : 'Afficher le week-end'
+                                }
+                            >
+                                {showWeekend ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                {!showWeekend && weekendHasBlocks && (
+                                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                )}
+                            </button>
+                        </div>
                     </div>
+
+                    {days.map((day, dayIndex) => {
+                        const isWeekend = dayIndex >= 5;
+                        const collapsed = isWeekend && !showWeekend;
+                        const coverage = index.byDate.get(day.dateStr);
+                        const coveredSdrs = coverage?.sdrIds.size ?? 0;
+                        // A gap is only worth flagging on a working day of the month
+                        // being planned — not on weekends or the neighbouring month.
+                        const isWorkingDay = !isWeekend && day.isCurrentMonth;
+
+                        return (
+                            <button
+                                key={day.dateStr}
+                                type="button"
+                                onClick={(event) => onSelectDate(day.dateStr, event.ctrlKey || event.metaKey)}
+                                className={cn(
+                                    'px-2 py-2 text-center border-r border-slate-200 last:border-r-0 transition-colors',
+                                    selectedDate === day.dateStr && 'bg-indigo-50',
+                                    selectedDates.includes(day.dateStr) && 'ring-1 ring-inset ring-indigo-300',
+                                    day.isToday && 'bg-indigo-50/60',
+                                    isWeekend && 'bg-slate-100/40',
+                                )}
+                                title="Cliquez pour ouvrir le jour · Ctrl/Cmd+clic pour multi-sélection"
+                            >
+                                <div className="text-[10px] font-semibold text-slate-500 uppercase">
+                                    {collapsed ? DAY_LABELS_SHORT[dayIndex].slice(0, 1) : DAY_LABELS_SHORT[dayIndex]}
+                                </div>
+                                <div
+                                    className={cn(
+                                        'text-base font-bold mt-0.5 w-7 h-7 mx-auto flex items-center justify-center rounded-full transition-all',
+                                        day.isToday
+                                            ? 'bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                                            : day.isCurrentMonth ? 'text-slate-800' : 'text-slate-300',
+                                    )}
+                                >
+                                    {day.date.getDate()}
+                                </div>
+
+                                {/* Coverage line — fixed height so the header never shifts */}
+                                <div className="h-4 mt-0.5 flex items-center justify-center">
+                                    {collapsed ? (
+                                        coveredSdrs > 0 && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                                    ) : coveredSdrs === 0 ? (
+                                        isWorkingDay ? (
+                                            <span className="inline-flex items-center gap-1 px-1.5 rounded-full text-[9px] font-semibold text-amber-700 bg-amber-100/80">
+                                                <span className="w-1 h-1 rounded-full bg-amber-500" />
+                                                Aucune mission
+                                            </span>
+                                        ) : (
+                                            <span className="text-[9px] text-slate-300">—</span>
+                                        )
+                                    ) : (
+                                        <span
+                                            className={cn(
+                                                'text-[9px] tabular-nums',
+                                                isWorkingDay && coveredSdrs < sdrs.length
+                                                    ? 'font-semibold text-amber-600'
+                                                    : 'font-medium text-slate-400',
+                                            )}
+                                            title={isWorkingDay && coveredSdrs < sdrs.length
+                                                ? `${sdrs.length - coveredSdrs} SDR sans mission ce jour`
+                                                : undefined}
+                                        >
+                                            {coveredSdrs}/{sdrs.length} SDR · {formatDayValue(coverage?.units ?? 0)}
+                                        </span>
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {days.map((day, dayIndex) => {
-                    const isWeekend = dayIndex >= 5;
-                    const collapsed = isWeekend && !showWeekend;
-                    const coverage = index.byDate.get(day.dateStr);
-                    const coveredSdrs = coverage?.sdrIds.size ?? 0;
-
-                    return (
-                        <button
-                            key={day.dateStr}
-                            type="button"
-                            onClick={(event) => onSelectDate(day.dateStr, event.ctrlKey || event.metaKey)}
-                            className={cn(
-                                'px-2 py-2 text-center border-r border-slate-200 last:border-r-0 transition-colors',
-                                selectedDate === day.dateStr && 'bg-indigo-50',
-                                selectedDates.includes(day.dateStr) && 'ring-1 ring-inset ring-indigo-300',
-                                day.isToday && 'bg-indigo-50/60',
-                                isWeekend && 'bg-slate-100/40',
-                            )}
-                            title="Cliquez pour ouvrir le jour · Ctrl/Cmd+clic pour multi-sélection"
-                        >
-                            <div className="text-[10px] font-semibold text-slate-500 uppercase">
-                                {collapsed ? DAY_LABELS_SHORT[dayIndex].slice(0, 1) : DAY_LABELS_SHORT[dayIndex]}
-                            </div>
-                            <div
-                                className={cn(
-                                    'text-base font-bold mt-0.5 w-7 h-7 mx-auto flex items-center justify-center rounded-full transition-all',
-                                    day.isToday
-                                        ? 'bg-gradient-to-b from-indigo-500 to-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-                                        : day.isCurrentMonth ? 'text-slate-800' : 'text-slate-300',
-                                )}
-                            >
-                                {day.date.getDate()}
-                            </div>
-
-                            {/* Coverage line — fixed height so the header never shifts */}
-                            <div className="h-4 mt-0.5 flex items-center justify-center">
-                                {collapsed ? (
-                                    coveredSdrs > 0 && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                                ) : coveredSdrs === 0 ? (
-                                    <span className="inline-flex items-center gap-1 px-1.5 rounded-full text-[9px] font-semibold text-amber-700 bg-amber-100/80">
-                                        <span className="w-1 h-1 rounded-full bg-amber-500" />
-                                        Aucune mission
-                                    </span>
-                                ) : (
-                                    <span className="text-[9px] font-medium text-slate-400 tabular-nums">
-                                        {coveredSdrs}/{sdrs.length} SDR · {formatDayValue(coverage?.units ?? 0)}
-                                    </span>
-                                )}
-                            </div>
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* ── SDR rows ─────────────────────────────────────────────── */}
-            <div className="flex-1 overflow-y-auto">
+                {/* ── SDR rows ─────────────────────────────────────────── */}
                 {sdrs.length === 0 ? (
-                    <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                    <div className="flex items-center justify-center py-16 text-slate-400 text-sm">
                         Aucun SDR cette semaine
                     </div>
                 ) : (
@@ -296,7 +348,7 @@ export function WeekGrid({
 
                                     const openQuickAdd = (target: HTMLElement, append: boolean) => {
                                         if (collapsed) {
-                                            setWeekendPref(true);
+                                            setShowWeekend(true);
                                             return;
                                         }
                                         if (isFull) return;
@@ -350,8 +402,18 @@ export function WeekGrid({
                                                     )}
                                                 </div>
                                             ) : dayBlocks.length === 0 ? (
-                                                /* Free day — always explicit, never an empty void */
-                                                <div className="flex-1 min-h-0 rounded-lg border border-dashed border-slate-200 text-slate-300 flex flex-col items-center justify-center gap-0.5 transition-colors group-hover:border-indigo-300 group-hover:bg-indigo-50/40 group-hover:text-indigo-500">
+                                                /* Free day — always explicit, never an empty void. On a working
+                                                   day of the month it has to stand out next to coloured chips,
+                                                   so it gets real contrast; elsewhere it stays quiet. */
+                                                <div
+                                                    className={cn(
+                                                        'flex-1 min-h-0 rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 transition-colors',
+                                                        'group-hover:border-indigo-300 group-hover:bg-indigo-50/40 group-hover:text-indigo-500',
+                                                        !isWeekend && day.isCurrentMonth
+                                                            ? 'border-slate-300 bg-slate-50/80 text-slate-400'
+                                                            : 'border-slate-200 text-slate-300',
+                                                    )}
+                                                >
                                                     <Plus className="w-3.5 h-3.5" />
                                                     <span className="text-[9px] font-semibold uppercase tracking-wide">Libre</span>
                                                 </div>
