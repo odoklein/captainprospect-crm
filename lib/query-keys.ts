@@ -37,8 +37,10 @@ export function sdrDrawerContactKey(contactId: string | null) {
 export function sdrDrawerCompanyKey(companyId: string | null) {
     return ["sdr", "drawer", "company", companyId] as const;
 }
-export function sdrClientBookingKey(missionId: string | null) {
-    return ["sdr", "client-booking", missionId] as const;
+export function sdrClientBookingKey(missionId: string | null, companyId?: string | null) {
+    return companyId
+        ? (["sdr", "client-booking", missionId, companyId] as const)
+        : (["sdr", "client-booking", missionId] as const);
 }
 export function sdrUnifiedDrawerMailboxesKey(missionId: string | null) {
     return ["sdr", "unified-drawer", "mailboxes", missionId] as const;

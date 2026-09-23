@@ -20,6 +20,7 @@ export const GET = withErrorHandler(async (
         where: { id },
         select: {
             id: true,
+            defaultInterlocuteurId: true,
             client: {
                 select: {
                     bookingUrl: true,
@@ -65,8 +66,27 @@ export const GET = withErrorHandler(async (
         };
     });
 
+    // "Base de données par commercial": with ?companyId=, resolve the commercial owning
+    // that company's list (mission default as fallback) — same rule as /api/actions/next,
+    // so drawers opened outside the action queue (rappels, historique…) open on that calendar.
+    let preferredInterlocuteurId: string | null = null;
+    const companyId = request.nextUrl.searchParams.get('companyId');
+    if (companyId) {
+        const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { list: { select: { missionId: true, commercialInterlocuteurId: true } } },
+        });
+        if (company?.list?.missionId === id) {
+            preferredInterlocuteurId = company.list.commercialInterlocuteurId ?? null;
+        }
+    }
+    if (!preferredInterlocuteurId) {
+        preferredInterlocuteurId = mission.defaultInterlocuteurId ?? null;
+    }
+
     return successResponse({
         bookingUrl: mission.client?.bookingUrl || null,
         interlocuteurs,
+        preferredInterlocuteurId,
     });
 });

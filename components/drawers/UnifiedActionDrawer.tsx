@@ -578,27 +578,40 @@ export function UnifiedActionDrawer({
     // React Query: client booking config (booking URL + interlocuteur calendars).
     // Host pages that already have this data pass it as props; the rest (rappels, historique…)
     // rely on this fallback so the "Ouvrir le calendrier client" button is available everywhere.
+    // The same fallback also resolves the list's commercial (preferredInterlocuteurId) when the
+    // host page doesn't pass it, so the booking view opens on that calendar everywhere.
     const bookingPropsProvided = clientBookingUrl !== undefined || clientInterlocuteurs !== undefined;
+    const needsClientBookingFetch = !bookingPropsProvided || preferredInterlocuteurId === undefined;
     const { data: fetchedClientBooking } = useQuery<{
         bookingUrl: string;
         interlocuteurs: ClientInterlocuteur[];
+        preferredInterlocuteurId: string | null;
     }>({
-        queryKey: sdrClientBookingKey(isOpen && !bookingPropsProvided && missionId ? missionId : null),
+        queryKey: sdrClientBookingKey(
+            isOpen && needsClientBookingFetch && missionId ? missionId : null,
+            companyId || null
+        ),
         queryFn: async () => {
-            const r = await fetch(`/api/missions/${missionId}/client-booking`);
+            const qs = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
+            const r = await fetch(`/api/missions/${missionId}/client-booking${qs}`);
             const j = await r.json();
-            if (!j.success) return { bookingUrl: "", interlocuteurs: [] };
+            if (!j.success) return { bookingUrl: "", interlocuteurs: [], preferredInterlocuteurId: null };
             return {
                 bookingUrl: j.data?.bookingUrl ?? "",
                 interlocuteurs: Array.isArray(j.data?.interlocuteurs) ? j.data.interlocuteurs : [],
+                preferredInterlocuteurId: j.data?.preferredInterlocuteurId ?? null,
             };
         },
-        enabled: isOpen && !!missionId && !bookingPropsProvided,
+        enabled: isOpen && !!missionId && needsClientBookingFetch,
         staleTime: 120_000,
     });
 
     const effectiveBookingUrl = clientBookingUrl ?? fetchedClientBooking?.bookingUrl ?? "";
     const effectiveInterlocuteurs = clientInterlocuteurs ?? fetchedClientBooking?.interlocuteurs;
+    const effectivePreferredInterlocuteurId =
+        preferredInterlocuteurId !== undefined
+            ? preferredInterlocuteurId
+            : fetchedClientBooking?.preferredInterlocuteurId ?? null;
     const hasClientCalendar =
         Boolean(effectiveBookingUrl) ||
         Boolean(effectiveInterlocuteurs?.some((i) => (i.bookingLinks?.length ?? 0) > 0));
@@ -3594,7 +3607,7 @@ export function UnifiedActionDrawer({
                     onMeetingJoinUrlChange={setMeetingJoinUrl}
                     onMeetingPhoneChange={setMeetingPhone}
                     interlocuteurs={effectiveInterlocuteurs}
-                    preferredInterlocuteurId={preferredInterlocuteurId ?? null}
+                    preferredInterlocuteurId={effectivePreferredInterlocuteurId}
                     onBookingSuccess={() => {
                         setShowBookingDrawer(false);
                         setNewActionResult("");
