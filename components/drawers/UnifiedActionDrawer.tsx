@@ -133,6 +133,10 @@ interface UnifiedActionDrawerProps {
     missionName?: string;
     clientBookingUrl?: string;
     clientInterlocuteurs?: ClientInterlocuteur[];
+    /** Commercial owning the list this target belongs to (or the mission default).
+     *  Passed straight to BookingDrawer so only that calendar shows, the rest
+     *  staying collapsed behind "Autres calendriers". */
+    preferredInterlocuteurId?: string | null;
     onActionRecorded?: () => void;
     onValidateAndNext?: () => void;
     onContactSelect?: (contactId: string) => void;
@@ -444,6 +448,7 @@ export function UnifiedActionDrawer({
     missionName,
     clientBookingUrl,
     clientInterlocuteurs,
+    preferredInterlocuteurId,
     onActionRecorded,
     onValidateAndNext,
     onContactSelect,
@@ -3589,6 +3594,7 @@ export function UnifiedActionDrawer({
                     onMeetingJoinUrlChange={setMeetingJoinUrl}
                     onMeetingPhoneChange={setMeetingPhone}
                     interlocuteurs={effectiveInterlocuteurs}
+                    preferredInterlocuteurId={preferredInterlocuteurId ?? null}
                     onBookingSuccess={() => {
                         setShowBookingDrawer(false);
                         setNewActionResult("");

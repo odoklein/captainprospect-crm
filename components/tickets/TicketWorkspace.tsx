@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     AlertTriangle,
     Ban,
@@ -117,6 +117,22 @@ const CATEGORY_FILTERS: { value: CategoryFilter; label: string }[] = [
     { value: "TECHNICAL_SUPPORT", label: TICKET_CATEGORY_LABELS.TECHNICAL_SUPPORT },
 ];
 
+/**
+ * Notifications link to `/manager/tickets?validation=PENDING&ticket=<id>`
+ * (see lib/tickets/notifications.ts). The board used to ignore the query
+ * string entirely, so an alert dropped the manager on the default "Ouverts"
+ * view — where a pending request is filtered out by the API and so invisible.
+ */
+function readDeepLink(): { status: StatusFilter | null; ticketId: string | null } {
+    if (typeof window === "undefined") return { status: null, ticketId: null };
+    const params = new URLSearchParams(window.location.search);
+    const validation = params.get("validation");
+    return {
+        status: validation === "PENDING" ? "PENDING_VALIDATION" : null,
+        ticketId: params.get("ticket"),
+    };
+}
+
 const PRIORITY_ACCENT: Record<TaskPriority, string> = {
     URGENT: "border-l-4 border-l-red-500",
     HIGH: "border-l-4 border-l-orange-500",
@@ -154,6 +170,8 @@ export function TicketWorkspace({
         ticket at a time. The split layout stays for reading a long thread. */
     const [viewMode, setViewMode] = useState<"table" | "split">("table");
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    /** The ticket the notification pointed at, kept for the selection guard below. */
+    const deepLinkedIdRef = useRef<string | null>(null);
 
     const fetchTickets = useCallback(async () => {
         const params = new URLSearchParams();
@@ -231,6 +249,18 @@ export function TicketWorkspace({
         fetchCounts();
     }, [fetchCounts]);
 
+    // Follow the notification's deep link once, after mount: reading
+    // window.location during render would desync the server-rendered markup.
+    useEffect(() => {
+        const { status, ticketId } = readDeepLink();
+        if (status) setStatusFilter(status);
+        if (ticketId) {
+            deepLinkedIdRef.current = ticketId;
+            setSelectedId(ticketId);
+            setIsDrawerOpen(true);
+        }
+    }, []);
+
     useEffect(() => {
         if (selectedId) fetchDetail(selectedId);
         else setDetail(null);
@@ -240,9 +270,13 @@ export function TicketWorkspace({
     useEffect(() => {
         if (tickets.length > 0) {
             if (!selectedId || !tickets.some((t) => t.id === selectedId)) {
+                // A deep-linked ticket is read straight from its own endpoint, so
+                // it stays selected even when the current filter excludes it —
+                // silently swapping it for tickets[0] would show the wrong one.
+                if (selectedId && selectedId === deepLinkedIdRef.current) return;
                 setSelectedId(tickets[0].id);
             }
-        } else {
+        } else if (!selectedId || selectedId !== deepLinkedIdRef.current) {
             setSelectedId(null);
         }
     }, [tickets, selectedId]);

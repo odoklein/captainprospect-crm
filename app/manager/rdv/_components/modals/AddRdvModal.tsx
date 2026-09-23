@@ -170,6 +170,25 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
       });
   }, [missionId]);
 
+  // The list carries the commercial the RDV belongs to. Preselect it so the
+  // booking drawer opens on that one calendar instead of every calendar of the
+  // client — the manager can still override with the dropdown below.
+  useEffect(() => {
+    if (!listId) return;
+    let cancelled = false;
+    fetch(`/api/lists/${listId}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled || !json.success) return;
+        const owner = json.data?.commercialInterlocuteurId
+          ?? json.data?.commercialInterlocuteur?.id
+          ?? "";
+        if (owner) setSelectedInterlocuteurId(owner);
+      })
+      .catch(() => { /* preselection is a convenience — never block the modal */ });
+    return () => { cancelled = true; };
+  }, [listId]);
+
   useEffect(() => {
     if (!listId) {
       setCompanies([]);

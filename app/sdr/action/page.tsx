@@ -158,6 +158,9 @@ interface QueueItem {
     campaignId: string;
     channel: string;
     missionName: string;
+    /// Commercial owning the row's list (or the mission default). Drives which
+    /// calendar the booking drawer opens on — see BookingDrawer.
+    preferredInterlocuteurId?: string | null;
     lastAction: NextActionData["lastAction"] | null;
     lastActionBy?: { id: string; name: string | null } | null;
     priority: string;
@@ -2415,6 +2418,7 @@ export default function SDRActionPage() {
                             enableGooglePhoneLookup
                             clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                             clientInterlocuteurs={unifiedDrawerInterlocuteurs}
+                            preferredInterlocuteurId={drawerRow?.preferredInterlocuteurId ?? null}
                             onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
                             onAlloDialogOpenChange={setUnifiedAlloDialogOpen}
                             onContactSelect={(newContactId) => {
@@ -3486,6 +3490,7 @@ export default function SDRActionPage() {
                     enableGooglePhoneLookup
                     clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                     clientInterlocuteurs={unifiedDrawerInterlocuteurs}
+                    preferredInterlocuteurId={drawerRow?.preferredInterlocuteurId ?? currentAction?.preferredInterlocuteurId ?? null}
                     onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
                     onAlloDialogOpenChange={setUnifiedAlloDialogOpen}
                     onContactSelect={(newContactId) => {

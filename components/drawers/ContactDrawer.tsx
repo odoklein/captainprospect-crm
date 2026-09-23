@@ -132,6 +132,9 @@ export function ContactDrawer({
     const [newActionNote, setNewActionNote] = useState("");
     const [newActionSaving, setNewActionSaving] = useState(false);
     const [clientBookingUrl, setClientBookingUrl] = useState<string>("");
+    // Commercial owning the list this contact sits in, mission default otherwise.
+    // Same rule as the SDR queue: the booking drawer must open on that calendar.
+    const [preferredInterlocuteurId, setPreferredInterlocuteurId] = useState<string | null>(null);
     const [clientInterlocuteurs, setClientInterlocuteurs] = useState<Array<{
         id: string; firstName: string; lastName: string; title?: string;
         emails: Array<{ value: string; label: string; isPrimary: boolean }>;
@@ -204,6 +207,7 @@ export function ContactDrawer({
         if (!effectiveMissionId || isCreating) {
             setClientBookingUrl("");
             setClientInterlocuteurs([]);
+            setPreferredInterlocuteurId(null);
             setMissionName("");
             return;
         }
@@ -216,18 +220,29 @@ export function ContactDrawer({
                         Array.isArray(json.data.client?.interlocuteurs) ? json.data.client.interlocuteurs : []
                     );
                     setMissionName(json.data.name ?? "");
+                    const ownList = listId && Array.isArray(json.data.lists)
+                        ? json.data.lists.find((l: { id: string }) => l.id === listId)
+                        : null;
+                    setPreferredInterlocuteurId(
+                        ownList?.commercialInterlocuteurId
+                            ?? ownList?.commercialInterlocuteur?.id
+                            ?? json.data.defaultInterlocuteurId
+                            ?? null
+                    );
                 } else {
                     setClientBookingUrl("");
                     setClientInterlocuteurs([]);
+                    setPreferredInterlocuteurId(null);
                     setMissionName("");
                 }
             })
             .catch(() => {
                 setClientBookingUrl("");
                 setClientInterlocuteurs([]);
+                setPreferredInterlocuteurId(null);
                 setMissionName("");
             });
-    }, [effectiveMissionId, isCreating]);
+    }, [effectiveMissionId, isCreating, listId]);
 
     // Fetch status config when mission is available
     useEffect(() => {
@@ -1435,6 +1450,7 @@ export function ContactDrawer({
                         meetingJoinUrl={meetingType === "VISIO" ? meetingJoinUrl : undefined}
                         meetingPhone={meetingType === "TELEPHONIQUE" ? (meetingPhone || contact.phone || undefined) : undefined}
                         interlocuteurs={clientInterlocuteurs}
+                        preferredInterlocuteurId={preferredInterlocuteurId}
                         onBookingSuccess={() => {
                             setShowBookingDrawer(false);
                             setRdvDate("");

@@ -102,6 +102,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             campaign_id: string;
             mission_name: string;
             mission_channel: string;
+            preferred_interlocuteur_id: string | null;
             last_action_result: string | null;
             last_action_note: string | null;
             last_action_created: Date | null;
@@ -135,7 +136,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 ) as has_contact_info,
                 camp.id as campaign_id,
                 m.name as mission_name,
-                m.channel as mission_channel
+                m.channel as mission_channel,
+                -- "Base de donnees par commercial": the list's own commercial wins,
+                -- the mission default is the fallback. Resolved here so the table
+                -- view opens the booking drawer on the right calendar, exactly as
+                -- /api/actions/next already does for the card view.
+                COALESCE(l."commercialInterlocuteurId", m."defaultInterlocuteurId") as preferred_interlocuteur_id
             FROM "Contact" c
             INNER JOIN "Company" co ON c."companyId" = co.id
             INNER JOIN "List" l ON co."listId" = l.id
@@ -192,7 +198,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 ('CALL' = ANY(m.channels) AND ${COMPANY_PHONE_SQL} IS NOT NULL) as has_contact_info,
                 camp.id as campaign_id,
                 m.name as mission_name,
-                m.channel as mission_channel
+                m.channel as mission_channel,
+                -- "Base de donnees par commercial": the list's own commercial wins,
+                -- the mission default is the fallback. Resolved here so the table
+                -- view opens the booking drawer on the right calendar, exactly as
+                -- /api/actions/next already does for the card view.
+                COALESCE(l."commercialInterlocuteurId", m."defaultInterlocuteurId") as preferred_interlocuteur_id
             FROM "Company" co
             INNER JOIN "List" l ON co."listId" = l.id
             INNER JOIN "Mission" m ON l."missionId" = m.id
@@ -400,6 +411,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         campaignId: row.campaign_id,
         channel: row.mission_channel,
         missionName: row.mission_name,
+        preferredInterlocuteurId: row.preferred_interlocuteur_id,
         lastAction: row.last_action_result
             ? {
                 result: row.last_action_result,
