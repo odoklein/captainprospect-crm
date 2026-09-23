@@ -286,7 +286,9 @@ export function TicketThread({ ticket, currentUserId, canComment, onRefresh }: T
             </div>
 
             {canComment && (
-                <div className="border-t border-slate-200 bg-white p-4">
+                /* pr-20 below xl: in the split view the thread reaches the right
+                   edge, where the floating assistant button would sit on "Envoyer". */
+                <div className="border-t border-slate-200 bg-white p-4 pr-20 xl:pr-4">
                     <div className="flex items-end gap-3">
                         <textarea
                             value={message}
