@@ -12,6 +12,7 @@
     "test:list-health": "tsx --test lib/services/ListHealthService.test.ts",
     "test:ai-tools": "tsx --test lib/ai/tools/guard.test.ts",
     "test:tickets": "tsx --test lib/tickets/tickets.test.ts",
+    "test:daily-report": "tsx --test lib/client/daily-report.test.ts",
     "db:reset": "tsx prisma/reset.ts",
     "db:verify": "tsx prisma/verify-reset.ts",
     "db:seed-endpoints": "tsx prisma/seed-endpoints.ts",

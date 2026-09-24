@@ -10,6 +10,7 @@ import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { DashboardSkeleton } from "@/components/client/skeletons";
 import { BreakdownCharts } from "@/components/client/BreakdownCharts";
 import { LaunchWarmupScreen, type PortalLaunchMission } from "@/components/portal/LaunchWarmupScreen";
+import { DailyReportLauncher } from "@/components/client/DailyReportLauncher";
 
 interface DashboardStats {
     totalActions: number;
@@ -448,6 +449,9 @@ export default function ClientPortal() {
                     </div>
                 )}
             </div>
+
+            {/* Floating "rapport de la veille" — appears from 7:30 each morning. */}
+            <DailyReportLauncher />
 
             <style jsx global>{`
                 @keyframes dashFadeUp {
