@@ -44,13 +44,20 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         return errorResponse("Aucun fichier fourni", 400);
     }
 
-    const conversationId = await resolveAccessibleConversationId(
-        session.user,
-        typeof formData.get("conversationId") === "string"
+    // No conversationId = image picked in the new-request form, before the conversation
+    // exists. It stays pending (conversationId null) until createClientConversation
+    // claims it. It must never be filed on an existing thread by default.
+    const requestedConversationId =
+        typeof formData.get("conversationId") === "string" && formData.get("conversationId")
             ? (formData.get("conversationId") as string)
-            : null,
-    );
-    if (!conversationId) {
+            : null;
+    let conversationId: string | null = null;
+    if (requestedConversationId) {
+        conversationId = await resolveAccessibleConversationId(session.user, requestedConversationId);
+        if (!conversationId) {
+            return errorResponse("Conversation de support introuvable", 404);
+        }
+    } else if (session.user.role !== "CLIENT" && session.user.role !== "COMMERCIAL") {
         return errorResponse("Conversation de support introuvable", 404);
     }
 

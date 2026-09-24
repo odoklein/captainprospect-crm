@@ -7,7 +7,6 @@ import {
     Eye,
     EyeOff,
     AlertCircle,
-    ArrowRight,
     Loader2,
     X,
     Check,
@@ -301,28 +300,24 @@ export default function LoginForm() {
 
     const activeMeta = activeAccount?.role ? ROLE_METADATA[activeAccount.role] : null;
 
+    // Compact, airy card: small type, hairline borders, one strong brand button.
     const inputCls =
-        "w-full h-11 px-3.5 bg-white border border-neutral-200 rounded-lg text-[15px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900 focus:ring-4 focus:ring-neutral-900/5 transition disabled:bg-neutral-50 disabled:text-neutral-500";
+        "w-full h-10 px-3 bg-white border border-[#E4E6EF] rounded-lg text-[13.5px] text-[#1A1D2E] placeholder:text-[#A3A8BD] focus:outline-none focus:border-[#27355F] focus:ring-4 focus:ring-[#27355F]/10 transition disabled:bg-[#F6F7FB] disabled:text-[#8A90A8]";
+    const labelCls = "block text-[12.5px] font-medium text-[#1A1D2E] mb-1.5";
+    const secondaryLinkCls =
+        "block text-left text-[12.5px] font-medium text-[#1A1D2E] hover:text-[#C44E8A] transition-colors cursor-pointer";
 
     const renderPasswordField = (id: string) => (
-        <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-                <label htmlFor={id} className="text-sm font-medium text-neutral-800">
-                    Mot de passe
-                </label>
-                <button
-                    type="button"
-                    onClick={() => router.push("/forgot-password")}
-                    className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
-                >
-                    Mot de passe oublié ?
-                </button>
-            </div>
+        <div>
+            <label htmlFor={id} className={labelCls}>
+                Mot de passe
+            </label>
             <div className="relative">
                 <input
                     ref={passwordInputRef}
                     id={id}
                     type={showPassword ? "text" : "password"}
+                    placeholder="••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyUp={handleKeyUp}
@@ -330,12 +325,12 @@ export default function LoginForm() {
                     disabled={isLoading || isSuccess}
                     autoComplete="current-password"
                     required
-                    className={`${inputCls} pr-11`}
+                    className={`${inputCls} pr-10`}
                 />
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 px-3.5 flex items-center text-neutral-400 hover:text-neutral-700 transition-colors cursor-pointer"
+                    className="absolute inset-y-0 right-0 px-3 flex items-center text-[#A3A8BD] hover:text-[#27355F] transition-colors cursor-pointer"
                     tabIndex={-1}
                     aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
@@ -343,7 +338,7 @@ export default function LoginForm() {
                 </button>
             </div>
             {capsLockActive && (
-                <p className="text-xs text-amber-600 pt-0.5">Verrouillage majuscule activé</p>
+                <p className="text-[11.5px] text-amber-600 pt-1">Verrouillage majuscule activé</p>
             )}
         </div>
     );
@@ -352,10 +347,10 @@ export default function LoginForm() {
         <button
             type="submit"
             disabled={isLoading || isSuccess}
-            className={`w-full h-11 rounded-lg text-[15px] font-medium transition flex items-center justify-center gap-2 cursor-pointer ${
+            className={`w-full h-10 rounded-lg text-[13.5px] font-medium transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_1px_2px_rgba(39,53,95,0.2)] ${
                 isSuccess
                     ? "bg-emerald-600 text-white"
-                    : "bg-neutral-900 hover:bg-neutral-800 text-white active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
+                    : "bg-[#27355F] hover:bg-[#1E2A4D] text-white active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
             }`}
         >
             {isLoading ? (
@@ -369,11 +364,14 @@ export default function LoginForm() {
                     <span>Connecté</span>
                 </>
             ) : (
-                <>
-                    <span>Se connecter</span>
-                    <ArrowRight className="w-4 h-4" />
-                </>
+                <span>Se connecter</span>
             )}
+        </button>
+    );
+
+    const forgotPasswordLink = (
+        <button type="button" onClick={() => router.push("/forgot-password")} className={secondaryLinkCls}>
+            Mot de passe oublié ?
         </button>
     );
 
@@ -381,10 +379,23 @@ export default function LoginForm() {
 
     return (
         <div
-            className="min-h-screen w-full flex flex-col bg-white text-neutral-900 antialiased"
+            className="relative min-h-screen w-full flex flex-col items-center text-[#1A1D2E] antialiased overflow-hidden bg-[#EEF1FB]"
             style={{ fontFamily: "var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif" }}
         >
-            <header className="px-6 sm:px-10 py-6">
+            {/* Misty mountains, anchored to the bottom. The image already fades to white
+                at the top; a light wash keeps the card readable on short screens. */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 bg-cover bg-bottom"
+                style={{ backgroundImage: "url('/login-bg.webp')" }}
+            />
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0"
+                style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.15) 45%, rgba(255,255,255,0) 100%)" }}
+            />
+
+            <header className="relative z-10 pt-12 sm:pt-16 flex justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                     src="/logocaptainblue-rose.png"
@@ -396,18 +407,18 @@ export default function LoginForm() {
                 />
             </header>
 
-            <main className="flex-1 flex items-center justify-center px-4 pb-16">
+            <main className="relative z-10 flex-1 w-full flex items-center justify-center px-4 py-10">
                 <div
                     key={shakeKey}
-                    className={`w-full max-w-[380px] transition-all duration-300 ${
+                    className={`w-full max-w-[360px] rounded-xl border border-[#E4E6EF] bg-white/95 backdrop-blur-sm p-5 sm:p-6 shadow-[0_1px_2px_rgba(26,29,46,0.04),0_12px_32px_-12px_rgba(39,53,95,0.18)] transition-all duration-300 ${
                         mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
                     } ${shakeKey > 0 ? "animate-[shake_0.35s_ease-in-out]" : ""}`}
                 >
-                    <div className="mb-8">
-                        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+                    <div className="mb-5">
+                        <h1 className="text-[15px] font-semibold tracking-tight">
                             {isQuickConnect ? "Bon retour" : "Connexion"}
                         </h1>
-                        <p className="mt-2 text-[15px] text-neutral-500">
+                        <p className="mt-1 text-[12.5px] leading-relaxed text-[#8A90A8]">
                             {isQuickConnect
                                 ? "Saisissez votre mot de passe pour continuer."
                                 : "Accédez à votre espace Captain Prospect."}
@@ -417,19 +428,19 @@ export default function LoginForm() {
                     {errorMessage && (
                         <div
                             role="alert"
-                            className="mb-5 px-3.5 py-3 rounded-lg bg-red-50 border border-red-100 text-red-700 text-sm flex items-start gap-2.5 animate-fadeIn"
+                            className="mb-4 px-3 py-2.5 rounded-lg bg-red-50 border border-red-100 text-red-700 text-[12.5px] flex items-start gap-2 animate-fadeIn"
                         >
-                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
                             <div className="flex-1 leading-relaxed">{errorMessage}</div>
                         </div>
                     )}
 
                     {isQuickConnect && activeAccount ? (
-                        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+                        <form onSubmit={handleSubmit} noValidate className="space-y-4">
                             {/* Active saved profile */}
-                            <div className="p-3 rounded-xl border border-neutral-200 bg-neutral-50/60 flex items-center gap-3">
+                            <div className="p-2.5 rounded-lg border border-[#E4E6EF] bg-[#F6F7FB] flex items-center gap-2.5">
                                 <div className="relative shrink-0">
-                                    <div className="w-10 h-10 rounded-full bg-neutral-900 text-white flex items-center justify-center text-sm font-medium">
+                                    <div className="w-9 h-9 rounded-full bg-[#27355F] text-white flex items-center justify-center text-[12.5px] font-medium">
                                         {getInitials(activeAccount.name, activeAccount.email)}
                                     </div>
                                     {activeMeta && (
@@ -439,8 +450,8 @@ export default function LoginForm() {
                                     )}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-medium truncate">{activeAccount.name}</div>
-                                    <div className="text-[13px] text-neutral-500 truncate">
+                                    <div className="text-[13px] font-medium truncate">{activeAccount.name}</div>
+                                    <div className="text-[12px] text-[#8A90A8] truncate">
                                         {activeAccount.email}
                                         {activeMeta && <> · {activeMeta.label}</>}
                                     </div>
@@ -448,16 +459,16 @@ export default function LoginForm() {
                                 <button
                                     type="button"
                                     onClick={(e) => removeSavedAccount(activeAccount.email, e)}
-                                    className="text-neutral-400 hover:text-neutral-900 p-1.5 rounded-md hover:bg-neutral-100 transition-colors cursor-pointer"
+                                    className="text-[#A3A8BD] hover:text-[#1A1D2E] p-1.5 rounded-md hover:bg-white transition-colors cursor-pointer"
                                     title={`Oublier ce profil · dernière connexion ${formatTimeAgo(activeAccount.lastLogin)}`}
                                     aria-label="Oublier ce profil"
                                 >
-                                    <X className="w-4 h-4" />
+                                    <X className="w-3.5 h-3.5" />
                                 </button>
                             </div>
 
                             {savedAccounts.length > 1 && (
-                                <div className="flex flex-wrap gap-1.5 -mt-2">
+                                <div className="flex flex-wrap gap-1.5 -mt-1">
                                     {savedAccounts.map((acc) => {
                                         const isCurrent = acc.email.toLowerCase() === activeAccount.email.toLowerCase();
                                         return (
@@ -465,10 +476,10 @@ export default function LoginForm() {
                                                 key={acc.email}
                                                 type="button"
                                                 onClick={() => selectSavedAccount(acc)}
-                                                className={`text-[13px] px-2.5 py-1 rounded-full border transition cursor-pointer max-w-[160px] truncate ${
+                                                className={`text-[12px] px-2.5 py-1 rounded-full border transition cursor-pointer max-w-[150px] truncate ${
                                                     isCurrent
-                                                        ? "bg-neutral-900 border-neutral-900 text-white"
-                                                        : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                                                        ? "bg-[#27355F] border-[#27355F] text-white"
+                                                        : "bg-white border-[#E4E6EF] text-[#5B6180] hover:border-[#A3A8BD]"
                                                 }`}
                                             >
                                                 {acc.name}
@@ -481,7 +492,8 @@ export default function LoginForm() {
                             {renderPasswordField("qc-password")}
                             {submitButton}
 
-                            <div className="text-center">
+                            <div className="space-y-2 pt-1">
+                                {forgotPasswordLink}
                                 <button
                                     type="button"
                                     onClick={() => {
@@ -491,16 +503,16 @@ export default function LoginForm() {
                                         setErrorMessage("");
                                         setTimeout(() => emailInputRef.current?.focus(), 50);
                                     }}
-                                    className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                                    className={secondaryLinkCls}
                                 >
                                     Utiliser un autre compte
                                 </button>
                             </div>
                         </form>
                     ) : (
-                        <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                            <div className="space-y-1.5">
-                                <label htmlFor="lp-email" className="block text-sm font-medium text-neutral-800">
+                        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+                            <div>
+                                <label htmlFor="lp-email" className={labelCls}>
                                     Email
                                 </label>
                                 <input
@@ -519,20 +531,26 @@ export default function LoginForm() {
 
                             {renderPasswordField("lp-password")}
 
-                            <label className="flex items-center gap-2.5 text-sm text-neutral-600 cursor-pointer select-none">
+                            {/* Switch-style "remember me" (still a real checkbox for a11y) */}
+                            <label className="flex items-center gap-2.5 text-[12.5px] font-medium text-[#1A1D2E] cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={rememberDevice}
                                     onChange={(e) => setRememberDevice(e.target.checked)}
-                                    className="w-4 h-4 rounded border-neutral-300 accent-neutral-900 cursor-pointer"
+                                    className="peer sr-only"
+                                />
+                                <span
+                                    aria-hidden="true"
+                                    className="relative inline-flex h-[18px] w-8 shrink-0 rounded-full bg-[#E4E6EF] transition-colors peer-checked:bg-[#27355F] peer-focus-visible:ring-4 peer-focus-visible:ring-[#27355F]/15 after:absolute after:top-[2px] after:left-[2px] after:h-[14px] after:w-[14px] after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-[14px]"
                                 />
                                 Se souvenir de moi
                             </label>
 
                             {submitButton}
 
-                            {savedAccounts.length > 0 && (
-                                <div className="text-center">
+                            <div className="space-y-2 pt-1">
+                                {forgotPasswordLink}
+                                {savedAccounts.length > 0 && (
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -542,18 +560,18 @@ export default function LoginForm() {
                                             setPassword("");
                                             setErrorMessage("");
                                         }}
-                                        className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors cursor-pointer"
+                                        className={secondaryLinkCls}
                                     >
-                                        ← Continuer en tant que {savedAccounts[0].name}
+                                        Continuer en tant que {savedAccounts[0].name}
                                     </button>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </form>
                     )}
                 </div>
             </main>
 
-            <footer className="px-6 sm:px-10 py-6 text-[13px] text-neutral-400">
+            <footer className="relative z-10 pb-8 text-[12px] text-[#5B6180]">
                 © {new Date().getFullYear()} Captain Prospect
             </footer>
         </div>

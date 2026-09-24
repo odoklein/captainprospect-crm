@@ -7,6 +7,7 @@ import {
 } from '@/lib/api-utils';
 import { statusConfigService } from '@/lib/services/StatusConfigService';
 import { getTodaySdrMissionIds } from '@/lib/sdr-today-missions';
+import { listCommercialIds } from '@/lib/lists/commercials';
 
 function buildCallbackResultCodes(config: { statuses: Array<{ code: string; label: string; triggersCallback?: boolean }> }) {
     const defaults = ["CALLBACK_REQUESTED", "RELANCE", "RAPPEL"];
@@ -161,6 +162,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             WHERE m."isActive" = true
               AND (l."isActive" IS NULL OR l."isActive" = true)
               AND camp."isActive" = true
+              -- "Ne plus contacter": same rule as /api/sdr/action-queue
+              AND c."excludedAt" IS NULL
+              AND co."excludedAt" IS NULL
               ${sdrAssignmentWhere}
               AND (
                   ('CALL' = ANY(m.channels) AND (c.phone IS NOT NULL AND c.phone != '' OR ${COMPANY_PHONE_SQL} IS NOT NULL)) OR
@@ -213,6 +217,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             WHERE m."isActive" = true
               AND (l."isActive" IS NULL OR l."isActive" = true)
               AND camp."isActive" = true
+              -- "Ne plus contacter": same rule as /api/sdr/action-queue
+              AND co."excludedAt" IS NULL
               ${sdrAssignmentWhere}
               AND 'CALL' = ANY(m.channels)
               AND ${COMPANY_PHONE_SQL} IS NOT NULL
@@ -416,7 +422,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     // Source list for provenance — the company's list (one company belongs to one list)
     const sourceList = await prisma.company.findUnique({
         where: { id: next.company_id },
-        select: { list: { select: { id: true, name: true, campaignId: true, commercialInterlocuteurId: true } } },
+        select: { list: { select: { id: true, name: true, campaignId: true, commercialInterlocuteurId: true, secondaryCommercialIds: true } } },
     });
     const sourceListName = sourceList?.list?.name ?? null;
     const sourceListId = sourceList?.list?.id ?? null;
@@ -425,13 +431,15 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     // specific commercial (or, failing that, the mission has a default commercial),
     // the booking view surfaces that commercial's calendar first. This is only a
     // preference hint — the SDR can still expand and pick any other calendar.
-    let preferredInterlocuteurId = sourceList?.list?.commercialInterlocuteurId ?? null;
+    let preferredInterlocuteurIds = listCommercialIds(sourceList?.list);
+    let preferredInterlocuteurId: string | null = preferredInterlocuteurIds[0] ?? null;
     if (!preferredInterlocuteurId && configMissionId) {
         const missionDefault = await prisma.mission.findUnique({
             where: { id: configMissionId },
             select: { defaultInterlocuteurId: true },
         });
         preferredInterlocuteurId = missionDefault?.defaultInterlocuteurId ?? null;
+        preferredInterlocuteurIds = preferredInterlocuteurId ? [preferredInterlocuteurId] : [];
     }
 
     const onboarding = await prisma.clientOnboarding.findFirst({
@@ -530,6 +538,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         clientBookingUrl,
         clientInterlocuteurs,
         preferredInterlocuteurId,
+        preferredInterlocuteurIds,
         lastAction: next.last_action_result ? {
             result: next.last_action_result,
             note: next.last_action_note,

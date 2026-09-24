@@ -959,6 +959,10 @@ model List {
   // Optional commercial (client interlocuteur) owning this list
   commercialInterlocuteurId String?
   commercialInterlocuteur   ClientInterlocuteur? @relation(fields: [commercialInterlocuteurId], references: [id], onDelete: SetNull)
+  // Extra commercials sharing this list's RDVs (e.g. one base dispatched to 2-3 CREs).
+  // commercialInterlocuteurId stays the primary one, shown first in the booking drawer.
+  // Plain ids (no FK): readers must drop ids that no longer match an active interlocuteur.
+  secondaryCommercialIds    String[]             @default([])
   contactsViewEnabled       Boolean              @default(false)
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
@@ -3893,9 +3897,11 @@ model ClientCalCredential {
 // BEFORE the message exists (messageId stays null until the message is sent),
 // so `conversationId` is what authorises access while an upload is pending.
 model SupportAttachment {
-  id             String              @id @default(cuid())
-  conversationId String
-  conversation   SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id             String               @id @default(cuid())
+  /// Null while pending: an image picked in the new-request form before the
+  /// conversation exists. createClientConversation claims it for its uploader.
+  conversationId String?
+  conversation   SupportConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   messageId      String?
   message        SupportMessage?     @relation(fields: [messageId], references: [id], onDelete: Cascade)
 

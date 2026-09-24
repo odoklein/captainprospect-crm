@@ -30,6 +30,7 @@ interface ListItem {
     isActive?: boolean;
     contactsViewEnabled?: boolean;
     commercialInterlocuteurId?: string | null;
+    secondaryCommercialIds?: string[];
     commercialInterlocuteur?: {
         id: string;
         firstName?: string | null;
@@ -563,6 +564,7 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                                     }}
                                                 >
                                                     {[list.commercialInterlocuteur.firstName, list.commercialInterlocuteur.lastName].filter(Boolean).join(" ")}
+                                                    {(list.secondaryCommercialIds?.length ?? 0) > 0 && ` +${list.secondaryCommercialIds!.length}`}
                                                 </span>
                                             )}
                                         </button>

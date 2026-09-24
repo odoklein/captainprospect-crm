@@ -64,6 +64,7 @@ interface ExclusionDetail {
     createdByName: string | null;
 }
 import { ExclusionBanner } from "@/components/exclusions/ExclusionBadge";
+import { ExcludeDialog, type ExcludePayload } from "@/components/exclusions/ExcludeDialog";
 import {
     ExclusionActionPanel,
     EMPTY_EXCLUSION_PANEL,
@@ -137,6 +138,10 @@ interface UnifiedActionDrawerProps {
      *  Passed straight to BookingDrawer so only that calendar shows, the rest
      *  staying collapsed behind "Autres calendriers". */
     preferredInterlocuteurId?: string | null;
+    /** Every commercial sharing that list, primary first (see lib/lists/commercials). */
+    preferredInterlocuteurIds?: string[] | null;
+    /** Result preselected when the drawer opens (e.g. "MEETING_BOOKED" from a callback's "RDV pris"). */
+    initialResult?: string;
     onActionRecorded?: () => void;
     onValidateAndNext?: () => void;
     onContactSelect?: (contactId: string) => void;
@@ -449,6 +454,8 @@ export function UnifiedActionDrawer({
     clientBookingUrl,
     clientInterlocuteurs,
     preferredInterlocuteurId,
+    preferredInterlocuteurIds,
+    initialResult,
     onActionRecorded,
     onValidateAndNext,
     onContactSelect,
@@ -456,7 +463,7 @@ export function UnifiedActionDrawer({
     onAlloDialogOpenChange,
     enableGooglePhoneLookup = false,
 }: UnifiedActionDrawerProps) {
-    const { success, error: showError } = useToast();
+    const { success, error: showError, info: showInfo } = useToast();
     const { data: session } = useSession();
     const isManager = session?.user?.role === "MANAGER";
 
@@ -586,6 +593,7 @@ export function UnifiedActionDrawer({
         bookingUrl: string;
         interlocuteurs: ClientInterlocuteur[];
         preferredInterlocuteurId: string | null;
+        preferredInterlocuteurIds: string[];
     }>({
         queryKey: sdrClientBookingKey(
             isOpen && needsClientBookingFetch && missionId ? missionId : null,
@@ -595,11 +603,12 @@ export function UnifiedActionDrawer({
             const qs = companyId ? `?companyId=${encodeURIComponent(companyId)}` : "";
             const r = await fetch(`/api/missions/${missionId}/client-booking${qs}`);
             const j = await r.json();
-            if (!j.success) return { bookingUrl: "", interlocuteurs: [], preferredInterlocuteurId: null };
+            if (!j.success) return { bookingUrl: "", interlocuteurs: [], preferredInterlocuteurId: null, preferredInterlocuteurIds: [] };
             return {
                 bookingUrl: j.data?.bookingUrl ?? "",
                 interlocuteurs: Array.isArray(j.data?.interlocuteurs) ? j.data.interlocuteurs : [],
                 preferredInterlocuteurId: j.data?.preferredInterlocuteurId ?? null,
+                preferredInterlocuteurIds: Array.isArray(j.data?.preferredInterlocuteurIds) ? j.data.preferredInterlocuteurIds : [],
             };
         },
         enabled: isOpen && !!missionId && needsClientBookingFetch,
@@ -612,6 +621,10 @@ export function UnifiedActionDrawer({
         preferredInterlocuteurId !== undefined
             ? preferredInterlocuteurId
             : fetchedClientBooking?.preferredInterlocuteurId ?? null;
+    const effectivePreferredInterlocuteurIds =
+        preferredInterlocuteurId !== undefined
+            ? (preferredInterlocuteurIds?.length ? preferredInterlocuteurIds : preferredInterlocuteurId ? [preferredInterlocuteurId] : [])
+            : fetchedClientBooking?.preferredInterlocuteurIds ?? [];
     const hasClientCalendar =
         Boolean(effectiveBookingUrl) ||
         Boolean(effectiveInterlocuteurs?.some((i) => (i.bookingLinks?.length ?? 0) > 0));
@@ -640,6 +653,9 @@ export function UnifiedActionDrawer({
 
     // Action form
     const [newActionResult, setNewActionResult] = useState<string>("");
+    useEffect(() => {
+        if (isOpen && initialResult) setNewActionResult(initialResult);
+    }, [isOpen, initialResult, contactId, companyId]);
     const [newActionNote, setNewActionNote] = useState("");
     const [newCallbackDateValue, setNewCallbackDateValue] = useState("");
     const noteRef = useRef<HTMLTextAreaElement>(null);
@@ -1043,6 +1059,41 @@ export function UnifiedActionDrawer({
         return raw ?? null;
     }, [contact, company]);
 
+    // Direct "ne plus contacter" from the drawer (company or contact), independent of
+    // logging an action. CLIENT scope: the server derives the client from the prospect.
+    const [excludeDialogOpen, setExcludeDialogOpen] = useState(false);
+    const excludeMutation = useMutation({
+        mutationFn: async (payload: ExcludePayload) => {
+            const res = await fetch("/api/exclusions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    target: payload.target,
+                    scope: payload.scope,
+                    scopeId: payload.scope === "MISSION" ? missionId ?? null : null,
+                    companyId: companyId || null,
+                    contactId: payload.target === "CONTACT" ? contactId || null : null,
+                    reason: payload.reason,
+                    duration: payload.duration,
+                }),
+            });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || "Exclusion impossible");
+            return json.data as { label?: string; appliedContacts?: number; appliedCompanies?: number };
+        },
+        onSuccess: (rule) => {
+            success(
+                "Ne plus contacter",
+                `${rule?.label ?? "Exclusion enregistrée"} — retiré de la file d'appel.`
+            );
+            setExcludeDialogOpen(false);
+            if (companyId) queryClient.invalidateQueries({ queryKey: sdrUnifiedDrawerCompanyKey(companyId) });
+            if (contactId) queryClient.invalidateQueries({ queryKey: sdrUnifiedDrawerContactKey(contactId) });
+            onActionRecorded?.();
+        },
+        onError: (err: Error) => showError("Exclusion non enregistrée", err.message),
+    });
+
     const selectedStatusDef = useMemo(
         () => statusConfig?.statuses?.find((s) => s.code === newActionResult) ?? null,
         [statusConfig, newActionResult]
@@ -1337,7 +1388,18 @@ export function UnifiedActionDrawer({
         },
     });
 
-    const handleAddAction = (andNext?: boolean) => addActionMutation.mutate({ andNext });
+    const canOpenClientCalendar = hasClientCalendar && Boolean((contactId && contact) || (companyId && company));
+    const handleAddAction = (andNext?: boolean) => {
+        // An RDV must go through the calendar: that is where the commercial is picked
+        // (list's commercials first, others as fallback). Saving "RDV pris" with only a
+        // note would create a meeting with no commercial and no slot.
+        if (newActionResult === "MEETING_BOOKED" && canOpenClientCalendar) {
+            setShowBookingDrawer(true);
+            showInfo("Choisissez le créneau", "Le RDV est enregistré une fois le créneau réservé dans le calendrier.");
+            return;
+        }
+        addActionMutation.mutate({ andNext });
+    };
 
     // ── Edit / delete an existing action (fix status without duplicating) ───────
 
@@ -1604,6 +1666,20 @@ export function UnifiedActionDrawer({
                                 target: activeExclusion.target,
                             }}
                         />
+                    )}
+
+                    {!activeExclusion && company && (
+                        <div className="flex justify-end -mb-2">
+                            <button
+                                type="button"
+                                onClick={() => setExcludeDialogOpen(true)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50 transition-colors"
+                                title={contactId ? "Blacklister ce contact ou toute la société" : "Blacklister cette société"}
+                            >
+                                <Ban className="w-3.5 h-3.5" aria-hidden="true" />
+                                Ne plus contacter
+                            </button>
+                        </div>
                     )}
 
                     {/* ── Unified history section (moved to top) ── */}
@@ -3289,8 +3365,11 @@ export function UnifiedActionDrawer({
                                     {newActionResult === "MEETING_BOOKED" && (
                                         <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-3">
                                             {/* Calendar button — only when a booking URL or at least one interlocuteur calendar exists */}
-                                            {hasClientCalendar && (contactId && contact || companyId && company) && (
+                                            {canOpenClientCalendar && (
                                                 <>
+                                                    <p className="text-xs text-indigo-700">
+                                                        Réservez le créneau dans le calendrier : le RDV est enregistré à la confirmation.
+                                                    </p>
                                                     <Button
                                                         type="button"
                                                         variant="secondary"
@@ -3608,6 +3687,7 @@ export function UnifiedActionDrawer({
                     onMeetingPhoneChange={setMeetingPhone}
                     interlocuteurs={effectiveInterlocuteurs}
                     preferredInterlocuteurId={effectivePreferredInterlocuteurId}
+                    preferredInterlocuteurIds={effectivePreferredInterlocuteurIds}
                     onBookingSuccess={() => {
                         setShowBookingDrawer(false);
                         setNewActionResult("");
@@ -3661,6 +3741,21 @@ export function UnifiedActionDrawer({
                     </Button>
                 </div>
             </Modal>
+
+            {excludeDialogOpen && company && (
+                <ExcludeDialog
+                    isOpen={excludeDialogOpen}
+                    onClose={() => setExcludeDialogOpen(false)}
+                    onConfirm={(payload) => excludeMutation.mutate(payload)}
+                    companyName={company.name}
+                    contactName={contact ? [contact.firstName, contact.lastName].filter(Boolean).join(" ") || null : null}
+                    defaultTarget={contactId ? "CONTACT" : "COMPANY"}
+                    allowTargetChoice={!!contactId}
+                    availableScopes={isManager ? ["CLIENT", "MISSION", "GLOBAL"] : ["CLIENT", "MISSION"]}
+                    defaultScope="CLIENT"
+                    isSubmitting={excludeMutation.isPending}
+                />
+            )}
 
         </Drawer>
     );

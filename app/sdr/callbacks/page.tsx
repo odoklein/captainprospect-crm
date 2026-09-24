@@ -271,11 +271,13 @@ export default function SDRCallbacksPage() {
     const [unifiedDrawerCompanyId, setUnifiedDrawerCompanyId] = useState<string>("");
     const [unifiedDrawerMissionId, setUnifiedDrawerMissionId] = useState<string | undefined>();
     const [unifiedDrawerMissionName, setUnifiedDrawerMissionName] = useState<string | undefined>();
+    const [unifiedDrawerInitialResult, setUnifiedDrawerInitialResult] = useState<string | undefined>();
 
-    const openDrawerForCallback = (cb: Callback, e?: React.MouseEvent) => {
+    const openDrawerForCallback = (cb: Callback, e?: React.MouseEvent, initialResult?: string) => {
         if (e) e.stopPropagation();
         const companyId = cb.company?.id ?? cb.contact?.company?.id ?? "";
         if (!companyId) return;
+        setUnifiedDrawerInitialResult(initialResult);
         setUnifiedDrawerContactId(cb.contact?.id ?? null);
         setUnifiedDrawerCompanyId(companyId);
         setUnifiedDrawerMissionId(cb.mission?.id);
@@ -289,6 +291,7 @@ export default function SDRCallbacksPage() {
         setUnifiedDrawerCompanyId("");
         setUnifiedDrawerMissionId(undefined);
         setUnifiedDrawerMissionName(undefined);
+        setUnifiedDrawerInitialResult(undefined);
     };
 
     const openReschedule = (cb: Callback, e?: React.MouseEvent) => {
@@ -329,6 +332,12 @@ export default function SDRCallbacksPage() {
 
     const openOutcome = (cb: Callback, result: ActionResult, e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
+        // "RDV pris" goes through the action drawer's calendar so the meeting gets a slot
+        // and the right commercial — a note-only popup saved RDVs with no commercial.
+        if (result === "MEETING_BOOKED") {
+            openDrawerForCallback(cb, undefined, "MEETING_BOOKED");
+            return;
+        }
         setOutcomeCallback(cb);
         setOutcomeResult(result);
         setOutcomeNote("");
@@ -1165,6 +1174,7 @@ export default function SDRCallbacksPage() {
                     missionId={unifiedDrawerMissionId}
                     missionName={unifiedDrawerMissionName}
                     enableGooglePhoneLookup
+                    initialResult={unifiedDrawerInitialResult}
                     onActionRecorded={fetchCallbacks}
                 />
             )}

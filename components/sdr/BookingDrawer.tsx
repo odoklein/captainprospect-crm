@@ -93,6 +93,9 @@ interface BookingDrawerProps {
      *  the drawer pre-selects that commercial's calendar and folds the rest into a
      *  collapsible "Autres calendriers" fallback. */
     preferredInterlocuteurId?: string | null;
+    /** All commercials sharing the list (primary first). Supersedes
+     *  `preferredInterlocuteurId` when non-empty. */
+    preferredInterlocuteurIds?: string[] | null;
 }
 
 interface CalendarOption {
@@ -422,6 +425,7 @@ export function BookingDrawer({
     onBookingSuccess,
     interlocuteurs,
     preferredInterlocuteurId,
+    preferredInterlocuteurIds,
 }: BookingDrawerProps) {
     const { success, error: showError } = useToast();
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -479,13 +483,19 @@ export function BookingDrawer({
     // "Base de données par commercial": split the calendars into the preferred
     // commercial (list owner / mission default) and the rest, so the SDR lands on
     // the right calendar and the others stay one click away as a fallback.
-    const preferredOptions = preferredInterlocuteurId
-        ? bookingOptions.filter((o) => o.interlocuteurId === preferredInterlocuteurId)
-        : [];
+    // A list can be shared by several commercials: all of them are "preferred",
+    // in list order (primary first).
+    const preferredIds = preferredInterlocuteurIds?.length
+        ? preferredInterlocuteurIds
+        : preferredInterlocuteurId ? [preferredInterlocuteurId] : [];
+    const preferredOptions = preferredIds.flatMap((pid) =>
+        bookingOptions.filter((o) => o.interlocuteurId === pid)
+    );
     const hasPreferred = preferredOptions.length > 0;
     const otherOptions = hasPreferred
-        ? bookingOptions.filter((o) => o.interlocuteurId !== preferredInterlocuteurId)
+        ? bookingOptions.filter((o) => !o.interlocuteurId || !preferredIds.includes(o.interlocuteurId))
         : bookingOptions;
+    const preferredCommercialCount = new Set(preferredOptions.map((o) => o.interlocuteurId)).size;
 
     const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
     const [showOtherCalendars, setShowOtherCalendars] = useState(false);
@@ -502,11 +512,7 @@ export function BookingDrawer({
         setIsProcessing(false);
         setIframeLoading(true);
         // Land on the preferred commercial's calendar when the list is owned by one.
-        setSelectedOptionId(
-            (preferredInterlocuteurId
-                ? bookingOptions.find((o) => o.interlocuteurId === preferredInterlocuteurId)?.id
-                : undefined) ?? bookingOptions[0]?.id ?? null,
-        );
+        setSelectedOptionId(preferredOptions[0]?.id ?? bookingOptions[0]?.id ?? null);
         setShowOtherCalendars(false);
         setTwKey(k => k + 1); // restart typewriter
 
@@ -1055,7 +1061,7 @@ export function BookingDrawer({
                                                 <>
                                                     <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                                                         <UserCheck className="w-3.5 h-3.5" />
-                                                        Commercial de cette base
+                                                        {preferredCommercialCount > 1 ? "Commerciaux de cette base" : "Commercial de cette base"}
                                                     </p>
                                                     <div className="flex flex-wrap gap-2">
                                                         {preferredOptions.map(renderOption)}

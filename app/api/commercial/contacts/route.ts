@@ -37,10 +37,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const limit = Math.min(500, Math.max(1, parseInt(searchParams.get('limit') || '50')));
     const skip = (page - 1) * limit;
 
-    // Filter by List(s) where commercialInterlocuteurId = interlocuteur courant ET contactsViewEnabled = true
+    // Lists owned by the current commercial (primary or secondary) with contactsViewEnabled = true
     const eligibleLists = await prisma.list.findMany({
         where: {
-            commercialInterlocuteurId: interlocuteurId,
+            OR: [
+                { commercialInterlocuteurId: interlocuteurId },
+                { secondaryCommercialIds: { has: interlocuteurId } },
+            ],
             contactsViewEnabled: true,
             isActive: true,
             isArchived: false,

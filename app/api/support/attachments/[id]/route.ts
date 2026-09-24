@@ -35,6 +35,11 @@ async function loadAuthorised(request: NextRequest, id: string) {
     });
     if (!attachment) throw new NotFoundError("Image introuvable");
 
+    // Pending upload (new request not sent yet): only its uploader can see or remove it.
+    if (!attachment.conversationId) {
+        return { session, attachment, allowed: attachment.uploadedById === session.user.id };
+    }
+
     const accessibleId = await resolveAccessibleConversationId(
         session.user,
         attachment.conversationId,

@@ -184,7 +184,7 @@ export function TicketWorkspace({
     /** The ticket the notification pointed at, kept for the selection guard below. */
     const deepLinkedIdRef = useRef<string | null>(null);
 
-    const fetchTickets = useCallback(async () => {
+    const fetchTickets = useCallback(async (opts?: { silent?: boolean }) => {
         const params = new URLSearchParams();
         if (statusFilter === "ALL") {
             params.set("validation", ALL_VALIDATIONS);
@@ -200,6 +200,9 @@ export function TicketWorkspace({
         else if (priorityFilter !== "ALL") params.set("priority", priorityFilter);
         if (categoryFilter !== "ALL") params.set("category", categoryFilter);
         if (requesterFilter !== "ALL") params.set("requesterRole", requesterFilter);
+        // Sales-team requests arrive PENDING and unassigned: hiding them here made
+        // "Non assignés" look empty. Rejected ones are closed, so they stay out.
+        if (statusFilter === "UNASSIGNED") params.set("validation", "NOT_REQUIRED,PENDING,ACCEPTED");
         if (statusFilter === "UNASSIGNED") params.set("assigneeId", "unassigned");
         else if (onlyMine) params.set("assigneeId", currentUserId);
         if (search.trim()) params.set("search", search.trim());
@@ -215,6 +218,8 @@ export function TicketWorkspace({
             return result.data as TicketListItem[];
         } catch (err) {
             const message = err instanceof Error ? err.message : "Erreur serveur";
+            // Background refreshes fail quietly — the last good list stays on screen.
+            if (opts?.silent) return [];
             setError(message);
             toast.error(message);
             return [];
@@ -233,19 +238,21 @@ export function TicketWorkspace({
         }
     }, []);
 
-    const fetchDetail = useCallback(async (ticketId: string) => {
-        setIsDetailLoading(true);
+    const fetchDetail = useCallback(async (ticketId: string, opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setIsDetailLoading(true);
         try {
             const response = await fetch(`/api/tickets/${ticketId}`);
             const result = await response.json();
             if (!response.ok || !result.success) {
                 throw new Error(result.error || "Ticket introuvable");
             }
-            setDetail(result.data);
+            // A background refresh must not clobber the detail of a ticket the
+            // user has since switched away from.
+            setDetail((prev) => (opts?.silent && prev && prev.id !== ticketId ? prev : result.data));
         } catch {
-            setDetail(null);
+            if (!opts?.silent) setDetail(null);
         } finally {
-            setIsDetailLoading(false);
+            if (!opts?.silent) setIsDetailLoading(false);
         }
     }, []);
 
@@ -258,10 +265,31 @@ export function TicketWorkspace({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusFilter, priorityFilter, categoryFilter, requesterFilter, onlyMine, search, currentUserId]);
 
-    // Dashboard counters are global and don't depend on the filters — load once.
+    // Dashboard counters are global and don't depend on the filters.
     useEffect(() => {
         fetchCounts();
     }, [fetchCounts]);
+
+    // Live board: comments and new requests from others used to need a page
+    // reload. Refresh quietly every 30 s and whenever the tab regains focus.
+    const liveRefreshRef = useRef<() => void>(() => {});
+    liveRefreshRef.current = () => {
+        if (document.visibilityState !== "visible") return;
+        void fetchTickets({ silent: true });
+        void fetchCounts();
+        if (selectedId) void fetchDetail(selectedId, { silent: true });
+    };
+    useEffect(() => {
+        const tick = () => liveRefreshRef.current();
+        const interval = window.setInterval(tick, 30_000);
+        window.addEventListener("focus", tick);
+        document.addEventListener("visibilitychange", tick);
+        return () => {
+            window.clearInterval(interval);
+            window.removeEventListener("focus", tick);
+            document.removeEventListener("visibilitychange", tick);
+        };
+    }, []);
 
     // Follow the notification's deep link once, after mount: reading
     // window.location during render would desync the server-rendered markup.

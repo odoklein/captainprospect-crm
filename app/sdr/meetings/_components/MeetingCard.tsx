@@ -20,10 +20,11 @@ import type { Meeting } from "../_types";
 
 interface MeetingCardProps {
     meeting: Meeting;
-    onOpen: (meeting: Meeting) => void;
-    onReschedule: (meeting: Meeting) => void;
-    onCancel: (meeting: Meeting) => void;
-    onContextMenu: (event: React.MouseEvent, meeting: Meeting) => void;
+    /** Handlers are optional: without them the card is read-only (manager view). */
+    onOpen?: (meeting: Meeting) => void;
+    onReschedule?: (meeting: Meeting) => void;
+    onCancel?: (meeting: Meeting) => void;
+    onContextMenu?: (event: React.MouseEvent, meeting: Meeting) => void;
 }
 
 export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContextMenu }: MeetingCardProps) {
@@ -41,8 +42,8 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                     ? "border-red-300 bg-red-50/30 ring-1 ring-red-100 hover:border-red-400"
                     : "border-slate-200 bg-white hover:border-slate-300"
             )}
-            onClick={() => onOpen(meeting)}
-            onContextMenu={(e) => onContextMenu(e, meeting)}
+            onClick={onOpen ? () => onOpen(meeting) : undefined}
+            onContextMenu={onContextMenu ? (e) => onContextMenu(e, meeting) : undefined}
         >
             <div className="flex flex-col sm:flex-row">
                 <div className="flex shrink-0 flex-row items-center justify-center gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 sm:w-[110px] sm:flex-col sm:border-b-0 sm:border-r">
@@ -212,7 +213,9 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                     )}
                 </div>
 
+                {(onOpen || onReschedule || onCancel) && (
                 <div className="sm:w-40 shrink-0 p-4 border-t sm:border-t-0 sm:border-l border-slate-100 flex flex-col justify-center gap-2 bg-slate-50/55">
+                    {onOpen && (
                     <Button
                         variant="outline"
                         size="sm"
@@ -222,7 +225,8 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                         <Eye className="w-3.5 h-3.5" />
                         Voir le détail
                     </Button>
-                    {meeting.result === "MEETING_BOOKED" && (
+                    )}
+                    {meeting.result === "MEETING_BOOKED" && onReschedule && onCancel && (
                         <>
                             <Button
                                 variant="outline"
@@ -245,6 +249,7 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                         </>
                     )}
                 </div>
+                )}
             </div>
         </div>
     );

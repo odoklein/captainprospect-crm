@@ -47,6 +47,7 @@ import { cn } from "@/lib/utils";
 import { EditMissionDialog } from "./EditMissionDialog";
 import { ReadinessPanel } from "./ReadinessPanel";
 import { StrategyByListTab } from "./StrategyByListTab";
+import { ListCommercialsPicker } from "./ListCommercialsPicker";
 import { MailboxManagerDialog } from "@/components/email/inbox/MailboxManagerDialog";
 import { PitchBlockEditor, ScriptBlockEditor, StrategyArtifactViewer } from "@/components/strategy";
 import { MISSION_STATUS_CONFIG, MISSION_STATUS_TRANSITIONS } from "@/lib/constants/missionStatus";
@@ -104,6 +105,7 @@ interface Mission {
         isActive?: boolean;
         contactsViewEnabled?: boolean;
         commercialInterlocuteurId?: string | null;
+        secondaryCommercialIds?: string[];
         commercialInterlocuteur?: {
             id: string;
             firstName: string;
@@ -2947,7 +2949,7 @@ export function MissionWorkspace({
                                         return (
                                         <div
                                             key={list.id}
-                                            className="relative"
+                                            className="relative focus-within:z-20"
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
                                                 handleListContextMenu(e, list);
@@ -3057,39 +3059,37 @@ export function MissionWorkspace({
                                                 <span className="text-xs font-medium text-slate-500 px-2 py-1 bg-slate-100 rounded">
                                                     {list.type}
                                                 </span>
-                                                {/* Per-list commercial selector */}
-                                                <select
-                                                    className="ml-2 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-                                                    value={list.commercialInterlocuteurId ?? ""}
-                                                    onChange={async (e) => {
-                                                        const value = e.target.value || null;
+                                                {/* Per-list commercials: one, several or all (first = primary calendar) */}
+                                                <ListCommercialsPicker
+                                                    interlocuteurs={mission.client?.interlocuteurs ?? []}
+                                                    value={[
+                                                        ...(list.commercialInterlocuteurId ? [list.commercialInterlocuteurId] : []),
+                                                        ...(list.secondaryCommercialIds ?? []),
+                                                    ]}
+                                                    emptyLabel={mission.defaultInterlocuteur ? "Hériter de la mission" : "Aucun commercial"}
+                                                    onSave={async (ids) => {
                                                         try {
                                                             const res = await fetch(`/api/lists/${list.id}`, {
                                                                 method: "PATCH",
                                                                 headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({ commercialInterlocuteurId: value }),
+                                                                body: JSON.stringify({ commercialInterlocuteurIds: ids }),
                                                             });
                                                             const json = await res.json();
                                                             if (!json.success) {
-                                                                showError("Erreur", json.error || "Impossible de mettre à jour le commercial de la liste");
+                                                                showError("Erreur", json.error || "Impossible de mettre à jour les commerciaux de la liste");
                                                                 return;
                                                             }
                                                             await fetchMission();
-                                                            success("Commercial mis à jour", `Commercial mis à jour pour la liste "${list.name}".`);
+                                                            success(
+                                                                ids.length > 1 ? "Commerciaux mis à jour" : "Commercial mis à jour",
+                                                                `${ids.length === 0 ? "Aucun commercial" : `${ids.length} commercial${ids.length > 1 ? "aux" : ""}`} pour la liste "${list.name}".`
+                                                            );
                                                         } catch (err) {
                                                             console.error(err);
-                                                            showError("Erreur", "Impossible de mettre à jour le commercial de la liste");
+                                                            showError("Erreur", "Impossible de mettre à jour les commerciaux de la liste");
                                                         }
                                                     }}
-                                                >
-                                                    <option value="">{mission.defaultInterlocuteur ? "Hériter de la mission" : "Aucun"}</option>
-                                                    {mission.client?.interlocuteurs?.map((it) => (
-                                                        <option key={it.id} value={it.id}>
-                                                            {it.firstName} {it.lastName}
-                                                            {it.title ? ` — ${it.title}` : ""}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                />
                                                 <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
                                             </div>
                                         </div>

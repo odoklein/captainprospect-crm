@@ -27,12 +27,28 @@ export async function GET(request: NextRequest) {
         const startDateParam = searchParams.get("startDate")?.trim() || null;
         const endDateParam = searchParams.get("endDate")?.trim() || null;
 
+        // Managers can read a given SDR's meetings (user page "Rendez-vous" tab);
+        // everyone else only ever sees their own.
+        const requestedSdrId = searchParams.get("sdrId")?.trim() || null;
+        const targetSdrId = requestedSdrId && session.user.role === "MANAGER" ? requestedSdrId : session.user.id;
+
         // Build where clause with filters (include MEETING_BOOKED and MEETING_CANCELLED)
         const where: any = {
-            sdrId: session.user.id,
+            sdrId: targetSdrId,
             result: { in: ["MEETING_BOOKED", "MEETING_CANCELLED"] },
         };
-        if (startDateParam || endDateParam) {
+        // dateField=createdAt: filter on the day the SDR booked the RDV (monthly bonus
+        // tracking), with exact instants from the browser — no server-timezone rounding.
+        const dateField = searchParams.get("dateField");
+        if (dateField === "createdAt" && (startDateParam || endDateParam)) {
+            const createdAt: { gte?: Date; lt?: Date } = {};
+            if (startDateParam) createdAt.gte = new Date(startDateParam);
+            if (endDateParam) createdAt.lt = new Date(endDateParam);
+            if ((createdAt.gte && isNaN(createdAt.gte.getTime())) || (createdAt.lt && isNaN(createdAt.lt.getTime()))) {
+                return NextResponse.json({ success: false, error: "Dates invalides" }, { status: 400 });
+            }
+            where.createdAt = createdAt;
+        } else if (startDateParam || endDateParam) {
             const dateFilter: { gte?: Date; lte?: Date } = {};
             if (startDateParam) {
                 const from = new Date(startDateParam);

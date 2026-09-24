@@ -165,7 +165,8 @@ export async function getTicketDashboardCounts() {
             where: {
                 assigneeId: null,
                 status: { notIn: ["COMPLETED"] },
-                validation: { not: "PENDING" },
+                // Same definition as the "Non assignés" tab: pending requests included.
+                validation: { not: "REJECTED" },
             },
         }),
     ]);

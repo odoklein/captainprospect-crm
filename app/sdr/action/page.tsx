@@ -126,6 +126,7 @@ interface NextActionData {
     /** Commercial that owns the current list (or the mission default) — the
      *  booking view pre-selects and surfaces this commercial's calendar first. */
     preferredInterlocuteurId?: string | null;
+    preferredInterlocuteurIds?: string[] | null;
     lastAction?: {
         result: string;
         note?: string;
@@ -161,6 +162,7 @@ interface QueueItem {
     /// Commercial owning the row's list (or the mission default). Drives which
     /// calendar the booking drawer opens on — see BookingDrawer.
     preferredInterlocuteurId?: string | null;
+    preferredInterlocuteurIds?: string[] | null;
     lastAction: NextActionData["lastAction"] | null;
     lastActionBy?: { id: string; name: string | null } | null;
     priority: string;
@@ -2243,7 +2245,7 @@ export default function SDRActionPage() {
                             {/* Search */}
                             <div className="space-y-1 sm:col-span-2 xl:col-span-2">
                                 <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Rechercher</label>
-                                <input type="text" value={tableSearchInput} onChange={(e) => setTableSearchInput(e.target.value)} placeholder="Contact ou société…" className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow" />
+                                <input type="text" value={tableSearchInput} onChange={(e) => setTableSearchInput(e.target.value)} placeholder="Contact, société ou numéro…" className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow" />
                             </div>
                             {/* Statut */}
                             <div className="space-y-1">
@@ -2419,6 +2421,7 @@ export default function SDRActionPage() {
                             clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                             clientInterlocuteurs={unifiedDrawerInterlocuteurs}
                             preferredInterlocuteurId={drawerRow?.preferredInterlocuteurId ?? null}
+                            preferredInterlocuteurIds={drawerRow?.preferredInterlocuteurIds ?? null}
                             onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
                             onAlloDialogOpenChange={setUnifiedAlloDialogOpen}
                             onContactSelect={(newContactId) => {
@@ -2461,6 +2464,7 @@ export default function SDRActionPage() {
                         onClose={closeUnifiedDrawer}
                         missionId={unifiedDrawerMissionId}
                         missionName={unifiedDrawerMissionName}
+                        campaignId={drawerRow?.campaignId ?? null}
                     />
                 )}
 
@@ -3490,7 +3494,8 @@ export default function SDRActionPage() {
                     enableGooglePhoneLookup
                     clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                     clientInterlocuteurs={unifiedDrawerInterlocuteurs}
-                    preferredInterlocuteurId={drawerRow?.preferredInterlocuteurId ?? currentAction?.preferredInterlocuteurId ?? null}
+                    preferredInterlocuteurId={drawerRow ? drawerRow.preferredInterlocuteurId ?? null : undefined}
+                    preferredInterlocuteurIds={drawerRow?.preferredInterlocuteurIds ?? null}
                     onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
                     onAlloDialogOpenChange={setUnifiedAlloDialogOpen}
                     onContactSelect={(newContactId) => {
@@ -3528,6 +3533,7 @@ export default function SDRActionPage() {
                     meetingCategory={meetingCat || undefined}
                     interlocuteurs={currentAction.clientInterlocuteurs}
                     preferredInterlocuteurId={currentAction.preferredInterlocuteurId}
+                    preferredInterlocuteurIds={currentAction.preferredInterlocuteurIds}
                     onBookingSuccess={() => {
                         setShowBookingDrawer(false);
                         setRdvDate("");

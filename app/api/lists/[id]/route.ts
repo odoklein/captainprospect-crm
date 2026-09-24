@@ -88,7 +88,23 @@ export const PATCH = withErrorHandler(async (
     const { id } = await params;
     const body = await request.json();
 
-    const { name, type, source, missionId, commercialInterlocuteurId, campaignId, isActive, isArchived, contactsViewEnabled } = body;
+    const { name, type, source, missionId, campaignId, isActive, isArchived, contactsViewEnabled } = body;
+    let { commercialInterlocuteurId } = body;
+
+    // Several commercials per list: `commercialInterlocuteurIds` is the ordered set
+    // (first = primary, shown first to SDRs). It supersedes `commercialInterlocuteurId`.
+    let secondaryCommercialIds: string[] | undefined;
+    if (body.commercialInterlocuteurIds !== undefined) {
+        if (!Array.isArray(body.commercialInterlocuteurIds) || body.commercialInterlocuteurIds.some((v: unknown) => typeof v !== 'string' || !v)) {
+            return errorResponse('commercialInterlocuteurIds doit être une liste d’identifiants', 400);
+        }
+        const ids: string[] = Array.from(new Set(body.commercialInterlocuteurIds as string[]));
+        commercialInterlocuteurId = ids[0] ?? null;
+        secondaryCommercialIds = ids.slice(1);
+    } else if (commercialInterlocuteurId === null) {
+        // Clearing the primary clears the whole set.
+        secondaryCommercialIds = [];
+    }
 
     // Load current list with mission + client for validation
     const existing = await prisma.list.findUnique({
@@ -144,6 +160,18 @@ export const PATCH = withErrorHandler(async (
         }
     }
 
+    if (secondaryCommercialIds && secondaryCommercialIds.length > 0) {
+        const found = await prisma.clientInterlocuteur.count({
+            where: { id: { in: secondaryCommercialIds }, clientId: existing.mission.clientId },
+        });
+        if (found !== secondaryCommercialIds.length) {
+            return errorResponse(
+                'Un des commerciaux n’appartient pas au même client que la mission de cette liste',
+                400
+            );
+        }
+    }
+
     // Validate and build campaign connect/disconnect
     let campaignConnect:
         | { connect: { id: string } }
@@ -191,6 +219,7 @@ export const PATCH = withErrorHandler(async (
         source !== undefined ||
         nextMissionId ||
         commercialInterlocuteurConnect !== undefined ||
+        secondaryCommercialIds !== undefined ||
         campaignConnect !== undefined;
 
     const includeBlock = {
@@ -232,6 +261,7 @@ export const PATCH = withErrorHandler(async (
                 ...(commercialInterlocuteurConnect && {
                     commercialInterlocuteur: commercialInterlocuteurConnect,
                 }),
+                ...(secondaryCommercialIds !== undefined && { secondaryCommercialIds }),
                 ...(campaignConnect && {
                     campaign: campaignConnect,
                 }),

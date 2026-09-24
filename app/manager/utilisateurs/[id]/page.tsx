@@ -14,12 +14,13 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { RendezVousTab } from "./_components/RendezVousTab";
 
 // ============================================
 // TYPES
 // ============================================
 
-type TabId = "apercu" | "activite" | "planning" | "historique" | "securite" | "acces" | "rapport";
+type TabId = "apercu" | "activite" | "planning" | "rendezvous" | "historique" | "securite" | "acces" | "rapport";
 
 interface UserDetail {
     id: string; name: string; email: string; role: string;
@@ -184,6 +185,7 @@ const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: "apercu",     label: "Aperçu",      icon: Activity },
     { id: "activite",   label: "Activité",    icon: TrendingUp },
     { id: "planning",   label: "Planning",    icon: Calendar },
+    { id: "rendezvous", label: "Rendez-vous", icon: CalendarDays },
     { id: "historique", label: "Historique",  icon: Clock },
     { id: "rapport",    label: "Rapport",     icon: FileBarChart2 },
     { id: "securite",   label: "Sécurité",    icon: Shield },
@@ -1429,7 +1431,7 @@ export default function UtilisateurDetailPage() {
 
             {/* ── Tab navigation ── */}
             <div className="mx-6 mt-4 flex items-center gap-1 bg-white rounded-2xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
-                {TABS.map((tab) => (
+                {TABS.filter((tab) => tab.id !== "rendezvous" || ["SDR", "BOOKER", "BUSINESS_DEVELOPER"].includes(user.role)).map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
@@ -1451,6 +1453,7 @@ export default function UtilisateurDetailPage() {
                 {activeTab === "apercu" && <ApercuTab user={user} stats={stats} />}
                 {activeTab === "activite" && <ActiviteTab userId={userId} />}
                 {activeTab === "planning" && <PlanningTab userId={userId} />}
+                {activeTab === "rendezvous" && <RendezVousTab userId={userId} userName={user.name} />}
                 {activeTab === "historique" && <HistoriqueTab userId={userId} />}
                 {activeTab === "rapport" && <RapportTab userId={userId} userName={user.name} />}
                 {activeTab === "securite" && <SecuriteTab userId={userId} />}

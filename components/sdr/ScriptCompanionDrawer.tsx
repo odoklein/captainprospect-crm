@@ -14,6 +14,9 @@ interface ScriptCompanionDrawerProps {
     onClose: () => void;
     missionId?: string;
     missionName?: string;
+    /** Campaign resolved for the row being worked (list strategy, else mission default).
+     *  When set, it wins over the mission's first active campaign. */
+    campaignId?: string | null;
 }
 
 type ScriptTabId = "base" | "additional" | "ai";
@@ -42,6 +45,7 @@ export function ScriptCompanionDrawer({
     onClose,
     missionId,
     missionName,
+    campaignId,
 }: ScriptCompanionDrawerProps) {
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
@@ -62,7 +66,11 @@ export function ScriptCompanionDrawer({
         staleTime: 60_000,
     });
 
-    const selectedCampaign = campaigns[0] ?? null;
+    // Per-list strategy: the row's campaign comes from its list (see /api/sdr/action-queue).
+    // Falling back to campaigns[0] would always show the mission default script.
+    const selectedCampaign: CampaignSummary | null = campaignId
+        ? campaigns.find((c) => c.id === campaignId) ?? { id: campaignId, name: "" }
+        : campaigns[0] ?? null;
 
     const {
         data: companionData,
@@ -78,7 +86,7 @@ export function ScriptCompanionDrawer({
             return json.data as CompanionData;
         },
         enabled: isOpen && !!selectedCampaign,
-        staleTime: 15_000,
+        staleTime: 0,
     });
 
     useEffect(() => {

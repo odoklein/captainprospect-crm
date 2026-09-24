@@ -50,6 +50,15 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         : "";
     const search = searchParams.get("search")?.trim() ?? "";
     const hasSearch = search.length > 0;
+    // Phone search: compare digits only, ignoring the +33 / leading 0 prefix, so
+    // "06 12 34 56 78", "+33612345678" and "612 345" all find the same prospect.
+    const searchDigits = search.replace(/\D/g, "");
+    const phoneNeedle = searchDigits.length >= 4
+        ? (searchDigits.startsWith("33") && searchDigits.length > 9 ? searchDigits.slice(2) : searchDigits)
+            .replace(/^0+/, "")
+            .slice(-9)
+        : "";
+    const hasPhoneSearch = phoneNeedle.length >= 3;
     const COOLDOWN_HOURS = 24;
     const cooldownDate = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000);
     const sdrId = session.user.id;
@@ -103,6 +112,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             mission_name: string;
             mission_channel: string;
             preferred_interlocuteur_id: string | null;
+            secondary_commercial_ids: string[] | null;
             last_action_result: string | null;
             last_action_note: string | null;
             last_action_created: Date | null;
@@ -141,7 +151,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 -- the mission default is the fallback. Resolved here so the table
                 -- view opens the booking drawer on the right calendar, exactly as
                 -- /api/actions/next already does for the card view.
-                COALESCE(l."commercialInterlocuteurId", m."defaultInterlocuteurId") as preferred_interlocuteur_id
+                COALESCE(l."commercialInterlocuteurId", m."defaultInterlocuteurId") as preferred_interlocuteur_id,
+                CASE WHEN l."commercialInterlocuteurId" IS NOT NULL THEN l."secondaryCommercialIds" ELSE ARRAY[]::text[] END as secondary_commercial_ids
             FROM "Contact" c
             INNER JOIN "Company" co ON c."companyId" = co.id
             INNER JOIN "List" l ON co."listId" = l.id
@@ -203,7 +214,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 -- the mission default is the fallback. Resolved here so the table
                 -- view opens the booking drawer on the right calendar, exactly as
                 -- /api/actions/next already does for the card view.
-                COALESCE(l."commercialInterlocuteurId", m."defaultInterlocuteurId") as preferred_interlocuteur_id
+                COALESCE(l."commercialInterlocuteurId", m."defaultInterlocuteurId") as preferred_interlocuteur_id,
+                CASE WHEN l."commercialInterlocuteurId" IS NOT NULL THEN l."secondaryCommercialIds" ELSE ARRAY[]::text[] END as secondary_commercial_ids
             FROM "Company" co
             INNER JOIN "List" l ON co."listId" = l.id
             INNER JOIN "Mission" m ON l."missionId" = m.id
@@ -289,12 +301,16 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             (contact_first_name IS NOT NULL AND contact_first_name ILIKE $${isBooker || shouldBypassAssignmentGate ? 2 : 3})
             OR (contact_last_name IS NOT NULL AND contact_last_name ILIKE $${isBooker || shouldBypassAssignmentGate ? 2 : 3})
             OR (company_name IS NOT NULL AND company_name ILIKE $${isBooker || shouldBypassAssignmentGate ? 2 : 3})
+            ${hasPhoneSearch ? `
+            OR regexp_replace(COALESCE(contact_phone, ''), '[^0-9]', '', 'g') LIKE $${isBooker || shouldBypassAssignmentGate ? 3 : 4}
+            OR regexp_replace(COALESCE(company_phone, ''), '[^0-9]', '', 'g') LIKE $${isBooker || shouldBypassAssignmentGate ? 3 : 4}` : ""}
         )` : ""}
     `,
         ...(isBooker || shouldBypassAssignmentGate
             ? (hasSearch ? [cooldownDate, `%${escapeIlikePattern(search)}%`] : [cooldownDate])
             : (hasSearch ? [sdrId, cooldownDate, `%${escapeIlikePattern(search)}%`] : [sdrId, cooldownDate])
-        )
+        ),
+        ...(hasSearch && hasPhoneSearch ? [`%${phoneNeedle}%`] : [])
     );
 
     // Resolve config in parallel with result processing
@@ -412,6 +428,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         channel: row.mission_channel,
         missionName: row.mission_name,
         preferredInterlocuteurId: row.preferred_interlocuteur_id,
+        preferredInterlocuteurIds: Array.from(new Set(
+            [row.preferred_interlocuteur_id, ...(row.secondary_commercial_ids ?? [])].filter((id): id is string => !!id)
+        )),
         lastAction: row.last_action_result
             ? {
                 result: row.last_action_result,

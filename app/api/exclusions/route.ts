@@ -177,6 +177,23 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         }
     }
 
+    // CLIENT scope without scopeId (SDR drawer): derive the client from the prospect's
+    // own list rather than trusting the browser.
+    if (body?.scope === "CLIENT" && !body?.scopeId && (body?.companyId || body?.contactId)) {
+        const companyForScope = body.companyId
+            ? await prisma.company.findUnique({
+                  where: { id: String(body.companyId) },
+                  select: { list: { select: { mission: { select: { clientId: true } } } } },
+              })
+            : (
+                  await prisma.contact.findUnique({
+                      where: { id: String(body.contactId) },
+                      select: { company: { select: { list: { select: { mission: { select: { clientId: true } } } } } } },
+                  })
+              )?.company ?? null;
+        body.scopeId = companyForScope?.list?.mission?.clientId ?? null;
+    }
+
     const input = parseBody(createExclusionSchema, body);
 
     if (!canCreateExclusion(actor, input.scope)) {

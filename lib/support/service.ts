@@ -145,13 +145,6 @@ export async function getOrCreateClientConversation(clientId: string, userId?: s
     });
     if (existing) return existing.id;
 
-    const anyExisting = await prisma.supportConversation.findFirst({
-        where: { clientId },
-        orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-        select: { id: true },
-    });
-    if (anyExisting) return anyExisting.id;
-
     const created = await prisma.supportConversation.create({
         data: {
             clientId,
@@ -252,7 +245,10 @@ export async function resolveAccessibleConversationId(
         return target.id;
     }
 
-    return getConversationIdForClientUser(user.id);
+    // No implicit thread: falling back to "the latest conversation of the company"
+    // filed messages and images of a new request on an old, unrelated (often resolved)
+    // thread. Every client call names its conversation explicitly.
+    return null;
 }
 
 async function ensureManagerState(conversationId: string, managerId: string) {
@@ -462,8 +458,6 @@ export async function getConversationForClientUser(
             return null;
         }
         conversationId = target.id;
-    } else {
-        conversationId = await getConversationIdForClientUser(userId);
     }
     if (!conversationId) return null;
 
@@ -511,6 +505,24 @@ export async function createClientConversation(
         (firstLine.length > 50 ? `${firstLine.slice(0, 47)}...` : firstLine) ||
         "Nouvelle demande";
 
+    // Images picked in the new-request form are uploaded before the conversation
+    // exists (conversationId null). Claim only this user's pending, unattached ones —
+    // same rule as postMessage — so ids from another thread are ignored.
+    const requestedAttachmentIds = (input.attachmentIds ?? []).slice(0, SUPPORT_ATTACHMENT_MAX_COUNT);
+    const attachmentIds = requestedAttachmentIds.length
+        ? (
+            await prisma.supportAttachment.findMany({
+                where: {
+                    id: { in: requestedAttachmentIds },
+                    conversationId: null,
+                    messageId: null,
+                    uploadedById: userId,
+                },
+                select: { id: true },
+            })
+        ).map((a) => a.id)
+        : [];
+
     // 1. Create the conversation
     const conv = await prisma.supportConversation.create({
         data: {
@@ -533,11 +545,18 @@ export async function createClientConversation(
             content: input.content,
             intent: input.intent ?? null,
             context: context ?? Prisma.JsonNull,
-            ...(input.attachmentIds && input.attachmentIds.length > 0
-                ? { attachments: { connect: input.attachmentIds.map((id) => ({ id })) } }
+            ...(attachmentIds.length > 0
+                ? { attachments: { connect: attachmentIds.map((id) => ({ id })) } }
                 : {}),
         },
     });
+
+    if (attachmentIds.length > 0) {
+        await prisma.supportAttachment.updateMany({
+            where: { id: { in: attachmentIds } },
+            data: { conversationId: conv.id },
+        });
+    }
 
     // 3. Post immediate automatic acknowledgment
     await prisma.supportMessage.create({
@@ -563,7 +582,7 @@ export async function createClientConversation(
         authorName: user.name ?? null,
         messagePreview: input.content.trim() || "Nouvelle demande",
         intent: input.intent ?? null,
-        attachmentCount: input.attachmentIds?.length ?? 0,
+        attachmentCount: attachmentIds.length,
         pageLabel: input.context?.pageLabel ?? null,
     }).catch(() => {});
 

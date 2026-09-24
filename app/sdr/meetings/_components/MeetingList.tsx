@@ -8,10 +8,10 @@ interface MeetingListProps {
     isLoading: boolean;
     query: string;
     statusFilter: StatusFilter;
-    onOpen: (meeting: Meeting) => void;
-    onReschedule: (meeting: Meeting) => void;
-    onCancel: (meeting: Meeting) => void;
-    onContextMenu: (event: React.MouseEvent, meeting: Meeting) => void;
+    onOpen?: (meeting: Meeting) => void;
+    onReschedule?: (meeting: Meeting) => void;
+    onCancel?: (meeting: Meeting) => void;
+    onContextMenu?: (event: React.MouseEvent, meeting: Meeting) => void;
 }
 
 const EMPTY_DESCRIPTIONS: Record<StatusFilter, string> = {
