@@ -69,6 +69,7 @@ export const config = {
         "/commercial/:path*",
         "/dashboard",
         // All /api routes except /api/auth/* (NextAuth handles its own routes)
-        "/api/((?!auth/).*)",
+        // and /api/webhooks/* (provider callbacks, each route verifies its own signature)
+        "/api/((?!auth/|webhooks/).*)",
     ],
 };

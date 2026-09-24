@@ -492,6 +492,9 @@ model User {
   missionPlanSdrAssignments MissionPlanSdr[]
   dailyFeedbacks            SdrDailyFeedback[]
 
+  // Inbound calls on this user's Allo line (screen-pop panel)
+  incomingCalls IncomingCall[] @relation("SdrIncomingCalls")
+
   // Advanced Planning: allocations, capacity, absences
   sdrDayAllocations        SdrDayAllocation[]       @relation("SdrDayAllocations")
   sdrMonthCapacities       SdrMonthCapacity[]       @relation("SdrMonthCapacities")
@@ -1119,6 +1122,63 @@ model Action {
   // Powers "historical bookers per client/mission" aggregation on the staffing
   // dashboard (groupBy sdrId filtered by campaignId IN (...)).
   @@index([campaignId])
+}
+
+// ============================================
+// INCOMING CALLS (Allo webhook → SDR screen-pop)
+// ============================================
+
+enum IncomingCallStatus {
+  RINGING // call.received — the SDR's phone is ringing right now
+  ANSWERED // call.answered — in conversation
+  COMPLETED // call.completed, answered
+  MISSED // call.completed, any other result (no answer, voicemail…)
+}
+
+/// One row per inbound call on a user's Allo line. Written by the Allo webhook
+/// (app/api/webhooks/allo), read by the IncomingCallPanel poll.
+/// contactId / companyId / missionId are the caller match resolved at ring time.
+/// They are plain ids, not FKs, so the call log survives a list being deleted
+/// or re-imported.
+model IncomingCall {
+  id    String @id @default(cuid())
+  sdrId String
+  sdr   User   @relation("SdrIncomingCalls", fields: [sdrId], references: [id], onDelete: Cascade)
+
+  fromNumber String // caller, as Allo sent it
+  toNumber   String // the user's Allo line
+  callerKey  String? // phoneKey(fromNumber); null for hidden numbers
+
+  status         IncomingCallStatus @default(RINGING)
+  providerCallId String? // Allo call id; only call.completed carries it
+  result         String? // Allo's raw result (ANSWERED, MISSED, VOICEMAIL…)
+  startedAt      DateTime
+  answeredAt     DateTime?
+  endedAt        DateTime?
+  durationSec    Int?
+  summary        String?            @db.Text
+  recordingUrl   String?
+
+  // Caller match, denormalized so the poll can label the call without a join
+  contactId   String?
+  companyId   String?
+  missionId   String?
+  callerName  String?
+  companyName String?
+  matchCount  Int     @default(0)
+
+  // What Allo's own contact book knew about the caller (fallback label)
+  alloPersonName  String?
+  alloCompanyName String?
+
+  dismissedAt DateTime? // user closed the panel / missed-call reminder
+  openedAt    DateTime? // user opened the fiche from the panel
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sdrId, createdAt])
+  @@index([sdrId, callerKey, startedAt])
 }
 
 // Config-driven action status definitions (per scope: GLOBAL, CLIENT, MISSION, CAMPAIGN)
