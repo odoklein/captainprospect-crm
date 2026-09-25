@@ -36,7 +36,9 @@ import {
     useSupportAttachments,
 } from "./SupportAttachments";
 import { ConvertSupportToTicketModal } from "./ConvertSupportToTicketModal";
+import { cn } from "@/lib/utils";
 import type {
+    SupportAttachmentDTO,
     SupportConversationDetailDTO,
     SupportConversationSummaryDTO,
     SupportMessageDTO,
@@ -378,27 +380,23 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
         const readyAttachments = attachments.readyIds;
         setSending(true);
 
+        const sentAttachmentDTOs: SupportAttachmentDTO[] = attachments.pending
+            .filter((p) => p.status === "ready" && p.remote)
+            .map((p) => p.remote!);
+
         const optimistic: SupportMessageDTO = {
             id: `tmp-${Date.now()}`,
             conversationId: selectedId,
             role: "MANAGER",
             author: {
-                id: session?.user?.id ?? "me",
+                id: (session?.user as any)?.id ?? "me",
                 name: session?.user?.name ?? "Support",
-                email: session?.user?.email ?? "",
                 role: "MANAGER",
             },
             content: text,
-            attachments: attachments.pending
-                .filter((p) => readyAttachments.includes(p.id))
-                .map((p) => ({
-                    id: p.id,
-                    filename: p.filename,
-                    byteSize: p.byteSize,
-                    mimeType: p.mimeType,
-                    url: p.previewUrl,
-                })),
-            isInternal: false,
+            intent: null,
+            context: null,
+            attachments: sentAttachmentDTOs,
             createdAt: new Date().toISOString(),
         };
 
@@ -406,7 +404,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
             current ? { ...current, messages: [...(current.messages || []), optimistic] } : current,
         );
         setReplyValue("");
-        attachments.discard();
+        attachments.clear();
 
         try {
             const res = await fetch(
