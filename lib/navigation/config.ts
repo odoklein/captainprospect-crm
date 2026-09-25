@@ -93,7 +93,7 @@ export const MANAGER_NAV: NavSection[] = [
       {
         href: "/manager/exclusions",
         icon: Ban,
-        label: "Ne plus contacter",
+        label: "BlackList",
         permission: "pages.prospects",
       },
     ],
@@ -105,15 +105,12 @@ export const MANAGER_NAV: NavSection[] = [
         href: "/manager/assistant",
         icon: Sparkles,
         label: "Assistant Projet",
-        // Same audience as the project views it answers questions about.
         permission: "pages.clients",
       },
       {
         href: "/manager/dashboard-projet",
         icon: UserCheck,
         label: "Dashboard Projet",
-        // Same audience as "Clients" (not the unrelated "Projets"/pages.projects
-        // permission the initial draft borrowed) — this is a client staffing view.
         permission: "pages.clients",
       },
       {
@@ -132,7 +129,6 @@ export const MANAGER_NAV: NavSection[] = [
         href: "/manager/rdv-absences",
         icon: UserX,
         label: "Signalements absents",
-        // Same audience as SAS RDV — it's the manual tail of the same flow.
         permission: "pages.analytics",
       },
       {
@@ -216,8 +212,6 @@ export const MANAGER_NAV: NavSection[] = [
         href: "/manager/acces",
         icon: ShieldCheck,
         label: "Coffre d'accès",
-        // Same gate as the other admin tools: these are shared secrets, not
-        // something every manager-side role should browse.
         permission: "pages.sdrs",
       },
       {

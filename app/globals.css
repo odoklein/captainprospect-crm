@@ -1645,7 +1645,7 @@ textarea::placeholder {
     animation: spin 0.7s linear infinite;
 }
 
-/* --- Sidebar Container (dark theme — mockup) --- */
+/* --- Sidebar Container (dark theme — modernized) --- */
 .cp-sidebar {
     position: fixed;
     top: 0;
@@ -1654,27 +1654,28 @@ textarea::placeholder {
     z-index: 50;
     display: flex;
     flex-direction: column;
-    background: #12122A;
-    border-right: 1px solid #1E1E3A;
-    transition: width 280ms cubic-bezier(0.16, 1, 0.3, 1),
-        transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-        box-shadow 280ms cubic-bezier(0.16, 1, 0.3, 1);
+    background: linear-gradient(180deg, #101026 0%, #0A0A18 100%);
+    border-right: 1px solid rgba(255, 255, 255, 0.07);
+    will-change: width, transform;
+    transition: width 160ms cubic-bezier(0.2, 0, 0, 1),
+        transform 160ms cubic-bezier(0.2, 0, 0, 1),
+        box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
     overflow: hidden;
     -webkit-font-smoothing: antialiased;
 }
 
 .cp-sidebar-expanded {
-    width: 220px;
+    width: 228px;
 }
 
 .cp-sidebar-collapsed {
-    width: 56px;
+    width: 58px;
 }
 
 .cp-sidebar-hover-expanded {
     width: 240px;
-    box-shadow: 8px 0 32px -4px rgba(0, 0, 0, 0.08),
-        2px 0 8px -2px rgba(0, 0, 0, 0.04);
+    box-shadow: 12px 0 36px -4px rgba(0, 0, 0, 0.45),
+        4px 0 12px -2px rgba(0, 0, 0, 0.25);
     z-index: 60;
 }
 
@@ -1695,10 +1696,11 @@ textarea::placeholder {
 .cp-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(2px);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     z-index: 40;
-    animation: cpOverlayIn 200ms ease;
+    animation: cpOverlayIn 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 @keyframes cpOverlayIn {
@@ -1716,8 +1718,8 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 20px 16px;
-    min-height: 48px;
+    padding: 18px 18px 14px;
+    min-height: 52px;
     flex-shrink: 0;
 }
 
@@ -1743,11 +1745,11 @@ textarea::placeholder {
     justify-content: center;
     flex-shrink: 0;
     background: linear-gradient(135deg, #7C5CFC 0%, #A78BFA 100%);
-    transition: transform 200ms ease;
+    transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .cp-brand:hover .cp-brand-mark {
-    transform: scale(1.04);
+    transform: scale(1.05);
 }
 
 .cp-brand-name {
@@ -1776,7 +1778,7 @@ textarea::placeholder {
     border: none;
     cursor: pointer;
     flex-shrink: 0;
-    transition: all 150ms ease;
+    transition: all 120ms ease;
 }
 
 .cp-sidebar:hover .cp-collapse-btn {
@@ -1784,7 +1786,7 @@ textarea::placeholder {
 }
 
 .cp-collapse-btn:hover {
-    background: #1A1A35;
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
 }
 
@@ -1796,11 +1798,11 @@ textarea::placeholder {
     border: none;
     cursor: pointer;
     border-radius: 6px;
-    transition: all 150ms ease;
+    transition: all 120ms ease;
 }
 
 .cp-mobile-close:hover {
-    background: #1A1A35;
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
 }
 
@@ -1814,24 +1816,25 @@ textarea::placeholder {
     }
 }
 
-/* --- Quick Search --- */
+/* --- Quick Search Trigger --- */
 .cp-search-trigger {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 4px 12px 6px;
+    margin: 4px 12px 8px;
     padding: 7px 10px;
     border-radius: 8px;
-    border: 1px solid #1E1E3A;
-    background: #1A1A35;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
     cursor: pointer;
-    transition: all 150ms ease;
+    transition: all 120ms cubic-bezier(0.2, 0, 0, 1);
     flex-shrink: 0;
 }
 
 .cp-search-trigger:hover {
-    background: #252550;
-    border-color: #2A2A5A;
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(124, 92, 252, 0.4);
+    box-shadow: 0 0 14px rgba(124, 92, 252, 0.14);
 }
 
 .cp-search-text {
@@ -1849,9 +1852,9 @@ textarea::placeholder {
     padding: 2px 5px;
     font-size: 10px;
     font-weight: 600;
-    color: #8B8BA7;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid #1E1E3A;
+    color: #94A3B8;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 4px;
     font-family: inherit;
     line-height: 1;
@@ -1861,21 +1864,23 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    margin: 4px auto 6px;
+    width: 34px;
+    height: 34px;
+    margin: 4px auto 8px;
     border-radius: 8px;
-    border: none;
-    background: #1A1A35;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
     color: #8B8BA7;
     cursor: pointer;
-    transition: all 150ms ease;
+    transition: all 120ms cubic-bezier(0.2, 0, 0, 1);
     flex-shrink: 0;
 }
 
 .cp-search-trigger-mini:hover {
-    background: #252550;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(124, 92, 252, 0.4);
     color: #fff;
+    box-shadow: 0 0 10px rgba(124, 92, 252, 0.15);
 }
 
 /* --- Navigation --- */
@@ -1884,11 +1889,25 @@ textarea::placeholder {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 2px 8px 8px;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.09) transparent;
 }
 
 .cp-nav::-webkit-scrollbar {
-    display: none;
+    width: 4px;
+}
+
+.cp-nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.cp-nav::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.09);
+    border-radius: 4px;
+}
+
+.cp-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18);
 }
 
 .cp-nav-section {
@@ -1897,16 +1916,16 @@ textarea::placeholder {
 
 .cp-section-divider {
     height: 1px;
-    background: #1E1E3A;
-    margin: 12px 8px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.08) 80%, transparent);
+    margin: 10px 10px 4px;
 }
 
 .cp-section-title {
-    padding: 20px 8px 6px;
+    padding: 12px 10px 4px;
     font-size: 10px;
     font-weight: 700;
-    color: #4A4A6A;
-    letter-spacing: 0.08em;
+    color: #616187;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;
@@ -1926,14 +1945,14 @@ textarea::placeholder {
     background: #4A4A6A;
 }
 
-/* Admin section (Réglages, Facturation, Fichiers) — muted style */
+/* Admin section — clean modern styling */
 .cp-nav-section-admin .cp-nav-item {
-    color: #4A4A6A;
+    color: #79799A;
 }
 
 .cp-nav-section-admin .cp-nav-item:hover {
-    color: #6A6A8A;
-    background: #1A1A35;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .cp-nav-items {
@@ -1948,14 +1967,14 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
+    padding: 7px 12px;
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: #8B8BA7;
+    color: #8E8EA8;
     text-decoration: none;
     cursor: pointer;
-    transition: all 150ms ease;
+    transition: all 100ms cubic-bezier(0.2, 0, 0, 1);
     user-select: none;
     overflow: visible;
     white-space: nowrap;
@@ -1963,25 +1982,27 @@ textarea::placeholder {
 }
 
 .cp-nav-item:hover {
-    color: #fff;
-    background: #1A1A35;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(2px);
 }
 
 .cp-nav-item:active {
-    transform: scale(0.99);
+    transform: scale(0.985);
 }
 
 .cp-nav-item-active {
-    color: #fff;
-    background: rgba(124, 92, 252, 0.15);
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(124, 92, 252, 0.18) 0%, rgba(124, 92, 252, 0.04) 100%);
+    font-weight: 600;
 }
 
 .cp-nav-item-active:hover {
-    color: #fff;
-    background: rgba(124, 92, 252, 0.2);
+    color: #ffffff;
+    background: linear-gradient(90deg, rgba(124, 92, 252, 0.24) 0%, rgba(124, 92, 252, 0.07) 100%);
 }
 
-/* Active indicator bar */
+/* Active indicator bar with soft neon glow */
 .cp-nav-item-active::before {
     content: '';
     position: absolute;
@@ -1989,9 +2010,10 @@ textarea::placeholder {
     top: 50%;
     transform: translateY(-50%);
     width: 3px;
-    height: 20px;
-    border-radius: 0 2px 2px 0;
+    height: 18px;
+    border-radius: 0 3px 3px 0;
     background: #7C5CFC;
+    box-shadow: 0 0 10px rgba(124, 92, 252, 0.7);
 }
 
 /* --- Nav Icon --- */
@@ -2003,15 +2025,16 @@ textarea::placeholder {
     justify-content: center;
     flex-shrink: 0;
     color: inherit;
-    transition: transform 150ms ease;
+    transition: transform 100ms ease, color 100ms ease;
 }
 
 .cp-nav-icon-active {
-    color: #7C5CFC;
+    color: #A78BFA;
+    filter: drop-shadow(0 0 5px rgba(124, 92, 252, 0.45));
 }
 
 .cp-nav-item:hover .cp-nav-icon-wrap {
-    transform: scale(1.05);
+    transform: scale(1.06);
 }
 
 /* --- Nav Label --- */
@@ -2019,7 +2042,7 @@ textarea::placeholder {
     flex: 1;
     min-width: 0;
     overflow: hidden;
-    transition: opacity 180ms ease, width 250ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 120ms ease, width 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
 .cp-nav-label-visible {
@@ -2049,6 +2072,7 @@ textarea::placeholder {
     flex-shrink: 0;
     letter-spacing: -0.01em;
     line-height: 1;
+    box-shadow: 0 0 8px rgba(124, 92, 252, 0.35);
 }
 
 .cp-nav-badge-collapsed {
@@ -2061,7 +2085,8 @@ textarea::placeholder {
     font-size: 0;
     border-radius: 50%;
     background: #7c5cfc;
-    border: 1.5px solid #fff;
+    border: 1.5px solid #101026;
+    box-shadow: 0 0 6px rgba(124, 92, 252, 0.6);
 }
 
 .cp-nav-detail {
@@ -2079,10 +2104,10 @@ textarea::placeholder {
     position: absolute;
     left: calc(100% + 8px);
     top: 50%;
-    transform: translateY(-50%) translateX(-4px);
+    transform: translateY(-50%) translateX(-2px);
     pointer-events: none;
     opacity: 0;
-    transition: opacity 120ms ease, transform 120ms ease;
+    transition: opacity 60ms ease, transform 60ms ease;
     z-index: 100;
 }
 
@@ -2095,14 +2120,17 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 5px 10px;
-    background: #1e293b;
+    padding: 5px 11px;
+    background: rgba(20, 20, 42, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: #f1f5f9;
     font-size: 12px;
     font-weight: 500;
-    border-radius: 6px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 24px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
 }
 
 .cp-tooltip-badge {
@@ -2123,8 +2151,8 @@ textarea::placeholder {
 .cp-sidebar-footer {
     position: relative;
     flex-shrink: 0;
-    padding: 8px 12px 16px;
-    border-top: 1px solid #1E1E3A;
+    padding: 8px 12px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .cp-expand-btn {
@@ -2138,12 +2166,12 @@ textarea::placeholder {
     background: transparent;
     color: #8B8BA7;
     cursor: pointer;
-    transition: all 150ms ease;
+    transition: all 120ms ease;
     margin-bottom: 4px;
 }
 
 .cp-expand-btn:hover {
-    background: #1A1A35;
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
 }
 
@@ -2153,17 +2181,17 @@ textarea::placeholder {
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 8px;
+    padding: 7px 8px;
     border-radius: 8px;
     border: none;
     background: transparent;
     cursor: pointer;
-    transition: all 150ms ease;
+    transition: all 120ms ease;
     text-align: left;
 }
 
 .cp-user-btn:hover {
-    background: #1A1A35;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .cp-user-btn-collapsed {
@@ -2194,8 +2222,9 @@ textarea::placeholder {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #22c55e;
-    border: 1.5px solid #12122A;
+    background: #10b981;
+    border: 1.5px solid #101026;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 }
 
 .cp-user-info {
@@ -2216,7 +2245,7 @@ textarea::placeholder {
 
 .cp-user-role {
     font-size: 10px;
-    color: #4A4A6A;
+    color: #79799A;
     line-height: 1.3;
 }
 
@@ -2229,10 +2258,10 @@ textarea::placeholder {
     background: #181830;
     border: 1px solid #2a2a4a;
     border-radius: 10px;
-    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.45),
+    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5),
         0 4px 12px -2px rgba(0, 0, 0, 0.3);
     z-index: 100;
-    animation: cpMenuIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
+    animation: cpMenuIn 120ms cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
 }
 

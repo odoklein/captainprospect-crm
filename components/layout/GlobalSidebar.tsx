@@ -498,7 +498,7 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                         {isExpanded && (
                             <ChevronRight
                                 className={cn(
-                                    "w-3.5 h-3.5 text-slate-400 transition-transform duration-200",
+                                    "w-3.5 h-3.5 text-slate-400 transition-transform duration-150",
                                     showUserMenu && "rotate-90"
                                 )}
                             />
