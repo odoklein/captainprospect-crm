@@ -144,8 +144,8 @@ function ListSkeleton({ rows = 5 }: { rows?: number }) {
                     }}
                 >
                     <Skel w={28} h={28} radius={999} />
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div className="flex-1 flex flex-col gap-1.5">
+                        <div className="flex justify-between gap-2">
                             <Skel w={`${45 + ((i * 13) % 25)}%`} h={11} />
                             <Skel w={34} h={9} />
                         </div>
@@ -168,20 +168,13 @@ function ThreadSkeleton() {
     return (
         <div
             aria-hidden="true"
-            style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-                padding: "20px 24px",
-                overflow: "hidden",
-            }}
+            className="flex-1 flex flex-col gap-3.5 px-6 py-5 overflow-hidden"
         >
-            <div style={{ display: "flex", justifyContent: "center" }}>
+            <div className="flex justify-center">
                 <Skel w={78} h={16} radius={999} />
             </div>
             {rows.map((r, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: r.mine ? "flex-end" : "flex-start", gap: 8 }}>
+                <div key={i} className={cn("flex gap-2", r.mine ? "justify-end" : "justify-start")}>
                     {!r.mine && <Skel w={28} h={28} radius={999} />}
                     <Skel w={`${r.w}%`} h={r.h} radius={14} />
                 </div>

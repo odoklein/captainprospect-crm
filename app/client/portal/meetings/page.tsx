@@ -1008,33 +1008,32 @@ export default function ClientPortalMeetingsPage() {
   ];
 
   return (
-    <div className="cp-page" style={{minHeight:"100%",background:tk.bg,padding:"28px 28px 56px"}}>
+    <div className="cp-page min-h-full bg-slate-50 px-7 pt-7 pb-14">
       <style dangerouslySetInnerHTML={{__html:GLOBAL_CSS}} />
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="cp-enter" style={{display:"flex",flexWrap:"wrap",alignItems:"flex-start",justifyContent:"space-between",gap:16,marginBottom:32}}>
+      <header className="cp-enter flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
-          <h1 style={{fontFamily:"'DM Sans','Inter',system-ui,sans-serif",fontSize:32,fontWeight:600,color:tk.ink,letterSpacing:"-0.03em",margin:0,lineHeight:1.15}}>
+          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight leading-tight m-0">
             Mes rendez-vous
           </h1>
-          <p style={{fontSize:13.5,color:tk.ink3,marginTop:6,lineHeight:1.5}}>
+          <p className="text-sm text-slate-500 mt-1.5 leading-normal">
             Consultez vos rendez-vous, donnez votre avis, demandez un report.
           </p>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",justifyContent:"flex-end"}}>
-          <div className="cp-search" style={{width:260}}>
-            <Search className="cp-search-ico" style={{width:15,height:15}} />
-            <input className="cp-input" type="search" placeholder="Contact, entreprise…" value={q} onChange={e=>setQ(e.target.value)} aria-label="Rechercher" />
-            {q && <button className="cp-search-clr" onClick={()=>setQ("")} aria-label="Effacer"><X style={{width:13,height:13}} /></button>}
+        <div className="flex items-center gap-2.5 flex-wrap justify-end">
+          <div className="cp-search relative w-[260px]">
+            <Search className="cp-search-ico absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input className="cp-input w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500" type="search" placeholder="Contact, entreprise…" value={q} onChange={e=>setQ(e.target.value)} aria-label="Rechercher" />
+            {q && <button className="cp-search-clr absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" onClick={()=>setQ("")} aria-label="Effacer"><X className="w-3.5 h-3.5" /></button>}
           </div>
-          <div style={{position:"relative",width:220}}>
-            <UserCog style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",width:15,height:15,color:tk.ink4,pointerEvents:"none"}} />
+          <div className="relative w-[220px]">
+            <UserCog className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <select
-              className="cp-input"
+              className="cp-input w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:border-indigo-500 appearance-auto"
               value={commercialFilter}
               onChange={e=>setCommercialFilter(e.target.value)}
               aria-label="Filtrer par commercial"
-              style={{paddingLeft:36,appearance:"auto"}}
             >
               <option value="all">Tous les commerciaux</option>
               <option value="unassigned">Sans commercial</option>
@@ -1043,14 +1042,14 @@ export default function ClientPortalMeetingsPage() {
               ))}
             </select>
           </div>
-          <button className="cp-btn cp-btn-secondary" style={{gap:7,padding:"0 14px"}} onClick={()=>genCSV(filtered)}>
-            <FileSpreadsheet style={{width:15,height:15}} />Exporter{filtered.length ? ` (${filtered.length} RDV)` : ""}
+          <button className="cp-btn cp-btn-secondary inline-flex items-center gap-2 px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold bg-white text-slate-700 hover:bg-slate-50 transition-colors" onClick={()=>genCSV(filtered)}>
+            <FileSpreadsheet className="w-4 h-4" />Exporter{filtered.length ? ` (${filtered.length} RDV)` : ""}
           </button>
         </div>
       </header>
 
       {/* ── Stats ──────────────────────────────────────────── */}
-      <div className="cp-enter" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:24,animationDelay:"0.05s"}}>
+      <div className="cp-enter grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" style={{animationDelay:"0.05s"}}>
         {STAT_CFG.map(({key,label,stripe})=>{
           const active=tab===key;
           return (
@@ -1074,7 +1073,7 @@ export default function ClientPortalMeetingsPage() {
       </div>
 
       {/* ── Tabs ───────────────────────────────────────────── */}
-      <div className="cp-enter" style={{display:"flex",gap:2,padding:4,background:"rgba(0,0,0,0.04)",borderRadius:14,width:"fit-content",marginBottom:24,animationDelay:"0.09s"}}
+      <div className="cp-enter flex gap-1 p-1 bg-slate-200/50 rounded-xl w-fit mb-6" style={{animationDelay:"0.09s"}}
         role="tablist" aria-label="Filtrer les rendez-vous">
         {TABS.map(t=>{
           const active=tab===t.id;
@@ -1150,17 +1149,16 @@ export default function ClientPortalMeetingsPage() {
         />
       )}
       {deleteConfirm && (
-        <div className="cp-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-title"
-          style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",padding:24}}
+        <div className="cp-modal-overlay fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-labelledby="delete-title"
           onClick={()=>!deleteSub&&setDeleteConfirm(null)}>
-          <div className="cp-enter-scale" style={{background:tk.surface,borderRadius:16,padding:24,maxWidth:400,width:"100%",boxShadow:"0 24px 64px -12px rgba(0,0,0,0.25)"}}
+          <div className="cp-enter-scale bg-white rounded-2xl p-6 max-w-[400px] w-full shadow-2xl"
             onClick={e=>e.stopPropagation()}>
-            <h3 id="delete-title" style={{fontSize:16,fontWeight:700,color:tk.ink,margin:0}}>Supprimer ce rendez-vous ?</h3>
-            <p style={{fontSize:13.5,color:tk.ink3,marginTop:10,marginBottom:20}}>Cette action est irréversible. Le rendez-vous sera définitivement supprimé.</p>
-            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+            <h3 id="delete-title" className="text-base font-bold text-slate-900 m-0">Supprimer ce rendez-vous ?</h3>
+            <p className="text-sm text-slate-500 mt-2.5 mb-5 leading-normal">Cette action est irréversible. Le rendez-vous sera définitivement supprimé.</p>
+            <div className="flex gap-2.5 justify-end">
               <Btn variant="ghost" onClick={()=>setDeleteConfirm(null)} disabled={deleteSub}>Annuler</Btn>
               <Btn variant="danger" onClick={()=>deleteMeeting(deleteConfirm)} loading={deleteSub}>
-                <Trash2 style={{width:14,height:14}} />Supprimer
+                <Trash2 className="w-3.5 h-3.5" />Supprimer
               </Btn>
             </div>
           </div>

@@ -436,10 +436,10 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                     {showUserMenu && (
                         <div className="cp-user-menu">
                             <div className="cp-user-menu-header">
-                                <p className="text-[13px] font-semibold text-slate-900 truncate">
+                                <p className="text-[13px] font-semibold text-white truncate">
                                     {userName}
                                 </p>
-                                <p className="text-[11px] text-slate-500 truncate">
+                                <p className="text-[11px] text-slate-400 truncate">
                                     {userEmail}
                                 </p>
                             </div>

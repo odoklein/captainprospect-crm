@@ -1,21 +1,23 @@
 @import "tailwindcss";
 
 /* ============================================
-   SUZALINK CRM DESIGN SYSTEM
-   Premium dark theme with vibrant accents
+   CAPTAIN PROSPECT CRM DESIGN SYSTEM (UNIFIED)
+   Tailwind CSS v4 Tokens & Unified Theme
    ============================================ */
 
 :root {
-    /* Brand Colors */
-    --brand-primary: #6366f1;
-    --brand-primary-light: #818cf8;
-    --brand-primary-dark: #4f46e5;
+    /* Brand Colors (Unified Canonical Primary: #7C5CFC) */
+    --brand-primary: #7c5cfc;
+    --brand-primary-hover: #6b46f6;
+    --brand-primary-light: #a78bfa;
+    --brand-primary-dark: #5b36e8;
     --brand-accent: #06b6d4;
     --brand-success: #10b981;
     --brand-warning: #f59e0b;
     --brand-danger: #ef4444;
+    --brand-info: #3b82f6;
 
-    /* Neutral Palette */
+    /* Neutral Palette (Light theme default) */
     --neutral-50: #fafafa;
     --neutral-100: #f4f4f5;
     --neutral-200: #e4e4e7;
@@ -28,32 +30,51 @@
     --neutral-900: #18181b;
     --neutral-950: #09090b;
 
-    /* Background & Foreground */
-    --background: var(--neutral-200);
-    --foreground: var(--neutral-50);
-    --muted: var(--neutral-400);
-    --muted-foreground: var(--neutral-500);
+    /* Background & Foreground (Fixed light-mode baseline) */
+    --background: #f8fafc;
+    --foreground: #0f172a;
+    --muted: #64748b;
+    --muted-foreground: #94a3b8;
 
     /* Card & Surface */
-    --card: var(--neutral-900);
-    --card-foreground: var(--neutral-100);
-    --card-border: var(--neutral-800);
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    --card-border: #e2e8f0;
 
     /* Status Colors */
     --status-incomplete: #ef4444;
     --status-partial: #f59e0b;
     --status-actionable: #10b981;
 
+    /* Sidebar Canonical Tokens */
+    --sidebar-bg: #12122a;
+    --sidebar-border: #1e1e3a;
+    --sidebar-hover: #1a1a35;
+    --sidebar-muted: #8b8ba7;
+    --sidebar-active: #7c5cfc;
+
     /* Glassmorphism */
-    --glass-bg: rgba(220, 220, 227, 0.8);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(226, 232, 240, 0.8);
 }
 
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --color-brand-primary: var(--brand-primary);
+    --color-brand-primary-hover: var(--brand-primary-hover);
+    --color-brand-primary-light: var(--brand-primary-light);
+    --color-brand-primary-dark: var(--brand-primary-dark);
     --color-brand-accent: var(--brand-accent);
+    --color-brand-success: var(--brand-success);
+    --color-brand-warning: var(--brand-warning);
+    --color-brand-danger: var(--brand-danger);
+    --color-brand-info: var(--brand-info);
+    --color-sidebar-bg: var(--sidebar-bg);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-hover: var(--sidebar-hover);
+    --color-sidebar-muted: var(--sidebar-muted);
+    --color-sidebar-active: var(--sidebar-active);
     --font-sans: var(--font-geist-sans);
     --font-mono: var(--font-geist-mono);
 }
@@ -84,8 +105,8 @@ html {
 }
 
 body {
-    background: var(--background);
-    color: var(--foreground);
+    background: #f8fafc;
+    color: #0f172a;
     font-family: var(--font-geist-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -550,44 +571,6 @@ textarea::placeholder {
     border-radius: 9999px;
 }
 
-/* Sidebar */
-.sidebar {
-    width: 280px;
-    height: 100vh;
-    background: var(--neutral-900);
-    border-right: 1px solid var(--neutral-800);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-}
-
-.sidebar-nav {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-top: 2rem;
-}
-
-.sidebar-link {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    border-radius: 0.75rem;
-    color: var(--muted);
-    text-decoration: none;
-    transition: all 0.15s ease;
-}
-
-.sidebar-link:hover {
-    background: var(--neutral-800);
-    color: var(--foreground);
-}
-
-.sidebar-link.active {
-    background: rgba(99, 102, 241, 0.15);
-    color: var(--brand-primary-light);
-}
 
 /* Stats cards */
 .stat-card {
@@ -789,37 +772,6 @@ textarea::placeholder {
 }
 
 /* ============================================
-   LAYOUT UTILITIES
-   ============================================ */
-
-.page-container {
-    min-height: 100vh;
-    display: flex;
-}
-
-.main-content {
-    flex: 1;
-    padding: 2rem;
-    overflow-y: auto;
-}
-
-.page-header {
-    margin-bottom: 2rem;
-}
-
-.page-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--foreground);
-}
-
-.page-subtitle {
-    font-size: 0.9375rem;
-    color: var(--muted);
-    margin-top: 0.25rem;
-}
-
-/* ============================================
    DEVELOPER DASHBOARD PREMIUM STYLES
    Mature Blue Color Palette with Glassmorphism
    ============================================ */
@@ -853,17 +805,6 @@ textarea::placeholder {
     --dev-glass-bg: rgba(255, 255, 255, 0.85);
     --dev-glass-border: rgba(59, 130, 246, 0.15);
     --dev-glass-shadow: 0 8px 32px rgba(30, 64, 175, 0.08);
-}
-
-/* Premium Sidebar */
-.dev-sidebar {
-    background: linear-gradient(180deg, var(--dev-slate-900) 0%, var(--dev-slate-800) 100%);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.dev-sidebar-brand {
-    background: linear-gradient(135deg, var(--dev-blue-600) 0%, var(--dev-blue-700) 100%);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
 .dev-nav-item {
@@ -2103,7 +2044,7 @@ textarea::placeholder {
     font-size: 10px;
     font-weight: 700;
     border-radius: 9px;
-    background: #6366f1;
+    background: #7c5cfc;
     color: #fff;
     flex-shrink: 0;
     letter-spacing: -0.01em;
@@ -2119,7 +2060,7 @@ textarea::placeholder {
     padding: 0;
     font-size: 0;
     border-radius: 50%;
-    background: #6366f1;
+    background: #7c5cfc;
     border: 1.5px solid #fff;
 }
 
@@ -2285,11 +2226,11 @@ textarea::placeholder {
     bottom: calc(100% + 6px);
     left: 8px;
     right: 8px;
-    background: #fff;
-    border: 1px solid rgba(0, 0, 0, 0.06);
+    background: #181830;
+    border: 1px solid #2a2a4a;
     border-radius: 10px;
-    box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.1),
-        0 4px 12px -4px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.45),
+        0 4px 12px -2px rgba(0, 0, 0, 0.3);
     z-index: 100;
     animation: cpMenuIn 150ms cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
@@ -2313,7 +2254,7 @@ textarea::placeholder {
 
 .cp-user-menu-divider {
     height: 1px;
-    background: #f1f5f9;
+    background: #252545;
 }
 
 .cp-user-menu-items {
@@ -2327,7 +2268,7 @@ textarea::placeholder {
     padding: 7px 10px;
     font-size: 12px;
     font-weight: 500;
-    color: #64748b;
+    color: #94a3b8;
     border-radius: 6px;
 }
 
@@ -2339,7 +2280,7 @@ textarea::placeholder {
     padding: 7px 10px;
     font-size: 12.5px;
     font-weight: 500;
-    color: #64748b;
+    color: #cbd5e1;
     border: none;
     background: none;
     border-radius: 6px;
@@ -2349,13 +2290,17 @@ textarea::placeholder {
 }
 
 .cp-user-menu-item:hover {
-    background: #f5f6f8;
-    color: #1e293b;
+    background: #252545;
+    color: #ffffff;
+}
+
+.cp-user-menu-item-danger {
+    color: #f87171;
 }
 
 .cp-user-menu-item-danger:hover {
-    background: #fef2f2;
-    color: #dc2626;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
 }
 
 /* --- Reduced Motion --- */

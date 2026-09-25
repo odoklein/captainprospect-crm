@@ -393,23 +393,23 @@ function ActionStatsModalBody({
     return (
         <div className="space-y-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="rounded-xl bg-[#f5f5f5] border border-[#e5e5e5] p-3">
-                    <p className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide">Total</p>
-                    <p className="text-[24px] font-[500] text-[#1a1a1a] tabular-nums">{items.length}</p>
+                <div className="rounded-xl bg-neutral-100 border border-neutral-200 p-3">
+                    <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">Total</p>
+                    <p className="text-[24px] font-medium text-neutral-900 tabular-nums">{items.length}</p>
                 </div>
                 {Object.entries(priorityLabels).map(([key, { label, color }]) => (
                     <div key={key} className={cn("rounded-xl border p-3", color)}>
-                        <p className="text-[11px] font-[500] uppercase tracking-wide opacity-80">{label}</p>
-                        <p className="text-[24px] font-[500] tabular-nums">{byPriority[key] ?? 0}</p>
+                        <p className="text-[11px] font-medium uppercase tracking-wide opacity-80">{label}</p>
+                        <p className="text-[24px] font-medium tabular-nums">{byPriority[key] ?? 0}</p>
                     </div>
                 ))}
             </div>
             <div>
-                <h4 className="text-[11px] font-[500] uppercase tracking-wide text-slate-400 mb-2">Par statut</h4>
+                <h4 className="text-[11px] font-medium uppercase tracking-wide text-slate-400 mb-2">Par statut</h4>
                 <div className="flex flex-wrap gap-1.5">
-                    <Badge className="bg-[#f5f5f5] text-slate-600 border-[#e5e5e5] text-[12px]">Jamais contacté: {byStatus["NONE"] ?? 0}</Badge>
+                    <Badge className="bg-neutral-100 text-slate-600 border-neutral-200 text-xs">Jamais contacté: {byStatus["NONE"] ?? 0}</Badge>
                     {Object.entries(statusLabels).map(([key, label]) => (
-                        <Badge key={key} className="bg-[#f5f5f5] text-slate-600 border-[#e5e5e5] text-[12px]">{label}: {byStatus[key] ?? 0}</Badge>
+                        <Badge key={key} className="bg-neutral-100 text-slate-600 border-neutral-200 text-xs">{label}: {byStatus[key] ?? 0}</Badge>
                     ))}
                 </div>
             </div>
@@ -2169,22 +2169,22 @@ export default function SDRActionPage() {
                                 <Phone className="w-5 h-5 text-[#CFE0D5]" />
                             </div>
                             <div>
-                                <h1 className="text-[22px] font-[500] text-white leading-tight">Actions</h1>
+                                <h1 className="text-[22px] font-medium text-white leading-tight">Actions</h1>
                                 <p className="text-[13px] text-white/50">File d'actions — vue tableau</p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap">
                             <div className="flex rounded-xl border border-white/10 p-0.5 bg-white/5">
-                                <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-[500] rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <User className="w-3.5 h-3.5" /> Carte
                                 </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-[500] rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <Building2 className="w-3.5 h-3.5" /> Tableau
                                 </button>
                             </div>
 
-                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white backdrop-blur-sm gap-1.5 px-3 py-1.5 h-auto text-[13px] font-[500]">
+                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white backdrop-blur-sm gap-1.5 px-3 py-1.5 h-auto text-[13px] font-medium">
                                 <BarChart2 className="w-3.5 h-3.5" /> Stats
                             </Button>
 
@@ -2192,32 +2192,32 @@ export default function SDRActionPage() {
 
                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/8 border border-white/10">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-[22px] font-[500] text-white tabular-nums leading-none">{actionsCompleted}</span>
-                                <span className="text-[11px] text-white/50 uppercase tracking-wide font-[500]">actions</span>
+                                <span className="text-[22px] font-medium text-white tabular-nums leading-none">{actionsCompleted}</span>
+                                <span className="text-[11px] text-white/50 uppercase tracking-wide font-medium">actions</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* Filter Card */}
-                <div className="bg-white rounded-2xl border border-[#e5e5e5] shadow-sm overflow-hidden">
-                    <div className="px-5 py-3.5 border-b border-[#e5e5e5] bg-[#f5f5f5]/50">
+                <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+                    <div className="px-5 py-3.5 border-b border-neutral-200 bg-neutral-100/50">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-sm shadow-[#2B5F3E]/20">
                                     <Filter className="w-3.5 h-3.5 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-[14px] font-[500] text-[#1a1a1a]">Filtres</h3>
+                                    <h3 className="text-sm font-medium text-neutral-900">Filtres</h3>
                                     {hasTableFiltersActive && (
-                                        <p className="text-[12px] text-violet-600 font-[500]">
+                                        <p className="text-xs text-violet-600 font-medium">
                                             {[tableFilterResult, tableFilterPriority, tableFilterChannel, tableFilterType].filter(Boolean).length} actif{[tableFilterResult, tableFilterPriority, tableFilterChannel, tableFilterType].filter(Boolean).length > 1 ? "s" : ""}
                                         </p>
                                     )}
                                 </div>
                             </div>
                             {hasTableFiltersActive && (
-                                <Button variant="ghost" size="sm" onClick={clearTableFilters} className="text-slate-400 hover:text-red-500 hover:bg-red-50 gap-1.5 text-[12px] h-7">
+                                <Button variant="ghost" size="sm" onClick={clearTableFilters} className="text-slate-400 hover:text-red-500 hover:bg-red-50 gap-1.5 text-xs h-7">
                                     <RotateCcw className="w-3 h-3" />
                                     Réinitialiser
                                 </Button>
@@ -2229,28 +2229,28 @@ export default function SDRActionPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
                             {/* Mission */}
                             <div className="space-y-1 xl:col-span-2">
-                                <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Mission</label>
-                                <select value={selectedMissionId || ""} onChange={handleMissionChange} className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Mission</label>
+                                <select value={selectedMissionId || ""} onChange={handleMissionChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
                                     {selectableMissions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                                 </select>
                             </div>
                             {/* Liste */}
                             <div className="space-y-1">
-                                <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Liste</label>
-                                <select value={selectedListId || "all"} onChange={handleListChange} className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Liste</label>
+                                <select value={selectedListId || "all"} onChange={handleListChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
                                     <option value="all">Toutes</option>
                                     {filteredLists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                                 </select>
                             </div>
                             {/* Search */}
                             <div className="space-y-1 sm:col-span-2 xl:col-span-2">
-                                <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Rechercher</label>
-                                <input type="text" value={tableSearchInput} onChange={(e) => setTableSearchInput(e.target.value)} placeholder="Contact, société ou numéro…" className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow" />
+                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Rechercher</label>
+                                <input type="text" value={tableSearchInput} onChange={(e) => setTableSearchInput(e.target.value)} placeholder="Contact, société ou numéro…" className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow" />
                             </div>
                             {/* Statut */}
                             <div className="space-y-1">
-                                <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Statut</label>
-                                <select value={tableFilterResult} onChange={(e) => setTableFilterResult(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Statut</label>
+                                <select value={tableFilterResult} onChange={(e) => setTableFilterResult(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
                                     <option value="">Tous</option>
                                     <option value="NONE">Jamais contacté</option>
                                     {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -2258,24 +2258,24 @@ export default function SDRActionPage() {
                             </div>
                             {/* Priorité */}
                             <div className="space-y-1">
-                                <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Priorité</label>
-                                <select value={tableFilterPriority} onChange={(e) => setTableFilterPriority(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Priorité</label>
+                                <select value={tableFilterPriority} onChange={(e) => setTableFilterPriority(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
                                     <option value="">Toutes</option>
                                     {Object.entries(PRIORITY_LABELS).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}
                                 </select>
                             </div>
                             {/* Canal */}
                             <div className="space-y-1">
-                                <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Canal</label>
-                                <select value={tableFilterChannel} onChange={(e) => setTableFilterChannel(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Canal</label>
+                                <select value={tableFilterChannel} onChange={(e) => setTableFilterChannel(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
                                     <option value="">Tous</option>
                                     {(Object.entries(CHANNEL_LABELS) as [Channel, string][]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                                 </select>
                             </div>
                             {/* Type */}
                             <div className="space-y-1">
-                                <label className="text-[11px] font-[500] text-slate-400 uppercase tracking-wide block">Type</label>
-                                <select value={tableFilterType} onChange={(e) => setTableFilterType(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-[#e5e5e5] rounded-lg bg-white text-[#1a1a1a] focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Type</label>
+                                <select value={tableFilterType} onChange={(e) => setTableFilterType(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
                                     <option value="">Tous</option>
                                     <option value="contact">Contact</option>
                                     <option value="company">Société</option>
@@ -2284,17 +2284,17 @@ export default function SDRActionPage() {
                         </div>
 
                         {/* Results summary */}
-                        <div className="mt-3 pt-3 border-t border-[#e5e5e5] flex items-center justify-between">
-                            <span className="text-[12px] text-slate-500">
+                        <div className="mt-3 pt-3 border-t border-neutral-200 flex items-center justify-between">
+                            <span className="text-xs text-slate-500">
                                 {tableSearchApi ? (
-                                    <><span className="font-[500] text-violet-600">{queueItems.length}</span> résultat{queueItems.length !== 1 ? "s" : ""} pour «&nbsp;{tableSearchApi}&nbsp;»</>
+                                    <><span className="font-medium text-violet-600">{queueItems.length}</span> résultat{queueItems.length !== 1 ? "s" : ""} pour «&nbsp;{tableSearchApi}&nbsp;»</>
                                 ) : hasTableFiltersActive ? (
-                                    <><span className="font-[500] text-violet-600">{filteredQueueItems.length}</span> sur {queueItems.length}</>
+                                    <><span className="font-medium text-violet-600">{filteredQueueItems.length}</span> sur {queueItems.length}</>
                                 ) : (
-                                    <><span className="font-[500] text-[#1a1a1a]">{queueItems.length}</span> dans la file</>
+                                    <><span className="font-medium text-neutral-900">{queueItems.length}</span> dans la file</>
                                 )}
                             </span>
-                            <Button variant="ghost" size="sm" onClick={() => refreshQueue()} className="text-slate-400 hover:text-violet-600 gap-1.5 text-[12px] h-7">
+                            <Button variant="ghost" size="sm" onClick={() => refreshQueue()} className="text-slate-400 hover:text-violet-600 gap-1.5 text-xs h-7">
                                 <RefreshCw className="w-3 h-3" />
                                 Actualiser
                             </Button>
@@ -2600,16 +2600,16 @@ export default function SDRActionPage() {
                                 <Phone className="w-5 h-5 text-[#CFE0D5]" />
                             </div>
                             <div>
-                                <h1 className="text-[22px] font-[500] text-white leading-tight">Actions</h1>
+                                <h1 className="text-[22px] font-medium text-white leading-tight">Actions</h1>
                                 <p className="text-[13px] text-white/50">Gérez vos actions commerciales</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <div className="flex rounded-xl border border-white/10 p-0.5 bg-white/5">
-                                <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-[500] rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <User className="w-3.5 h-3.5" /> Carte
                                 </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-[500] rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <Building2 className="w-3.5 h-3.5" /> Tableau
                                 </button>
                             </div>
@@ -2621,7 +2621,7 @@ export default function SDRActionPage() {
                 </div>
 
                 {/* Empty State */}
-                <div className="bg-white rounded-2xl border border-[#e5e5e5] shadow-sm p-12">
+                <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm p-12">
                     <EmptyState
                         icon={CheckCircle2}
                         title="File d'attente vide"
@@ -2651,11 +2651,11 @@ export default function SDRActionPage() {
             {/* Success Overlay */}
             {showSuccess && (
                 <div className="fixed inset-0 bg-white/80 backdrop-blur-md z-50 flex items-center justify-center">
-                    <div className="text-center animate-fade-in bg-white rounded-2xl border border-[#e5e5e5] shadow-xl px-10 py-8">
+                    <div className="text-center animate-fade-in bg-white rounded-2xl border border-neutral-200 shadow-xl px-10 py-8">
                         <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
                             <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                         </div>
-                        <p className="text-[18px] font-[500] text-[#1a1a1a]">Action enregistrée</p>
+                        <p className="text-[18px] font-medium text-neutral-900">Action enregistrée</p>
                         <p className="text-[13px] text-slate-400 mt-1">Chargement du contact suivant…</p>
                     </div>
                 </div>
@@ -2675,11 +2675,11 @@ export default function SDRActionPage() {
                                 <Phone className="w-5 h-5 text-[#CFE0D5]" />
                             </div>
                             <div>
-                                <h1 className="text-[22px] font-[500] text-white leading-tight tracking-tight">Actions</h1>
+                                <h1 className="text-[22px] font-medium text-white leading-tight tracking-tight">Actions</h1>
                                 <p className="text-[13px] text-white/50 mt-0.5 truncate max-w-[280px]">{currentAction.missionName || "Gérez vos actions commerciales"}</p>
                             </div>
                             {currentAction.priority && PRIORITY_LABELS[currentAction.priority] && (
-                                <Badge className={cn("text-[11px] font-[500] uppercase tracking-wide", PRIORITY_LABELS[currentAction.priority].color)}>
+                                <Badge className={cn("text-[11px] font-medium uppercase tracking-wide", PRIORITY_LABELS[currentAction.priority].color)}>
                                     {PRIORITY_LABELS[currentAction.priority].label}
                                 </Badge>
                             )}
@@ -2689,10 +2689,10 @@ export default function SDRActionPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                             {/* View Toggle */}
                             <div className="flex rounded-xl border border-white/10 p-0.5 bg-white/5">
-                                <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-[500] rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <User className="w-3.5 h-3.5" /> Carte
                                 </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-[500] rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <Building2 className="w-3.5 h-3.5" /> Tableau
                                 </button>
                             </div>
@@ -2700,7 +2700,7 @@ export default function SDRActionPage() {
                             <Select variant="header-dark" value={selectedMissionId || ""} onChange={(id) => { setSelectedMissionId(id); localStorage.setItem("sdr_selected_mission", id); const firstList = lists.find((l) => l.mission.id === id); setSelectedListId(firstList?.id ?? null); }} options={selectableMissions.map((m) => ({ value: m.id, label: m.name }))} placeholder="Mission" className="min-w-[160px]" />
                             <Select variant="header-dark" value={selectedListId || "all"} onChange={(id) => setSelectedListId(id === "all" ? null : id)} options={[{ value: "all", label: "Toutes les listes" }, ...filteredLists.map((l) => ({ value: l.id, label: l.name }))]} placeholder="Liste" className="min-w-[140px]" />
 
-                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white backdrop-blur-sm gap-1.5 px-3 py-1.5 h-auto text-[13px] font-[500]">
+                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white backdrop-blur-sm gap-1.5 px-3 py-1.5 h-auto text-[13px] font-medium">
                                 <BarChart2 className="w-3.5 h-3.5" /> Stats
                             </Button>
 
@@ -2709,8 +2709,8 @@ export default function SDRActionPage() {
                             {/* Session counter */}
                             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/8 border border-white/10">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-[22px] font-[500] text-white tabular-nums leading-none">{actionsCompleted}</span>
-                                <span className="text-[11px] text-white/50 uppercase tracking-wide font-[500]">actions</span>
+                                <span className="text-[22px] font-medium text-white tabular-nums leading-none">{actionsCompleted}</span>
+                                <span className="text-[11px] text-white/50 uppercase tracking-wide font-medium">actions</span>
                             </div>
                         </div>
                     </div>
@@ -2733,29 +2733,29 @@ export default function SDRActionPage() {
                 {/* Left - Contact Panel (2 cols) */}
                 <div className="lg:col-span-2 space-y-3">
                     {/* Company Card */}
-                    <div className="bg-white rounded-2xl border border-[#e5e5e5] shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
                         <div className="p-4">
                             <div className="flex items-start gap-3">
                                 {/* Company initials avatar */}
                                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-slate-800/20">
-                                    <span className="text-[15px] font-[500] text-white tracking-wide">
+                                    <span className="text-[15px] font-medium text-white tracking-wide">
                                         {getInitials(null, null, currentAction.company?.name)}
                                     </span>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-2">
                                         <div>
-                                            <h2 className="text-[18px] font-[500] text-[#1a1a1a] truncate leading-tight">
+                                            <h2 className="text-[18px] font-medium text-neutral-900 truncate leading-tight">
                                                 {currentAction.company?.name}
                                             </h2>
                                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                                                 {currentAction.company?.industry && (
-                                                    <span className="text-[11px] font-[500] uppercase tracking-wide text-slate-500 bg-[#f5f5f5] border border-[#e5e5e5] px-2 py-0.5 rounded-md">
+                                                    <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md">
                                                         {currentAction.company.industry}
                                                     </span>
                                                 )}
                                                 {currentAction.company?.country && (
-                                                    <span className="text-[11px] font-[500] uppercase tracking-wide text-slate-500 bg-[#f5f5f5] border border-[#e5e5e5] px-2 py-0.5 rounded-md">
+                                                    <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md">
                                                         {currentAction.company.country}
                                                     </span>
                                                 )}
@@ -2768,7 +2768,7 @@ export default function SDRActionPage() {
                                         )}
                                     </div>
                                     {currentAction.company?.website && (
-                                        <a href={`https://${currentAction.company.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-[12px] text-[#2B5F3E] hover:text-[#224A31] font-[400] transition-colors">
+                                        <a href={`https://${currentAction.company.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-xs text-[#2B5F3E] hover:text-[#224A31] font-normal transition-colors">
                                             <Globe className="w-3 h-3" />
                                             {currentAction.company.website}
                                             <ExternalLink className="w-2.5 h-2.5 opacity-60" />
@@ -2780,14 +2780,14 @@ export default function SDRActionPage() {
                     </div>
 
                     {/* Contact/Company Card */}
-                    <Card className="border-[#e5e5e5] shadow-sm">
+                    <Card className="border-neutral-200 shadow-sm">
                         {currentAction.contact ? (
                             <>
                                 <div className="flex items-start gap-3 mb-4">
                                     {/* Contact initials avatar */}
                                     <div className="relative flex-shrink-0">
                                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
-                                            <span className="text-[16px] font-[500] text-white tracking-wide">
+                                            <span className="text-[16px] font-medium text-white tracking-wide">
                                                 {getInitials(currentAction.contact.firstName, currentAction.contact.lastName)}
                                             </span>
                                         </div>
@@ -2802,7 +2802,7 @@ export default function SDRActionPage() {
                                         </div>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[18px] font-[500] text-[#1a1a1a] leading-tight">
+                                        <p className="text-[18px] font-medium text-neutral-900 leading-tight">
                                             {currentAction.contact.firstName} {currentAction.contact.lastName}
                                         </p>
                                         {currentAction.contact.title && (
@@ -2830,7 +2830,7 @@ export default function SDRActionPage() {
                                                         lastAction: currentAction.lastAction,
                                                         lastActionBy: currentAction.lastActionBy ?? null,
                                                     })}
-                                                    className="flex flex-1 items-center justify-center gap-2.5 h-12 text-[14px] font-[500] text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
+                                                    className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
                                                 >
                                                     <Phone className="w-4 h-4" />
                                                     <span className="font-mono tracking-wide">{phone}</span>
@@ -2839,7 +2839,7 @@ export default function SDRActionPage() {
                                                     type="button"
                                                     onClick={() => copyToClipboard(phone)}
                                                     title="Copier le numéro"
-                                                    className="w-12 h-12 rounded-xl border border-[#e5e5e5] bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                                    className="w-12 h-12 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
                                                 >
                                                     <Copy className="w-4 h-4" />
                                                 </button>
@@ -2853,7 +2853,7 @@ export default function SDRActionPage() {
                                         return isValidEmail ? (
                                             <a
                                                 href={`mailto:${email}`}
-                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-[400] text-slate-600 bg-[#f5f5f5] border border-[#e5e5e5] hover:bg-[#ebebeb] hover:border-slate-300 rounded-xl transition-colors"
+                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-normal text-slate-600 bg-neutral-100 border border-neutral-200 hover:bg-[#ebebeb] hover:border-slate-300 rounded-xl transition-colors"
                                             >
                                                 <Mail className="w-3.5 h-3.5 text-slate-500" />
                                                 <span className="truncate max-w-[200px]">{email}</span>
@@ -2867,13 +2867,13 @@ export default function SDRActionPage() {
                                                 href={currentAction.contact.linkedin.startsWith("http") ? currentAction.contact.linkedin : `https://${currentAction.contact.linkedin}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-[400] text-sky-700 bg-sky-50 border border-sky-200/60 hover:bg-sky-100 rounded-xl transition-colors"
+                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-normal text-sky-700 bg-sky-50 border border-sky-200/60 hover:bg-sky-100 rounded-xl transition-colors"
                                             >
                                                 <Linkedin className="w-3.5 h-3.5" />
                                                 LinkedIn
                                             </a>
                                         ) : (
-                                            <div className="flex items-center justify-center gap-1.5 h-10 w-full text-[12px] text-slate-400 bg-slate-50 border border-slate-200/60 rounded-xl">
+                                            <div className="flex items-center justify-center gap-1.5 h-10 w-full text-xs text-slate-400 bg-slate-50 border border-slate-200/60 rounded-xl">
                                                 <Linkedin className="w-3.5 h-3.5 opacity-40" />
                                                 Pas de LinkedIn
                                             </div>
@@ -2883,13 +2883,13 @@ export default function SDRActionPage() {
                                                 href={currentAction.company.website.startsWith("http") ? currentAction.company.website : `https://${currentAction.company.website}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-[400] text-emerald-700 bg-emerald-50 border border-emerald-200/60 hover:bg-emerald-100 rounded-xl transition-colors"
+                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-normal text-emerald-700 bg-emerald-50 border border-emerald-200/60 hover:bg-emerald-100 rounded-xl transition-colors"
                                             >
                                                 <Globe className="w-3.5 h-3.5" />
                                                 Site Web
                                             </a>
                                         ) : (
-                                            <div className="flex items-center justify-center gap-1.5 h-10 w-full text-[12px] text-slate-400 bg-slate-50 border border-slate-200/60 rounded-xl">
+                                            <div className="flex items-center justify-center gap-1.5 h-10 w-full text-xs text-slate-400 bg-slate-50 border border-slate-200/60 rounded-xl">
                                                 <Globe className="w-3.5 h-3.5 opacity-40" />
                                                 Pas de site
                                             </div>
@@ -2909,7 +2909,7 @@ export default function SDRActionPage() {
                                                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                                         Aucun numéro de téléphone valide
                                                     </div>
-                                                    <Button variant="outline" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="w-full gap-2 border-[#e5e5e5] text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
+                                                    <Button variant="outline" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
                                                         <PenLine className="w-3.5 h-3.5" />
                                                         Ajouter un numéro
                                                     </Button>
@@ -2959,11 +2959,11 @@ export default function SDRActionPage() {
                             <>
                                 <div className="flex items-start gap-3 mb-4">
                                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-md">
-                                        <span className="text-[15px] font-[500] text-white">{getInitials(null, null, currentAction.company.name)}</span>
+                                        <span className="text-[15px] font-medium text-white">{getInitials(null, null, currentAction.company.name)}</span>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[18px] font-[500] text-[#1a1a1a] leading-tight">{currentAction.company.name}</p>
-                                        <span className="text-[11px] font-[500] uppercase tracking-wide text-slate-500 bg-[#f5f5f5] border border-[#e5e5e5] px-2 py-0.5 rounded-md mt-1 inline-block">Entreprise</span>
+                                        <p className="text-[18px] font-medium text-neutral-900 leading-tight">{currentAction.company.name}</p>
+                                        <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md mt-1 inline-block">Entreprise</span>
                                     </div>
                                     {currentAction.company.id && (
                                         <Button variant="ghost" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
@@ -2974,7 +2974,7 @@ export default function SDRActionPage() {
                                 <div className="space-y-2">
                                     {currentAction.company.phone ? (
                                         <div className="flex items-stretch gap-2">
-                                            <a href={`tel:${currentAction.company.phone}`} onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, { lastAction: currentAction.lastAction, lastActionBy: currentAction.lastActionBy ?? null })} className="flex flex-1 items-center justify-center gap-2 h-11 text-[14px] font-[500] text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]">
+                                            <a href={`tel:${currentAction.company.phone}`} onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, { lastAction: currentAction.lastAction, lastActionBy: currentAction.lastActionBy ?? null })} className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]">
                                                 <Phone className="w-4 h-4" />
                                                 {currentAction.company.phone}
                                             </a>
@@ -2982,13 +2982,13 @@ export default function SDRActionPage() {
                                                 type="button"
                                                 onClick={() => copyToClipboard(currentAction.company!.phone!)}
                                                 title="Copier le numéro"
-                                                className="w-11 h-11 rounded-xl border border-[#e5e5e5] bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                                className="w-11 h-11 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
                                             >
                                                 <Copy className="w-4 h-4" />
                                             </button>
                                         </div>
                                     ) : (
-                                        <Button variant="outline" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="w-full gap-2 border-[#e5e5e5] text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
+                                        <Button variant="outline" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
                                             <PenLine className="w-3.5 h-3.5" />
                                             Ajouter un numéro
                                         </Button>
@@ -3002,20 +3002,20 @@ export default function SDRActionPage() {
                             <div className="mt-3 rounded-xl border border-amber-200/70 bg-amber-50 overflow-hidden">
                                 <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-100">
                                     <History className="w-3.5 h-3.5 text-amber-500" />
-                                    <span className="text-[11px] font-[500] uppercase tracking-wide text-amber-700">Dernière interaction</span>
-                                    <span className="ml-auto text-[11px] text-amber-500 font-[400]">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-amber-700">Dernière interaction</span>
+                                    <span className="ml-auto text-[11px] text-amber-500 font-normal">
                                         {new Date(currentAction.lastAction.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                     </span>
                                 </div>
                                 <div className="px-3 py-2.5">
                                     {currentAction.lastActionBy?.id && currentAction.lastActionBy.id !== session?.user?.id && currentAction.lastActionBy.name && (
-                                        <p className="text-[12px] text-amber-600 font-[500] mb-1.5">Par {currentAction.lastActionBy.name}</p>
+                                        <p className="text-xs text-amber-600 font-medium mb-1.5">Par {currentAction.lastActionBy.name}</p>
                                     )}
                                     <div className="flex items-center gap-2">
                                         {(() => {
                                             const sem = RESULT_SEMANTIC[currentAction.lastAction.result];
                                             return (
-                                                <span className={cn("inline-flex items-center gap-1 text-[12px] font-[500] px-2 py-1 rounded-lg border", sem ? cn(sem.selectedCls) : "bg-slate-100 text-slate-600 border-slate-200")}>
+                                                <span className={cn("inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-lg border", sem ? cn(sem.selectedCls) : "bg-slate-100 text-slate-600 border-slate-200")}>
                                                     {RESULT_ICON_MAP[currentAction.lastAction.result]}
                                                     <span className="ml-0.5">{statusLabels[currentAction.lastAction.result] ?? currentAction.lastAction.result}</span>
                                                 </span>
@@ -3036,20 +3036,20 @@ export default function SDRActionPage() {
                 {/* Right - Script Panel (3 cols) */}
                 {!showBookingDrawer && (
                 <div className="lg:col-span-3">
-                    <div className="bg-white rounded-2xl border border-[#e5e5e5] shadow-sm h-full overflow-hidden">
-                        <div className="px-5 py-4 border-b border-[#e5e5e5] bg-gradient-to-r from-[#f5f5f5] to-white">
+                    <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm h-full overflow-hidden">
+                        <div className="px-5 py-4 border-b border-neutral-200 bg-gradient-to-r from-[#f5f5f5] to-white">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
                                         <Sparkles className="w-4 h-4 text-white" />
                                     </div>
                                     <div>
-                                        <h3 className="text-[16px] font-[500] text-[#1a1a1a]">Script d'appel</h3>
-                                        <p className="text-[12px] text-slate-400">Guide conversationnel</p>
+                                        <h3 className="text-[16px] font-medium text-neutral-900">Script d'appel</h3>
+                                        <p className="text-xs text-slate-400">Guide conversationnel</p>
                                     </div>
                                 </div>
                                 {currentAction?.scriptDefaultTab && (
-                                    <span className="text-[11px] font-[500] uppercase tracking-wide text-[#2B5F3E] bg-[#E7EFE9] border border-[#C4D6CB] px-2 py-1 rounded-lg">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-[#2B5F3E] bg-[#E7EFE9] border border-[#C4D6CB] px-2 py-1 rounded-lg">
                                         {SCRIPT_TABS.find((t) => t.id === currentAction.scriptDefaultTab)?.label ?? "Script"}
                                     </span>
                                 )}
@@ -3079,24 +3079,24 @@ export default function SDRActionPage() {
                             {availableScriptTabs.length > 0 ? (
                                 <>
                                     <Tabs tabs={availableScriptTabs} activeTab={activeTab} onTabChange={setActiveTab} className="mb-3" />
-                                    <div className="bg-[#f5f5f5] border border-[#e5e5e5] rounded-xl p-4 min-h-[200px] max-h-[420px] overflow-y-auto">
-                                        <p className="text-[14px] text-slate-700 leading-[1.65] whitespace-pre-wrap font-[400]">
+                                    <div className="bg-neutral-100 border border-neutral-200 rounded-xl p-4 min-h-[200px] max-h-[420px] overflow-y-auto">
+                                        <p className="text-sm text-slate-700 leading-[1.65] whitespace-pre-wrap font-normal">
                                             {scriptPanelContent[activeTab as keyof typeof scriptPanelContent] || ""}
                                         </p>
                                     </div>
                                 </>
                             ) : currentAction.script ? (
-                                <div className="bg-[#f5f5f5] border border-[#e5e5e5] rounded-xl p-4 max-h-[420px] overflow-y-auto">
-                                    <p className="text-[14px] text-slate-700 leading-[1.65] whitespace-pre-wrap font-[400]">
+                                <div className="bg-neutral-100 border border-neutral-200 rounded-xl p-4 max-h-[420px] overflow-y-auto">
+                                    <p className="text-sm text-slate-700 leading-[1.65] whitespace-pre-wrap font-normal">
                                         {currentAction.script}
                                     </p>
                                 </div>
                             ) : (
                                 <div className="text-center py-12">
-                                    <div className="w-12 h-12 rounded-2xl bg-[#f5f5f5] border border-[#e5e5e5] flex items-center justify-center mx-auto mb-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-3">
                                         <Sparkles className="w-5 h-5 text-slate-300" />
                                     </div>
-                                    <p className="text-[14px] text-slate-400">Aucun script configuré</p>
+                                    <p className="text-sm text-slate-400">Aucun script configuré</p>
                                 </div>
                             )}
                         </div>
@@ -3114,15 +3114,15 @@ export default function SDRActionPage() {
                                 <CheckCircle2 className="w-4.5 h-4.5 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-[16px] font-[500] text-[#1a1a1a] leading-tight">Résultat de l'action</h3>
-                                <p className="text-[12px] text-slate-400 mt-0.5">Sélectionnez ou tapez le chiffre correspondant</p>
+                                <h3 className="text-[16px] font-medium text-neutral-900 leading-tight">Résultat de l'action</h3>
+                                <p className="text-xs text-slate-400 mt-0.5">Sélectionnez ou tapez le chiffre correspondant</p>
                             </div>
                         </div>
                         {selectedResult && (
                             <button
                                 type="button"
                                 onClick={() => setSelectedResult(null)}
-                                className="text-[11px] font-[500] uppercase tracking-wide text-slate-400 hover:text-slate-600 transition-colors"
+                                className="text-[11px] font-medium uppercase tracking-wide text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 Effacer
                             </button>
@@ -3144,24 +3144,24 @@ export default function SDRActionPage() {
                                         "border-l-[3px]",
                                         isSelected
                                             ? cn(sem.selectedCls, "shadow-md scale-[1.02]", sem.activeBorder)
-                                            : cn("bg-white border-[#e5e5e5]", sem.hoverCls, "hover:shadow-sm hover:scale-[1.01]", "border-l-transparent")
+                                            : cn("bg-white border-neutral-200", sem.hoverCls, "hover:shadow-sm hover:scale-[1.01]", "border-l-transparent")
                                     )}
                                 >
                                     <span className={cn(
                                         "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
-                                        isSelected ? sem.iconCls : "bg-[#f5f5f5] text-slate-400 group-hover:text-slate-600"
+                                        isSelected ? sem.iconCls : "bg-neutral-100 text-slate-400 group-hover:text-slate-600"
                                     )}>
                                         {option.icon}
                                     </span>
                                     <span className={cn(
-                                        "text-[13px] font-[400] leading-snug",
-                                        isSelected ? "text-[#1a1a1a] font-[500]" : "text-slate-600"
+                                        "text-[13px] font-normal leading-snug",
+                                        isSelected ? "text-neutral-900 font-medium" : "text-slate-600"
                                     )}>
                                         {option.label}
                                     </span>
                                     <span className={cn(
-                                        "absolute top-2 right-2 w-4.5 h-4.5 flex items-center justify-center text-[10px] font-[500] font-mono rounded-md transition-colors",
-                                        isSelected ? "bg-white/70 text-slate-500" : "bg-[#f5f5f5] text-slate-400"
+                                        "absolute top-2 right-2 w-4.5 h-4.5 flex items-center justify-center text-[10px] font-medium font-mono rounded-md transition-colors",
+                                        isSelected ? "bg-white/70 text-slate-500" : "bg-neutral-100 text-slate-400"
                                     )}>
                                         {option.key}
                                     </span>
@@ -3173,12 +3173,12 @@ export default function SDRActionPage() {
             </div>
 
             {/* Note */}
-            <div className="bg-white rounded-2xl border border-[#e5e5e5] shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#e5e5e5] bg-[#f5f5f5]/50">
+            <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-neutral-200 bg-neutral-100/50">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-slate-400" />
-                            <h3 className="text-[14px] font-[500] text-[#1a1a1a]">
+                            <h3 className="text-sm font-medium text-neutral-900">
                                 Note
                                 {selectedResult && getRequiresNote(selectedResult) && (
                                     <span className="text-red-500 ml-1">*</span>
@@ -3186,13 +3186,13 @@ export default function SDRActionPage() {
                             </h3>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-[12px] text-slate-400 tabular-nums">{note.length}/500</span>
+                            <span className="text-xs text-slate-400 tabular-nums">{note.length}/500</span>
                             {currentAction?.channel === 'CALL' && (
                                 <button
                                     type="button"
                                     onClick={openAlloDialog}
                                     className={cn(
-                                        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[12px] font-[500] border transition-all",
+                                        "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
                                         linkedAlloCall
                                             ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
                                             : "bg-[#E7EFE9] text-[#2B5F3E] border-[#C4D6CB] hover:bg-[#D9E5DD]"
@@ -3213,7 +3213,7 @@ export default function SDRActionPage() {
                         placeholder="Note sur l'échange...  (Ctrl+Entrée pour valider)"
                         rows={3}
                         maxLength={500}
-                        className="w-full px-3 py-2.5 text-[14px] border border-[#e5e5e5] rounded-xl bg-[#f5f5f5]/30 text-[#1a1a1a] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2B5F3E]/25 focus:border-[#2B5F3E] focus:bg-white resize-none transition-colors leading-relaxed"
+                        className="w-full px-3 py-2.5 text-sm border border-neutral-200 rounded-xl bg-neutral-100/30 text-neutral-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2B5F3E]/25 focus:border-[#2B5F3E] focus:bg-white resize-none transition-colors leading-relaxed"
                     />
                     {/* Linked call preview */}
                     {linkedAlloCall && (
@@ -3270,8 +3270,8 @@ export default function SDRActionPage() {
                             <Calendar className="w-3.5 h-3.5 text-white" />
                         </div>
                         <div>
-                            <h3 className="text-[14px] font-[500] text-[#1a1a1a]">Date de rappel</h3>
-                            <p className="text-[12px] text-amber-600">Optionnel — ou indiquez-la dans la note</p>
+                            <h3 className="text-sm font-medium text-neutral-900">Date de rappel</h3>
+                            <p className="text-xs text-amber-600">Optionnel — ou indiquez-la dans la note</p>
                         </div>
                     </div>
                     <div className="p-4 space-y-3">
@@ -3288,7 +3288,7 @@ export default function SDRActionPage() {
                                             setCallbackQuickLabel(pick.label);
                                         }}
                                         className={cn(
-                                            "px-3 py-1.5 rounded-lg text-[12px] font-[500] border transition-all active:scale-[0.97]",
+                                            "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all active:scale-[0.97]",
                                             isActive
                                                 ? "bg-amber-500 text-white border-amber-500 shadow-sm"
                                                 : "bg-white text-amber-700 border-amber-200 hover:bg-amber-100 hover:border-amber-300"
@@ -3350,7 +3350,7 @@ export default function SDRActionPage() {
 
             {/* Sticky Submit Bar */}
             <div className="sticky bottom-0 z-20 -mx-4 px-4 pb-4 pt-3 bg-gradient-to-t from-[#f5f5f5] via-[#f5f5f5]/95 to-transparent backdrop-blur-sm">
-                <div className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-[#e5e5e5] shadow-lg shadow-slate-200/60 px-4 py-3">
+                <div className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-neutral-200 shadow-lg shadow-slate-200/60 px-4 py-3">
                     {/* Skip button + session timer */}
                     <div className="flex items-center gap-3">
                         <Button
@@ -3378,19 +3378,19 @@ export default function SDRActionPage() {
                                 } catch { showError("Erreur de connexion"); } finally { setIsSubmitting(false); }
                             }}
                             disabled={isSubmitting}
-                            className="gap-1.5 text-slate-400 hover:text-slate-600 hover:bg-[#f5f5f5] border border-[#e5e5e5] h-9 px-3 text-[13px]"
+                            className="gap-1.5 text-slate-400 hover:text-slate-600 hover:bg-neutral-100 border border-neutral-200 h-9 px-3 text-[13px]"
                         >
                             <SkipForward className="w-3.5 h-3.5" />
                             Passer
                         </Button>
                         {elapsedTime > 0 && (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#f5f5f5] border border-[#e5e5e5]">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-neutral-100 border border-neutral-200">
                                 <Clock className="w-3 h-3 text-slate-400" />
-                                <span className="text-[12px] font-[500] text-slate-500 tabular-nums">{formatTime(elapsedTime)}</span>
+                                <span className="text-xs font-medium text-slate-500 tabular-nums">{formatTime(elapsedTime)}</span>
                             </div>
                         )}
                         {/* Keyboard shortcut hints */}
-                        <div className="hidden xl:flex items-center gap-3 pl-3 border-l border-[#e5e5e5] text-[11px] text-slate-400">
+                        <div className="hidden xl:flex items-center gap-3 pl-3 border-l border-neutral-200 text-[11px] text-slate-400">
                             <span className="flex items-center gap-1"><span className="cpds-kbd">1-9</span> statut</span>
                             <span className="flex items-center gap-1"><span className="cpds-kbd">⏎</span> valider</span>
                             <span className="flex items-center gap-1"><span className="cpds-kbd">Ctrl+⏎</span> depuis la note</span>
@@ -3402,14 +3402,14 @@ export default function SDRActionPage() {
                     <div className="flex items-center gap-2">
                         {selectedResult && (
                             <div className={cn(
-                                "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-[500] border",
+                                "hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border",
                                 (() => {
                                     const sem = RESULT_SEMANTIC[selectedResult] ?? DEFAULT_SEMANTIC;
                                     return sem.selectedCls + " " + sem.activeBorder + " border-l-2";
                                 })()
                             )}>
                                 {RESULT_ICON_MAP[selectedResult]}
-                                <span className="text-[#1a1a1a]">{resultOptions.find(o => o.value === selectedResult)?.label}</span>
+                                <span className="text-neutral-900">{resultOptions.find(o => o.value === selectedResult)?.label}</span>
                             </div>
                         )}
                         {selectedResult === "ENVOIE_MAIL" && (
@@ -3431,7 +3431,7 @@ export default function SDRActionPage() {
                             onClick={handleSubmit}
                             disabled={!selectedResult || isSubmitting || (getRequiresNote(selectedResult) && !note.trim())}
                             isLoading={isSubmitting}
-                            className="gap-2 px-6 h-9 text-[14px] font-[500] shadow-md shadow-[#2B5F3E]/20 bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] border-0"
+                            className="gap-2 px-6 h-9 text-sm font-medium shadow-md shadow-[#2B5F3E]/20 bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] border-0"
                         >
                             {isSubmitting ? "Enregistrement…" : selectedResult === "ENVOIE_MAIL" ? "Enregistrer" : "Valider & Suivant"}
                             {!isSubmitting && <ChevronRight className="w-4 h-4" />}

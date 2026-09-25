@@ -817,33 +817,33 @@ export default function CommercialPortalMeetingsPage() {
   ];
 
   return (
-    <div className="cp-page" style={{minHeight:"100%",background:tk.bg,padding:"28px 28px 56px"}}>
+    <div className="cp-page min-h-full bg-slate-50 px-7 pt-7 pb-14">
       <style dangerouslySetInnerHTML={{__html:GLOBAL_CSS}} />
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="cp-enter" style={{display:"flex",flexWrap:"wrap",alignItems:"flex-start",justifyContent:"space-between",gap:16,marginBottom:32}}>
+      <header className="cp-enter flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
-          <h1 style={{fontFamily:"'DM Sans','Inter',system-ui,sans-serif",fontSize:32,fontWeight:600,color:tk.ink,letterSpacing:"-0.03em",margin:0,lineHeight:1.15}}>
+          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight leading-tight m-0">
             Mes rendez-vous
           </h1>
-          <p style={{fontSize:13.5,color:tk.ink3,marginTop:6,lineHeight:1.5}}>
+          <p className="text-sm text-slate-500 mt-1.5 leading-normal">
             Consultez vos rendez-vous assignés et donnez votre feedback.
           </p>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div className="cp-search" style={{width:260}}>
-            <Search className="cp-search-ico" style={{width:15,height:15}} />
-            <input className="cp-input" type="search" placeholder="Contact, entreprise…" value={q} onChange={e=>setQ(e.target.value)} aria-label="Rechercher" />
-            {q && <button className="cp-search-clr" onClick={()=>setQ("")} aria-label="Effacer"><X style={{width:13,height:13}} /></button>}
+        <div className="flex items-center gap-2.5">
+          <div className="cp-search relative w-[260px]">
+            <Search className="cp-search-ico absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input className="cp-input w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500" type="search" placeholder="Contact, entreprise…" value={q} onChange={e=>setQ(e.target.value)} aria-label="Rechercher" />
+            {q && <button className="cp-search-clr absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" onClick={()=>setQ("")} aria-label="Effacer"><X className="w-3.5 h-3.5" /></button>}
           </div>
-          <button className="cp-btn cp-btn-secondary" style={{gap:7,padding:"0 14px"}} onClick={()=>genCSV(filtered)}>
-            <FileSpreadsheet style={{width:15,height:15}} />Exporter{filtered.length ? ` (${filtered.length} RDV)` : ""}
+          <button className="cp-btn cp-btn-secondary inline-flex items-center gap-2 px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold bg-white text-slate-700 hover:bg-slate-50 transition-colors" onClick={()=>genCSV(filtered)}>
+            <FileSpreadsheet className="w-4 h-4" />Exporter{filtered.length ? ` (${filtered.length} RDV)` : ""}
           </button>
         </div>
       </header>
 
       {/* ── Stats ──────────────────────────────────────────── */}
-      <div className="cp-enter" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24,animationDelay:"0.05s"}}>
+      <div className="cp-enter grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6" style={{animationDelay:"0.05s"}}>
         {STAT_CFG.map(({key,label,stripe})=>{
           const active=tab===key;
           return (
@@ -867,7 +867,7 @@ export default function CommercialPortalMeetingsPage() {
       </div>
 
       {/* ── Tabs ───────────────────────────────────────────── */}
-      <div className="cp-enter" style={{display:"flex",gap:2,padding:4,background:"rgba(0,0,0,0.04)",borderRadius:14,width:"fit-content",marginBottom:24,animationDelay:"0.09s"}}
+      <div className="cp-enter flex gap-1 p-1 bg-slate-200/50 rounded-xl w-fit mb-6" style={{animationDelay:"0.09s"}}
         role="tablist" aria-label="Filtrer les rendez-vous">
         {TABS.map(t=>{
           const active=tab===t.id;

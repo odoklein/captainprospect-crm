@@ -138,7 +138,8 @@
 }
 
 .rdv-table-content {
-  min-width: 1080px;
+  min-width: 100%;
+  width: max-content;
   display: flex;
   flex-direction: column;
 }
@@ -187,7 +188,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 1080px;
+  min-width: 100%;
+  width: max-content;
   box-sizing: border-box;
 }
 
