@@ -613,22 +613,33 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
         if (file.type.startsWith("video/") || file.size > 25 * 1024 * 1024) {
           // Dynamic import of FFmpeg to avoid SSR issues and keep initial bundle small
           const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-          const { fetchFile } = await import('@ffmpeg/util');
+          const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
           
           const ffmpeg = new FFmpeg();
+          ffmpeg.on('log', ({ message }) => console.log('[FFmpeg]', message));
           
-          // Use jsdelivr to load the core and wasm, avoids local path issues
+          // Use toBlobURL to bypass Web Worker CORS issues with external CDNs
+          const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
           await ffmpeg.load({
-            coreURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js",
-            wasmURL: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm",
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
           });
           
-          await ffmpeg.writeFile(file.name, await fetchFile(file));
+          // Sanitize file name to avoid issues with spaces or special chars in ffmpeg args
+          const safeName = `input.${file.name.split('.').pop() || 'mp4'}`;
+          await ffmpeg.writeFile(safeName, await fetchFile(file));
           
-          // Extract audio (128k mp3)
-          await ffmpeg.exec(['-i', file.name, '-q:a', '0', '-map', 'a', 'output.mp3']);
+          // Extract audio: remove video (-vn), force mp3 encoder (-acodec libmp3lame) at 128k
+          const ret = await ffmpeg.exec(['-i', safeName, '-vn', '-acodec', 'libmp3lame', '-b:a', '128k', 'output.mp3']);
+          if (ret !== 0) {
+            throw new Error(`FFmpeg a échoué avec le code ${ret}. L'extraction audio n'a pas pu aboutir.`);
+          }
           
           const audioData = await ffmpeg.readFile('output.mp3');
+          if ((audioData as Uint8Array).length === 0) {
+            throw new Error("Le fichier audio extrait est vide.");
+          }
+
           uploadFile = new File([audioData], file.name.replace(/\.[^/.]+$/, "") + ".mp3", {
             type: "audio/mp3",
           });

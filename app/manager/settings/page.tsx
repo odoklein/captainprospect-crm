@@ -473,16 +473,41 @@ export default function ManagerSettingsPage() {
           <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 shrink-0" />
         </Link>
 
+        {/* Nouveau Hub Général Broadcasts & Notifications */}
         <Link
-          href="/manager/settings/broadcast"
+          href="/manager/broadcasts"
+          className="flex items-center gap-4 p-5 rounded-2xl border-2 border-indigo-200 bg-gradient-to-r from-indigo-50/80 via-white to-indigo-50/40 hover:border-indigo-400 hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform shrink-0">
+            <Megaphone className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-bold text-slate-900 group-hover:text-indigo-700 text-base">
+                Hub Broadcasts & Notifications (Nouveau)
+              </p>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                Sans Code
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 mt-0.5">
+              Gérez toutes vos notifications automatiques (RDV, Sécurité), lancez des campagnes pour clients/commerciaux avec l&apos;éditeur visuel et prévisualisez le rendu réel.
+            </p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-indigo-500 group-hover:translate-x-1 transition-transform shrink-0" />
+        </Link>
+
+        {/* Quick link: Campagne email plateforme */}
+        <Link
+          href="/manager/broadcasts?tab=campaign"
           className="flex items-center gap-4 p-4 rounded-2xl border border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group"
         >
           <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
-            <Megaphone className="w-5 h-5 text-indigo-600" />
+            <Send className="w-5 h-5 text-indigo-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-900 group-hover:text-indigo-700">Campagne email plateforme</p>
-            <p className="text-sm text-slate-500">Envoyez un email HTML à tous les clients, tous les commerciaux ou une sélection manuelle. Historique des campagnes inclus.</p>
+            <p className="font-semibold text-slate-900 group-hover:text-indigo-700">Campagnes & Annonces Plateforme</p>
+            <p className="text-sm text-slate-500">Envoyez des messages ciblés à vos clients, commerciaux ou équipes internes avec historique et taux d&apos;ouverture.</p>
           </div>
           <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 shrink-0" />
         </Link>
