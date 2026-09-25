@@ -115,6 +115,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         last_action_callback_date: Date | null;
         last_action_sdr_id?: string | null;
         last_action_sdr_name?: string | null;
+        last_action_scope?: 'CONTACT' | 'COMPANY' | null;
+        company_last_action_result?: string | null;
+        company_last_action_note?: string | null;
+        company_last_action_created?: Date | null;
+        company_last_action_sdr_id?: string | null;
+        company_last_action_sdr_name?: string | null;
         priority: number;
         priority_label: string;
     }>>(`
@@ -258,9 +264,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             ORDER BY a."contactId", a."createdAt" DESC
         ),
         last_actions_companies AS (
-            -- Get last action per company (with SDR who did it)
-            SELECT DISTINCT ON (a."companyId")
-                a."companyId",
+            -- Get last action per company across all historical actions (both direct company actions and actions on its contacts)
+            SELECT DISTINCT ON (COALESCE(a."companyId", c_lookup."companyId"))
+                COALESCE(a."companyId", c_lookup."companyId") as company_id_resolved,
                 a.result,
                 a.note,
                 a."createdAt",
@@ -268,10 +274,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 a."sdrId",
                 u.name as sdr_name
             FROM "Action" a
+            LEFT JOIN "Contact" c_lookup ON a."contactId" = c_lookup.id
             INNER JOIN "User" u ON u.id = a."sdrId"
-            WHERE a."companyId" IN (SELECT company_id FROM all_targets WHERE contact_id IS NULL)
-              AND a."companyId" IS NOT NULL
-            ORDER BY a."companyId", a."createdAt" DESC
+            WHERE COALESCE(a."companyId", c_lookup."companyId") IN (SELECT company_id FROM all_targets)
+            ORDER BY COALESCE(a."companyId", c_lookup."companyId"), a."createdAt" DESC
         ),
         targets_with_last_action AS (
             SELECT
@@ -281,10 +287,16 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 COALESCE(lac."createdAt", lac2."createdAt") as last_action_created,
                 COALESCE(lac."callbackDate", lac2."callbackDate") as last_action_callback_date,
                 COALESCE(lac."sdrId", lac2."sdrId") as last_action_sdr_id,
-                COALESCE(lac.sdr_name, lac2.sdr_name) as last_action_sdr_name
+                COALESCE(lac.sdr_name, lac2.sdr_name) as last_action_sdr_name,
+                CASE WHEN lac.result IS NOT NULL THEN 'CONTACT' WHEN lac2.result IS NOT NULL THEN 'COMPANY' ELSE NULL END as last_action_scope,
+                lac2.result::text as company_last_action_result,
+                lac2.note as company_last_action_note,
+                lac2."createdAt" as company_last_action_created,
+                lac2."sdrId" as company_last_action_sdr_id,
+                lac2.sdr_name as company_last_action_sdr_name
             FROM all_targets at
             LEFT JOIN last_actions_contacts lac ON at.contact_id = lac."contactId"
-            LEFT JOIN last_actions_companies lac2 ON at.contact_id IS NULL AND at.company_id = lac2."companyId"
+            LEFT JOIN last_actions_companies lac2 ON at.company_id = lac2.company_id_resolved
         )
         SELECT *
         FROM targets_with_last_action
@@ -544,9 +556,17 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             note: next.last_action_note,
             createdAt: next.last_action_created?.toISOString(),
             callbackDate: next.last_action_callback_date?.toISOString(),
+            scope: next.last_action_scope ?? (next.contact_id ? "CONTACT" : "COMPANY"),
         } : null,
         lastActionBy: next.last_action_sdr_id
             ? { id: next.last_action_sdr_id, name: next.last_action_sdr_name ?? null }
             : null,
+        companyLastAction: next.company_last_action_result ? {
+            result: next.company_last_action_result,
+            note: next.company_last_action_note,
+            createdAt: next.company_last_action_created?.toISOString(),
+            sdrId: next.company_last_action_sdr_id,
+            sdrName: next.company_last_action_sdr_name ?? null,
+        } : null,
     });
 });

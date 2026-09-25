@@ -36,6 +36,7 @@ import {
     BarChart2,
     Trash2,
     Send,
+    AlertTriangle,
 } from "lucide-react";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
@@ -44,6 +45,7 @@ import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { ScriptCompanionDrawer } from "@/components/sdr/ScriptCompanionDrawer";
+import { AlreadyContactedModal, type AlreadyContactedInfo } from "@/components/sdr/AlreadyContactedModal";
 import { useSidebar } from "@/components/layout/SidebarProvider";
 
 const UnifiedActionDrawer = dynamic(
@@ -129,11 +131,19 @@ interface NextActionData {
     preferredInterlocuteurIds?: string[] | null;
     lastAction?: {
         result: string;
-        note?: string;
+        note?: string | null;
         createdAt: string;
-        callbackDate?: string;
-    };
+        callbackDate?: string | null;
+        scope?: "CONTACT" | "COMPANY" | null;
+    } | null;
     lastActionBy?: { id: string; name: string | null } | null;
+    companyLastAction?: {
+        result: string;
+        note?: string | null;
+        createdAt: string;
+        sdrId?: string | null;
+        sdrName?: string | null;
+    } | null;
 }
 
 interface Mission {
@@ -165,6 +175,7 @@ interface QueueItem {
     preferredInterlocuteurIds?: string[] | null;
     lastAction: NextActionData["lastAction"] | null;
     lastActionBy?: { id: string; name: string | null } | null;
+    companyLastAction?: NextActionData["companyLastAction"] | null;
     priority: string;
     hasContactInfo?: boolean;
     _displayName?: string;
@@ -611,6 +622,10 @@ export default function SDRActionPage() {
     const [statsQueueItems, setStatsQueueItems] = useState<QueueItem[]>([]);
     const [statsLoading, setStatsLoading] = useState(false);
 
+    // Already Contacted confirmation modal
+    const [alreadyContactedModalInfo, setAlreadyContactedModalInfo] = useState<AlreadyContactedInfo | null>(null);
+    const [alreadyContactedDetailsTarget, setAlreadyContactedDetailsTarget] = useState<{ contactId?: string; companyId?: string } | null>(null);
+
     // Drawer for table view (contact/company fiche)
     const [drawerContactId, setDrawerContactId] = useState<string | null>(null);
     const [drawerCompanyId, setDrawerCompanyId] = useState<string | null>(null);
@@ -861,44 +876,124 @@ export default function SDRActionPage() {
         return callbackResultCodes.has(code);
     }, [callbackResultCodes]);
 
+    interface PhoneAttemptContext {
+        lastAction?: {
+            result: string;
+            note?: string | null;
+            createdAt?: string;
+            callbackDate?: string | null;
+            scope?: "CONTACT" | "COMPANY" | null;
+        } | null;
+        lastActionBy?: { id: string; name: string | null } | null;
+        targetName?: string;
+        companyName?: string;
+        contactId?: string;
+        companyId?: string;
+    }
+
+    const isRecentlyContacted = useCallback((
+        lastAction?: PhoneAttemptContext["lastAction"],
+        lastActionBy?: PhoneAttemptContext["lastActionBy"]
+    ) => {
+        if (!lastAction) return false;
+
+        // Scheduled callback assigned to current user for today is exempt
+        const isMyScheduledCallbackToday =
+            lastAction.result === "CALLBACK_REQUESTED" &&
+            lastActionBy?.id === session?.user?.id &&
+            lastAction.callbackDate &&
+            new Date(lastAction.callbackDate).toDateString() === new Date().toDateString();
+
+        if (isMyScheduledCallbackToday) return false;
+
+        // Recent within 35 days OR has a note/comment
+        const isRecent = !!lastAction.createdAt && (Date.now() - new Date(lastAction.createdAt).getTime() <= 35 * 24 * 60 * 60 * 1000);
+        const hasComment = !!lastAction.note?.trim();
+        return isRecent || hasComment;
+    }, [session?.user?.id]);
+
     const handlePhoneCallAttempt = useCallback((
         e: React.MouseEvent,
         phone: string,
-        context?: {
-            lastAction?: { result: string; note?: string; createdAt?: string } | null;
-            lastActionBy?: { id: string; name: string | null } | null;
-        }
+        context?: PhoneAttemptContext
     ) => {
         e.preventDefault();
         e.stopPropagation();
-        const contactedByOther =
-            !!context?.lastAction &&
-            !!context?.lastActionBy?.id &&
-            context.lastActionBy.id !== session?.user?.id;
 
-        if (contactedByOther) {
-            const lastStatus = statusLabels[context?.lastAction?.result || ""] ?? context?.lastAction?.result ?? "Inconnu";
-            const lastNote = context?.lastAction?.note?.trim() || "Aucune note";
-            const byName = context?.lastActionBy?.name || "un autre SDR";
-            const confirmMessage =
-                `Ce prospect est en cours de contact par un autre SDR (${byName}).\n\n` +
-                `Dernier statut: ${lastStatus}\n` +
-                `Dernière note: ${lastNote}\n\n` +
-                `Voulez-vous quand même appeler ?`;
-            const accepted = window.confirm(confirmMessage);
-            if (!accepted) return;
+        if (context?.lastAction && isRecentlyContacted(context.lastAction, context.lastActionBy)) {
+            setAlreadyContactedDetailsTarget({
+                contactId: context.contactId,
+                companyId: context.companyId,
+            });
+            setAlreadyContactedModalInfo({
+                phone,
+                targetName: context.targetName,
+                companyName: context.companyName,
+                actionIntent: "CALL",
+                lastAction: context.lastAction,
+                lastActionBy: context.lastActionBy,
+                currentUserId: session?.user?.id,
+                statusLabel: statusLabels[context.lastAction.result] ?? context.lastAction.result,
+            });
+            return;
         }
-        window.location.href = `tel:${phone}`;
-    }, [session?.user?.id, statusLabels]);
 
-    const copyToClipboard = useCallback(async (value: string) => {
+        window.location.href = `tel:${phone}`;
+    }, [isRecentlyContacted, session?.user?.id, statusLabels]);
+
+    const copyToClipboard = useCallback(async (
+        value: string,
+        context?: PhoneAttemptContext
+    ) => {
+        if (context?.lastAction && isRecentlyContacted(context.lastAction, context.lastActionBy)) {
+            setAlreadyContactedDetailsTarget({
+                contactId: context.contactId,
+                companyId: context.companyId,
+            });
+            setAlreadyContactedModalInfo({
+                phone: value,
+                targetName: context.targetName,
+                companyName: context.companyName,
+                actionIntent: "COPY",
+                lastAction: context.lastAction,
+                lastActionBy: context.lastActionBy,
+                currentUserId: session?.user?.id,
+                statusLabel: statusLabels[context.lastAction.result] ?? context.lastAction.result,
+            });
+            return;
+        }
+
         try {
             await navigator.clipboard.writeText(value);
             success("Copié", value);
         } catch {
             showError("Impossible de copier");
         }
-    }, [success, showError]);
+    }, [isRecentlyContacted, session?.user?.id, statusLabels, success, showError]);
+
+    const handleAlreadyContactedConfirm = useCallback(async () => {
+        if (!alreadyContactedModalInfo) return;
+        const { phone, actionIntent } = alreadyContactedModalInfo;
+        setAlreadyContactedModalInfo(null);
+        if (actionIntent === "CALL") {
+            window.location.href = `tel:${phone}`;
+        } else {
+            try {
+                await navigator.clipboard.writeText(phone);
+                success("Copié", phone);
+            } catch {
+                showError("Impossible de copier");
+            }
+        }
+    }, [alreadyContactedModalInfo, success, showError]);
+
+    const handleAlreadyContactedOpenDetails = useCallback(() => {
+        if (alreadyContactedDetailsTarget?.contactId) {
+            setDrawerContactId(alreadyContactedDetailsTarget.contactId);
+        } else if (alreadyContactedDetailsTarget?.companyId) {
+            setDrawerCompanyId(alreadyContactedDetailsTarget.companyId);
+        }
+    }, [alreadyContactedDetailsTarget]);
 
     const getRequiresNote = useCallback((code: string) =>
         statusConfig?.statuses?.find((s) => s.code === code)?.requiresNote ??
@@ -1382,7 +1477,7 @@ export default function SDRActionPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     contactId: row.contactId ?? undefined,
-                    companyId: row.contactId ? undefined : row.companyId,
+                    companyId: row.companyId,
                     campaignId: row.campaignId,
                     channel: row.channel,
                     result,
@@ -1418,7 +1513,7 @@ export default function SDRActionPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     contactId: row.contactId ?? undefined,
-                    companyId: row.contactId ? undefined : row.companyId,
+                    companyId: row.companyId,
                     campaignId: row.campaignId,
                     channel: row.channel,
                     result: "ENVOIE_MAIL" as const,
@@ -1512,7 +1607,7 @@ export default function SDRActionPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         contactId: row.contactId ?? undefined,
-                        companyId: row.contactId ? undefined : row.companyId,
+                        companyId: row.companyId,
                         campaignId: row.campaignId,
                         channel: row.channel,
                         result: "DISQUALIFIED" as const,
@@ -1549,7 +1644,7 @@ export default function SDRActionPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         contactId: currentAction.contact?.id,
-                        companyId: !currentAction.contact && currentAction.company ? currentAction.company.id : undefined,
+                        companyId: currentAction.company?.id,
                         campaignId: currentAction.campaignId,
                         channel: "EMAIL",
                         result,
@@ -1570,7 +1665,7 @@ export default function SDRActionPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         contactId: row.contactId ?? undefined,
-                        companyId: row.contactId ? undefined : row.companyId,
+                        companyId: row.companyId,
                         campaignId: row.campaignId,
                         channel: "EMAIL",
                         result,
@@ -1666,7 +1761,7 @@ export default function SDRActionPage() {
                 headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                     contactId: currentAction.contact?.id,
-                    companyId: !currentAction.contact && currentAction.company ? currentAction.company.id : undefined,
+                    companyId: currentAction.company?.id,
                     campaignId: currentAction.campaignId,
                     channel: currentAction.channel,
                     result: selectedResult,
@@ -1945,19 +2040,39 @@ export default function SDRActionPage() {
                             <PhoneOff className="w-3 h-3" /> Aucun
                         </span>
                     );
+                    const callContext = {
+                        lastAction: row.lastAction || (row.companyLastAction ? {
+                            result: row.companyLastAction.result,
+                            note: row.companyLastAction.note,
+                            createdAt: row.companyLastAction.createdAt,
+                            scope: "COMPANY" as const,
+                        } : null),
+                        lastActionBy: row.lastActionBy || (row.companyLastAction?.sdrId ? { id: row.companyLastAction.sdrId, name: row.companyLastAction.sdrName } : null),
+                        targetName: row._displayName,
+                        companyName: row._companyName || row.company?.name,
+                        contactId: row.contactId ?? undefined,
+                        companyId: row.companyId,
+                    };
                     return (
-                        <a
-                            href={`tel:${phone}`}
-                            onClick={(e) => handlePhoneCallAttempt(e, phone, {
-                                lastAction: row.lastAction,
-                                lastActionBy: row.lastActionBy ?? null,
-                            })}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 rounded-lg transition-all duration-150 hover:shadow-sm group"
-                            title="Cliquer pour appeler"
-                        >
-                            <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="font-mono tracking-tight">{phone}</span>
-                        </a>
+                        <div className="inline-flex items-center gap-1">
+                            <a
+                                href={`tel:${phone}`}
+                                onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 rounded-lg transition-all duration-150 hover:shadow-sm group"
+                                title="Cliquer pour appeler"
+                            >
+                                <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="font-mono tracking-tight">{phone}</span>
+                            </a>
+                            <button
+                                type="button"
+                                onClick={() => copyToClipboard(phone, callContext)}
+                                title="Copier le numéro"
+                                className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                            >
+                                <Copy className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
                     );
                 },
             },
@@ -2822,29 +2937,51 @@ export default function SDRActionPage() {
                                     {(() => {
                                         const phone = currentAction.contact.phone || (currentAction.channel === 'CALL' && currentAction.company?.phone ? currentAction.company.phone : null);
                                         const isValidPhone = phone && /[\d+\-().\s]/.test(phone) && phone.length >= 8;
-                                        return isValidPhone ? (
-                                            <div className="flex items-stretch gap-2">
-                                                <a
-                                                    href={`tel:${phone}`}
-                                                    onClick={(e) => handlePhoneCallAttempt(e, phone, {
-                                                        lastAction: currentAction.lastAction,
-                                                        lastActionBy: currentAction.lastActionBy ?? null,
-                                                    })}
-                                                    className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
-                                                >
-                                                    <Phone className="w-4 h-4" />
-                                                    <span className="font-mono tracking-wide">{phone}</span>
-                                                </a>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => copyToClipboard(phone)}
-                                                    title="Copier le numéro"
-                                                    className="w-12 h-12 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
-                                                >
-                                                    <Copy className="w-4 h-4" />
-                                                </button>
+                                        if (!isValidPhone) return null;
+
+                                        const callContext = {
+                                            lastAction: currentAction.lastAction,
+                                            lastActionBy: currentAction.lastActionBy ?? null,
+                                            targetName: `${currentAction.contact.firstName || ""} ${currentAction.contact.lastName || ""}`.trim(),
+                                            companyName: currentAction.company?.name,
+                                            contactId: currentAction.contact.id,
+                                            companyId: currentAction.company?.id,
+                                        };
+
+                                        const isAlreadyContacted = isRecentlyContacted(currentAction.lastAction, currentAction.lastActionBy);
+
+                                        return (
+                                            <div className="space-y-1.5">
+                                                {isAlreadyContacted && currentAction.lastAction && (
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-800">
+                                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                                        <span className="truncate">
+                                                            {currentAction.lastAction.scope === "COMPANY" ? "Entreprise déjà contactée" : "Déjà contacté"} le{" "}
+                                                            {new Date(currentAction.lastAction.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                                                            {currentAction.lastActionBy?.name ? ` par ${currentAction.lastActionBy.name}` : ""} ({statusLabels[currentAction.lastAction.result] ?? currentAction.lastAction.result})
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                <div className="flex items-stretch gap-2">
+                                                    <a
+                                                        href={`tel:${phone}`}
+                                                        onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
+                                                        className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
+                                                    >
+                                                        <Phone className="w-4 h-4" />
+                                                        <span className="font-mono tracking-wide">{phone}</span>
+                                                    </a>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => copyToClipboard(phone, callContext)}
+                                                        title="Copier le numéro"
+                                                        className="w-12 h-12 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                                    >
+                                                        <Copy className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                        ) : null;
+                                        );
                                     })()}
                                     {/* Email */}
                                     {(() => {
@@ -2973,20 +3110,54 @@ export default function SDRActionPage() {
                                 </div>
                                 <div className="space-y-2">
                                     {currentAction.company.phone ? (
-                                        <div className="flex items-stretch gap-2">
-                                            <a href={`tel:${currentAction.company.phone}`} onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, { lastAction: currentAction.lastAction, lastActionBy: currentAction.lastActionBy ?? null })} className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]">
-                                                <Phone className="w-4 h-4" />
-                                                {currentAction.company.phone}
-                                            </a>
-                                            <button
-                                                type="button"
-                                                onClick={() => copyToClipboard(currentAction.company!.phone!)}
-                                                title="Copier le numéro"
-                                                className="w-11 h-11 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
-                                            >
-                                                <Copy className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                                        (() => {
+                                            const effectiveLastAction = currentAction.companyLastAction || currentAction.lastAction;
+                                            const effectiveLastActionBy = currentAction.companyLastAction
+                                                ? (currentAction.companyLastAction.sdrId ? { id: currentAction.companyLastAction.sdrId, name: currentAction.companyLastAction.sdrName ?? null } : null)
+                                                : (currentAction.lastActionBy ?? null);
+
+                                            const callContext = {
+                                                lastAction: effectiveLastAction,
+                                                lastActionBy: effectiveLastActionBy,
+                                                companyName: currentAction.company.name,
+                                                companyId: currentAction.company.id,
+                                            };
+
+                                            const isAlreadyContacted = isRecentlyContacted(effectiveLastAction, effectiveLastActionBy);
+
+                                            return (
+                                                <div className="space-y-1.5">
+                                                    {isAlreadyContacted && effectiveLastAction && (
+                                                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-800">
+                                                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                                            <span className="truncate">
+                                                                Entreprise déjà contactée le{" "}
+                                                                {new Date(effectiveLastAction.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                                                                {effectiveLastActionBy?.name ? ` par ${effectiveLastActionBy.name}` : ""} ({statusLabels[effectiveLastAction.result] ?? effectiveLastAction.result})
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex items-stretch gap-2">
+                                                        <a
+                                                            href={`tel:${currentAction.company.phone}`}
+                                                            onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
+                                                            className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
+                                                        >
+                                                            <Phone className="w-4 h-4" />
+                                                            {currentAction.company.phone}
+                                                        </a>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => copyToClipboard(currentAction.company!.phone!, callContext)}
+                                                            title="Copier le numéro"
+                                                            className="w-11 h-11 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                                        >
+                                                            <Copy className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()
                                     ) : (
                                         <Button variant="outline" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
                                             <PenLine className="w-3.5 h-3.5" />
@@ -3365,7 +3536,7 @@ export default function SDRActionPage() {
                                         headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({
                                             contactId: currentAction.contact?.id,
-                                            companyId: !currentAction.contact && currentAction.company ? currentAction.company.id : undefined,
+                                            companyId: currentAction.company?.id,
                                             campaignId: currentAction.campaignId,
                                             channel: currentAction.channel,
                                             result: "NO_RESPONSE",
@@ -3566,6 +3737,15 @@ export default function SDRActionPage() {
                 isManager={true}
                 enableGooglePhoneLookup
                 listId={selectedListId ?? undefined}
+            />
+
+            {/* Already Contacted confirmation modal */}
+            <AlreadyContactedModal
+                isOpen={!!alreadyContactedModalInfo}
+                onClose={() => setAlreadyContactedModalInfo(null)}
+                onConfirm={handleAlreadyContactedConfirm}
+                onOpenDetails={handleAlreadyContactedOpenDetails}
+                info={alreadyContactedModalInfo}
             />
         </div>
     );

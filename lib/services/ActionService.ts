@@ -209,10 +209,22 @@ export class ActionService {
                 ? (input.meetingCategory || detectMeetingCategoryFromNote(noteToStore || input.note))
                 : null;
 
+            // Resolve companyId from contact if not explicitly provided
+            let resolvedCompanyId = input.companyId || null;
+            if (!resolvedCompanyId && input.contactId) {
+                const contact = await tx.contact.findUnique({
+                    where: { id: input.contactId },
+                    select: { companyId: true },
+                });
+                if (contact?.companyId) {
+                    resolvedCompanyId = contact.companyId;
+                }
+            }
+
             const action = await tx.action.create({
                 data: {
                     contactId: input.contactId || null,
-                    companyId: input.companyId || null,
+                    companyId: resolvedCompanyId,
                     sdrId: input.sdrId,
                     campaignId: input.campaignId,
                     channel: input.channel,
