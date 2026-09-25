@@ -22,10 +22,8 @@ import { storageService } from "@/lib/storage/storage-service";
 import { transcribeAudioFr } from "@/lib/ai/mistral-transcribe";
 import { generateFicheFromTranscription } from "@/lib/ai/mistral-fiche";
 
-import { audioQueue } from "@/lib/bullmq";
-
 // Practical upload cap for the audio/transcriptions endpoint.
-const MAX_AUDIO_SIZE = 100 * 1024 * 1024; // Increased to 100MB
+const MAX_AUDIO_SIZE = 50 * 1024 * 1024;
 
 async function assertCanUploadActionAudio(
   userId: string,
@@ -62,11 +60,11 @@ export const POST = withErrorHandler(async (
     return errorResponse("Aucun fichier audio fourni", 400);
   }
 
-  if (!storageService.isAllowedType(file.type, ["audio/*", "video/*"])) {
-    return errorResponse("Type de fichier non autorisé (audio ou vidéo)", 400);
+  if (!storageService.isAllowedType(file.type, ["audio/*"])) {
+    return errorResponse("Type de fichier non autorisé (audio uniquement)", 400);
   }
   if (!storageService.isAllowedSize(file.size, MAX_AUDIO_SIZE)) {
-    return errorResponse("Fichier trop volumineux (100 Mo max)", 400);
+    return errorResponse("Fichier audio trop volumineux (50 Mo max)", 400);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -77,25 +75,51 @@ export const POST = withErrorHandler(async (
     session.user.id,
   );
 
-  // Update action to indicate recording is present and processing started
+  // Transcription failure: keep the recording, explain why nothing else got filled.
+  const transcriptionResult = await transcribeAudioFr(buffer, file.name, file.type);
+  if (!transcriptionResult.ok) {
+    await prisma.action.update({
+      where: { id },
+      data: {
+        callRecordingUrl: recordingUrl,
+        callEnrichmentAt: new Date(),
+        callEnrichmentError: `TRANSCRIPTION_FAILED: ${transcriptionResult.message}`,
+      },
+    });
+    return successResponse({
+      callRecordingUrl: recordingUrl,
+      callTranscription: null,
+      fiche: null,
+      transcriptionError: transcriptionResult.message,
+      ficheError: null,
+    });
+  }
+
+  const transcription = transcriptionResult.text;
+  const ficheResult = await generateFicheFromTranscription(transcription);
+
   await prisma.action.update({
     where: { id },
     data: {
       callRecordingUrl: recordingUrl,
+      callTranscription: transcription,
+      callEnrichmentAt: new Date(),
       callEnrichmentError: null,
     },
   });
 
-  // Push to queue for background processing
-  await audioQueue.add('transcribe-and-fiche', {
-    actionId: id,
-    recordingUrl,
-    fileName: file.name,
-    fileType: file.type
-  });
+  if (ficheResult.ok) {
+    await prisma.action.update({
+      where: { id },
+      data: { rdvFiche: ficheResult.fiche as unknown as Prisma.InputJsonValue, rdvFicheUpdatedAt: new Date() },
+    });
+  }
 
   return successResponse({
     callRecordingUrl: recordingUrl,
-    processingInBackground: true,
+    callTranscription: transcription,
+    fiche: ficheResult.ok ? ficheResult.fiche : null,
+    transcriptionError: null,
+    ficheError: ficheResult.ok ? null : ficheResult.message,
   });
 });

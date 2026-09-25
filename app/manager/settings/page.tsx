@@ -6,7 +6,7 @@ import {
   Mail, RotateCcw, Save, Eye, Info,
   CheckCircle2, AlertCircle, Sparkles, Code2,
   ChevronRight, Zap, Variable, Key, ShieldCheck, Link2,
-  ListOrdered, Megaphone
+  ListOrdered, Megaphone, Send
 } from "lucide-react";
 import { RDV_TEMPLATE_VARIABLES } from "@/lib/email/templates/rdv-notification";
 

@@ -63,4 +63,3 @@ export class FileQueue {
 }
 
 export const enrichmentQueue = new FileQueue('enrich-mission-list');
-export const audioQueue = new FileQueue('audio-processing');

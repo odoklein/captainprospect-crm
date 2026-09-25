@@ -595,65 +595,27 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
       e.target.value = ""; // allow re-selecting the same file later
       if (!file) return;
 
-      if (!file.type.startsWith("audio/") && !file.type.startsWith("video/")) {
-        showError("Fichier invalide", "Veuillez sélectionner un fichier audio ou vidéo.");
+      if (!file.type.startsWith("audio/")) {
+        showError("Fichier invalide", "Veuillez sélectionner un fichier audio.");
         return;
       }
-      
-      const MAX_SIZE = 100 * 1024 * 1024; // 100 MB max for video uploads
+      const MAX_SIZE = 50 * 1024 * 1024;
       if (file.size > MAX_SIZE) {
-        showError("Fichier trop volumineux", "La taille maximale autorisée est de 100 Mo.");
+        showError("Fichier trop volumineux", "La taille maximale autorisée est de 50 Mo.");
         return;
       }
 
       setUploading(true);
-      let uploadFile = file;
-
       try {
-        if (file.type.startsWith("video/") || file.size > 25 * 1024 * 1024) {
-          // Dynamic import of FFmpeg to avoid SSR issues and keep initial bundle small
-          const { FFmpeg } = await import('@ffmpeg/ffmpeg');
-          const { fetchFile, toBlobURL } = await import('@ffmpeg/util');
-          
-          const ffmpeg = new FFmpeg();
-          ffmpeg.on('log', ({ message }) => console.log('[FFmpeg]', message));
-          
-          // Use toBlobURL to bypass Web Worker CORS issues with external CDNs
-          const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-          await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-          });
-          
-          // Sanitize file name to avoid issues with spaces or special chars in ffmpeg args
-          const safeName = `input.${file.name.split('.').pop() || 'mp4'}`;
-          await ffmpeg.writeFile(safeName, await fetchFile(file));
-          
-          // Extract audio: remove video (-vn), force mp3 encoder (-acodec libmp3lame) at 128k
-          const ret = await ffmpeg.exec(['-i', safeName, '-vn', '-acodec', 'libmp3lame', '-b:a', '128k', 'output.mp3']);
-          if (ret !== 0) {
-            throw new Error(`FFmpeg a échoué avec le code ${ret}. L'extraction audio n'a pas pu aboutir.`);
-          }
-          
-          const audioData = await ffmpeg.readFile('output.mp3');
-          if ((audioData as Uint8Array).length === 0) {
-            throw new Error("Le fichier audio extrait est vide.");
-          }
-
-          uploadFile = new File([audioData], file.name.replace(/\.[^/.]+$/, "") + ".mp3", {
-            type: "audio/mp3",
-          });
-        }
-
         const body = new FormData();
-        body.append("file", uploadFile);
+        body.append("file", file);
         const res = await fetch(`/api/actions/${meeting.id}/upload-audio`, {
           method: "POST",
           body,
         });
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.success) {
-          showError("Échec de l'upload", json?.error ?? "Impossible d'uploader le fichier audio.");
+          showError("Échec de l'upload", json?.error ?? "Impossible d'analyser le fichier audio.");
           return;
         }
 
@@ -661,19 +623,28 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
         const updated: Meeting = {
           ...meeting,
           callRecordingUrl: d.callRecordingUrl ?? meeting.callRecordingUrl,
+          callTranscription: d.callTranscription ?? meeting.callTranscription,
+          rdvFiche: d.fiche ?? meeting.rdvFiche,
+          rdvFicheUpdatedAt: d.fiche ? new Date().toISOString() : meeting.rdvFicheUpdatedAt,
         };
         setSelectedMeeting(updated);
-        
-        if (d.processingInBackground) {
-          success("Upload réussi", "L'audio est en cours de traitement en arrière-plan.");
-          setFicheGenStatus("generating");
-          setAutoSearchStatus("found");
-          setShowManualSearch(false);
-        }
+        setAutoSearchStatus("found");
+        setShowManualSearch(false);
 
-      } catch (err) {
-        console.error(err);
-        showError("Erreur", "Impossible de traiter ou d'envoyer le fichier audio.");
+        if (d.transcriptionError) {
+          showError("Transcription impossible", d.transcriptionError);
+        } else if (d.ficheError) {
+          success("Audio importé", "Enregistrement et transcription enregistrés.");
+          showError("Génération de la fiche impossible", d.ficheError);
+          setFicheGenStatus("error");
+        } else if (d.fiche) {
+          success("Audio analysé", "Transcription effectuée et fiche RDV générée automatiquement.");
+          setFicheGenStatus("done");
+        } else {
+          success("Audio importé", "Enregistrement enregistré avec succès.");
+        }
+      } catch {
+        showError("Erreur réseau", "Impossible d'envoyer le fichier audio.");
       } finally {
         setUploading(false);
       }
@@ -695,7 +666,7 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*, video/*"
+        accept="audio/*"
         onChange={handleFileSelected}
         className="hidden"
       />
