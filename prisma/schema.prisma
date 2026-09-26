@@ -570,6 +570,15 @@ model User {
   messagingWorkspacesInstalled MessagingWorkspace[] @relation("MessagingWorkspaceInstaller")
   messagingIdentities          MessagingIdentity[]  @relation("MessagingIdentityUser")
 
+  // Manager Hierarchy (RH)
+  managerId            String?
+  manager              User?                @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managedUsers         User[]               @relation("UserManager")
+
+  // RH (Ressources Humaines)
+  hrProfile            HrProfile?           @relation("UserHrProfile")
+  hrMonthRecords       HrMonthRecord[]      @relation("UserHrMonthRecords")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -4633,3 +4642,135 @@ model MessagingInboundEvent {
 
   @@index([workspaceId, createdAt])
 }
+
+// ============================================
+// RESSOURCES HUMAINES (RH) MODULE
+// ============================================
+
+enum ContractType {
+  SALARIE
+  INDEPENDANT
+}
+
+enum RemunerationMode {
+  FIXE
+  VARIABLE
+  FIXE_PLUS_VARIABLE
+}
+
+enum HrMonthStatus {
+  DRAFT
+  TO_VERIFY
+  VALIDATED
+  PAID
+}
+
+enum HrDayDecision {
+  PAID
+  UNPAID
+}
+
+model HrProfile {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  user                User               @relation("UserHrProfile", fields: [userId], references: [id], onDelete: Cascade)
+  contractType        ContractType       @default(SALARIE)
+  remunerationMode    RemunerationMode   @default(FIXE)
+  fixedSalaryCents    Int                @default(0) // Fixed monthly salary in cents (€ * 100)
+  variablePerRdvCents Int                @default(0) // Variable bonus per confirmed RDV in cents (€ * 100)
+  dailyQuota          Int                @default(0) // Daily call quota expected
+  effectiveFrom       DateTime           @db.Date
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  snapshots           HrProfileSnapshot[]
+  monthRecords        HrMonthRecord[]
+
+  @@index([userId])
+}
+
+model HrProfileSnapshot {
+  id                  String           @id @default(cuid())
+  hrProfileId         String
+  hrProfile           HrProfile        @relation(fields: [hrProfileId], references: [id], onDelete: Cascade)
+  contractType        ContractType
+  remunerationMode    RemunerationMode
+  fixedSalaryCents    Int
+  variablePerRdvCents Int
+  dailyQuota          Int
+  effectiveFrom       DateTime         @db.Date
+  changedById         String
+  changedAt           DateTime         @default(now())
+  reason              String?
+
+  @@index([hrProfileId])
+  @@index([changedAt])
+}
+
+model HrMonthRecord {
+  id                  String                @id @default(cuid())
+  hrProfileId         String
+  hrProfile           HrProfile             @relation(fields: [hrProfileId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User                  @relation("UserHrMonthRecords", fields: [userId], references: [id], onDelete: Cascade)
+  month               String                // "YYYY-MM" format
+  workingDays         Int                   @default(0)
+  absenceDays         Int                   @default(0)
+  totalCalls          Int                   @default(0)
+  totalRdv            Int                   @default(0)
+  dailyQuota          Int                   @default(0)
+  fixedAmountCents    Int                   @default(0)
+  variableAmountCents Int                   @default(0)
+  adjustmentCents     Int                   @default(0)
+  totalAmountCents    Int                   @default(0)
+  rulesSnapshot       Json?
+  status              HrMonthStatus         @default(DRAFT)
+  validatedAt         DateTime?
+  validatedById       String?
+  paidAt              DateTime?
+  adjustmentNote      String?               @db.Text
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  dayDecisions        HrDayDecisionRecord[]
+  auditLogs           HrAuditLog[]
+
+  @@unique([userId, month])
+  @@index([userId])
+  @@index([hrProfileId])
+  @@index([month])
+  @@index([status])
+}
+
+model HrDayDecisionRecord {
+  id            String        @id @default(cuid())
+  monthRecordId String
+  monthRecord   HrMonthRecord @relation(fields: [monthRecordId], references: [id], onDelete: Cascade)
+  date          DateTime      @db.Date
+  callCount     Int           @default(0)
+  rdvCount      Int           @default(0)
+  decision      HrDayDecision
+  reason        String        @db.Text
+  decidedById   String
+  decidedAt     DateTime      @default(now())
+
+  @@unique([monthRecordId, date])
+  @@index([monthRecordId])
+}
+
+model HrAuditLog {
+  id            String         @id @default(cuid())
+  monthRecordId String?
+  monthRecord   HrMonthRecord? @relation(fields: [monthRecordId], references: [id], onDelete: SetNull)
+  userId        String
+  actorId       String
+  action        String
+  details       Json?
+  createdAt     DateTime       @default(now())
+
+  @@index([monthRecordId])
+  @@index([userId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+

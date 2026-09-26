@@ -36,6 +36,7 @@ import {
   Sparkles,
   LifeBuoy,
   Map,
+  Wallet,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 
@@ -174,9 +175,15 @@ export const MANAGER_NAV: NavSection[] = [
         permission: "pages.sdrs",
       },
       {
+        href: "/manager/rh",
+        icon: Wallet,
+        label: "RH",
+        permission: "pages.hr",
+      },
+      {
         href: "/manager/sdr-feedback",
         icon: MessageSquare,
-        label: "Avis SDR",
+        label: "Avis Booker",
         permission: "pages.sdrs",
       },
       {
@@ -714,7 +721,7 @@ export const ROLE_CONFIG: Record<UserRole, RoleConfig> = {
     defaultPath: "/manager/dashboard",
   },
   SDR: {
-    label: "Sales",
+    label: "Booker",
     color: "indigo",
     gradient: "from-indigo-500 to-indigo-600",
     defaultPath: "/sdr/action",

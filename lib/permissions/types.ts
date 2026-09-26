@@ -99,7 +99,15 @@ export type PermissionCode =
     | "features.create_invoice"
     | "features.validate_invoice"
     | "features.sync_payments"
-    | "features.confirm_payment";
+    | "features.confirm_payment"
+    // RH (Ressources Humaines) Module
+    | "pages.hr"
+    | "features.hr_view"
+    | "features.hr_configure"
+    | "features.hr_calculate"
+    | "features.hr_validate"
+    | "features.hr_day_decision"
+    | "features.hr_reopen";
 
 // Permission object from API
 export interface Permission {
