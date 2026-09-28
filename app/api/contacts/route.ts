@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import {
     successResponse,
@@ -59,6 +60,38 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             { email: { contains: search, mode: 'insensitive' } },
             { company: { name: { contains: search, mode: 'insensitive' } } },
         ];
+
+        // Phone search: compare digits only, ignoring the +33 / leading 0 prefix, so
+        // a pasted "06 12 34 56 78", "+33612345678" or "612345678" all find the same
+        // contact — e.g. a prospect calling back with only their number in hand (TC-0040).
+        const searchDigits = search.replace(/\D/g, '');
+        const phoneNeedle = searchDigits.length >= 4
+            ? (searchDigits.startsWith('33') && searchDigits.length > 9 ? searchDigits.slice(2) : searchDigits)
+                .replace(/^0+/, '')
+                .slice(-9)
+            : '';
+        if (phoneNeedle.length >= 3) {
+            const filters: Prisma.Sql[] = [];
+            if (companyId) filters.push(Prisma.sql`c."companyId" = ${companyId}`);
+            if (listId) filters.push(Prisma.sql`co."listId" = ${listId}`);
+            const extraWhere = filters.length
+                ? Prisma.sql`AND ${Prisma.join(filters, ' AND ')}`
+                : Prisma.empty;
+            const phonePattern = `%${phoneNeedle}%`;
+            const phoneMatches = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+                SELECT c.id FROM "Contact" c
+                LEFT JOIN "Company" co ON co.id = c."companyId"
+                WHERE (
+                    regexp_replace(COALESCE(c.phone, ''), '[^0-9]', '', 'g') LIKE ${phonePattern}
+                    OR regexp_replace(COALESCE(co.phone, ''), '[^0-9]', '', 'g') LIKE ${phonePattern}
+                )
+                ${extraWhere}
+                LIMIT 200
+            `);
+            if (phoneMatches.length > 0) {
+                (where.OR as unknown[]).push({ id: { in: phoneMatches.map((m) => m.id) } });
+            }
+        }
     }
 
     const [contacts, total] = await Promise.all([

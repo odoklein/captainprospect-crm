@@ -13,7 +13,7 @@ import { z } from "zod";
 const dayDecisionSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
   decision: z.nativeEnum(HrDayDecision),
-  reason: z.string().min(3, "Un motif d'au moins 3 caractères est obligatoire"),
+  reason: z.string().trim().min(3, "Un motif d'au moins 3 caractères est obligatoire").max(1000),
 });
 
 // ============================================

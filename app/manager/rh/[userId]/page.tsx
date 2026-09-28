@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { ContractType, RemunerationMode } from "@/lib/hr/hr-types";
+import { REMUNERATION_LABELS, formatEuros } from "@/lib/hr/hr-rules";
 import { HrProfileModal } from "@/components/hr/HrProfileModal";
 
 export default function UserHrPage() {
@@ -98,7 +99,7 @@ export default function UserHrPage() {
               <span>{user.email}</span>
               <span>•</span>
               <span className="font-semibold text-indigo-600">
-                {user.role}
+                {user.role === "MANAGER" ? "Manager" : user.role}
               </span>
             </div>
           </div>
@@ -123,7 +124,7 @@ export default function UserHrPage() {
             {profile.contractType === ContractType.SALARIE ? "Salarié (CDI/CDD)" : "Indépendant"}
           </p>
           <span className="text-xs text-slate-500 block">
-            Mode : {profile.remunerationMode}
+            {REMUNERATION_LABELS[profile.remunerationMode as RemunerationMode] ?? profile.remunerationMode}
           </span>
         </div>
 
@@ -133,10 +134,14 @@ export default function UserHrPage() {
             <span>Rémunération de base</span>
           </div>
           <p className="text-lg font-bold text-emerald-600">
-            {(profile.fixedSalaryCents / 100).toFixed(2)} € / mois
+            {profile.remunerationMode === RemunerationMode.VARIABLE
+              ? "Pas de fixe"
+              : `${formatEuros(profile.fixedSalaryCents)} / mois`}
           </p>
           <span className="text-xs text-slate-500 block">
-            + {(profile.variablePerRdvCents / 100).toFixed(2)} € par RDV validé
+            {profile.remunerationMode === RemunerationMode.FIXE
+              ? "Pas de prime par rendez-vous"
+              : `+ ${formatEuros(profile.variablePerRdvCents)} par rendez-vous pris`}
           </span>
         </div>
 
@@ -146,11 +151,12 @@ export default function UserHrPage() {
             <span>Objectifs & Effet</span>
           </div>
           <p className="text-sm font-bold text-slate-900">
-            {profile.dailyQuota} appels / jour
+            {profile.dailyQuota > 0 ? `${profile.dailyQuota} appels / jour` : "Pas d'objectif d'appels"}
           </p>
           <span className="text-xs text-slate-500 block">
-            En vigueur depuis le{" "}
-            {new Date(profile.effectiveFrom).toLocaleDateString("fr-FR")}
+            {profile.id
+              ? `En vigueur depuis le ${new Date(profile.effectiveFrom).toLocaleDateString("fr-FR", { timeZone: "UTC" })}`
+              : "Règles pas encore configurées"}
           </span>
         </div>
       </div>
@@ -168,7 +174,7 @@ export default function UserHrPage() {
               <div key={s.id} className="p-3.5 flex items-center justify-between hover:bg-slate-50">
                 <div className="space-y-0.5">
                   <div className="font-semibold text-slate-800">
-                    Fixe: {(s.fixedSalaryCents / 100).toFixed(2)} € • Variable: {(s.variablePerRdvCents / 100).toFixed(2)} € • Quota: {s.dailyQuota}/j
+                    Fixe : {formatEuros(s.fixedSalaryCents)} • Prime/RDV : {formatEuros(s.variablePerRdvCents)} • Objectif : {s.dailyQuota} appels/j
                   </div>
                   <div className="text-[11px] text-slate-400">
                     {s.reason || "Modification effectuée"}

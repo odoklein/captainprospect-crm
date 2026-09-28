@@ -5,6 +5,7 @@ import {
   requirePermission,
   withErrorHandler,
   validateRequest,
+  ValidationError,
 } from "@/lib/api-utils";
 import { hrCalculationService } from "@/lib/hr/hr-calculation-service";
 import { z } from "zod";
@@ -52,7 +53,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const month = searchParams.get("month");
 
   if (!userId || !month) {
-    throw new Error("userId et month sont requis");
+    throw new ValidationError("userId et month sont requis");
   }
 
   const breakdown = await hrCalculationService.calculateUserMonth(

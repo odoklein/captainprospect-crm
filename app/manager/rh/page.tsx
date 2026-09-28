@@ -1,586 +1,728 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  Users,
-  Calendar,
-  Phone,
-  Target,
-  RefreshCw,
-  Search,
-  Filter,
+  AlertTriangle,
   CheckCircle2,
-  AlertCircle,
-  Sliders,
   ChevronLeft,
   ChevronRight,
-  TrendingUp,
   CreditCard,
-  Briefcase,
-  UserCheck,
+  HelpCircle,
+  Phone,
+  RefreshCw,
+  Search,
+  Users,
+  X,
 } from "lucide-react";
-import { HrMonthRowData, HrMonthStatus, ContractType } from "@/lib/hr/hr-types";
+import { ContractType, HrMonthRowData, HrMonthStatus } from "@/lib/hr/hr-types";
+import {
+  STATUS_LABELS,
+  currentParisMonth,
+  formatEuros,
+  formatMonthLabel,
+  isLockedStatus,
+  shiftMonth,
+} from "@/lib/hr/hr-rules";
 import { HrProfileModal } from "@/components/hr/HrProfileModal";
 import { HrCalculationDetailModal } from "@/components/hr/HrCalculationDetailModal";
 import { HrStatusModal } from "@/components/hr/HrStatusModal";
+import { HrHelpTip } from "@/components/hr/HrHelpTip";
+import { HrGuide, useHrGuide } from "@/components/hr/HrGuide";
+import { HR_PAGE_GUIDE, HR_PAGE_GUIDE_KEY } from "@/components/hr/hr-guide-steps";
+
+type Notice = { tone: "success" | "warning" | "error"; title: string; lines?: string[] };
+
+type BulkResult = {
+  updated: number;
+  skipped: number;
+  failed: number;
+  results: { name: string; outcome: "updated" | "skipped" | "failed"; message?: string }[];
+};
+
+const DEFAULT_FILTERS = {
+  search: "",
+  role: "SDR",
+  manager: "ALL",
+  contract: "ALL",
+  status: "ALL",
+  attentionOnly: false,
+};
+
+function needsAttention(r: HrMonthRowData) {
+  return !r.hasProfile || r.pendingDecisionCount > 0 || r.isStale;
+}
+
+const STATUS_STYLES: Record<HrMonthStatus, string> = {
+  DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
+  TO_VERIFY: "bg-amber-50 text-amber-800 border-amber-200",
+  VALIDATED: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
+};
 
 export default function HrPage() {
-  const now = new Date();
-  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-  const [month, setMonth] = useState<string>(defaultMonth);
+  const thisMonth = useMemo(() => currentParisMonth(), []);
+  const [month, setMonth] = useState(thisMonth);
   const [rows, setRows] = useState<HrMonthRowData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isBulkCalculating, setIsBulkCalculating] = useState(false);
+  const [loadedMonth, setLoadedMonth] = useState<string | null>(null);
+  const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isBulkCalculating, setIsBulkCalculating] = useState(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("SDR");
-  const [managerFilter, setManagerFilter] = useState<string>("ALL");
-  const [contractFilter, setContractFilter] = useState<string>("ALL");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
+  const [statusUserId, setStatusUserId] = useState<string | null>(null);
 
-  // Modals state
-  const [profileModalUser, setProfileModalUser] = useState<{ id: string; name: string } | null>(null);
-  const [detailModalRow, setDetailModalRow] = useState<HrMonthRowData | null>(null);
-  const [statusModalRow, setStatusModalRow] = useState<HrMonthRowData | null>(null);
+  const requestSeq = useRef(0);
 
-  const fetchRows = async (targetMonth = month) => {
+  const fetchRows = useCallback(async (targetMonth: string) => {
+    const seq = ++requestSeq.current;
+    setIsFetching(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-
-      const res = await fetch(`/api/hr/months?month=${targetMonth}`);
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Impossible de charger les données RH");
-      }
-
+      const res = await fetch(`/api/hr/months?month=${encodeURIComponent(targetMonth)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) throw new Error(json.error || "Impossible de charger les données RH.");
+      if (seq !== requestSeq.current) return;
       setRows(json.data.rows || []);
-    } catch (err: any) {
-      setError(err.message);
+      setLoadedMonth(targetMonth);
+    } catch (err) {
+      if (seq !== requestSeq.current) return;
+      setError((err as Error).message || "Impossible de charger les données RH.");
     } finally {
-      setIsLoading(false);
+      if (seq === requestSeq.current) setIsFetching(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRows(month);
-  }, [month]);
+  }, [month, fetchRows]);
+
+  useEffect(() => {
+    if (notice?.tone !== "success") return;
+    const t = window.setTimeout(() => setNotice(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [notice]);
+
+  const refresh = () => fetchRows(month);
 
   const handleBulkRecalculate = async () => {
+    setIsBulkCalculating(true);
+    setNotice(null);
     try {
-      setIsBulkCalculating(true);
       const res = await fetch(`/api/hr/months/calculate-all`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ month }),
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || "Erreur lors du recalcul groupé");
-      }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) throw new Error(json.error || "Le recalcul a échoué.");
+      const r = json.data as BulkResult;
+      const others = r.results.filter((x) => x.outcome !== "updated");
+      setNotice({
+        tone: r.failed > 0 ? "error" : r.skipped > 0 ? "warning" : "success",
+        title: `${r.updated} dossier(s) mis à jour${r.skipped ? ` · ${r.skipped} ignoré(s)` : ""}${
+          r.failed ? ` · ${r.failed} en erreur` : ""
+        }`,
+        lines: others.map((x) => `${x.name} — ${x.message ?? (x.outcome === "failed" ? "Erreur" : "Ignoré")}`),
+      });
       await fetchRows(month);
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err) {
+      setNotice({ tone: "error", title: (err as Error).message || "Le recalcul a échoué." });
     } finally {
       setIsBulkCalculating(false);
     }
   };
 
-  const handlePrevMonth = () => {
-    const [y, m] = month.split("-").map(Number);
-    const prev = new Date(Date.UTC(y, m - 2, 1));
-    setMonth(`${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, "0")}`);
-  };
-
-  const handleNextMonth = () => {
-    const [y, m] = month.split("-").map(Number);
-    const next = new Date(Date.UTC(y, m, 1));
-    setMonth(`${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}`);
-  };
-
-  // Distinct managers for filter dropdown
   const availableManagers = useMemo(() => {
     const map = new Map<string, string>();
-    rows.forEach((r) => {
-      if (r.managerId && r.managerName) {
-        map.set(r.managerId, r.managerName);
-      }
-    });
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+    rows.forEach((r) => r.managerId && r.managerName && map.set(r.managerId, r.managerName));
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [rows]);
 
-  // Filtered rows
+  const roleRows = useMemo(
+    () => rows.filter((r) => filters.role === "ALL" || r.userRole === filters.role),
+    [rows, filters.role]
+  );
+
   const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      // Search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchName = r.userName.toLowerCase().includes(q);
-        const matchEmail = r.userEmail.toLowerCase().includes(q);
-        if (!matchName && !matchEmail) return false;
-      }
-
-      // Role
-      if (roleFilter !== "ALL") {
-        if (r.userRole !== roleFilter) return false;
-      }
-
-      // Manager
-      if (managerFilter !== "ALL") {
-        if (r.managerId !== managerFilter) return false;
-      }
-
-      // Contract
-      if (contractFilter !== "ALL") {
-        if (r.contractType !== contractFilter) return false;
-      }
-
-      // Status
-      if (statusFilter !== "ALL") {
-        if (r.status !== statusFilter) return false;
-      }
-
+    const q = filters.search.trim().toLowerCase();
+    return roleRows.filter((r) => {
+      if (q && !r.userName.toLowerCase().includes(q) && !r.userEmail.toLowerCase().includes(q)) return false;
+      if (filters.manager !== "ALL" && r.managerId !== filters.manager) return false;
+      if (filters.contract !== "ALL" && r.contractType !== filters.contract) return false;
+      if (filters.status !== "ALL" && r.status !== filters.status) return false;
+      if (filters.attentionOnly && !needsAttention(r)) return false;
       return true;
     });
-  }, [rows, searchQuery, roleFilter, managerFilter, contractFilter, statusFilter]);
+  }, [roleRows, filters]);
 
-  // Summary Metrics
   const summary = useMemo(() => {
-    let totalPayCents = 0;
-    let totalCalls = 0;
-    let totalRdv = 0;
-    let validatedCount = 0;
-
+    let pay = 0;
+    let calls = 0;
+    let rdv = 0;
+    let locked = 0;
     filteredRows.forEach((r) => {
-      totalPayCents += r.totalAmountCents;
-      totalCalls += r.totalCalls;
-      totalRdv += r.totalRdv;
-      if (r.status === HrMonthStatus.VALIDATED || r.status === HrMonthStatus.PAID) {
-        validatedCount++;
-      }
+      pay += r.totalAmountCents;
+      calls += r.totalCalls;
+      rdv += r.totalRdv;
+      if (isLockedStatus(r.status)) locked++;
     });
-
-    return {
-      totalCollaborateurs: filteredRows.length,
-      totalPayEuros: (totalPayCents / 100).toFixed(2),
-      totalCalls,
-      totalRdv,
-      validatedCount,
-    };
+    return { count: filteredRows.length, pay, calls, rdv, locked };
   }, [filteredRows]);
 
-  const monthLabel = useMemo(() => {
-    const [y, m] = month.split("-").map(Number);
-    const dateObj = new Date(Date.UTC(y, m - 1, 1));
-    return dateObj.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-  }, [month]);
+  const attentionCount = useMemo(() => roleRows.filter(needsAttention).length, [roleRows]);
 
-  const getRoleBadge = (role: string) => {
-    if (role === "SDR") {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-          SDR
-        </span>
-      );
-    }
-    if (role === "MANAGER") {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-          Manager
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700">
-        {role}
-      </span>
-    );
-  };
+  const filtersActive =
+    filters.search !== "" ||
+    filters.manager !== "ALL" ||
+    filters.contract !== "ALL" ||
+    filters.status !== "ALL" ||
+    filters.attentionOnly;
 
-  const getStatusBadge = (status: HrMonthStatus) => {
-    switch (status) {
-      case HrMonthStatus.DRAFT:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
-            Brouillon
-          </span>
-        );
-      case HrMonthStatus.TO_VERIFY:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-            À vérifier
-          </span>
-        );
-      case HrMonthStatus.VALIDATED:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
-            Validé
-          </span>
-        );
-      case HrMonthStatus.PAID:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Payé
-          </span>
-        );
-    }
-  };
+  const setFilter = <K extends keyof typeof DEFAULT_FILTERS>(key: K, value: (typeof DEFAULT_FILTERS)[K]) =>
+    setFilters((f) => ({ ...f, [key]: value }));
+
+  const findRow = (userId: string | null) => (userId ? rows.find((r) => r.userId === userId) : undefined);
+  const statusRow = findRow(statusUserId);
+  const profileRow = findRow(profileUserId);
+
+  const initialLoading = isFetching && loadedMonth === null;
+  const showingStaleMonth = loadedMonth !== null && loadedMonth !== month;
+  const guide = useHrGuide(HR_PAGE_GUIDE_KEY, !initialLoading && !error);
 
   return (
-    <div className="space-y-6">
-      {/* Top Header & Month Selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Centre de Gestion RH & Équipe</h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Suivi des jours travaillés, quotas, rémunération fixe, variable et validation de paie
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-900">Paie de l’équipe</h1>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Jours travaillés, objectifs d’appels, salaire fixe, primes et validation mensuelle.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Month Switcher */}
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            data-hr-tour="help"
+            onClick={guide.start}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+            Comment ça marche ?
+          </button>
+
+          <div data-hr-tour="month" className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
             <button
-              onClick={handlePrevMonth}
-              title="Mois précédent"
-              className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors"
+              type="button"
+              onClick={() => setMonth((m) => shiftMonth(m, -1))}
+              aria-label="Mois précédent"
+              className="rounded-lg p-1.5 text-slate-600 hover:bg-white"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="px-3 py-1 text-xs font-semibold text-slate-800 capitalize min-w-[130px] text-center">
-              {monthLabel}
+            <div className="min-w-[130px] px-3 py-1 text-center text-xs font-semibold capitalize text-slate-800" aria-live="polite">
+              {formatMonthLabel(month)}
             </div>
             <button
-              onClick={handleNextMonth}
-              title="Mois suivant"
-              className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors"
+              type="button"
+              onClick={() => setMonth((m) => shiftMonth(m, 1))}
+              disabled={month >= thisMonth}
+              aria-label="Mois suivant"
+              title={month >= thisMonth ? "Les mois futurs ne peuvent pas encore être calculés" : undefined}
+              className="rounded-lg p-1.5 text-slate-600 hover:bg-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Bulk Recalculate */}
           <button
+            type="button"
+            data-hr-tour="recalculate"
             onClick={handleBulkRecalculate}
-            disabled={isBulkCalculating}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl transition-colors shadow-xs"
+            disabled={isBulkCalculating || isFetching}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isBulkCalculating ? "animate-spin" : ""}`} />
-            <span>{isBulkCalculating ? "Calcul en cours..." : "Recalculer le mois"}</span>
+            <RefreshCw className={`h-3.5 w-3.5 ${isBulkCalculating ? "animate-spin" : ""}`} />
+            {isBulkCalculating ? "Calcul en cours…" : "Recalculer le mois"}
           </button>
         </div>
       </div>
 
-      {/* Metric Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-1">
-            <span>Collaborateurs</span>
-            <Users className="w-4 h-4 text-indigo-500" />
+      {/* Notices */}
+      {notice && (
+        <div
+          role="status"
+          className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-xs ${
+            notice.tone === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : notice.tone === "warning"
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-rose-200 bg-rose-50 text-rose-800"
+          }`}
+        >
+          <div className="min-w-0 space-y-1">
+            <p className="font-semibold">{notice.title}</p>
+            {notice.lines && notice.lines.length > 0 && (
+              <ul className="max-h-28 list-disc space-y-0.5 overflow-y-auto pl-4">
+                {notice.lines.map((l) => (
+                  <li key={l}>{l}</li>
+                ))}
+              </ul>
+            )}
           </div>
-          <p className="text-2xl font-bold text-slate-900">{summary.totalCollaborateurs}</p>
-          <span className="text-[11px] text-slate-400 mt-1 block">
-            {summary.validatedCount} dossier(s) validé(s)
+          <button type="button" onClick={() => setNotice(null)} aria-label="Fermer" className="shrink-0 rounded p-0.5 hover:bg-black/5">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div role="alert" className="flex flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {error}
+            {showingStaleMonth && " Les données affichées sont celles du mois précédemment chargé."}
           </span>
+          <button type="button" onClick={refresh} className="self-start rounded-lg bg-white px-3 py-1.5 font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100">
+            Réessayer
+          </button>
         </div>
+      )}
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-1">
-            <span>Masse salariale estimée</span>
-            <CreditCard className="w-4 h-4 text-emerald-500" />
+      {/* Summary */}
+      <div data-hr-tour="summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <SummaryCard icon={<Users className="h-4 w-4 text-indigo-500" />} label="Personnes" value={String(summary.count)} hint={`${summary.locked} dossier(s) validé(s) ou payé(s)`} />
+        <SummaryCard
+          icon={<CreditCard className="h-4 w-4 text-emerald-500" />}
+          label={
+            <span className="inline-flex items-center gap-1">
+              Total estimé à verser
+              <HrHelpTip title="Total estimé">
+                <p>La somme des montants à payer des personnes affichées : fixe + primes + ajustements.</p>
+                <p>C’est une estimation tant que les dossiers ne sont pas validés.</p>
+              </HrHelpTip>
+            </span>
+          }
+          value={formatEuros(summary.pay)}
+          valueClass="text-emerald-700"
+          hint="Brut, avant charges"
+        />
+        <SummaryCard
+          icon={<Phone className="h-4 w-4 text-blue-500" />}
+          label="Activité du mois"
+          value={`${summary.calls.toLocaleString("fr-FR")} appels`}
+          hint={`${summary.rdv} rendez-vous pris (hors annulés)`}
+        />
+        <button
+          type="button"
+          data-hr-tour="attention"
+          onClick={() => setFilter("attentionOnly", !filters.attentionOnly)}
+          aria-pressed={filters.attentionOnly}
+          className={`rounded-xl border p-4 text-left shadow-xs transition-colors ${
+            attentionCount > 0
+              ? filters.attentionOnly
+                ? "border-amber-400 bg-amber-100"
+                : "border-amber-200 bg-amber-50 hover:bg-amber-100"
+              : "border-slate-200/80 bg-white"
+          }`}
+        >
+          <div className="mb-1 flex items-center justify-between text-xs text-slate-600">
+            <span>À traiter</span>
+            {attentionCount > 0 ? <AlertTriangle className="h-4 w-4 text-amber-600" /> : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
           </div>
-          <p className="text-2xl font-bold text-emerald-600">{summary.totalPayEuros} €</p>
-          <span className="text-[11px] text-slate-400 mt-1 block">
-            Fixe proratisé + variable calculé
+          <p className={`text-2xl font-bold ${attentionCount > 0 ? "text-amber-800" : "text-slate-900"}`}>{attentionCount}</p>
+          <span className="mt-1 block text-[11px] text-slate-500">
+            {attentionCount === 0
+              ? "Rien à traiter, tout est en ordre"
+              : filters.attentionOnly
+              ? "Filtre actif : cliquez pour tout afficher"
+              : "Cliquez pour n’afficher que ces personnes"}
           </span>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-1">
-            <span>Appels réalisés</span>
-            <Phone className="w-4 h-4 text-blue-500" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900">{summary.totalCalls}</p>
-          <span className="text-[11px] text-slate-400 mt-1 block">Sur le mois en cours</span>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between text-slate-500 text-xs mb-1">
-            <span>RDV validés</span>
-            <Target className="w-4 h-4 text-purple-500" />
-          </div>
-          <p className="text-2xl font-bold text-purple-600">{summary.totalRdv}</p>
-          <span className="text-[11px] text-slate-400 mt-1 block">Rendez-vous confirmés</span>
-        </div>
+        </button>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+      {/* Filters */}
+      <div data-hr-tour="filters" className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/80 bg-white p-3 shadow-xs">
+        <label className="relative min-w-[200px] flex-1">
+          <span className="sr-only">Rechercher</span>
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
           <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Rechercher par nom ou email..."
-            className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            type="search"
+            value={filters.search}
+            onChange={(e) => setFilter("search", e.target.value)}
+            placeholder="Rechercher un nom ou un email…"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-        </div>
-
-        {/* Role Filter */}
-        <select
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-          className="text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-        >
-          <option value="SDR">SDRs uniquement (Par défaut)</option>
-          <option value="ALL">Tous (SDRs & Managers)</option>
+        </label>
+        <FilterSelect label="Rôle" value={filters.role} onChange={(v) => setFilter("role", v)}>
+          <option value="SDR">SDR</option>
           <option value="MANAGER">Managers</option>
-        </select>
-
-        {/* Manager Filter */}
-        <select
-          value={managerFilter}
-          onChange={(e) => setManagerFilter(e.target.value)}
-          className="text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
+          <option value="ALL">Tout le monde</option>
+        </FilterSelect>
+        <FilterSelect label="Manager" value={filters.manager} onChange={(v) => setFilter("manager", v)}>
           <option value="ALL">Tous les managers</option>
           {availableManagers.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name}
             </option>
           ))}
-        </select>
-
-        {/* Contract Filter */}
-        <select
-          value={contractFilter}
-          onChange={(e) => setContractFilter(e.target.value)}
-          className="text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
+        </FilterSelect>
+        <FilterSelect label="Contrat" value={filters.contract} onChange={(v) => setFilter("contract", v)}>
           <option value="ALL">Tous contrats</option>
           <option value={ContractType.SALARIE}>Salarié</option>
           <option value={ContractType.INDEPENDANT}>Indépendant</option>
-        </select>
-
-        {/* Status Filter */}
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="ALL">Tous les statuts</option>
-          <option value={HrMonthStatus.DRAFT}>Brouillon</option>
-          <option value={HrMonthStatus.TO_VERIFY}>À vérifier</option>
-          <option value={HrMonthStatus.VALIDATED}>Validé</option>
-          <option value={HrMonthStatus.PAID}>Payé</option>
-        </select>
+        </FilterSelect>
+        <FilterSelect label="Étape" value={filters.status} onChange={(v) => setFilter("status", v)}>
+          <option value="ALL">Toutes les étapes</option>
+          {Object.values(HrMonthStatus).map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABELS[s]}
+            </option>
+          ))}
+        </FilterSelect>
+        {filtersActive && (
+          <button
+            type="button"
+            onClick={() => setFilters((f) => ({ ...DEFAULT_FILTERS, role: f.role }))}
+            className="rounded-lg px-2.5 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+          >
+            Réinitialiser
+          </button>
+        )}
       </div>
 
-      {/* Main Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-        {isLoading ? (
-          <div className="py-16 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2">
-            <RefreshCw className="w-5 h-5 text-indigo-600 animate-spin" />
-            <span>Chargement des collaborateurs et calculs RH...</span>
+      {/* Table */}
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
+        {isFetching && !initialLoading && (
+          <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-indigo-100" aria-hidden>
+            <div className="h-full w-1/3 animate-pulse bg-indigo-500" />
           </div>
+        )}
+
+        {initialLoading ? (
+          <TableSkeleton />
         ) : filteredRows.length === 0 ? (
-          <div className="py-16 text-center text-xs text-slate-500">
-            Aucun collaborateur ne correspond aux filtres sélectionnés.
+          <div className="flex flex-col items-center gap-2 py-16 text-center text-xs text-slate-500">
+            {rows.length === 0 && !error ? (
+              <p>Aucun SDR ou manager actif pour le moment.</p>
+            ) : (
+              <>
+                <p>Personne ne correspond à ces filtres.</p>
+                {filtersActive && (
+                  <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)} className="font-semibold text-indigo-700 hover:underline">
+                    Réinitialiser les filtres
+                  </button>
+                )}
+              </>
+            )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
+          <div className={`overflow-x-auto transition-opacity ${isFetching ? "opacity-60" : ""}`}>
+            <table className="w-full border-collapse text-left text-xs">
+              <thead className="border-b border-slate-200 bg-slate-50/80 font-semibold text-slate-600">
                 <tr>
-                  <th className="py-3 px-4">Collaborateur</th>
-                  <th className="py-3 px-4">Manager</th>
-                  <th className="py-3 px-4">Contrat</th>
-                  <th className="py-3 px-4">Statut</th>
-                  <th className="py-3 px-4">Jours travaillés & Absences</th>
-                  <th className="py-3 px-4">Appels</th>
-                  <th className="py-3 px-4">RDV</th>
-                  <th className="py-3 px-4">Quota</th>
-                  <th className="py-3 px-4">Salaire Fixe</th>
-                  <th className="py-3 px-4">Variable</th>
-                  <th className="py-3 px-4">Total à payer</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th scope="col" className="px-4 py-3">Collaborateur</th>
+                  <th scope="col" className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1">
+                      Étape
+                      <HrHelpTip title="Les 4 étapes d’un mois">
+                        <p><strong>Brouillon</strong> : le mois est en cours, les chiffres bougent.</p>
+                        <p><strong>À vérifier</strong> : prêt à être relu.</p>
+                        <p><strong>Validé</strong> : chiffres verrouillés pour la paie.</p>
+                        <p><strong>Payé</strong> : le virement est fait.</p>
+                      </HrHelpTip>
+                    </span>
+                  </th>
+                  <th scope="col" className="px-4 py-3">Alertes</th>
+                  <th scope="col" className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1">
+                      Jours payés
+                      <HrHelpTip title="Jours payés">
+                        <p>Jours ouvrés du mois (hors week-ends et jours fériés), moins les absences et les journées que vous avez décidé de ne pas payer.</p>
+                      </HrHelpTip>
+                    </span>
+                  </th>
+                  <th scope="col" className="px-4 py-3">
+                    <span className="inline-flex items-center gap-1">
+                      Activité
+                      <HrHelpTip title="Activité">
+                        <p>Appels passés et rendez-vous pris dans le mois (heure de Paris). Les rendez-vous annulés ne comptent pas.</p>
+                        <p>L’objectif est le nombre d’appels attendus par jour.</p>
+                      </HrHelpTip>
+                    </span>
+                  </th>
+                  <th scope="col" className="px-4 py-3 text-right">Fixe</th>
+                  <th scope="col" className="px-4 py-3 text-right">Variable</th>
+                  <th scope="col" className="px-4 py-3 text-right">Total à payer</th>
+                  <th scope="col" className="px-4 py-3 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredRows.map((row) => (
-                  <tr key={row.userId} className="hover:bg-slate-50/60 transition-colors">
-                    {/* Collaborateur */}
-                    <td className="py-3 px-4">
-                      <div className="font-semibold text-slate-900">{row.userName}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {getRoleBadge(row.userRole)}
-                        <span className="text-[11px] text-slate-400 truncate max-w-[140px]">
-                          {row.userEmail}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Manager */}
-                    <td className="py-3 px-4 text-slate-600">
-                      {row.managerName ? (
-                        <span className="inline-flex items-center gap-1 font-medium text-slate-800">
-                          <UserCheck className="w-3.5 h-3.5 text-indigo-500" />
-                          {row.managerName}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 text-[11px] italic">Non assigné</span>
-                      )}
-                    </td>
-
-                    {/* Contrat */}
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-700">
-                        {row.contractType === ContractType.SALARIE ? "Salarié" : "Indépendant"}
-                      </span>
-                    </td>
-
-                    {/* Statut */}
-                    <td className="py-3 px-4">{getStatusBadge(row.status)}</td>
-
-                    {/* Jours travaillés & absences */}
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-slate-800">
-                        {row.workingDays} / {row.totalWorkingDays} j
-                      </div>
-                      {row.absenceDays > 0 ? (
-                        <span className="text-[10px] text-amber-600 block">
-                          +{row.absenceDays} j abs.
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 block">0 absence</span>
-                      )}
-                    </td>
-
-                    {/* Appels */}
-                    <td className="py-3 px-4">
-                      <span className="font-bold text-slate-900">{row.totalCalls}</span>
-                    </td>
-
-                    {/* RDV */}
-                    <td className="py-3 px-4">
-                      <span className="font-bold text-emerald-600">
-                        {row.totalRdv > 0 ? `+${row.totalRdv}` : "0"}
-                      </span>
-                    </td>
-
-                    {/* Quota */}
-                    <td className="py-3 px-4">
-                      {row.dailyQuota > 0 ? (
-                        <span className="text-slate-700 font-medium">{row.dailyQuota} / j</span>
-                      ) : (
-                        <span className="text-slate-400 text-[11px]">-</span>
-                      )}
-                    </td>
-
-                    {/* Fixe */}
-                    <td className="py-3 px-4 font-medium text-slate-800">
-                      {(row.fixedAmountCents / 100).toFixed(2)} €
-                    </td>
-
-                    {/* Variable */}
-                    <td className="py-3 px-4 font-medium text-emerald-600">
-                      {(row.variableAmountCents / 100).toFixed(2)} €
-                    </td>
-
-                    {/* Total estimé */}
-                    <td className="py-3 px-4">
-                      <span className="font-black text-slate-900 text-sm">
-                        {(row.totalAmountCents / 100).toFixed(2)} €
-                      </span>
-                      {row.adjustmentCents !== 0 && (
-                        <span className="block text-[10px] text-indigo-600">
-                          {row.adjustmentCents > 0 ? "+" : ""}
-                          {(row.adjustmentCents / 100).toFixed(2)} € aj.
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => setDetailModalRow(row)}
-                          title="Voir la formule et le détail transparent"
-                          className="px-2.5 py-1 text-[11px] font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                {filteredRows.map((row, i) => {
+                  const tour = (key: string) => (i === 0 ? { "data-hr-tour": key } : {});
+                  return (
+                    <tr key={row.userId} className="transition-colors hover:bg-slate-50/60">
+                      <td className="px-4 py-3" {...tour("row-person")}>
+                        <Link
+                          href={`/manager/rh/${row.userId}`}
+                          className="font-semibold text-slate-900 hover:text-indigo-700 hover:underline"
                         >
-                          Détail
-                        </button>
+                          {row.userName}
+                        </Link>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
+                          <span className={`rounded px-1.5 py-px text-[10px] font-semibold ${row.userRole === "MANAGER" ? "bg-purple-50 text-purple-700" : "bg-indigo-50 text-indigo-700"}`}>
+                            {row.userRole === "MANAGER" ? "Manager" : row.userRole}
+                          </span>
+                          <span>{row.contractType === ContractType.SALARIE ? "Salarié" : "Indépendant"}</span>
+                          <span className="text-slate-400">·</span>
+                          <span className={row.managerName ? "" : "italic text-slate-400"}>
+                            {row.managerName ? `Manager : ${row.managerName}` : "Sans manager"}
+                          </span>
+                        </div>
+                      </td>
 
-                        <button
-                          onClick={() =>
-                            setProfileModalUser({ id: row.userId, name: row.userName })
-                          }
-                          title="Configurer les règles RH du collaborateur"
-                          className="px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                        >
-                          Règles
-                        </button>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_STYLES[row.status]}`}>
+                          {row.id ? STATUS_LABELS[row.status] : "Non enregistré"}
+                        </span>
+                      </td>
 
-                        {row.id && (
-                          <button
-                            onClick={() => setStatusModalRow(row)}
-                            title="Modifier le statut de paie ou ajouter un ajustement"
-                            className="px-2.5 py-1 text-[11px] font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                      <td className="px-4 py-3" {...tour("row-alerts")}>
+                        <div className="flex flex-wrap gap-1">
+                          {!row.hasProfile && (
+                            <AlertChip tone="rose" onClick={() => setProfileUserId(row.userId)}>
+                              Règles à configurer
+                            </AlertChip>
+                          )}
+                          {row.pendingDecisionCount > 0 && (
+                            <AlertChip tone="amber" onClick={() => setDetailUserId(row.userId)}>
+                              {row.pendingDecisionCount} j à statuer
+                            </AlertChip>
+                          )}
+                          {row.isStale && <AlertChip tone="sky">À recalculer</AlertChip>}
+                          {!needsAttention(row) && <span className="text-[11px] text-slate-400">—</span>}
+                        </div>
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <div className="font-medium tabular-nums text-slate-800">
+                          {row.workingDays} / {row.totalWorkingDays} j
+                        </div>
+                        <span className={`block text-[10px] ${row.absenceDays > 0 ? "text-amber-700" : "text-slate-400"}`}>
+                          {row.absenceDays > 0 ? `${row.absenceDays} j d’absence` : "Aucune absence"}
+                        </span>
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums">
+                        <div className="font-semibold text-slate-900">
+                          {row.totalCalls.toLocaleString("fr-FR")} appels · <span className="text-emerald-700">{row.totalRdv} RDV</span>
+                        </div>
+                        <span className="block text-[10px] text-slate-400">
+                          {row.dailyQuota > 0 ? `Objectif : ${row.dailyQuota} appels / jour` : "Pas d’objectif d’appels"}
+                        </span>
+                      </td>
+
+                      <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-800">{formatEuros(row.fixedAmountCents)}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-emerald-700">{formatEuros(row.variableAmountCents)}</td>
+
+                      <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums" {...tour("row-total")}>
+                        <span className="text-sm font-bold text-slate-900">{formatEuros(row.totalAmountCents)}</span>
+                        {row.adjustmentCents !== 0 && (
+                          <span className="block text-[10px] text-indigo-600" title={row.adjustmentNote ?? undefined}>
+                            dont {row.adjustmentCents > 0 ? "+" : "−"}
+                            {formatEuros(Math.abs(row.adjustmentCents))} d’ajustement
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <RowButton primary onClick={() => setDetailUserId(row.userId)} {...tour("row-detail")}>
+                            Détail
+                          </RowButton>
+                          <RowButton onClick={() => setProfileUserId(row.userId)} {...tour("row-rules")}>
+                            Règles
+                          </RowButton>
+                          <RowButton
+                            onClick={() => setStatusUserId(row.userId)}
+                            disabled={!row.id}
+                            title={row.id ? "Changer l’étape ou ajouter un ajustement" : "Cliquez d’abord sur « Recalculer le mois » pour enregistrer ce dossier"}
+                            {...tour("row-status")}
                           >
                             Statut
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          </RowButton>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Profile Modal */}
-      {profileModalUser && (
+      {profileUserId && (
         <HrProfileModal
-          isOpen={Boolean(profileModalUser)}
-          onClose={() => setProfileModalUser(null)}
-          userId={profileModalUser.id}
-          userName={profileModalUser.name}
-          onProfileSaved={() => fetchRows(month)}
+          isOpen
+          onClose={() => setProfileUserId(null)}
+          userId={profileUserId}
+          userName={profileRow?.userName ?? ""}
+          onProfileSaved={() => {
+            setNotice({ tone: "success", title: "Règles enregistrées. Cliquez sur « Recalculer le mois » pour les appliquer." });
+            refresh();
+          }}
         />
       )}
 
-      {/* Calculation Detail Modal */}
-      {detailModalRow && (
+      {detailUserId && (
         <HrCalculationDetailModal
-          isOpen={Boolean(detailModalRow)}
-          onClose={() => setDetailModalRow(null)}
-          userId={detailModalRow.userId}
+          isOpen
+          onClose={() => setDetailUserId(null)}
+          userId={detailUserId}
           month={month}
-          monthRecordId={detailModalRow.id}
-          onCalculationUpdated={() => fetchRows(month)}
+          onCalculationUpdated={refresh}
+          onOpenRules={() => {
+            setDetailUserId(null);
+            setProfileUserId(detailUserId);
+          }}
         />
       )}
 
-      {/* Status Modal */}
-      {statusModalRow && statusModalRow.id && (
+      {statusRow?.id && (
         <HrStatusModal
-          isOpen={Boolean(statusModalRow)}
-          onClose={() => setStatusModalRow(null)}
-          monthRecordId={statusModalRow.id}
-          userName={statusModalRow.userName}
+          isOpen
+          onClose={() => setStatusUserId(null)}
+          monthRecordId={statusRow.id}
+          userName={statusRow.userName}
           month={month}
-          currentStatus={statusModalRow.status}
-          currentAdjustmentCents={statusModalRow.adjustmentCents}
-          onStatusUpdated={() => fetchRows(month)}
+          currentStatus={statusRow.status}
+          currentAdjustmentCents={statusRow.adjustmentCents}
+          currentAdjustmentNote={statusRow.adjustmentNote ?? ""}
+          baseAmountCents={statusRow.fixedAmountCents + statusRow.variableAmountCents}
+          pendingDecisionCount={statusRow.pendingDecisionCount}
+          isStale={statusRow.isStale}
+          onStatusUpdated={(label) => {
+            setNotice({ tone: "success", title: `${statusRow.userName} : dossier passé en « ${label} ».` });
+            refresh();
+          }}
         />
       )}
+
+      <HrGuide steps={HR_PAGE_GUIDE} open={guide.open} onClose={guide.close} />
+    </div>
+  );
+}
+
+function SummaryCard({
+  icon,
+  label,
+  value,
+  hint,
+  valueClass = "text-slate-900",
+}: {
+  icon: React.ReactNode;
+  label: React.ReactNode;
+  value: string;
+  hint: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs">
+      <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
+        <span>{label}</span>
+        {icon}
+      </div>
+      <p className={`truncate text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
+      <span className="mt-1 block text-[11px] text-slate-400">{hint}</span>
+    </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex items-center">
+      <span className="sr-only">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function AlertChip({
+  tone,
+  onClick,
+  children,
+}: {
+  tone: "rose" | "amber" | "sky";
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  const styles = {
+    rose: "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100",
+    amber: "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100",
+    sky: "bg-sky-50 text-sky-700 border-sky-200",
+  }[tone];
+  const className = `inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${styles}`;
+  return onClick ? (
+    <button type="button" onClick={onClick} className={className}>
+      {children}
+    </button>
+  ) : (
+    <span className={className}>{children}</span>
+  );
+}
+
+function RowButton({
+  primary,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { primary?: boolean; "data-hr-tour"?: string }) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+        primary ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="divide-y divide-slate-100" aria-busy="true" aria-label="Chargement">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-6 px-4 py-4">
+          <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
+          <div className="h-3 w-16 animate-pulse rounded bg-slate-100" />
+          <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
+          <div className="ml-auto h-3 w-20 animate-pulse rounded bg-slate-100" />
+        </div>
+      ))}
     </div>
   );
 }

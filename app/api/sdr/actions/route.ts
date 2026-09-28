@@ -94,11 +94,12 @@ export async function GET(request: NextRequest) {
                         firstName: true,
                         lastName: true,
                         title: true,
-                        company: { select: { id: true, name: true } },
+                        phone: true,
+                        company: { select: { id: true, name: true, phone: true } },
                     },
                 },
                 company: {
-                    select: { id: true, name: true },
+                    select: { id: true, name: true, phone: true },
                 },
                 campaign: {
                     select: {
@@ -115,6 +116,7 @@ export async function GET(request: NextRequest) {
                 ? `${(a.contact.firstName || "").trim()} ${(a.contact.lastName || "").trim()}`.trim() || a.contact.company?.name
                 : null;
             const companyName = a.contact?.company?.name ?? a.company?.name ?? null;
+            const phone = a.contact?.phone ?? a.contact?.company?.phone ?? a.company?.phone ?? null;
             const label = ACTION_RESULT_LABELS[(a.result as ActionResult)] ?? a.result;
             const companyIdResolved = a.companyId ?? a.contact?.company?.id ?? null;
 
@@ -130,6 +132,7 @@ export async function GET(request: NextRequest) {
                 missionName: a.campaign?.mission?.name,
                 contactName: contactName || undefined,
                 companyName: companyName || undefined,
+                phone: phone || undefined,
                 note: a.note ?? undefined,
                 createdAt: a.createdAt.toISOString(),
                 callbackDate: a.callbackDate?.toISOString() ?? null,

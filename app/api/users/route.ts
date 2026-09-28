@@ -11,6 +11,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import { resolveDefaultSdrManagerId } from '@/lib/hr/default-manager';
 
 // ============================================
 // GET /api/users - List users
@@ -136,6 +137,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     // Create user and assign default permissions in a transaction
     const result = await prisma.$transaction(async (tx) => {
         // Create the user
+        const managerId = data.role === 'SDR' ? await resolveDefaultSdrManagerId(tx) : null;
         const user = await tx.user.create({
             data: {
                 name: data.name,
@@ -145,6 +147,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 isActive: true,
                 clientId: data.clientId,
                 alloPhoneNumber: data.alloPhoneNumber?.trim() || null,
+                managerId,
             },
             select: {
                 id: true,

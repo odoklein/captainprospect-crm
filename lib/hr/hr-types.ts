@@ -21,9 +21,10 @@ export interface DayActivityDetail {
   holidayLabel?: string;
   isAbsence: boolean;
   absenceType?: string;
+  isFuture: boolean; // today or later (Paris time): not judged yet
   callCount: number;
   rdvCount: number;
-  isUnderQuota: boolean; // callCount < dailyQuota or callCount === 0 on a working day
+  isUnderQuota: boolean; // past working day, not absent, callCount < dailyQuota
   decision?: HrDayDecision;
   decisionReason?: string;
   decidedAt?: string;
@@ -69,6 +70,13 @@ export interface CalculationBreakdown {
   // Day by day details
   days: DayActivityDetail[];
   daysUnderQuotaCount: number;
+  pendingDecisionCount: number;
+
+  // Record state
+  hasProfile: boolean;
+  monthRecordId?: string;
+  status?: HrMonthStatus;
+  savedTotalAmountCents?: number;
 }
 
 export interface HrMonthRowData {
@@ -95,11 +103,14 @@ export interface HrMonthRowData {
   fixedAmountCents: number;
   variableAmountCents: number;
   adjustmentCents: number;
+  adjustmentNote?: string | null;
   totalAmountCents: number;
 
   // Flags
-  hasUnderQuotaPendingDecision: boolean;
+  hasProfile: boolean;
+  pendingDecisionCount: number;
   underQuotaDaysCount: number;
+  isStale: boolean; // saved figures differ from a fresh calculation
   validatedAt?: string | null;
   paidAt?: string | null;
 }

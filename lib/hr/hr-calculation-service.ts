@@ -1,38 +1,303 @@
 import { prisma } from "@/lib/prisma";
+import { NotFoundError, ValidationError } from "@/lib/api-utils";
 import {
   CalculationBreakdown,
-  DayActivityDetail,
+  ContractType,
+  HrDayDecision,
   HrMonthRowData,
   HrMonthStatus,
   RemunerationMode,
-  ContractType,
-  HrDayDecision,
 } from "./hr-types";
-import { hrProfileService } from "./hr-profile-service";
+import {
+  InvalidMonthError,
+  MonthComputation,
+  computeMonth,
+  dateColumnKey,
+  getMonthBounds,
+  isLockedStatus,
+  parisDayKey,
+  resolveStatusTransition,
+  todayParisKey,
+} from "./hr-rules";
+
+const HR_ROLES = ["SDR", "MANAGER"] as const;
+
+type UserWithProfile = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  managerId: string | null;
+  manager: { id: string; name: string } | null;
+  hrProfile: {
+    id: string;
+    contractType: ContractType;
+    remunerationMode: RemunerationMode;
+    fixedSalaryCents: number;
+    variablePerRdvCents: number;
+    dailyQuota: number;
+  } | null;
+};
+
+const userSelect = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  managerId: true,
+  manager: { select: { id: true, name: true } },
+  hrProfile: true,
+} as const;
+
+function resolveProfile(user: UserWithProfile) {
+  if (user.hrProfile) return user.hrProfile;
+  return {
+    id: null as string | null,
+    contractType: ContractType.SALARIE,
+    remunerationMode: RemunerationMode.FIXE,
+    fixedSalaryCents: 0,
+    variablePerRdvCents: 0,
+    dailyQuota: user.role === "SDR" || user.role === "BOOKER" ? 80 : 0,
+  };
+}
+
+function bounds(monthStr: string) {
+  try {
+    return getMonthBounds(monthStr);
+  } catch (e) {
+    if (e instanceof InvalidMonthError) throw new ValidationError(e.message);
+    throw e;
+  }
+}
+
+function countByUserDay(rows: { sdrId: string; createdAt: Date }[]) {
+  const map = new Map<string, Map<string, number>>();
+  for (const r of rows) {
+    const key = parisDayKey(r.createdAt);
+    let perDay = map.get(r.sdrId);
+    if (!perDay) map.set(r.sdrId, (perDay = new Map()));
+    perDay.set(key, (perDay.get(key) || 0) + 1);
+  }
+  return map;
+}
+
+async function loadMonthContext(userIds: string[], monthStr: string) {
+  const b = bounds(monthStr);
+
+  const [holidays, absences, calls, rdvs, records] = await Promise.all([
+    prisma.planningHoliday.findMany({
+      where: { scope: "GLOBAL", date: { gte: b.dateStart, lte: b.dateEnd } },
+    }),
+    prisma.sdrAbsence.findMany({
+      where: {
+        sdrId: { in: userIds },
+        impactsPlanning: true,
+        startDate: { lte: b.dateEnd },
+        endDate: { gte: b.dateStart },
+      },
+    }),
+    prisma.action.findMany({
+      where: {
+        sdrId: { in: userIds },
+        channel: "CALL",
+        createdAt: { gte: b.activityStart, lt: b.activityEndExclusive },
+      },
+      select: { sdrId: true, createdAt: true },
+    }),
+    prisma.action.findMany({
+      where: {
+        sdrId: { in: userIds },
+        result: "MEETING_BOOKED",
+        confirmationStatus: { not: "CANCELLED" },
+        createdAt: { gte: b.activityStart, lt: b.activityEndExclusive },
+      },
+      select: { sdrId: true, createdAt: true },
+    }),
+    prisma.hrMonthRecord.findMany({
+      where: { userId: { in: userIds }, month: monthStr },
+      include: { dayDecisions: true },
+    }),
+  ]);
+
+  const holidayMap = new Map<string, string>();
+  holidays.forEach((h) => holidayMap.set(dateColumnKey(h.date), h.label || "Jour férié"));
+
+  return {
+    holidayMap,
+    absences,
+    callsByUser: countByUserDay(calls),
+    rdvByUser: countByUserDay(rdvs),
+    recordByUser: new Map(records.map((r) => [r.userId, r])),
+  };
+}
+
+type MonthContext = Awaited<ReturnType<typeof loadMonthContext>>;
+type MonthRecordWithDecisions = NonNullable<ReturnType<MonthContext["recordByUser"]["get"]>>;
+
+function computeForUser(user: UserWithProfile, monthStr: string, ctx: MonthContext) {
+  const profile = resolveProfile(user);
+  const record = ctx.recordByUser.get(user.id);
+
+  const decisions = new Map<string, { decision: HrDayDecision; reason: string; decidedAt?: string }>();
+  record?.dayDecisions.forEach((d) =>
+    decisions.set(dateColumnKey(d.date), {
+      decision: d.decision,
+      reason: d.reason,
+      decidedAt: d.decidedAt.toISOString(),
+    })
+  );
+
+  const computation = computeMonth({
+    monthStr,
+    profile,
+    holidays: ctx.holidayMap,
+    absences: ctx.absences
+      .filter((a) => a.sdrId === user.id)
+      .map((a) => ({ start: dateColumnKey(a.startDate), end: dateColumnKey(a.endDate), type: a.type })),
+    callsByDay: ctx.callsByUser.get(user.id) ?? new Map(),
+    rdvByDay: ctx.rdvByUser.get(user.id) ?? new Map(),
+    decisions,
+    adjustmentCents: record?.adjustmentCents ?? 0,
+    todayKey: todayParisKey(),
+  });
+
+  return { profile, record, computation };
+}
+
+function toBreakdown(
+  user: UserWithProfile,
+  monthStr: string,
+  profile: ReturnType<typeof resolveProfile>,
+  record: MonthRecordWithDecisions | undefined,
+  c: MonthComputation
+): CalculationBreakdown {
+  return {
+    month: monthStr,
+    userId: user.id,
+    userName: user.name,
+    userRole: user.role,
+    contractType: profile.contractType,
+    remunerationMode: profile.remunerationMode,
+    calendarDaysInMonth: c.calendarDaysInMonth,
+    totalWorkingDaysInMonth: c.totalWorkingDaysInMonth,
+    absenceDays: c.absenceDays,
+    effectiveWorkingDays: c.effectiveWorkingDays,
+    unpaidDaysUnderQuota: c.unpaidDaysUnderQuota,
+    totalCalls: c.totalCalls,
+    totalRdv: c.totalRdv,
+    dailyQuota: profile.dailyQuota,
+    baseFixedSalaryCents: profile.fixedSalaryCents,
+    proratedFixedCents: c.proratedFixedCents,
+    variablePerRdvCents: profile.variablePerRdvCents,
+    variableAmountCents: c.variableAmountCents,
+    adjustmentCents: record?.adjustmentCents ?? 0,
+    adjustmentNote: record?.adjustmentNote ?? undefined,
+    totalAmountCents: c.totalAmountCents,
+    savedTotalAmountCents: record?.totalAmountCents,
+    formulas: c.formulas,
+    days: c.days,
+    daysUnderQuotaCount: c.daysUnderQuotaCount,
+    pendingDecisionCount: c.pendingDecisionCount,
+    hasProfile: Boolean(profile.id),
+    monthRecordId: record?.id,
+    status: record?.status,
+  };
+}
+
+function differsFromRecord(record: MonthRecordWithDecisions, c: MonthComputation) {
+  return (
+    record.totalAmountCents !== c.totalAmountCents ||
+    record.totalCalls !== c.totalCalls ||
+    record.totalRdv !== c.totalRdv ||
+    record.workingDays !== c.effectiveWorkingDays ||
+    record.absenceDays !== c.absenceDays
+  );
+}
 
 export class HrCalculationService {
-  /**
-   * Helper to parse "YYYY-MM" into start and end Dates
-   */
-  private getMonthRange(monthStr: string) {
-    const [yearStr, monthNumStr] = monthStr.split("-");
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthNumStr, 10); // 1-12
+  private async getUser(userId: string): Promise<UserWithProfile> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: userSelect });
+    if (!user) throw new NotFoundError("Collaborateur introuvable");
+    return user;
+  }
 
-    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
-      throw new Error(`Format de mois invalide: ${monthStr} (attendu: YYYY-MM)`);
+  private async persist(
+    user: UserWithProfile,
+    monthStr: string,
+    profile: ReturnType<typeof resolveProfile>,
+    record: MonthRecordWithDecisions | undefined,
+    c: MonthComputation,
+    actorId?: string,
+    reopen = false
+  ) {
+    if (!profile.id) {
+      throw new ValidationError(
+        `Les règles RH de ${user.name} ne sont pas encore configurées. Cliquez sur « Règles » pour les renseigner.`
+      );
     }
 
-    const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-    // Last day of month
-    const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-    const daysInMonth = new Date(year, month, 0).getDate();
+    const figures = {
+      workingDays: c.effectiveWorkingDays,
+      absenceDays: c.absenceDays,
+      totalCalls: c.totalCalls,
+      totalRdv: c.totalRdv,
+      dailyQuota: profile.dailyQuota,
+      fixedAmountCents: c.proratedFixedCents,
+      variableAmountCents: c.variableAmountCents,
+      totalAmountCents: c.totalAmountCents,
+      rulesSnapshot: {
+        contractType: profile.contractType,
+        remunerationMode: profile.remunerationMode,
+        fixedSalaryCents: profile.fixedSalaryCents,
+        variablePerRdvCents: profile.variablePerRdvCents,
+        dailyQuota: profile.dailyQuota,
+        totalWorkingDaysInMonth: c.totalWorkingDaysInMonth,
+      },
+    };
 
-    return { year, month, startOfMonth, endOfMonth, daysInMonth };
+    const saved = await prisma.hrMonthRecord.upsert({
+      where: { userId_month: { userId: user.id, month: monthStr } },
+      create: {
+        hrProfileId: profile.id,
+        userId: user.id,
+        month: monthStr,
+        adjustmentCents: 0,
+        status: HrMonthStatus.DRAFT,
+        ...figures,
+      },
+      update: {
+        hrProfileId: profile.id,
+        ...figures,
+        ...(reopen
+          ? { status: HrMonthStatus.TO_VERIFY, validatedAt: null, validatedById: null, paidAt: null }
+          : {}),
+      },
+    });
+
+    if (actorId) {
+      await prisma.hrAuditLog.create({
+        data: {
+          monthRecordId: saved.id,
+          userId: user.id,
+          actorId,
+          action: reopen ? "MONTH_REOPENED" : record ? "MONTH_RECALCULATED" : "MONTH_CALCULATED",
+          details: {
+            month: monthStr,
+            totalAmountCents: c.totalAmountCents,
+            effectiveWorkingDays: c.effectiveWorkingDays,
+            totalCalls: c.totalCalls,
+            totalRdv: c.totalRdv,
+          },
+        },
+      });
+    }
+
+    return saved;
   }
 
   /**
-   * Calculate detailed activity and salary metrics for a user and month.
+   * Detailed calculation for one person and month. With persist=false it is a
+   * read-only preview and works on validated/paid months too.
    */
   async calculateUserMonth(
     userId: string,
@@ -41,496 +306,168 @@ export class HrCalculationService {
     actorId?: string,
     options?: { forceReopen?: boolean }
   ): Promise<CalculationBreakdown> {
-    const { year, month, startOfMonth, endOfMonth, daysInMonth } = this.getMonthRange(monthStr);
+    const user = await this.getUser(userId);
+    const ctx = await loadMonthContext([user.id], monthStr);
+    const { profile, record, computation } = computeForUser(user, monthStr, ctx);
 
-    // 1. Get User and HR Profile
-    const { user, profile } = await hrProfileService.getProfile(userId);
+    if (!persist) return toBreakdown(user, monthStr, profile, record, computation);
 
-    // 2. Check existing record
-    const existingRecord = await prisma.hrMonthRecord.findUnique({
-      where: {
-        userId_month: {
-          userId,
-          month: monthStr,
-        },
-      },
-      include: {
-        dayDecisions: true,
-      },
-    });
-
-    if (existingRecord) {
-      if (
-        (existingRecord.status === HrMonthStatus.VALIDATED || existingRecord.status === HrMonthStatus.PAID) &&
-        !options?.forceReopen
-      ) {
-        throw new Error(
-          `Ce mois est déjà ${existingRecord.status === HrMonthStatus.VALIDATED ? "validé" : "payé"}. Une permission de réouverture est nécessaire pour le recalculer.`
-        );
-      }
+    const locked = isLockedStatus(record?.status);
+    if (locked && !options?.forceReopen) {
+      throw new ValidationError(
+        `Ce mois est déjà ${record?.status === HrMonthStatus.VALIDATED ? "validé" : "payé"}. Rouvrez le dossier (bouton « Statut ») pour le recalculer.`
+      );
     }
 
-    // 3. Holidays in month
-    const holidays = await prisma.planningHoliday.findMany({
-      where: {
-        date: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-      },
-    });
-    const holidayMap = new Map<string, string>();
-    holidays.forEach((h) => {
-      const dateStr = h.date.toISOString().split("T")[0];
-      holidayMap.set(dateStr, h.label || "Jour férié");
-    });
-
-    // 4. Absences in month
-    const absences = await prisma.sdrAbsence.findMany({
-      where: {
-        sdrId: userId,
-        impactsPlanning: true,
-        OR: [
-          {
-            startDate: { lte: endOfMonth },
-            endDate: { gte: startOfMonth },
-          },
-        ],
-      },
-    });
-
-    // 5. Calls in month
-    const callActions = await prisma.action.findMany({
-      where: {
-        sdrId: userId,
-        channel: "CALL",
-        createdAt: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-      },
-      select: {
-        createdAt: true,
-      },
-    });
-
-    // Group calls by date YYYY-MM-DD
-    const callsByDay = new Map<string, number>();
-    callActions.forEach((a) => {
-      const dateStr = a.createdAt.toISOString().split("T")[0];
-      callsByDay.set(dateStr, (callsByDay.get(dateStr) || 0) + 1);
-    });
-
-    // 6. Valid RDVs in month
-    const rdvActions = await prisma.action.findMany({
-      where: {
-        sdrId: userId,
-        result: "MEETING_BOOKED",
-        confirmationStatus: {
-          not: "CANCELLED",
-        },
-        createdAt: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-      },
-      select: {
-        id: true,
-        createdAt: true,
-        confirmationStatus: true,
-      },
-    });
-
-    // Group RDVs by date YYYY-MM-DD
-    const rdvByDay = new Map<string, number>();
-    rdvActions.forEach((a) => {
-      const dateStr = a.createdAt.toISOString().split("T")[0];
-      rdvByDay.set(dateStr, (rdvByDay.get(dateStr) || 0) + 1);
-    });
-
-    // Existing decisions map
-    const decisionsMap = new Map<string, { decision: HrDayDecision; reason: string; decidedAt: Date }>();
-    if (existingRecord?.dayDecisions) {
-      existingRecord.dayDecisions.forEach((d) => {
-        const dateStr = d.date.toISOString().split("T")[0];
-        decisionsMap.set(dateStr, {
-          decision: d.decision,
-          reason: d.reason,
-          decidedAt: d.decidedAt,
-        });
-      });
-    }
-
-    // 7. Day by day analysis
-    const days: DayActivityDetail[] = [];
-    let totalWorkingDaysInMonth = 0;
-    let absenceDays = 0;
-    let unpaidDaysUnderQuota = 0;
-    let daysUnderQuotaCount = 0;
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateObj = new Date(Date.UTC(year, month - 1, day));
-      const dayOfWeek = dateObj.getUTCDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-      const dateStr = dateObj.toISOString().split("T")[0];
-
-      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      const holidayLabel = holidayMap.get(dateStr);
-      const isHoliday = Boolean(holidayLabel);
-
-      // Mon-Fri and not a holiday is a standard working day
-      const isWorkingDay = !isWeekend && !isHoliday;
-      if (isWorkingDay) {
-        totalWorkingDaysInMonth++;
-      }
-
-      // Check absence on this day
-      let isAbsence = false;
-      let absenceType: string | undefined;
-      for (const abs of absences) {
-        const start = abs.startDate.toISOString().split("T")[0];
-        const end = abs.endDate.toISOString().split("T")[0];
-        if (dateStr >= start && dateStr <= end) {
-          isAbsence = true;
-          absenceType = abs.type;
-          break;
-        }
-      }
-
-      if (isWorkingDay && isAbsence) {
-        absenceDays++;
-      }
-
-      const callCount = callsByDay.get(dateStr) || 0;
-      const rdvCount = rdvByDay.get(dateStr) || 0;
-
-      // Under-quota logic: on a working day without absence, did user meet quota?
-      const isUnderQuota =
-        isWorkingDay &&
-        !isAbsence &&
-        profile.dailyQuota > 0 &&
-        (callCount < profile.dailyQuota || callCount === 0);
-
-      if (isUnderQuota) {
-        daysUnderQuotaCount++;
-      }
-
-      const existingDecision = decisionsMap.get(dateStr);
-      if (isUnderQuota && existingDecision?.decision === HrDayDecision.UNPAID) {
-        unpaidDaysUnderQuota++;
-      }
-
-      days.push({
-        date: dateStr,
-        isWorkingDay,
-        isHoliday,
-        holidayLabel,
-        isAbsence,
-        absenceType,
-        callCount,
-        rdvCount,
-        isUnderQuota,
-        decision: existingDecision?.decision,
-        decisionReason: existingDecision?.reason,
-        decidedAt: existingDecision?.decidedAt ? existingDecision.decidedAt.toISOString() : undefined,
-      });
-    }
-
-    // 8. Effective Working Days
-    const effectiveWorkingDays = Math.max(
-      0,
-      totalWorkingDaysInMonth - absenceDays - unpaidDaysUnderQuota
-    );
-
-    // 9. Financial calculation (all in integer cents)
-    const baseFixedSalaryCents = profile.fixedSalaryCents;
-    const variablePerRdvCents = profile.variablePerRdvCents;
-    const totalCalls = callActions.length;
-    const totalRdv = rdvActions.length;
-
-    let proratedFixedCents = 0;
-    if (
-      profile.remunerationMode === RemunerationMode.FIXE ||
-      profile.remunerationMode === RemunerationMode.FIXE_PLUS_VARIABLE
-    ) {
-      if (totalWorkingDaysInMonth > 0) {
-        proratedFixedCents = Math.round(
-          (baseFixedSalaryCents * effectiveWorkingDays) / totalWorkingDaysInMonth
-        );
-      } else {
-        proratedFixedCents = baseFixedSalaryCents;
-      }
-    }
-
-    let variableAmountCents = 0;
-    if (
-      profile.remunerationMode === RemunerationMode.VARIABLE ||
-      profile.remunerationMode === RemunerationMode.FIXE_PLUS_VARIABLE
-    ) {
-      variableAmountCents = totalRdv * variablePerRdvCents;
-    }
-
-    const adjustmentCents = existingRecord?.adjustmentCents || 0;
-    const adjustmentNote = existingRecord?.adjustmentNote || undefined;
-    const totalAmountCents = proratedFixedCents + variableAmountCents + adjustmentCents;
-
-    // 10. Transparent calculation formulas in French
-    const workingDaysFormula = `${totalWorkingDaysInMonth} j ouvrés - ${absenceDays} j absence${
-      unpaidDaysUnderQuota > 0 ? ` - ${unpaidDaysUnderQuota} j sous-quota non payé` : ""
-    } = ${effectiveWorkingDays} j effectifs`;
-
-    const fixedFormula =
-      profile.remunerationMode === RemunerationMode.VARIABLE
-        ? "Non applicable (Mode Variable pur)"
-        : totalWorkingDaysInMonth > 0
-        ? `(${ (baseFixedSalaryCents / 100).toFixed(2) } € × ${effectiveWorkingDays} j) / ${totalWorkingDaysInMonth} j = ${ (proratedFixedCents / 100).toFixed(2) } €`
-        : `${ (baseFixedSalaryCents / 100).toFixed(2) } €`;
-
-    const variableFormula =
-      profile.remunerationMode === RemunerationMode.FIXE
-        ? "Non applicable (Mode Fixe pur)"
-        : `${totalRdv} RDV × ${ (variablePerRdvCents / 100).toFixed(2) } € = ${ (variableAmountCents / 100).toFixed(2) } €`;
-
-    const totalFormula = `${ (proratedFixedCents / 100).toFixed(2) } € (fixe) + ${ (variableAmountCents / 100).toFixed(2) } € (variable)${
-      adjustmentCents !== 0
-        ? ` ${adjustmentCents > 0 ? "+" : "-"} ${Math.abs(adjustmentCents / 100).toFixed(2)} € (ajustement)`
-        : ""
-    } = ${ (totalAmountCents / 100).toFixed(2) } €`;
-
-    const breakdown: CalculationBreakdown = {
-      month: monthStr,
-      userId,
-      userName: user.name,
-      userRole: user.role,
-      contractType: profile.contractType,
-      remunerationMode: profile.remunerationMode,
-      calendarDaysInMonth: daysInMonth,
-      totalWorkingDaysInMonth,
-      absenceDays,
-      effectiveWorkingDays,
-      unpaidDaysUnderQuota,
-      totalCalls,
-      totalRdv,
-      dailyQuota: profile.dailyQuota,
-      baseFixedSalaryCents,
-      proratedFixedCents,
-      variablePerRdvCents,
-      variableAmountCents,
-      adjustmentCents,
-      adjustmentNote,
-      totalAmountCents,
-      formulas: {
-        workingDaysFormula,
-        fixedFormula,
-        variableFormula,
-        totalFormula,
-      },
-      days,
-      daysUnderQuotaCount,
+    const saved = await this.persist(user, monthStr, profile, record, computation, actorId, locked);
+    return {
+      ...toBreakdown(user, monthStr, profile, record, computation),
+      monthRecordId: saved.id,
+      status: saved.status,
+      savedTotalAmountCents: saved.totalAmountCents,
     };
-
-    // 11. Persist to HrMonthRecord if requested
-    if (persist && profile.id) {
-      const rulesSnapshot = {
-        contractType: profile.contractType,
-        remunerationMode: profile.remunerationMode,
-        fixedSalaryCents: profile.fixedSalaryCents,
-        variablePerRdvCents: profile.variablePerRdvCents,
-        dailyQuota: profile.dailyQuota,
-        totalWorkingDaysInMonth,
-      };
-
-      await prisma.hrMonthRecord.upsert({
-        where: {
-          userId_month: {
-            userId,
-            month: monthStr,
-          },
-        },
-        create: {
-          hrProfileId: profile.id,
-          userId,
-          month: monthStr,
-          workingDays: effectiveWorkingDays,
-          absenceDays,
-          totalCalls,
-          totalRdv,
-          dailyQuota: profile.dailyQuota,
-          fixedAmountCents: proratedFixedCents,
-          variableAmountCents,
-          adjustmentCents,
-          totalAmountCents,
-          rulesSnapshot,
-          status: HrMonthStatus.DRAFT,
-          adjustmentNote,
-        },
-        update: {
-          workingDays: effectiveWorkingDays,
-          absenceDays,
-          totalCalls,
-          totalRdv,
-          dailyQuota: profile.dailyQuota,
-          fixedAmountCents: proratedFixedCents,
-          variableAmountCents,
-          totalAmountCents,
-          rulesSnapshot,
-          status:
-            existingRecord?.status === HrMonthStatus.DRAFT || !existingRecord?.status
-              ? HrMonthStatus.DRAFT
-              : existingRecord.status,
-        },
-      });
-
-      if (actorId) {
-        await prisma.hrAuditLog.create({
-          data: {
-            userId,
-            actorId,
-            action: existingRecord ? "MONTH_RECALCULATED" : "MONTH_CALCULATED",
-            details: {
-              month: monthStr,
-              totalAmountCents,
-              effectiveWorkingDays,
-              totalCalls,
-              totalRdv,
-            },
-          },
-        });
-      }
-    }
-
-    return breakdown;
   }
 
   /**
-   * Get table rows for all eligible team members for a given month.
+   * Table rows for every active SDR/manager. Saved figures are shown when a
+   * record exists; a fresh calculation drives the "needs attention" flags.
    */
   async getMonthOverview(monthStr: string): Promise<HrMonthRowData[]> {
-    this.getMonthRange(monthStr); // validate format
+    bounds(monthStr);
 
     const users = await prisma.user.findMany({
-      where: {
-        isActive: true,
-        role: {
-          in: ["SDR", "MANAGER"],
-        },
-      },
-      include: {
-        manager: {
-          select: { id: true, name: true },
-        },
-        hrProfile: true,
-        hrMonthRecords: {
-          where: { month: monthStr },
-          include: { dayDecisions: true },
-        },
-      },
+      where: { isActive: true, role: { in: [...HR_ROLES] } },
+      select: userSelect,
       orderBy: [{ role: "asc" }, { name: "asc" }],
     });
+    if (users.length === 0) return [];
 
-    const rows: HrMonthRowData[] = [];
+    const ctx = await loadMonthContext(
+      users.map((u) => u.id),
+      monthStr
+    );
 
-    for (const u of users) {
-      let record = u.hrMonthRecords[0];
+    return users.map((u) => {
+      const { profile, record, computation: c } = computeForUser(u, monthStr, ctx);
+      const locked = isLockedStatus(record?.status);
+      const base = {
+        userId: u.id,
+        userName: u.name,
+        userEmail: u.email,
+        userRole: u.role,
+        managerId: u.managerId,
+        managerName: u.manager?.name,
+        contractType: profile.contractType,
+        remunerationMode: profile.remunerationMode,
+        hasProfile: Boolean(profile.id),
+        underQuotaDaysCount: c.daysUnderQuotaCount,
+        pendingDecisionCount: locked ? 0 : c.pendingDecisionCount,
+      };
 
-      // If no record exists or no HR profile, compute on-the-fly preview
-      if (!record || !u.hrProfile) {
-        try {
-          const breakdown = await this.calculateUserMonth(u.id, monthStr, false);
-          rows.push({
-            id: undefined,
-            userId: u.id,
-            userName: u.name,
-            userEmail: u.email,
-            userRole: u.role,
-            managerId: u.managerId,
-            managerName: u.manager?.name,
-            contractType: breakdown.contractType,
-            remunerationMode: breakdown.remunerationMode,
-            status: HrMonthStatus.DRAFT,
-            workingDays: breakdown.effectiveWorkingDays,
-            totalWorkingDays: breakdown.totalWorkingDaysInMonth,
-            absenceDays: breakdown.absenceDays,
-            totalCalls: breakdown.totalCalls,
-            totalRdv: breakdown.totalRdv,
-            dailyQuota: breakdown.dailyQuota,
-            fixedAmountCents: breakdown.proratedFixedCents,
-            variableAmountCents: breakdown.variableAmountCents,
-            adjustmentCents: breakdown.adjustmentCents,
-            totalAmountCents: breakdown.totalAmountCents,
-            hasUnderQuotaPendingDecision: breakdown.daysUnderQuotaCount > 0,
-            underQuotaDaysCount: breakdown.daysUnderQuotaCount,
-            validatedAt: null,
-            paidAt: null,
-          });
-          continue;
-        } catch (e) {
-          console.warn(`Failed preview for user ${u.id}:`, e);
-        }
+      if (!record) {
+        return {
+          ...base,
+          id: undefined,
+          status: HrMonthStatus.DRAFT,
+          workingDays: c.effectiveWorkingDays,
+          totalWorkingDays: c.totalWorkingDaysInMonth,
+          absenceDays: c.absenceDays,
+          totalCalls: c.totalCalls,
+          totalRdv: c.totalRdv,
+          dailyQuota: profile.dailyQuota,
+          fixedAmountCents: c.proratedFixedCents,
+          variableAmountCents: c.variableAmountCents,
+          adjustmentCents: 0,
+          adjustmentNote: null,
+          totalAmountCents: c.totalAmountCents,
+          isStale: false,
+          validatedAt: null,
+          paidAt: null,
+        };
       }
 
-      if (record) {
-        rows.push({
-          id: record.id,
-          userId: u.id,
-          userName: u.name,
-          userEmail: u.email,
-          userRole: u.role,
-          managerId: u.managerId,
-          managerName: u.manager?.name,
-          contractType: u.hrProfile?.contractType || ContractType.SALARIE,
-          remunerationMode: u.hrProfile?.remunerationMode || RemunerationMode.FIXE,
-          status: record.status,
-          workingDays: record.workingDays,
-          totalWorkingDays:
-            (record.rulesSnapshot as any)?.totalWorkingDaysInMonth || record.workingDays + record.absenceDays,
-          absenceDays: record.absenceDays,
-          totalCalls: record.totalCalls,
-          totalRdv: record.totalRdv,
-          dailyQuota: record.dailyQuota,
-          fixedAmountCents: record.fixedAmountCents,
-          variableAmountCents: record.variableAmountCents,
-          adjustmentCents: record.adjustmentCents,
-          totalAmountCents: record.totalAmountCents,
-          hasUnderQuotaPendingDecision: false,
-          underQuotaDaysCount: 0,
-          validatedAt: record.validatedAt ? record.validatedAt.toISOString() : null,
-          paidAt: record.paidAt ? record.paidAt.toISOString() : null,
-        });
-      }
-    }
-
-    return rows;
+      const snapshot = record.rulesSnapshot as { totalWorkingDaysInMonth?: number } | null;
+      return {
+        ...base,
+        id: record.id,
+        status: record.status,
+        workingDays: record.workingDays,
+        totalWorkingDays: snapshot?.totalWorkingDaysInMonth ?? c.totalWorkingDaysInMonth,
+        absenceDays: record.absenceDays,
+        totalCalls: record.totalCalls,
+        totalRdv: record.totalRdv,
+        dailyQuota: record.dailyQuota,
+        fixedAmountCents: record.fixedAmountCents,
+        variableAmountCents: record.variableAmountCents,
+        adjustmentCents: record.adjustmentCents,
+        adjustmentNote: record.adjustmentNote,
+        totalAmountCents: record.totalAmountCents,
+        isStale: !locked && differsFromRecord(record, c),
+        validatedAt: record.validatedAt?.toISOString() ?? null,
+        paidAt: record.paidAt?.toISOString() ?? null,
+      };
+    });
   }
 
   /**
-   * Bulk calculate/refresh all active team members for a month.
+   * Save fresh figures for everyone. Validated/paid months and people without
+   * HR rules are skipped, not failed.
    */
   async calculateAllForMonth(monthStr: string, actorId: string) {
     const users = await prisma.user.findMany({
-      where: {
-        isActive: true,
-        role: {
-          in: ["SDR", "MANAGER"],
-        },
-      },
-      select: { id: true, name: true },
+      where: { isActive: true, role: { in: [...HR_ROLES] } },
+      select: userSelect,
     });
+    const ctx = await loadMonthContext(
+      users.map((u) => u.id),
+      monthStr
+    );
 
-    const results = [];
+    const results: {
+      userId: string;
+      name: string;
+      outcome: "updated" | "skipped" | "failed";
+      message?: string;
+    }[] = [];
+
     for (const u of users) {
+      const { profile, record, computation } = computeForUser(u, monthStr, ctx);
+      if (!profile.id) {
+        results.push({ userId: u.id, name: u.name, outcome: "skipped", message: "Règles RH non configurées" });
+        continue;
+      }
+      if (isLockedStatus(record?.status)) {
+        results.push({ userId: u.id, name: u.name, outcome: "skipped", message: "Dossier déjà validé ou payé" });
+        continue;
+      }
       try {
-        const res = await this.calculateUserMonth(u.id, monthStr, true, actorId);
-        results.push({ userId: u.id, name: u.name, success: true, total: res.totalAmountCents });
-      } catch (err: any) {
-        results.push({ userId: u.id, name: u.name, success: false, error: err.message });
+        await this.persist(u, monthStr, profile, record, computation, actorId);
+        results.push({ userId: u.id, name: u.name, outcome: "updated" });
+      } catch (err) {
+        results.push({ userId: u.id, name: u.name, outcome: "failed", message: (err as Error)?.message });
       }
     }
 
-    return results;
+    return {
+      updated: results.filter((r) => r.outcome === "updated").length,
+      skipped: results.filter((r) => r.outcome === "skipped").length,
+      failed: results.filter((r) => r.outcome === "failed").length,
+      results,
+    };
+  }
+
+  async getMonthRecordStatus(monthRecordId: string): Promise<HrMonthStatus> {
+    const record = await prisma.hrMonthRecord.findUnique({
+      where: { id: monthRecordId },
+      select: { status: true },
+    });
+    if (!record) throw new NotFoundError("Dossier mensuel introuvable");
+    return record.status;
   }
 
   /**
-   * Set status on HrMonthRecord (DRAFT -> TO_VERIFY -> VALIDATED -> PAID)
+   * DRAFT → TO_VERIFY → VALIDATED → PAID. Permission checks live in the route;
+   * this enforces the workflow itself.
    */
   async updateStatus(
     monthRecordId: string,
@@ -538,38 +475,60 @@ export class HrCalculationService {
     actorId: string,
     options?: { adjustmentCents?: number; adjustmentNote?: string }
   ) {
-    const record = await prisma.hrMonthRecord.findUnique({
-      where: { id: monthRecordId },
-    });
+    const record = await prisma.hrMonthRecord.findUnique({ where: { id: monthRecordId } });
+    if (!record) throw new NotFoundError("Dossier mensuel introuvable");
 
-    if (!record) {
-      throw new Error("Dossier mensuel introuvable");
+    const transition = resolveStatusTransition(record.status, newStatus);
+    if (!transition.allowed) throw new ValidationError(transition.reason!);
+
+    const adjustmentChanged =
+      (options?.adjustmentCents !== undefined && options.adjustmentCents !== record.adjustmentCents) ||
+      (options?.adjustmentNote !== undefined && options.adjustmentNote !== (record.adjustmentNote ?? ""));
+    if (adjustmentChanged && isLockedStatus(record.status) && isLockedStatus(newStatus)) {
+      throw new ValidationError(
+        "Ce dossier est verrouillé. Repassez-le « À vérifier » pour modifier l'ajustement."
+      );
     }
 
-    const data: any = {
-      status: newStatus,
-    };
+    if (newStatus === HrMonthStatus.VALIDATED && record.status !== HrMonthStatus.VALIDATED) {
+      const live = await this.calculateUserMonth(record.userId, record.month, false);
+      if (live.pendingDecisionCount > 0) {
+        throw new ValidationError(
+          `Il reste ${live.pendingDecisionCount} journée(s) sous le quota à statuer avant de pouvoir valider. Ouvrez « Détail » pour les traiter.`
+        );
+      }
+      if (live.totalAmountCents !== record.totalAmountCents || live.totalCalls !== record.totalCalls) {
+        throw new ValidationError(
+          "L'activité a changé depuis le dernier calcul. Cliquez sur « Recalculer le mois » avant de valider."
+        );
+      }
+    }
 
-    if (newStatus === HrMonthStatus.VALIDATED) {
+    const data: Record<string, unknown> = { status: newStatus };
+    if (newStatus === HrMonthStatus.VALIDATED && record.status !== HrMonthStatus.VALIDATED) {
       data.validatedAt = new Date();
       data.validatedById = actorId;
-    } else if (newStatus === HrMonthStatus.PAID) {
+    }
+    if (newStatus === HrMonthStatus.PAID && record.status !== HrMonthStatus.PAID) {
       data.paidAt = new Date();
+    }
+    if (!isLockedStatus(newStatus)) {
+      data.validatedAt = null;
+      data.validatedById = null;
+    }
+    if (newStatus !== HrMonthStatus.PAID) {
+      data.paidAt = null;
     }
 
     if (options?.adjustmentCents !== undefined) {
       data.adjustmentCents = options.adjustmentCents;
       data.totalAmountCents = record.fixedAmountCents + record.variableAmountCents + options.adjustmentCents;
     }
-
     if (options?.adjustmentNote !== undefined) {
-      data.adjustmentNote = options.adjustmentNote;
+      data.adjustmentNote = options.adjustmentNote || null;
     }
 
-    const updated = await prisma.hrMonthRecord.update({
-      where: { id: monthRecordId },
-      data,
-    });
+    const updated = await prisma.hrMonthRecord.update({ where: { id: monthRecordId }, data });
 
     await prisma.hrAuditLog.create({
       data: {
@@ -580,7 +539,9 @@ export class HrCalculationService {
         details: {
           previousStatus: record.status,
           newStatus,
+          previousAdjustmentCents: record.adjustmentCents,
           adjustmentCents: options?.adjustmentCents,
+          adjustmentNote: options?.adjustmentNote,
         },
       },
     });
@@ -589,7 +550,7 @@ export class HrCalculationService {
   }
 
   /**
-   * Record decision on an under-quota or zero-call day.
+   * Paid/unpaid ruling on a past under-quota day, then the month is re-saved.
    */
   async recordDayDecision(
     monthRecordId: string,
@@ -598,44 +559,49 @@ export class HrCalculationService {
     reason: string,
     actorId: string
   ) {
-    if (!reason || reason.trim().length === 0) {
-      throw new Error("Le motif est obligatoire pour valider une décision de journée.");
+    const trimmed = (reason ?? "").trim();
+    if (trimmed.length < 3) {
+      throw new ValidationError("Le motif est obligatoire (3 caractères minimum).");
     }
 
-    const record = await prisma.hrMonthRecord.findUnique({
-      where: { id: monthRecordId },
-    });
-
-    if (!record) {
-      throw new Error("Dossier mensuel introuvable");
+    const record = await prisma.hrMonthRecord.findUnique({ where: { id: monthRecordId } });
+    if (!record) throw new NotFoundError("Dossier mensuel introuvable");
+    if (isLockedStatus(record.status)) {
+      throw new ValidationError(
+        "Ce dossier est validé ou payé. Repassez-le « À vérifier » pour modifier une journée."
+      );
+    }
+    if (!dateStr.startsWith(`${record.month}-`)) {
+      throw new ValidationError("Cette journée n'appartient pas au mois du dossier.");
     }
 
-    const targetDate = new Date(dateStr);
+    const preview = await this.calculateUserMonth(record.userId, record.month, false);
+    const day = preview.days.find((d) => d.date === dateStr);
+    if (!day?.isUnderQuota) {
+      throw new ValidationError("Cette journée n'est pas sous le quota : aucune décision n'est nécessaire.");
+    }
 
+    const targetDate = new Date(`${dateStr}T00:00:00Z`);
     const decisionRecord = await prisma.hrDayDecisionRecord.upsert({
-      where: {
-        monthRecordId_date: {
-          monthRecordId,
-          date: targetDate,
-        },
-      },
+      where: { monthRecordId_date: { monthRecordId, date: targetDate } },
       create: {
         monthRecordId,
         date: targetDate,
+        callCount: day.callCount,
+        rdvCount: day.rdvCount,
         decision,
-        reason: reason.trim(),
+        reason: trimmed,
         decidedById: actorId,
       },
       update: {
+        callCount: day.callCount,
+        rdvCount: day.rdvCount,
         decision,
-        reason: reason.trim(),
+        reason: trimmed,
         decidedById: actorId,
         decidedAt: new Date(),
       },
     });
-
-    // Recalculate month with this new decision taken into account
-    await this.calculateUserMonth(record.userId, record.month, true, actorId);
 
     await prisma.hrAuditLog.create({
       data: {
@@ -643,13 +609,11 @@ export class HrCalculationService {
         userId: record.userId,
         actorId,
         action: "DAY_DECISION",
-        details: {
-          date: dateStr,
-          decision,
-          reason,
-        },
+        details: { date: dateStr, decision, reason: trimmed, callCount: day.callCount },
       },
     });
+
+    await this.calculateUserMonth(record.userId, record.month, true, actorId);
 
     return decisionRecord;
   }

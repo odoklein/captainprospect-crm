@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { NotFoundError, ValidationError } from "@/lib/api-utils";
 import { ContractType, RemunerationMode, HrProfileData } from "./hr-types";
 
 export class HrProfileService {
@@ -29,7 +30,7 @@ export class HrProfileService {
     });
 
     if (!user) {
-      throw new Error("Utilisateur introuvable");
+      throw new NotFoundError("Collaborateur introuvable");
     }
 
     if (user.hrProfile) {
@@ -93,7 +94,16 @@ export class HrProfileService {
    * Automatically takes a snapshot when updating an existing profile.
    */
   async upsertProfile(data: HrProfileData, actorId: string, reason?: string) {
-    const effectiveDate = new Date(data.effectiveFrom);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(data.effectiveFrom)) {
+      throw new ValidationError("La date d'effet est invalide.");
+    }
+    const effectiveDate = new Date(`${data.effectiveFrom}T00:00:00Z`);
+
+    const target = await prisma.user.findUnique({ where: { id: data.userId }, select: { id: true } });
+    if (!target) throw new NotFoundError("Collaborateur introuvable");
+    if (data.managerId && data.managerId === data.userId) {
+      throw new ValidationError("Un collaborateur ne peut pas être son propre manager.");
+    }
 
     // Update manager on User if provided
     if (data.managerId !== undefined) {

@@ -58,6 +58,7 @@ interface HistoryAction {
     missionName?: string;
     contactName?: string;
     companyName?: string;
+    phone?: string;
     note?: string;
     createdAt: string;
     callbackDate: string | null;
@@ -242,6 +243,9 @@ export default function SDRHistoryPage() {
                             <p className="font-semibold text-slate-900 truncate max-w-[200px]">{name}</p>
                             {row.companyName && row.contactName && (
                                 <p className="text-xs text-slate-500 truncate max-w-[180px]">{row.companyName}</p>
+                            )}
+                            {row.phone && (
+                                <p className="text-xs text-slate-400 truncate max-w-[180px]">{row.phone}</p>
                             )}
                         </div>
                     </div>
@@ -512,8 +516,8 @@ export default function SDRHistoryPage() {
                         columns={tableColumns}
                         keyField={(row) => row.id}
                         searchable
-                        searchPlaceholder="Rechercher contact, société, note..."
-                        searchFields={["contactName", "companyName", "note", "resultLabel", "campaignName", "missionName"]}
+                        searchPlaceholder="Rechercher contact, société, numéro, note..."
+                        searchFields={["contactName", "companyName", "phone", "note", "resultLabel", "campaignName", "missionName"]}
                         pagination
                         pageSize={20}
                         emptyMessage="Aucune action avec ces filtres."
