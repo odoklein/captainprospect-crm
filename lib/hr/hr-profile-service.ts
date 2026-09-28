@@ -65,7 +65,7 @@ export class HrProfileService {
       where: {
         isActive: true,
         role: {
-          notIn: ["CLIENT", "COMMERCIAL"],
+          in: ["SDR", "MANAGER"],
         },
       },
       select: {

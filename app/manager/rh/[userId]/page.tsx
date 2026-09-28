@@ -97,8 +97,8 @@ export default function UserHrPage() {
             <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
               <span>{user.email}</span>
               <span>•</span>
-              <span className="font-semibold text-indigo-600 capitalize">
-                {user.role === "SDR" || user.role === "BOOKER" ? "Booker" : user.role}
+              <span className="font-semibold text-indigo-600">
+                {user.role}
               </span>
             </div>
           </div>

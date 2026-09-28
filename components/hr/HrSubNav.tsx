@@ -22,7 +22,7 @@ export function HrSubNav() {
     },
     {
       href: "/manager/sdr-feedback",
-      label: "Avis Booker",
+      label: "Avis SDR",
       icon: MessageSquare,
       active: pathname === "/manager/sdr-feedback",
     },

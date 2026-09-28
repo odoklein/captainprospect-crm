@@ -183,7 +183,7 @@ export const MANAGER_NAV: NavSection[] = [
       {
         href: "/manager/sdr-feedback",
         icon: MessageSquare,
-        label: "Avis Booker",
+        label: "Avis SDR",
         permission: "pages.sdrs",
       },
       {
@@ -721,7 +721,7 @@ export const ROLE_CONFIG: Record<UserRole, RoleConfig> = {
     defaultPath: "/manager/dashboard",
   },
   SDR: {
-    label: "Booker",
+    label: "SDR",
     color: "indigo",
     gradient: "from-indigo-500 to-indigo-600",
     defaultPath: "/sdr/action",

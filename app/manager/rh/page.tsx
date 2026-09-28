@@ -36,7 +36,7 @@ export default function HrPage() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string>("ALL");
+  const [roleFilter, setRoleFilter] = useState<string>("SDR");
   const [managerFilter, setManagerFilter] = useState<string>("ALL");
   const [contractFilter, setContractFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -126,11 +126,7 @@ export default function HrPage() {
 
       // Role
       if (roleFilter !== "ALL") {
-        if (roleFilter === "BOOKER") {
-          if (r.userRole !== "SDR" && r.userRole !== "BOOKER") return false;
-        } else if (r.userRole !== roleFilter) {
-          return false;
-        }
+        if (r.userRole !== roleFilter) return false;
       }
 
       // Manager
@@ -184,25 +180,10 @@ export default function HrPage() {
   }, [month]);
 
   const getRoleBadge = (role: string) => {
-    // User requirement: Replace "SDR" with visible label "Booker"
-    if (role === "SDR" || role === "BOOKER") {
+    if (role === "SDR") {
       return (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-          Booker
-        </span>
-      );
-    }
-    if (role === "BUSINESS_DEVELOPER") {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-          BD
-        </span>
-      );
-    }
-    if (role === "DEVELOPER") {
-      return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-          Dev
+          SDR
         </span>
       );
     }
@@ -354,13 +335,11 @@ export default function HrPage() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="text-xs p-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
         >
-          <option value="ALL">Tous les rôles</option>
-          <option value="BOOKER">Booker (SDR)</option>
-          <option value="BUSINESS_DEVELOPER">Business Developer</option>
-          <option value="DEVELOPER">Développeur</option>
-          <option value="MANAGER">Manager</option>
+          <option value="SDR">SDRs uniquement (Par défaut)</option>
+          <option value="ALL">Tous (SDRs & Managers)</option>
+          <option value="MANAGER">Managers</option>
         </select>
 
         {/* Manager Filter */}

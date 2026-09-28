@@ -411,7 +411,7 @@ export class HrCalculationService {
       where: {
         isActive: true,
         role: {
-          notIn: ["CLIENT", "COMMERCIAL"],
+          in: ["SDR", "MANAGER"],
         },
       },
       include: {
@@ -510,7 +510,7 @@ export class HrCalculationService {
       where: {
         isActive: true,
         role: {
-          notIn: ["CLIENT", "COMMERCIAL"],
+          in: ["SDR", "MANAGER"],
         },
       },
       select: { id: true, name: true },
