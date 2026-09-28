@@ -21,7 +21,6 @@
     "test:messaging": "tsx --test lib/integrations/messaging/messaging.test.ts",
     "test:exclusions": "tsx --test lib/exclusions/exclusions.test.ts",
     "test:incoming-calls": "tsx --test lib/incoming-calls/allo-webhook.test.ts",
-    "test:sdr-action": "tsx --test app/sdr/action/_lib/queue-selectors.test.ts",
     "test:hr": "tsx --test lib/hr/hr-calculation-service.test.ts",
     "test:hr:all": "tsx --test lib/hr/hr-calculation-service.test.ts lib/hr/hr-integration.test.ts"
   },
