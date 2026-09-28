@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Calculator, CheckCircle2, Lock, RefreshCw, Save } from "lucide-react";
+import { AlertTriangle, Calculator, CheckCircle2, ChevronLeft, ChevronRight, Lock, RefreshCw, Save } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { CalculationBreakdown, DayActivityDetail, HrDayDecision, HrMonthStatus } from "@/lib/hr/hr-types";
 import { REMUNERATION_LABELS, STATUS_LABELS, formatDayKey, formatEuros, formatMonthLabel, isLockedStatus } from "@/lib/hr/hr-rules";
@@ -17,6 +17,13 @@ interface HrCalculationDetailModalProps {
   month: string;
   onCalculationUpdated?: () => void;
   onOpenRules?: () => void;
+  navigation?: {
+    position: number;
+    total: number;
+    prev?: { id: string; name: string };
+    next?: { id: string; name: string };
+  };
+  onNavigate?: (userId: string) => void;
 }
 
 export function HrCalculationDetailModal({
@@ -26,6 +33,8 @@ export function HrCalculationDetailModal({
   month,
   onCalculationUpdated,
   onOpenRules,
+  navigation,
+  onNavigate,
 }: HrCalculationDetailModalProps) {
   const [data, setData] = useState<CalculationBreakdown | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +97,34 @@ export function HrCalculationDetailModal({
   const canDecide = Boolean(data?.monthRecordId) && !locked;
   const guide = useHrGuide(HR_DETAIL_GUIDE_KEY, isOpen && Boolean(data) && !isLoading);
 
-  const visibleDays = data ? (onlyToHandle ? data.days.filter((d) => d.isUnderQuota) : data.days) : [];
+  const filterDays = onlyToHandle && (data?.daysUnderQuotaCount ?? 0) > 0;
+  const visibleDays = data ? (filterDays ? data.days.filter((d) => d.isUnderQuota) : data.days) : [];
+
+  const navBar = navigation && onNavigate && navigation.total > 1 && (
+    <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-2 py-1.5 text-xs">
+      <button
+        type="button"
+        onClick={() => navigation.prev && onNavigate(navigation.prev.id)}
+        disabled={!navigation.prev || isLoading}
+        className="inline-flex min-w-0 items-center gap-1 rounded-lg px-2 py-1 font-medium text-slate-700 hover:bg-white disabled:opacity-30"
+      >
+        <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{navigation.prev?.name ?? "Précédent"}</span>
+      </button>
+      <span className="shrink-0 tabular-nums text-slate-500">
+        {navigation.position} / {navigation.total}
+      </span>
+      <button
+        type="button"
+        onClick={() => navigation.next && onNavigate(navigation.next.id)}
+        disabled={!navigation.next || isLoading}
+        className="inline-flex min-w-0 items-center gap-1 rounded-lg px-2 py-1 font-medium text-slate-700 hover:bg-white disabled:opacity-30"
+      >
+        <span className="truncate">{navigation.next?.name ?? "Suivant"}</span>
+        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+      </button>
+    </div>
+  );
 
   return (
     <>
@@ -115,6 +151,7 @@ export function HrCalculationDetailModal({
           </div>
         ) : (
           <div className={`space-y-5 transition-opacity ${isLoading ? "opacity-60" : ""}`}>
+            {navBar}
             {error && (
               <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
                 {error}
@@ -244,7 +281,7 @@ export function HrCalculationDetailModal({
                   <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-600">
                     <input
                       type="checkbox"
-                      checked={onlyToHandle}
+                      checked={filterDays}
                       onChange={(e) => setOnlyToHandle(e.target.checked)}
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                     />

@@ -248,6 +248,44 @@ export function resolveStatusTransition(current: HrMonthStatus, next: HrMonthSta
   return { allowed: true, permissions };
 }
 
+export interface BulkCandidate {
+  userName: string;
+  id?: string;
+  status: HrMonthStatus;
+  pendingDecisionCount: number;
+  isStale: boolean;
+  hasProfile: boolean;
+}
+
+/** Splits a selection into records that can move to `next` and those that can't (with why). */
+export function planBulkTransition<T extends BulkCandidate>(rows: T[], next: HrMonthStatus) {
+  const eligible: T[] = [];
+  const skipped: { row: T; reason: string }[] = [];
+
+  for (const row of rows) {
+    if (!row.id) {
+      skipped.push({ row, reason: "pas encore enregistré" });
+    } else if (row.status === next) {
+      skipped.push({ row, reason: `déjà « ${STATUS_LABELS[next]} »` });
+    } else if (isLockedStatus(row.status) && STATUS_ORDER.indexOf(next) < STATUS_ORDER.indexOf(row.status)) {
+      skipped.push({ row, reason: "dossier verrouillé : à rouvrir un par un" });
+    } else {
+      const t = resolveStatusTransition(row.status, next);
+      if (!t.allowed) {
+        skipped.push({ row, reason: "doit d’abord être validé" });
+      } else if (next === HrMonthStatus.VALIDATED && row.pendingDecisionCount > 0) {
+        skipped.push({ row, reason: `${row.pendingDecisionCount} j à statuer` });
+      } else if (next === HrMonthStatus.VALIDATED && row.isStale) {
+        skipped.push({ row, reason: "à recalculer" });
+      } else {
+        eligible.push(row);
+      }
+    }
+  }
+
+  return { eligible, skipped };
+}
+
 // ============================================
 // Display helpers (shared by server formulas and UI)
 // ============================================

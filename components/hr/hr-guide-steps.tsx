@@ -1,6 +1,6 @@
 import type { HrGuideStep } from "./HrGuide";
 
-export const HR_PAGE_GUIDE_KEY = "hr-guide-page-v1";
+export const HR_PAGE_GUIDE_KEY = "hr-guide-page-v2";
 export const HR_DETAIL_GUIDE_KEY = "hr-guide-detail-v1";
 
 export const HR_PAGE_GUIDE: HrGuideStep[] = [
@@ -18,7 +18,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "month",
-    title: "1. Choisissez le mois",
+    title: "Choisissez le mois",
     body: (
       <p>
         Utilisez les flèches pour passer d’un mois à l’autre. Tout ce que vous voyez en dessous concerne
@@ -28,7 +28,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "recalculate",
-    title: "2. Mettez les chiffres à jour",
+    title: "Mettez les chiffres à jour",
     body: (
       <>
         <p>
@@ -43,8 +43,18 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
     ),
   },
   {
+    target: "export",
+    title: "Envoyez la paie au comptable",
+    body: (
+      <p>
+        « Exporter » télécharge un fichier Excel avec, pour chaque personne affichée, les jours payés, le fixe,
+        les primes, les ajustements et le total.
+      </p>
+    ),
+  },
+  {
     target: "summary",
-    title: "3. L’essentiel en un coup d’œil",
+    title: "L’essentiel en un coup d’œil",
     body: (
       <p>
         Le nombre de personnes, le montant total estimé à verser, et l’activité du mois. Ces chiffres suivent
@@ -54,7 +64,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "attention",
-    title: "4. Ce qui a besoin de vous",
+    title: "Ce qui a besoin de vous",
     body: (
       <>
         <p>
@@ -65,27 +75,54 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
     ),
   },
   {
+    target: "pipeline",
+    title: "Où en est le mois ?",
+    body: (
+      <>
+        <p>
+          Cette barre montre combien de dossiers sont à chaque étape, et le montant correspondant. L’objectif en fin
+          de mois : tout en vert (« Payé »).
+        </p>
+        <p>Cliquez sur une étape pour n’afficher que ces dossiers.</p>
+      </>
+    ),
+  },
+  {
     target: "filters",
-    title: "5. Retrouvez quelqu’un rapidement",
+    title: "Retrouvez quelqu’un rapidement",
     body: (
       <p>
-        Cherchez par nom, ou filtrez par manager, type de contrat ou étape du dossier. Par défaut, seuls les
-        SDR sont affichés.
+        Cherchez par nom (astuce : touche « / » du clavier), ou filtrez par manager, type de contrat ou étape. Par
+        défaut, seuls les SDR sont affichés. Cliquez sur un titre de colonne pour trier.
       </p>
     ),
   },
   {
+    target: "row-select",
+    title: "Traitez plusieurs personnes d’un coup",
+    body: (
+      <>
+        <p>
+          Cochez plusieurs personnes : une barre apparaît en bas de l’écran pour les passer toutes « À vérifier »,
+          les valider ou les marquer payées.
+        </p>
+        <p>Les dossiers qui ne sont pas prêts sont automatiquement laissés de côté, avec la raison.</p>
+      </>
+    ),
+  },
+  {
     target: "row-person",
-    title: "6. Une ligne = une personne",
+    title: "Une ligne = une personne",
     body: (
       <p>
-        Cliquez sur le nom pour ouvrir son dossier complet : ses règles de paie et l’historique des changements.
+        Cliquez sur le nom pour ouvrir son dossier : ses règles, ses 12 derniers mois de paie, et qui a changé
+        quoi.
       </p>
     ),
   },
   {
     target: "row-alerts",
-    title: "7. Les alertes",
+    title: "Les alertes",
     body: (
       <>
         <p>
@@ -105,7 +142,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "row-total",
-    title: "8. Le montant à payer",
+    title: "Le montant à payer",
     body: (
       <p>
         C’est la somme du salaire fixe (réduit s’il y a des absences), de la prime par rendez-vous, et d’un
@@ -115,7 +152,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "row-detail",
-    title: "9. « Détail » : comprendre le calcul",
+    title: "« Détail » : comprendre le calcul",
     body: (
       <p>
         Affiche le calcul ligne par ligne et le mois jour par jour. C’est ici que vous décidez pour les journées
@@ -125,7 +162,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "row-rules",
-    title: "10. « Règles » : le contrat de la personne",
+    title: "« Règles » : le contrat de la personne",
     body: (
       <p>
         Salaire fixe, prime par rendez-vous, nombre d’appels attendus par jour et manager. Chaque modification
@@ -135,7 +172,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "row-status",
-    title: "11. « Statut » : faire avancer le dossier",
+    title: "« Statut » : faire avancer le dossier",
     body: (
       <>
         <p>Chaque mois passe par 4 étapes :</p>
@@ -157,10 +194,10 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
     body: (
       <ol className="list-decimal space-y-1 pl-4">
         <li>Cliquez sur « Recalculer le mois ».</li>
-        <li>Traitez les personnes « À statuer » et « Règles à configurer ».</li>
-        <li>Relisez, puis passez les dossiers en « À vérifier ».</li>
-        <li>Validez : les chiffres sont verrouillés.</li>
-        <li>Après le virement, marquez « Payé ».</li>
+        <li>Cliquez sur « À traiter », puis ouvrez « Détail » : les flèches passent d’une personne à la suivante.</li>
+        <li>Cochez tout le monde et passez « À vérifier », puis « Valider ».</li>
+        <li>Exportez le fichier pour le comptable.</li>
+        <li>Après le virement, cochez à nouveau et « Marquer payé ».</li>
       </ol>
     ),
   },

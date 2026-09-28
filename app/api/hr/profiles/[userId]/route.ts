@@ -8,6 +8,7 @@ import {
   validateRequest,
 } from "@/lib/api-utils";
 import { hrProfileService } from "@/lib/hr/hr-profile-service";
+import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { ContractType, RemunerationMode } from "@prisma/client";
 
@@ -16,12 +17,34 @@ import { ContractType, RemunerationMode } from "@prisma/client";
 // ============================================
 export const GET = withErrorHandler(
   async (request: NextRequest, { params }: { params: Promise<{ userId: string }> }) => {
-    const session = await requireRole(["MANAGER"], request);
+    await requireRole(["MANAGER"], request);
     await requirePermission("features.hr_view", request);
 
     const { userId } = await params;
-    const result = await hrProfileService.getProfile(userId);
-    return successResponse(result);
+    const [result, months] = await Promise.all([
+      hrProfileService.getProfile(userId),
+      prisma.hrMonthRecord.findMany({
+        where: { userId },
+        orderBy: { month: "desc" },
+        take: 12,
+        select: {
+          id: true,
+          month: true,
+          status: true,
+          workingDays: true,
+          absenceDays: true,
+          totalCalls: true,
+          totalRdv: true,
+          fixedAmountCents: true,
+          variableAmountCents: true,
+          adjustmentCents: true,
+          totalAmountCents: true,
+          validatedAt: true,
+          paidAt: true,
+        },
+      }),
+    ]);
+    return successResponse({ ...result, months });
   }
 );
 

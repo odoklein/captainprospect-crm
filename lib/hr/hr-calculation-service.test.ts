@@ -5,9 +5,12 @@ import {
   computeMonth,
   getMonthBounds,
   parisDayKey,
+  planBulkTransition,
   resolveStatusTransition,
   MonthComputationInput,
 } from "./hr-rules";
+import { buildPayrollCsv } from "./hr-export";
+import type { HrMonthRowData } from "./hr-types";
 
 // September 2026: 30 days, starts on a Tuesday → 22 working days.
 function input(overrides: Partial<MonthComputationInput> = {}): MonthComputationInput {
@@ -135,5 +138,77 @@ describe("Status workflow", () => {
     assert.ok(resolveStatusTransition(HrMonthStatus.PAID, HrMonthStatus.DRAFT).permissions.includes("features.hr_reopen"));
     assert.ok(resolveStatusTransition(HrMonthStatus.VALIDATED, HrMonthStatus.TO_VERIFY).permissions.includes("features.hr_reopen"));
     assert.ok(!resolveStatusTransition(HrMonthStatus.TO_VERIFY, HrMonthStatus.DRAFT).permissions.includes("features.hr_reopen"));
+  });
+});
+
+function row(overrides: Partial<HrMonthRowData> = {}): HrMonthRowData {
+  return {
+    id: "rec1",
+    userId: "u1",
+    userName: "Alice Martin",
+    userEmail: "alice@example.com",
+    userRole: "SDR",
+    managerId: "admin-001",
+    managerName: "Admin",
+    contractType: "SALARIE" as HrMonthRowData["contractType"],
+    remunerationMode: RemunerationMode.FIXE,
+    status: HrMonthStatus.TO_VERIFY,
+    workingDays: 21,
+    totalWorkingDays: 22,
+    absenceDays: 1,
+    totalCalls: 1500,
+    totalRdv: 4,
+    dailyQuota: 80,
+    fixedAmountCents: 210000,
+    variableAmountCents: 0,
+    adjustmentCents: -5025,
+    adjustmentNote: 'Retenue "transport"; avance',
+    totalAmountCents: 204975,
+    hasProfile: true,
+    pendingDecisionCount: 0,
+    underQuotaDaysCount: 0,
+    isStale: false,
+    ...overrides,
+  };
+}
+
+describe("Bulk status changes", () => {
+  it("only moves records that are allowed to move, and says why for the rest", () => {
+    const rows = [
+      row({ userName: "ok" }),
+      row({ userName: "unsaved", id: undefined }),
+      row({ userName: "pending", pendingDecisionCount: 3 }),
+      row({ userName: "stale", isStale: true }),
+      row({ userName: "already", status: HrMonthStatus.VALIDATED }),
+    ];
+    const { eligible, skipped } = planBulkTransition(rows, HrMonthStatus.VALIDATED);
+    assert.deepEqual(eligible.map((r) => r.userName), ["ok"]);
+    assert.deepEqual(
+      skipped.map((s) => [s.row.userName, s.reason]),
+      [
+        ["unsaved", "pas encore enregistré"],
+        ["pending", "3 j à statuer"],
+        ["stale", "à recalculer"],
+        ["already", "déjà « Validé »"],
+      ]
+    );
+  });
+
+  it("never pays a record that is not validated, and never reopens in bulk", () => {
+    const pay = planBulkTransition([row({ status: HrMonthStatus.DRAFT }), row({ status: HrMonthStatus.VALIDATED })], HrMonthStatus.PAID);
+    assert.equal(pay.eligible.length, 1);
+    const reopen = planBulkTransition([row({ status: HrMonthStatus.PAID })], HrMonthStatus.DRAFT);
+    assert.equal(reopen.eligible.length, 0);
+  });
+});
+
+describe("Payroll CSV export", () => {
+  it("uses French Excel conventions and escapes risky cells", () => {
+    const csv = buildPayrollCsv([row()], "2026-09");
+    assert.ok(csv.startsWith("\uFEFF"));
+    const [, line] = csv.slice(1).split("\r\n");
+    assert.ok(line.includes(";2100,00;0,00;-50,25;"));
+    assert.ok(line.includes('"Retenue ""transport""; avance"'));
+    assert.ok(line.endsWith(";2049,75;"));
   });
 });

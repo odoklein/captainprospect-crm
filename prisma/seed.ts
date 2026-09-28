@@ -103,6 +103,15 @@ const PERMISSIONS: PermissionDef[] = [
     { code: "features.assign_ticket", name: "Assigner ticket", description: "Peut assigner un ticket à un développeur", category: "features" },
     { code: "features.publish_ticket_roadmap", name: "Publier sur la roadmap", description: "Peut publier un ticket sur la roadmap client", category: "features" },
     { code: "features.delete_ticket", name: "Supprimer ticket", description: "Peut supprimer un ticket", category: "features" },
+
+    // HR module (/manager/rh)
+    { code: "pages.hr", name: "Page RH", description: "Accès à la gestion RH et tableau de bord de l'équipe", category: "pages" },
+    { code: "features.hr_view", name: "Consulter les données RH", description: "Consulter le tableau mensuel et les métriques de l'équipe", category: "features" },
+    { code: "features.hr_configure", name: "Configurer les profils RH", description: "Modifier le salaire fixe, le quota et la prime variable", category: "features" },
+    { code: "features.hr_calculate", name: "Calculer les mois RH", description: "Calculer ou recalculer les montants dus pour un mois", category: "features" },
+    { code: "features.hr_validate", name: "Valider les mois RH", description: "Valider et verrouiller un mois RH", category: "features" },
+    { code: "features.hr_day_decision", name: "Décider sur journées sous quota", description: "Marquer payé ou non payé avec motif", category: "features" },
+    { code: "features.hr_reopen", name: "Réouvrir un mois RH", description: "Déverrouiller un mois précédemment validé", category: "features" },
 ];
 
 // Role-based default permissions
@@ -127,6 +136,9 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
         // Support Technique
         "pages.tickets", "features.create_ticket", "features.assign_ticket",
         "features.publish_ticket_roadmap", "features.delete_ticket",
+        // HR module
+        "pages.hr", "features.hr_view", "features.hr_configure", "features.hr_calculate",
+        "features.hr_validate", "features.hr_day_decision", "features.hr_reopen",
         // All actions
         "actions.make_calls", "actions.send_emails", "actions.send_linkedin", 
         "actions.book_meetings", "actions.create_opportunity", "actions.edit_contacts",

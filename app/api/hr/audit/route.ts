@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import {
-  successResponse,
   requireRole,
   requirePermission,
   withErrorHandler,
@@ -21,7 +21,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const userId = searchParams.get("userId");
   const monthRecordId = searchParams.get("monthRecordId");
 
-  const where: any = {};
+  const where: Prisma.HrAuditLogWhereInput = {};
   if (userId) where.userId = userId;
   if (monthRecordId) where.monthRecordId = monthRecordId;
 
@@ -35,5 +35,16 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     prisma.hrAuditLog.count({ where }),
   ]);
 
-  return paginatedResponse(logs, total, page, limit);
+  const actorIds = [...new Set(logs.map((l) => l.actorId))];
+  const actors = actorIds.length
+    ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, name: true } })
+    : [];
+  const actorNames = new Map(actors.map((a) => [a.id, a.name]));
+
+  return paginatedResponse(
+    logs.map((l) => ({ ...l, actorName: actorNames.get(l.actorId) ?? null })),
+    total,
+    page,
+    limit
+  );
 });

@@ -1572,6 +1572,18 @@ export function UnifiedActionDrawer({
 
     const handleSaveCompany = () => saveCompanyMutation.mutate();
 
+    // Hooks must run before the early return below (Rules of Hooks).
+    const sortedHistoryActions = useMemo(() => {
+        const copy = [...actions];
+        copy.sort((a, b) => {
+            const aCb = isCallbackResult(a.result) ? 1 : 0;
+            const bCb = isCallbackResult(b.result) ? 1 : 0;
+            if (aCb !== bCb) return bCb - aCb; // callback statuses first
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        return copy;
+    }, [actions, isCallbackResult]);
+
     // ── Render guards ──────────────────────────────────────────────────────────
 
     if (!isOpen) return null;
@@ -1585,16 +1597,6 @@ export function UnifiedActionDrawer({
         (!exclusionPanel.armed || exclusionPanel.reason.trim().length >= 3) &&
         !addActionMutation.isPending;
 
-    const sortedHistoryActions = useMemo(() => {
-        const copy = [...actions];
-        copy.sort((a, b) => {
-            const aCb = isCallbackResult(a.result) ? 1 : 0;
-            const bCb = isCallbackResult(b.result) ? 1 : 0;
-            if (aCb !== bCb) return bCb - aCb; // callback statuses first
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-        return copy;
-    }, [actions, isCallbackResult]);
     const visibleActions = historyExpanded ? sortedHistoryActions : sortedHistoryActions.slice(0, 5);
 
     // ── Render ─────────────────────────────────────────────────────────────────
