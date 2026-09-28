@@ -20,8 +20,10 @@ import {
     CalendarCheck,
     ChevronDown,
     UserCheck,
+    ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getGoogleMapsUrl } from "@/lib/google-maps";
 import { trackMeetingBooked } from "@/lib/openreplay/events";
 
 // ============================================
@@ -87,6 +89,9 @@ interface BookingDrawerProps {
     onMeetingAddressChange?: (value: string) => void;
     onMeetingJoinUrlChange?: (value: string) => void;
     onMeetingPhoneChange?: (value: string) => void;
+    /** Fired once the RDV is recorded. For a physical RDV the drawer first stays on
+     *  its confirmation screen (address → Google Maps) and fires this when the SDR
+     *  leaves it; the other formats fire it immediately. */
     onBookingSuccess?: () => void;
     interlocuteurs?: SdrInterlocuteur[];
     /** Commercial that owns the current list (or the mission default). When set,
@@ -96,6 +101,17 @@ interface BookingDrawerProps {
     /** All commercials sharing the list (primary first). Supersedes
      *  `preferredInterlocuteurId` when non-empty. */
     preferredInterlocuteurIds?: string[] | null;
+}
+
+/** The RDV as recorded. The confirmation screen reads this rather than the form,
+ *  which controlling callers reset on success. */
+interface ConfirmedBooking {
+    rdvDate?: string;
+    meetingType: "" | "VISIO" | "PHYSIQUE" | "TELEPHONIQUE";
+    meetingAddress: string;
+    meetingJoinUrl: string;
+    meetingPhone: string;
+    interlocuteurName?: string;
 }
 
 interface CalendarOption {
@@ -269,6 +285,97 @@ const MEETING_CATEGORY_LABELS: Record<string, string> = {
     BESOIN: "Analyse de besoin",
 };
 
+// ── Post-booking confirmation — a physical RDV waits here so the SDR can open its
+// address in Google Maps before moving on.
+function BookingConfirmation({
+    booking,
+    contactName,
+    companyName,
+    onContinue,
+}: {
+    booking: ConfirmedBooking;
+    contactName: string;
+    companyName?: string | null;
+    onContinue: () => void;
+}) {
+    const typeInfo = booking.meetingType ? MEETING_TYPE_LABELS[booking.meetingType] : null;
+    const TypeIcon = typeInfo?.icon;
+
+    return (
+        <div className="flex-1 min-h-0 overflow-y-auto bg-slate-50/60">
+            <div className="max-w-md mx-auto px-6 py-10 flex flex-col items-center gap-5 text-center">
+                <CheckCircle2 className="w-14 h-14 text-emerald-500" aria-hidden="true" />
+                <div className="space-y-1">
+                    <p className="text-lg font-semibold text-slate-900">RDV confirmé !</p>
+                    <p className="text-sm text-slate-500">
+                        Rendez-vous avec {contactName}
+                        {companyName ? ` — ${companyName}` : ""} enregistré.
+                    </p>
+                </div>
+
+                <div className="w-full rounded-xl border border-slate-200 bg-white p-4 space-y-2.5 text-left text-sm text-slate-700">
+                    <p className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-indigo-400 shrink-0" aria-hidden="true" />
+                        <span className="font-medium capitalize">
+                            {booking.rdvDate ? formatRdvDate(booking.rdvDate) : "Date à confirmer"}
+                        </span>
+                    </p>
+                    {typeInfo && TypeIcon && (
+                        <p className={cn("flex items-center gap-2 font-medium", typeInfo.colorClass)}>
+                            <TypeIcon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                            {typeInfo.label}
+                            {booking.meetingJoinUrl && (
+                                <a href={booking.meetingJoinUrl} target="_blank" rel="noopener noreferrer" className="ml-1 truncate font-normal underline underline-offset-2">
+                                    {booking.meetingJoinUrl.replace(/^https?:\/\//, "")}
+                                </a>
+                            )}
+                            {booking.meetingPhone && (
+                                <span className="ml-1 font-normal text-slate-600">{booking.meetingPhone}</span>
+                            )}
+                        </p>
+                    )}
+                    {booking.interlocuteurName && (
+                        <p className="flex items-center gap-2">
+                            <UserCheck className="w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" />
+                            {booking.interlocuteurName}
+                        </p>
+                    )}
+                </div>
+
+                {booking.meetingType === "PHYSIQUE" && booking.meetingAddress && (
+                    <a
+                        href={getGoogleMapsUrl(booking.meetingAddress)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group w-full flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left transition-colors hover:border-emerald-300 hover:bg-emerald-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                    >
+                        <span className="w-10 h-10 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                            <MapPin className="w-5 h-5" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Lieu du RDV</span>
+                            <span className="block mt-0.5 text-sm font-medium text-slate-900 break-words">{booking.meetingAddress}</span>
+                            <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 underline-offset-2 group-hover:underline">
+                                Ouvrir dans Google Maps
+                                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                            </span>
+                        </span>
+                    </a>
+                )}
+
+                <button
+                    type="button"
+                    onClick={onContinue}
+                    autoFocus
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all"
+                >
+                    Continuer
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ── Booking-event parsing ──────────────────────────────────────────────
 // Clients use whatever booking tool they already own (Cal.com, Calendly, HubSpot
 // Meetings, TidyCal, SavvyCal, Microsoft Bookings, in-house pages…). Each embeds a
@@ -430,9 +537,12 @@ export function BookingDrawer({
     const { success, error: showError } = useToast();
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
-    const [booked, setBooked] = useState(false);
+    const [confirmedBooking, setConfirmedBooking] = useState<ConfirmedBooking | null>(null);
     /** Guards against recording the same booking twice (duplicate embed events / manual confirm). */
     const bookingHandledRef = useRef(false);
+    /** Calendar payload of a slot booked before the RDV address was filled in — the
+     *  calendar won't send it again, so the manual confirm reuses it. */
+    const pendingEventDataRef = useRef<unknown>(null);
     const [iframeLoading, setIframeLoading] = useState(true);
 
     const [rdvDateLocal, setRdvDateLocal] = useState<string>(rdvDate ?? "");
@@ -508,7 +618,7 @@ export function BookingDrawer({
 
     useEffect(() => {
         if (!isOpen) return;
-        setBooked(false);
+        setConfirmedBooking(null);
         setIsProcessing(false);
         setIframeLoading(true);
         // Land on the preferred commercial's calendar when the list is owned by one.
@@ -525,6 +635,7 @@ export function BookingDrawer({
         setCalendarSyncedDate("");
         setShowManualDate(false);
         bookingHandledRef.current = false;
+        pendingEventDataRef.current = null;
     }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const effectiveRdvDate = onRdvDateChange ? (rdvDate ?? "") : rdvDateLocal;
@@ -582,6 +693,76 @@ export function BookingDrawer({
         </button>
     );
 
+    /**
+     * Saves the RDV. A physical RDV then stays on the confirmation screen so the SDR
+     * can open its address in Google Maps — `onBookingSuccess` waits until they leave
+     * it. The other formats hand back to the caller straight away.
+     */
+    const recordBooking = useCallback(async (eventData: unknown, rdvDateValue: string) => {
+        // Send only the detail that matches the chosen format: each field keeps its
+        // value when the SDR switches type.
+        const address = effectiveMeetingType === "PHYSIQUE" ? effectiveMeetingAddress.trim() : "";
+        const joinUrl = effectiveMeetingType === "VISIO" ? effectiveMeetingJoinUrl.trim() : "";
+        const phone = effectiveMeetingType === "TELEPHONIQUE" ? effectiveMeetingPhone.trim() : "";
+        const isoRdvDate = rdvDateValue ? new Date(rdvDateValue).toISOString() : undefined;
+        const interlocuteurName = selectedOption?.interlocuteurId ? selectedOption.label : undefined;
+
+        setIsProcessing(true);
+        try {
+            const res = await fetch("/api/actions/booking-success", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...(contactId && { contactId }),
+                    ...(companyId && !contactId && { companyId }),
+                    eventData,
+                    rdvDate: isoRdvDate,
+                    ...(effectiveMeetingType && { meetingType: effectiveMeetingType }),
+                    ...(effectiveMeetingCategory && { meetingCategory: effectiveMeetingCategory }),
+                    ...(address && { meetingAddress: address }),
+                    ...(joinUrl && { meetingJoinUrl: joinUrl }),
+                    ...(phone && { meetingPhone: phone }),
+                    ...(selectedOption?.interlocuteurId && { interlocuteurId: selectedOption.interlocuteurId }),
+                    ...(interlocuteurName && { interlocuteurName }),
+                }),
+            });
+            const json = await res.json();
+            if (!json.success) {
+                bookingHandledRef.current = false;
+                showError("Erreur", json.error || "Impossible d'enregistrer le rendez-vous");
+                return;
+            }
+
+            bookingHandledRef.current = true;
+            pendingEventDataRef.current = null;
+            setConfirmedBooking({
+                rdvDate: isoRdvDate,
+                meetingType: effectiveMeetingType,
+                meetingAddress: address,
+                meetingJoinUrl: joinUrl,
+                meetingPhone: phone,
+                interlocuteurName,
+            });
+            success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
+            trackMeetingBooked({
+                leadId: contactId || companyId || "",
+                companyName: contactInfo?.companyName || undefined,
+                contactName: contactName,
+                scheduledAt: isoRdvDate,
+            });
+            if (effectiveMeetingType !== "PHYSIQUE") {
+                onBookingSuccess?.();
+                setTimeout(onClose, 1800);
+            }
+        } catch (err) {
+            bookingHandledRef.current = false;
+            console.error("Failed to process booking:", err);
+            showError("Erreur", "Impossible d'enregistrer le rendez-vous");
+        } finally {
+            setIsProcessing(false);
+        }
+    }, [contactId, companyId, contactName, contactInfo?.companyName, effectiveMeetingType, effectiveMeetingCategory, effectiveMeetingAddress, effectiveMeetingJoinUrl, effectiveMeetingPhone, selectedOption, onBookingSuccess, onClose, success, showError]);
+
     // Listen for booking completion postMessage
     useEffect(() => {
         if (!isOpen) return;
@@ -597,78 +778,33 @@ export function BookingDrawer({
                 isRelatedToBookingHost(event.origin, embedHost);
             if (!isAllowed) return;
 
-            const processBooking = async (eventData: unknown) => {
-                setIsProcessing(true);
-                try {
-                    // Auto-extract date from calendar event → eliminates manual DateTimePicker entry
-                    const extractedDate = extractDateFromEventData(eventData);
-                    if (extractedDate) {
-                        setCalendarSyncedDate(extractedDate);
-                        setEffectiveRdvDate(extractedDate);
-                    }
-                    // Use extracted date immediately (state hasn't flushed yet)
-                    const resolvedRdvDate = extractedDate || effectiveRdvDate;
-
-                    if (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim()) {
-                        bookingHandledRef.current = false;
-                        showError("Adresse requise", "Veuillez renseigner une adresse pour un RDV physique.");
-                        return;
-                    }
-                    const isoRdvDate = resolvedRdvDate ? new Date(resolvedRdvDate).toISOString() : undefined;
-                    const res = await fetch("/api/actions/booking-success", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            ...(contactId && { contactId }),
-                            ...(companyId && !contactId && { companyId }),
-                            eventData,
-                            rdvDate: isoRdvDate,
-                            ...(effectiveMeetingType && { meetingType: effectiveMeetingType }),
-                            ...(effectiveMeetingCategory && { meetingCategory: effectiveMeetingCategory }),
-                            ...(effectiveMeetingAddress?.trim() && { meetingAddress: effectiveMeetingAddress.trim() }),
-                            ...(effectiveMeetingJoinUrl?.trim() && { meetingJoinUrl: effectiveMeetingJoinUrl.trim() }),
-                            ...(effectiveMeetingPhone?.trim() && { meetingPhone: effectiveMeetingPhone.trim() }),
-                                    ...(selectedOption?.interlocuteurId && { interlocuteurId: selectedOption.interlocuteurId }),
-                                    ...(selectedOption?.interlocuteurId && { interlocuteurName: selectedOption.label }),
-                        }),
-                    });
-                    const json = await res.json();
-                    if (json.success) {
-                        setBooked(true);
-                        success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
-                        trackMeetingBooked({
-                            leadId: contactId || companyId || "",
-                            companyName: contactInfo?.companyName || undefined,
-                            contactName: contactName,
-                            scheduledAt: effectiveRdvDate ? new Date(effectiveRdvDate).toISOString() : undefined,
-                        });
-                        onBookingSuccess?.();
-                        setTimeout(onClose, 1800);
-                    } else {
-                        bookingHandledRef.current = false;
-                        showError("Erreur", json.error || "Impossible d'enregistrer le rendez-vous");
-                    }
-                } catch (err) {
-                    bookingHandledRef.current = false;
-                    console.error("Failed to process booking:", err);
-                    showError("Erreur", "Impossible d'enregistrer le rendez-vous");
-                } finally {
-                    setIsProcessing(false);
-                }
-            };
-
             const bookingPayload = getBookingEventPayload(event.data);
             if (!bookingPayload) return;
             // Cal.com fires both `bookingSuccessful` and `bookingSuccessfulV2` for the same
             // booking — record the action only once.
             if (bookingHandledRef.current) return;
             bookingHandledRef.current = true;
-            await processBooking(bookingPayload);
+
+            // Auto-extract date from calendar event → eliminates manual DateTimePicker entry
+            const extractedDate = extractDateFromEventData(bookingPayload);
+            if (extractedDate) {
+                setCalendarSyncedDate(extractedDate);
+                setEffectiveRdvDate(extractedDate);
+            }
+
+            if (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim()) {
+                pendingEventDataRef.current = bookingPayload;
+                bookingHandledRef.current = false;
+                showError("Adresse requise", "Créneau reçu — renseignez l'adresse du RDV puis cliquez sur « Confirmer le RDV ».");
+                return;
+            }
+            // Use extracted date immediately (state hasn't flushed yet)
+            await recordBooking(bookingPayload, extractedDate || effectiveRdvDate);
         };
 
         window.addEventListener("message", handleMessage);
         return () => window.removeEventListener("message", handleMessage);
-    }, [isOpen, embedHost, contactId, companyId, contactName, effectiveRdvDate, effectiveMeetingType, effectiveMeetingCategory, effectiveMeetingAddress, effectiveMeetingJoinUrl, effectiveMeetingPhone, selectedOption, onBookingSuccess, onClose, success, showError]);
+    }, [isOpen, embedHost, effectiveRdvDate, effectiveMeetingType, effectiveMeetingAddress, recordBooking, showError]);
 
     const handleConfirmRdv = useCallback(async () => {
         if (bookingHandledRef.current) return;
@@ -680,49 +816,15 @@ export function BookingDrawer({
             showError("Adresse requise", "Veuillez renseigner une adresse pour un RDV physique.");
             return;
         }
-        setIsProcessing(true);
-        try {
-            const isoRdvDate = effectiveRdvDate ? new Date(effectiveRdvDate).toISOString() : undefined;
-            const res = await fetch("/api/actions/booking-success", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    ...(contactId && { contactId }),
-                    ...(companyId && !contactId && { companyId }),
-                    eventData: {},
-                    rdvDate: isoRdvDate,
-                    ...(effectiveMeetingType && { meetingType: effectiveMeetingType }),
-                    ...(effectiveMeetingCategory && { meetingCategory: effectiveMeetingCategory }),
-                    ...(effectiveMeetingAddress?.trim() && { meetingAddress: effectiveMeetingAddress.trim() }),
-                    ...(effectiveMeetingJoinUrl?.trim() && { meetingJoinUrl: effectiveMeetingJoinUrl.trim() }),
-                    ...(effectiveMeetingPhone?.trim() && { meetingPhone: effectiveMeetingPhone.trim() }),
-                    ...(selectedOption?.interlocuteurId && { interlocuteurId: selectedOption.interlocuteurId }),
-                    ...(selectedOption?.interlocuteurId && { interlocuteurName: selectedOption.label }),
-                }),
-            });
-            const json = await res.json();
-            if (json.success) {
-                bookingHandledRef.current = true;
-                setBooked(true);
-                success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
-                trackMeetingBooked({
-                    leadId: contactId || companyId || "",
-                    companyName: contactInfo?.companyName || undefined,
-                    contactName: contactName,
-                    scheduledAt: isoRdvDate,
-                });
-                onBookingSuccess?.();
-                setTimeout(onClose, 1800);
-            } else {
-                showError("Erreur", json.error || "Impossible d'enregistrer le rendez-vous");
-            }
-        } catch (err) {
-            console.error("Failed to process booking:", err);
-            showError("Erreur", "Impossible d'enregistrer le rendez-vous");
-        } finally {
-            setIsProcessing(false);
-        }
-    }, [contactId, companyId, contactName, effectiveRdvDate, effectiveMeetingType, effectiveMeetingCategory, effectiveMeetingAddress, effectiveMeetingJoinUrl, effectiveMeetingPhone, selectedOption, onBookingSuccess, onClose, success, showError]);
+        bookingHandledRef.current = true;
+        await recordBooking(pendingEventDataRef.current ?? {}, effectiveRdvDate);
+    }, [effectiveRdvDate, effectiveMeetingType, effectiveMeetingAddress, recordBooking, showError]);
+
+    /** Leaves the physical-RDV confirmation and hands back to the caller. */
+    const finishBooking = useCallback(() => {
+        onBookingSuccess?.();
+        onClose();
+    }, [onBookingSuccess, onClose]);
 
     if (!isOpen) return null;
 
@@ -736,11 +838,13 @@ export function BookingDrawer({
         isProcessing ||
         !effectiveRdvDate ||
         (effectiveMeetingType === "PHYSIQUE" && !effectiveMeetingAddress.trim());
+    // A physical RDV holds `onBookingSuccess` until the SDR leaves its confirmation.
+    const handleDismiss = confirmedBooking?.meetingType === "PHYSIQUE" ? finishBooking : onClose;
 
     return (
         <>
             {/* Overlay */}
-            <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+            <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onClick={handleDismiss} aria-hidden="true" />
 
             {/* Dialog */}
             <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
@@ -764,12 +868,21 @@ export function BookingDrawer({
                                 </p>
                             </div>
                         </div>
-                        <button onClick={onClose} aria-label="Fermer" className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                        <button onClick={handleDismiss} aria-label="Fermer" className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
 
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0 overflow-hidden">
+                    {confirmedBooking && (
+                        <BookingConfirmation
+                            booking={confirmedBooking}
+                            contactName={contactName}
+                            companyName={contactInfo?.companyName}
+                            onContinue={handleDismiss}
+                        />
+                    )}
+
+                    <div className={cn("flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0 overflow-hidden", confirmedBooking && "hidden")}>
                         {/* ── LEFT PANEL ── */}
                         <div className="p-4 border-r border-slate-200 flex flex-col gap-4 overflow-y-auto min-h-0">
 
@@ -875,8 +988,16 @@ export function BookingDrawer({
                                                         {effectiveMeetingJoinUrl.replace(/^https?:\/\//, "").slice(0, 28)}…
                                                     </a>
                                                 )}
-                                                {effectiveMeetingType === "PHYSIQUE" && effectiveMeetingAddress && (
-                                                    <span className="ml-1 truncate max-w-[140px] text-slate-600 font-normal">{effectiveMeetingAddress}</span>
+                                                {effectiveMeetingType === "PHYSIQUE" && effectiveMeetingAddress.trim() && (
+                                                    <a
+                                                        href={getGoogleMapsUrl(effectiveMeetingAddress)}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        title="Ouvrir dans Google Maps"
+                                                        className="ml-1 truncate max-w-[140px] text-slate-600 font-normal underline underline-offset-2 hover:text-emerald-700"
+                                                    >
+                                                        {effectiveMeetingAddress}
+                                                    </a>
                                                 )}
                                                 {effectiveMeetingType === "TELEPHONIQUE" && effectiveMeetingPhone && (
                                                     <span className="ml-1 text-slate-600 font-normal">{effectiveMeetingPhone}</span>
@@ -960,8 +1081,20 @@ export function BookingDrawer({
                                         value={effectiveMeetingAddress}
                                         onChange={(e) => setEffectiveMeetingAddress(e.target.value)}
                                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400/30 focus:border-emerald-400"
-                                        placeholder="Adresse complète du lieu"
+                                        placeholder="Adresse communiquée par le client / commercial"
                                     />
+                                    {effectiveMeetingAddress.trim() && (
+                                        <a
+                                            href={getGoogleMapsUrl(effectiveMeetingAddress)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 hover:text-emerald-700 hover:underline underline-offset-2"
+                                        >
+                                            <MapPin className="w-3 h-3" aria-hidden="true" />
+                                            Vérifier sur Google Maps
+                                            <ExternalLink className="w-3 h-3" aria-hidden="true" />
+                                        </a>
+                                    )}
                                 </div>
                             )}
 
@@ -1101,7 +1234,7 @@ export function BookingDrawer({
                                     )}
 
                                     <div className="flex-1 min-h-0 relative">
-                                        {iframeLoading && !isProcessing && !booked && (
+                                        {iframeLoading && !isProcessing && (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white z-10">
                                                 <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
                                                 <p className="text-sm text-slate-500">Chargement du calendrier…</p>
@@ -1111,15 +1244,6 @@ export function BookingDrawer({
                                             <div className="absolute inset-0 bg-white/95 z-20 flex flex-col items-center justify-center gap-3">
                                                 <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
                                                 <p className="text-sm font-medium text-slate-700">Enregistrement du rendez-vous…</p>
-                                            </div>
-                                        )}
-                                        {booked && (
-                                            <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-4">
-                                                <CheckCircle2 className="w-14 h-14 text-emerald-500" />
-                                                <p className="text-lg font-semibold text-slate-900">RDV confirmé !</p>
-                                                <p className="text-sm text-slate-500 text-center">
-                                                    Rendez-vous avec {contactName} enregistré.
-                                                </p>
                                             </div>
                                         )}
                                         <iframe

@@ -54,6 +54,7 @@ import { ContactDrawer } from "./ContactDrawer";
 import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+import { getGoogleMapsUrl } from "@/lib/google-maps";
 
 interface ExclusionDetail {
     id: string;
@@ -477,6 +478,8 @@ export function UnifiedActionDrawer({
         createdAt: string;
         callbackDate?: string | null;
         channel?: string;
+        meetingType?: string | null;
+        meetingAddress?: string | null;
         campaign?: { name: string };
         sdr?: { id: string; name: string };
     };
@@ -1917,6 +1920,21 @@ export function UnifiedActionDrawer({
                                                                 />
                                                             )}
                                                         </button>
+
+                                                        {/* Physical RDV: the address opens straight in Google Maps (outside the header button — no link inside a button) */}
+                                                        {a.result === "MEETING_BOOKED" && (!a.meetingType || a.meetingType === "PHYSIQUE") && a.meetingAddress?.trim() && (
+                                                            <a
+                                                                href={getGoogleMapsUrl(a.meetingAddress)}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                title="Ouvrir dans Google Maps"
+                                                                className="mx-3.5 mb-3 -mt-1 flex items-start gap-1.5 rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-1.5 text-[11px] text-emerald-800 transition-colors hover:border-emerald-200 hover:bg-emerald-50"
+                                                            >
+                                                                <MapPin className="w-3 h-3 mt-0.5 shrink-0 text-emerald-600" aria-hidden="true" />
+                                                                <span className="min-w-0 flex-1 break-words font-medium">{a.meetingAddress}</span>
+                                                                <ExternalLink className="w-3 h-3 mt-0.5 shrink-0 text-emerald-500" aria-hidden="true" />
+                                                            </a>
+                                                        )}
 
                                                         {/* Expandable note content */}
                                                         {hasContent && isExpanded && !isEditingThis && (
