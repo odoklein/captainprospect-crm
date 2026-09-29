@@ -148,6 +148,8 @@ export async function GET(request: NextRequest) {
                         createdAt: true,
                         standByAt: true,
                         standByReason: true,
+                        outOfScopeAt: true,
+                        outOfScopeReason: true,
                     },
                 },
             },

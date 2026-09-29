@@ -1,4 +1,4 @@
-import { MessageSquareQuote, PauseCircle, RotateCcw } from "lucide-react";
+import { Ban, MessageSquareQuote, PauseCircle, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MeetingFeedbackData } from "../_types";
 
@@ -72,7 +72,11 @@ export function MeetingFeedbackPanel({ feedback, className }: MeetingFeedbackPan
                         <RotateCcw className="h-3 w-3" /> {recontact}
                     </span>
                 )}
-                {feedback.standByAt && (
+                {feedback.outOfScopeAt ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                        <Ban className="h-3 w-3" /> Hors scope — ne pas rappeler
+                    </span>
+                ) : feedback.standByAt && (
                     <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-600">
                         <PauseCircle className="h-3 w-3" /> En stand by
                     </span>
@@ -89,6 +93,11 @@ export function MeetingFeedbackPanel({ feedback, className }: MeetingFeedbackPan
                 </p>
             )}
 
+            {feedback.outOfScopeAt && feedback.outOfScopeReason && (
+                <p className="mt-2 text-xs text-slate-500">
+                    Hors scope : {feedback.outOfScopeReason}
+                </p>
+            )}
             {feedback.standByReason && (
                 <p className="mt-2 text-xs text-slate-500">
                     Stand by : {feedback.standByReason}

@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
+import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
 
 // ============================================
 // GET /api/sdr/callbacks
@@ -11,6 +12,8 @@ import { statusConfigService } from "@/lib/services/StatusConfigService";
 // BD sees callbacks by mission (campaign.missionId), not by SDR assignment:
 // if an SDR is reassigned/removed, their past callbacks remain visible to BD
 // because they are tied to the mission.
+// An SDR sees only their own callbacks unless `includeOthers=true` ("Voir les
+// rappels des autres"), which adds teammates' callbacks on the SDR's missions.
 // ============================================
 
 export async function GET(request: Request) {
@@ -36,6 +39,7 @@ export async function GET(request: Request) {
         const listIdParam = searchParams.get("listId") || undefined;
         const dateFromParam = searchParams.get("dateFrom") || undefined;
         const dateToParam = searchParams.get("dateTo") || undefined;
+        const includeOthers = searchParams.get("includeOthers") === "true";
 
         const userRole = (session.user as { role?: string }).role;
         const isBusinessDeveloper = userRole === "BUSINESS_DEVELOPER";
@@ -72,7 +76,7 @@ export async function GET(request: Request) {
 
         // BD: scope by assigned missions.
         // Bookers: see callbacks on all missions (no mission restriction).
-        // SDR: own callbacks + all callbacks for missions where they are team lead.
+        // SDR: own callbacks; with includeOthers, every SDR's callbacks on their missions.
         const whereClause: {
             sdrId?: string;
             result: { in: string[] };
@@ -93,14 +97,29 @@ export async function GET(request: Request) {
                 whereClause.campaign = { missionId: { in: assignedMissionIds } };
             }
         } else if (!isBooker) {
-            // SDR: When mission is selected, show ALL callbacks for that mission
-            // When no mission selected, show all callbacks created by this SDR
-            if (missionIdParam) {
-                // Show ALL callbacks for this specific mission (no assignment check)
-                whereClause.campaign = { missionId: missionIdParam };
+            if (includeOthers) {
+                // Teammates' callbacks, limited to missions this SDR works on: assigned,
+                // team-lead, or planned today (the missions the page's filter offers).
+                const allowedMissionIds = [...new Set([
+                    ...assignedMissionIds,
+                    ...teamLeadMissionIds,
+                    ...(await getTodaySdrMissionIds(session.user.id)),
+                ])];
+                const scopedMissionIds = missionIdParam
+                    ? allowedMissionIds.filter((id) => id === missionIdParam)
+                    : allowedMissionIds;
+                if (scopedMissionIds.length === 0) {
+                    return NextResponse.json({
+                        success: true,
+                        data: [],
+                        pagination: { limit: limit || null, skip, hasMore: false },
+                    });
+                }
+                whereClause.campaign = { missionId: { in: scopedMissionIds } };
             } else {
-                // No mission filter: show all callbacks created by this SDR
+                // Default: only the callbacks this SDR created, optionally for one mission
                 whereClause.sdrId = session.user.id;
+                if (missionIdParam) whereClause.campaign = { missionId: missionIdParam };
             }
         } else {
             // Booker: only filter by missionId if provided; otherwise all missions
@@ -134,12 +153,15 @@ export async function GET(request: Request) {
             ];
         }
 
+        // Name whose callback it is whenever the list can hold someone else's.
+        const showSdrName = isBusinessDeveloper || isBooker || teamLeadMissionIds.length > 0 || includeOthers;
+
         const callbacks = await prisma.action.findMany({
             where: whereClause,
             skip,
             ...(limit > 0 ? { take: limit } : {}),
             include: {
-                sdr: (isBusinessDeveloper || isBooker || teamLeadMissionIds.length > 0)
+                sdr: showSdrName
                     ? { select: { id: true, name: true } }
                     : false,
                 contact: {
@@ -244,7 +266,7 @@ export async function GET(request: Request) {
                     client: action.campaign.mission.client,
                 } : null,
             };
-            if ((isBusinessDeveloper || isBooker || teamLeadMissionIds.length > 0) && action.sdr) {
+            if (showSdrName && action.sdr) {
                 item.sdr = { id: action.sdr.id, name: action.sdr.name };
             }
             activeCallbacks.push(item);

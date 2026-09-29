@@ -255,6 +255,9 @@ export default function SDRCallbacksPage() {
     );
     const [dateFrom, setDateFrom] = useState<string>("");
     const [dateTo, setDateTo] = useState<string>("");
+    // "Voir les rappels des autres" — deliberately not persisted: every visit
+    // starts on the SDR's own rappels.
+    const [showOthers, setShowOthers] = useState(false);
 
     // View & Sort
     const [viewMode, setViewMode] = useState<"card" | "table">("table");
@@ -425,7 +428,7 @@ export default function SDRCallbacksPage() {
         const controller = new AbortController();
         fetchCallbacksAbortRef.current = controller;
         const signal = controller.signal;
-        const filterKey = `${selectedMissionId ?? ""}|${selectedListId ?? ""}|${dateFrom}|${dateTo}`;
+        const filterKey = `${selectedMissionId ?? ""}|${selectedListId ?? ""}|${dateFrom}|${dateTo}|${showOthers ? "all" : "mine"}`;
         try {
             setIsLoading(true);
             const params = new URLSearchParams();
@@ -433,6 +436,7 @@ export default function SDRCallbacksPage() {
             if (selectedListId) params.set("listId", selectedListId);
             if (dateFrom) params.set("dateFrom", new Date(dateFrom).toISOString());
             if (dateTo) params.set("dateTo", new Date(dateTo + "T23:59:59.999Z").toISOString());
+            if (showOthers) params.set("includeOthers", "true");
             const res = await fetch(`/api/sdr/callbacks?${params.toString()}`, { signal });
             const json = await res.json();
             if (signal.aborted) return;
@@ -459,11 +463,11 @@ export default function SDRCallbacksPage() {
             if (!signal.aborted) setIsLoading(false);
             if (fetchCallbacksAbortRef.current === controller) fetchCallbacksAbortRef.current = null;
         }
-    }, [selectedMissionId, selectedListId, dateFrom, dateTo, showError]);
+    }, [selectedMissionId, selectedListId, dateFrom, dateTo, showOthers, showError]);
 
     // Restore cached callbacks for current filters so table/cards show instantly while refetching
     useEffect(() => {
-        const filterKey = `${selectedMissionId ?? ""}|${selectedListId ?? ""}|${dateFrom}|${dateTo}`;
+        const filterKey = `${selectedMissionId ?? ""}|${selectedListId ?? ""}|${dateFrom}|${dateTo}|${showOthers ? "all" : "mine"}`;
         try {
             if (typeof sessionStorage !== "undefined") {
                 const raw = sessionStorage.getItem(CALLBACKS_CACHE_KEY);
@@ -478,7 +482,7 @@ export default function SDRCallbacksPage() {
         } catch {
             // ignore
         }
-    }, [selectedMissionId, selectedListId, dateFrom, dateTo]);
+    }, [selectedMissionId, selectedListId, dateFrom, dateTo, showOthers]);
 
     useEffect(() => {
         fetch("/api/sdr/missions")
@@ -814,6 +818,15 @@ export default function SDRCallbacksPage() {
                                 <p className="text-xs text-slate-500">Affinez et triez vos rappels</p>
                             </div>
                         </div>
+                        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={showOthers}
+                                onChange={(e) => setShowOthers(e.target.checked)}
+                                className="rounded-[4px] border-slate-300 text-amber-600 focus:ring-amber-500/20 w-4 h-4"
+                            />
+                            Voir les rappels des autres
+                        </label>
                     </div>
                 </div>
 

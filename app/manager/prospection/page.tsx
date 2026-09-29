@@ -12,11 +12,13 @@ import {
     Activity, Target, Send, PhoneMissed, ThumbsUp, PhoneOff,
     CalendarX, RotateCw, SlidersHorizontal, Download, Columns3,
     X, Minus, Radio, Zap, Users, Filter, ArrowUpDown,
-    Eye, EyeOff, MoreHorizontal, Maximize2, Mic, History,
+    Eye, EyeOff, MoreHorizontal, Maximize2, Mic, History, Layers,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { Card, Button, useToast } from "@/components/ui";
 import { ManagerCallEnrichmentSyncModal } from "@/components/prospection/ManagerCallEnrichmentSyncModal";
+import { ProspectionExportModal } from "@/components/prospection/ProspectionExportModal";
+import type { ExportPreview } from "@/lib/prospection-export/workbook";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
 
 const UnifiedActionDrawer = dynamic(
@@ -51,6 +53,8 @@ interface MissionItem {
     sdrAssignments?: { sdrId: string; sdr: { id: string; name: string } }[];
 }
 
+type MissionListOption = ExportPreview["lists"][number];
+
 interface ActionRecord {
     id: string;
     contactId: string | null;
@@ -59,9 +63,9 @@ interface ActionRecord {
         id: string;
         firstName?: string | null;
         lastName?: string | null;
-        company: { id: string; name: string };
+        company: { id: string; name: string; listId?: string };
     } | null;
-    company: { id: string; name: string } | null;
+    company: { id: string; name: string; listId?: string } | null;
     sdr: { id: string; name: string } | null;
     channel: string;
     result: string;
@@ -597,6 +601,10 @@ function getCompanyName(action: ActionRecord): string {
     return action.company?.name || action.contact?.company?.name || "";
 }
 
+function getListId(action: ActionRecord): string {
+    return action.company?.listId || action.contact?.company?.listId || "";
+}
+
 function getActionDisplaySummary(action: ActionRecord): string {
     return action.callSummary?.trim() || action.note?.trim() || "";
 }
@@ -665,7 +673,12 @@ export default function ManagerProspectionPage() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(100);
     const [liveRefresh, setLiveRefresh] = useState(true);
-    const [exporting, setExporting] = useState(false);
+    /** Lists of the open mission (with line / treatment counts), for the list filter. */
+    const [missionLists, setMissionLists] = useState<MissionListOption[]>([]);
+    const [listFilter, setListFilter] = useState("");
+    const [exportOpen, setExportOpen] = useState(false);
+    const exportOpenRef = useRef(false);
+    exportOpenRef.current = exportOpen;
     const searchRef = useRef<HTMLInputElement>(null);
     const prevActionsRef = useRef<ActionRecord[]>([]);
 
@@ -704,10 +717,12 @@ export default function ManagerProspectionPage() {
                 e.preventDefault();
                 searchRef.current?.focus();
             }
-            if (e.key === "Escape") {
+            // Escape inside the export dialog closes the dialog, not the page filters.
+            if (e.key === "Escape" && !exportOpenRef.current) {
                 setSearch("");
                 setResultFilters(new Set());
                 setSdrFilter("");
+                setListFilter("");
                 setActionChannelFilter("");
                 setDateFrom("");
                 setDateTo("");
@@ -751,18 +766,21 @@ export default function ManagerProspectionPage() {
     const fetchMissionStats = useCallback(async (missionId: string) => {
         const qs = new URLSearchParams();
         if (sdrFilter) qs.set("sdrId", sdrFilter);
+        if (listFilter) qs.set("listId", listFilter);
         if (actionChannelFilter) qs.set("channel", actionChannelFilter);
         if (dateFrom) qs.set("from", `${dateFrom}T00:00:00`);
         if (dateTo) qs.set("to", `${dateTo}T23:59:59.999`);
         const suffix = qs.toString() ? `?${qs}` : "";
         const statsJson = await fetch(`/api/missions/${missionId}/action-stats${suffix}`).then(r => r.json());
         if (statsJson.success) setStats(statsJson.data);
-    }, [sdrFilter, actionChannelFilter, dateFrom, dateTo]);
+    }, [sdrFilter, listFilter, actionChannelFilter, dateFrom, dateTo]);
 
     const fetchMissionData = useCallback(async (missionId: string, silent = false) => {
         if (!silent) setLoadingData(true);
         try {
-            const actionsJson = await fetch(`/api/actions?missionId=${missionId}&limit=2000`).then(r => r.json());
+            // Filtered server-side so the 2 000 most recent actions are the list's own.
+            const listParam = listFilter ? `&listId=${encodeURIComponent(listFilter)}` : "";
+            const actionsJson = await fetch(`/api/actions?missionId=${missionId}&limit=2000${listParam}`).then(r => r.json());
             if (actionsJson.success) {
                 const next: ActionRecord[] = (actionsJson.data || []).map((a: ActionRecord) => ({
                     ...a,
@@ -778,7 +796,8 @@ export default function ManagerProspectionPage() {
                         .toLowerCase(),
                 }));
                 setActions(prev => {
-                    const added = next.filter(n => !prev.some(p => p.id === n.id)).length;
+                    // Only live refreshes bring "new" rows; a first load or a list switch does not.
+                    const added = silent ? next.filter(n => !prev.some(p => p.id === n.id)).length : 0;
                     if (added > 0) setNewCount(c => c + added);
                     return next;
                 });
@@ -787,46 +806,21 @@ export default function ManagerProspectionPage() {
         } finally {
             if (!silent) setLoadingData(false);
         }
-    }, []);
+    }, [listFilter]);
 
-    const fetchAllForExport = useCallback(async (missionId: string): Promise<ActionRecord[]> => {
-        const EXPORT_LIMIT = 5000;
-        const all: ActionRecord[] = [];
-        let pg = 1;
-        let hasMore = true;
-        while (hasMore) {
-            const qs = new URLSearchParams({ missionId, limit: String(EXPORT_LIMIT), page: String(pg) });
-            if (sdrFilter) qs.set("sdrId", sdrFilter);
-            if (dateFrom)  qs.set("from", `${dateFrom}T00:00:00`);
-            if (dateTo)    qs.set("to", `${dateTo}T23:59:59.999`);
-            const json = await fetch(`/api/actions?${qs}`).then(r => r.json());
-            if (!json.success) break;
-            all.push(...(json.data || []));
-            hasMore = json.pagination?.hasMore ?? false;
-            pg++;
+    // Lists of the mission (names + counts) for the list filter and the export dialog.
+    useEffect(() => {
+        if (!selectedMission) {
+            setMissionLists([]);
+            return;
         }
-        return all;
-    }, [sdrFilter, dateFrom, dateTo]);
-
-    const handleExportAll = useCallback(async () => {
-        if (!selectedMission || exporting) return;
-        setExporting(true);
-        try {
-            const raw = await fetchAllForExport(selectedMission.id);
-            const filtered = raw.filter(a => {
-                if (resultFilters.size && !resultFilters.has(a.result)) return false;
-                if (search) {
-                    const key = [getContactName(a), getCompanyName(a), a.note, a.callSummary, a.callTranscription]
-                        .filter(Boolean).join(" ").toLowerCase();
-                    if (!key.includes(search.toLowerCase())) return false;
-                }
-                return true;
-            });
-            exportCSV(filtered, selectedMission.name);
-        } finally {
-            setExporting(false);
-        }
-    }, [selectedMission, exporting, fetchAllForExport, resultFilters, search]);
+        let cancelled = false;
+        fetch(`/api/missions/${selectedMission.id}/prospection-export/preview`)
+            .then(r => r.json())
+            .then(j => { if (!cancelled && j.success) setMissionLists((j.data as ExportPreview).lists); })
+            .catch(() => { if (!cancelled) setMissionLists([]); });
+        return () => { cancelled = true; };
+    }, [selectedMission]);
 
     useEffect(() => {
         if (!selectedMission) return;
@@ -1028,7 +1022,12 @@ export default function ManagerProspectionPage() {
 
     // row padding by density
     const rowPy = density === "compact" ? "py-2" : density === "comfortable" ? "py-4" : "py-3";
-    const hasFilters = !!(search || sdrFilter || resultFilters.size || dateFrom || dateTo);
+    const hasFilters = !!(search || sdrFilter || listFilter || resultFilters.size || dateFrom || dateTo);
+    // Row tag naming the list, useful only while several lists are mixed in the table.
+    const listNameById = useMemo(
+        () => (missionLists.length > 1 && !listFilter ? new Map(missionLists.map(l => [l.id, l.name])) : null),
+        [missionLists, listFilter]
+    );
 
     // ─────────────────────────────────────────────────────────────────────────
     // MISSION PICKER VIEW
@@ -1315,6 +1314,7 @@ export default function ManagerProspectionPage() {
                                 setStats(null);
                                 setSearch("");
                                 setSdrFilter("");
+                                setListFilter("");
                                 setActionChannelFilter("");
                                 setResultFilters(new Set());
                                 setDateFrom("");
@@ -1397,13 +1397,12 @@ export default function ManagerProspectionPage() {
                         {/* Export */}
                         <button
                             type="button"
-                            onClick={handleExportAll}
-                            disabled={exporting}
-                            aria-label="Exporter en CSV"
-                            className="h-9 px-3 flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => setExportOpen(true)}
+                            aria-label="Exporter la base prospectée"
+                            className="h-9 px-3 flex items-center gap-1.5 rounded-xl border border-indigo-600 bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
                         >
-                            {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden /> : <Download className="w-3.5 h-3.5" aria-hidden />}
-                            {exporting ? "Export en cours…" : "Export CSV"}
+                            <Download className="w-3.5 h-3.5" aria-hidden />
+                            Exporter
                         </button>
                     </div>
                 </div>
@@ -1492,6 +1491,33 @@ export default function ManagerProspectionPage() {
                         {sdrOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
 
+                    {missionLists.length > 1 && (
+                        <>
+                            <div className="w-px h-7 bg-slate-100 shrink-0 hidden sm:block" aria-hidden />
+                            <div className="relative">
+                                <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" aria-hidden />
+                                <select
+                                    value={listFilter}
+                                    onChange={e => { setListFilter(e.target.value); setPage(1); setSelectedIds(new Set()); }}
+                                    aria-label="Filtrer par liste"
+                                    className={cn(
+                                        "h-9 pl-8 pr-3 text-sm font-semibold border rounded-xl focus:outline-none focus:border-indigo-400 min-w-[180px] max-w-[260px] cursor-pointer",
+                                        listFilter ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-slate-50 border-slate-200 text-slate-700"
+                                    )}
+                                >
+                                    <option value="">Toutes les listes</option>
+                                    {missionLists.map(l => (
+                                        <option key={l.id} value={l.id}>
+                                            {l.name}
+                                            {l.rows !== null ? ` — ${l.rows} lignes, ${l.rows ? Math.round(((l.treatedRows ?? 0) / l.rows) * 100) : 0} % traité` : ""}
+                                            {l.isArchived ? " (archivée)" : ""}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
+
                     <div className="w-px h-7 bg-slate-100 shrink-0 hidden sm:block" aria-hidden />
 
                     <select
@@ -1538,6 +1564,7 @@ export default function ManagerProspectionPage() {
                                 onClick={() => {
                                     setSearch("");
                                     setSdrFilter("");
+                                    setListFilter("");
                                     setActionChannelFilter("");
                                     setResultFilters(new Set());
                                     setDateFrom("");
@@ -1683,6 +1710,7 @@ export default function ManagerProspectionPage() {
                             onClick={() => {
                                 setSearch("");
                                 setSdrFilter("");
+                                setListFilter("");
                                 setActionChannelFilter("");
                                 setResultFilters(new Set());
                                 setDateFrom("");
@@ -1824,6 +1852,12 @@ export default function ManagerProspectionPage() {
                                                             <p className="text-sm font-semibold text-slate-900 truncate max-w-[180px]">{name}</p>
                                                             {showCompany && (
                                                                 <p className="text-[11px] text-slate-400 font-medium truncate max-w-[180px]">{companyName}</p>
+                                                            )}
+                                                            {listNameById?.get(getListId(row)) && (
+                                                                <p className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-[10px] font-semibold text-slate-500 truncate max-w-[180px]">
+                                                                    <Layers className="w-2.5 h-2.5 shrink-0" aria-hidden />
+                                                                    {listNameById.get(getListId(row))}
+                                                                </p>
                                                             )}
                                                         </div>
                                                     </div>
@@ -2005,6 +2039,27 @@ export default function ManagerProspectionPage() {
                     }}
                 />
             )}
+
+            <ProspectionExportModal
+                isOpen={exportOpen}
+                onClose={() => setExportOpen(false)}
+                missionId={selectedMission.id}
+                missionName={selectedMission.name}
+                sdrOptions={sdrOptions}
+                initial={{
+                    listIds: listFilter ? [listFilter] : null,
+                    // Table chips are current statuses only in the one-row-per-contact view.
+                    statuses: viewMode === "latest_per_contact" ? [...resultFilters] : [],
+                    sdrIds: sdrFilter ? [sdrFilter] : [],
+                    channels: actionChannelFilter ? [actionChannelFilter] : [],
+                    from: dateFrom,
+                    to: dateTo,
+                }}
+                onToast={(kind, title, message) => {
+                    if (kind === "success") showSuccess(title, message);
+                    else showError(title, message);
+                }}
+            />
 
             {drawerAction && (
                 <UnifiedActionDrawer

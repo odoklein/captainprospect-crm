@@ -9,6 +9,9 @@ export interface MeetingFeedbackData {
     /** Set when a manager put the absence on stand by — it leaves the SDR boards. */
     standByAt?: string | null;
     standByReason?: string | null;
+    /** Set when a manager put the absence hors scope — retired for good, never to call back. */
+    outOfScopeAt?: string | null;
+    outOfScopeReason?: string | null;
 }
 
 export interface Meeting {

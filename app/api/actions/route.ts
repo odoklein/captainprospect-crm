@@ -105,6 +105,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
  if (to) filters.to = new Date(to);
  if (contactId) filters.contactId = contactId;
  if (companyId) filters.companyId = companyId;
+ // Drawer history: include the company's copies in other lists of the mission.
+ if (companyId && searchParams.get('includeTwins') === 'true') filters.includeTwins = true;
+ const listId = searchParams.get('listId');
+ if (listId) filters.listId = listId;
 
  // Use service layer
  const { actions, total } = await actionService.getActions(filters);

@@ -141,6 +141,16 @@ export function detectMeetingCategoryFromNote(note: string | null | undefined): 
     return null;
 }
 
+/** Actions belonging to one list: logged on its companies or on their contacts. */
+function listScopeWhere(listId: string): Prisma.ActionWhereInput {
+    return {
+        OR: [
+            { company: { listId } },
+            { contact: { company: { listId } } },
+        ],
+    };
+}
+
 export class ActionService {
  // ============================================
  // CREATE ACTION WITH TRANSACTION
@@ -515,10 +525,15 @@ export class ActionService {
  to?: Date;
  contactId?: string;
  companyId?: string;
+ /** With companyId: also take the company's twins (see getTwinCompanyIds), so
+ * an SDR working one copy of a company sees the calls made on the others. */
+ includeTwins?: boolean;
+ /** Only actions on this list's companies or on their contacts. */
+ listId?: string;
  page?: number;
  limit?: number;
  }) {
- const { page = 1, limit = 20, ...where } = filters;
+ const { page = 1, limit = 20, includeTwins = false, ...where } = filters;
  const skip = (page - 1) * limit;
 
  const whereClause: any = {};
@@ -526,9 +541,23 @@ export class ActionService {
  if (where.sdrId) whereClause.sdrId = where.sdrId;
  if (where.result) whereClause.result = where.result;
  if (where.contactId) whereClause.contactId = where.contactId;
- if (where.companyId) whereClause.companyId = where.companyId;
+ if (where.companyId) {
+ const companyIds = includeTwins
+ ? [where.companyId, ...(await this.getTwinCompanyIds(where.companyId))]
+ : [where.companyId];
+ // Match the contact's company too: most contact actions were stored without
+ // a companyId, yet they are that company's history all the same.
+ whereClause.OR = [
+ { companyId: { in: companyIds } },
+ { contact: { companyId: { in: companyIds } } },
+ ];
+ }
  if (where.missionId) {
  whereClause.campaign = { missionId: where.missionId };
+ }
+ if (where.listId) {
+ // AND-wrapped: companyId above may already own the top-level OR.
+ whereClause.AND = [listScopeWhere(where.listId)];
  }
  if (where.from || where.to) {
  whereClause.createdAt = {};
@@ -540,9 +569,10 @@ export class ActionService {
  prisma.action.findMany({
  where: whereClause,
  include: {
- company: true,
+ // Twin entries come from other lists: name the list so the SDR can tell.
+ company: includeTwins ? { include: { list: { select: { id: true, name: true } } } } : true,
  contact: {
- include: { company: true },
+ include: { company: includeTwins ? { include: { list: { select: { id: true, name: true } } } } : true },
  },
  sdr: {
  select: { id: true, name: true },
@@ -561,6 +591,40 @@ export class ActionService {
  return { actions, total, page, limit };
  }
 
+ /**
+ * Other rows of the same company. A company imported into several lists of a
+ * mission gets one row per list, each with its own history. Twins are rows with
+ * the same name in the same mission, normalized like the CSV import dedup
+ * (normalizeCompanyName in lib/import/dedup.ts), plus rows joined by the
+ * import's linkedFromId link. Best effort: on failure the history just falls
+ * back to the company itself.
+ */
+ async getTwinCompanyIds(companyId: string): Promise<string[]> {
+ try {
+ const rows = await prisma.$queryRaw<{ id: string }[]>`
+ SELECT c2.id
+ FROM "Company" c1
+ JOIN "List" l1 ON l1.id = c1."listId"
+ JOIN "List" l2 ON l2."missionId" = l1."missionId"
+ JOIN "Company" c2 ON c2."listId" = l2.id
+ WHERE c1.id = ${companyId}
+ AND c2.id <> c1.id
+ AND btrim(regexp_replace(c1.name, '[[:space:]]+', ' ', 'g')) <> ''
+ AND lower(btrim(regexp_replace(c2.name, '[[:space:]]+', ' ', 'g')))
+ = lower(btrim(regexp_replace(c1.name, '[[:space:]]+', ' ', 'g')))
+ UNION
+ SELECT c.id
+ FROM "Company" c
+ WHERE c.id <> ${companyId}
+ AND (c."linkedFromId" = ${companyId} OR c.id = (SELECT "linkedFromId" FROM "Company" WHERE id = ${companyId}))
+ `;
+ return rows.map((r) => r.id);
+ } catch (error) {
+ console.error('[ActionService.getTwinCompanyIds] failed:', error);
+ return [];
+ }
+ }
+
  // ============================================
  // STATS CALCULATION
  // ============================================
@@ -570,6 +634,7 @@ export class ActionService {
  channel?: 'CALL' | 'EMAIL' | 'LINKEDIN';
  from?: Date;
  to?: Date;
+ listId?: string;
  }) {
  const whereClause: any = {};
 
@@ -577,6 +642,7 @@ export class ActionService {
  if (filters.missionId) {
  whereClause.campaign = { missionId: filters.missionId };
  }
+ if (filters.listId) Object.assign(whereClause, listScopeWhere(filters.listId));
  if (filters.channel) whereClause.channel = filters.channel;
  if (filters.from || filters.to) {
  whereClause.createdAt = {};

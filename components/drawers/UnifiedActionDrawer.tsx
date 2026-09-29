@@ -482,6 +482,13 @@ export function UnifiedActionDrawer({
         meetingAddress?: string | null;
         campaign?: { name: string };
         sdr?: { id: string; name: string };
+        contactId?: string | null;
+        contact?: {
+            firstName: string | null;
+            lastName: string | null;
+            company?: { id: string; list?: { name: string } | null } | null;
+        } | null;
+        company?: { id: string; list?: { name: string } | null } | null;
     };
 
     // React Query: company
@@ -520,14 +527,17 @@ export function UnifiedActionDrawer({
 
     // React Query: actions history
     const actionsQueryKey = sdrUnifiedDrawerActionsKey(contactId, companyId);
-    const q = contactId ? `contactId=${contactId}` : `companyId=${companyId}`;
+    // Whole-company history, copies in the mission's other lists included: calls on
+    // the company, on another of its contacts or on another list's copy of it are
+    // exactly what the SDR must see before dialling.
+    const q = companyId ? `companyId=${companyId}&includeTwins=true` : `contactId=${contactId}`;
     const {
         data: actions = [],
         isFetching: actionsLoading,
     } = useQuery<ActionItem[]>({
         queryKey: actionsQueryKey,
         queryFn: async () => {
-            const r = await fetch(`/api/actions?${q}&limit=10`);
+            const r = await fetch(`/api/actions?${q}&limit=20`);
             const j = await r.json();
             if (!j.success || !Array.isArray(j.data)) throw new Error("Impossible de charger l'historique des actions");
             return j.data;
@@ -1036,6 +1046,21 @@ export function UnifiedActionDrawer({
         () => actions.some((a) => a.channel === "CALL"),
         [actions]
     );
+
+    /** Where an entry was logged, when it isn't on this contact itself. */
+    const getHistoryOrigin = (a: ActionItem): string | null => {
+        const entryCompany = a.company ?? a.contact?.company ?? null;
+        if (entryCompany && entryCompany.id !== companyId) {
+            return entryCompany.list?.name ? `Autre liste · ${entryCompany.list.name}` : "Autre liste";
+        }
+        if (!contactId) return null;
+        if (!a.contactId) return "Sur la société";
+        if (a.contactId !== contactId) {
+            const name = `${a.contact?.firstName ?? ""} ${a.contact?.lastName ?? ""}`.trim();
+            return name ? `Sur ${name}` : "Autre contact";
+        }
+        return null;
+    };
 
     const priorCallActions = useMemo(
         () =>
@@ -1723,7 +1748,7 @@ export function UnifiedActionDrawer({
                                         <span>Déjà appelé</span>
                                     </div>
                                     <p className="text-[11px] text-emerald-800">
-                                        Un ou plusieurs appels ont déjà eu lieu avec {contactId ? "ce contact" : "cette société"}.
+                                        Un ou plusieurs appels ont déjà eu lieu avec {contactId ? "ce contact ou sa société" : "cette société"}.
                                     </p>
                                 </div>
                                 {priorCallActions.length > 0 && (
@@ -1747,6 +1772,9 @@ export function UnifiedActionDrawer({
                                                     <span className="text-emerald-800/70">
                                                         · par <span className="font-medium">{a.sdr.name}</span>
                                                     </span>
+                                                )}
+                                                {getHistoryOrigin(a) && (
+                                                    <span className="text-emerald-800/70">· {getHistoryOrigin(a)}</span>
                                                 )}
                                             </li>
                                         ))}
@@ -1867,6 +1895,11 @@ export function UnifiedActionDrawer({
                                                                     {a.sdr?.name && (
                                                                         <span className="text-[10px] text-indigo-600 font-medium bg-indigo-50 px-1.5 py-0.5 rounded-md">
                                                                             {a.sdr.name}
+                                                                        </span>
+                                                                    )}
+                                                                    {getHistoryOrigin(a) && (
+                                                                        <span className="text-[10px] text-amber-700 font-medium bg-amber-50 px-1.5 py-0.5 rounded-md truncate max-w-[180px]">
+                                                                            {getHistoryOrigin(a)}
                                                                         </span>
                                                                     )}
                                                                 </div>

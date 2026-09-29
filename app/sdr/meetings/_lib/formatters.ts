@@ -5,13 +5,15 @@ import type { Meeting, RdvStatus } from "../_types";
  * RDV has been replaced it is cancelled with the "replaced" reason, and it
  * drops off the absence boards instead of sitting there for good.
  *
- * A manager can also park one ("absent en stand by") from /manager/rdv-absences:
- * it stays recorded, but it is not the SDR's problem today, so it leaves here too.
+ * A manager can also park one ("absent en stand by") or retire it for good
+ * ("hors scope") from /manager/rdv-absences: it stays recorded, but it is not
+ * the SDR's to call back, so it leaves here too.
  */
 export function isOpenNoShow(m: Meeting): boolean {
     return (
         m.meetingFeedback?.outcome === "NO_SHOW"
         && !m.meetingFeedback.standByAt
+        && !m.meetingFeedback.outOfScopeAt
         && m.result !== "MEETING_CANCELLED"
     );
 }

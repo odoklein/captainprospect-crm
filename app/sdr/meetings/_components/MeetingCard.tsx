@@ -1,4 +1,5 @@
 import {
+    Ban,
     CalendarClock,
     Check,
     Circle,
@@ -87,9 +88,10 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                                     ? "bg-red-50 text-red-700 border-red-200 animate-pulse"
                                     : "bg-slate-50 text-slate-600 border-slate-200",
                             )}>
-                                {openNoShow ? <XCircle className="w-2.5 h-2.5" /> : <PauseCircle className="w-2.5 h-2.5" />}
+                                {openNoShow ? <XCircle className="w-2.5 h-2.5" /> : feedback.outOfScopeAt ? <Ban className="w-2.5 h-2.5" /> : <PauseCircle className="w-2.5 h-2.5" />}
                                 Absent
-                                {!openNoShow && feedback.standByAt && " — en stand by"}
+                                {!openNoShow && feedback.outOfScopeAt && " — hors scope"}
+                                {!openNoShow && !feedback.outOfScopeAt && feedback.standByAt && " — en stand by"}
                                 {openNoShow && feedback.recontactRequested === "YES" && " — A recontacter"}
                             </span>
                         )}

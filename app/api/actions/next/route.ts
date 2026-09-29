@@ -353,9 +353,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             where: {
                 result: "MEETING_BOOKED",
                 sdrId,
-                // Stand-by absences are deliberately set aside by a manager:
-                // they stay on record but must not reappear at the top of the queue.
-                meetingFeedback: { outcome: "NO_SHOW", standByAt: null },
+                // Stand-by and hors-scope absences are set aside by a manager: they
+                // stay on record but must not reappear at the top of the queue.
+                meetingFeedback: { outcome: "NO_SHOW", standByAt: null, outOfScopeAt: null },
                 OR: [
                     ...(bookedContactIds.length > 0 ? [{ contactId: { in: bookedContactIds } }] : []),
                     ...(bookedCompanyIds.length > 0 ? [{ companyId: { in: bookedCompanyIds }, contactId: null }] : []),

@@ -27,6 +27,7 @@ export const GET = withErrorHandler(async (
         : undefined;
     const from = searchParams.get('from') ? new Date(searchParams.get('from')!) : undefined;
     const to = searchParams.get('to') ? new Date(searchParams.get('to')!) : undefined;
+    const listId = searchParams.get('listId') || undefined;
 
     const stats = await actionService.getActionStats({
         missionId: id,
@@ -34,6 +35,7 @@ export const GET = withErrorHandler(async (
         channel,
         from,
         to,
+        listId,
     });
 
     return successResponse(stats);
