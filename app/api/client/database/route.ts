@@ -2,94 +2,33 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
 import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
-import { loadStatusVocabulary } from "@/lib/prospection-export/load";
+import { buildStatusVocabulary, loadMissionStatuses } from "@/lib/prospection-export/load";
 import { buildRows, indexActions } from "@/lib/prospection-export/rows";
-import {
-    EMPTY_FILTERS,
-    UNTREATED_LABEL,
-    type ExportAction,
-    type ExportCompany,
-    type RowTreatment,
-} from "@/lib/prospection-export/types";
+import { buildStageResolver, buildWeeklyActivity, companyRollup, toPortalTreatment } from "@/lib/prospection-export/portal";
+import { EMPTY_FILTERS, type ExportAction, type ExportCompany } from "@/lib/prospection-export/types";
 import type { PortalCompany, PortalContact, PortalDatabaseResponse, PortalTreatment } from "@/lib/prospection-export/portal-types";
 
 // ============================================
 // GET /api/client/database
 // Every company/contact of the client's visible missions (all lists, archived
-// included), each with Captain Prospect's progress on it — the same numbers as
-// the manager's prospection export, computed by the same rows.ts logic. Loads
-// only what the table shows; the per-company history is fetched lazily by
-// /api/client/database/[companyId].
+// included), each with its stage and progress — the same numbers as the
+// manager's prospection export, computed by the same rows.ts logic — plus a
+// weekly activity series. Loads only what the page shows; per-company history
+// is fetched lazily by /api/client/database/[companyId].
 // ============================================
-
-const UNTREATED: PortalTreatment = {
-    treated: false,
-    lastResult: null,
-    lastResultLabel: UNTREATED_LABEL,
-    actionCount: 0,
-    callCount: 0,
-    meetingBooked: false,
-    lastActionAt: null,
-    nextCallbackAt: null,
-    meetingAt: null,
-};
-
-function toPortalTreatment(t: RowTreatment): PortalTreatment {
-    return {
-        treated: t.treated,
-        lastResult: t.lastResult,
-        lastResultLabel: t.lastResultLabel,
-        actionCount: t.actionCount,
-        callCount: t.callCount,
-        meetingBooked: t.meetingBookedAt !== null,
-        lastActionAt: t.lastActionAt?.toISOString() ?? null,
-        nextCallbackAt: t.nextCallbackAt?.toISOString() ?? null,
-        meetingAt: t.meetingAt?.toISOString() ?? null,
-    };
-}
-
-/** See PortalCompany.treatment for the rollup rules. */
-function companyRollup(
-    lines: PortalTreatment[],
-    totals: { actionCount: number; callCount: number } | undefined,
-    meetingLabel: string
-): PortalTreatment {
-    let last: PortalTreatment | null = null;
-    let meeting: PortalTreatment | null = null;
-    let nextCallbackAt: string | null = null;
-    for (const t of lines) {
-        if (t.lastActionAt && (!last || t.lastActionAt > (last.lastActionAt ?? ""))) last = t;
-        if (t.meetingBooked && (!meeting || (t.lastActionAt ?? "") > (meeting.lastActionAt ?? ""))) meeting = t;
-        if (t.nextCallbackAt && (!nextCallbackAt || t.nextCallbackAt > nextCallbackAt)) nextCallbackAt = t.nextCallbackAt;
-    }
-    if (!last) return UNTREATED;
-    return {
-        treated: true,
-        lastResult: meeting ? "MEETING_BOOKED" : last.lastResult,
-        lastResultLabel: meeting ? meetingLabel : last.lastResultLabel,
-        actionCount: totals?.actionCount ?? 0,
-        callCount: totals?.callCount ?? 0,
-        meetingBooked: meeting !== null,
-        lastActionAt: last.lastActionAt,
-        nextCallbackAt,
-        meetingAt: meeting?.meetingAt ?? null,
-    };
-}
 
 function toChannel(value: string): ExportAction["channel"] {
     return value === "EMAIL" || value === "LINKEDIN" ? value : "CALL";
 }
 
-async function loadMissionCompanies(mission: {
-    id: string;
-    name: string;
-    lists: { id: string; name: string }[];
-}): Promise<PortalCompany[]> {
+type MissionRef = { id: string; name: string; lists: { id: string; name: string }[] };
+
+async function loadMission(mission: MissionRef): Promise<{ companies: PortalCompany[]; actions: ExportAction[] }> {
     const listIds = mission.lists.map((l) => l.id);
-    if (listIds.length === 0) return [];
+    if (listIds.length === 0) return { companies: [], actions: [] };
     const listNames = new Map(mission.lists.map((l) => [l.id, l.name]));
 
-    const [companies, actions, vocabulary] = await Promise.all([
+    const [companies, actions, statuses] = await Promise.all([
         prisma.company.findMany({
             where: { listId: { in: listIds } },
             select: {
@@ -139,8 +78,12 @@ async function loadMissionCompanies(mission: {
             },
             orderBy: { createdAt: "asc" },
         }),
-        loadStatusVocabulary(mission.id),
+        loadMissionStatuses(mission.id),
     ]);
+
+    const vocabulary = buildStatusVocabulary(statuses);
+    const stageFor = buildStageResolver(statuses);
+    const meetingLabel = vocabulary.labelFor("MEETING_BOOKED");
 
     const exportCompanies: ExportCompany[] = companies.map((c) => ({
         ...c,
@@ -184,7 +127,6 @@ async function loadMissionCompanies(mission: {
         if (a.channel === "CALL") t.callCount++;
         totalsByCompany.set(a.ownerCompanyId, t);
     }
-    const meetingLabel = vocabulary.labelFor("MEETING_BOOKED");
 
     // buildRows yields one line per contact (or one per contact-less company);
     // regroup them under their company.
@@ -195,7 +137,7 @@ async function loadMissionCompanies(mission: {
             entry = { company: row.company, contacts: [], lines: [] };
             byCompany.set(row.company.id, entry);
         }
-        const treatment = toPortalTreatment(row.treatment);
+        const treatment = toPortalTreatment(row.treatment, stageFor, meetingLabel);
         entry.lines.push(treatment);
         if (row.contact) {
             entry.contacts.push({
@@ -212,7 +154,7 @@ async function loadMissionCompanies(mission: {
         }
     }
 
-    return [...byCompany.values()].map(({ company, contacts, lines }) => ({
+    const portalCompanies = [...byCompany.values()].map(({ company, contacts, lines }) => ({
         id: company.id,
         name: company.name,
         industry: company.industry,
@@ -225,14 +167,22 @@ async function loadMissionCompanies(mission: {
         missionName: mission.name,
         listName: listNames.get(company.listId) ?? "",
         contacts,
-        treatment: companyRollup(lines, totalsByCompany.get(company.id), meetingLabel),
+        treatment: companyRollup(lines, totalsByCompany.get(company.id)),
     }));
+
+    return { companies: portalCompanies, actions: exportActions };
 }
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["CLIENT"], request);
     const clientId = (session.user as { clientId?: string | null }).clientId;
-    const empty: PortalDatabaseResponse = { companies: [], exclusions: [] };
+    const now = new Date();
+    const empty: PortalDatabaseResponse = {
+        companies: [],
+        exclusions: [],
+        activity: buildWeeklyActivity([], now),
+        generatedAt: now.toISOString(),
+    };
 
     if (!clientId) return successResponse(empty);
 
@@ -242,7 +192,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     });
     if (missions.length === 0) return successResponse(empty);
 
-    const companies = (await Promise.all(missions.map(loadMissionCompanies))).flat();
+    const loaded = await Promise.all(missions.map(loadMission));
+    const companies = loaded.flatMap((m) => m.companies);
 
     // Attach the reason so the badge can explain itself without a second call.
     const exclusionIds = [
@@ -268,6 +219,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             createdAt: e.createdAt.toISOString(),
             expiresAt: e.expiresAt?.toISOString() ?? null,
         })),
+        activity: buildWeeklyActivity(loaded.flatMap((m) => m.actions), now),
+        generatedAt: now.toISOString(),
     };
     return successResponse(body);
 });

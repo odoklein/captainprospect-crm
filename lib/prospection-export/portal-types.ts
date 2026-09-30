@@ -6,7 +6,34 @@
  * summaries or SDR names reach the client.
  */
 
+/**
+ * Where a line stands, in words a client understands. Derived from the
+ * mission's status config (see portal.ts), ranked from worst to best.
+ */
+export type PortalStage = "untreated" | "closed" | "in_progress" | "callback" | "opportunity" | "meeting";
+
+export const PORTAL_STAGE_ORDER: PortalStage[] = ["meeting", "opportunity", "callback", "in_progress", "closed", "untreated"];
+
+export const STAGE_RANK: Record<PortalStage, number> = {
+    untreated: 0,
+    closed: 1,
+    in_progress: 2,
+    callback: 3,
+    opportunity: 4,
+    meeting: 5,
+};
+
+export const PORTAL_STAGE_LABELS: Record<PortalStage, string> = {
+    meeting: "RDV obtenu",
+    opportunity: "Intérêt",
+    callback: "À rappeler",
+    in_progress: "En cours",
+    closed: "Sans suite",
+    untreated: "À traiter",
+};
+
 export interface PortalTreatment {
+    stage: PortalStage;
     treated: boolean;
     lastResult: string | null;
     lastResultLabel: string;
@@ -46,9 +73,9 @@ export interface PortalCompany {
     listName: string;
     contacts: PortalContact[];
     /**
-     * Company-level rollup: counts are distinct actions on the company,
-     * lastActionAt is the latest across contacts, and the status is the booked
-     * meeting when there is one (the client's real win), else the latest line.
+     * Company-level rollup: the best stage reached by any of its lines (a
+     * meeting with one contact beats a refusal from another), counts of
+     * distinct actions on the company, and the latest contact date overall.
      */
     treatment: PortalTreatment;
 }
@@ -61,20 +88,28 @@ export interface PortalExclusion {
     expiresAt: string | null;
 }
 
+export interface PortalActivityWeek {
+    /** Monday of the week, YYYY-MM-DD (Paris). */
+    week: string;
+    actions: number;
+    meetings: number;
+}
+
 export interface PortalDatabaseResponse {
     companies: PortalCompany[];
     exclusions: PortalExclusion[];
+    /** Oldest first, fixed length, zero-filled. */
+    activity: PortalActivityWeek[];
+    generatedAt: string;
 }
-
-export type PortalTimelineKind = "meeting" | "callback" | null;
 
 export interface PortalTimelineEntry {
     id: string;
     at: string;
     channel: "CALL" | "EMAIL" | "LINKEDIN";
     label: string;
+    stage: PortalStage;
     contactName: string | null;
-    kind: PortalTimelineKind;
     /** Scheduled callback / meeting date, when one was set. */
     scheduledAt: string | null;
 }

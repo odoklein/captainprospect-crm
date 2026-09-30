@@ -9,15 +9,16 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
-import { getEffectiveStatusConfig } from "@/lib/services/StatusConfigService";
+import { getEffectiveStatusConfig, type EffectiveStatusDefinition } from "@/lib/services/StatusConfigService";
 import { readImportedAt, readImportMappings } from "./columns";
-import type {
-    ExportAction,
-    ExportChannel,
-    ExportCompany,
-    ExportList,
-    ProspectionExportFilters,
-    StatusVocabulary,
+import {
+    DEFAULT_CALLBACK_CODES,
+    type ExportAction,
+    type ExportChannel,
+    type ExportCompany,
+    type ExportList,
+    type ProspectionExportFilters,
+    type StatusVocabulary,
 } from "./types";
 
 export interface ProspectionExportData {
@@ -39,32 +40,36 @@ export interface ProspectionExportData {
     filters: ProspectionExportFilters;
 }
 
-/** Codes that schedule a callback when the mission config does not say otherwise. */
-const DEFAULT_CALLBACK_CODES = new Set(["CALLBACK_REQUESTED", "RAPPEL", "RELANCE"]);
-
-export async function loadStatusVocabulary(missionId: string): Promise<StatusVocabulary> {
-    const labels = new Map<string, string>();
-    const callbacks = new Set<string>();
-    const configured = new Set<string>();
-    let orderedCodes: string[] = [];
+/** The mission's effective statuses, or [] when the config can't be read. */
+export async function loadMissionStatuses(missionId: string): Promise<EffectiveStatusDefinition[]> {
     try {
-        const config = await getEffectiveStatusConfig({ missionId });
-        const sorted = config.statuses.slice().sort((a, b) => a.sortOrder - b.sortOrder);
-        orderedCodes = sorted.map((s) => s.code);
-        for (const s of sorted) {
-            configured.add(s.code);
-            if (s.label) labels.set(s.code, s.label);
-            if (s.triggersCallback) callbacks.add(s.code);
-        }
+        return (await getEffectiveStatusConfig({ missionId })).statuses;
     } catch (error) {
         // Labels are cosmetic: fall back to the built-in vocabulary.
         console.error("[prospection-export] status config unavailable:", error);
+        return [];
+    }
+}
+
+export function buildStatusVocabulary(statuses: EffectiveStatusDefinition[]): StatusVocabulary {
+    const labels = new Map<string, string>();
+    const callbacks = new Set<string>();
+    const configured = new Set<string>();
+    const sorted = statuses.slice().sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const s of sorted) {
+        configured.add(s.code);
+        if (s.label) labels.set(s.code, s.label);
+        if (s.triggersCallback) callbacks.add(s.code);
     }
     return {
         labelFor: (code) => labels.get(code) ?? ACTION_RESULT_LABELS[code] ?? code,
         isCallback: (code) => callbacks.has(code) || (!configured.has(code) && DEFAULT_CALLBACK_CODES.has(code)),
-        orderedCodes,
+        orderedCodes: sorted.map((s) => s.code),
     };
+}
+
+export async function loadStatusVocabulary(missionId: string): Promise<StatusVocabulary> {
+    return buildStatusVocabulary(await loadMissionStatuses(missionId));
 }
 
 function toChannel(value: string): ExportChannel {

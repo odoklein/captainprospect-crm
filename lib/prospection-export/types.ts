@@ -145,3 +145,6 @@ export interface StatusVocabulary {
 }
 
 export const UNTREATED_LABEL = "Non traité";
+
+/** Codes that schedule a callback when the mission config does not say otherwise. */
+export const DEFAULT_CALLBACK_CODES = new Set(["CALLBACK_REQUESTED", "RAPPEL", "RELANCE"]);

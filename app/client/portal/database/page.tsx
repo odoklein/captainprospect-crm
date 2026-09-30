@@ -1,82 +1,118 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+    useCallback, useDeferredValue, useEffect, useMemo, useRef, useState,
+    type CSSProperties, type ReactNode, type UIEvent,
+} from "react";
 import { useToast } from "@/components/ui";
 import {
-    Building2, Search, Users, Globe2, Phone, Mail, X,
-    ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Download,
-    ArrowUpDown, ArrowUp, ArrowDown, MapPin, CheckCircle2,
-    CalendarCheck, CalendarClock, Ban, History, Link2, User,
+    Search, X, Download, ChevronUp, ChevronDown, Phone, Mail, Link2, Copy, Check,
+    Ban, CalendarCheck, CalendarClock, RotateCw, Globe2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type {
-    PortalCompany,
-    PortalCompanyTimelineResponse,
-    PortalContact,
-    PortalDatabaseResponse,
-    PortalExclusion,
-    PortalTimelineEntry,
-    PortalTreatment,
+import {
+    PORTAL_STAGE_LABELS,
+    PORTAL_STAGE_ORDER,
+    STAGE_RANK,
+    type PortalCompany,
+    type PortalCompanyTimelineResponse,
+    type PortalContact,
+    type PortalDatabaseResponse,
+    type PortalExclusion,
+    type PortalStage,
+    type PortalTreatment,
 } from "@/lib/prospection-export/portal-types";
+import s from "./database.module.css";
 
-type SortKey = "name" | "industry" | "country" | "status" | "lastActionAt" | "contacts";
-type SortDir = "asc" | "desc";
-/** "all" | "treated" | "untreated" | "meeting" | `s:<status label>` */
-type StatusFilter = string;
+/* ═══════════════════════════════════════════════════════════════
+   CONSTANTS & HELPERS
+═══════════════════════════════════════════════════════════════ */
 
-const PAGE_SIZE = 50;
+const ROW_H = 64;
+const OVERSCAN = 8;
+const TRACE_SLOTS = 6;
+const ZONE = "Europe/Paris";
 
-const dateFmt = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Paris" });
-const dateTimeFmt = new Intl.DateTimeFormat("fr-FR", {
-    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
+const STAGE_COLOR: Record<PortalStage, string> = {
+    meeting: "#1f9d55",
+    opportunity: "#0f8f86",
+    callback: "#d4870a",
+    in_progress: "#3b6fe0",
+    closed: "#a39e98",
+    untreated: "#cfd2cc",
+};
+
+const TRACK: PortalStage[] = ["untreated", "in_progress", "callback", "opportunity", "meeting"];
+const TRACK_LABELS = ["À traiter", "En cours", "À rappeler", "Intérêt", "RDV"];
+
+type SortKey = "recent" | "stage" | "name" | "effort";
+const SORT_LABELS: Record<SortKey, string> = {
+    recent: "Plus récents",
+    stage: "Meilleur statut",
+    effort: "Plus de tentatives",
+    name: "A → Z",
+};
+
+type LoadedTimeline = PortalCompanyTimelineResponse | "error";
+
+const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
+const cssVar = (color: string) => ({ "--c": color }) as CSSProperties;
+
+const dayMonth = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: ZONE });
+const fullDate = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: ZONE });
+const dateTime = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: ZONE,
 });
+const timeOnly = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: ZONE });
+const rtf = new Intl.RelativeTimeFormat("fr", { numeric: "auto" });
 
-function formatDate(iso: string | null): string {
-    return iso ? dateFmt.format(new Date(iso)) : "";
+function relative(iso: string, nowMs: number): string {
+    const diff = new Date(iso).getTime() - nowMs;
+    const abs = Math.abs(diff);
+    const minute = 60_000, hour = 60 * minute, day = 24 * hour;
+    if (abs < hour) return rtf.format(Math.round(diff / minute), "minute");
+    if (abs < day) return rtf.format(Math.round(diff / hour), "hour");
+    if (abs < 30 * day) return rtf.format(Math.round(diff / day), "day");
+    if (abs < 365 * day) return rtf.format(Math.round(diff / (30 * day)), "month");
+    return rtf.format(Math.round(diff / (365 * day)), "year");
 }
 
-function formatDateTime(iso: string | null): string {
-    return iso ? dateTimeFmt.format(new Date(iso)) : "";
+const fold = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+function highlight(text: string, query: string): ReactNode {
+    if (!query) return text;
+    const folded = fold(text);
+    const i = folded.indexOf(query);
+    // Accent folding can change the length of unusual strings; only highlight when it maps 1:1.
+    if (i < 0 || folded.length !== text.length) return text;
+    return (
+        <>
+            {text.slice(0, i)}
+            <mark className={s.hl}>{text.slice(i, i + query.length)}</mark>
+            {text.slice(i + query.length)}
+        </>
+    );
 }
 
 function contactName(ct: { firstName: string | null; lastName: string | null }): string {
     return [ct.firstName, ct.lastName].filter(Boolean).join(" ") || "Contact";
 }
 
+function initials(ct: { firstName: string | null; lastName: string | null }): string {
+    return ([ct.firstName?.[0], ct.lastName?.[0]].filter(Boolean).join("") || "?").toUpperCase();
+}
+
 function cleanWebsite(url: string): string {
     return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
-function websiteHref(url: string): string {
-    return url.startsWith("http") ? url : `https://${url}`;
+function nextStepShort(t: PortalTreatment): string | null {
+    if (t.meetingAt) return `RDV · ${dayMonth.format(new Date(t.meetingAt))}`;
+    if (t.nextCallbackAt) return `Rappel · ${dayMonth.format(new Date(t.nextCallbackAt))}`;
+    return null;
 }
 
-/* ── Status tones ── */
-type Tone = "neutral" | "success" | "warn" | "info" | "danger";
-const TONES: Record<Tone, { bg: string; fg: string }> = {
-    neutral: { bg: "var(--cp-neutral-soft)", fg: "var(--cp-ink-3)" },
-    success: { bg: "var(--cp-success-soft)", fg: "var(--cp-success)" },
-    warn: { bg: "var(--cp-warn-soft)", fg: "var(--cp-warn)" },
-    info: { bg: "var(--cp-info-soft)", fg: "var(--cp-info)" },
-    danger: { bg: "var(--cp-danger-soft)", fg: "var(--cp-danger)" },
-};
-
-function toneOf(t: PortalTreatment, excluded: boolean): Tone {
-    if (excluded) return "danger";
-    if (!t.treated) return "neutral";
-    if (t.meetingBooked) return "success";
-    if (t.nextCallbackAt) return "warn";
-    return "info";
-}
-
-function StatusBadge({ t, excluded = false }: { t: PortalTreatment; excluded?: boolean }) {
-    const tone = TONES[toneOf(t, excluded)];
-    return (
-        <span className="cpds-chip max-w-[220px]" style={{ background: tone.bg, color: tone.fg }}>
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "currentColor" }} />
-            <span className="truncate">{excluded ? "Exclu" : t.lastResultLabel}</span>
-        </span>
-    );
+function statusLabel(company: PortalCompany): string {
+    return company.excludedAt ? "Exclu" : company.treatment.lastResultLabel;
 }
 
 /* ── CSV export (Excel FR: séparateur ; + BOM) — one line per contact, like the client's file ── */
@@ -84,13 +120,14 @@ function exportCsv(companies: PortalCompany[]) {
     const header = [
         "Entreprise", "Secteur", "Taille", "Pays", "Téléphone entreprise", "Site web", "Mission", "Liste",
         "Contact", "Fonction", "Email", "Téléphone contact",
-        "Traité", "Statut", "Tentatives", "Appels", "Dernier contact", "Prochain rappel", "RDV prévu", "Exclu",
+        "Étape", "Statut", "Tentatives", "Appels", "Dernier contact", "Prochain rappel", "RDV prévu", "Exclu",
     ];
+    const fmt = (iso: string | null) => (iso ? `${fullDate.format(new Date(iso))} ${timeOnly.format(new Date(iso))}` : "");
     const line = (c: PortalCompany, ct: PortalContact | null, t: PortalTreatment) => [
         c.name, c.industry ?? "", c.size ?? "", c.country ?? "", c.phone ?? "", c.website ?? "", c.missionName, c.listName,
         ct ? contactName(ct) : "", ct?.title ?? "", ct?.email ?? "", ct?.phone ?? "",
-        t.treated ? "Oui" : "Non", t.lastResultLabel, String(t.actionCount), String(t.callCount),
-        formatDateTime(t.lastActionAt), formatDateTime(t.nextCallbackAt), formatDateTime(t.meetingAt),
+        PORTAL_STAGE_LABELS[t.stage], t.lastResultLabel, String(t.actionCount), String(t.callCount),
+        fmt(t.lastActionAt), fmt(t.nextCallbackAt), fmt(t.meetingAt),
         c.excludedAt || ct?.excludedAt ? "Oui" : "",
     ];
     const rows: string[][] = [];
@@ -109,719 +146,905 @@ function exportCsv(companies: PortalCompany[]) {
     URL.revokeObjectURL(url);
 }
 
-/* ── KPI card ── */
-function StatCard({ icon: Icon, label, value, hint }: {
-    icon: typeof Building2; label: string; value: string | number; hint?: string;
+/* ── Animated count-up for the hero figure ── */
+function useCountUp(target: number, duration = 900): number {
+    const [value, setValue] = useState(0);
+    useEffect(() => {
+        const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const start = performance.now();
+        let raf = requestAnimationFrame(function tick(now) {
+            const p = reduced ? 1 : Math.min(1, (now - start) / duration);
+            setValue(Math.round(target * (1 - Math.pow(1 - p, 3))));
+            if (p < 1) raf = requestAnimationFrame(tick);
+        });
+        return () => cancelAnimationFrame(raf);
+    }, [target, duration]);
+    return value;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HERO — how far the database has been worked, and how fast
+═══════════════════════════════════════════════════════════════ */
+
+function ProgressPanel({ stageCounts, total, activeStage, onStage, grown }: {
+    stageCounts: Record<PortalStage, number>;
+    total: number;
+    activeStage: PortalStage | null;
+    onStage: (stage: PortalStage | null) => void;
+    grown: boolean;
 }) {
+    const treated = total - stageCounts.untreated;
+    const pct = total > 0 ? Math.round((treated / total) * 100) : 0;
+    const shown = useCountUp(pct);
+
     return (
-        <div className="cpds-card flex items-center gap-3.5 px-4 py-3.5">
-            <div className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
-                style={{ background: "var(--cp-green-soft)", color: "var(--cp-green)" }}>
-                <Icon className="w-[18px] h-[18px]" />
+        <section className={s.panel} aria-label="Avancement de la base">
+            <div className={s.panelHead}>
+                <div>
+                    <div className={cx(s.bigNumber, s.num)}>{shown}<span className={s.bigUnit}>%</span></div>
+                    <div className={s.bigLabel}>de votre base déjà travaillée</div>
+                </div>
+                <div className={s.bigSide}>
+                    <div><strong className={s.num}>{treated.toLocaleString("fr-FR")}</strong> entreprises traitées</div>
+                    <div><strong className={s.num}>{stageCounts.untreated.toLocaleString("fr-FR")}</strong> restent à traiter</div>
+                </div>
             </div>
-            <div className="min-w-0">
-                <p className="text-[22px] font-semibold leading-none tabular-nums" style={{ color: "var(--cp-ink)" }}>{value}</p>
-                <p className="text-[11px] font-medium mt-1 truncate" style={{ color: "var(--cp-ink-3)" }}>
-                    {label}{hint ? <span className="opacity-70"> · {hint}</span> : null}
-                </p>
+
+            <div className={s.stageBar} data-dim={activeStage ? "true" : "false"} role="group" aria-label="Répartition par étape">
+                {PORTAL_STAGE_ORDER.map((stage) => stageCounts[stage] > 0 && (
+                    <button
+                        key={stage}
+                        type="button"
+                        className={s.stageSeg}
+                        data-active={activeStage === stage}
+                        style={{ ...cssVar(STAGE_COLOR[stage]), width: grown ? `${(stageCounts[stage] / total) * 100}%` : "0%" }}
+                        title={`${PORTAL_STAGE_LABELS[stage]} : ${stageCounts[stage]}`}
+                        aria-label={`Filtrer : ${PORTAL_STAGE_LABELS[stage]}`}
+                        onClick={() => onStage(activeStage === stage ? null : stage)}
+                    />
+                ))}
+            </div>
+
+            <div className={s.legend}>
+                {PORTAL_STAGE_ORDER.map((stage) => (
+                    <button key={stage} type="button" className={s.legendItem} data-active={activeStage === stage}
+                        style={cssVar(STAGE_COLOR[stage])} onClick={() => onStage(activeStage === stage ? null : stage)}>
+                        <span className={s.legendDot} />
+                        <span className={s.legendLabel}>{PORTAL_STAGE_LABELS[stage]}</span>
+                        <span className={cx(s.legendCount, s.num)}>{stageCounts[stage].toLocaleString("fr-FR")}</span>
+                    </button>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function ActivityPanel({ activity, grown }: { activity: PortalDatabaseResponse["activity"]; grown: boolean }) {
+    const max = Math.max(1, ...activity.map((w) => w.actions));
+    const current = activity[activity.length - 1];
+    const last = activity[activity.length - 2];
+    const before = activity[activity.length - 3];
+    const meetings = activity.reduce((n, w) => n + w.meetings, 0);
+    const delta = last && before && before.actions > 0 ? Math.round(((last.actions - before.actions) / before.actions) * 100) : null;
+
+    return (
+        <section className={s.panel} aria-label="Activité hebdomadaire">
+            <div className={s.panelHead}>
+                <span className={s.panelTitle}>Nos actions sur votre base</span>
+                <span className={s.panelHint}>{activity.length} dernières semaines</span>
+            </div>
+            <div className={s.chartWrap}>
+                <div className={s.chart}>
+                    {activity.map((w, i) => {
+                        const isCurrent = i === activity.length - 1;
+                        const label = `Semaine du ${dayMonth.format(new Date(`${w.week}T12:00:00Z`))} : ${w.actions} action${w.actions > 1 ? "s" : ""}${w.meetings ? `, ${w.meetings} RDV` : ""}${isCurrent ? " (en cours)" : ""}`;
+                        return (
+                            <div key={w.week} className={s.chartCol} title={label} aria-label={label}>
+                                {w.meetings > 0 && <span className={s.chartMeeting}>{w.meetings}</span>}
+                                <div className={cx(s.chartBar, isCurrent && s.chartBarCurrent)}
+                                    style={{ height: grown ? `${Math.max(3, (w.actions / max) * 100)}%` : "3px" }} />
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className={s.chartAxis}>
+                    <span>{activity[0] ? dayMonth.format(new Date(`${activity[0].week}T12:00:00Z`)) : ""}</span>
+                    <span>Cette semaine</span>
+                </div>
+            </div>
+            <div className={s.activityStats}>
+                <div className={s.miniKpi}>
+                    <span className={cx(s.miniKpiValue, s.num)}>{current?.actions ?? 0}</span>
+                    <span className={s.miniKpiLabel}>cette semaine (en cours)</span>
+                </div>
+                <div className={s.miniKpi}>
+                    <span className={cx(s.miniKpiValue, s.num)}>
+                        {last?.actions ?? 0}
+                        {delta !== null && delta !== 0 && (
+                            <span className={cx(s.delta, delta > 0 ? s.deltaUp : s.deltaDown)}>{delta > 0 ? "+" : ""}{delta}%</span>
+                        )}
+                    </span>
+                    <span className={s.miniKpiLabel}>semaine dernière</span>
+                </div>
+                <div className={s.miniKpi}>
+                    <span className={cx(s.miniKpiValue, s.num)} style={{ color: STAGE_COLOR.meeting }}>{meetings}</span>
+                    <span className={s.miniKpiLabel}>RDV obtenus sur la période</span>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIST ROW
+═══════════════════════════════════════════════════════════════ */
+
+function Trace({ count, calls }: { count: number; calls: number }) {
+    return (
+        <div className={s.trace} title={count ? `${count} tentative${count > 1 ? "s" : ""}, dont ${calls} appel${calls > 1 ? "s" : ""}` : "Aucune tentative"}>
+            {Array.from({ length: TRACE_SLOTS }, (_, i) => (
+                <span key={i} className={cx(s.traceDot, i < count && s.traceDotOn)} />
+            ))}
+            {count > TRACE_SLOTS && <span className={cx(s.traceMore, s.num)}>+{count - TRACE_SLOTS}</span>}
+        </div>
+    );
+}
+
+function Row({ company, index, query, active, open, multiMission, nowMs, onOpen, onHover, onLeave }: {
+    company: PortalCompany;
+    index: number;
+    query: string;
+    active: boolean;
+    open: boolean;
+    multiMission: boolean;
+    nowMs: number;
+    onOpen: (id: string) => void;
+    onHover: (id: string) => void;
+    onLeave: () => void;
+}) {
+    const t = company.treatment;
+    const excluded = Boolean(company.excludedAt);
+    const next = nextStepShort(t);
+    const meta = [
+        company.industry,
+        company.country,
+        `${company.contacts.length} contact${company.contacts.length > 1 ? "s" : ""}`,
+        multiMission ? company.missionName : null,
+    ].filter(Boolean).join(" · ");
+
+    return (
+        <div
+            id={`db-row-${company.id}`}
+            role="option"
+            aria-selected={open}
+            className={cx(s.row, active && s.rowActive, open && s.rowOpen)}
+            style={{ ...cssVar(STAGE_COLOR[t.stage]), transform: `translateY(${index * ROW_H}px)` }}
+            onClick={() => onOpen(company.id)}
+            onMouseEnter={() => onHover(company.id)}
+            onMouseLeave={onLeave}
+        >
+            <span className={s.dot} />
+            <div className={s.rowMain}>
+                <div className={cx(s.rowName, excluded && s.rowNameExcluded)}>{highlight(company.name, query)}</div>
+                <div className={s.rowMeta}>{meta}</div>
+            </div>
+            <Trace count={t.actionCount} calls={t.callCount} />
+            <span className={cx(s.pill, excluded && s.pillDanger)}>{statusLabel(company)}</span>
+            <div className={s.rowWhen}>
+                <div className={s.rowWhenMain} title={t.lastActionAt ? dateTime.format(new Date(t.lastActionAt)) : undefined}>
+                    {t.lastActionAt ? relative(t.lastActionAt, nowMs) : <span className={s.muted}>Pas encore contactée</span>}
+                </div>
+                {next && <div className={s.rowWhenNext}>{next}</div>}
             </div>
         </div>
     );
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DRAWER — one instance, its content follows the selected row
+   INSPECTOR — one drawer, its content follows the active row
 ═══════════════════════════════════════════════════════════════ */
 
-const CHANNEL_META: Record<PortalTimelineEntry["channel"], { label: string; icon: typeof Phone }> = {
+const CHANNEL_META = {
     CALL: { label: "Appel", icon: Phone },
     EMAIL: { label: "Email", icon: Mail },
     LINKEDIN: { label: "LinkedIn", icon: Link2 },
-};
+} as const;
 
-type TimelineState = { status: "loading" } | { status: "error" } | { status: "ready"; data: PortalCompanyTimelineResponse };
-type LoadedTimeline = PortalCompanyTimelineResponse | "error";
-
-function SectionTitle({ icon: Icon, children }: { icon?: typeof Building2; children: ReactNode }) {
+function CopyChip({ value, href, icon: Icon }: { value: string; href: string; icon: typeof Phone }) {
+    const [copied, setCopied] = useState(false);
     return (
-        <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider mb-2.5" style={{ color: "var(--cp-ink-3)" }}>
-            {Icon && <Icon className="w-3.5 h-3.5" />}
-            {children}
-        </h3>
+        <span style={{ display: "inline-flex", gap: 4 }}>
+            <a className={s.chipBtn} href={href} title={value}>
+                <Icon size={13} />{value}
+            </a>
+            <button type="button" className={cx(s.chipBtn, copied && s.chipBtnDone)} aria-label={`Copier ${value}`} title="Copier"
+                onClick={() => {
+                    navigator.clipboard?.writeText(value).then(() => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 1400);
+                    });
+                }}>
+                {copied ? <Check size={13} /> : <Copy size={13} />}
+            </button>
+        </span>
     );
 }
 
-function MiniStat({ label, value, tone }: { label: string; value: ReactNode; tone?: Tone }) {
+function StageTrack({ t }: { t: PortalTreatment }) {
+    const reached = t.stage === "closed" ? 1 : TRACK.indexOf(t.stage);
     return (
-        <div className="rounded-[10px] px-3 py-2.5" style={{ background: "var(--cp-sunken)" }}>
-            <p className="text-[11px] font-medium" style={{ color: "var(--cp-ink-3)" }}>{label}</p>
-            <p className="text-[14px] font-semibold mt-0.5 tabular-nums truncate" style={{ color: tone ? TONES[tone].fg : "var(--cp-ink)" }}>
-                {value || <span style={{ color: "var(--cp-ink-3)", opacity: 0.5 }}>—</span>}
-            </p>
-        </div>
+        <>
+            <div className={s.track}>
+                <div className={s.trackLine}>
+                    <div className={s.trackFill} style={{ width: `${(reached / (TRACK.length - 1)) * 100}%` }} />
+                </div>
+                {TRACK.map((stage, i) => (
+                    <div key={stage} className={s.trackStep}>
+                        <span className={cx(s.trackNode, i <= reached && s.trackNodeOn, i === reached && s.trackNodeCurrent)}>
+                            {i < reached && <Check size={11} strokeWidth={3} />}
+                        </span>
+                        <span className={cx(s.trackLabel, i <= reached && s.trackLabelOn)}>{TRACK_LABELS[i]}</span>
+                    </div>
+                ))}
+            </div>
+            {t.stage === "closed" && (
+                <div className={s.closedNote}><Ban size={13} /> Sans suite — {t.lastResultLabel}</div>
+            )}
+        </>
     );
 }
 
-function InfoRow({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <div className="flex items-baseline justify-between gap-4 py-1.5 text-[13px]" style={{ borderBottom: "1px solid var(--cp-border)" }}>
-            <span className="shrink-0" style={{ color: "var(--cp-ink-3)" }}>{label}</span>
-            <span className="min-w-0 truncate text-right" style={{ color: "var(--cp-ink)" }}>
-                {children || <span style={{ color: "var(--cp-ink-3)", opacity: 0.5 }}>—</span>}
-            </span>
-        </div>
-    );
-}
-
-function CompanyDrawer({ company, exclusion, position, total, onPrev, onNext, onClose, loaded, onLoaded }: {
+function Inspector({ company, exclusion, timeline, position, total, nowMs, onPrev, onNext, onClose, ensureTimeline }: {
     company: PortalCompany;
     exclusion: PortalExclusion | undefined;
+    timeline: LoadedTimeline | undefined;
     position: number;
     total: number;
+    nowMs: number;
     onPrev: () => void;
     onNext: () => void;
     onClose: () => void;
-    /** Cached history for this company; undefined = not fetched yet. */
-    loaded: LoadedTimeline | undefined;
-    onLoaded: (companyId: string, result: LoadedTimeline) => void;
+    ensureTimeline: (id: string) => void;
 }) {
-    const isCached = loaded !== undefined;
+    // Short delay so holding ↓ through the list doesn't fire a request per row.
     useEffect(() => {
-        if (isCached) return;
-        const ctrl = new AbortController();
-        fetch(`/api/client/database/${encodeURIComponent(company.id)}`, { signal: ctrl.signal })
-            .then((res) => res.json())
-            .then((json) => {
-                if (!json.success) throw new Error(json.error);
-                onLoaded(company.id, json.data);
-            })
-            .catch((err) => {
-                if ((err as Error)?.name !== "AbortError") onLoaded(company.id, "error");
-            });
-        return () => ctrl.abort();
-    }, [company.id, isCached, onLoaded]);
-
-    const timeline: TimelineState = loaded === undefined
-        ? { status: "loading" }
-        : loaded === "error" ? { status: "error" } : { status: "ready", data: loaded };
+        const id = setTimeout(() => ensureTimeline(company.id), 90);
+        return () => clearTimeout(id);
+    }, [company.id, ensureTimeline]);
 
     const t = company.treatment;
     const excluded = Boolean(company.excludedAt);
     const contacts = useMemo(
-        () => [...company.contacts].sort((a, b) => (b.treatment.lastActionAt ?? "").localeCompare(a.treatment.lastActionAt ?? "")),
+        () => [...company.contacts].sort((a, b) =>
+            STAGE_RANK[b.treatment.stage] - STAGE_RANK[a.treatment.stage] ||
+            (b.treatment.lastActionAt ?? "").localeCompare(a.treatment.lastActionAt ?? "")),
         [company.contacts]
     );
+    const workedContacts = contacts.filter((c) => c.treatment.treated).length;
     const nextStep = t.meetingAt
-        ? { label: `RDV le ${formatDate(t.meetingAt)}`, tone: "success" as Tone }
+        ? { value: dayMonth.format(new Date(t.meetingAt)), sub: `RDV à ${timeOnly.format(new Date(t.meetingAt))}`, color: STAGE_COLOR.meeting }
         : t.meetingBooked
-            ? { label: "RDV obtenu", tone: "success" as Tone }
+            ? { value: "RDV obtenu", sub: "date à confirmer", color: STAGE_COLOR.meeting }
             : t.nextCallbackAt
-                ? { label: `Rappel le ${formatDate(t.nextCallbackAt)}`, tone: "warn" as Tone }
+                ? { value: dayMonth.format(new Date(t.nextCallbackAt)), sub: "rappel prévu", color: STAGE_COLOR.callback }
                 : null;
-    const subtitle = [company.industry, company.size, company.country].filter(Boolean).join(" · ");
+    const meta = [company.industry, company.size, company.country].filter(Boolean).join(" · ");
 
     return (
-        <aside
-            role="dialog"
-            aria-label={company.name}
-            className="fixed inset-y-0 right-0 z-[70] w-full sm:w-[460px] flex flex-col shadow-2xl animate-slide-in-right"
-            style={{ background: "var(--cp-raised)", borderLeft: "1px solid var(--cp-border)" }}
-        >
-            {/* Header */}
-            <div className="flex items-start gap-3 px-5 py-4" style={{ borderBottom: "1px solid var(--cp-border)" }}>
-                <div className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0"
-                    style={{ background: "var(--cp-green-soft)", color: "var(--cp-green)" }}>
-                    <Building2 className="w-5 h-5" />
+        <aside className={s.drawer} style={cssVar(excluded ? "#c2362b" : STAGE_COLOR[t.stage])} role="dialog" aria-label={company.name}>
+            <div className={s.drawerAccent} />
+            <header className={s.drawerHeader}>
+                <div className={s.drawerTop}>
+                    <span className={cx(s.drawerPos, s.num)}>{position > 0 ? `${position} sur ${total}` : "Hors filtre"}</span>
+                    <div className={s.drawerNav}>
+                        <button type="button" className={s.iconBtn} onClick={onPrev} disabled={position <= 1} aria-label="Précédente" title="Précédente (↑)">
+                            <ChevronUp size={16} />
+                        </button>
+                        <button type="button" className={s.iconBtn} onClick={onNext} disabled={position === 0 || position >= total} aria-label="Suivante" title="Suivante (↓)">
+                            <ChevronDown size={16} />
+                        </button>
+                        <button type="button" className={s.iconBtn} onClick={onClose} aria-label="Fermer" title="Fermer (Échap)">
+                            <X size={16} />
+                        </button>
+                    </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                    <h2 className="text-[16px] font-semibold leading-tight truncate" style={{ color: "var(--cp-ink)" }}>{company.name}</h2>
-                    {subtitle && <p className="text-[12px] mt-0.5 truncate" style={{ color: "var(--cp-ink-3)" }}>{subtitle}</p>}
-                    <div className="mt-2"><StatusBadge t={t} excluded={excluded} /></div>
+                <h2 className={s.drawerTitle}>{company.name}</h2>
+                {meta && <div className={s.drawerMeta}>{meta}</div>}
+                <div style={{ marginTop: 12 }}>
+                    <span className={cx(s.pill, excluded && s.pillDanger)}>{statusLabel(company)}</span>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                    <span className="hidden sm:inline text-[11px] tabular-nums mr-1" style={{ color: "var(--cp-ink-3)" }}>
-                        {position > 0 ? `${position} / ${total}` : ""}
-                    </span>
-                    {([[onPrev, ChevronUp, "Entreprise précédente", position <= 1], [onNext, ChevronDown, "Entreprise suivante", position === 0 || position >= total]] as const).map(
-                        ([handler, Icon, label, disabled]) => (
-                            <button key={label} type="button" onClick={handler} disabled={disabled} aria-label={label} title={label}
-                                className="w-8 h-8 rounded-[8px] flex items-center justify-center transition-opacity hover:opacity-70 disabled:opacity-30 disabled:cursor-not-allowed"
-                                style={{ background: "var(--cp-sunken)", color: "var(--cp-ink-2)" }}>
-                                <Icon className="w-4 h-4" />
-                            </button>
-                        )
-                    )}
-                    <button type="button" onClick={onClose} aria-label="Fermer" title="Fermer (Échap)"
-                        className="w-8 h-8 rounded-[8px] flex items-center justify-center transition-opacity hover:opacity-70"
-                        style={{ color: "var(--cp-ink-2)" }}>
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-            </div>
+            </header>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
+            <div className={s.drawerBody}>
                 {excluded && (
-                    <div className="flex items-start gap-2 rounded-[10px] px-3 py-2.5 text-[12px]"
-                        style={{ background: "var(--cp-danger-soft)", color: "var(--cp-danger)" }}>
-                        <Ban className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <div className={s.banner}>
+                        <Ban size={15} style={{ flexShrink: 0, marginTop: 1 }} />
                         <span>
-                            Ne plus contacter{exclusion?.reason ? ` — ${exclusion.reason}` : ""}
-                            {exclusion?.expiresAt ? ` (jusqu'au ${formatDate(exclusion.expiresAt)})` : ""}
+                            Vous avez demandé de ne plus contacter cette entreprise
+                            {exclusion?.reason ? ` — « ${exclusion.reason} »` : ""}
+                            {exclusion?.expiresAt ? `, jusqu'au ${fullDate.format(new Date(exclusion.expiresAt))}` : ""}.
                         </span>
                     </div>
                 )}
 
                 <section>
-                    <SectionTitle>Avancement</SectionTitle>
-                    <div className="grid grid-cols-2 gap-2">
-                        <MiniStat label="Tentatives" value={t.actionCount} />
-                        <MiniStat label="Appels" value={t.callCount} />
-                        <MiniStat label="Dernier contact" value={formatDate(t.lastActionAt)} />
-                        <MiniStat label="Prochaine étape" value={nextStep?.label} tone={nextStep?.tone} />
+                    <div className={s.sectionTitle}>Parcours</div>
+                    <StageTrack t={t} />
+                </section>
+
+                <section>
+                    <div className={s.sectionTitle}>En chiffres</div>
+                    <div className={s.stats}>
+                        <div className={s.stat}>
+                            <div className={s.statLabel}>Tentatives</div>
+                            <div className={cx(s.statValue, s.num)}>{t.actionCount}</div>
+                            <div className={s.statSub}>{t.callCount} appel{t.callCount > 1 ? "s" : ""}</div>
+                        </div>
+                        <div className={s.stat}>
+                            <div className={s.statLabel}>Dernier contact</div>
+                            <div className={s.statValue}>{t.lastActionAt ? relative(t.lastActionAt, nowMs) : "—"}</div>
+                            <div className={s.statSub}>{t.lastActionAt ? fullDate.format(new Date(t.lastActionAt)) : "jamais"}</div>
+                        </div>
+                        <div className={s.stat}>
+                            <div className={s.statLabel}>Prochaine étape</div>
+                            <div className={s.statValue} style={nextStep ? { color: nextStep.color } : undefined}>{nextStep?.value ?? "—"}</div>
+                            <div className={s.statSub}>{nextStep?.sub ?? "aucune planifiée"}</div>
+                        </div>
+                        <div className={s.stat}>
+                            <div className={s.statLabel}>Contacts</div>
+                            <div className={cx(s.statValue, s.num)}>{contacts.length}</div>
+                            <div className={s.statSub}>{workedContacts} travaillé{workedContacts > 1 ? "s" : ""}</div>
+                        </div>
                     </div>
                 </section>
 
                 <section>
-                    <SectionTitle>Informations</SectionTitle>
-                    <InfoRow label="Téléphone">
-                        {company.phone && <a href={`tel:${company.phone}`} className="tabular-nums hover:underline">{company.phone}</a>}
-                    </InfoRow>
-                    <InfoRow label="Site web">
-                        {company.website && (
-                            <a href={websiteHref(company.website)} target="_blank" rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 hover:underline" style={{ color: "var(--cp-green)" }}>
-                                <Globe2 className="w-3 h-3" />{cleanWebsite(company.website)}
-                            </a>
-                        )}
-                    </InfoRow>
-                    <InfoRow label="Mission">{company.missionName}</InfoRow>
-                    <InfoRow label="Liste">{company.listName}</InfoRow>
-                </section>
-
-                <section>
-                    <SectionTitle icon={Users}>Contacts ({contacts.length})</SectionTitle>
+                    <div className={s.sectionTitle}>Contacts <span className={s.num}>{contacts.length}</span></div>
                     {contacts.length === 0 ? (
-                        <p className="text-[12px]" style={{ color: "var(--cp-ink-3)" }}>Aucun contact : l&apos;entreprise est travaillée via son standard.</p>
+                        <p className={s.contactWhen}>Aucun contact nominatif : l&apos;entreprise est travaillée via son standard.</p>
                     ) : (
-                        <ul className="space-y-2">
-                            {contacts.map((ct) => (
-                                <li key={ct.id} className="rounded-[10px] px-3 py-2.5" style={{ background: "var(--cp-sunken)" }}>
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <User className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--cp-ink-3)" }} />
-                                        <span className="text-[13px] font-semibold truncate" style={{ color: "var(--cp-ink)" }}>{contactName(ct)}</span>
-                                        <span className="ml-auto shrink-0"><StatusBadge t={ct.treatment} excluded={Boolean(ct.excludedAt)} /></span>
-                                    </div>
-                                    {(ct.title || ct.treatment.lastActionAt) && (
-                                        <p className="text-[11px] mt-1 truncate" style={{ color: "var(--cp-ink-3)", paddingLeft: 22 }}>
-                                            {[
-                                                ct.title,
-                                                ct.treatment.lastActionAt
-                                                    ? `${ct.treatment.actionCount} tentative${ct.treatment.actionCount > 1 ? "s" : ""} · dernier contact le ${formatDate(ct.treatment.lastActionAt)}`
-                                                    : null,
-                                            ].filter(Boolean).join(" · ")}
-                                        </p>
-                                    )}
-                                    {(ct.email || ct.phone) && (
-                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-[12px]" style={{ paddingLeft: 22 }}>
-                                            {ct.email && (
-                                                <a href={`mailto:${ct.email}`} className="inline-flex items-center gap-1.5 hover:underline min-w-0" style={{ color: "var(--cp-green)" }}>
-                                                    <Mail className="w-3 h-3 shrink-0" /><span className="truncate">{ct.email}</span>
-                                                </a>
-                                            )}
-                                            {ct.phone && (
-                                                <a href={`tel:${ct.phone}`} className="inline-flex items-center gap-1.5 tabular-nums hover:underline" style={{ color: "var(--cp-ink-2)" }}>
-                                                    <Phone className="w-3 h-3" />{ct.phone}
-                                                </a>
-                                            )}
+                        <div className={s.contacts}>
+                            {contacts.map((ct) => {
+                                const ctExcluded = Boolean(ct.excludedAt);
+                                return (
+                                    <div key={ct.id} className={s.contact} style={cssVar(ctExcluded ? "#c2362b" : STAGE_COLOR[ct.treatment.stage])}>
+                                        <div className={s.contactHead}>
+                                            <span className={s.avatar}>{initials(ct)}</span>
+                                            <div className={s.contactMain}>
+                                                <div className={s.contactName}>{contactName(ct)}</div>
+                                                {ct.title && <div className={s.contactTitle}>{ct.title}</div>}
+                                            </div>
+                                            <span className={cx(s.pill, ctExcluded && s.pillDanger)}>{ctExcluded ? "Exclu" : ct.treatment.lastResultLabel}</span>
                                         </div>
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
+                                        <div className={s.contactFoot}>
+                                            <span className={s.contactWhen}>
+                                                {ct.treatment.lastActionAt
+                                                    ? `${ct.treatment.actionCount} tentative${ct.treatment.actionCount > 1 ? "s" : ""} · ${relative(ct.treatment.lastActionAt, nowMs)}`
+                                                    : "Pas encore contacté"}
+                                            </span>
+                                            <div className={s.contactLinks}>
+                                                {ct.email && <CopyChip value={ct.email} href={`mailto:${ct.email}`} icon={Mail} />}
+                                                {ct.phone && <CopyChip value={ct.phone} href={`tel:${ct.phone}`} icon={Phone} />}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     )}
                 </section>
 
                 <section>
-                    <SectionTitle icon={History}>Historique</SectionTitle>
-                    {timeline.status === "loading" ? (
-                        <div className="space-y-2">
-                            {[0, 1, 2].map((i) => (
-                                <div key={i} className="h-11 rounded-[10px] animate-pulse" style={{ background: "var(--cp-sunken)" }} />
-                            ))}
+                    <div className={s.sectionTitle}>
+                        Historique
+                        {timeline && timeline !== "error" && <span className={s.num}>{timeline.timeline.length}{timeline.truncated ? "+" : ""}</span>}
+                    </div>
+                    {timeline === undefined ? (
+                        <div style={{ display: "grid", gap: 10 }}>
+                            {[70, 55, 62].map((w) => <div key={w} className={s.shimmer} style={{ height: 38, width: `${w}%` }} />)}
                         </div>
-                    ) : timeline.status === "error" ? (
-                        <p className="text-[12px]" style={{ color: "var(--cp-danger)" }}>Impossible de charger l&apos;historique.</p>
-                    ) : timeline.data.timeline.length === 0 ? (
-                        <p className="text-[12px]" style={{ color: "var(--cp-ink-3)" }}>Pas encore d&apos;action sur cette entreprise.</p>
+                    ) : timeline === "error" ? (
+                        <p className={s.contactWhen} style={{ color: "#c2362b" }}>Impossible de charger l&apos;historique pour le moment.</p>
+                    ) : timeline.timeline.length === 0 ? (
+                        <p className={s.contactWhen}>Aucune action pour l&apos;instant : cette entreprise est dans la file de traitement.</p>
                     ) : (
-                        <ol className="relative space-y-3 pl-1">
-                            {timeline.data.timeline.map((e) => {
-                                const meta = CHANNEL_META[e.channel];
-                                const Icon = meta.icon;
+                        <ol className={s.timeline}>
+                            {timeline.timeline.map((e) => {
+                                const channel = CHANNEL_META[e.channel];
+                                const ChannelIcon = channel.icon;
+                                const isMeeting = e.stage === "meeting";
                                 return (
-                                    <li key={e.id} className="flex gap-3">
-                                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                                            style={{ background: "var(--cp-sunken)", color: "var(--cp-ink-2)" }}>
-                                            <Icon className="w-3.5 h-3.5" />
+                                    <li key={e.id} className={s.tlItem} style={cssVar(STAGE_COLOR[e.stage])}>
+                                        <span className={s.tlDot} />
+                                        <div className={s.tlTop}>
+                                            <span className={s.tlLabel}>{e.label}</span>
+                                            <time className={s.tlTime} dateTime={e.at} title={dateTime.format(new Date(e.at))}>{relative(e.at, nowMs)}</time>
                                         </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex items-baseline justify-between gap-2">
-                                                <span className="text-[13px] font-semibold truncate" style={{ color: "var(--cp-ink)" }}>{e.label}</span>
-                                                <time dateTime={e.at} className="text-[11px] tabular-nums shrink-0" style={{ color: "var(--cp-ink-3)" }}>
-                                                    {formatDateTime(e.at)}
-                                                </time>
-                                            </div>
-                                            <p className="text-[12px] truncate" style={{ color: "var(--cp-ink-3)" }}>
-                                                {meta.label}{e.contactName ? ` · ${e.contactName}` : ""}
-                                            </p>
-                                            {e.scheduledAt && (
-                                                <p className="inline-flex items-center gap-1 text-[12px] mt-0.5"
-                                                    style={{ color: e.kind === "meeting" ? "var(--cp-success)" : "var(--cp-warn)" }}>
-                                                    {e.kind === "meeting" ? <CalendarCheck className="w-3 h-3" /> : <CalendarClock className="w-3 h-3" />}
-                                                    {e.kind === "meeting" ? "RDV prévu le" : "Rappel prévu le"} {formatDateTime(e.scheduledAt)}
-                                                </p>
-                                            )}
+                                        <div className={s.tlSub}>
+                                            <ChannelIcon size={12} />{channel.label}{e.contactName ? ` · ${e.contactName}` : ""}
                                         </div>
+                                        {e.scheduledAt && (
+                                            <span className={s.tlScheduled}>
+                                                {isMeeting ? <CalendarCheck size={12} /> : <CalendarClock size={12} />}
+                                                {isMeeting ? "RDV prévu le" : "Rappel prévu le"} {dateTime.format(new Date(e.scheduledAt))}
+                                            </span>
+                                        )}
                                     </li>
                                 );
                             })}
-                            {timeline.data.truncated && (
-                                <li className="text-[11px] pl-10" style={{ color: "var(--cp-ink-3)" }}>Seules les 200 dernières actions sont affichées.</li>
-                            )}
+                            {timeline.truncated && <li className={s.tlItem}><span className={s.contactWhen}>Seules les 200 dernières actions sont affichées.</span></li>}
                         </ol>
                     )}
                 </section>
+
+                <section>
+                    <div className={s.sectionTitle}>Fiche</div>
+                    <div className={s.infoGrid}>
+                        <span className={s.infoKey}>Téléphone</span>
+                        <span className={s.infoVal}>{company.phone ? <a className={s.link} href={`tel:${company.phone}`}>{company.phone}</a> : <span className={s.muted}>—</span>}</span>
+                        <span className={s.infoKey}>Site web</span>
+                        <span className={s.infoVal}>
+                            {company.website
+                                ? <a className={s.link} href={company.website.startsWith("http") ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer"><Globe2 size={12} style={{ verticalAlign: -1, marginRight: 4 }} />{cleanWebsite(company.website)}</a>
+                                : <span className={s.muted}>—</span>}
+                        </span>
+                        <span className={s.infoKey}>Mission</span>
+                        <span className={s.infoVal}>{company.missionName}</span>
+                        <span className={s.infoKey}>Liste</span>
+                        <span className={s.infoVal}>{company.listName || <span className={s.muted}>—</span>}</span>
+                    </div>
+                </section>
             </div>
 
-            <div className="hidden sm:block px-5 py-2.5 text-[11px]" style={{ borderTop: "1px solid var(--cp-border)", color: "var(--cp-ink-3)" }}>
-                ↑ ↓ pour passer d&apos;une entreprise à l&apos;autre · Échap pour fermer
-            </div>
+            <footer className={s.drawerFoot}>↑ ↓ entreprise précédente / suivante · Échap pour fermer</footer>
         </aside>
-    );
-}
-
-function SortHeader({ column, sortKey, sortDir, onSort, children, className }: {
-    column: SortKey; sortKey: SortKey; sortDir: SortDir; onSort: (key: SortKey) => void; children: ReactNode; className?: string;
-}) {
-    const active = sortKey === column;
-    return (
-        <th scope="col" className={cn("px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider select-none", className)}
-            aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : undefined}>
-            <button type="button" onClick={() => onSort(column)}
-                className="inline-flex items-center gap-1.5 uppercase tracking-wider hover:opacity-70 transition-opacity">
-                {children}
-                {!active
-                    ? <ArrowUpDown className="w-3 h-3 opacity-40" />
-                    : sortDir === "asc" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-            </button>
-        </th>
     );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    PAGE
 ═══════════════════════════════════════════════════════════════ */
+
+const EMPTY_COUNTS = (): Record<PortalStage, number> =>
+    ({ meeting: 0, opportunity: 0, callback: 0, in_progress: 0, closed: 0, untreated: 0 });
+
 export default function ClientPortalDatabasePage() {
     const { error: showError } = useToast();
-    const [data, setData] = useState<PortalDatabaseResponse>({ companies: [], exclusions: [] });
-    const [isLoading, setIsLoading] = useState(true);
+    const [data, setData] = useState<PortalDatabaseResponse | null>(null);
+    const [reloadKey, setReloadKey] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
+
     const [search, setSearch] = useState("");
     const deferredSearch = useDeferredValue(search);
-    const [industryFilter, setIndustryFilter] = useState("");
-    const [countryFilter, setCountryFilter] = useState("");
-    const [missionFilter, setMissionFilter] = useState("");
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-    const [sortKey, setSortKey] = useState<SortKey>("lastActionAt");
-    const [sortDir, setSortDir] = useState<SortDir>("desc");
-    const [page, setPage] = useState(1);
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [timelines, setTimelines] = useState<Record<string, LoadedTimeline>>({});
-    const onTimelineLoaded = useCallback((companyId: string, result: LoadedTimeline) => {
-        setTimelines((prev) => ({ ...prev, [companyId]: result }));
-    }, []);
+    const [stage, setStage] = useState<PortalStage | null>(null);
+    const [industry, setIndustry] = useState("");
+    const [country, setCountry] = useState("");
+    const [mission, setMission] = useState("");
+    const [sort, setSort] = useState<SortKey>("recent");
 
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [timelines, setTimelines] = useState<Record<string, LoadedTimeline>>({});
+    const [grown, setGrown] = useState(false);
+
+    const searchRef = useRef<HTMLInputElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
+    const [scrollTop, setScrollTop] = useState(0);
+    const [viewport, setViewport] = useState(640);
+    const scrollRaf = useRef(0);
+    const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const loadedTimelines = useRef(new Set<string>());
+    const inflight = useRef(new Set<string>());
+
+    /* ── Data ── */
     useEffect(() => {
+        let cancelled = false;
         (async () => {
-            setIsLoading(true);
             try {
-                const res = await fetch("/api/client/database");
+                const res = await fetch("/api/client/database", { cache: "no-store" });
                 const json = await res.json();
-                if (json.success) {
-                    setData(json.data);
-                } else {
-                    showError("Erreur", json.error || "Impossible de charger la base de données");
-                }
+                if (cancelled) return;
+                if (json.success) setData(json.data);
+                else showError("Erreur", json.error || "Impossible de charger la base de données");
             } catch {
-                showError("Erreur", "Impossible de charger la base de données");
+                if (!cancelled) showError("Erreur", "Impossible de charger la base de données");
             } finally {
-                setIsLoading(false);
+                if (!cancelled) setRefreshing(false);
             }
         })();
-    }, [showError]);
+        return () => { cancelled = true; };
+    }, [showError, reloadKey]);
 
-    /* Facets */
+    useEffect(() => {
+        if (!data) return;
+        const id = requestAnimationFrame(() => setGrown(true));
+        return () => cancelAnimationFrame(id);
+    }, [data]);
+
+    const refresh = () => {
+        setRefreshing(true);
+        setTimelines({});
+        loadedTimelines.current.clear();
+        setReloadKey((k) => k + 1);
+    };
+
+    const ensureTimeline = useCallback((id: string) => {
+        if (loadedTimelines.current.has(id) || inflight.current.has(id)) return;
+        inflight.current.add(id);
+        fetch(`/api/client/database/${encodeURIComponent(id)}`)
+            .then((res) => res.json())
+            .then((json) => {
+                if (!json.success) throw new Error(json.error);
+                loadedTimelines.current.add(id);
+                setTimelines((prev) => ({ ...prev, [id]: json.data }));
+            })
+            .catch(() => setTimelines((prev) => ({ ...prev, [id]: "error" })))
+            .finally(() => inflight.current.delete(id));
+    }, []);
+
+    const companies = useMemo(() => data?.companies ?? [], [data]);
+    const nowMs = data ? new Date(data.generatedAt).getTime() : 0;
+
+    /* ── Facets & search index (computed once per load) ── */
     const facets = useMemo(() => {
         const industries = new Set<string>();
         const countries = new Set<string>();
         const missions = new Set<string>();
-        const statusCounts = new Map<string, number>();
-        let treated = 0;
-        let meetings = 0;
-        let reachable = 0;
-        let contacts = 0;
-        for (const c of data.companies) {
+        const stageCounts = EMPTY_COUNTS();
+        for (const c of companies) {
             if (c.industry) industries.add(c.industry);
             if (c.country) countries.add(c.country);
             missions.add(c.missionName);
-            contacts += c.contacts.length;
-            if (c.phone || c.contacts.some((ct) => ct.email || ct.phone)) reachable++;
-            if (c.treatment.treated) {
-                treated++;
-                statusCounts.set(c.treatment.lastResultLabel, (statusCounts.get(c.treatment.lastResultLabel) ?? 0) + 1);
-            }
-            if (c.treatment.meetingBooked) meetings++;
+            stageCounts[c.treatment.stage]++;
         }
         const byFr = (a: string, b: string) => a.localeCompare(b, "fr");
         return {
             industries: [...industries].sort(byFr),
             countries: [...countries].sort(byFr),
             missions: [...missions].sort(byFr),
-            statuses: [...statusCounts.entries()].sort((a, b) => b[1] - a[1]),
-            treated, meetings, reachable, contacts,
+            stageCounts,
         };
-    }, [data.companies]);
+    }, [companies]);
     const multiMission = facets.missions.length > 1;
 
-    /* Search text computed once per load, not on every keystroke */
     const haystacks = useMemo(
-        () => new Map(data.companies.map((c) => [
+        () => new Map(companies.map((c) => [
             c.id,
-            [
+            fold([
                 c.name, c.industry, c.country, c.size, c.missionName, c.listName, c.treatment.lastResultLabel,
                 ...c.contacts.flatMap((ct) => [ct.firstName, ct.lastName, ct.title, ct.email, ct.phone]),
-            ].filter(Boolean).join(" ").toLowerCase(),
+            ].filter(Boolean).join(" ")),
         ])),
-        [data.companies]
+        [companies]
     );
 
-    const exclusionById = useMemo(() => new Map(data.exclusions.map((e) => [e.id, e])), [data.exclusions]);
+    const exclusionById = useMemo(() => new Map((data?.exclusions ?? []).map((e) => [e.id, e])), [data]);
 
-    /* Search + filters + sort */
-    const filteredCompanies = useMemo(() => {
-        const q = deferredSearch.trim().toLowerCase();
-        const filtered = data.companies.filter((c) => {
-            if (industryFilter && c.industry !== industryFilter) return false;
-            if (countryFilter && c.country !== countryFilter) return false;
-            if (missionFilter && c.missionName !== missionFilter) return false;
-            if (statusFilter === "treated" && !c.treatment.treated) return false;
-            if (statusFilter === "untreated" && c.treatment.treated) return false;
-            if (statusFilter === "meeting" && !c.treatment.meetingBooked) return false;
-            if (statusFilter.startsWith("s:") && (!c.treatment.treated || c.treatment.lastResultLabel !== statusFilter.slice(2))) return false;
-            return !q || (haystacks.get(c.id) ?? "").includes(q);
-        });
-        const dir = sortDir === "asc" ? 1 : -1;
-        return filtered.sort((a, b) => {
-            if (sortKey === "contacts") return (a.contacts.length - b.contacts.length) * dir;
-            if (sortKey === "lastActionAt") return (a.treatment.lastActionAt ?? "").localeCompare(b.treatment.lastActionAt ?? "") * dir;
-            if (sortKey === "status") return a.treatment.lastResultLabel.localeCompare(b.treatment.lastResultLabel, "fr") * dir;
-            return (a[sortKey] ?? "").localeCompare(b[sortKey] ?? "", "fr", { sensitivity: "base" }) * dir;
-        });
-    }, [data.companies, haystacks, deferredSearch, industryFilter, countryFilter, missionFilter, statusFilter, sortKey, sortDir]);
+    /* ── Filtering: everything except the stage, so the tabs can show live counts ── */
+    const query = fold(deferredSearch.trim());
+    const base = useMemo(() => companies.filter((c) =>
+        (!industry || c.industry === industry) &&
+        (!country || c.country === country) &&
+        (!mission || c.missionName === mission) &&
+        (!query || (haystacks.get(c.id) ?? "").includes(query))
+    ), [companies, industry, country, mission, query, haystacks]);
 
-    /* Pagination */
-    const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / PAGE_SIZE));
-    const safePage = Math.min(page, totalPages);
-    const pagedCompanies = filteredCompanies.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+    const tabCounts = useMemo(() => {
+        const counts = EMPTY_COUNTS();
+        for (const c of base) counts[c.treatment.stage]++;
+        return counts;
+    }, [base]);
 
-    useEffect(() => { setPage(1); }, [deferredSearch, industryFilter, countryFilter, missionFilter, statusFilter, sortKey, sortDir]);
+    const filtered = useMemo(() => {
+        const list = stage ? base.filter((c) => c.treatment.stage === stage) : base.slice();
+        const recent = (a: PortalCompany, b: PortalCompany) =>
+            (b.treatment.lastActionAt ?? "").localeCompare(a.treatment.lastActionAt ?? "");
+        const byName = (a: PortalCompany, b: PortalCompany) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" });
+        const compare: Record<SortKey, (a: PortalCompany, b: PortalCompany) => number> = {
+            recent: (a, b) => recent(a, b) || byName(a, b),
+            stage: (a, b) => STAGE_RANK[b.treatment.stage] - STAGE_RANK[a.treatment.stage] || recent(a, b),
+            effort: (a, b) => b.treatment.actionCount - a.treatment.actionCount || recent(a, b),
+            name: byName,
+        };
+        return list.sort(compare[sort]);
+    }, [base, stage, sort]);
 
-    /* Drawer selection */
-    const selectedCompany = selectedId ? data.companies.find((c) => c.id === selectedId) ?? null : null;
-    const selectedIndex = selectedId ? filteredCompanies.findIndex((c) => c.id === selectedId) : -1;
+    const activeIndex = useMemo(() => (activeId ? filtered.findIndex((c) => c.id === activeId) : -1), [filtered, activeId]);
+    const activeCompany = useMemo(() => (activeId ? companies.find((c) => c.id === activeId) ?? null : null), [companies, activeId]);
 
-    const step = useCallback((delta: number) => {
-        const target = selectedIndex + delta;
-        if (selectedIndex < 0 || target < 0 || target >= filteredCompanies.length) return;
-        setSelectedId(filteredCompanies[target].id);
-        setPage(Math.floor(target / PAGE_SIZE) + 1);
-    }, [selectedIndex, filteredCompanies]);
+    /* ── Virtual list ── */
+    useEffect(() => {
+        const el = listRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(([entry]) => setViewport(entry.contentRect.height));
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
 
     useEffect(() => {
-        if (!selectedId) return;
+        if (listRef.current) listRef.current.scrollTop = 0;
+    }, [query, stage, industry, country, mission, sort]);
+
+    const onScroll = (e: UIEvent<HTMLDivElement>) => {
+        const top = e.currentTarget.scrollTop;
+        cancelAnimationFrame(scrollRaf.current);
+        scrollRaf.current = requestAnimationFrame(() => setScrollTop(top));
+    };
+
+    const first = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+    const last = Math.min(filtered.length, Math.ceil((scrollTop + viewport) / ROW_H) + OVERSCAN);
+
+    const scrollIntoView = useCallback((index: number) => {
+        const el = listRef.current;
+        if (!el) return;
+        const top = index * ROW_H;
+        if (top < el.scrollTop) el.scrollTop = top;
+        else if (top + ROW_H > el.scrollTop + el.clientHeight) el.scrollTop = top + ROW_H - el.clientHeight;
+    }, []);
+
+    const move = useCallback((delta: number) => {
+        if (filtered.length === 0) return;
+        const next = activeIndex < 0
+            ? (delta > 0 ? 0 : filtered.length - 1)
+            : Math.min(filtered.length - 1, Math.max(0, activeIndex + delta));
+        setActiveId(filtered[next].id);
+        scrollIntoView(next);
+    }, [filtered, activeIndex, scrollIntoView]);
+
+    const openRow = useCallback((id: string) => {
+        if (drawerOpen && activeId === id) {
+            setDrawerOpen(false);
+            return;
+        }
+        setActiveId(id);
+        setDrawerOpen(true);
+    }, [drawerOpen, activeId]);
+
+    const hoverRow = useCallback((id: string) => {
+        if (hoverTimer.current) clearTimeout(hoverTimer.current);
+        hoverTimer.current = setTimeout(() => ensureTimeline(id), 140);
+    }, [ensureTimeline]);
+
+    const leaveRow = useCallback(() => {
+        if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    }, []);
+
+    /* ── Keyboard: / or ⌘K search, ↑↓ / j k move, Enter open, Esc close ── */
+    useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const el = e.target as HTMLElement | null;
-            if (el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
-            if (e.key === "Escape") setSelectedId(null);
-            else if (e.key === "ArrowDown") { e.preventDefault(); step(1); }
-            else if (e.key === "ArrowUp") { e.preventDefault(); step(-1); }
+            const typing = !!el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+
+            if ((e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) || (e.key === "/" && !typing)) {
+                e.preventDefault();
+                searchRef.current?.focus();
+                searchRef.current?.select();
+                return;
+            }
+            if (typing) {
+                if (el !== searchRef.current) return;
+                if (e.key === "Escape") {
+                    if (search) setSearch("");
+                    else searchRef.current?.blur();
+                } else if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    searchRef.current?.blur();
+                    move(1);
+                } else if (e.key === "Enter" && filtered[0]) {
+                    e.preventDefault();
+                    searchRef.current?.blur();
+                    setActiveId(filtered[0].id);
+                    setDrawerOpen(true);
+                    scrollIntoView(0);
+                }
+                return;
+            }
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+            // Let Enter/Space activate a focused button or link (drawer controls, copy chips…).
+            if ((e.key === "Enter" || e.key === " ") && el?.closest("button, a")) return;
+            if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); move(1); }
+            else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); move(-1); }
+            else if ((e.key === "Enter" || e.key === "ArrowRight") && activeId) { e.preventDefault(); setDrawerOpen(true); }
+            else if ((e.key === "Escape" || e.key === "ArrowLeft") && drawerOpen) { e.preventDefault(); setDrawerOpen(false); }
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [selectedId, step]);
+    }, [move, scrollIntoView, filtered, activeId, drawerOpen, search]);
 
-    useEffect(() => {
-        if (!selectedId) return;
-        document.querySelector(`[data-row-id="${CSS.escape(selectedId)}"]`)?.scrollIntoView({ block: "nearest" });
-    }, [selectedId, safePage]);
-
-    const hasActiveFilters = !!(search.trim() || industryFilter || countryFilter || missionFilter || statusFilter !== "all");
-    const resetFilters = () => {
-        setSearch(""); setIndustryFilter(""); setCountryFilter(""); setMissionFilter(""); setStatusFilter("all");
-    };
-
-    const handleSort = (key: SortKey) => {
-        if (sortKey === key) {
-            setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-        } else {
-            setSortKey(key);
-            setSortDir(key === "contacts" || key === "lastActionAt" ? "desc" : "asc");
-        }
-    };
-
-    const total = data.companies.length;
-    const pct = (n: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
-    const selectClass = "h-9 px-3 pr-8 rounded-[10px] text-[12px] font-medium focus:outline-none cursor-pointer";
-    const selectStyle = (active: boolean) => ({
-        background: "var(--cp-raised)", border: "1px solid var(--cp-border)", color: active ? "var(--cp-ink)" : "var(--cp-ink-3)",
-    });
-
-    const sortProps = { sortKey, sortDir, onSort: handleSort };
-    const dash = <span style={{ color: "var(--cp-ink-3)", opacity: 0.5 }}>—</span>;
+    const hasFilters = !!(search || stage || industry || country || mission);
+    const resetFilters = () => { setSearch(""); setStage(null); setIndustry(""); setCountry(""); setMission(""); };
+    const total = companies.length;
+    const isLoading = data === null;
 
     return (
-        <div className={cn("cpds-page min-h-full p-4 md:p-6 space-y-5 transition-[padding] duration-200", selectedCompany && "lg:pr-[484px]")}>
+        <div className={s.root} data-drawer={drawerOpen && activeCompany ? "open" : "closed"}>
             {/* ── Header ── */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 cpds-enter">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0"
-                        style={{ background: "var(--cp-green)", color: "var(--cp-on-inverse)" }}>
-                        <Building2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h1 className="text-[22px] font-semibold tracking-tight leading-tight" style={{ color: "var(--cp-ink)" }}>
-                            Base de données
-                        </h1>
-                        <p className="text-[12px] mt-0.5" style={{ color: "var(--cp-ink-3)" }}>
-                            Vos entreprises et contacts, avec l&apos;avancement de nos actions sur chacun
-                        </p>
+            <header className={s.header}>
+                <div>
+                    <div className={s.eyebrow}>Base de données</div>
+                    <h1 className={s.title}>Avancement de votre base</h1>
+                    <div className={s.subtitle}>
+                        {data ? (
+                            <>
+                                <span className={s.liveDot} />
+                                À jour à {timeOnly.format(new Date(data.generatedAt))}
+                                {multiMission ? ` · ${facets.missions.length} missions` : data.companies[0] ? ` · ${data.companies[0].missionName}` : ""}
+                                <button type="button" className={s.refreshBtn} onClick={refresh} disabled={refreshing}
+                                    aria-label="Actualiser" title="Actualiser">
+                                    <RotateCw size={13} className={refreshing ? s.spinning : undefined} />
+                                </button>
+                            </>
+                        ) : "Chargement…"}
                     </div>
                 </div>
+                <div className={s.headerActions}>
+                    <div className={s.search}>
+                        <Search className={s.searchIcon} />
+                        <input
+                            ref={searchRef}
+                            type="search"
+                            className={s.searchInput}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Entreprise, contact, statut…"
+                            aria-label="Rechercher dans la base"
+                        />
+                        {search
+                            ? <button type="button" className={s.clearBtn} onClick={() => setSearch("")} aria-label="Effacer"><X size={14} /></button>
+                            : <kbd className={s.kbd}>/</kbd>}
+                    </div>
+                    <button type="button" className={s.btnPrimary} onClick={() => exportCsv(filtered)} disabled={filtered.length === 0}
+                        title="Exporter la vue filtrée (une ligne par contact)">
+                        <Download size={15} />
+                        Exporter{filtered.length > 0 ? <span className={s.num}>&nbsp;{filtered.length.toLocaleString("fr-FR")}</span> : null}
+                    </button>
+                </div>
+            </header>
 
-                <button
-                    type="button"
-                    onClick={() => exportCsv(filteredCompanies)}
-                    disabled={isLoading || filteredCompanies.length === 0}
-                    className="self-start md:self-auto inline-flex items-center gap-2 h-9 px-3.5 rounded-[10px] text-[12px] font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 active:scale-[0.98]"
-                    style={{ background: "var(--cp-green)", color: "var(--cp-on-inverse)" }}
-                    title="Exporter la vue filtrée en CSV (une ligne par contact)"
-                >
-                    <Download className="w-3.5 h-3.5" />
-                    Exporter{!isLoading && filteredCompanies.length > 0 ? ` (${filteredCompanies.length})` : ""}
-                </button>
-            </div>
-
-            {/* ── KPI strip ── */}
-            {!isLoading && total > 0 && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 cpds-enter" style={{ animationDelay: "40ms" }}>
-                    <StatCard icon={Building2} label="Entreprises" value={total} hint={`${facets.contacts} contacts`} />
-                    <StatCard icon={CheckCircle2} label="Traitées" value={pct(facets.treated)} hint={`${facets.treated}/${total}`} />
-                    <StatCard icon={CalendarCheck} label="RDV obtenus" value={facets.meetings} />
-                    <StatCard icon={Phone} label="Joignables" value={pct(facets.reachable)} hint="tél. ou email" />
+            {/* ── Hero ── */}
+            {isLoading ? (
+                <div className={s.hero}>
+                    <div className={s.panel}><div className={s.shimmer} style={{ height: 180 }} /></div>
+                    <div className={s.panel}><div className={s.shimmer} style={{ height: 180 }} /></div>
+                </div>
+            ) : total > 0 && (
+                <div className={s.hero}>
+                    <ProgressPanel stageCounts={facets.stageCounts} total={total} activeStage={stage} onStage={setStage} grown={grown} />
+                    <ActivityPanel activity={data.activity} grown={grown} />
                 </div>
             )}
 
             {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2 cpds-enter" style={{ animationDelay: "70ms" }}>
-                <div className="relative flex-1 min-w-[220px] max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--cp-ink-3)" }} />
-                    <input
-                        type="search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Rechercher (entreprise, contact, statut...)"
-                        className="w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] focus:outline-none transition-shadow focus:shadow-[var(--cp-focus-ring)]"
-                        style={{ background: "var(--cp-raised)", border: "1px solid var(--cp-border)", color: "var(--cp-ink)" }}
-                    />
-                    {search && (
-                        <button type="button" onClick={() => setSearch("")} aria-label="Effacer la recherche"
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 hover:opacity-70" style={{ color: "var(--cp-ink-3)" }}>
-                            <X className="w-3.5 h-3.5" />
+            {total > 0 && (
+                <div className={s.toolbar}>
+                    <div className={s.tabs} role="group" aria-label="Filtrer par étape">
+                        <button type="button" aria-pressed={!stage} className={cx(s.tab, !stage && s.tabActive)} onClick={() => setStage(null)}>
+                            Tout <span className={cx(s.tabCount, s.num)}>{base.length.toLocaleString("fr-FR")}</span>
                         </button>
-                    )}
-                </div>
-
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-                    className={selectClass} style={selectStyle(statusFilter !== "all")} aria-label="Filtrer par statut">
-                    <option value="all">Tous les statuts</option>
-                    <option value="treated">Traitées ({facets.treated})</option>
-                    <option value="untreated">Non traitées ({total - facets.treated})</option>
-                    <option value="meeting">RDV obtenus ({facets.meetings})</option>
-                    {facets.statuses.length > 0 && (
-                        <optgroup label="Par statut">
-                            {facets.statuses.map(([label, n]) => <option key={label} value={`s:${label}`}>{label} ({n})</option>)}
-                        </optgroup>
-                    )}
-                </select>
-
-                {multiMission && (
-                    <select value={missionFilter} onChange={(e) => setMissionFilter(e.target.value)}
-                        className={selectClass} style={selectStyle(!!missionFilter)} aria-label="Filtrer par mission">
-                        <option value="">Toutes les missions</option>
-                        {facets.missions.map((v) => <option key={v} value={v}>{v}</option>)}
-                    </select>
-                )}
-
-                <select value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)}
-                    className={selectClass} style={selectStyle(!!industryFilter)} aria-label="Filtrer par secteur">
-                    <option value="">Tous les secteurs</option>
-                    {facets.industries.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-
-                <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}
-                    className={selectClass} style={selectStyle(!!countryFilter)} aria-label="Filtrer par pays">
-                    <option value="">Tous les pays</option>
-                    {facets.countries.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-
-                {hasActiveFilters && (
-                    <button type="button" onClick={resetFilters}
-                        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-[10px] text-[12px] font-semibold transition-colors hover:opacity-80"
-                        style={{ color: "var(--cp-danger)", background: "var(--cp-danger-soft)" }}>
-                        <X className="w-3 h-3" />
-                        Réinitialiser
-                    </button>
-                )}
-
-                <span className="ml-auto text-[12px] font-medium tabular-nums" style={{ color: "var(--cp-ink-3)" }}>
-                    {filteredCompanies.length} entreprise{filteredCompanies.length > 1 ? "s" : ""}
-                    {hasActiveFilters && ` sur ${total}`}
-                </span>
-            </div>
-
-            {/* ── Table ── */}
-            {!isLoading && filteredCompanies.length === 0 ? (
-                <div className="cpds-enter rounded-[16px] py-16 px-6 text-center"
-                    style={{ background: "var(--cp-raised)", border: "2px dashed var(--cp-border-strong)" }}>
-                    <div className="mx-auto mb-4 w-14 h-14 rounded-[14px] flex items-center justify-center" style={{ background: "var(--cp-sunken)" }}>
-                        <Building2 className="w-6 h-6" style={{ color: "var(--cp-ink-3)" }} />
+                        {PORTAL_STAGE_ORDER.map((st) => (
+                            <button key={st} type="button" aria-pressed={stage === st}
+                                className={cx(s.tab, stage === st && s.tabActive)} style={cssVar(STAGE_COLOR[st])}
+                                onClick={() => setStage(stage === st ? null : st)}>
+                                <span className={s.tabDot} />
+                                {PORTAL_STAGE_LABELS[st]}
+                                <span className={cx(s.tabCount, s.num)}>{tabCounts[st].toLocaleString("fr-FR")}</span>
+                            </button>
+                        ))}
                     </div>
-                    <p className="text-sm font-semibold" style={{ color: "var(--cp-ink)" }}>
-                        {hasActiveFilters ? "Aucune entreprise ne correspond aux filtres" : "Aucune entreprise pour le moment"}
-                    </p>
-                    <p className="mt-1 text-xs" style={{ color: "var(--cp-ink-3)" }}>
-                        {hasActiveFilters ? "Ajustez la recherche ou réinitialisez les filtres." : "Les entreprises travaillées par l'équipe apparaîtront ici."}
-                    </p>
-                </div>
-            ) : (
-                <div className="cpds-card cpds-enter overflow-hidden" style={{ animationDelay: "100ms" }}>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm">
-                            <thead style={{ background: "var(--cp-sunken)", borderBottom: "1px solid var(--cp-border)" }}>
-                                <tr style={{ color: "var(--cp-ink-3)" }}>
-                                    <SortHeader column="name" {...sortProps}>Entreprise</SortHeader>
-                                    <SortHeader column="status" {...sortProps}>Statut</SortHeader>
-                                    <SortHeader column="lastActionAt" {...sortProps}>Dernier contact</SortHeader>
-                                    <SortHeader column="industry" className="hidden md:table-cell" {...sortProps}>Secteur</SortHeader>
-                                    <SortHeader column="country" className="hidden lg:table-cell" {...sortProps}>Pays</SortHeader>
-                                    <SortHeader column="contacts" className="text-right" {...sortProps}>Contacts</SortHeader>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {isLoading
-                                    ? Array.from({ length: 8 }, (_, i) => (
-                                        <tr key={i} style={{ borderBottom: "1px solid var(--cp-border)" }}>
-                                            <td colSpan={6} className="px-4 py-3">
-                                                <div className="h-5 rounded-[6px] animate-pulse" style={{ background: "var(--cp-sunken)", width: `${60 + ((i * 17) % 35)}%` }} />
-                                            </td>
-                                        </tr>
-                                    ))
-                                    : pagedCompanies.map((company) => {
-                                        const selected = company.id === selectedId;
-                                        const excluded = Boolean(company.excludedAt);
-                                        const sub = [company.size, multiMission ? company.missionName : null].filter(Boolean).join(" · ");
-                                        return (
-                                            <tr
-                                                key={company.id}
-                                                data-row-id={company.id}
-                                                tabIndex={0}
-                                                aria-selected={selected}
-                                                onClick={() => setSelectedId(company.id)}
-                                                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedId(company.id); } }}
-                                                className="cursor-pointer transition-colors outline-none hover:bg-[var(--cp-sunken)] focus-visible:bg-[var(--cp-sunken)]"
-                                                style={{
-                                                    borderBottom: "1px solid var(--cp-border)",
-                                                    background: selected ? "var(--cp-green-soft)" : undefined,
-                                                    boxShadow: selected ? "inset 3px 0 0 var(--cp-green)" : undefined,
-                                                }}
-                                            >
-                                                <td className="px-4 py-2.5 max-w-[280px]">
-                                                    <p className={cn("font-semibold truncate", excluded && "line-through opacity-60")} style={{ color: "var(--cp-ink)" }}>
-                                                        {company.name}
-                                                    </p>
-                                                    {sub && <p className="text-[11px] truncate" style={{ color: "var(--cp-ink-3)" }}>{sub}</p>}
-                                                </td>
-                                                <td className="px-4 py-2.5"><StatusBadge t={company.treatment} excluded={excluded} /></td>
-                                                <td className="px-4 py-2.5 text-[13px] tabular-nums whitespace-nowrap" style={{ color: "var(--cp-ink-2)" }}>
-                                                    {company.treatment.lastActionAt ? formatDate(company.treatment.lastActionAt) : dash}
-                                                </td>
-                                                <td className="hidden md:table-cell px-4 py-2.5 text-[13px] max-w-[200px] truncate" style={{ color: "var(--cp-ink-2)" }}>
-                                                    {company.industry || dash}
-                                                </td>
-                                                <td className="hidden lg:table-cell px-4 py-2.5 text-[13px] whitespace-nowrap" style={{ color: "var(--cp-ink-2)" }}>
-                                                    {company.country ? (
-                                                        <span className="inline-flex items-center gap-1.5">
-                                                            <MapPin className="w-3 h-3" style={{ color: "var(--cp-ink-3)" }} />{company.country}
-                                                        </span>
-                                                    ) : dash}
-                                                </td>
-                                                <td className="px-4 py-2.5 text-right text-[13px] font-semibold tabular-nums" style={{ color: "var(--cp-ink-2)" }}>
-                                                    {company.contacts.length}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                            </tbody>
-                        </table>
+                    <div className={s.toolbarRight}>
+                        {multiMission && (
+                            <select className={s.pillSelect} data-active={!!mission} value={mission} onChange={(e) => setMission(e.target.value)} aria-label="Mission">
+                                <option value="">Toutes les missions</option>
+                                {facets.missions.map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        )}
+                        {facets.industries.length > 1 && (
+                            <select className={s.pillSelect} data-active={!!industry} value={industry} onChange={(e) => setIndustry(e.target.value)} aria-label="Secteur">
+                                <option value="">Tous secteurs</option>
+                                {facets.industries.map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        )}
+                        {facets.countries.length > 1 && (
+                            <select className={s.pillSelect} data-active={!!country} value={country} onChange={(e) => setCountry(e.target.value)} aria-label="Pays">
+                                <option value="">Tous pays</option>
+                                {facets.countries.map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        )}
+                        <select className={s.pillSelect} data-active="true" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Trier">
+                            {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => <option key={k} value={k}>Trier : {SORT_LABELS[k]}</option>)}
+                        </select>
+                        {hasFilters && (
+                            <button type="button" className={s.resetBtn} onClick={resetFilters}><X size={13} /> Réinitialiser</button>
+                        )}
                     </div>
-
-                    {!isLoading && totalPages > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3"
-                            style={{ borderTop: "1px solid var(--cp-border)", background: "var(--cp-sunken)" }}>
-                            <span className="text-[12px] tabular-nums" style={{ color: "var(--cp-ink-3)" }}>
-                                {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filteredCompanies.length)} sur {filteredCompanies.length}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                                <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1} aria-label="Page précédente"
-                                    className="w-8 h-8 rounded-[8px] flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-70"
-                                    style={{ background: "var(--cp-raised)", border: "1px solid var(--cp-border)", color: "var(--cp-ink-2)" }}>
-                                    <ChevronLeft className="w-4 h-4" />
-                                </button>
-                                <span className="text-[12px] font-semibold px-2 tabular-nums" style={{ color: "var(--cp-ink-2)" }}>
-                                    {safePage} / {totalPages}
-                                </span>
-                                <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages} aria-label="Page suivante"
-                                    className="w-8 h-8 rounded-[8px] flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-70"
-                                    style={{ background: "var(--cp-raised)", border: "1px solid var(--cp-border)", color: "var(--cp-ink-2)" }}>
-                                    <ChevronRight className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 
-            {selectedCompany && (
-                <CompanyDrawer
-                    company={selectedCompany}
-                    exclusion={selectedCompany.exclusionId ? exclusionById.get(selectedCompany.exclusionId) : undefined}
-                    position={selectedIndex + 1}
-                    total={filteredCompanies.length}
-                    onPrev={() => step(-1)}
-                    onNext={() => step(1)}
-                    onClose={() => setSelectedId(null)}
-                    loaded={timelines[selectedCompany.id]}
-                    onLoaded={onTimelineLoaded}
+            {/* ── List (always mounted so the virtualizer can measure it) ── */}
+            <div className={s.list} style={!isLoading && total === 0 ? { display: "none" } : undefined}>
+                <div className={s.listHead} aria-hidden="true">
+                    <span>Entreprise</span>
+                    <span>Effort</span>
+                    <span>Statut</span>
+                    <span style={{ textAlign: "right" }}>Dernier contact</span>
+                </div>
+                <div
+                    ref={listRef}
+                    className={s.listScroll}
+                    onScroll={onScroll}
+                    role="listbox"
+                    tabIndex={0}
+                    aria-label="Entreprises"
+                    aria-activedescendant={activeId && activeIndex >= 0 ? `db-row-${activeId}` : undefined}
+                >
+                    {isLoading ? (
+                        <div style={{ padding: "8px 20px" }}>
+                            {Array.from({ length: 9 }, (_, i) => (
+                                <div key={i} style={{ height: ROW_H, display: "flex", alignItems: "center", gap: 16 }}>
+                                    <div className={s.shimmer} style={{ width: 10, height: 10, borderRadius: 99 }} />
+                                    <div className={s.shimmer} style={{ height: 14, width: `${38 + ((i * 13) % 30)}%` }} />
+                                </div>
+                            ))}
+                        </div>
+                    ) : filtered.length === 0 ? (
+                        <div className={s.empty}>
+                            <div className={s.emptyTitle}>Aucune entreprise ne correspond</div>
+                            <div className={s.emptyText}>Essayez un autre terme ou retirez un filtre.</div>
+                            {hasFilters && <button type="button" className={s.resetBtn} style={{ marginTop: 12 }} onClick={resetFilters}><X size={13} /> Réinitialiser les filtres</button>}
+                        </div>
+                    ) : (
+                        <div className={s.listInner} style={{ height: filtered.length * ROW_H }}>
+                            {filtered.slice(first, last).map((c, i) => (
+                                <Row
+                                    key={c.id}
+                                    company={c}
+                                    index={first + i}
+                                    query={query}
+                                    active={c.id === activeId}
+                                    open={drawerOpen && c.id === activeId}
+                                    multiMission={multiMission}
+                                    nowMs={nowMs}
+                                    onOpen={openRow}
+                                    onHover={hoverRow}
+                                    onLeave={leaveRow}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <div className={s.listFoot}>
+                    <span className={s.num}>
+                        {filtered.length.toLocaleString("fr-FR")} entreprise{filtered.length > 1 ? "s" : ""}
+                        {filtered.length !== total && ` sur ${total.toLocaleString("fr-FR")}`}
+                    </span>
+                    <span className={s.keys}>
+                        <span><kbd>/</kbd>rechercher</span>
+                        <span><kbd>↑</kbd><kbd>↓</kbd>naviguer</span>
+                        <span><kbd>↵</kbd>ouvrir</span>
+                        <span><kbd>Échap</kbd>fermer</span>
+                    </span>
+                </div>
+            </div>
+
+            {!isLoading && total === 0 && (
+                <div className={cx(s.panel, s.empty)}>
+                    <div className={s.emptyTitle}>Votre base arrive</div>
+                    <div className={s.emptyText}>Dès que vos listes seront importées, vous suivrez ici l&apos;avancement de chaque entreprise.</div>
+                </div>
+            )}
+
+            {drawerOpen && activeCompany && (
+                <Inspector
+                    company={activeCompany}
+                    exclusion={activeCompany.exclusionId ? exclusionById.get(activeCompany.exclusionId) : undefined}
+                    timeline={timelines[activeCompany.id]}
+                    position={activeIndex + 1}
+                    total={filtered.length}
+                    nowMs={nowMs}
+                    onPrev={() => move(-1)}
+                    onNext={() => move(1)}
+                    onClose={() => setDrawerOpen(false)}
+                    ensureTimeline={ensureTimeline}
                 />
             )}
         </div>
