@@ -54,6 +54,15 @@ export interface RoadmapItem {
     updatedAt: Date;
 }
 
+/** Payload of the client "Évolutions" page: roadmap and changelog in one. */
+export interface ClientEvolutions {
+    inProgress: RoadmapItem[];
+    upcoming: RoadmapItem[];
+    /** Newest first. */
+    delivered: RoadmapItem[];
+    generatedAt: string;
+}
+
 /** Second layer after the select: shape the row into exactly what the UI needs. */
 export function toRoadmapItem(row: ClientTicketRow): RoadmapItem {
     return {

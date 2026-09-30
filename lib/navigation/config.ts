@@ -35,7 +35,6 @@ import {
   ShieldCheck,
   Sparkles,
   LifeBuoy,
-  Map,
   Wallet,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
@@ -612,25 +611,14 @@ export const CLIENT_NAV: NavSection[] = [
     ],
   },
   {
-    title: "Produit",
+    title: "Votre espace",
     items: [
       {
-        href: "/client/portal/roadmap",
-        icon: Map,
-        label: "Roadmap",
-        permission: "pages.client_roadmap",
-      },
-      {
-        href: "/client/portal/changelog",
+        href: "/client/portal/evolutions",
         icon: Sparkles,
-        label: "Nouveautés",
+        label: "Évolutions",
         permission: "pages.client_roadmap",
       },
-    ],
-  },
-  {
-    title: "Compte",
-    items: [
       {
         href: "/client/portal/settings",
         icon: Settings,
