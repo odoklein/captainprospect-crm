@@ -4,14 +4,16 @@
 // ============================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthSession } from "@/lib/api-utils";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        // getAuthSession(req) (not getServerSession) so a deactivated / force-logged-out
+        // user is rejected here too — see sessionFromToken in lib/auth.ts.
+        const session = await getAuthSession(req);
         if (!session?.user?.id) {
             return NextResponse.json(
                 { success: false, error: "Non autorisé" },

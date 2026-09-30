@@ -70,7 +70,7 @@ function heuristicOrganize(rawText: string) {
 }
 
 export const POST = withErrorHandler(async (req: NextRequest) => {
-    await requireRole(['SUPERADMIN', 'ADMIN', 'MANAGER', 'SALES_OPS', 'TEAM_LEAD', 'SDR']);
+    await requireRole(['SUPERADMIN', 'ADMIN', 'MANAGER', 'SALES_OPS', 'TEAM_LEAD', 'SDR'], req);
 
     const body = await req.json();
     const data = validateRequest(organizePitchSchema, body);

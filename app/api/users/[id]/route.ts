@@ -9,6 +9,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 
 // ============================================
 // GET /api/users/[id] - Get user details
@@ -102,7 +103,7 @@ export const PUT = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
     const data = await validateRequest(request, updateUserSchema);
 
@@ -112,6 +113,10 @@ export const PUT = withErrorHandler(async (
         select: {
             id: true,
             email: true,
+            name: true,
+            role: true,
+            clientId: true,
+            alloPhoneNumber: true,
             preferences: true,
         },
     });
@@ -172,6 +177,55 @@ export const PUT = withErrorHandler(async (
         },
     });
 
+    // Audit: a role change is its own action (it's the privilege-escalation event
+    // worth filtering for); everything else collapses into one UPDATE. Passwords
+    // are never logged — only a passwordChanged flag.
+    if (data.role && data.role !== existingUser.role) {
+        audit(request, session, {
+            action: AUDIT_ACTIONS.ROLE_CHANGE,
+            entityType: 'User',
+            entityId: id,
+            summary: `Rôle de ${updatedUser.name} : ${existingUser.role} → ${updatedUser.role}`,
+            before: { role: existingUser.role },
+            after: { role: updatedUser.role },
+        });
+    }
+
+    const before: Record<string, unknown> = {};
+    const after: Record<string, unknown> = {};
+    if (data.name && data.name !== existingUser.name) {
+        before.name = existingUser.name;
+        after.name = updatedUser.name;
+    }
+    if (data.email && data.email !== existingUser.email) {
+        before.email = existingUser.email;
+        after.email = updatedUser.email;
+    }
+    if (data.clientId !== undefined && data.clientId !== existingUser.clientId) {
+        before.clientId = existingUser.clientId;
+        after.clientId = updatedUser.clientId;
+    }
+    if (data.alloPhoneNumber !== undefined && updatedUser.alloPhoneNumber !== existingUser.alloPhoneNumber) {
+        before.alloPhoneNumber = existingUser.alloPhoneNumber;
+        after.alloPhoneNumber = updatedUser.alloPhoneNumber;
+    }
+    const passwordChanged = !!data.password;
+    // The profile form re-sends preferences on every save — only count a real change.
+    const preferencesChanged =
+        data.preferences !== undefined &&
+        JSON.stringify(existingUser.preferences ?? null) !== JSON.stringify(updatedUser.preferences ?? null);
+    if (Object.keys(after).length > 0 || passwordChanged || preferencesChanged) {
+        audit(request, session, {
+            action: AUDIT_ACTIONS.UPDATE,
+            entityType: 'User',
+            entityId: id,
+            summary: `Profil de ${updatedUser.name} modifié`,
+            before: Object.keys(before).length > 0 ? before : undefined,
+            after: Object.keys(after).length > 0 ? after : undefined,
+            metadata: { passwordChanged, preferencesChanged },
+        });
+    }
+
     return successResponse(updatedUser);
 });
 
@@ -194,7 +248,7 @@ export const DELETE = withErrorHandler(async (
     // Check user exists
     const user = await prisma.user.findUnique({
         where: { id },
-        select: { id: true, role: true, name: true },
+        select: { id: true, role: true, name: true, email: true },
     });
 
     if (!user) {
@@ -208,6 +262,14 @@ export const DELETE = withErrorHandler(async (
 
     await prisma.user.delete({
         where: { id },
+    });
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.DELETE,
+        entityType: 'User',
+        entityId: id,
+        summary: `Utilisateur "${user.name}" (${user.role}) supprimé`,
+        before: { name: user.name, email: user.email, role: user.role },
     });
 
     return successResponse({

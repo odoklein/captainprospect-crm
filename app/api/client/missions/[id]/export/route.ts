@@ -6,6 +6,7 @@ import {
     AuthError,
     NotFoundError,
 } from "@/lib/api-utils";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 
 // ============================================
 // GET /api/client/missions/[id]/export
@@ -128,6 +129,14 @@ export const GET = withErrorHandler(async (
 
     const csv = "\ufeff" + rows.join("\n");
     const filename = `mission_${mission.name.replace(/[^a-z0-9]/gi, "_").toLowerCase()}_export.csv`;
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.EXPORT,
+        entityType: "Mission",
+        entityId: missionId,
+        summary: `Export CSV mission "${mission.name}" (portail client) — ${rows.length - 1} ligne(s)`,
+        metadata: { rowCount: rows.length - 1, lists: mission.lists.length, format: "csv", clientId, filename },
+    });
 
     return new NextResponse(csv, {
         headers: {

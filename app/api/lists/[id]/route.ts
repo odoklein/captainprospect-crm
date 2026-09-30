@@ -7,6 +7,7 @@ import {
     withErrorHandler,
     NotFoundError,
 } from '@/lib/api-utils';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 
 // ============================================
 // GET /api/lists/[id] - Get list details
@@ -65,12 +66,33 @@ export const DELETE = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
+
+    const list = await prisma.list.findUnique({
+        where: { id },
+        select: {
+            name: true,
+            missionId: true,
+            _count: { select: { companies: true } },
+        },
+    });
+    if (!list) {
+        throw new NotFoundError('Liste introuvable');
+    }
 
     // Delete list (cascade will delete companies and contacts)
     await prisma.list.delete({
         where: { id },
+    });
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.DELETE,
+        entityType: 'List',
+        entityId: id,
+        summary: `Liste "${list.name}" supprimée — ${list._count.companies} entreprise(s) et leurs contacts en cascade`,
+        before: { name: list.name, missionId: list.missionId },
+        metadata: { companies: list._count.companies },
     });
 
     return successResponse({ deleted: true });

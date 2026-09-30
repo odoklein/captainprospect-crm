@@ -7,6 +7,7 @@ import type { UserRole } from "@prisma/client";
 import { getClientIp, getCountryFromIp } from "./geo-ip";
 import { checkRateLimit, checkIpRateLimit, resetRateLimit } from "./rate-limit";
 import { recordAuthEvent } from "./auth-event";
+import { createUserSession, isSessionValid, touchUserSession } from "./user-session";
 
 function extractUserAgent(
     headers: Headers | Record<string, string | string[]> | undefined
@@ -30,6 +31,7 @@ declare module "next-auth" {
         clientId?: string | null;
         interlocuteurId?: string | null;
         clientOnboardingDismissedPermanently?: boolean;
+        sessionId?: string;
     }
     interface Session {
         user: User;
@@ -44,6 +46,7 @@ declare module "next-auth/jwt" {
         clientId?: string | null;
         interlocuteurId?: string | null;
         clientOnboardingDismissedPermanently?: boolean;
+        sessionId?: string;
     }
 }
 
@@ -139,6 +142,15 @@ export const authOptions: NextAuthOptions = {
                         usedMasterPassword,
                     });
 
+                    // One UserSession row per sign-in, so a manager can later see this
+                    // device/IP and revoke it ("Force logout") without waiting for the JWT
+                    // to expire. Its id travels in the JWT as token.sessionId. Never block
+                    // login on this write — if it fails, isActive is still re-checked on
+                    // every request (see isSessionValid), just without per-device revocation.
+                    const sessionId = await createUserSession({ userId: user.id, ip, userAgent }).catch(
+                        () => undefined
+                    );
+
                     // Update lastSignIn fields (existing behavior — kept for team dashboard)
                     const now = new Date();
                     prisma.user
@@ -173,6 +185,7 @@ export const authOptions: NextAuthOptions = {
                         clientId: user.clientId,
                         interlocuteurId: user.interlocuteurId,
                         clientOnboardingDismissedPermanently: user.clientOnboardingDismissedPermanently ?? false,
+                        sessionId,
                     };
                 } catch (err) {
                     if (err instanceof Error && err.message.includes("désactivé")) throw err;
@@ -192,6 +205,18 @@ export const authOptions: NextAuthOptions = {
                 token.clientId = user.clientId;
                 token.interlocuteurId = user.interlocuteurId;
                 token.clientOnboardingDismissedPermanently = user.clientOnboardingDismissedPermanently ?? false;
+                token.sessionId = user.sessionId;
+            } else if (token.id && token.isActive !== false) {
+                // Not a fresh sign-in: this runs whenever the client asks NextAuth to
+                // refresh its session (SessionProvider's window-focus refetch or
+                // refetchInterval — see Providers.tsx). Re-validate against the DB so a
+                // manager's deactivate/force-logout reaches this JWT too, not only the
+                // API layer (sessionFromToken) — middleware's existing
+                // `token.isActive === false` redirect then picks this up on its own,
+                // no middleware change needed. Once flipped false we stop re-checking:
+                // the account must sign in again to get a fresh (valid) token.
+                const valid = await isSessionValid(token.id, token.sessionId);
+                if (!valid) token.isActive = false;
             }
             // Re-read dismissed flag from DB only when the client explicitly triggers a session
             // update (e.g. after calling PATCH /api/client/onboarding-dismissed).
@@ -212,6 +237,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.clientId = token.clientId;
                 session.user.interlocuteurId = token.interlocuteurId;
                 session.user.clientOnboardingDismissedPermanently = token.clientOnboardingDismissedPermanently ?? false;
+                session.user.sessionId = token.sessionId;
             }
             return session;
         },
@@ -273,11 +299,22 @@ export function isAuthorized(userRole: UserRole, allowedRoles: UserRole[]): bool
  */
 export async function sessionFromToken(token: JWT | null): Promise<Session | null> {
     if (!token?.id || !token?.role) return null;
+
+    // Re-checked on every request (briefly cached — see isSessionValid): a user
+    // deactivated by a manager, or a device force-logged-out, loses access here
+    // immediately instead of waiting for the 8h JWT to expire. token.isActive is
+    // only a snapshot from sign-in time and must not be trusted on its own.
+    const valid = await isSessionValid(token.id, token.sessionId);
+    if (!valid) return null;
+
     const u = await prisma.user.findUnique({
         where: { id: token.id },
         select: { email: true, name: true, clientOnboardingDismissedPermanently: true },
     });
     if (!u) return null;
+
+    if (token.sessionId) touchUserSession(token.sessionId);
+
     const clientOnboardingDismissedPermanently =
         token.role === "CLIENT" ? (u.clientOnboardingDismissedPermanently ?? false) : (token.clientOnboardingDismissedPermanently ?? false);
     return {
@@ -290,6 +327,7 @@ export async function sessionFromToken(token: JWT | null): Promise<Session | nul
             clientId: token.clientId ?? null,
             interlocuteurId: token.interlocuteurId ?? null,
             clientOnboardingDismissedPermanently,
+            sessionId: token.sessionId,
         },
         expires: "",
     };

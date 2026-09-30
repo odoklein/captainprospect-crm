@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     ArrowLeft, Loader2, Phone, Calendar, Target, Activity,
-    Clock, TrendingUp, LogIn, AlertTriangle, Shield, Key,
+    Clock, TrendingUp, LogIn, LogOut, AlertTriangle, Shield, Key,
     MapPin, Monitor, ChevronLeft, ChevronRight, Check, X,
     UserCheck, UserX, Trash2, Pencil, RotateCcw, BriefcaseBusiness,
     FolderKanban, LayoutGrid, CalendarDays, Mail, Globe, Info,
@@ -37,6 +37,11 @@ interface AuthEvent {
     id: string; outcome: string; ip: string | null;
     country: string | null; userAgent: string | null;
     usedMasterPassword: boolean; createdAt: string;
+}
+
+interface UserSessionRow {
+    id: string; ip: string | null; country: string | null; userAgent: string | null;
+    createdAt: string; lastSeenAt: string; revokedAt: string | null; revokedReason: string | null;
 }
 
 interface ScheduleBlock {
@@ -583,6 +588,114 @@ function HistoriqueTab({ userId }: { userId: string }) {
 // SECURITE TAB
 // ============================================
 
+function SessionsSection({ userId }: { userId: string }) {
+    const { success, error: showError } = useToast();
+    const [sessions, setSessions]       = useState<UserSessionRow[]>([]);
+    const [loading, setLoading]         = useState(true);
+    const [revokingId, setRevokingId]   = useState<string | null>(null);
+    const [forceLogoutOpen, setForceLogoutOpen] = useState(false);
+    const [forceLogoutLoading, setForceLogoutLoading] = useState(false);
+
+    const load = useCallback(() => {
+        setLoading(true);
+        fetch(`/api/users/${userId}/sessions`)
+            .then(r => r.json())
+            .then(j => { if (j.success) setSessions(j.data.sessions ?? []); })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, [userId]);
+
+    useEffect(() => { load(); }, [load]);
+
+    const revoke = async (sessionId: string) => {
+        setRevokingId(sessionId);
+        try {
+            const res = await fetch(`/api/users/${userId}/sessions/${sessionId}`, { method: "DELETE" });
+            const j = await res.json();
+            if (j.success) { success("Session révoquée", ""); load(); }
+            else showError("Erreur", j.error ?? "Impossible de révoquer cette session");
+        } finally { setRevokingId(null); }
+    };
+
+    const forceLogout = async () => {
+        setForceLogoutLoading(true);
+        try {
+            const res = await fetch(`/api/users/${userId}/sessions`, { method: "POST" });
+            const j = await res.json();
+            if (j.success) { success("Déconnexion forcée", j.data.message ?? ""); load(); }
+            else showError("Erreur", j.error ?? "Impossible de déconnecter l'utilisateur");
+        } finally { setForceLogoutLoading(false); setForceLogoutOpen(false); }
+    };
+
+    const active = sessions.filter(s => !s.revokedAt);
+
+    return (
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+                <div>
+                    <p className="font-semibold text-slate-900 text-sm">Sessions actives</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Appareils actuellement connectés avec le compte de cet utilisateur.</p>
+                </div>
+                {active.length > 0 && (
+                    <button
+                        onClick={() => setForceLogoutOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors shrink-0"
+                    >
+                        <LogOut className="w-3.5 h-3.5" /> Déconnecter partout
+                    </button>
+                )}
+            </div>
+
+            {loading ? (
+                <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 text-indigo-500 animate-spin" /></div>
+            ) : active.length === 0 ? (
+                <p className="text-sm text-slate-400 py-4 text-center">Aucune session active.</p>
+            ) : (
+                <div className="space-y-2">
+                    {active.map((s) => {
+                        const browser = browserFromUA(s.userAgent);
+                        const os = osFromUA(s.userAgent);
+                        return (
+                            <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                                        <Monitor className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                        <span className="font-medium">{[browser, os].filter(Boolean).join(" / ") || "Appareil inconnu"}</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
+                                        {s.country && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{s.country}</span>}
+                                        {s.ip && <span className="font-mono">{s.ip}</span>}
+                                        <span>Vu {timeAgo(s.lastSeenAt)}</span>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => revoke(s.id)}
+                                    disabled={revokingId === s.id}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 disabled:opacity-40 shrink-0"
+                                >
+                                    {revokingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                    Révoquer
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            <ConfirmModal
+                isOpen={forceLogoutOpen}
+                onClose={() => setForceLogoutOpen(false)}
+                onConfirm={forceLogout}
+                title="Déconnecter toutes les sessions ?"
+                message="Cet utilisateur sera immédiatement déconnecté de tous ses appareils. Il devra se reconnecter."
+                confirmText="Déconnecter partout"
+                variant="danger"
+                isLoading={forceLogoutLoading}
+            />
+        </div>
+    );
+}
+
 function SecuriteTab({ userId }: { userId: string }) {
     const [events, setEvents]   = useState<AuthEvent[]>([]);
     const [loading, setLoading] = useState(true);
@@ -608,6 +721,8 @@ function SecuriteTab({ userId }: { userId: string }) {
 
     return (
         <div className="space-y-4">
+            <SessionsSection userId={userId} />
+
             {/* Accountability notice */}
             <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />

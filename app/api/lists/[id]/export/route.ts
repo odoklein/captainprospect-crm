@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAuthSession } from "@/lib/api-utils";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 
 // ============================================
 // GET /api/lists/[id]/export
@@ -13,7 +13,9 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
+        // getAuthSession(request) (not getServerSession) so a deactivated / force-logged-out
+        // user is rejected here too — see sessionFromToken in lib/auth.ts.
+        const session = await getAuthSession(request);
 
         if (!session?.user?.id) {
             return new NextResponse("Unauthorized", { status: 401 });
@@ -124,6 +126,20 @@ export async function GET(
 
         const csv = "\ufeff" + rows.join("\n");
         const filename = `${list.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_export.csv`;
+
+        audit(request, session, {
+            action: AUDIT_ACTIONS.EXPORT,
+            entityType: "List",
+            entityId: id,
+            summary: `Export CSV liste "${list.name}" — ${rows.length - 1} ligne(s)`,
+            metadata: {
+                rowCount: rows.length - 1,
+                companies: companies.length,
+                format: "csv",
+                missionClientId: list.mission.clientId,
+                filename,
+            },
+        });
 
         return new NextResponse(csv, {
             headers: {

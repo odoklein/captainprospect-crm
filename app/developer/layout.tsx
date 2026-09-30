@@ -43,6 +43,11 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
             router.push("/login");
         } else if (status === "authenticated" && session?.user?.role !== "DEVELOPER") {
             router.push("/unauthorized");
+        } else if (status === "authenticated" && session?.user?.isActive === false) {
+            // Deactivated or force-logged-out mid-session (see lib/auth.ts jwt()
+            // callback) — the session poll (Providers.tsx refetchInterval) surfaces
+            // it here without waiting for the next full navigation.
+            signOut({ callbackUrl: "/blocked" });
         }
     }, [session, status, router]);
 

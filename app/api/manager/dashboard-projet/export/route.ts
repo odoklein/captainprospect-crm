@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, withErrorHandler } from "@/lib/api-utils";
 import { getStaffingOverview, type CoverageStatus } from "@/lib/staffing/clientStaffing";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 
 function csvCell(value: string): string {
     // Neutralize spreadsheet formula injection: a value beginning with = + - @
@@ -24,7 +25,7 @@ const COVERAGE_LABEL: Record<CoverageStatus, string> = {
  * Same staffing overview as the dashboard, flattened to CSV.
  */
 export const GET = withErrorHandler(async (request: NextRequest) => {
-    await requireRole(["MANAGER"], request);
+    const session = await requireRole(["MANAGER"], request);
     const { rows } = await getStaffingOverview();
 
     const header = [
@@ -51,6 +52,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     // BOM so Excel opens accented characters correctly
     const csv = "﻿" + lines.join("\r\n");
     const filename = `dashboard-projet-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.EXPORT,
+        entityType: "StaffingOverview",
+        summary: `Export CSV dashboard projet — ${rows.length} ligne(s)`,
+        metadata: { rowCount: rows.length, format: "csv", filename },
+    });
 
     return new NextResponse(csv, {
         headers: {

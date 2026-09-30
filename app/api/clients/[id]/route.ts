@@ -10,6 +10,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import { getClientProductionInsight, getParisMonthWindow } from '@/lib/client-insights';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 
 // ============================================
 // SCHEMAS
@@ -346,11 +347,12 @@ export const DELETE = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
 
     const client = await prisma.client.findUnique({
         where: { id },
+        include: { _count: { select: { missions: true, users: true, interlocuteurs: true } } },
     });
 
     if (!client) {
@@ -421,6 +423,21 @@ export const DELETE = withErrorHandler(async (
         await tx.client.delete({
             where: { id },
         });
+    });
+
+    // Deleting a client cascades to its missions, lists, companies and contacts —
+    // the most destructive action in the app, so the snapshot records the blast radius.
+    audit(request, session, {
+        action: AUDIT_ACTIONS.DELETE,
+        entityType: 'Client',
+        entityId: id,
+        summary: `Client "${client.name}" supprimé (${client._count.missions} mission(s) en cascade)`,
+        before: { name: client.name },
+        metadata: {
+            missions: client._count.missions,
+            users: client._count.users,
+            interlocuteurs: client._count.interlocuteurs,
+        },
     });
 
     return successResponse({ deleted: true });

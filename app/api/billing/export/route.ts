@@ -6,13 +6,14 @@ import {
 } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { InvoiceStatus } from "@prisma/client";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 
 // ============================================
 // GET /api/billing/export - Export invoices as CSV
 // ============================================
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
-    await requireRole(["MANAGER"], request);
+    const session = await requireRole(["MANAGER"], request);
     const { searchParams } = new URL(request.url);
 
     const startDate = searchParams.get("startDate");
@@ -85,6 +86,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const csvBuffer = Buffer.from(bom + csvContent, "utf-8");
 
     const filename = `export-facturation-${new Date().toISOString().split("T")[0]}.csv`;
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.EXPORT,
+        entityType: "Invoice",
+        summary: `Export facturation CSV — ${invoices.length} facture(s)`,
+        metadata: { rowCount: invoices.length, format, startDate, endDate, filename },
+    });
 
     return new NextResponse(csvBuffer, {
         headers: {

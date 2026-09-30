@@ -33,6 +33,7 @@ import {
   UserCheck,
   UserX,
   ShieldCheck,
+  ScrollText,
   Sparkles,
   LifeBuoy,
   Wallet,
@@ -225,6 +226,12 @@ export const MANAGER_NAV: NavSection[] = [
         href: "/manager/acces",
         icon: ShieldCheck,
         label: "Coffre d'accès",
+        permission: "pages.sdrs",
+      },
+      {
+        href: "/manager/audit",
+        icon: ScrollText,
+        label: "Journal d'audit",
         permission: "pages.sdrs",
       },
       {

@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { canTransitionMissionStatus } from '@/lib/constants/missionStatus';
 import type { MissionStatusValue } from '@/lib/constants/missionStatus';
 import { isMissionInPortalLaunch } from '@/lib/portal-visibility';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 
 // ============================================
 // SCHEMAS
@@ -466,11 +467,33 @@ export const DELETE = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
+
+    const mission = await prisma.mission.findUnique({
+        where: { id },
+        select: {
+            name: true,
+            clientId: true,
+            client: { select: { name: true } },
+            _count: { select: { lists: true, campaigns: true } },
+        },
+    });
+    if (!mission) {
+        throw new NotFoundError('Mission introuvable');
+    }
 
     await prisma.mission.delete({
         where: { id },
+    });
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.DELETE,
+        entityType: 'Mission',
+        entityId: id,
+        summary: `Mission "${mission.name}" (${mission.client.name}) supprimée — ${mission._count.lists} liste(s), ${mission._count.campaigns} stratégie(s) en cascade`,
+        before: { name: mission.name, clientId: mission.clientId },
+        metadata: { lists: mission._count.lists, campaigns: mission._count.campaigns },
     });
 
     return successResponse({ deleted: true });

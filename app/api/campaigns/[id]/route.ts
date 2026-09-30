@@ -8,6 +8,7 @@ import {
     validateRequest,
     NotFoundError,
 } from '@/lib/api-utils';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 import { z } from 'zod';
 
 // ============================================
@@ -171,11 +172,27 @@ export const DELETE = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
+    const session = await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
     const { id } = await params;
+
+    const campaign = await prisma.campaign.findUnique({
+        where: { id },
+        select: { name: true, missionId: true },
+    });
+    if (!campaign) {
+        throw new NotFoundError('Stratégie introuvable');
+    }
 
     await prisma.campaign.delete({
         where: { id },
+    });
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.DELETE,
+        entityType: 'Campaign',
+        entityId: id,
+        summary: `Stratégie "${campaign.name}" supprimée`,
+        before: { name: campaign.name, missionId: campaign.missionId },
     });
 
     return successResponse({ deleted: true });

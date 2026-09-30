@@ -5,6 +5,7 @@ import { buildXlsx } from '@/lib/export/xlsx';
 import { parseExportFilters } from '@/lib/prospection-export/filters';
 import { loadProspectionExportData } from '@/lib/prospection-export/load';
 import { buildExportCsv, buildExportSheets } from '@/lib/prospection-export/workbook';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 
 // Large missions (tens of thousands of lines, full history) take a while to build.
 export const maxDuration = 300;
@@ -31,7 +32,7 @@ export const GET = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
     const { searchParams } = new URL(request.url);
 
@@ -66,6 +67,20 @@ export const GET = withErrorHandler(async (
         });
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.EXPORT,
+        entityType: 'Mission',
+        entityId: id,
+        summary: `Export prospection ${format.toUpperCase()} — mission "${data.mission.name}" (${data.selectedListIds.length} liste(s))`,
+        metadata: {
+            format,
+            lists: data.selectedListIds.length,
+            client: data.mission.clientName,
+            filters: Object.fromEntries(searchParams.entries()),
+            filename,
+        },
+    });
 
     return new NextResponse(typeof body === 'string' ? body : new Uint8Array(body), {
         headers: {

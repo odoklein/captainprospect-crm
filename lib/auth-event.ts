@@ -106,10 +106,17 @@ export async function getAuthEvents(
     return { events, total };
 }
 
+export type AuthEventViewAction =
+    | "VIEW_HISTORY"
+    | "EXPORT_HISTORY"
+    | "VIEW_SESSIONS"
+    | "REVOKE_SESSION"
+    | "FORCE_LOGOUT";
+
 export async function logAuthEventView(
     viewerId: string,
     targetUserId: string,
-    action: "VIEW_HISTORY" | "EXPORT_HISTORY" = "VIEW_HISTORY"
+    action: AuthEventViewAction = "VIEW_HISTORY"
 ): Promise<void> {
     await prisma.authEventView.create({
         data: { viewerId, targetUserId, action },

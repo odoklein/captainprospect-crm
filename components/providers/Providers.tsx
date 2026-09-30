@@ -15,7 +15,11 @@ export default function Providers({ children }: ProvidersProps) {
     const [client] = useState(createQueryClient);
     return (
         <QueryClientProvider client={client}>
-            <SessionProvider>
+            {/* refetchInterval: bounds how stale a JWT's isActive/session-revoked flag
+                can be — see the jwt() callback in lib/auth.ts — to ~60s even when the
+                user never backgrounds the tab (SessionProvider otherwise only refetches
+                on window focus). */}
+            <SessionProvider refetchInterval={60}>
                 <OpenReplayProvider />
                 <ToastProvider position="top-right">
                     {children}

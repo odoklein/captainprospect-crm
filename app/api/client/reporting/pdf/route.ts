@@ -7,6 +7,7 @@ import {
 import { generateClientReportPdf } from "@/lib/reporting/pdf";
 import { parisDayRange } from "@/lib/reporting/period";
 import { getReportData, toReportData } from "../get-report-data";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 
 // ============================================
 // GET /api/client/reporting/pdf
@@ -52,6 +53,14 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const reportData = toReportData(raw, dateFromDate, dateToDate);
     const pdfBuffer = await generateClientReportPdf(reportData);
     const filename = `rapport-${raw.client.name.replace(/[^a-z0-9]/gi, "_")}-${dateFrom}.pdf`;
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.EXPORT,
+        entityType: "Report",
+        entityId: missionIdParam,
+        summary: `Rapport PDF client "${raw.client.name}" (${dateFrom} → ${searchParams.get("dateTo")?.trim()})`,
+        metadata: { clientId, missionId: missionIdParam, format: "pdf", filename },
+    });
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
         status: 200,

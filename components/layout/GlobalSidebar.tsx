@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
     LogOut,
+    ShieldOff,
     ChevronsLeft,
     Menu,
     X,
@@ -16,6 +17,7 @@ import {
     Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/components/ui";
 import { useSidebar } from "./SidebarProvider";
 import { usePermissions } from "@/lib/permissions/PermissionProvider";
 import { NavSection, NavItem, ROLE_CONFIG } from "@/lib/navigation/config";
@@ -206,7 +208,38 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
     );
     const [commsUnreadCount, setCommsUnreadCount] = useState<number>(0);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [loggingOutOthers, setLoggingOutOthers] = useState(false);
     const userMenuRef = useRef<HTMLDivElement>(null);
+    const { success: toastSuccess, error: toastError } = useToast();
+
+    const logoutOtherDevices = useCallback(async () => {
+        setLoggingOutOthers(true);
+        try {
+            const res = await fetch("/api/account/sessions/logout-others", { method: "POST" });
+            const j = await res.json();
+            if (j.success) {
+                toastSuccess("Appareils déconnectés", j.data?.message ?? "");
+            } else {
+                toastError("Erreur", j.error ?? "Impossible de déconnecter les autres appareils");
+            }
+        } catch {
+            toastError("Erreur", "Impossible de déconnecter les autres appareils");
+        } finally {
+            setLoggingOutOthers(false);
+            setShowUserMenu(false);
+        }
+    }, [toastSuccess, toastError]);
+
+    // Session polls every 60s (see Providers.tsx) and lib/auth.ts's jwt() callback
+    // re-validates isActive/revocation on each poll. If a manager deactivates this
+    // account or force-logs-it-out while the tab stays in the foreground (so it
+    // never hits the window-focus refetch), this catches it within that window
+    // instead of waiting for the user's next navigation to hit middleware.
+    useEffect(() => {
+        if (session?.user?.isActive === false) {
+            signOut({ callbackUrl: "/blocked" });
+        }
+    }, [session?.user?.isActive]);
 
     const userRole = session?.user?.role as UserRole | undefined;
     const roleConfig = userRole ? ROLE_CONFIG[userRole] : null;
@@ -462,6 +495,18 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                                         <span>{roleConfig.label}</span>
                                     </div>
                                 )}
+                                <button
+                                    onClick={logoutOtherDevices}
+                                    disabled={loggingOutOthers}
+                                    className="cp-user-menu-item disabled:opacity-50"
+                                >
+                                    <ShieldOff className="w-3.5 h-3.5" />
+                                    <span>
+                                        {loggingOutOthers
+                                            ? "Déconnexion…"
+                                            : "Déconnecter les autres appareils"}
+                                    </span>
+                                </button>
                                 <button
                                     onClick={() =>
                                         signOut({ callbackUrl: "/login" })

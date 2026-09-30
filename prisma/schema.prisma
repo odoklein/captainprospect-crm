@@ -554,6 +554,13 @@ model User {
   authEventViews   AuthEventView[] @relation("AuthEventViewer")
   viewedAuthEvents AuthEventView[] @relation("AuthEventTarget")
 
+  // Live sessions (one row per sign-in; revocable for force-logout)
+  sessions        UserSession[]
+  revokedSessions UserSession[] @relation("UserSessionRevoker")
+
+  // Unified audit trail (exports, deletes, role/permission changes, …)
+  auditEvents AuditEvent[]
+
   // Broadcast Emails sent by this user (MANAGER)
   broadcastEmails BroadcastEmail[] @relation("BroadcastEmailSender")
 
@@ -609,7 +616,64 @@ model AuthEvent {
   @@index([emailHash])
 }
 
-// Audit trail for admin access to another user's auth history.
+// One row per sign-in. Lets a manager see which devices/IPs are logged in as a
+// given user and revoke them individually ("Force logout") without waiting for
+// the 8h JWT to expire. Deactivating a user (User.isActive = false) revokes all
+// of their rows. Checked on every API request via lib/user-session.ts
+// (cached briefly — see SESSION_CACHE_TTL_MS — so a revoke can take a few
+// seconds to take effect, not the full 8h). Retention: same as AuthEvent
+// (SystemConfig authEventRetentionDays, default 90).
+model UserSession {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip            String?
+  country       String?
+  userAgent     String? // truncated to 512 chars
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now()) // throttled heartbeat, updated at most every few minutes
+  revokedAt     DateTime?
+  revokedById   String?
+  revokedBy     User?     @relation("UserSessionRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
+  revokedReason String? // "DEACTIVATED" | "MANAGER_REVOKED" | "FORCE_LOGOUT" | "SELF_LOGOUT_OTHERS"
+
+  @@index([userId, revokedAt])
+  @@index([lastSeenAt])
+}
+
+// Append-only, unified "who did what" log across the app — exports, deletes,
+// role/permission changes, forced logouts, bulk actions. Complements the
+// narrower AuthEvent (login attempts) and per-module logs that keep
+// recording their own specialised detail (VaultAuditEvent, InvoiceAuditLog,
+// HrAuditLog, TicketHistory, AuthEventView, …); this is the cross-cutting,
+// searchable one shown on /manager/audit. Retention: SystemConfig
+// authEventRetentionDays (default 90), same as AuthEvent/UserSession.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole  String? // snapshot at the time of the action — a later role change must not rewrite history
+  action     String // "CREATE" | "UPDATE" | "DELETE" | "EXPORT" | "ROLE_CHANGE" | "STATUS_CHANGE" | "PERMISSION_CHANGE" | "SESSION_REVOKE" | "FORCE_LOGOUT" | "BULK_ACTION" | …
+  entityType String // e.g. "User", "Client", "Mission", "List", "Invoice"
+  entityId   String?
+  summary    String // human-readable one-liner shown in the manager UI
+  before     Json?
+  after      Json?
+  metadata   Json?
+  ip         String?
+  userAgent  String? // truncated to 512 chars
+  sessionId  String? // UserSession.id at the time — not a FK, sessions are purged on their own retention
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+// Audit trail for admin access to another user's auth history or live
+// sessions. action: "VIEW_HISTORY" | "EXPORT_HISTORY" | "VIEW_SESSIONS" |
+// "REVOKE_SESSION" | "FORCE_LOGOUT".
 model AuthEventView {
   id           String   @id @default(cuid())
   viewerId     String

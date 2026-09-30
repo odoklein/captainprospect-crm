@@ -6,6 +6,7 @@ import {
 } from "@/lib/api-utils";
 import { invoiceService } from "@/lib/billing/invoice-service";
 import { storageService } from "@/lib/storage/storage-service";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 
 // ============================================
 // GET /api/billing/invoices/[id]/pdf - Download PDF
@@ -15,7 +16,7 @@ export const GET = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(["MANAGER"], request);
+    const session = await requireRole(["MANAGER"], request);
     const { id } = await params;
 
     const invoice = await invoiceService.getInvoice(id);
@@ -39,6 +40,14 @@ export const GET = withErrorHandler(async (
     try {
         // Download PDF from storage
         const pdfBuffer = await storageService.download(key);
+
+        audit(request, session, {
+            action: AUDIT_ACTIONS.EXPORT,
+            entityType: "Invoice",
+            entityId: id,
+            summary: `Téléchargement PDF facture ${invoice.invoiceNumber || id}`,
+            metadata: { invoiceNumber: invoice.invoiceNumber, format: "pdf" },
+        });
 
         // Return PDF as response (Uint8Array is valid BodyInit; Buffer is not in DOM types)
         return new NextResponse(new Uint8Array(pdfBuffer), {

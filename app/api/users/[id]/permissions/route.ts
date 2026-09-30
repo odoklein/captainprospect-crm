@@ -10,6 +10,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import { UserRole } from '@prisma/client';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 
 // ============================================
 // GET /api/users/[id]/permissions - Get user's effective permissions
@@ -90,14 +91,14 @@ export const PUT = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
     const data = await validateRequest(request, updatePermissionsSchema);
 
     // Check user exists
     const user = await prisma.user.findUnique({
         where: { id },
-        select: { id: true, role: true },
+        select: { id: true, role: true, name: true },
     });
 
     if (!user) {
@@ -114,6 +115,18 @@ export const PUT = withErrorHandler(async (
         include: { permission: true },
     });
     const rolePermissionCodes = new Set(rolePermissions.map(rp => rp.permission.code));
+
+    // Effective permissions BEFORE this change, so the audit entry can record
+    // exactly which codes were gained/lost.
+    const existingOverrides = await prisma.userPermission.findMany({
+        where: { userId: id },
+        include: { permission: true },
+    });
+    const effectiveBefore = new Set<string>(rolePermissionCodes);
+    for (const up of existingOverrides) {
+        if (up.granted) effectiveBefore.add(up.permission.code);
+        else effectiveBefore.delete(up.permission.code);
+    }
 
     // Process each permission update
     const operations = [];
@@ -168,6 +181,20 @@ export const PUT = withErrorHandler(async (
         } else {
             effectivePermissions.delete(up.permission.code);
         }
+    }
+
+    const granted = [...effectivePermissions].filter(c => !effectiveBefore.has(c));
+    const revoked = [...effectiveBefore].filter(c => !effectivePermissions.has(c));
+    if (granted.length > 0 || revoked.length > 0) {
+        audit(request, session, {
+            action: AUDIT_ACTIONS.PERMISSION_CHANGE,
+            entityType: 'User',
+            entityId: id,
+            summary: `Permissions de ${user.name} : +${granted.length} / −${revoked.length}`,
+            before: { permissions: [...effectiveBefore].sort() },
+            after: { permissions: [...effectivePermissions].sort() },
+            metadata: { granted, revoked },
+        });
     }
 
     return successResponse({

@@ -8,6 +8,8 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { revokeAllUserSessions } from '@/lib/user-session';
+import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 
 // ============================================
 // PUT /api/users/[id]/status - Toggle user active status
@@ -56,6 +58,23 @@ export const PUT = withErrorHandler(async (
             role: true,
             isActive: true,
         },
+    });
+
+    // Deactivating a user must end every session they're currently signed in
+    // on immediately, not in up to 8h when their JWT expires.
+    let revokedSessions = 0;
+    if (!data.isActive) {
+        revokedSessions = await revokeAllUserSessions(id, session.user.id, 'DEACTIVATED').catch(() => 0);
+    }
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.STATUS_CHANGE,
+        entityType: 'User',
+        entityId: id,
+        summary: `Compte de ${updatedUser.name} ${data.isActive ? 'activé' : 'désactivé'}`,
+        before: { isActive: !data.isActive },
+        after: { isActive: data.isActive },
+        metadata: data.isActive ? undefined : { revokedSessions },
     });
 
     return successResponse({
