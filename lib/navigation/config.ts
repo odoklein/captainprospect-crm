@@ -532,7 +532,8 @@ export const DEVELOPER_NAV: NavSection[] = [
 ];
 
 // ============================================
-// CLIENT NAVIGATION — Portal + Outils groups
+// CLIENT NAVIGATION — daily pages (Accueil, Mes RDV, Activité, Base de
+// données) stand alone at the top; everything else is grouped by purpose.
 // ============================================
 
 export const CLIENT_NAV: NavSection[] = [
@@ -551,15 +552,26 @@ export const CLIENT_NAV: NavSection[] = [
         permission: "pages.dashboard",
       },
       {
-        href: "/client/portal/reporting",
-        icon: FileDown,
-        label: "Rapports",
-        permission: "pages.dashboard",
-      },
-      {
         href: "/client/portal/activite",
         icon: Activity,
         label: "Activité",
+        permission: "pages.dashboard",
+      },
+      {
+        href: "/client/portal/database",
+        icon: Database,
+        label: "Base de données",
+        permission: "pages.dashboard",
+      },
+    ],
+  },
+  {
+    title: "Suivi",
+    items: [
+      {
+        href: "/client/portal/reporting",
+        icon: FileDown,
+        label: "Rapports",
         permission: "pages.dashboard",
       },
       {
@@ -567,18 +579,6 @@ export const CLIENT_NAV: NavSection[] = [
         icon: Ban,
         label: "Ne plus contacter",
         permission: "pages.dashboard",
-      },
-      {
-        href: "/client/portal/roadmap",
-        icon: Map,
-        label: "Roadmap",
-        permission: "pages.client_roadmap",
-      },
-      {
-        href: "/client/portal/changelog",
-        icon: Sparkles,
-        label: "Nouveautés",
-        permission: "pages.client_roadmap",
       },
     ],
   },
@@ -598,12 +598,6 @@ export const CLIENT_NAV: NavSection[] = [
         permission: "pages.dashboard",
       },
       {
-        href: "/client/portal/database",
-        icon: Database,
-        label: "Base de données",
-        permission: "pages.dashboard",
-      },
-      {
         href: "/client/portal/files",
         icon: FileText,
         label: "Fichiers",
@@ -615,11 +609,22 @@ export const CLIENT_NAV: NavSection[] = [
         label: "Sales Playbook",
         permission: "pages.dashboard",
       },
+    ],
+  },
+  {
+    title: "Produit",
+    items: [
       {
-        href: "/client/portal/aide",
-        icon: HelpCircle,
-        label: "Aide",
-        permission: "pages.dashboard",
+        href: "/client/portal/roadmap",
+        icon: Map,
+        label: "Roadmap",
+        permission: "pages.client_roadmap",
+      },
+      {
+        href: "/client/portal/changelog",
+        icon: Sparkles,
+        label: "Nouveautés",
+        permission: "pages.client_roadmap",
       },
     ],
   },
@@ -630,6 +635,12 @@ export const CLIENT_NAV: NavSection[] = [
         href: "/client/portal/settings",
         icon: Settings,
         label: "Paramètres",
+        permission: "pages.dashboard",
+      },
+      {
+        href: "/client/portal/aide",
+        icon: HelpCircle,
+        label: "Aide",
         permission: "pages.dashboard",
       },
     ],

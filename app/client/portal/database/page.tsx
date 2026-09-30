@@ -204,17 +204,6 @@ function ProgressPanel({ stageCounts, total, activeStage, onStage, grown }: {
                     />
                 ))}
             </div>
-
-            <div className={s.legend}>
-                {PORTAL_STAGE_ORDER.map((stage) => (
-                    <button key={stage} type="button" className={s.legendItem} data-active={activeStage === stage}
-                        style={cssVar(STAGE_COLOR[stage])} onClick={() => onStage(activeStage === stage ? null : stage)}>
-                        <span className={s.legendDot} />
-                        <span className={s.legendLabel}>{PORTAL_STAGE_LABELS[stage]}</span>
-                        <span className={cx(s.legendCount, s.num)}>{stageCounts[stage].toLocaleString("fr-FR")}</span>
-                    </button>
-                ))}
-            </div>
         </section>
     );
 }
@@ -394,9 +383,10 @@ function StageTrack({ t }: { t: PortalTreatment }) {
     );
 }
 
-function Inspector({ company, exclusion, timeline, position, total, nowMs, onPrev, onNext, onClose, ensureTimeline }: {
+function Inspector({ company, exclusion, commercialNames, timeline, position, total, nowMs, onPrev, onNext, onClose, ensureTimeline }: {
     company: PortalCompany;
     exclusion: PortalExclusion | undefined;
+    commercialNames: string[];
     timeline: LoadedTimeline | undefined;
     position: number;
     total: number;
@@ -588,6 +578,10 @@ function Inspector({ company, exclusion, timeline, position, total, nowMs, onPre
                                 ? <a className={s.link} href={company.website.startsWith("http") ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer"><Globe2 size={12} style={{ verticalAlign: -1, marginRight: 4 }} />{cleanWebsite(company.website)}</a>
                                 : <span className={s.muted}>—</span>}
                         </span>
+                        <span className={s.infoKey}>Commercial</span>
+                        <span className={s.infoVal} title={commercialNames.join(", ")}>
+                            {commercialNames.length > 0 ? commercialNames.join(", ") : <span className={s.muted}>Non attribué</span>}
+                        </span>
                         <span className={s.infoKey}>Mission</span>
                         <span className={s.infoVal}>{company.missionName}</span>
                         <span className={s.infoKey}>Liste</span>
@@ -620,6 +614,9 @@ export default function ClientPortalDatabasePage() {
     const [industry, setIndustry] = useState("");
     const [country, setCountry] = useState("");
     const [mission, setMission] = useState("");
+    const [listId, setListId] = useState("");
+    /** "" = all, "none" = no commercial, else an interlocuteur id */
+    const [commercial, setCommercial] = useState("");
     const [sort, setSort] = useState<SortKey>("recent");
 
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -707,15 +704,23 @@ export default function ClientPortalDatabasePage() {
     }, [companies]);
     const multiMission = facets.missions.length > 1;
 
+    const commercialNameById = useMemo(() => new Map((data?.commercials ?? []).map((c) => [c.id, c.name])), [data]);
+    const hasUnassigned = useMemo(() => companies.some((c) => c.commercialIds.length === 0), [companies]);
+    const listOptions = useMemo(
+        () => (data?.lists ?? []).filter((l) => !mission || l.missionName === mission),
+        [data, mission]
+    );
+
     const haystacks = useMemo(
         () => new Map(companies.map((c) => [
             c.id,
             fold([
                 c.name, c.industry, c.country, c.size, c.missionName, c.listName, c.treatment.lastResultLabel,
+                ...c.commercialIds.map((id) => commercialNameById.get(id)),
                 ...c.contacts.flatMap((ct) => [ct.firstName, ct.lastName, ct.title, ct.email, ct.phone]),
             ].filter(Boolean).join(" ")),
         ])),
-        [companies]
+        [companies, commercialNameById]
     );
 
     const exclusionById = useMemo(() => new Map((data?.exclusions ?? []).map((e) => [e.id, e])), [data]);
@@ -726,8 +731,10 @@ export default function ClientPortalDatabasePage() {
         (!industry || c.industry === industry) &&
         (!country || c.country === country) &&
         (!mission || c.missionName === mission) &&
+        (!listId || c.listId === listId) &&
+        (!commercial || (commercial === "none" ? c.commercialIds.length === 0 : c.commercialIds.includes(commercial))) &&
         (!query || (haystacks.get(c.id) ?? "").includes(query))
-    ), [companies, industry, country, mission, query, haystacks]);
+    ), [companies, industry, country, mission, listId, commercial, query, haystacks]);
 
     const tabCounts = useMemo(() => {
         const counts = EMPTY_COUNTS();
@@ -763,7 +770,7 @@ export default function ClientPortalDatabasePage() {
 
     useEffect(() => {
         if (listRef.current) listRef.current.scrollTop = 0;
-    }, [query, stage, industry, country, mission, sort]);
+    }, [query, stage, industry, country, mission, listId, commercial, sort]);
 
     const onScroll = (e: UIEvent<HTMLDivElement>) => {
         const top = e.currentTarget.scrollTop;
@@ -851,8 +858,10 @@ export default function ClientPortalDatabasePage() {
         return () => document.removeEventListener("keydown", onKey);
     }, [move, scrollIntoView, filtered, activeId, drawerOpen, search]);
 
-    const hasFilters = !!(search || stage || industry || country || mission);
-    const resetFilters = () => { setSearch(""); setStage(null); setIndustry(""); setCountry(""); setMission(""); };
+    const hasFilters = !!(search || stage || industry || country || mission || listId || commercial);
+    const resetFilters = () => {
+        setSearch(""); setStage(null); setIndustry(""); setCountry(""); setMission(""); setListId(""); setCommercial("");
+    };
     const total = companies.length;
     const isLoading = data === null;
 
@@ -933,9 +942,33 @@ export default function ClientPortalDatabasePage() {
                     </div>
                     <div className={s.toolbarRight}>
                         {multiMission && (
-                            <select className={s.pillSelect} data-active={!!mission} value={mission} onChange={(e) => setMission(e.target.value)} aria-label="Mission">
+                            <select className={s.pillSelect} data-active={!!mission} value={mission} aria-label="Mission"
+                                onChange={(e) => { setMission(e.target.value); setListId(""); }}>
                                 <option value="">Toutes les missions</option>
                                 {facets.missions.map((v) => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                        )}
+                        {(data?.lists.length ?? 0) > 1 && (
+                            <select className={s.pillSelect} data-active={!!listId} value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Liste">
+                                <option value="">Toutes les listes</option>
+                                {multiMission && !mission
+                                    ? facets.missions.map((m) => (
+                                        <optgroup key={m} label={m}>
+                                            {listOptions.filter((l) => l.missionName === m).map((l) => (
+                                                <option key={l.id} value={l.id}>{l.name}{l.isArchived ? " (archivée)" : ""} · {l.companyCount}</option>
+                                            ))}
+                                        </optgroup>
+                                    ))
+                                    : listOptions.map((l) => (
+                                        <option key={l.id} value={l.id}>{l.name}{l.isArchived ? " (archivée)" : ""} · {l.companyCount}</option>
+                                    ))}
+                            </select>
+                        )}
+                        {(data?.commercials.length ?? 0) > 0 && (
+                            <select className={s.pillSelect} data-active={!!commercial} value={commercial} onChange={(e) => setCommercial(e.target.value)} aria-label="Commercial">
+                                <option value="">Tous les commerciaux</option>
+                                {data?.commercials.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {hasUnassigned && <option value="none">Sans commercial</option>}
                             </select>
                         )}
                         {facets.industries.length > 1 && (
@@ -964,7 +997,7 @@ export default function ClientPortalDatabasePage() {
             <div className={s.list} style={!isLoading && total === 0 ? { display: "none" } : undefined}>
                 <div className={s.listHead} aria-hidden="true">
                     <span>Entreprise</span>
-                    <span>Effort</span>
+                    <span>Tentatives</span>
                     <span>Statut</span>
                     <span style={{ textAlign: "right" }}>Dernier contact</span>
                 </div>
@@ -1037,6 +1070,7 @@ export default function ClientPortalDatabasePage() {
                 <Inspector
                     company={activeCompany}
                     exclusion={activeCompany.exclusionId ? exclusionById.get(activeCompany.exclusionId) : undefined}
+                    commercialNames={activeCompany.commercialIds.map((id) => commercialNameById.get(id)).filter((n): n is string => !!n)}
                     timeline={timelines[activeCompany.id]}
                     position={activeIndex + 1}
                     total={filtered.length}

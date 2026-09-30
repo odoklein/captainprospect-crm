@@ -21,12 +21,39 @@ function toChannel(value: string): ExportAction["channel"] {
     return value === "EMAIL" || value === "LINKEDIN" ? value : "CALL";
 }
 
-type MissionRef = { id: string; name: string; lists: { id: string; name: string }[] };
+type MissionRef = {
+    id: string;
+    name: string;
+    defaultInterlocuteurId: string | null;
+    lists: {
+        id: string;
+        name: string;
+        isArchived: boolean;
+        commercialInterlocuteurId: string | null;
+        secondaryCommercialIds: string[];
+    }[];
+};
 
-async function loadMission(mission: MissionRef): Promise<{ companies: PortalCompany[]; actions: ExportAction[] }> {
+/** List's primary + secondary commercials, else the mission default — active ones only. */
+function listCommercials(mission: MissionRef, activeIds: Set<string>): Map<string, string[]> {
+    const fallback = mission.defaultInterlocuteurId && activeIds.has(mission.defaultInterlocuteurId)
+        ? [mission.defaultInterlocuteurId]
+        : [];
+    return new Map(mission.lists.map((l) => {
+        const own = [...new Set([l.commercialInterlocuteurId, ...l.secondaryCommercialIds])]
+            .filter((id): id is string => !!id && activeIds.has(id));
+        return [l.id, own.length > 0 ? own : fallback];
+    }));
+}
+
+async function loadMission(
+    mission: MissionRef,
+    activeCommercialIds: Set<string>
+): Promise<{ companies: PortalCompany[]; actions: ExportAction[] }> {
     const listIds = mission.lists.map((l) => l.id);
     if (listIds.length === 0) return { companies: [], actions: [] };
     const listNames = new Map(mission.lists.map((l) => [l.id, l.name]));
+    const commercialsByList = listCommercials(mission, activeCommercialIds);
 
     const [companies, actions, statuses] = await Promise.all([
         prisma.company.findMany({
@@ -165,7 +192,9 @@ async function loadMission(mission: MissionRef): Promise<{ companies: PortalComp
         excludedAt: company.excludedAt?.toISOString() ?? null,
         exclusionId: company.exclusionId,
         missionName: mission.name,
+        listId: company.listId,
         listName: listNames.get(company.listId) ?? "",
+        commercialIds: commercialsByList.get(company.listId) ?? [],
         contacts,
         treatment: companyRollup(lines, totalsByCompany.get(company.id)),
     }));
@@ -179,6 +208,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const now = new Date();
     const empty: PortalDatabaseResponse = {
         companies: [],
+        lists: [],
+        commercials: [],
         exclusions: [],
         activity: buildWeeklyActivity([], now),
         generatedAt: now.toISOString(),
@@ -186,14 +217,56 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     if (!clientId) return successResponse(empty);
 
-    const missions = await prisma.mission.findMany({
-        where: { clientId, AND: [portalVisibleMissionWhere()] },
-        select: { id: true, name: true, lists: { select: { id: true, name: true } } },
-    });
+    const [missions, interlocuteurs] = await Promise.all([
+        prisma.mission.findMany({
+            where: { clientId, AND: [portalVisibleMissionWhere()] },
+            select: {
+                id: true,
+                name: true,
+                defaultInterlocuteurId: true,
+                lists: {
+                    select: {
+                        id: true,
+                        name: true,
+                        isArchived: true,
+                        commercialInterlocuteurId: true,
+                        secondaryCommercialIds: true,
+                    },
+                    orderBy: { createdAt: "desc" },
+                },
+            },
+            orderBy: { name: "asc" },
+        }),
+        prisma.clientInterlocuteur.findMany({
+            where: { clientId, isActive: true },
+            select: { id: true, firstName: true, lastName: true },
+            orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+        }),
+    ]);
     if (missions.length === 0) return successResponse(empty);
 
-    const loaded = await Promise.all(missions.map(loadMission));
+    const activeCommercialIds = new Set(interlocuteurs.map((i) => i.id));
+    const loaded = await Promise.all(missions.map((m) => loadMission(m, activeCommercialIds)));
     const companies = loaded.flatMap((m) => m.companies);
+
+    const companyCountByList = new Map<string, number>();
+    const usedCommercials = new Set<string>();
+    for (const c of companies) {
+        companyCountByList.set(c.listId, (companyCountByList.get(c.listId) ?? 0) + 1);
+        for (const id of c.commercialIds) usedCommercials.add(id);
+    }
+    const lists = missions.flatMap((m) => m.lists
+        .filter((l) => companyCountByList.has(l.id))
+        .map((l) => ({
+            id: l.id,
+            name: l.name,
+            missionName: m.name,
+            isArchived: l.isArchived,
+            companyCount: companyCountByList.get(l.id) ?? 0,
+        })));
+    const commercials = interlocuteurs
+        .filter((i) => usedCommercials.has(i.id))
+        .map((i) => ({ id: i.id, name: [i.firstName, i.lastName].filter(Boolean).join(" ") }));
 
     // Attach the reason so the badge can explain itself without a second call.
     const exclusionIds = [
@@ -212,6 +285,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const body: PortalDatabaseResponse = {
         companies,
+        lists,
+        commercials,
         exclusions: exclusions.map((e) => ({
             id: e.id,
             reason: e.reason,

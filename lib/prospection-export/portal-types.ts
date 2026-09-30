@@ -70,7 +70,13 @@ export interface PortalCompany {
     excludedAt: string | null;
     exclusionId: string | null;
     missionName: string;
+    listId: string;
     listName: string;
+    /**
+     * Client commercials (interlocuteurs) owning this company: its list's
+     * primary + secondary commercials, else the mission's default one.
+     */
+    commercialIds: string[];
     contacts: PortalContact[];
     /**
      * Company-level rollup: the best stage reached by any of its lines (a
@@ -95,8 +101,25 @@ export interface PortalActivityWeek {
     meetings: number;
 }
 
+export interface PortalList {
+    id: string;
+    name: string;
+    missionName: string;
+    isArchived: boolean;
+    companyCount: number;
+}
+
+export interface PortalCommercial {
+    id: string;
+    name: string;
+}
+
 export interface PortalDatabaseResponse {
     companies: PortalCompany[];
+    /** Lists that hold at least one company, newest first within each mission. */
+    lists: PortalList[];
+    /** Active commercials that own at least one company. */
+    commercials: PortalCommercial[];
     exclusions: PortalExclusion[];
     /** Oldest first, fixed length, zero-filled. */
     activity: PortalActivityWeek[];
