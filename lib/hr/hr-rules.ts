@@ -63,6 +63,7 @@ export interface MonthComputationInput {
   absences: { start: string; end: string; type: string }[];
   callsByDay: Map<string, number>;
   rdvByDay: Map<string, number>;
+  missionsByDay: Map<string, { missionId: string; missionName: string; calls: number; rdv: number }[]>;
   decisions: Map<string, { decision: HrDayDecision; reason: string; decidedAt?: string }>;
   adjustmentCents: number;
   todayKey: string;
@@ -145,6 +146,7 @@ export function computeMonth(input: MonthComputationInput): MonthComputation {
       isFuture,
       callCount,
       rdvCount,
+      missions: input.missionsByDay.get(date) ?? [],
       isUnderQuota,
       decision: decision?.decision,
       decisionReason: decision?.reason,

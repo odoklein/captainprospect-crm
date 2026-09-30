@@ -70,15 +70,50 @@ function bounds(monthStr: string) {
   }
 }
 
-function countByUserDay(rows: { sdrId: string; createdAt: Date }[]) {
+function countByUserDay(rows: { sdrId: string; day: Date }[]) {
   const map = new Map<string, Map<string, number>>();
   for (const r of rows) {
-    const key = parisDayKey(r.createdAt);
+    const key = parisDayKey(r.day);
     let perDay = map.get(r.sdrId);
     if (!perDay) map.set(r.sdrId, (perDay = new Map()));
     perDay.set(key, (perDay.get(key) || 0) + 1);
   }
   return map;
+}
+
+type MissionActionRow = {
+  sdrId: string;
+  day: Date;
+  missionId: string | null | undefined;
+  missionName: string | null | undefined;
+};
+
+/** Per user, per day, which mission(s) the calls/RDVs in that day belong to. */
+function buildMissionsByUserDay(callRows: MissionActionRow[], rdvRows: MissionActionRow[]) {
+  const map = new Map<string, Map<string, Map<string, { missionId: string; missionName: string; calls: number; rdv: number }>>>();
+
+  const bump = (row: MissionActionRow, field: "calls" | "rdv") => {
+    if (!row.missionId) return;
+    const dayKey = parisDayKey(row.day);
+    let perUser = map.get(row.sdrId);
+    if (!perUser) map.set(row.sdrId, (perUser = new Map()));
+    let perDay = perUser.get(dayKey);
+    if (!perDay) perUser.set(dayKey, (perDay = new Map()));
+    let entry = perDay.get(row.missionId);
+    if (!entry) perDay.set(row.missionId, (entry = { missionId: row.missionId, missionName: row.missionName || "Mission", calls: 0, rdv: 0 }));
+    entry[field]++;
+  };
+
+  callRows.forEach((r) => bump(r, "calls"));
+  rdvRows.forEach((r) => bump(r, "rdv"));
+
+  const byUser = new Map<string, Map<string, { missionId: string; missionName: string; calls: number; rdv: number }[]>>();
+  for (const [userId, perDay] of map) {
+    const days = new Map<string, { missionId: string; missionName: string; calls: number; rdv: number }[]>();
+    for (const [dayKey, byMission] of perDay) days.set(dayKey, Array.from(byMission.values()));
+    byUser.set(userId, days);
+  }
+  return byUser;
 }
 
 async function loadMonthContext(userIds: string[], monthStr: string) {
@@ -102,16 +137,31 @@ async function loadMonthContext(userIds: string[], monthStr: string) {
         channel: "CALL",
         createdAt: { gte: b.activityStart, lt: b.activityEndExclusive },
       },
-      select: { sdrId: true, createdAt: true },
+      select: {
+        sdrId: true,
+        createdAt: true,
+        campaign: { select: { missionId: true, mission: { select: { name: true } } } },
+      },
     }),
+    // RDVs count toward the month of the appointment itself (callbackDate =
+    // the client-facing meeting date), not the day the télépro logged it.
+    // Rows without a callbackDate (older data) fall back to createdAt.
     prisma.action.findMany({
       where: {
         sdrId: { in: userIds },
         result: "MEETING_BOOKED",
         confirmationStatus: { not: "CANCELLED" },
-        createdAt: { gte: b.activityStart, lt: b.activityEndExclusive },
+        OR: [
+          { callbackDate: { gte: b.activityStart, lt: b.activityEndExclusive } },
+          { callbackDate: null, createdAt: { gte: b.activityStart, lt: b.activityEndExclusive } },
+        ],
       },
-      select: { sdrId: true, createdAt: true },
+      select: {
+        sdrId: true,
+        createdAt: true,
+        callbackDate: true,
+        campaign: { select: { missionId: true, mission: { select: { name: true } } } },
+      },
     }),
     prisma.hrMonthRecord.findMany({
       where: { userId: { in: userIds }, month: monthStr },
@@ -125,8 +175,12 @@ async function loadMonthContext(userIds: string[], monthStr: string) {
   return {
     holidayMap,
     absences,
-    callsByUser: countByUserDay(calls),
-    rdvByUser: countByUserDay(rdvs),
+    callsByUser: countByUserDay(calls.map((c) => ({ sdrId: c.sdrId, day: c.createdAt }))),
+    rdvByUser: countByUserDay(rdvs.map((r) => ({ sdrId: r.sdrId, day: r.callbackDate ?? r.createdAt }))),
+    missionsByUser: buildMissionsByUserDay(
+      calls.map((c) => ({ sdrId: c.sdrId, day: c.createdAt, missionId: c.campaign?.missionId, missionName: c.campaign?.mission?.name })),
+      rdvs.map((r) => ({ sdrId: r.sdrId, day: r.callbackDate ?? r.createdAt, missionId: r.campaign?.missionId, missionName: r.campaign?.mission?.name }))
+    ),
     recordByUser: new Map(records.map((r) => [r.userId, r])),
   };
 }
@@ -156,6 +210,7 @@ function computeForUser(user: UserWithProfile, monthStr: string, ctx: MonthConte
       .map((a) => ({ start: dateColumnKey(a.startDate), end: dateColumnKey(a.endDate), type: a.type })),
     callsByDay: ctx.callsByUser.get(user.id) ?? new Map(),
     rdvByDay: ctx.rdvByUser.get(user.id) ?? new Map(),
+    missionsByDay: ctx.missionsByUser.get(user.id) ?? new Map(),
     decisions,
     adjustmentCents: record?.adjustmentCents ?? 0,
     todayKey: todayParisKey(),
@@ -475,7 +530,7 @@ export class HrCalculationService {
     actorId: string,
     options?: { adjustmentCents?: number; adjustmentNote?: string }
   ) {
-    const record = await prisma.hrMonthRecord.findUnique({ where: { id: monthRecordId } });
+    let record = await prisma.hrMonthRecord.findUnique({ where: { id: monthRecordId } });
     if (!record) throw new NotFoundError("Dossier mensuel introuvable");
 
     const transition = resolveStatusTransition(record.status, newStatus);
@@ -498,9 +553,13 @@ export class HrCalculationService {
         );
       }
       if (live.totalAmountCents !== record.totalAmountCents || live.totalCalls !== record.totalCalls) {
-        throw new ValidationError(
-          "L'activité a changé depuis le dernier calcul. Cliquez sur « Recalculer le mois » avant de valider."
-        );
+        // Activity moved since the record was last saved (e.g. the télépro is
+        // still logging calls today) — refresh the figures instead of forcing
+        // the manager into a manual "Recalculer" round-trip that a new call
+        // could immediately invalidate again.
+        await this.calculateUserMonth(record.userId, record.month, true, actorId);
+        record = await prisma.hrMonthRecord.findUnique({ where: { id: monthRecordId } });
+        if (!record) throw new NotFoundError("Dossier mensuel introuvable");
       }
     }
 

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NotFoundError, ValidationError } from "@/lib/api-utils";
-import { ContractType, RemunerationMode, HrProfileData } from "./hr-types";
+import { ContractType, RemunerationMode, HrMonthStatus, HrProfileData } from "./hr-types";
+import { hrCalculationService } from "./hr-calculation-service";
 
 export class HrProfileService {
   /**
@@ -205,6 +206,17 @@ export class HrProfileService {
         },
       },
     });
+
+    // The pay mode/rate just changed — any month that isn't locked yet still
+    // shows the old RDV bonus/fixed amount until recalculated, and nothing
+    // else was forcing that before a manager validated it. Refresh those now.
+    const openRecords = await prisma.hrMonthRecord.findMany({
+      where: { userId: data.userId, status: { in: [HrMonthStatus.DRAFT, HrMonthStatus.TO_VERIFY] } },
+      select: { month: true },
+    });
+    for (const r of openRecords) {
+      await hrCalculationService.calculateUserMonth(data.userId, r.month, true, actorId);
+    }
 
     return updatedProfile;
   }

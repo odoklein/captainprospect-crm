@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { DateTime } from "luxon";
 
 // ============================================
 // GET /api/actions/stats
@@ -28,13 +29,14 @@ export async function GET(request: NextRequest) {
         if (endDate) dateFilter.lte = new Date(endDate);
         const hasDateFilter = Object.keys(dateFilter).length > 0;
 
-        const now = new Date();
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay() + 1);
-        startOfWeek.setHours(0, 0, 0, 0);
-        const startOfDay = new Date(now);
-        startOfDay.setHours(0, 0, 0, 0);
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        // Anchored to Europe/Paris (not server-local time) and to luxon's ISO
+        // week (Monday start), so "this week" doesn't jump to tomorrow on
+        // Sundays and "this month" matches the calendar month the télépro is
+        // actually in.
+        const nowParis = DateTime.now().setZone("Europe/Paris");
+        const startOfWeek = nowParis.startOf("week").toJSDate();
+        const startOfDay = nowParis.startOf("day").toJSDate();
+        const startOfMonth = nowParis.startOf("month").toJSDate();
 
         const users = await prisma.user.findMany({
             where: {

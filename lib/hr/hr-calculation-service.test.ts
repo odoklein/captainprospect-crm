@@ -26,6 +26,7 @@ function input(overrides: Partial<MonthComputationInput> = {}): MonthComputation
     absences: [],
     callsByDay: new Map(),
     rdvByDay: new Map(),
+    missionsByDay: new Map(),
     decisions: new Map(),
     adjustmentCents: 0,
     todayKey: "2026-10-01",

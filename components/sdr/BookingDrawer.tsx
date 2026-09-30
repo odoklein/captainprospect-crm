@@ -164,6 +164,18 @@ function getEmbedBookingUrl(rawUrl: string): string {
     }
 }
 
+/**
+ * Hosts known to send X-Frame-Options/CSP `frame-ancestors` headers that refuse
+ * third-party framing outright (Microsoft Bookings, Outlook, Teams) — no embed
+ * flag can work around that, so these always fall back to "open in a new tab"
+ * instead of loading a doomed iframe.
+ */
+const NON_EMBEDDABLE_HOST_RE = /(^|\.)(bookings\.cloud\.microsoft|outlook\.office(365)?\.com|teams\.microsoft\.com)$/i;
+
+function isEmbeddableBookingHost(host: string): boolean {
+    return !!host && !NON_EMBEDDABLE_HOST_RE.test(host);
+}
+
 // ── Typewriter hook
 function useTypewriter(text: string, speed = 22, startDelay = 0) {
     const [displayed, setDisplayed] = useState("");
@@ -615,12 +627,26 @@ export function BookingDrawer({
         if (!embedUrl) return "";
         try { return new URL(embedUrl).hostname.toLowerCase(); } catch { return ""; }
     }, [embedUrl]);
+    const embeddable = isEmbeddableBookingHost(embedHost);
+    /** Belt-and-suspenders for providers we don't yet know block framing: if the
+     *  iframe hasn't fired onLoad after a few seconds (silently dropped by CSP or
+     *  the provider's own frame-ancestors header), stop spinning forever and offer
+     *  the same "open in a new tab" fallback. */
+    const [iframeTimedOut, setIframeTimedOut] = useState(false);
+    useEffect(() => {
+        if (!embeddable || !iframeLoading) return;
+        setIframeTimedOut(false);
+        const timer = setTimeout(() => setIframeTimedOut(true), 7000);
+        return () => clearTimeout(timer);
+    }, [embeddable, iframeLoading, embedUrl]);
+    const showEmbedFallback = !embeddable || iframeTimedOut;
 
     useEffect(() => {
         if (!isOpen) return;
         setConfirmedBooking(null);
         setIsProcessing(false);
         setIframeLoading(true);
+        setIframeTimedOut(false);
         // Land on the preferred commercial's calendar when the list is owned by one.
         setSelectedOptionId(preferredOptions[0]?.id ?? bookingOptions[0]?.id ?? null);
         setShowOtherCalendars(false);
@@ -662,6 +688,7 @@ export function BookingDrawer({
     const handleSelectCalendar = useCallback((id: string) => {
         if (id === selectedOptionId) return;
         setIframeLoading(true);
+        setIframeTimedOut(false);
         setSelectedOptionId(id);
     }, [selectedOptionId]);
 
@@ -1234,11 +1261,45 @@ export function BookingDrawer({
                                     )}
 
                                     <div className="flex-1 min-h-0 relative">
-                                        {iframeLoading && !isProcessing && (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white z-10">
-                                                <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
-                                                <p className="text-sm text-slate-500">Chargement du calendrier…</p>
+                                        {showEmbedFallback ? (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
+                                                <span className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                                    <Calendar className="w-6 h-6" aria-hidden="true" />
+                                                </span>
+                                                <div>
+                                                    <p className="text-sm font-semibold text-slate-700">Ce calendrier ne peut pas s'afficher ici</p>
+                                                    <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                                                        Ouvrez-le dans un nouvel onglet pour réserver le créneau, puis revenez renseigner la date ci-contre.
+                                                    </p>
+                                                </div>
+                                                <a
+                                                    href={selectedOption.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 shadow-md hover:shadow-lg transition-all"
+                                                >
+                                                    Ouvrir dans un nouvel onglet
+                                                    <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                                                </a>
                                             </div>
+                                        ) : (
+                                            <>
+                                                {iframeLoading && !isProcessing && (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white z-10">
+                                                        <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
+                                                        <p className="text-sm text-slate-500">Chargement du calendrier…</p>
+                                                    </div>
+                                                )}
+                                                <iframe
+                                                    ref={iframeRef}
+                                                    src={embedUrl}
+                                                    key={selectedOption.id}
+                                                    onLoad={() => setIframeLoading(false)}
+                                                    className="w-full h-full min-h-[320px] border-0"
+                                                    title={selectedOption.label}
+                                                    allow="camera; microphone; geolocation"
+                                                />
+                                            </>
                                         )}
                                         {isProcessing && (
                                             <div className="absolute inset-0 bg-white/95 z-20 flex flex-col items-center justify-center gap-3">
@@ -1246,15 +1307,6 @@ export function BookingDrawer({
                                                 <p className="text-sm font-medium text-slate-700">Enregistrement du rendez-vous…</p>
                                             </div>
                                         )}
-                                        <iframe
-                                            ref={iframeRef}
-                                            src={embedUrl}
-                                            key={selectedOption.id}
-                                            onLoad={() => setIframeLoading(false)}
-                                            className="w-full h-full min-h-[320px] border-0"
-                                            title={selectedOption.label}
-                                            allow="camera; microphone; geolocation"
-                                        />
                                     </div>
                                 </>
                             )}

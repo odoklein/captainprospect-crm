@@ -294,7 +294,7 @@ export function HrCalculationDetailModal({
                   <thead className="sticky top-0 border-b border-slate-200 bg-slate-50 font-medium text-slate-600">
                     <tr>
                       <th scope="col" className="px-3 py-2.5">Date</th>
-                      <th scope="col" className="px-3 py-2.5">Journée</th>
+                      <th scope="col" className="px-3 py-2.5">Mission(s)</th>
                       <th scope="col" className="px-3 py-2.5">Appels</th>
                       <th scope="col" className="px-3 py-2.5">RDV</th>
                       <th scope="col" className="px-3 py-2.5">Objectif</th>
@@ -468,6 +468,17 @@ function DayType({ d }: { d: DayActivityDetail }) {
   if (!d.isWorkingDay) return <span className="text-[10px] text-slate-400">Week-end</span>;
   if (d.isAbsence) {
     return <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Absence{d.absenceType ? ` (${d.absenceType.toLowerCase()})` : ""}</span>;
+  }
+  if (d.missions.length > 0) {
+    return (
+      <span className="flex flex-wrap gap-1">
+        {d.missions.map((m) => (
+          <span key={m.missionId} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
+            {m.missionName}
+          </span>
+        ))}
+      </span>
+    );
   }
   return <span className="text-[10px] text-slate-700">Travaillée</span>;
 }

@@ -24,6 +24,7 @@ export interface DayActivityDetail {
   isFuture: boolean; // today or later (Paris time): not judged yet
   callCount: number;
   rdvCount: number;
+  missions: { missionId: string; missionName: string; calls: number; rdv: number }[];
   isUnderQuota: boolean; // past working day, not absent, callCount < dailyQuota
   decision?: HrDayDecision;
   decisionReason?: string;
