@@ -57,8 +57,8 @@ type StatusFilter = "ALL" | "OPEN" | "PENDING_VALIDATION" | "UNASSIGNED" | "URGE
 
 const OPEN_STATUSES = "NEW,TODO,IN_PROGRESS,BLOCKED,TESTING";
 
-/** "Tous" really means all: the API hides PENDING requests unless asked for them. */
-const ALL_VALIDATIONS = "NOT_REQUIRED,PENDING,ACCEPTED,REJECTED";
+/** Every request still in play — the API hides PENDING unless asked; REJECTED ones are closed. */
+const LIVE_VALIDATIONS = "NOT_REQUIRED,PENDING,ACCEPTED";
 type PriorityFilter = "ALL" | TaskPriority;
 type CategoryFilter = "ALL" | TicketCategory;
 
@@ -187,7 +187,10 @@ export function TicketWorkspace({
     const fetchTickets = useCallback(async (opts?: { silent?: boolean }) => {
         const params = new URLSearchParams();
         if (statusFilter === "ALL") {
-            params.set("validation", ALL_VALIDATIONS);
+            // The default board is work still in play: closed tickets (Terminé,
+            // rejected requests) stay behind their own "Terminé" / "Nouveau" chips.
+            params.set("status", OPEN_STATUSES);
+            params.set("validation", LIVE_VALIDATIONS);
         } else if (statusFilter === "PENDING_VALIDATION") {
             // The queue the sales team's requests land in — see TC-0032.
             params.set("validation", "PENDING");
@@ -202,7 +205,7 @@ export function TicketWorkspace({
         if (requesterFilter !== "ALL") params.set("requesterRole", requesterFilter);
         // Sales-team requests arrive PENDING and unassigned: hiding them here made
         // "Non assignés" look empty. Rejected ones are closed, so they stay out.
-        if (statusFilter === "UNASSIGNED") params.set("validation", "NOT_REQUIRED,PENDING,ACCEPTED");
+        if (statusFilter === "UNASSIGNED") params.set("validation", LIVE_VALIDATIONS);
         if (statusFilter === "UNASSIGNED") params.set("assigneeId", "unassigned");
         else if (onlyMine) params.set("assigneeId", currentUserId);
         if (search.trim()) params.set("search", search.trim());
