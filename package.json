@@ -23,6 +23,7 @@
     "test:prospection-export": "tsx --test lib/prospection-export/prospection-export.test.ts",
     "test:incoming-calls": "tsx --test lib/incoming-calls/allo-webhook.test.ts",
     "test:sdr-queue": "tsx --test lib/sdr-queue/last-action.test.ts",
+    "test:sdr-pace": "tsx --test lib/sdr-pace/pace.test.ts",
     "test:hr": "tsx --test lib/hr/hr-calculation-service.test.ts",
     "test:hr:all": "tsx --test lib/hr/hr-calculation-service.test.ts lib/hr/hr-integration.test.ts"
   },

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { Drawer } from "@/components/ui";
 import Link from "next/link";
 import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
+import { SdrPaceCard } from "@/components/sdr/SdrPaceCard";
+import { useSdrPace } from "@/components/sdr/SdrPaceProvider";
 import {
     Phone,
     Calendar,
@@ -113,8 +115,6 @@ const CHANNEL_ICONS = {
     LINKEDIN: Linkedin,
 };
 
-const DAILY_GOAL = 80;
-
 // ============================================
 // HELPER FOR GRAPHS
 // ============================================
@@ -135,6 +135,7 @@ function buildSparklineData(actions: number): { day: string; val: number }[] {
 
 export default function SDRDashboardPage() {
     const { data: session } = useSession();
+    const { pace } = useSdrPace();
     const [stats, setStats] = useState<SDRStats | null>(null);
     const [missions, setMissions] = useState<Mission[]>([]);
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
@@ -189,28 +190,31 @@ export default function SDRDashboardPage() {
         fetchData();
     }, []);
 
-    // Count-up animation for hero
+    // Calls of the day (same number as the pace card) — falls back to all actions until it loads.
+    // The daily goal is the manager-configured quota, prorated when less than a full day is planned.
+    const heroTarget = pace?.callsDone ?? stats?.actionsToday ?? 0;
+    const heroShown = useRef(0);
+
+    // Count-up animation for hero. Counts from what is already shown, so the
+    // pace refresh (every minute) only animates the difference, not from zero.
     useEffect(() => {
-        const target = stats?.actionsToday ?? 0;
-        if (target === 0) {
-            setHeroCount(0);
-            setHeroAnimated(true);
+        setHeroAnimated(true);
+        let current = heroShown.current;
+        if (current === heroTarget) {
+            setHeroCount(heroTarget);
             return;
         }
-        setHeroAnimated(true);
-        let current = 0;
-        const step = Math.max(1, Math.ceil(target / 20));
+        const step = Math.max(1, Math.ceil(Math.abs(heroTarget - current) / 20));
         const interval = setInterval(() => {
-            current += step;
-            if (current >= target) {
-                setHeroCount(target);
-                clearInterval(interval);
-            } else {
-                setHeroCount(current);
-            }
+            current = current < heroTarget
+                ? Math.min(current + step, heroTarget)
+                : Math.max(current - step, heroTarget);
+            heroShown.current = current;
+            setHeroCount(current);
+            if (current === heroTarget) clearInterval(interval);
         }, 40);
         return () => clearInterval(interval);
-    }, [stats?.actionsToday]);
+    }, [heroTarget]);
 
     useEffect(() => {
         const handleMissionChange = (e: CustomEvent) => {
@@ -341,7 +345,7 @@ export default function SDRDashboardPage() {
         );
     }
 
-    const dailyProgressPct = stats ? Math.min((stats.actionsToday / DAILY_GOAL) * 100, 100) : 0;
+    const dailyProgressPct = pace ? Math.min((pace.callsDone / pace.dayQuota) * 100, 100) : 0;
     const sparkData = buildSparklineData(stats?.actionsToday ?? 0);
 
     return (
@@ -355,6 +359,9 @@ export default function SDRDashboardPage() {
                     <p className="text-[13px] text-[#8A8A83] mt-0.5">Voici votre journée en un coup d'œil</p>
                 </div>
             </div>
+
+            {/* Call rhythm of the day */}
+            <SdrPaceCard />
 
             {/* ZONE 1 — KPIs */}
             <div className="flex flex-col lg:flex-row gap-4 mb-5">
@@ -384,7 +391,7 @@ export default function SDRDashboardPage() {
                             <span className={`text-[52px] font-extrabold text-white leading-none tracking-tight transition-all duration-700 ${heroAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
                                 {heroCount}
                             </span>
-                            <span className="text-[#87A491] text-[14px] font-medium mb-2">/ {DAILY_GOAL} obj. jour</span>
+                            {pace && <span className="text-[#87A491] text-[14px] font-medium mb-2">/ {pace.dayQuota} obj. jour</span>}
                         </div>
 
                         <div className="mt-5 mb-2">

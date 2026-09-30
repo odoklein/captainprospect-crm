@@ -6,9 +6,10 @@ import {
   Mail, RotateCcw, Save, Eye, Info,
   CheckCircle2, AlertCircle, Sparkles, Code2,
   ChevronRight, Zap, Variable, Key, ShieldCheck, Link2,
-  ListOrdered, Megaphone, Send
+  ListOrdered, Megaphone, Send, PhoneCall
 } from "lucide-react";
 import { RDV_TEMPLATE_VARIABLES } from "@/lib/email/templates/rdv-notification";
+import { PACE_DEFAULTS, PACE_LIMITS, PACE_THRESHOLDS } from "@/lib/sdr-pace/pace";
 
 // ============================================
 // TYPES
@@ -153,6 +154,14 @@ export default function ManagerSettingsPage() {
   const [transactionalEmailError, setTransactionalEmailError] = useState<string | null>(null);
   const [transactionalEmailSaved, setTransactionalEmailSaved] = useState(false);
 
+  // SDR call quota (applies to every SDR)
+  const [paceQuota, setPaceQuota] = useState(String(PACE_DEFAULTS.dailyQuota));
+  const [paceHours, setPaceHours] = useState(String(PACE_DEFAULTS.targetHours));
+  const [paceSavedValues, setPaceSavedValues] = useState<{ dailyQuota: number; targetHours: number } | null>(null);
+  const [paceSaving, setPaceSaving] = useState(false);
+  const [paceError, setPaceError] = useState<string | null>(null);
+  const [paceSaved, setPaceSaved] = useState(false);
+
   useEffect(() => {
     setLoading(true);
     Promise.all([
@@ -160,7 +169,8 @@ export default function ManagerSettingsPage() {
       fetch("/api/system-config/master-password").then((r) => r.json()),
       fetch("/api/system-config/leexi").then((r) => r.json()),
       fetch("/api/system-config/transactional-email").then((r) => r.json()),
-    ]).then(([tplRes, mpRes, leexiRes, transactionalEmailRes]) => {
+      fetch("/api/system-config/sdr-pace").then((r) => r.json()),
+    ]).then(([tplRes, mpRes, leexiRes, transactionalEmailRes, paceRes]) => {
       if (tplRes.success) {
         setTemplate(tplRes.data);
         setSubject(tplRes.data.subject);
@@ -177,6 +187,11 @@ export default function ManagerSettingsPage() {
       if (transactionalEmailRes.success) {
         setTransactionalEmailFrom(transactionalEmailRes.data.from || "");
         setTransactionalEmailSource(transactionalEmailRes.data.source);
+      }
+      if (paceRes.success) {
+        setPaceQuota(String(paceRes.data.dailyQuota));
+        setPaceHours(String(paceRes.data.targetHours));
+        setPaceSavedValues({ dailyQuota: paceRes.data.dailyQuota, targetHours: paceRes.data.targetHours });
       }
     }).finally(() => setLoading(false));
   }, []);
@@ -241,6 +256,62 @@ export default function ManagerSettingsPage() {
       setLeexiError("Erreur de connexion");
     } finally {
       setLeexiSaving(false);
+    }
+  }
+
+  const paceQuotaNum = Number(paceQuota);
+  const paceHoursNum = Number(paceHours);
+  const paceValid =
+    paceQuota.trim() !== "" &&
+    paceHours.trim() !== "" &&
+    Number.isInteger(paceQuotaNum) &&
+    paceQuotaNum >= PACE_LIMITS.dailyQuota.min &&
+    paceQuotaNum <= PACE_LIMITS.dailyQuota.max &&
+    Number.isFinite(paceHoursNum) &&
+    paceHoursNum >= PACE_LIMITS.targetHours.min &&
+    paceHoursNum <= PACE_LIMITS.targetHours.max;
+  const paceDirty =
+    paceSavedValues === null ||
+    paceSavedValues.dailyQuota !== paceQuotaNum ||
+    paceSavedValues.targetHours !== paceHoursNum;
+
+  // Cumulative checkpoints for the values being typed (same rounding as the SDR indicator)
+  const paceCheckpoints = paceValid
+    ? Array.from({ length: Math.floor(paceHoursNum) }, (_, i) => i + 1).map((h) => ({
+        hours: h,
+        calls: Math.ceil((paceQuotaNum * h) / paceHoursNum - 1e-9),
+      }))
+    : [];
+
+  async function handleSavePaceConfig() {
+    if (!paceValid) {
+      setPaceError(
+        `Quota : entier entre ${PACE_LIMITS.dailyQuota.min} et ${PACE_LIMITS.dailyQuota.max} — ` +
+          `durée : entre ${PACE_LIMITS.targetHours.min} et ${PACE_LIMITS.targetHours.max} h`
+      );
+      return;
+    }
+    setPaceSaving(true);
+    setPaceError(null);
+    setPaceSaved(false);
+    try {
+      const res = await fetch("/api/system-config/sdr-pace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dailyQuota: paceQuotaNum, targetHours: paceHoursNum }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setPaceSavedValues({ dailyQuota: json.data.dailyQuota, targetHours: json.data.targetHours });
+        setPaceSaved(true);
+        setTimeout(() => setPaceSaved(false), 3000);
+      } else {
+        setPaceError(json.error || "Erreur lors de la sauvegarde");
+      }
+    } catch {
+      setPaceError("Erreur de connexion");
+    } finally {
+      setPaceSaving(false);
     }
   }
 
@@ -540,6 +611,113 @@ export default function ManagerSettingsPage() {
             )}
           </div>
         </div>
+
+        {/* SDR call quota */}
+        <Section
+          label="Objectif d'appels quotidien (SDR)"
+          icon={PhoneCall}
+          badge={
+            paceSavedValues ? (
+              <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-200/80 rounded-full">
+                {paceSavedValues.dailyQuota} appels / {paceSavedValues.targetHours} h
+              </span>
+            ) : null
+          }
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              Objectif appliqué à <strong>tous les SDR</strong> : il alimente le dashboard et les notifications de rythme
+              (dans le rythme, à rattraper, en retard). Le changement est pris en compte immédiatement.
+              Le quota de paie des profils RH n&apos;est pas modifié.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="w-40">
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Appels par jour</label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={PACE_LIMITS.dailyQuota.min}
+                  max={PACE_LIMITS.dailyQuota.max}
+                  step={1}
+                  value={paceQuota}
+                  onChange={(e) => {
+                    setPaceQuota(e.target.value);
+                    setPaceError(null);
+                  }}
+                  className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                />
+              </div>
+              <div className="w-40">
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Heures d&apos;appel effectif</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={PACE_LIMITS.targetHours.min}
+                  max={PACE_LIMITS.targetHours.max}
+                  step={0.5}
+                  value={paceHours}
+                  onChange={(e) => {
+                    setPaceHours(e.target.value);
+                    setPaceError(null);
+                  }}
+                  className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
+                />
+              </div>
+              <button
+                onClick={handleSavePaceConfig}
+                disabled={paceSaving || !paceValid || !paceDirty}
+                className="px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-50 transition-colors"
+              >
+                {paceSaving ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-400">Raccourcis :</span>
+              {[70, 80, 90].map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => {
+                    setPaceQuota(String(q));
+                    setPaceError(null);
+                  }}
+                  className={`text-xs font-semibold px-3 py-1 rounded-lg border transition-colors ${
+                    paceQuotaNum === q
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                      : "border-slate-200 text-slate-600 hover:border-indigo-200 hover:text-indigo-700"
+                  }`}
+                >
+                  {q} appels
+                </button>
+              ))}
+            </div>
+            {paceValid && (
+              <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 space-y-1.5">
+                <p className="text-xs text-slate-500">
+                  Rythme théorique :{" "}
+                  <strong className="text-slate-700">
+                    {new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(paceQuotaNum / paceHoursNum)} appels/heure
+                  </strong>
+                  . Objectif cumulé attendu :
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-mono text-slate-600">
+                  {paceCheckpoints.map((c) => (
+                    <span key={c.hours}>{c.hours}h → {c.calls}</span>
+                  ))}
+                  {!Number.isInteger(paceHoursNum) && <span>{paceHoursNum}h → {paceQuotaNum}</span>}
+                </div>
+                <p className="text-xs text-slate-400">
+                  Statuts : dans le rythme jusqu&apos;à {PACE_THRESHOLDS.behindFrom - 1} appels de retard, à rattraper de {PACE_THRESHOLDS.behindFrom} à {PACE_THRESHOLDS.lateFrom - 1}, en retard à partir de {PACE_THRESHOLDS.lateFrom}.
+                </p>
+              </div>
+            )}
+            {(paceError || paceSaved) && (
+              <p className={`text-sm ${paceError ? "text-red-600" : "text-emerald-600"}`}>
+                {paceError || "Objectif enregistré pour tous les SDR"}
+              </p>
+            )}
+          </div>
+        </Section>
 
         {/* Master Password */}
         <Section
