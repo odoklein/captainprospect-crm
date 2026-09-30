@@ -56,6 +56,7 @@ import { QuickEmailModal } from "@/components/email/QuickEmailModal";
 import type { ActionResult, Channel } from "@/lib/types";
 import { ACTION_RESULT_LABELS, CHANNEL_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { contactedWarningContext } from "@/lib/sdr-queue/last-action";
 import {
     sdrActionQueueKey,
     sdrDrawerContactKey,
@@ -2041,13 +2042,7 @@ export default function SDRActionPage() {
                         </span>
                     );
                     const callContext = {
-                        lastAction: row.lastAction || (row.companyLastAction ? {
-                            result: row.companyLastAction.result,
-                            note: row.companyLastAction.note,
-                            createdAt: row.companyLastAction.createdAt,
-                            scope: "COMPANY" as const,
-                        } : null),
-                        lastActionBy: row.lastActionBy || (row.companyLastAction?.sdrId ? { id: row.companyLastAction.sdrId, name: row.companyLastAction.sdrName } : null),
+                        ...contactedWarningContext(row),
                         targetName: row._displayName,
                         companyName: row._companyName || row.company?.name,
                         contactId: row.contactId ?? undefined,
@@ -2939,26 +2934,27 @@ export default function SDRActionPage() {
                                         const isValidPhone = phone && /[\d+\-().\s]/.test(phone) && phone.length >= 8;
                                         if (!isValidPhone) return null;
 
+                                        // Warns on the contact's own last action, or on a sibling contact's when it has none.
+                                        const warning = contactedWarningContext(currentAction);
                                         const callContext = {
-                                            lastAction: currentAction.lastAction,
-                                            lastActionBy: currentAction.lastActionBy ?? null,
+                                            ...warning,
                                             targetName: `${currentAction.contact.firstName || ""} ${currentAction.contact.lastName || ""}`.trim(),
                                             companyName: currentAction.company?.name,
                                             contactId: currentAction.contact.id,
                                             companyId: currentAction.company?.id,
                                         };
 
-                                        const isAlreadyContacted = isRecentlyContacted(currentAction.lastAction, currentAction.lastActionBy);
+                                        const isAlreadyContacted = isRecentlyContacted(warning.lastAction, warning.lastActionBy);
 
                                         return (
                                             <div className="space-y-1.5">
-                                                {isAlreadyContacted && currentAction.lastAction && (
+                                                {isAlreadyContacted && warning.lastAction && (
                                                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-800">
                                                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                                         <span className="truncate">
-                                                            {currentAction.lastAction.scope === "COMPANY" ? "Entreprise déjà contactée" : "Déjà contacté"} le{" "}
-                                                            {new Date(currentAction.lastAction.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                                                            {currentAction.lastActionBy?.name ? ` par ${currentAction.lastActionBy.name}` : ""} ({statusLabels[currentAction.lastAction.result] ?? currentAction.lastAction.result})
+                                                            {warning.lastAction.scope === "COMPANY" ? "Entreprise déjà contactée" : "Déjà contacté"} le{" "}
+                                                            {new Date(warning.lastAction.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                                                            {warning.lastActionBy?.name ? ` par ${warning.lastActionBy.name}` : ""} ({statusLabels[warning.lastAction.result] ?? warning.lastAction.result})
                                                         </span>
                                                     </div>
                                                 )}

@@ -22,6 +22,7 @@
     "test:exclusions": "tsx --test lib/exclusions/exclusions.test.ts",
     "test:prospection-export": "tsx --test lib/prospection-export/prospection-export.test.ts",
     "test:incoming-calls": "tsx --test lib/incoming-calls/allo-webhook.test.ts",
+    "test:sdr-queue": "tsx --test lib/sdr-queue/last-action.test.ts",
     "test:hr": "tsx --test lib/hr/hr-calculation-service.test.ts",
     "test:hr:all": "tsx --test lib/hr/hr-calculation-service.test.ts lib/hr/hr-integration.test.ts"
   },
@@ -75,6 +76,7 @@
     "zod": "^4.3.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^20",

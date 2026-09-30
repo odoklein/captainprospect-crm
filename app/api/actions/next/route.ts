@@ -7,6 +7,7 @@ import {
 } from '@/lib/api-utils';
 import { statusConfigService } from '@/lib/services/StatusConfigService';
 import { getTodaySdrMissionIds } from '@/lib/sdr-today-missions';
+import { LAST_ACTION_CTES } from '@/lib/sdr-queue/last-action';
 import { listCommercialIds } from '@/lib/lists/commercials';
 
 function buildCallbackResultCodes(config: { statuses: Array<{ code: string; label: string; triggersCallback?: boolean }> }) {
@@ -248,56 +249,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             UNION ALL
             SELECT * FROM sdr_companies
         ),
-        last_actions_contacts AS (
-            -- Get last action per contact (with SDR who did it)
-            SELECT DISTINCT ON (a."contactId")
-                a."contactId",
-                a.result,
-                a.note,
-                a."createdAt",
-                a."callbackDate",
-                a."sdrId",
-                u.name as sdr_name
-            FROM "Action" a
-            INNER JOIN "User" u ON u.id = a."sdrId"
-            WHERE a."contactId" IN (SELECT contact_id FROM all_targets WHERE contact_id IS NOT NULL)
-            ORDER BY a."contactId", a."createdAt" DESC
-        ),
-        last_actions_companies AS (
-            -- Get last action per company across all historical actions (both direct company actions and actions on its contacts)
-            SELECT DISTINCT ON (COALESCE(a."companyId", c_lookup."companyId"))
-                COALESCE(a."companyId", c_lookup."companyId") as company_id_resolved,
-                a.result,
-                a.note,
-                a."createdAt",
-                a."callbackDate",
-                a."sdrId",
-                u.name as sdr_name
-            FROM "Action" a
-            LEFT JOIN "Contact" c_lookup ON a."contactId" = c_lookup.id
-            INNER JOIN "User" u ON u.id = a."sdrId"
-            WHERE COALESCE(a."companyId", c_lookup."companyId") IN (SELECT company_id FROM all_targets)
-            ORDER BY COALESCE(a."companyId", c_lookup."companyId"), a."createdAt" DESC
-        ),
-        targets_with_last_action AS (
-            SELECT
-                at.*,
-                COALESCE(lac.result, lac2.result)::text as last_action_result,
-                COALESCE(lac.note, lac2.note) as last_action_note,
-                COALESCE(lac."createdAt", lac2."createdAt") as last_action_created,
-                COALESCE(lac."callbackDate", lac2."callbackDate") as last_action_callback_date,
-                COALESCE(lac."sdrId", lac2."sdrId") as last_action_sdr_id,
-                COALESCE(lac.sdr_name, lac2.sdr_name) as last_action_sdr_name,
-                CASE WHEN lac.result IS NOT NULL THEN 'CONTACT' WHEN lac2.result IS NOT NULL THEN 'COMPANY' ELSE NULL END as last_action_scope,
-                lac2.result::text as company_last_action_result,
-                lac2.note as company_last_action_note,
-                lac2."createdAt" as company_last_action_created,
-                lac2."sdrId" as company_last_action_sdr_id,
-                lac2.sdr_name as company_last_action_sdr_name
-            FROM all_targets at
-            LEFT JOIN last_actions_contacts lac ON at.contact_id = lac."contactId"
-            LEFT JOIN last_actions_companies lac2 ON at.company_id = lac2.company_id_resolved
-        )
+        ${LAST_ACTION_CTES}
         SELECT *
         FROM targets_with_last_action
         WHERE 1=1
