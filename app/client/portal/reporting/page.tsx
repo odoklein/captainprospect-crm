@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { DateTime } from "luxon";
 import { useToast } from "@/components/ui";
 import {
-    Check, ChevronDown, Copy, Download, Eye, FileText, Link2, Loader2, Mic, Printer, TrendingDown, TrendingUp,
+    BarChart3, Check, ChevronDown, Copy, Download, Eye, FileText, Link2, Loader2, Mic, Printer,
+    Sparkles, Target, TrendingDown, TrendingUp, Trophy, Users,
 } from "lucide-react";
 import type { ReportData, ReportingOverview } from "@/lib/reporting/types";
 import s from "./reporting.module.css";
@@ -155,15 +156,27 @@ function Delta({ value, unit = "%" }: { value: number | null | undefined; unit?:
     );
 }
 
-function Kpi({ label, value, delta, unit, hero, compare }: {
-    label: string; value: string | number; delta?: number | null; unit?: "%" | "pts"; hero?: boolean; compare: boolean;
+function HeroPill({ value, unit = "%" }: { value: number; unit?: "%" | "pts" }) {
+    const Icon = value >= 0 ? TrendingUp : TrendingDown;
+    return (
+        <span className={cx(s.heroPill, value < 0 && s.heroPillDown)}>
+            <Icon size={13} /> {formatDelta(value, unit)} vs période précédente
+        </span>
+    );
+}
+
+function Kpi({ label, value, delta, icon: Icon, color, footnote, compare }: {
+    label: string; value: string | number; delta?: number | null; icon: typeof Users; color: string; footnote: string; compare: boolean;
 }) {
     return (
-        <div className={cx(s.kpi, hero && s.kpiHero)}>
-            <div className={s.kpiLabel}>{label}</div>
+        <div className={s.kpiCard} style={{ "--k": color } as CSSProperties}>
+            <div className={s.kpiTop}>
+                <span className={s.kpiLabel}>{label}</span>
+                <span className={s.kpiIcon}><Icon size={15} /></span>
+            </div>
             <div className={cx(s.kpiValue, s.num)}>{value}</div>
             <div className={s.kpiFoot}>
-                {compare && delta !== undefined && delta !== null ? <><Delta value={delta} unit={unit} /> vs période précédente</> : null}
+                {compare && delta !== undefined && delta !== null ? <><Delta value={delta} /> vs période précédente</> : footnote}
             </div>
         </div>
     );
@@ -171,14 +184,18 @@ function Kpi({ label, value, delta, unit, hero, compare }: {
 
 function MeetingsChart({ points }: { points: ReportData["meetingsByPeriod"] }) {
     const max = Math.max(1, ...points.map((p) => p.count));
+    const total = points.reduce((n, p) => n + p.count, 0);
     return (
         <div className={s.chartBox}>
-            <div className={s.chartTitle}>RDV obtenus par mois</div>
+            <div className={s.chartTitle}>
+                <span>RDV obtenus par mois</span>
+                <span className={cx(s.chartTotal, s.num)}>{total} au total</span>
+            </div>
             <div className={s.bars}>
-                {points.map((p) => (
+                {points.map((p, i) => (
                     <div key={p.label} className={s.barCol} title={`${p.label} : ${p.count} RDV`}>
                         <span className={cx(s.barValue, s.num)}>{p.count}</span>
-                        <div className={s.bar} style={{ height: `${Math.max(4, (p.count / max) * 100)}%` }} />
+                        <div className={cx(s.bar, i === points.length - 1 && s.barLast)} style={{ height: `${Math.max(4, (p.count / max) * 100)}%` }} />
                     </div>
                 ))}
             </div>
@@ -201,9 +218,9 @@ function SessionRow({ session, open, onToggle }: { session: ClientSession; open:
     const color = SESSION_COLORS[session.type] ?? SESSION_COLORS.Autre;
 
     return (
-        <div className={s.session}>
+        <div className={s.session} style={{ "--c": color } as CSSProperties}>
             <button type="button" className={s.sessionHead} onClick={onToggle} aria-expanded={open}>
-                <span className={s.typePill} style={{ "--c": color } as CSSProperties}>{session.type}</span>
+                <span className={s.typePill}>{session.type}</span>
                 <div className={s.sessionMain}>
                     <div className={s.sessionTitle}>Session du {sessionDateFmt.format(new Date(session.date))}</div>
                     {excerpt && <div className={s.sessionExcerpt}>{excerpt}</div>}
@@ -388,6 +405,12 @@ export default function ClientPortalReportingPage() {
         { meetings: 0, calls: 0, touched: 0 }
     ), [history]);
     const currentMonthKey = today.toFormat("yyyy-MM");
+    /** Best finished-or-running month by RDV, only meaningful once there is something to compare. */
+    const bestMonthKey = useMemo(() => {
+        if (history.length < 2) return null;
+        const best = history.reduce((b, m) => (m.meetings > b.meetings ? m : b), history[0]);
+        return best.meetings > 0 ? best.key : null;
+    }, [history]);
 
     const data = preview?.data;
     const [dContacts, dQualified, dMeetings, dConversion] = data?.deltas ?? [null, null, null, null];
@@ -416,7 +439,10 @@ export default function ClientPortalReportingPage() {
             {tab === "sessions" ? (
                 <section className={s.card}>
                     <div className={s.cardHead}>
-                        <span className={s.cardTitle}>Sessions et comptes rendus</span>
+                        <span className={s.cardTitle} style={{ "--k": "#c98a0b" } as CSSProperties}>
+                            <span className={s.cardTitleIcon}><Mic size={14} /></span>
+                            Sessions et comptes rendus
+                        </span>
                         <span className={s.cardHint}>Les points faits avec votre équipe Captain Prospect</span>
                     </div>
                     {sessions === null ? (
@@ -481,8 +507,9 @@ export default function ClientPortalReportingPage() {
                             <div className={s.previewError}>{currentError}</div>
                         ) : !data ? (
                             <div className={s.preview}>
-                                <div className={s.shimmer} style={{ height: 22, width: "40%", marginBottom: 18 }} />
-                                <div className={s.kpis}>{[0, 1, 2, 3].map((i) => <div key={i} className={s.shimmer} style={{ height: 104 }} />)}</div>
+                                <div className={s.shimmer} style={{ height: 22, width: "40%", marginBottom: 14 }} />
+                                <div className={s.shimmer} style={{ height: 150, borderRadius: 18 }} />
+                                <div className={s.kpis3}>{[0, 1, 2].map((i) => <div key={i} className={s.shimmer} style={{ height: 110 }} />)}</div>
                             </div>
                         ) : (
                             <div className={cx(s.preview, !previewReady && s.previewStale)} aria-busy={!previewReady}>
@@ -496,29 +523,45 @@ export default function ClientPortalReportingPage() {
                                         Aperçu du rapport · {data.clientName}
                                     </span>
                                 </div>
-                                <div className={s.kpis}>
-                                    <Kpi hero label="RDV obtenus" value={data.meetingsBooked} delta={dMeetings} compare={compare} />
-                                    <Kpi label="Contacts touchés" value={data.contactsReached.toLocaleString("fr-FR")} delta={dContacts} compare={compare} />
-                                    <Kpi label="Leads qualifiés" value={data.qualifiedLeads.toLocaleString("fr-FR")} delta={dQualified} compare={compare} />
-                                    <Kpi label="Taux de conversion" value={`${String(data.conversionRate).replace(".", ",")} %`} delta={dConversion} unit="pts" compare={compare} />
-                                </div>
-                                <div className={s.secondary}>
-                                    <div className={s.kpi}>
-                                        <div className={s.kpiLabel}>Opportunités</div>
-                                        <div className={cx(s.kpiValue, s.num)}>{data.opportunities}</div>
-                                        <div className={s.kpiFoot}>{data.missions.length > 1 ? `${data.missions.length} missions` : data.missions[0]?.objective ?? ""}</div>
-                                    </div>
-                                    {data.meetingsByPeriod.length > 1 ? (
-                                        <MeetingsChart points={data.meetingsByPeriod} />
-                                    ) : (
-                                        <div className={s.chartBox}>
-                                            <div className={s.chartTitle}>Missions incluses</div>
-                                            <div className={s.cardHint}>
-                                                {data.missions.map((m) => m.name).join(" · ") || "—"}
-                                            </div>
+                                <div className={s.hero}>
+                                    <div className={s.heroGlow} />
+                                    <div>
+                                        <div className={s.heroLabel}>RDV obtenus</div>
+                                        <div className={cx(s.heroValue, s.num)}>{data.meetingsBooked.toLocaleString("fr-FR")}</div>
+                                        <div className={s.heroFoot}>
+                                            {compare && dMeetings !== null && dMeetings !== undefined
+                                                ? <HeroPill value={dMeetings} />
+                                                : <span className={s.heroCaption}>sur la période</span>}
                                         </div>
-                                    )}
+                                    </div>
+                                    <div className={s.heroDivider} />
+                                    <div>
+                                        <div className={s.heroLabel}>Taux de conversion</div>
+                                        <div className={cx(s.heroValueSm, s.num)}>{String(data.conversionRate).replace(".", ",")} %</div>
+                                        <div className={s.heroCaption}>des contacts touchés ont obtenu un RDV</div>
+                                        <div className={s.heroFoot}>
+                                            {compare && dConversion !== null && dConversion !== undefined && <HeroPill value={dConversion} unit="pts" />}
+                                        </div>
+                                    </div>
                                 </div>
+                                <div className={s.kpis3}>
+                                    <Kpi label="Contacts touchés" value={data.contactsReached.toLocaleString("fr-FR")} delta={dContacts}
+                                        icon={Users} color="#3b6fe0" footnote="entreprises et contacts" compare={compare} />
+                                    <Kpi label="Leads qualifiés" value={data.qualifiedLeads.toLocaleString("fr-FR")} delta={dQualified}
+                                        icon={Target} color="#c98a0b" footnote="intérêt, rappel ou RDV" compare={compare} />
+                                    <Kpi label="Opportunités" value={data.opportunities.toLocaleString("fr-FR")}
+                                        icon={Sparkles} color="#0f8f86" footnote="détectées sur la période" compare={compare} />
+                                </div>
+                                {data.meetingsByPeriod.length > 1 ? (
+                                    <MeetingsChart points={data.meetingsByPeriod} />
+                                ) : data.missions.length > 0 && (
+                                    <div className={s.chartBox}>
+                                        <div className={s.chartTitle}><span>{data.missions.length > 1 ? "Missions incluses" : "Mission"}</span></div>
+                                        <div className={s.missionChips}>
+                                            {data.missions.map((m) => <span key={m.id} className={s.chip}>{m.name}</span>)}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -544,7 +587,10 @@ export default function ClientPortalReportingPage() {
                     {/* ── Monthly history ── */}
                     <section className={s.card}>
                         <div className={s.cardHead}>
-                            <span className={s.cardTitle}>Historique mensuel</span>
+                            <span className={s.cardTitle} style={{ "--k": "#3b6fe0" } as CSSProperties}>
+                                <span className={s.cardTitleIcon}><BarChart3 size={14} /></span>
+                                Historique mensuel
+                            </span>
                             <span className={s.cardHint}>
                                 {overview?.launchDate ? `Depuis le lancement · ${totals.meetings} RDV au total` : ""}
                             </span>
@@ -573,15 +619,23 @@ export default function ClientPortalReportingPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {history.map((m) => {
+                                        {history.map((m, i) => {
                                             const r = monthRange(m.key, today);
                                             const pdfId = `pdf-${m.key}`;
                                             const shareId = `share-${m.key}`;
+                                            const isCurrent = m.key === currentMonthKey;
+                                            const isBest = m.key === bestMonthKey;
+                                            // History is newest first; a running month is partial, so it gets no comparison.
+                                            const prev = history[i + 1];
+                                            const mom = !isCurrent && prev && prev.meetings > 0
+                                                ? Math.round(((m.meetings - prev.meetings) / prev.meetings) * 100)
+                                                : null;
                                             return (
-                                                <tr key={m.key}>
+                                                <tr key={m.key} className={cx(isCurrent && s.rowCurrent, !isCurrent && isBest && s.rowBest)}>
                                                     <td className={s.monthCell}>
                                                         {monthLabel(m.key)}
-                                                        {m.key === currentMonthKey && <span className={s.nowTag}>en cours</span>}
+                                                        {isCurrent && <span className={cx(s.tag, s.tagNow)}>en cours</span>}
+                                                        {isBest && <span className={cx(s.tag, s.tagBest)}><Trophy size={11} /> meilleur mois</span>}
                                                     </td>
                                                     <td>
                                                         <div className={s.meetCell}>
@@ -589,6 +643,7 @@ export default function ClientPortalReportingPage() {
                                                             <div className={s.meetTrack}>
                                                                 <div className={s.meetFill} style={{ width: `${(m.meetings / maxMeetings) * 100}%` }} />
                                                             </div>
+                                                            <span className={s.meetChip}>{mom !== null && <Delta value={mom} />}</span>
                                                         </div>
                                                     </td>
                                                     <td className={cx(s.right, s.num, s.hideSm)}>{m.calls.toLocaleString("fr-FR")}</td>
