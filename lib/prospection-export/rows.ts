@@ -102,8 +102,16 @@ export function historyLine(action: ExportAction, vocabulary: StatusVocabulary):
     return line;
 }
 
-/** @param actions counted actions of one line, oldest first. */
-export function summarizeActions(actions: ExportAction[], vocabulary: StatusVocabulary): RowTreatment {
+/**
+ * @param actions counted actions of one line, oldest first.
+ * @param options.withHistory false skips building `historyLines` (luxon
+ *   formatting per action) for callers that never display them.
+ */
+export function summarizeActions(
+    actions: ExportAction[],
+    vocabulary: StatusVocabulary,
+    options: { withHistory?: boolean } = {}
+): RowTreatment {
     let callCount = 0;
     let emailCount = 0;
     let linkedinCount = 0;
@@ -149,7 +157,7 @@ export function summarizeActions(actions: ExportAction[], vocabulary: StatusVoca
         meetingBookedAt: meetingAction?.createdAt ?? null,
         meetingAt: meetingAction?.callbackDate ?? null,
         meetingType: meetingAction?.meetingType ?? null,
-        historyLines: actions.slice().reverse().map((a) => historyLine(a, vocabulary)),
+        historyLines: options.withHistory === false ? [] : actions.slice().reverse().map((a) => historyLine(a, vocabulary)),
     };
 }
 
@@ -205,7 +213,7 @@ export function buildRows(
     index: ActionIndex,
     filters: ProspectionExportFilters,
     vocabulary: StatusVocabulary,
-    options: { applyRowFilters?: boolean } = {}
+    options: { applyRowFilters?: boolean; withHistory?: boolean } = {}
 ): ExportRow[] {
     const applyRowFilters = options.applyRowFilters ?? true;
     const rows: ExportRow[] = [];
@@ -215,7 +223,7 @@ export function buildRows(
         for (const contact of lines) {
             const own = contact ? (index.byContact.get(contact.id) ?? []).filter((a) => actionIsCounted(a, filters)) : [];
             const actions = mergeChronological(own, companyActions);
-            const treatment = summarizeActions(actions, vocabulary);
+            const treatment = summarizeActions(actions, vocabulary, { withHistory: options.withHistory });
             if (applyRowFilters && !rowIsExported(treatment, filters)) continue;
             rows.push({ company, contact, actions, treatment });
         }
