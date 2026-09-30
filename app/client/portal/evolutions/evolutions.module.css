@@ -2,31 +2,12 @@
    top, then one entry per month of deliveries. */
 
 .root {
-    --ink: #0c0f0d;
-    --ink-2: #3d4440;
-    --ink-3: #7a817c;
-    --ink-4: #a9aea9;
-    --line: rgba(12, 15, 13, 0.08);
-    --canvas: #f7f6f2;
-    --surface: #ffffff;
-    --sunken: #f1f0ea;
-    --brand: #2b5f3e;
-    --brand-soft: rgba(43, 95, 62, 0.09);
-    --progress: #3b6fe0;
-    --upcoming: #8a8f8a;
-    --ease: cubic-bezier(0.22, 1, 0.36, 1);
-
-    min-height: 100%;
-    padding: 36px 32px 56px;
-    background: var(--canvas);
-    color: var(--ink);
+    composes: tokens from "../portal-ui.module.css";
+    --progress: var(--info);
+    padding-bottom: 32px;
 }
 
-@media (max-width: 768px) {
-    .root { padding: 22px 16px 40px; }
-}
-
-.wrap { max-width: 1040px; margin: 0 auto; }
+.wrap { width: 100%; }
 
 /* ── Header ── */
 
@@ -85,8 +66,8 @@
 
 .entry {
     display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
-    gap: 44px;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 48px;
     padding: 36px 0;
     border-top: 1px solid var(--line);
     animation: rise 0.5s var(--ease) both;
@@ -191,6 +172,7 @@
 /* ── Release copy ── */
 
 .lead {
+    max-width: 760px;
     margin: 0 0 18px;
     font-size: 15px;
     line-height: 1.65;
@@ -204,7 +186,7 @@
     letter-spacing: -0.01em;
 }
 
-.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
 
 .item { position: relative; padding-left: 20px; font-size: 14.5px; line-height: 1.6; color: var(--ink-2); }
 
@@ -350,7 +332,7 @@
 
 .shimmer {
     border-radius: 10px;
-    background: linear-gradient(90deg, var(--sunken) 0%, #f8f7f3 50%, var(--sunken) 100%);
+    background: linear-gradient(90deg, var(--sunken) 0%, var(--hover) 50%, var(--sunken) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.3s linear infinite;
 }

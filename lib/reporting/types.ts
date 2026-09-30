@@ -13,6 +13,23 @@ export interface ReportMission {
     sdrCount: number;
 }
 
+/** GET /api/client/reporting/monthly-summary — feeds the report builder and the monthly history. */
+export interface ReportingOverview {
+    /** Earliest start of the client's visible missions (Paris day, YYYY-MM-DD). */
+    launchDate: string | null;
+    missions: Array<{ id: string; name: string; isActive: boolean }>;
+    /** Oldest first, one entry per Paris month from launch to now, zero-filled. */
+    months: Array<{
+        /** YYYY-MM */
+        key: string;
+        meetings: number;
+        calls: number;
+        actions: number;
+        contactsTouched: number;
+    }>;
+    generatedAt: string;
+}
+
 export interface ReportData {
     clientName: string;
     missionLabel: string;

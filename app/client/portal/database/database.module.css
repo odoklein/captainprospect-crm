@@ -1,36 +1,14 @@
-/* Client portal — Base de données. Self-contained look: its own scale,
-   palette and motion; only the brand green is shared with the portal. */
+/* Client portal — Base de données. Transparent on the app shell; tokens are
+   shared with the other redesigned portal pages. */
 
 .root {
-    --ink: #0c0f0d;
-    --ink-2: #3d4440;
-    --ink-3: #7a817c;
-    --ink-4: #a9aea9;
-    --line: rgba(12, 15, 13, 0.07);
-    --line-2: rgba(12, 15, 13, 0.12);
-    --canvas: #f7f6f2;
-    --surface: #ffffff;
-    --sunken: #f1f0ea;
-    --brand: #2b5f3e;
-    --brand-soft: rgba(43, 95, 62, 0.09);
-    --danger: #c2362b;
-    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    composes: tokens from "../portal-ui.module.css";
     --row-h: 64px;
-
-    min-height: 100%;
-    padding: 28px 32px 32px;
-    background: var(--canvas);
-    color: var(--ink);
-    font-feature-settings: "ss01", "cv11";
     transition: padding-right 0.35s var(--ease);
 }
 
 @media (min-width: 1280px) {
-    .root[data-drawer="open"] { padding-right: 532px; }
-}
-
-@media (max-width: 768px) {
-    .root { padding: 18px 14px 24px; }
+    .root[data-drawer="open"] { padding-right: 508px; }
 }
 
 .num { font-variant-numeric: tabular-nums; }
@@ -320,7 +298,7 @@
     width: 100%;
     min-height: 3px;
     border-radius: 6px 6px 3px 3px;
-    background: #dcdfd9;
+    background: #dfe3e8;
     transform-origin: bottom;
     transition: height 0.9s var(--ease), background 0.2s;
 }
@@ -329,7 +307,7 @@
     background: repeating-linear-gradient(135deg, var(--brand) 0 6px, #3b7a52 6px 12px);
 }
 
-.chartCol:hover .chartBar { background: #a7b0a9; }
+.chartCol:hover .chartBar { background: #aab2bc; }
 .chartCol:hover .chartBarCurrent { background: #1f4a2f; }
 
 .chartMeeting {
@@ -536,9 +514,9 @@
     transition: background 0.12s;
 }
 
-.row:hover { background: #fafaf7; }
+.row:hover { background: var(--hover); }
 
-.rowActive { background: #f6f7f3; }
+.rowActive { background: #f4f6f8; }
 .rowActive::before {
     content: "";
     position: absolute;
@@ -683,7 +661,7 @@ mark.hl { background: rgba(250, 204, 21, 0.35); color: inherit; border-radius: 3
 
 .shimmer {
     border-radius: 8px;
-    background: linear-gradient(90deg, var(--sunken) 0%, #f8f7f3 50%, var(--sunken) 100%);
+    background: linear-gradient(90deg, var(--sunken) 0%, var(--hover) 50%, var(--sunken) 100%);
     background-size: 200% 100%;
     animation: shimmer 1.3s linear infinite;
 }
@@ -763,7 +741,7 @@ mark.hl { background: rgba(250, 204, 21, 0.35); color: inherit; border-radius: 3
     transition: background 0.15s, color 0.15s;
 }
 
-.iconBtn:hover { background: #e6e5de; color: var(--ink); }
+.iconBtn:hover { background: #e8ebef; color: var(--ink); }
 .iconBtn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .drawerTitle {
@@ -848,7 +826,7 @@ mark.hl { background: rgba(250, 204, 21, 0.35); color: inherit; border-radius: 3
     height: 20px;
     border-radius: 999px;
     background: var(--surface);
-    border: 2px solid #dfe0da;
+    border: 2px solid #dde1e6;
     display: flex;
     align-items: center;
     justify-content: center;

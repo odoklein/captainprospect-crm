@@ -3,8 +3,10 @@
  * Used by GET /api/client/reporting/data and PDF generation.
  */
 
+import { DateTime } from "luxon";
 import { prisma } from "@/lib/prisma";
 import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
+import { REPORT_ZONE, parisMonthKey } from "@/lib/reporting/period";
 
 const QUALIFIED_RESULTS = ["INTERESTED", "CALLBACK_REQUESTED", "MEETING_BOOKED"] as const;
 
@@ -41,13 +43,9 @@ export interface GetReportDataResult {
     } | null;
 }
 
+/** `dateFrom` / `dateTo` are exact bounds (see parisDayRange); they are not re-normalized here. */
 export async function getReportData(params: GetReportDataParams): Promise<GetReportDataResult | null> {
-    const { clientId, dateFrom, dateTo, missionId, comparePrevious } = params;
-
-    const dateFromDate = new Date(dateFrom);
-    const dateToDate = new Date(dateTo);
-    dateFromDate.setHours(0, 0, 0, 0);
-    dateToDate.setHours(23, 59, 59, 999);
+    const { clientId, dateFrom: dateFromDate, dateTo: dateToDate, missionId, comparePrevious } = params;
 
     const client = await prisma.client.findUnique({
         where: { id: clientId },
@@ -153,8 +151,7 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
 
     const byMonth = new Map<string, number>();
     for (const a of meetingsActions) {
-        const d = new Date(a.createdAt);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const key = parisMonthKey(a.createdAt);
         byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
     }
     const meetingsByPeriod = Array.from(byMonth.entries())
@@ -184,12 +181,12 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
 
     let prevStats: GetReportDataResult["prevStats"] = null;
     if (comparePrevious) {
+        // Same length, ending the Paris day before the period starts.
         const periodMs = dateToDate.getTime() - dateFromDate.getTime();
-        const prevDateTo = new Date(dateFromDate);
-        prevDateTo.setDate(prevDateTo.getDate() - 1);
-        prevDateTo.setHours(23, 59, 59, 999);
-        const prevDateFrom = new Date(prevDateTo.getTime() - periodMs);
-        prevDateFrom.setHours(0, 0, 0, 0);
+        const prevDateTo = new Date(dateFromDate.getTime() - 1);
+        const prevDateFrom = DateTime.fromMillis(prevDateTo.getTime() - periodMs, { zone: REPORT_ZONE })
+            .startOf("day")
+            .toJSDate();
         if (prevDateFrom.getTime() < dateFromDate.getTime()) {
             const [prevActions, prevMeetingsCount] = await Promise.all([
                 prisma.action.findMany({
@@ -251,20 +248,10 @@ export function toReportData(
 ): import("@/lib/reporting/types").ReportData {
     const missionLabel =
         raw.missions.length === 1 ? raw.missions[0].name : "Toutes les missions";
-    const periodLabel = `${dateFrom.toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    })} – ${dateTo.toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    })}`;
-    const generatedDate = new Date().toLocaleDateString("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    });
+    const longDate = { day: "numeric", month: "long", year: "numeric", timeZone: REPORT_ZONE } as const;
+    const shortDate = { day: "numeric", month: "short", year: "numeric", timeZone: REPORT_ZONE } as const;
+    const periodLabel = `${dateFrom.toLocaleDateString("fr-FR", longDate)} – ${dateTo.toLocaleDateString("fr-FR", longDate)}`;
+    const generatedDate = new Date().toLocaleDateString("fr-FR", longDate);
 
     const pct = (curr: number, prev: number) =>
         prev > 0 ? Math.round(((curr - prev) / prev) * 100) : null;
@@ -303,16 +290,8 @@ export function toReportData(
             name: m.name,
             isActive: m.isActive,
             objective: m.objective,
-            startDate: m.startDate.toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-            }),
-            endDate: m.endDate.toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-            }),
+            startDate: m.startDate.toLocaleDateString("fr-FR", shortDate),
+            endDate: m.endDate.toLocaleDateString("fr-FR", shortDate),
             sdrCount: m._count.sdrAssignments,
         })),
     };

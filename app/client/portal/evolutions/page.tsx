@@ -168,7 +168,7 @@ export default function ClientPortalEvolutionsPage() {
                                 <div className={s.body}>
                                     <div className={s.soonGrid}>
                                         <ComingColumn title="En cours" items={data.inProgress} color="#3b6fe0" live />
-                                        <ComingColumn title="À venir" items={data.upcoming} color="#8a8f8a" live={false} />
+                                        <ComingColumn title="À venir" items={data.upcoming} color="#8b929b" live={false} />
                                     </div>
                                 </div>
                             </article>

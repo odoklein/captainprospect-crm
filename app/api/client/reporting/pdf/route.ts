@@ -5,6 +5,7 @@ import {
     AuthError,
 } from "@/lib/api-utils";
 import { generateClientReportPdf } from "@/lib/reporting/pdf";
+import { parisDayRange } from "@/lib/reporting/period";
 import { getReportData, toReportData } from "../get-report-data";
 
 // ============================================
@@ -20,36 +21,18 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }
 
     const { searchParams } = new URL(request.url);
-    const dateFrom = searchParams.get("dateFrom")?.trim();
-    const dateTo = searchParams.get("dateTo")?.trim();
     const missionIdParam = searchParams.get("missionId")?.trim() || null;
     const comparePrevious = searchParams.get("comparePrevious") !== "false";
 
-    if (!dateFrom || !dateTo) {
+    const dateFrom = searchParams.get("dateFrom")?.trim();
+    const range = parisDayRange(dateFrom, searchParams.get("dateTo")?.trim());
+    if (!range) {
         return NextResponse.json(
-            { success: false, error: "dateFrom et dateTo sont requis" },
+            { success: false, error: "Période invalide : dateFrom et dateTo (AAAA-MM-JJ), début avant fin" },
             { status: 400 }
         );
     }
-
-    const dateFromDate = new Date(dateFrom);
-    const dateToDate = new Date(dateTo);
-    dateFromDate.setHours(0, 0, 0, 0);
-    dateToDate.setHours(23, 59, 59, 999);
-
-    if (Number.isNaN(dateFromDate.getTime()) || Number.isNaN(dateToDate.getTime())) {
-        return NextResponse.json(
-            { success: false, error: "Dates invalides" },
-            { status: 400 }
-        );
-    }
-
-    if (dateFromDate > dateToDate) {
-        return NextResponse.json(
-            { success: false, error: "La date de début doit être avant la date de fin" },
-            { status: 400 }
-        );
-    }
+    const { from: dateFromDate, to: dateToDate } = range;
 
     const raw = await getReportData({
         clientId,
@@ -68,7 +51,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const reportData = toReportData(raw, dateFromDate, dateToDate);
     const pdfBuffer = await generateClientReportPdf(reportData);
-    const filename = `rapport-${raw.client.name.replace(/[^a-z0-9]/gi, "_")}-${dateFromDate.toISOString().slice(0, 10)}.pdf`;
+    const filename = `rapport-${raw.client.name.replace(/[^a-z0-9]/gi, "_")}-${dateFrom}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
         status: 200,

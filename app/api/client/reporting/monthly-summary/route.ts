@@ -1,80 +1,70 @@
-import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import {
-    successResponse,
-    requireRole,
-    withErrorHandler,
-} from '@/lib/api-utils';
-import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
+import { NextRequest } from "next/server";
+import { DateTime } from "luxon";
+import { prisma } from "@/lib/prisma";
+import { successResponse, requireRole, withErrorHandler } from "@/lib/api-utils";
+import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
+import { REPORT_ZONE, parisMonthKey } from "@/lib/reporting/period";
+import type { ReportingOverview } from "@/lib/reporting/types";
+
+// ============================================
+// GET /api/client/reporting/monthly-summary
+// Month-by-month activity since launch (Paris months, zero-filled) plus what
+// the report builder needs: the client's missions and its launch date.
+// ============================================
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
-    const session = await requireRole(['CLIENT'], request);
+    const session = await requireRole(["CLIENT"], request);
     const clientId = (session.user as { clientId?: string }).clientId;
-    if (!clientId) return successResponse([]);
+    const now = new Date();
+    const empty: ReportingOverview = { launchDate: null, missions: [], months: [], generatedAt: now.toISOString() };
+    if (!clientId) return successResponse(empty);
 
     const missions = await prisma.mission.findMany({
         where: { clientId, AND: [portalVisibleMissionWhere()] },
-        select: { id: true, startDate: true, objective: true },
+        select: { id: true, name: true, isActive: true, startDate: true },
+        orderBy: [{ isActive: "desc" }, { name: "asc" }],
     });
+    if (missions.length === 0) return successResponse(empty);
 
-    if (missions.length === 0) return successResponse([]);
-
-    const missionIds = missions.map((m) => m.id);
-    const earliestStart = new Date(
-        Math.min(...missions.map((m) => m.startDate.getTime()))
-    );
+    const launch = DateTime.fromJSDate(new Date(Math.min(...missions.map((m) => m.startDate.getTime()))))
+        .setZone(REPORT_ZONE)
+        .startOf("day");
 
     const actions = await prisma.action.findMany({
         where: {
-            campaign: { missionId: { in: missionIds } },
-            createdAt: { gte: earliestStart },
+            campaign: { missionId: { in: missions.map((m) => m.id) } },
+            createdAt: { gte: launch.startOf("month").toJSDate() },
         },
-        select: {
-            createdAt: true,
-            result: true,
-            contactId: true,
-        },
+        select: { createdAt: true, result: true, channel: true, contactId: true, companyId: true },
     });
 
-    const monthMap = new Map<string, {
-        month: number;
-        year: number;
-        meetingsBooked: number;
-        callsMade: number;
-        contactsReached: Set<string>;
-    }>();
-
-    for (const action of actions) {
-        const d = new Date(action.createdAt);
-        const key = `${d.getFullYear()}-${d.getMonth()}`;
-        if (!monthMap.has(key)) {
-            monthMap.set(key, {
-                month: d.getMonth() + 1,
-                year: d.getFullYear(),
-                meetingsBooked: 0,
-                callsMade: 0,
-                contactsReached: new Set(),
-            });
-        }
-        const entry = monthMap.get(key)!;
-        entry.callsMade++;
-        if (action.result === 'MEETING_BOOKED') entry.meetingsBooked++;
-        if (action.contactId) entry.contactsReached.add(action.contactId);
+    const byMonth = new Map<string, { meetings: number; calls: number; actions: number; touched: Set<string> }>();
+    const current = DateTime.fromJSDate(now).setZone(REPORT_ZONE).startOf("month");
+    for (let m = launch.startOf("month"); m <= current; m = m.plus({ months: 1 })) {
+        byMonth.set(m.toFormat("yyyy-MM"), { meetings: 0, calls: 0, actions: 0, touched: new Set() });
     }
 
-    const parsed = parseInt(missions[0]?.objective ?? '', 10);
-    const objective = !isNaN(parsed) && parsed > 0 ? parsed : 10;
+    for (const a of actions) {
+        const entry = byMonth.get(parisMonthKey(a.createdAt));
+        if (!entry) continue;
+        entry.actions++;
+        if (a.channel === "CALL") entry.calls++;
+        if (a.result === "MEETING_BOOKED") entry.meetings++;
+        if (a.contactId) entry.touched.add(a.contactId);
+        else if (a.companyId) entry.touched.add(`company:${a.companyId}`);
+    }
 
-    const result = Array.from(monthMap.values())
-        .map((e) => ({
-            month: e.month,
-            year: e.year,
-            meetingsBooked: e.meetingsBooked,
-            callsMade: e.callsMade,
-            contactsReached: e.contactsReached.size,
-            objective,
-        }))
-        .sort((a, b) => a.year - b.year || a.month - b.month);
-
-    return successResponse(result);
+    const body: ReportingOverview = {
+        launchDate: launch.toISODate(),
+        missions: missions.map((m) => ({ id: m.id, name: m.name, isActive: m.isActive })),
+        months: [...byMonth.entries()].map(([key, e]) => ({
+            key,
+            meetings: e.meetings,
+            calls: e.calls,
+            actions: e.actions,
+            contactsTouched: e.touched.size,
+        })),
+        generatedAt: now.toISOString(),
+    };
+    return successResponse(body);
 });

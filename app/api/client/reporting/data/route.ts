@@ -4,6 +4,7 @@ import {
     withErrorHandler,
     AuthError,
 } from "@/lib/api-utils";
+import { parisDayRange } from "@/lib/reporting/period";
 import { getReportData, toReportData } from "../get-report-data";
 
 /**
@@ -19,36 +20,17 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }
 
     const { searchParams } = new URL(request.url);
-    const dateFromParam = searchParams.get("dateFrom")?.trim();
-    const dateToParam = searchParams.get("dateTo")?.trim();
     const missionId = searchParams.get("missionId")?.trim() || null;
     const comparePrevious = searchParams.get("comparePrevious") !== "false";
 
-    if (!dateFromParam || !dateToParam) {
+    const range = parisDayRange(searchParams.get("dateFrom")?.trim(), searchParams.get("dateTo")?.trim());
+    if (!range) {
         return NextResponse.json(
-            { success: false, error: "dateFrom et dateTo sont requis" },
+            { success: false, error: "Période invalide : dateFrom et dateTo (AAAA-MM-JJ), début avant fin" },
             { status: 400 }
         );
     }
-
-    const dateFromDate = new Date(dateFromParam);
-    const dateToDate = new Date(dateToParam);
-    dateFromDate.setHours(0, 0, 0, 0);
-    dateToDate.setHours(23, 59, 59, 999);
-
-    if (Number.isNaN(dateFromDate.getTime()) || Number.isNaN(dateToDate.getTime())) {
-        return NextResponse.json(
-            { success: false, error: "Dates invalides" },
-            { status: 400 }
-        );
-    }
-
-    if (dateFromDate > dateToDate) {
-        return NextResponse.json(
-            { success: false, error: "La date de début doit être avant la date de fin" },
-            { status: 400 }
-        );
-    }
+    const { from: dateFromDate, to: dateToDate } = range;
 
     const raw = await getReportData({
         clientId,
