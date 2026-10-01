@@ -50,6 +50,13 @@ import { StrategyByListTab } from "./StrategyByListTab";
 import { ListCommercialsPicker } from "./ListCommercialsPicker";
 import { MailboxManagerDialog } from "@/components/email/inbox/MailboxManagerDialog";
 import { PitchBlockEditor, ScriptBlockEditor, StrategyArtifactViewer } from "@/components/strategy";
+import {
+    DailyReportBody,
+    reportComment,
+    type DailyReportLike,
+} from "@/components/sdr/DailyReportView";
+import { MAIN_BLOCKER_LABELS, labelOf } from "@/lib/sdr-daily-report/options";
+import { topBlocker } from "@/lib/sdr-daily-report/stats";
 import { MISSION_STATUS_CONFIG, MISSION_STATUS_TRANSITIONS } from "@/lib/constants/missionStatus";
 import type { MissionStatusValue } from "@/lib/constants/missionStatus";
 
@@ -205,12 +212,8 @@ interface CampaignData {
     isActive: boolean;
 }
 
-interface MissionFeedbackItem {
+interface MissionFeedbackItem extends DailyReportLike {
     id: string;
-    score: number;
-    review: string;
-    objections: string | null;
-    missionComment: string | null;
     submittedAt: string;
     sdr: {
         id: string;
@@ -3160,15 +3163,25 @@ export function MissionWorkspace({
                                             <p className="text-2xl font-bold text-slate-900">{feedbackItems.length}</p>
                                         </div>
                                         <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/60">
-                                            <p className="text-[11px] text-slate-500">Score moyen</p>
-                                            <p className="text-2xl font-bold text-slate-900">
-                                                {(feedbackItems.reduce((sum, item) => sum + item.score, 0) / feedbackItems.length).toFixed(1)} / 5
-                                            </p>
+                                            <p className="text-[11px] text-slate-500">Frein principal n°1</p>
+                                            {(() => {
+                                                const top = topBlocker(feedbackItems);
+                                                return top ? (
+                                                    <p className="text-lg font-bold text-slate-900 leading-tight">
+                                                        {labelOf(MAIN_BLOCKER_LABELS, top.code)}
+                                                        <span className="ml-1.5 text-xs font-medium text-slate-500">
+                                                            {top.count}/{feedbackItems.length}
+                                                        </span>
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-lg font-bold text-slate-400">—</p>
+                                                );
+                                            })()}
                                         </div>
                                         <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/60">
-                                            <p className="text-[11px] text-slate-500">Avec objections</p>
+                                            <p className="text-[11px] text-slate-500">Avec commentaire terrain</p>
                                             <p className="text-2xl font-bold text-slate-900">
-                                                {feedbackItems.filter((item) => !!item.objections?.trim()).length}
+                                                {feedbackItems.filter((item) => !!reportComment(item)).length}
                                             </p>
                                         </div>
                                     </div>
@@ -3182,30 +3195,20 @@ export function MissionWorkspace({
                                                     <p className="text-xs text-slate-500">
                                                         {new Date(item.submittedAt).toLocaleString("fr-FR")}
                                                     </p>
-                                                    <span className={cn(
-                                                        "ml-auto px-2 py-0.5 rounded-full text-[11px] font-semibold",
-                                                        item.score >= 4
-                                                            ? "bg-emerald-50 text-emerald-700"
-                                                            : item.score >= 3
-                                                              ? "bg-amber-50 text-amber-700"
-                                                              : "bg-red-50 text-red-700",
-                                                    )}>
-                                                        {item.score}/5
-                                                    </span>
+                                                    {item.score != null && (
+                                                        <span className={cn(
+                                                            "ml-auto px-2 py-0.5 rounded-full text-[11px] font-semibold",
+                                                            item.score >= 4
+                                                                ? "bg-emerald-50 text-emerald-700"
+                                                                : item.score >= 3
+                                                                  ? "bg-amber-50 text-amber-700"
+                                                                  : "bg-red-50 text-red-700",
+                                                        )}>
+                                                            {item.score}/5
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                <p className="text-sm text-slate-800 whitespace-pre-wrap">{item.review}</p>
-                                                {item.objections && (
-                                                    <p className="text-xs text-slate-600 mt-2">
-                                                        <span className="font-semibold text-slate-800">Objections:</span>{" "}
-                                                        {item.objections}
-                                                    </p>
-                                                )}
-                                                {item.missionComment && (
-                                                    <p className="text-xs text-slate-600 mt-1">
-                                                        <span className="font-semibold text-slate-800">Commentaire mission:</span>{" "}
-                                                        {item.missionComment}
-                                                    </p>
-                                                )}
+                                                <DailyReportBody item={item} />
                                             </div>
                                         ))}
                                     </div>

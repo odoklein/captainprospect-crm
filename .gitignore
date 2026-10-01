@@ -54,3 +54,6 @@ next-env.d.ts
 # Sentry Config File
 .env.sentry-build-plugin
 powershell.cmd
+
+# Lead Hub is its own git repository (deployed separately to Dokploy)
+/lead-hub/

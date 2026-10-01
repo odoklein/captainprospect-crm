@@ -3610,14 +3610,25 @@ model SdrDailyFeedback {
   missionId      String? // legacy primary mission (first selected mission)
   mission        Mission?                  @relation(fields: [missionId], references: [id], onDelete: SetNull)
   missions       SdrDailyFeedbackMission[]
-  score          Int
-  review         String                    @db.Text
+  // Legacy free-text report (score + 3 textareas). Null on structured reports.
+  score          Int?
+  review         String?                   @db.Text
   objections     String?                   @db.Text
   missionComment String?                   @db.Text
   pagePath       String?
+
+  // Structured "Retour journée SDR". Stores option codes, see lib/sdr-daily-report/options.ts.
+  reportDate      String? // Europe/Paris day "YYYY-MM-DD"; null on legacy rows. One report per SDR per day.
+  reachability    String[]                 @default([])
+  prospectReturns String[]                 @default([])
+  pitchFeeling    String[]                 @default([])
+  mainBlocker     String?
+  fieldComment    String?                  @db.Text
+
   submittedAt    DateTime                  @default(now())
   createdAt      DateTime                  @default(now())
 
+  @@unique([sdrId, reportDate])
   @@index([sdrId])
   @@index([missionId])
   @@index([submittedAt])

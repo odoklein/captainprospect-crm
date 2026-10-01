@@ -28,6 +28,7 @@ import {
 import { ClientCalCredentials } from "./_sections/ClientCalCredentials";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
 import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
+import { DailyReportBody, type DailyReportLike } from "@/components/sdr/DailyReportView";
 import {
     MISSION_STATUS_CONFIG,
     type MissionStatusValue,
@@ -202,12 +203,8 @@ interface ClientActionInsight {
     };
 }
 
-interface ClientSdrFeedbackInsight {
+interface ClientSdrFeedbackInsight extends DailyReportLike {
     id: string;
-    score: number;
-    review: string;
-    objections?: string | null;
-    missionComment?: string | null;
     submittedAt: string;
     sdr: { id: string; name: string | null; email: string };
     mission?: { id: string; name: string } | null;
@@ -1502,32 +1499,20 @@ export function ClientDrawer({
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <Badge
-                                            variant={feedback.score >= 4 ? "success" : feedback.score <= 2 ? "danger" : "warning"}
-                                            className="font-bold"
-                                        >
-                                            {feedback.score}/5
-                                        </Badge>
+                                        {feedback.score != null && (
+                                            <Badge
+                                                variant={feedback.score >= 4 ? "success" : feedback.score <= 2 ? "danger" : "warning"}
+                                                className="font-bold"
+                                            >
+                                                {feedback.score}/5
+                                            </Badge>
+                                        )}
                                         <p className="text-[10px] text-slate-400 mt-1">{formatRelative(feedback.submittedAt)}</p>
                                     </div>
                                 </div>
-                                <p className="mt-3 text-sm leading-relaxed text-slate-700">{feedback.review}</p>
-                                {(feedback.objections || feedback.missionComment) && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                                        {feedback.objections && (
-                                            <div className="rounded-xl bg-amber-50 border border-amber-100 p-3">
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Objections</p>
-                                                <p className="text-xs text-amber-950 mt-1">{feedback.objections}</p>
-                                            </div>
-                                        )}
-                                        {feedback.missionComment && (
-                                            <div className="rounded-xl bg-indigo-50 border border-indigo-100 p-3">
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">Commentaire mission</p>
-                                                <p className="text-xs text-indigo-950 mt-1">{feedback.missionComment}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                                <div className="mt-3">
+                                    <DailyReportBody item={feedback} />
+                                </div>
                             </div>
                         );
                     })}

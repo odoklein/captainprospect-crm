@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { MAIN_BLOCKER_VALUES } from "@/lib/sdr-daily-report/options";
 import {
     errorResponse,
     requireRole,
@@ -18,6 +19,9 @@ const querySchema = z.object({
     maxScore: z.coerce.number().int().min(1).max(5).optional(),
     withObjections: z.enum(["true", "false"]).optional(),
     withMissionComment: z.enum(["true", "false"]).optional(),
+    blocker: z.enum(MAIN_BLOCKER_VALUES).optional(),
+    /** Has a field comment (structured form) or a mission comment (legacy form). */
+    withComment: z.enum(["true", "false"]).optional(),
     sortBy: z.enum(["submittedAt", "score", "sdr"]).default("submittedAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
     limit: z.coerce.number().int().min(1).max(500).default(100),
@@ -56,6 +60,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         maxScore: searchParams.get("maxScore") ?? undefined,
         withObjections: searchParams.get("withObjections") ?? undefined,
         withMissionComment: searchParams.get("withMissionComment") ?? undefined,
+        blocker: searchParams.get("blocker") ?? undefined,
+        withComment: searchParams.get("withComment") ?? undefined,
         sortBy: searchParams.get("sortBy") ?? undefined,
         sortOrder: searchParams.get("sortOrder") ?? undefined,
         limit: searchParams.get("limit") ?? undefined,
@@ -104,6 +110,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             : parsed.data.withMissionComment === "false"
               ? { missionComment: null }
               : {},
+        parsed.data.blocker ? { mainBlocker: parsed.data.blocker } : {},
+        parsed.data.withComment === "true"
+            ? { OR: [{ fieldComment: { not: null } }, { missionComment: { not: null } }] }
+            : parsed.data.withComment === "false"
+              ? { AND: [{ fieldComment: null }, { missionComment: null }] }
+              : {},
     ];
     if (search) {
         whereClauses.push({
@@ -111,6 +123,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 { review: { contains: search, mode: "insensitive" as const } },
                 { objections: { contains: search, mode: "insensitive" as const } },
                 { missionComment: { contains: search, mode: "insensitive" as const } },
+                { fieldComment: { contains: search, mode: "insensitive" as const } },
                 { sdr: { name: { contains: search, mode: "insensitive" as const } } },
                 {
                     missions: {
@@ -143,6 +156,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             review: true,
             objections: true,
             missionComment: true,
+            reachability: true,
+            prospectReturns: true,
+            pitchFeeling: true,
+            mainBlocker: true,
+            fieldComment: true,
             pagePath: true,
             submittedAt: true,
             sdr: {

@@ -2,14 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowUpDown, Loader2, MessageSquare, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+    BlockerChip,
+    ChipList,
+    reportComment,
+    type DailyReportLike,
+} from "@/components/sdr/DailyReportView";
+import {
+    MAIN_BLOCKER_LABELS,
+    MAIN_BLOCKER_VALUES,
+    PITCH_FEELING_LABELS,
+    PROSPECT_RETURN_LABELS,
+    REACHABILITY_LABELS,
+    labelOf,
+} from "@/lib/sdr-daily-report/options";
+import { difficultReachabilityShare, topBlocker } from "@/lib/sdr-daily-report/stats";
 
-type FeedbackItem = {
+type FeedbackItem = DailyReportLike & {
     id: string;
-    score: number;
-    review: string;
-    objections: string | null;
-    missionComment: string | null;
     pagePath: string | null;
     submittedAt: string;
     sdr: {
@@ -48,10 +58,9 @@ export default function ManagerSdrFeedbackPage() {
     });
     const [to, setTo] = useState(() => toInputDate(new Date()));
     const [selectedSdrId, setSelectedSdrId] = useState("all");
-    const [selectedScore, setSelectedScore] = useState("all");
-    const [objectionsFilter, setObjectionsFilter] = useState("all");
-    const [missionCommentFilter, setMissionCommentFilter] = useState("all");
-    const [sortBy, setSortBy] = useState<"submittedAt" | "score" | "sdr">("submittedAt");
+    const [selectedBlocker, setSelectedBlocker] = useState("all");
+    const [commentFilter, setCommentFilter] = useState("all");
+    const [sortBy, setSortBy] = useState<"submittedAt" | "sdr">("submittedAt");
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(1);
@@ -72,14 +81,8 @@ export default function ManagerSdrFeedbackPage() {
             const params = new URLSearchParams({ from, to, limit: "500", sortBy, sortOrder });
             if (debouncedSearch) params.set("search", debouncedSearch);
             if (selectedSdrId !== "all") params.set("sdrId", selectedSdrId);
-            if (selectedScore !== "all") {
-                params.set("minScore", selectedScore);
-                params.set("maxScore", selectedScore);
-            }
-            if (objectionsFilter !== "all") params.set("withObjections", objectionsFilter);
-            if (missionCommentFilter !== "all") {
-                params.set("withMissionComment", missionCommentFilter);
-            }
+            if (selectedBlocker !== "all") params.set("blocker", selectedBlocker);
+            if (commentFilter !== "all") params.set("withComment", commentFilter);
             const res = await fetch(`/api/manager/sdr-feedback?${params.toString()}`);
             const json = await res.json();
             if (!json.success) {
@@ -94,7 +97,7 @@ export default function ManagerSdrFeedbackPage() {
         } finally {
             setLoading(false);
         }
-    }, [from, to, debouncedSearch, selectedSdrId, selectedScore, objectionsFilter, missionCommentFilter, sortBy, sortOrder]);
+    }, [from, to, debouncedSearch, selectedSdrId, selectedBlocker, commentFilter, sortBy, sortOrder]);
 
     useEffect(() => {
         void load();
@@ -108,16 +111,15 @@ export default function ManagerSdrFeedbackPage() {
         [items],
     );
 
-    const stats = useMemo(() => {
-        if (items.length === 0) {
-            return { total: 0, avg: 0, objections: 0, comments: 0 };
-        }
-        const total = items.length;
-        const avg = items.reduce((sum, item) => sum + item.score, 0) / total;
-        const objections = items.filter((item) => !!item.objections?.trim()).length;
-        const comments = items.filter((item) => !!item.missionComment?.trim()).length;
-        return { total, avg, objections, comments };
-    }, [items]);
+    const stats = useMemo(
+        () => ({
+            total: items.length,
+            topBlocker: topBlocker(items),
+            reachabilityShare: difficultReachabilityShare(items),
+            comments: items.filter((item) => !!reportComment(item)).length,
+        }),
+        [items],
+    );
 
     const totalPages = useMemo(() => Math.max(1, Math.ceil(items.length / pageSize)), [items.length, pageSize]);
     const paginatedItems = useMemo(() => {
@@ -146,7 +148,7 @@ export default function ManagerSdrFeedbackPage() {
                         Avis SDR
                     </h1>
                     <p className="text-[13px] text-[#8B8BA7] mt-0.5">
-                        Retours quotidiens, objections terrain et commentaires mission.
+                        Retour de fin de journée de chaque SDR : joignabilité, retours prospects, discours et principal frein.
                     </p>
                 </div>
                 <div className="flex items-end gap-2">
@@ -193,19 +195,30 @@ export default function ManagerSdrFeedbackPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
                 <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Total avis</p>
+                    <p className="text-[11px] text-[#8B8BA7]">Total retours</p>
                     <p className="text-[24px] font-bold text-[#12122A]">{stats.total}</p>
                 </div>
                 <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Score moyen</p>
-                    <p className="text-[24px] font-bold text-[#12122A]">{stats.avg.toFixed(1)} / 5</p>
+                    <p className="text-[11px] text-[#8B8BA7]">Frein principal n°1</p>
+                    {stats.topBlocker ? (
+                        <p className="text-[18px] font-bold text-[#12122A] leading-tight mt-1">
+                            {labelOf(MAIN_BLOCKER_LABELS, stats.topBlocker.code)}
+                            <span className="ml-1.5 text-[12px] font-medium text-[#8B8BA7]">
+                                {stats.topBlocker.count}/{stats.total}
+                            </span>
+                        </p>
+                    ) : (
+                        <p className="text-[24px] font-bold text-[#C5C8D4]">—</p>
+                    )}
                 </div>
                 <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Avec objections</p>
-                    <p className="text-[24px] font-bold text-[#12122A]">{stats.objections}</p>
+                    <p className="text-[11px] text-[#8B8BA7]">Joignabilité difficile</p>
+                    <p className="text-[24px] font-bold text-[#12122A]">
+                        {stats.reachabilityShare === null ? "—" : `${stats.reachabilityShare} %`}
+                    </p>
                 </div>
                 <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Avec commentaires mission</p>
+                    <p className="text-[11px] text-[#8B8BA7]">Avec commentaire terrain</p>
                     <p className="text-[24px] font-bold text-[#12122A]">{stats.comments}</p>
                 </div>
             </div>
@@ -222,7 +235,7 @@ export default function ManagerSdrFeedbackPage() {
                             <input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Rechercher (avis, objections, mission, SDR)..."
+                                placeholder="Rechercher (commentaire, mission, SDR)..."
                                 className="w-full h-9 pl-8 pr-3 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
                             />
                         </div>
@@ -239,34 +252,25 @@ export default function ManagerSdrFeedbackPage() {
                             ))}
                         </select>
                         <select
-                            value={selectedScore}
-                            onChange={(e) => setSelectedScore(e.target.value)}
-                            className="h-9 min-w-[120px] px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                            value={selectedBlocker}
+                            onChange={(e) => setSelectedBlocker(e.target.value)}
+                            className="h-9 min-w-[190px] px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
                         >
-                            <option value="all">Tous scores</option>
-                            {[5, 4, 3, 2, 1].map((score) => (
-                                <option key={score} value={String(score)}>
-                                    {score}/5
+                            <option value="all">Tous les freins</option>
+                            {MAIN_BLOCKER_VALUES.map((code) => (
+                                <option key={code} value={code}>
+                                    {MAIN_BLOCKER_LABELS[code]}
                                 </option>
                             ))}
                         </select>
                         <select
-                            value={objectionsFilter}
-                            onChange={(e) => setObjectionsFilter(e.target.value)}
-                            className="h-9 min-w-[160px] px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
-                        >
-                            <option value="all">Objections: tous</option>
-                            <option value="true">Avec objections</option>
-                            <option value="false">Sans objections</option>
-                        </select>
-                        <select
-                            value={missionCommentFilter}
-                            onChange={(e) => setMissionCommentFilter(e.target.value)}
+                            value={commentFilter}
+                            onChange={(e) => setCommentFilter(e.target.value)}
                             className="h-9 min-w-[185px] px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
                         >
-                            <option value="all">Commentaires mission: tous</option>
-                            <option value="true">Avec commentaire mission</option>
-                            <option value="false">Sans commentaire mission</option>
+                            <option value="all">Commentaire: tous</option>
+                            <option value="true">Avec commentaire</option>
+                            <option value="false">Sans commentaire</option>
                         </select>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -276,11 +280,10 @@ export default function ManagerSdrFeedbackPage() {
                         </span>
                         <select
                             value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as "submittedAt" | "score" | "sdr")}
+                            onChange={(e) => setSortBy(e.target.value as "submittedAt" | "sdr")}
                             className="h-8 px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
                         >
                             <option value="submittedAt">Date</option>
-                            <option value="score">Score</option>
                             <option value="sdr">SDR</option>
                         </select>
                         <button
@@ -309,16 +312,17 @@ export default function ManagerSdrFeedbackPage() {
                     </div>
                 ) : (
                     <div className="overflow-auto">
-                        <table className="w-full min-w-[980px] text-left">
+                        <table className="w-full min-w-[1180px] text-left">
                             <thead className="bg-[#FAFBFE] border-b border-[#EEF1F6] sticky top-0 z-10">
                                 <tr className="text-[11px] uppercase tracking-wide text-[#8B8BA7]">
                                     <th className="px-4 py-2.5 font-semibold">Date</th>
                                     <th className="px-4 py-2.5 font-semibold">SDR</th>
-                                    <th className="px-4 py-2.5 font-semibold">Score</th>
                                     <th className="px-4 py-2.5 font-semibold">Missions</th>
-                                    <th className="px-4 py-2.5 font-semibold">Avis</th>
-                                    <th className="px-4 py-2.5 font-semibold">Objections</th>
-                                    <th className="px-4 py-2.5 font-semibold">Commentaire mission</th>
+                                    <th className="px-4 py-2.5 font-semibold">Joignabilité</th>
+                                    <th className="px-4 py-2.5 font-semibold">Retours prospects</th>
+                                    <th className="px-4 py-2.5 font-semibold">Discours</th>
+                                    <th className="px-4 py-2.5 font-semibold">Principal frein</th>
+                                    <th className="px-4 py-2.5 font-semibold">Commentaire</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -331,38 +335,45 @@ export default function ManagerSdrFeedbackPage() {
                                             <p className="font-semibold text-[#12122A]">{item.sdr.name}</p>
                                             <p className="text-[#8B8BA7]">{item.sdr.email}</p>
                                         </td>
-                                        <td className="px-4 py-3 text-[12px]">
-                                            <span
-                                                className={cn(
-                                                    "inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold",
-                                                    item.score >= 4
-                                                        ? "bg-emerald-50 text-emerald-700"
-                                                        : item.score >= 3
-                                                          ? "bg-amber-50 text-amber-700"
-                                                          : "bg-red-50 text-red-700",
-                                                )}
-                                            >
-                                                {item.score}/5
-                                            </span>
-                                        </td>
                                         <td className="px-4 py-3 text-[12px] text-[#5A5A7A]">
                                             {item.missions?.length
                                                 ? item.missions.map((m) => m.mission.name).join(", ")
                                                 : item.mission?.name ?? "Aucune"}
-                                            {item.pagePath ? (
-                                                <p className="text-[11px] text-[#8B8BA7] mt-1">
-                                                    Origine: {item.pagePath}
-                                                </p>
-                                            ) : null}
                                         </td>
-                                        <td className="px-4 py-3 text-[12px] text-[#12122A] whitespace-pre-wrap">
-                                            {item.review}
+                                        <td className="px-4 py-3 text-[12px] max-w-[220px]">
+                                            <ChipList codes={item.reachability} labels={REACHABILITY_LABELS} />
                                         </td>
-                                        <td className="px-4 py-3 text-[12px] text-[#5A5A7A] whitespace-pre-wrap">
-                                            {item.objections || "—"}
+                                        <td className="px-4 py-3 text-[12px] max-w-[220px]">
+                                            <ChipList codes={item.prospectReturns} labels={PROSPECT_RETURN_LABELS} />
                                         </td>
-                                        <td className="px-4 py-3 text-[12px] text-[#5A5A7A] whitespace-pre-wrap">
-                                            {item.missionComment || "—"}
+                                        <td className="px-4 py-3 text-[12px] max-w-[220px]">
+                                            <ChipList codes={item.pitchFeeling} labels={PITCH_FEELING_LABELS} />
+                                        </td>
+                                        <td className="px-4 py-3 text-[12px]">
+                                            <BlockerChip code={item.mainBlocker} />
+                                        </td>
+                                        <td className="px-4 py-3 text-[12px] text-[#5A5A7A] whitespace-pre-wrap max-w-[280px]">
+                                            {item.fieldComment ? (
+                                                item.fieldComment
+                                            ) : item.review ? (
+                                                // report sent before the structured form
+                                                <>
+                                                    {item.score != null ? (
+                                                        <span className="mr-1.5 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                                                            Ancien format · {item.score}/5
+                                                        </span>
+                                                    ) : null}
+                                                    <span className="text-[#12122A]">{item.review}</span>
+                                                    {item.objections ? (
+                                                        <span className="block mt-1">Objections : {item.objections}</span>
+                                                    ) : null}
+                                                    {item.missionComment ? (
+                                                        <span className="block mt-1">Mission : {item.missionComment}</span>
+                                                    ) : null}
+                                                </>
+                                            ) : (
+                                                "—"
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

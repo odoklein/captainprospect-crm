@@ -232,6 +232,11 @@ export const GET = withErrorHandler(async (
                 review: true,
                 objections: true,
                 missionComment: true,
+                reachability: true,
+                prospectReturns: true,
+                pitchFeeling: true,
+                mainBlocker: true,
+                fieldComment: true,
                 submittedAt: true,
                 sdr: {
                     select: { id: true, name: true, email: true },
