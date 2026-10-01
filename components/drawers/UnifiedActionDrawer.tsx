@@ -52,6 +52,7 @@ import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { ContactDrawer } from "./ContactDrawer";
 import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
+import { CompanyAiEnrichment } from "@/components/enrichment/CompanyAiEnrichment";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { getGoogleMapsUrl } from "@/lib/google-maps";
@@ -150,6 +151,8 @@ interface UnifiedActionDrawerProps {
     /** When the Allo call-picker modal opens, parent can hide overlapping UI (e.g. ScriptCompanionDrawer). */
     onAlloDialogOpenChange?: (isOpen: boolean) => void;
     enableGooglePhoneLookup?: boolean;
+    /** AI web-search panel for incomplete company sheets. Defaults to the value of enableGooglePhoneLookup (same SDR pages). */
+    enableCompanyAiEnrichment?: boolean;
 }
 
 interface AlloCallItem {
@@ -463,6 +466,7 @@ export function UnifiedActionDrawer({
     onBookingDialogOpenChange,
     onAlloDialogOpenChange,
     enableGooglePhoneLookup = false,
+    enableCompanyAiEnrichment,
 }: UnifiedActionDrawerProps) {
     const { success, error: showError, info: showInfo } = useToast();
     const { data: session } = useSession();
@@ -574,6 +578,9 @@ export function UnifiedActionDrawer({
             queryKey: sdrUnifiedDrawerCompanyKey(companyId),
         });
     }, [companyId, queryClient]);
+
+    // The AI panel supersedes the phone-only Google block: one place to complete the sheet.
+    const showCompanyAiEnrichment = enableCompanyAiEnrichment ?? enableGooglePhoneLookup;
 
     // React Query: campaigns
     const { data: campaigns = [], isFetching: campaignsLoading } = useQuery<
@@ -2361,6 +2368,7 @@ export function UnifiedActionDrawer({
                                 )}
 
                                 {enableGooglePhoneLookup &&
+                                    !showCompanyAiEnrichment &&
                                     !isEditingContact &&
                                     !contactHasPhone &&
                                     !companyHasPhone &&
@@ -2832,6 +2840,15 @@ export function UnifiedActionDrawer({
 
                             {/* Company fields */}
                             <div>
+                                {showCompanyAiEnrichment && !isEditingCompany && (
+                                    <div className="border-b border-slate-100 px-4 py-3">
+                                        <CompanyAiEnrichment
+                                            companyId={company.id}
+                                            company={company}
+                                            onApplied={handleGooglePhoneApplied}
+                                        />
+                                    </div>
+                                )}
                                 {(company.phone || isEditingCompany) && (
                                     <InfoRow
                                         icon={Phone}
@@ -2868,6 +2885,7 @@ export function UnifiedActionDrawer({
                                 )}
 
                                 {enableGooglePhoneLookup &&
+                                    !showCompanyAiEnrichment &&
                                     !isEditingCompany &&
                                     !companyHasPhone && (
                                         <div className="border-b border-slate-100 px-4 py-3">

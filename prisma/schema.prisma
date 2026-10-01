@@ -1072,6 +1072,9 @@ model Company {
   linkedFrom   Company?  @relation("CompanyDedupLink", fields: [linkedFromId], references: [id], onDelete: SetNull)
   linkedCopies Company[] @relation("CompanyDedupLink")
 
+  // AI web-search enrichment lookups (suggestions awaiting an SDR's review).
+  enrichmentLookups CompanyEnrichmentLookup[]
+
   // Materialized exclusion stamp. The Exclusion row is the source of truth;
   // this is what every hot query filters on, so the SDR queue never has to
   // join or re-evaluate matching rules. Kept in sync by ExclusionService.
@@ -1101,6 +1104,35 @@ model PhoneEnrichmentLookup {
   expiresAt          DateTime
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([queryHash, expiresAt])
+  @@index([requestedById, createdAt])
+}
+
+/// One AI web-search enrichment of a company's missing fields (phone, sector,
+/// country, city, LinkedIn, website). `suggestions` is a JSON array of
+/// EnrichmentSuggestion (lib/enrichment/company-fields.ts): each carries its own
+/// PENDING / APPLIED / REJECTED status, so an SDR accepts field by field. Doubles
+/// as the cache (same queryHash within expiresAt is not searched again), the
+/// per-user rate-limit ledger and the review/audit trail.
+model CompanyEnrichmentLookup {
+  id              String    @id @default(cuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  provider        String    @default("MISTRAL_WEB")
+  queryHash       String
+  /// OPEN = at least one suggestion still PENDING; DONE = all reviewed; NO_RESULT = nothing found.
+  status          String    @default("OPEN")
+  requestedFields String[]
+  suggestions     Json
+  requestedById   String
+  cacheHit        Boolean   @default(false)
+  searchCount     Int       @default(0)
+  durationMs      Int?
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@index([companyId, createdAt])
   @@index([queryHash, expiresAt])
