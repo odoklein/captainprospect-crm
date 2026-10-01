@@ -14,7 +14,6 @@ import {
     NotFoundError,
 } from "@/lib/api-utils";
 import {
-    getConversationIdForClientUser,
     postMessage,
     resolveAccessibleConversationId,
 } from "@/lib/support/service";

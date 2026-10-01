@@ -24,6 +24,7 @@ import type {
     SupportMessageDTO,
 } from "./types";
 import { SUPPORT_ATTACHMENT_MAX_COUNT, supportAttachmentUrl } from "./types";
+import { canClientSideUserAccess, clientSideConversationWhere } from "./access";
 
 const MESSAGE_PAGE_SIZE = 200;
 
@@ -130,89 +131,9 @@ function toMessageDTO(message: {
 }
 
 /**
- * Fetch (or create) the single support conversation for a client company.
- * Used by the client portal bubble.
- */
-/**
- * Fetch (or create) the primary/active support conversation for a client company.
- * Used by the client portal bubble by default.
- */
-export async function getOrCreateClientConversation(clientId: string, userId?: string): Promise<string> {
-    const existing = await prisma.supportConversation.findFirst({
-        where: { clientId, status: "ACTIVE" },
-        orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-        select: { id: true },
-    });
-    if (existing) return existing.id;
-
-    const created = await prisma.supportConversation.create({
-        data: {
-            clientId,
-            createdById: userId ?? null,
-            subject: "Demande d'assistance",
-        } as any,
-        select: { id: true },
-    });
-    return created.id;
-}
-
-export async function getConversationIdForClientUser(userId: string): Promise<string | null> {
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { clientId: true, role: true },
-    });
-    if (!user || (user.role !== "CLIENT" && user.role !== "COMMERCIAL") || !user.clientId) return null;
-
-    if (user.role === "COMMERCIAL") {
-        const commercialActive = await prisma.supportConversation.findFirst({
-            where: {
-                clientId: user.clientId,
-                createdById: userId,
-                status: "ACTIVE",
-            } as any,
-            orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-            select: { id: true },
-        });
-        if (commercialActive) return commercialActive.id;
-
-        const commercialAny = await prisma.supportConversation.findFirst({
-            where: {
-                clientId: user.clientId,
-                createdById: userId,
-            } as any,
-            orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-            select: { id: true },
-        });
-        if (commercialAny) return commercialAny.id;
-
-        // Never fall through to another user's thread: a commercial may only land on
-        // a legacy company conversation (no creator) or a fresh one of their own.
-        const legacy = await prisma.supportConversation.findFirst({
-            where: { clientId: user.clientId, createdById: null } as any,
-            orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-            select: { id: true },
-        });
-        if (legacy) return legacy.id;
-
-        const created = await prisma.supportConversation.create({
-            data: {
-                clientId: user.clientId,
-                createdById: userId,
-                subject: "Demande d'assistance",
-            } as any,
-            select: { id: true },
-        });
-        return created.id;
-    }
-
-    return getOrCreateClientConversation(user.clientId, userId);
-}
-
-/**
  * Resolve the conversation a user is allowed to act on.
- * Managers reach any conversation.
- * Commercials reach only conversations they created or legacy company conversations.
- * Clients (admins) reach all conversations of their company.
+ * Managers reach any conversation; client-side users follow canClientSideUserAccess
+ * (admins: their whole company, commercials: only conversations they created).
  */
 export async function resolveAccessibleConversationId(
     user: { id: string; role: string },
@@ -238,11 +159,10 @@ export async function resolveAccessibleConversationId(
             where: { id: requestedId },
             select: { id: true, clientId: true, createdById: true },
         });
-        if (!target || target.clientId !== dbUser.clientId) return null;
-        if (dbUser.role === "COMMERCIAL" && target.createdById && target.createdById !== user.id) {
-            return null;
-        }
-        return target.id;
+        if (!target) return null;
+        return canClientSideUserAccess({ id: user.id, role: dbUser.role, clientId: dbUser.clientId }, target)
+            ? target.id
+            : null;
     }
 
     // No implicit thread: falling back to "the latest conversation of the company"
@@ -370,9 +290,8 @@ async function loadMessages(conversationId: string, limit = MESSAGE_PAGE_SIZE): 
 }
 
 /**
- * List all conversations accessible to the current client or commercial user.
- * - Commercials only see conversations they created (or legacy ones without createdById).
- * - Client Admins (role CLIENT) see all conversations of their company.
+ * List all conversations accessible to the current client or commercial user
+ * (see access.ts: commercials only their own, client admins the whole company).
  */
 export async function listConversationsForClientUser(
     userId: string,
@@ -382,14 +301,10 @@ export async function listConversationsForClientUser(
         select: { id: true, clientId: true, role: true },
     });
     if (!user || !user.clientId) return [];
-
-    const where: any = { clientId: user.clientId };
-    if (user.role === "COMMERCIAL") {
-        where.OR = [{ createdById: userId }, { createdById: null }];
-    }
+    if (user.role !== "CLIENT" && user.role !== "COMMERCIAL") return [];
 
     const conversations = await prisma.supportConversation.findMany({
-        where,
+        where: clientSideConversationWhere({ id: user.id, role: user.role, clientId: user.clientId }),
         orderBy: [{ status: "asc" }, { lastMessageAt: "desc" }, { createdAt: "desc" }],
         include: {
             client: { select: { id: true, name: true } },
@@ -453,10 +368,8 @@ export async function getConversationForClientUser(
             where: { id: specificConversationId },
             select: { id: true, clientId: true, createdById: true },
         });
-        if (!target || target.clientId !== user.clientId) return null;
-        if (user.role === "COMMERCIAL" && target.createdById && target.createdById !== userId) {
-            return null;
-        }
+        if (!target) return null;
+        if (!canClientSideUserAccess({ id: userId, role: user.role, clientId: user.clientId }, target)) return null;
         conversationId = target.id;
     }
     if (!conversationId) return null;

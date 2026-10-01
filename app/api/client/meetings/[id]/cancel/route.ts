@@ -13,7 +13,7 @@ import {
     getMeetingCancellationLabel,
     type MeetingCancellationReasonCode,
 } from "@/lib/constants/meetingCancellationReasons";
-import { notifyManagersClientCancel } from "@/lib/notifications";
+import { notifyManagersClientCancel, sendRdvCancelledEmailNotification } from "@/lib/notifications";
 
 export const POST = withErrorHandler(async (
     request: NextRequest,
@@ -106,6 +106,23 @@ export const POST = withErrorHandler(async (
         meetingDate: action.callbackDate?.toISOString() ?? null,
         cancellationReason: getMeetingCancellationLabel(cancellationReason),
     }).catch(() => {});
+
+    // The commercial this RDV was assigned to learns it is off (and that it must
+    // leave their agenda). Only them: the admin who cancelled does not need a mail
+    // about their own action. Gated by the pre-update CONFIRMED check above.
+    if (action.interlocuteurId) {
+        void sendRdvCancelledEmailNotification(client.id, {
+            contactFirstName: updated.contact?.firstName ?? null,
+            contactLastName: updated.contact?.lastName ?? null,
+            companyName: updated.contact?.company?.name ?? null,
+            missionName: updated.campaign.mission.name,
+            scheduledAt: action.callbackDate ?? null,
+            meetingChannel: action.channel,
+            meetingType: action.meetingType as "VISIO" | "PHYSIQUE" | "TELEPHONIQUE" | null,
+            interlocuteurId: action.interlocuteurId,
+            audience: "interlocuteur",
+        });
+    }
 
     return successResponse(updated);
 });

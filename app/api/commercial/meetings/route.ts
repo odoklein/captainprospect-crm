@@ -7,6 +7,7 @@ import {
     AuthError,
 } from '@/lib/api-utils';
 import { filterRdvList } from '@/lib/utils/meetingFilters';
+import { clientVisibleMeetingWhere } from '@/lib/meetings/clientVisibility';
 import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 
 // ============================================
@@ -57,8 +58,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }
 
     const where: Record<string, unknown> = {
-        result: { in: ['MEETING_BOOKED', 'MEETING_CANCELLED'] },
-        confirmationStatus: 'CONFIRMED',
+        // Confirmed meetings, plus confirmed-then-cancelled ones (they must stay
+        // visible so the commercial can remove them from their agenda).
+        AND: [clientVisibleMeetingWhere],
         campaign: { missionId: { in: missionIds } },
     };
 

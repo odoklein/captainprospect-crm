@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Briefcase, ChevronDown, Clock, Mail, Phone, Sparkles } from "lucide-react";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
+import { clientResultColor } from "@/lib/client-status-display";
 import { cn } from "@/lib/utils";
 
 export type ResultMeta = Record<string, { label: string; color: string; bg: string; border: string }>;
@@ -54,7 +55,7 @@ export function buildResultMeta(
     const catByCode = Object.fromEntries(categories.map((c) => [c.code, c]));
     const meta: Record<string, { label: string; color: string; bg: string; border: string }> = {};
     for (const s of statuses) {
-        const color = s.color ?? catByCode[s.resultCategoryCode ?? ""]?.color ?? "#64748b";
+        const color = clientResultColor(s.code, s.color ?? catByCode[s.resultCategoryCode ?? ""]?.color ?? "#64748b");
         meta[s.code] = { label: s.label, color, bg: `${color}18`, border: `${color}44` };
     }
     return meta;

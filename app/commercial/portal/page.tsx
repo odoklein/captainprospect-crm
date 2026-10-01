@@ -9,6 +9,7 @@ import {
     ArrowRight,
     Calendar,
     CalendarCheck,
+    CalendarX,
     ChevronLeft,
     ChevronRight,
     TrendingUp,
@@ -107,10 +108,18 @@ export default function CommercialPortal() {
     }, [fetchData]);
 
     const confirmedMeetings = allMeetings.filter((m) => m.result === "MEETING_BOOKED");
-    const upcomingMeetings = allMeetings
-        .filter((m) => m.result === "MEETING_BOOKED" && m.callbackDate && new Date(m.callbackDate) >= new Date())
-        .sort((a, b) => new Date(a.callbackDate!).getTime() - new Date(b.callbackDate!).getTime())
-        .slice(0, 5);
+    const cancelledMeetings = allMeetings.filter((m) => m.result === "MEETING_CANCELLED");
+
+    // A cancelled RDV stays in the list until its slot has passed: that is exactly
+    // when the commercial must remove it from their agenda. Capped separately so a
+    // run of cancellations cannot push the real upcoming meetings out of the list.
+    const futureByDate = (result: string, limit: number) =>
+        allMeetings
+            .filter((m) => m.result === result && m.callbackDate && new Date(m.callbackDate) >= new Date())
+            .sort((a, b) => new Date(a.callbackDate!).getTime() - new Date(b.callbackDate!).getTime())
+            .slice(0, limit);
+    const upcomingMeetings = [...futureByDate("MEETING_BOOKED", 5), ...futureByDate("MEETING_CANCELLED", 3)]
+        .sort((a, b) => new Date(a.callbackDate!).getTime() - new Date(b.callbackDate!).getTime());
 
     const userName = profile
         ? `${profile.firstName} ${profile.lastName}`
@@ -191,6 +200,12 @@ export default function CommercialPortal() {
                                 />
                                 <span className="text-2xl font-bold text-emerald-300/60 mb-1">RDV</span>
                             </div>
+                            {cancelledMeetings.length > 0 && (
+                                <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/[0.12] px-3 py-1 text-[12px] font-semibold text-amber-200">
+                                    <CalendarX className="w-3.5 h-3.5" />
+                                    {cancelledMeetings.length} annulé{cancelledMeetings.length > 1 ? "s" : ""} sur la période
+                                </p>
+                            )}
                         </div>
 
                         {/* Month selector */}
@@ -257,6 +272,7 @@ export default function CommercialPortal() {
                                 : "Contact";
                             const companyName = m.contact?.company?.name ?? "";
                             const dateInfo = m.callbackDate ? formatShortDate(m.callbackDate) : null;
+                            const cancelled = m.result === "MEETING_CANCELLED";
 
                             return (
                                 <Link
@@ -265,9 +281,17 @@ export default function CommercialPortal() {
                                     className="flex items-center gap-4 px-6 py-3.5 hover:bg-gradient-to-r hover:from-emerald-50/60 hover:to-transparent transition-all duration-200 group relative"
                                     style={{ animation: "dashFadeUp 0.35s ease both", animationDelay: `${160 + idx * 50}ms` }}
                                 >
-                                    <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    <div className={cn(
+                                        "absolute left-0 top-2 bottom-2 w-[3px] rounded-full transition-opacity",
+                                        cancelled ? "bg-red-400 opacity-100" : "bg-emerald-500 opacity-0 group-hover:opacity-100"
+                                    )} />
 
-                                    <div className="w-[52px] shrink-0 flex flex-col items-center py-1.5 px-1 rounded-lg bg-[#F4F5FA] border border-[#E8EBF0] group-hover:border-emerald-200 group-hover:bg-emerald-50/50 transition-all">
+                                    <div className={cn(
+                                        "w-[52px] shrink-0 flex flex-col items-center py-1.5 px-1 rounded-lg border transition-all",
+                                        cancelled
+                                            ? "bg-red-50 border-red-100"
+                                            : "bg-[#F4F5FA] border-[#E8EBF0] group-hover:border-emerald-200 group-hover:bg-emerald-50/50"
+                                    )}>
                                         {dateInfo ? (
                                             <>
                                                 <span className="text-[17px] font-extrabold text-[#12122A] leading-none">{dateInfo.day}</span>
@@ -280,16 +304,20 @@ export default function CommercialPortal() {
 
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[13.5px] font-bold text-[#12122A] truncate">{contactName}</span>
+                                            <span className={cn("text-[13.5px] font-bold truncate", cancelled ? "text-[#8B8DAF] line-through" : "text-[#12122A]")}>{contactName}</span>
                                             {companyName && (
                                                 <>
                                                     <span className="text-[11px] text-[#8B8DAF]">·</span>
-                                                    <span className="text-[12.5px] text-[#5C5E7E] font-medium truncate">{companyName}</span>
+                                                    <span className={cn("text-[12.5px] font-medium truncate", cancelled ? "text-[#A0A3BD]" : "text-[#5C5E7E]")}>{companyName}</span>
                                                 </>
                                             )}
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5">
-                                            {dateInfo ? (
+                                            {cancelled ? (
+                                                <span className="text-[11.5px] text-red-600 font-semibold">
+                                                    {dateInfo ? `${dateInfo.time} · ` : ""}Pensez à le retirer de votre agenda
+                                                </span>
+                                            ) : dateInfo ? (
                                                 <span className="text-[11.5px] text-emerald-600 font-semibold">{dateInfo.time}</span>
                                             ) : (
                                                 <span className="text-[11px] text-[#A0A3BD] italic">Date à confirmer</span>
@@ -297,6 +325,11 @@ export default function CommercialPortal() {
                                         </div>
                                     </div>
 
+                                    {cancelled && (
+                                        <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-red-700 bg-red-50 border border-red-100 px-2 py-[2px] rounded-full shrink-0">
+                                            <CalendarX className="w-3 h-3" />Annulé
+                                        </span>
+                                    )}
                                     <span className="hidden sm:inline-flex text-[10.5px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-[2px] rounded-full shrink-0">
                                         {m.campaign.mission.name}
                                     </span>

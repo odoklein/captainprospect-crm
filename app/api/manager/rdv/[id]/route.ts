@@ -14,6 +14,7 @@ import {
   createClientPortalNotification,
   sendNewRdvEmailNotification,
   sendRdvRescheduledEmailNotification,
+  sendRdvCancelledEmailNotification,
 } from "@/lib/notifications";
 import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from "@/lib/meetings/clientEmailGate";
 
@@ -151,6 +152,29 @@ export const PUT = withErrorHandler(
                 console.info(meetingEmailSkippedReason(updated.id, updated.confirmationStatus));
             }
         }
+    }
+
+    // A booked RDV that a manager cancels: tell the client and the commercial it
+    // was assigned to (and to remove it from their calendar). Judged on the status
+    // BEFORE this update, so a RDV the client never heard about stays silent.
+    if (body.result === "MEETING_CANCELLED" && action.result === "MEETING_BOOKED") {
+      const clientId = updated.campaign?.mission?.clientId;
+      if (clientId) {
+        if (canEmailClientAboutMeeting(action.confirmationStatus)) {
+          void sendRdvCancelledEmailNotification(clientId, {
+            contactFirstName: updated.contact?.firstName ?? null,
+            contactLastName: updated.contact?.lastName ?? null,
+            companyName: updated.contact?.company?.name ?? null,
+            missionName: updated.campaign?.mission?.name ?? null,
+            scheduledAt: updated.callbackDate ?? null,
+            meetingChannel: updated.channel,
+            meetingType: updated.meetingType as "VISIO" | "PHYSIQUE" | "TELEPHONIQUE" | null,
+            interlocuteurId: updated.interlocuteur?.id ?? updated.interlocuteurId ?? undefined,
+          });
+        } else {
+          console.info(meetingEmailSkippedReason(action.id, action.confirmationStatus));
+        }
+      }
     }
 
     // SAS RDV: notify client ONLY when RDV becomes CONFIRMED

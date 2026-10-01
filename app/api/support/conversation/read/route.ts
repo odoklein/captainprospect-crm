@@ -13,7 +13,6 @@ import {
     NotFoundError,
 } from "@/lib/api-utils";
 import {
-    getConversationIdForClientUser,
     markRead,
     resolveAccessibleConversationId,
 } from "@/lib/support/service";

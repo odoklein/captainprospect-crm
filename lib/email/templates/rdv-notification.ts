@@ -15,8 +15,10 @@ export interface RdvNotificationData {
   /**
    * "rescheduled" re-uses this layout to announce a date change rather than a
    * new booking: the wording changes and the old slot is shown struck through.
+   * "cancelled" announces a cancellation: no join link / address, and a
+   * reminder to remove the RDV from the recipient's own calendar.
    */
-  variant?: "new" | "rescheduled";
+  variant?: "new" | "rescheduled" | "cancelled";
   /** The slot the RDV used to occupy. Only read when variant is "rescheduled". */
   previousScheduledAt?: Date | null;
 }
@@ -169,10 +171,35 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
   const channelLabel = meetingChannelLabel(data.meetingChannel);
 
   const isRescheduled = data.variant === "rescheduled";
+  const isCancelled = data.variant === "cancelled";
 
-  const subject = isRescheduled
-    ? `RDV déplacé — ${contactName} (${company})`
-    : `Nouveau RDV confirmé — ${contactName} (${company})`;
+  const subject = isCancelled
+    ? `RDV annulé — ${contactName} (${company})`
+    : isRescheduled
+      ? `RDV déplacé — ${contactName} (${company})`
+      : `Nouveau RDV confirmé — ${contactName} (${company})`;
+
+  const tone = isCancelled
+    ? { bg: "#fef2f2", border: "#fca5a5", text: "#b91c1c", badge: "❌ RDV annulé", title: "Un rendez-vous a été annulé" }
+    : isRescheduled
+      ? { bg: "#fffbeb", border: "#fcd34d", text: "#b45309", badge: "🕓 RDV déplacé", title: "Votre rendez-vous a été déplacé" }
+      : { bg: "#f0fdf4", border: "#86efac", text: "#15803d", badge: "✅ Nouveau RDV confirmé", title: "Bonne nouvelle !" };
+
+  const intro = isCancelled
+    ? `Le rendez-vous avec <strong style="color: #0f172a;">${contactName}</strong> (${company}) sur votre mission <strong style="color: #0f172a;">${mission}</strong> a été annulé. Il n'aura pas lieu au créneau indiqué ci-dessous.`
+    : isRescheduled
+      ? `La date du rendez-vous avec <strong style="color: #0f172a;">${contactName}</strong> (${company}) sur votre mission <strong style="color: #0f172a;">${mission}</strong> a changé. Voici le nouveau créneau :`
+      : `Un nouveau rendez-vous a été réservé sur votre mission <strong style="color: #0f172a;">${mission}</strong>.`;
+
+  const agendaReminder = isCancelled
+    ? `<table cellpadding="0" cellspacing="0" width="100%" style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; margin-bottom: 24px;">
+        <tr>
+          <td style="padding: 14px 18px; font-size: 14px; color: #92400e; line-height: 1.5;">
+            📆 <strong>Pensez à supprimer ce rendez-vous de votre agenda</strong> (Google Agenda, Outlook…) pour qu'il ne reste pas planifié.
+          </td>
+        </tr>
+      </table>`
+    : "";
 
   const previousDateRow =
     isRescheduled && data.previousScheduledAt
@@ -245,24 +272,22 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
               <!-- Success badge -->
               <table cellpadding="0" cellspacing="0">
                 <tr>
-                  <td style="background-color: ${isRescheduled ? "#fffbeb" : "#f0fdf4"}; border: 1px solid ${isRescheduled ? "#fcd34d" : "#86efac"}; border-radius: 20px; padding: 5px 14px; display: inline-block;">
-                    <span style="font-size: 12px; font-weight: 700; color: ${isRescheduled ? "#b45309" : "#15803d"}; text-transform: uppercase; letter-spacing: 0.06em;">
-                      ${isRescheduled ? "🕓 RDV déplacé" : "✅ Nouveau RDV confirmé"}
+                  <td style="background-color: ${tone.bg}; border: 1px solid ${tone.border}; border-radius: 20px; padding: 5px 14px; display: inline-block;">
+                    <span style="font-size: 12px; font-weight: 700; color: ${tone.text}; text-transform: uppercase; letter-spacing: 0.06em;">
+                      ${tone.badge}
                     </span>
                   </td>
                 </tr>
               </table>
 
               <h1 style="margin: 18px 0 8px; font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.3;">
-                ${isRescheduled ? "Votre rendez-vous a été déplacé" : "Bonne nouvelle !"}
+                ${tone.title}
               </h1>
               <p style="margin: 0 0 24px; font-size: 15px; color: #475569; line-height: 1.6;">
-                ${
-                  isRescheduled
-                    ? `La date du rendez-vous avec <strong style="color: #0f172a;">${contactName}</strong> (${company}) sur votre mission <strong style="color: #0f172a;">${mission}</strong> a changé. Voici le nouveau créneau :`
-                    : `Un nouveau rendez-vous a été réservé sur votre mission <strong style="color: #0f172a;">${mission}</strong>.`
-                }
+                ${intro}
               </p>
+
+              ${agendaReminder}
 
               <!-- Details table -->
               <table cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 24px;">
@@ -329,7 +354,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
 
               <!-- Connection block (VISIO / PHYSIQUE / TELEPHONIQUE) -->
               <table cellpadding="0" cellspacing="0" width="100%">
-                ${connectionBlock(data)}
+                ${isCancelled ? "" : connectionBlock(data)}
               </table>
 
               <!-- CTA button -->

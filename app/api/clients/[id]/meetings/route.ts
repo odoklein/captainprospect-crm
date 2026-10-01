@@ -8,6 +8,7 @@ import {
     AuthError,
 } from '@/lib/api-utils';
 import { filterRdvList } from '@/lib/utils/meetingFilters';
+import { clientVisibleMeetingWhere } from '@/lib/meetings/clientVisibility';
 import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 
 // ============================================
@@ -64,9 +65,9 @@ export const GET = withErrorHandler(async (
     const endDateParam = searchParams.get('endDate')?.trim() || null;
 
     const meetingWhere: Record<string, unknown> = {
-        result: { in: ['MEETING_BOOKED', 'MEETING_CANCELLED'] },
-        // SAS RDV: clients see meetings only once confirmed
-        confirmationStatus: 'CONFIRMED',
+        // SAS RDV: clients see meetings only once confirmed — and keep seeing the
+        // ones that were confirmed and then cancelled (see clientVisibility.ts).
+        AND: [clientVisibleMeetingWhere],
         campaign: {
             missionId: { in: missionIds },
         },

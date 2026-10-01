@@ -19,6 +19,7 @@ import { z } from 'zod';
 import {
     createClientPortalNotification,
     sendRdvRescheduledEmailNotification,
+    sendRdvCancelledEmailNotification,
 } from '@/lib/notifications';
 import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from '@/lib/meetings/clientEmailGate';
 
@@ -207,6 +208,29 @@ export const PATCH = withErrorHandler(async (
                 });
             } else {
                 console.info(meetingEmailSkippedReason(action.id, confirmation));
+            }
+        }
+    }
+
+    // A booked RDV that gets cancelled: tell the client and the commercial it was
+    // assigned to, with a reminder to remove it from their calendar. Same rule as
+    // a move — only if the client was told about it in the first place.
+    if (isMeetingAction && updateData.result === 'MEETING_CANCELLED' && action.result === 'MEETING_BOOKED') {
+        const clientId = action.campaign?.mission?.clientId;
+        if (clientId) {
+            if (canEmailClientAboutMeeting(action.confirmationStatus)) {
+                void sendRdvCancelledEmailNotification(clientId, {
+                    contactFirstName: action.contact?.firstName ?? null,
+                    contactLastName: action.contact?.lastName ?? null,
+                    companyName: action.contact?.company?.name ?? action.company?.name ?? null,
+                    missionName: action.campaign?.mission?.name ?? null,
+                    scheduledAt: action.callbackDate ?? null,
+                    meetingChannel: action.channel,
+                    meetingType: action.meetingType as 'VISIO' | 'PHYSIQUE' | 'TELEPHONIQUE' | null,
+                    interlocuteurId: action.interlocuteurId ?? undefined,
+                });
+            } else {
+                console.info(meetingEmailSkippedReason(action.id, action.confirmationStatus));
             }
         }
     }

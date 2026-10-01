@@ -506,8 +506,8 @@ interface Meeting {
   meetingPhone?: string | null;
 }
 
-type TabId      = "upcoming" | "past" | "rescheduled" | "cancelled" | "all";
-type RdvStatus  = "upcoming" | "past" | "rescheduled" | "cancelled";
+type TabId      = "upcoming" | "past" | "absent" | "rescheduled" | "cancelled" | "all";
+type RdvStatus  = "upcoming" | "past" | "absent" | "rescheduled" | "cancelled";
 type ModalType  = null | "detail" | "feedback" | "reschedule" | "cancel";
 type OpenSignalCard = { id: string; stage: "menu" | "form" };
 
@@ -516,6 +516,8 @@ type OpenSignalCard = { id: string; stage: "menu" | "form" };
 ═══════════════════════════════════════════════════════════════ */
 const getRdvStatus = (m: Meeting): RdvStatus => {
   if (m.result === "MEETING_CANCELLED") return "cancelled";
+  // Reported absent (by the client or a manager): its own section instead of being lost in "Passés".
+  if (m.meetingFeedback?.outcome === "NO_SHOW") return "absent";
   if (!m.callbackDate) return "upcoming";
   return new Date(m.callbackDate) >= new Date() ? "upcoming" : "past";
 };
@@ -573,6 +575,7 @@ const S: Record<RdvStatus, {
 }> = {
   upcoming:   { label:"À venir",  dot:tk.green,  pill:{color:tk.greenText, bg:tk.greenLight, border:"#BBF7D0"}, stripe:tk.green  },
   past:       { label:"Passé",    dot:tk.ink4,   pill:{color:tk.ink3,      bg:"#F3F4F6",     border:"#E5E7EB"}, stripe:"#CBD5E1" },
+  absent:     { label:"Absent",   dot:tk.accent, pill:{color:tk.accentText,bg:tk.accentLight,border:"#C7C3F5"}, stripe:tk.accent },
   rescheduled:{ label:"Reporté",  dot:tk.amber,  pill:{color:tk.amberText, bg:tk.amberLight, border:"#FDE68A"}, stripe:tk.amber  },
   cancelled:  { label:"Annulé",   dot:tk.red,    pill:{color:tk.redText,   bg:tk.redLight,   border:"#FECACA"}, stripe:tk.red    },
 };
@@ -818,7 +821,7 @@ export default function ClientPortalMeetingsPage() {
   },[clientId]);
 
   const stats = useMemo(()=>{
-    const s = {upcoming:0,past:0,rescheduled:0,cancelled:0,all:meetings.length};
+    const s = {upcoming:0,past:0,absent:0,rescheduled:0,cancelled:0,all:meetings.length};
     meetings.forEach(m=>{ s[getRdvStatus(m)]++; });
     return s;
   },[meetings]);
@@ -878,6 +881,7 @@ export default function ClientPortalMeetingsPage() {
       all: base.length,
       upcoming: base.filter(m => getRdvStatus(m)==="upcoming").length,
       past: base.filter(m => getRdvStatus(m)==="past").length,
+      absent: base.filter(m => getRdvStatus(m)==="absent").length,
       rescheduled: base.filter(m => getRdvStatus(m)==="rescheduled").length,
       cancelled: base.filter(m => getRdvStatus(m)==="cancelled").length,
     };
@@ -997,13 +1001,14 @@ export default function ClientPortalMeetingsPage() {
   const STAT_CFG=[
     {key:"upcoming"   as const, label:"À venir",  stripe:tk.green  },
     {key:"past"       as const, label:"Passés",   stripe:"#CBD5E1" },
+    {key:"absent"     as const, label:"Absents",  stripe:tk.accent },
     {key:"rescheduled"as const, label:"Reportés", stripe:tk.amber  },
     {key:"cancelled"  as const, label:"Annulés",  stripe:tk.red    },
   ];
 
   const TABS: {id:TabId; label:string}[] = [
     {id:"all",label:"Tous"},{id:"upcoming",label:"À venir"},
-    {id:"past",label:"Passés"},{id:"rescheduled",label:"Reportés"},
+    {id:"past",label:"Passés"},{id:"absent",label:"Absents"},{id:"rescheduled",label:"Reportés"},
     {id:"cancelled",label:"Annulés"},
   ];
 
@@ -1049,7 +1054,7 @@ export default function ClientPortalMeetingsPage() {
       </header>
 
       {/* ── Stats ──────────────────────────────────────────── */}
-      <div className="cp-enter grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6" style={{animationDelay:"0.05s"}}>
+      <div className="cp-enter grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-6" style={{animationDelay:"0.05s"}}>
         {STAT_CFG.map(({key,label,stripe})=>{
           const active=tab===key;
           return (
@@ -1309,7 +1314,7 @@ function Card({
           <button type="button" className="cp-action" onClick={onDetail}>
             <Eye style={{width:12,height:12}} />Voir la fiche
           </button>
-          {!up && !fb && (
+          {!up && !fb && st!=="cancelled" && (
             <button type="button" className="cp-action prim" onClick={onFeedback}>
               <MessageSquare style={{width:12,height:12}} />Mon avis
             </button>
@@ -1436,7 +1441,7 @@ function DetailModal({ m, onClose, onFeedback, onCancel, onDelete }: {
     <Modal wide title="Fiche du rendez-vous" subtitle={`${cn_name} · ${companyName}`} onClose={onClose}
       footer={<>
         {onDelete && <Btn variant="ghost" onClick={onDelete} style={{color:tk.redText}}><Trash2 style={{width:14,height:14}} />Supprimer</Btn>}
-        {!up && !fb && <Btn variant="primary" onClick={onFeedback}><MessageSquare style={{width:14,height:14}} />Donner mon avis</Btn>}
+        {!up && !fb && st!=="cancelled" && <Btn variant="primary" onClick={onFeedback}><MessageSquare style={{width:14,height:14}} />Donner mon avis</Btn>}
         {fb && <Btn variant="secondary" onClick={onFeedback}><Edit3 style={{width:14,height:14}} />Modifier mon avis</Btn>}
         <Btn onClick={onClose}>Fermer</Btn>
       </>}>

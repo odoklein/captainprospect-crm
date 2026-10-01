@@ -479,6 +479,12 @@ export async function notifyManagersClientSupportMessage(data: {
 
 export interface RdvEmailNotificationData extends RdvNotificationData {
     interlocuteurId?: string;
+    /**
+     * Who gets the mail. "all" (default): the client's admins and the assigned
+     * commercial. "interlocuteur": only the assigned commercial — used when a
+     * client admin cancels from the portal, so they are not mailed their own action.
+     */
+    audience?: "all" | "interlocuteur";
 }
 
 /**
@@ -526,10 +532,16 @@ export async function sendNewRdvEmailNotification(
         }
 
         const recipients = new Set<string>();
-        for (const u of clientUsers) {
-            if (u.email) recipients.add(u.email);
+        if (data.audience !== "interlocuteur") {
+            for (const u of clientUsers) {
+                if (u.email) recipients.add(u.email);
+            }
+            if (client?.email) recipients.add(client.email);
         }
-        if (client?.email) recipients.add(client.email);
+
+        // The manager-editable template is the "new RDV" wording: reschedules and
+        // cancellations always use the built-in layout.
+        const useCustomTemplate = Boolean(customTemplate) && (!data.variant || data.variant === "new");
 
         const interlocuteurRecipients = new Set<string>();
         if (interlocuteur) {
@@ -559,7 +571,7 @@ export async function sendNewRdvEmailNotification(
 
         if (recipients.size > 0) {
             // Use custom DB template if available, otherwise use default dynamic builder
-            const { subject, html } = customTemplate && data.variant !== "rescheduled"
+            const { subject, html } = useCustomTemplate && customTemplate
                 ? buildRdvEmailFromCustomTemplate(customTemplate.subject, customTemplate.bodyHtml, data)
                 : buildRdvNotificationEmail(data);
 
@@ -575,7 +587,7 @@ export async function sendNewRdvEmailNotification(
                 ...data,
                 portalPath: "/commercial/portal/meetings",
             };
-            const { subject, html } = customTemplate && data.variant !== "rescheduled"
+            const { subject, html } = useCustomTemplate && customTemplate
                 ? buildRdvEmailFromCustomTemplate(
                       customTemplate.subject,
                       customTemplate.bodyHtml,
@@ -604,4 +616,16 @@ export async function sendRdvRescheduledEmailNotification(
     data: RdvEmailNotificationData & { previousScheduledAt?: Date | null }
 ): Promise<void> {
     return sendNewRdvEmailNotification(clientId, { ...data, variant: "rescheduled" });
+}
+
+/**
+ * Tell the client (and the commercial the RDV was assigned to) that a RDV was
+ * cancelled, with a reminder to remove it from their own calendar. Same
+ * recipients and per-client toggle as a new booking.
+ */
+export async function sendRdvCancelledEmailNotification(
+    clientId: string,
+    data: RdvEmailNotificationData
+): Promise<void> {
+    return sendNewRdvEmailNotification(clientId, { ...data, variant: "cancelled" });
 }
