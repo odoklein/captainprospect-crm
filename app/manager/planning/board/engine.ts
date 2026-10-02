@@ -270,7 +270,8 @@ export type Intent =
     | { kind: 'remove-block'; blockId: string }
     | { kind: 'dedupe' }
     | { kind: 'copy'; creates: Array<{ sdrId: string; missionId: string; date: string; startTime: string; endTime: string }> }
-    | { kind: 'ops'; ops: BoardOp[]; label: string };
+    /** Ops resolved elsewhere: an undo (not undoable itself) or a previewed bulk copy. */
+    | { kind: 'ops'; ops: BoardOp[]; label: string; undoable?: boolean };
 
 export interface Resolution {
     ops: BoardOp[];

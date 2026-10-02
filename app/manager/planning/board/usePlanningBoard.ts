@@ -177,7 +177,7 @@ export function usePlanningBoard({ transport, from, to }: { transport: BoardTran
 
                     const reasons = response.results.filter((r) => !r.ok && r.reason).map((r) => r.reason as SkipReason);
                     const appliedAny = response.results.some((r) => r.ok);
-                    const isUndo = item.intent.kind === 'ops';
+                    const isUndo = item.intent.kind === 'ops' && !item.intent.undoable;
                     if (appliedAny && !isUndo && response.inverse.length > 0) {
                         undoStack.current = [...undoStack.current.slice(-49), { label, inverse: response.inverse }];
                         setUndoDepth(undoStack.current.length);

@@ -6,9 +6,7 @@ import { useEffect } from "react";
 import { Card, Button } from "@/components/ui";
 import { ShieldX } from "lucide-react";
 import { usePermissions } from "@/lib/permissions/PermissionProvider";
-import { PlanningMonthProvider } from "@/app/manager/planning/PlanningMonthContext";
-import { StickyHeader } from "@/app/manager/planning/StickyHeader";
-import { MonthCalendar } from "@/app/manager/planning/MonthCalendar";
+import { PlanningBoard } from "@/app/manager/planning/board/PlanningBoard";
 
 export default function SdrPlanningPage() {
     const router = useRouter();
@@ -59,14 +57,9 @@ export default function SdrPlanningPage() {
     }
 
     return (
-        <PlanningMonthProvider>
-            <div className="flex flex-col h-[calc(100vh-64px)]">
-                <StickyHeader />
-                <div className="flex-1 overflow-hidden">
-                    <MonthCalendar />
-                </div>
-            </div>
-        </PlanningMonthProvider>
+        <div className="h-[calc(100vh-64px)]">
+            <PlanningBoard />
+        </div>
     );
 }
 
