@@ -56,10 +56,6 @@ export default function SdrPlanningPage() {
         );
     }
 
-    return (
-        <div className="h-[calc(100vh-64px)]">
-            <PlanningBoard />
-        </div>
-    );
+    return <PlanningBoard />;
 }
 

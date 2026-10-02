@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AlertTriangle, CheckCircle2, Clock, Info, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, Copy, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { describeProgress, formatShortDate, missionColor, type BoardAlerts, type MissionColor, type ViewMode } from './engine';
 
@@ -9,6 +9,12 @@ const PERIOD: Record<ViewMode, string> = {
     week: 'cette semaine',
     twoWeeks: 'sur ces 2 semaines',
     month: 'ce mois-ci',
+};
+
+const PERIOD_REST: Record<ViewMode, string> = {
+    week: 'd’ici la fin de la semaine',
+    twoWeeks: 'd’ici la fin des 2 semaines',
+    month: 'd’ici la fin du mois',
 };
 
 function Pill({
@@ -37,7 +43,7 @@ function Pill({
             onClick={onClick}
             disabled={!onClick}
             className={cn(
-                'inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium transition-colors disabled:cursor-default',
+                'inline-flex h-8 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors disabled:cursor-default',
                 tones[tone],
                 active && 'ring-2 ring-current/30',
             )}
@@ -79,6 +85,10 @@ interface AlertsBarProps {
     onPaintMission: (missionId: string) => void;
     onDedupe: () => void;
     onShowWeekend: () => void;
+    /** Number of SDRs on the board, to tell "mostly empty" from "a few gaps". */
+    teamSize: number;
+    onPlanWeek: () => void;
+    onHighlight: (missionId: string | null) => void;
 }
 
 export function AlertsBar({
@@ -91,6 +101,9 @@ export function AlertsBar({
     onPaintMission,
     onDedupe,
     onShowWeekend,
+    teamSize,
+    onPlanWeek,
+    onHighlight,
 }: AlertsBarProps) {
     const [open, setOpen] = useState<'ending' | 'dupes' | null>(null);
     const unplanned = alerts.unplannedSdrIds.length;
@@ -102,10 +115,18 @@ export function AlertsBar({
                 <Pill tone="red" icon={filterUnplanned ? <X className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />} active={filterUnplanned} onClick={onToggleUnplanned}>
                     {filterUnplanned
                         ? 'Afficher toute l’équipe'
-                        : `${unplanned} SDR sans planning ${PERIOD[view]}`}
+                        : alerts.unplannedScope === 'rest'
+                            ? `${unplanned} SDR sans mission ${PERIOD_REST[view]}`
+                            : `${unplanned} SDR sans planning ${PERIOD[view]}`}
                 </Pill>
             ) : (
                 <Pill tone="green" icon={<CheckCircle2 className="h-4 w-4" />}>Toute l’équipe est planifiée</Pill>
+            )}
+
+            {!filterUnplanned && teamSize > 0 && unplanned >= Math.ceil(teamSize / 2) && (
+                <Pill tone="indigo" icon={<Copy className="h-4 w-4" />} onClick={onPlanWeek}>
+                    Reprendre la semaine précédente
+                </Pill>
             )}
 
             {ending > 0 && (
@@ -119,7 +140,7 @@ export function AlertsBar({
                                 {alerts.endingMissions.map((mission) => {
                                     const color = missionColor(colors, mission.id);
                                     return (
-                                        <li key={mission.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50">
+                                        <li key={mission.id} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-50" onPointerEnter={() => onHighlight(mission.id)} onPointerLeave={() => onHighlight(null)}>
                                             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color.solid }} />
                                             <span className="min-w-0 flex-1">
                                                 <span className="block truncate text-[13px] font-semibold text-slate-800">{mission.name}</span>

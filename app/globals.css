@@ -1577,15 +1577,19 @@ textarea::placeholder {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    transition: margin-left 280ms cubic-bezier(0.16, 1, 0.3, 1);
+    /* Same duration and curve as .cp-sidebar's width, so page and sidebar
+       move as one instead of opening a gap or overlapping mid-animation. */
+    transition: margin-left 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* Margins equal the sidebar widths (.cp-sidebar-expanded / -collapsed):
+   at 220/56 the sidebar covered the first 8px of every page. */
 .cp-main-expanded {
-    margin-left: 220px;
+    margin-left: 228px;
 }
 
 .cp-main-collapsed {
-    margin-left: 56px;
+    margin-left: 58px;
 }
 
 @media (max-width: 1023px) {

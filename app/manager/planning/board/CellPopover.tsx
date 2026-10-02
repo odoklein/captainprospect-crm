@@ -174,8 +174,11 @@ export function CellPopover({ cell, anchor, focus, state, index, colors, sdr, on
         onClose();
     };
 
-    const firstName = sdr?.name.split(' ')[0] ?? 'SDR';
-    const subtitle = `${formatLongDate(cell.date)} · ${sdr?.name ?? ''}`;
+    const longDate = (key: string) => {
+        const label = formatLongDate(key);
+        return label.charAt(0).toUpperCase() + label.slice(1);
+    };
+    const subtitle = `${longDate(cell.date)} · ${sdr?.name ?? ''}`;
 
     let body;
     if (focus.kind === 'block') {
@@ -193,7 +196,7 @@ export function CellPopover({ cell, anchor, focus, state, index, colors, sdr, on
                         <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color.solid }} />
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-[14px] font-semibold text-slate-900">{mission?.name ?? 'Mission'}</p>
-                            <p className="truncate text-[12px] capitalize text-slate-500">{subtitle}</p>
+                            <p className="truncate text-[12px] text-slate-500">{subtitle}</p>
                         </div>
                     </div>
                     {mission && <p className="mt-2 text-[11px] text-slate-500">{describeProgress(mission, state.today)}</p>}
@@ -262,8 +265,8 @@ export function CellPopover({ cell, anchor, focus, state, index, colors, sdr, on
                     <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: HATCH }} />
                     <div className="min-w-0 flex-1">
                         <p className="text-[14px] font-semibold text-slate-900">{ABSENCE_LABELS[a.type] ?? 'Absence'}</p>
-                        <p className="truncate text-[12px] capitalize text-slate-500">
-                            {singleDay ? subtitle : `Du ${formatLongDate(a.startDate)} au ${formatLongDate(a.endDate)}`}
+                        <p className="truncate text-[12px] text-slate-500">
+                            {singleDay ? subtitle : `Du ${formatLongDate(a.startDate)} au ${formatLongDate(a.endDate)} · ${sdr?.name ?? ''}`}
                         </p>
                     </div>
                 </div>
@@ -296,7 +299,7 @@ export function CellPopover({ cell, anchor, focus, state, index, colors, sdr, on
         body = (
             <>
                 <p className="text-[14px] font-semibold text-slate-900">Ajouter une mission</p>
-                <p className="truncate text-[12px] capitalize text-slate-500">{subtitle}</p>
+                <p className="truncate text-[12px] text-slate-500">{subtitle}</p>
                 <div className="mt-3">
                     <Segmented
                         value={addSlot}
@@ -315,7 +318,7 @@ export function CellPopover({ cell, anchor, focus, state, index, colors, sdr, on
                 </div>
                 {state.canEditAbsences && (
                     <div className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-3">
-                        <span className="mr-auto text-[12px] text-slate-500">{firstName} est absent :</span>
+                        <span className="mr-auto text-[12px] text-slate-500">Absence ce jour :</span>
                         {ABSENCE_CHOICES.map((absenceType) => (
                             <button
                                 key={absenceType}

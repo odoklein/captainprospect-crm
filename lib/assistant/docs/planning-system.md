@@ -1,176 +1,124 @@
 ---
 routes: ["/manager/planning", "/manager/planning/conflicts", "/sdr/calendar", "/sdr/planning"]
 roles: ["MANAGER", "SDR", "BOOKER"]
-keywords: ["planning", "planification", "allocation", "schedule", "capacité", "capacity", "conflict", "conflit", "P0", "P1", "P2", "absence", "congé", "vacation", "jour", "day", "mois", "month", "SDR planning", "schedule block", "bloc", "allocation", "overscheduled", "underallocated", "mission day", "jours mission"]
+keywords: ["planning", "planification", "schedule", "pinceau", "brush", "gomme", "absence", "congé", "maladie", "formation", "demi-journée", "half day", "copier la semaine", "planifier la semaine", "doublon", "duplicate", "contrat", "jours contrat", "mission day", "jours mission", "SDR sans planning"]
 priority: 9
 ---
 
-# Planning & SDR Scheduling System
+# Planning (staffing board)
 
 ## Overview
 
-The planning system assigns **SDR days to missions by month**. A manager allocates how many days each SDR works on each mission, then the system generates daily schedule blocks.
-
-**Key concepts:**
-- **Allocation** — number of days per month an SDR works a specific mission
-- **Schedule block** — a single day block for a specific SDR + mission  
-- **Capacity** — the SDR's available working days per month (adjusted for absences, public holidays)
-- **Conflict** — when allocations exceed capacity or create other planning issues
-
----
-
-## Accessing Planning
+The planning answers one question: **which SDR works on which mission, which day**.
+Each cell of the board is one SDR on one working day. A cell holds one mission for
+the whole day, or two missions for half a day each (½ matin + ½ après-midi).
+Hours are not edited on the board: a day is 09:00–17:00, a half day 09:00–13:00
+or 13:00–17:00.
 
 - Manager: **Équipe → Planning** → `/manager/planning`
-- SDR: **Organisation → Planning** → `/sdr/planning` (read-only)
-- SDR calendar view: `/sdr/calendar`
+- SDR with the `pages.planning` permission (team leads): `/sdr/planning` — same board
+- SDRs see their own schedule at `/sdr/calendar`
 
 ---
 
-## Monthly Planning View
+## The screen
 
-The planning page shows a **monthly calendar grid**:
-- **Rows** = SDRs
-- **Columns** = days of the month
-- **Cells** = colored blocks showing mission assignments
-- **Red highlights** = conflicts
-
-### Navigate months:
-- Use the **← →** arrows in the sticky header to go to previous/next month
-
----
-
-## Adding an Allocation (Assign SDR to Mission)
-
-1. Go to `/manager/planning`
-2. Select the target month
-3. Click on an SDR's row or a specific day cell
-4. Click **Ajouter allocation**
-5. Fill the form:
-   - **Mission** — select from active missions
-   - **Jours alloués** — how many days this SDR works this mission this month
-   - **Semaines préférées** — which weeks (optional preference)
-6. Click **Confirmer**
-7. The system distributes those days across the month calendar
+- **Top bar** — period arrows, zoom **Semaine / 2 semaines / Mois**, the **?** help
+  panel, and **Planifier la semaine**.
+- **Alerts row** — only real problems, each one clickable:
+  - *N SDR sans planning* → click to show only those SDRs (click again to show everyone)
+  - *Reprendre la semaine précédente* → appears when most of the team is unplanned
+  - *N missions finissent* → list of missions ending in the period, with a **Planifier** button
+  - *N doublons* → the same mission posted twice the same day for the same SDR;
+    **Supprimer les doublons** cleans them (the contract was counted twice)
+  - *N créneaux le week-end · Afficher* → weekends are hidden unless something is planned there
+- **Board** — one row per SDR (with the planned / available days of the period under
+  the name), one column per working day. Test accounts are hidden (link under the board).
+- **Dock** (bottom) — one chip per mission running in the period, with a ring showing
+  contract use (days used + planned / contract days). A red dot = ends within 7 days with
+  days left; an amber dot = contract exceeded. Then **Absence** (managers), the **brush**
+  and the **eraser**.
 
 ---
 
-## Editing or Removing an Allocation
+## Planning days
 
-1. Click the existing block on the calendar
-2. Click **Modifier** → adjust days
-3. Click **Supprimer** → removes the allocation block
+### With the brush (fastest)
+1. Click a mission chip in the dock (or press **1–9**).
+2. Click-and-drag across cells — several days and several SDRs in one stroke.
+3. **Click an SDR's name** to fill their whole row for the period.
+4. Hold **Maj (Shift)** while dragging to place a **half day** (the other half keeps
+   the mission already there).
+5. **Échap** to stop painting.
 
----
+Painting a full day on a cell that already has another mission **replaces** it.
+Cells where the SDR is absent, or outside the mission's dates, are skipped (the
+confirmation says how many).
 
-## Conflict System: P0 / P1 / P2
+### By clicking
+- Click an empty cell → choose Journée / ½ matin / ½ après-midi, then the mission.
+  "Ses missions" lists the missions that SDR already works on.
+- Click a mission on the board → switch full / half day, **Changer de mission**, or **Retirer**.
+- Drag a mission to another cell (another day or another SDR) to move it.
 
-The system automatically detects and flags conflicts:
+### Erasing
+Eraser (**E**), then drag over the cells to empty them.
 
-| Severity | Label | Meaning | Action required |
-|----------|-------|---------|-----------------|
-| **P0** | Critical | SDR is overbooked — allocations exceed available days | Must resolve before month starts |
-| **P1** | Important | Mission has insufficient SDR coverage | Review and add SDRs or adjust days |
-| **P2** | Minor | Suboptimal allocation (e.g. SDR preference not met) | Recommended to review |
-
-### Resolve Conflicts
-
-1. Go to `/manager/planning/conflicts`
-2. Each conflict card shows: severity, type, affected SDR, affected mission, message, and suggested action
-3. Click **Résoudre** on each conflict
-4. Follow the suggested action (reduce allocation, add SDR, etc.)
-5. Once resolved: conflict disappears from the list
-
-Or resolve inline from the planning calendar: click a conflicted cell → popup shows the conflict and resolution options.
-
----
-
-## SDR Capacity
-
-Each SDR has a **monthly capacity** (base working days minus absences).
-
-View capacity:
-- Planning calendar → hover or click an SDR row → capacity shown as "X jours disponibles"
-- Or: `/manager/planning` → click SDR name → capacity detail view
-
-**Capacity is calculated as:**
-`Base working days` − `Public holidays` − `Absence days` − `Partial days`
+### Undo
+Every action shows a confirmation with **Annuler**; **Ctrl+Z** undoes the last actions
+one by one.
 
 ---
 
-## Managing Absences
+## Planifier la semaine (bulk)
 
-Add an absence for an SDR:
-1. Go to `/manager/planning`
-2. Click the SDR's name row
-3. Click **Ajouter une absence**
-4. Fill: start date, end date, type (VACATION / SICK / TRAINING / PUBLIC_HOLIDAY / PARTIAL)
-5. Check **Impacts planning** to automatically reduce capacity
-6. Click **Confirmer**
-
-The SDR's available days are automatically recalculated. P0 conflicts will appear if existing allocations now exceed reduced capacity.
-
-**Absence types:**
-- VACATION — paid leave
-- SICK — sick leave
-- TRAINING — internal training days
-- PUBLIC_HOLIDAY — bank holiday (can add custom ones)
-- PARTIAL — half-day or reduced capacity day
+**Planifier la semaine** opens the week (arrows to pick another week):
+- **Reprendre la semaine précédente** — each SDR gets back the missions they had the
+  week before, same weekday, same duration, **only on days still free**. Nothing already
+  planned is changed; finished missions and absences are skipped. The preview shows how
+  many days will be copied before anything happens. The copy can be undone.
+- **Planifier à la main** — opens that week with the brush ready.
 
 ---
 
-## Schedule Blocks: Confirm / Reject
+## Absences (managers only)
 
-Schedule blocks can require approval before becoming active:
-
-- **SUGGESTED** — system generated, awaiting confirmation
-- **CONFIRMED** — confirmed and active  
-- **CANCELLED** — rejected/cancelled
-
-Manager actions per block:
-- **Confirmer** — mark as confirmed (SDR can see it as active)
-- **Rejeter** — mark as cancelled (SDR won't see it)
-- **Bulk confirm** — confirm all suggested blocks for a period
+- Paint with the **Absence** chip (default: Congé), or click an empty cell →
+  *Absence ce jour : Congé / Maladie / Formation*.
+- Click an absence to change its type or remove it.
+- An absent day cannot receive missions; painting an absence on a planned day removes
+  the missions of that day.
+- **Absences are also read by the HR module** (working days, payroll) — record only real ones.
 
 ---
 
-## SDR View of Their Schedule
+## Contract days
 
-SDRs see their schedule at `/sdr/calendar`:
-- Month view with colored blocks per day
-- Click a block to see: mission, time range, status
-- Cannot edit — manager controls the schedule
-- Green block = confirmed | Gray = suggested (pending)
-
----
-
-## Weekly Pattern (Advanced)
-
-An SDR can have a **weekly pattern** for a mission — e.g., work Mission A on Monday/Wednesday, Mission B on Tuesday/Thursday.
-
-Set in: allocation form → **Jours préférés** (preferred days of week) → select day pattern.
+The ring and the mission details count **days used** (before today) + **days planned**
+(today onward) against `totalContractDays` of the mission. An SDR-day counts once: a
+day split between two missions counts ½ for each, and duplicates count once.
+Missions without contract days show "pas de contrat renseigné".
 
 ---
 
-## Common Planning Scenarios
+## Notifications
 
-### SDR is on vacation next week — what to do?
-1. Add absence at `/manager/planning` → SDR row → Ajouter une absence
-2. Set start/end dates of vacation, type = VACATION
-3. System reduces their capacity → any P0 conflicts appear
-4. Resolve conflicts by redistributing their mission days to other SDRs
+Each change sends **one notification per SDR concerned**, summarising the days added
+or removed from today onward (past corrections don't notify).
 
-### Mission needs more coverage this month?
-1. Go to `/manager/planning`
-2. Find other SDRs with available capacity (green/no conflicts)
-3. Add allocation → link those SDRs to the mission → set days
-4. Check conflicts after adding
+---
 
-### Two missions overlap on the same SDR day?
-This is a **P0 conflict** (double-booking). Resolve by:
-- Reducing one mission's allocated days
-- Moving one mission's block to another day (click block → drag or edit)
-- Or assigning a different SDR to one of the missions
+## Shortcuts
+
+| Key | Action |
+|-----|--------|
+| 1 – 9 | Choose a mission (dock order) |
+| E | Eraser |
+| Échap | Stop painting / close |
+| Ctrl + Z | Undo |
+| ← → | Previous / next period |
+| T | Back to today |
+| ? | Help panel |
 
 ---
 
@@ -178,8 +126,10 @@ This is a **P0 conflict** (double-booking). Resolve by:
 
 | Problem | Solution |
 |---------|----------|
-| SDR doesn't appear in planning | Check they are active (Réglages tab) and have role SDR or BOOKER |
-| P0 conflict won't clear | Reduce total allocated days below SDR's available capacity |
-| SDR says they have no schedule | Check they have confirmed blocks for the current month in `/manager/planning` |
-| Mission shows no SDR | Open the mission's month row in planning → all cells empty = no allocation made |
-| SDR sees wrong blocks in calendar | Verify their allocations are confirmed (not just SUGGESTED) |
+| SDR doesn't appear | Must be active with role SDR or Business Developer; test accounts are hidden (link under the board) |
+| A mission isn't in the dock | It isn't active, or doesn't run during the shown period (check its start/end dates) |
+| "Ignoré : SDR absent" | Remove the absence first (click it → Retirer) |
+| "Ignoré : hors dates de mission" | The day is before the mission start or after its end |
+| "déjà planifié" | The SDR already has that mission that day — no duplicate is created |
+| Contract ring looks wrong | Check the mission's contract days in its settings |
+| Can't edit absences | Only managers can; SDR team leads plan missions only |

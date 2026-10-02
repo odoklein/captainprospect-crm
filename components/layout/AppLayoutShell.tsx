@@ -47,7 +47,7 @@ function InnerLayout({
     const { data: session, status } = useSession();
     const router = useRouter();
     const pathname = usePathname();
-    const { isCollapsed, isHovering, searchOpen, closeSearch } = useSidebar();
+    const { isCollapsed, searchOpen, closeSearch } = useSidebar();
 
     const userRole = session?.user?.role as UserRole | undefined;
     const roleConfig = userRole ? ROLE_CONFIG[userRole] : null;
@@ -179,6 +179,10 @@ function InnerLayout({
     // under a page-height stack of chrome, capped at 1440px.
     const isTicketBoard =
         pathname === "/manager/tickets" || pathname === "/developer/tickets";
+    // The planning board is the same kind of surface: it sizes its rows and
+    // columns to the space it gets, so it must get all of it.
+    const isPlanningBoard =
+        pathname === "/manager/planning" || pathname === "/sdr/planning";
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";
@@ -207,9 +211,10 @@ function InnerLayout({
             <main
                 className={cn(
                     "cp-main",
-                    isCollapsed && !isHovering
-                        ? "cp-main-collapsed"
-                        : "cp-main-expanded"
+                    // Hovering a collapsed sidebar only peeks it over the page
+                    // (it has its own shadow for that): pushing the page aside
+                    // on every pass of the pointer reflowed the whole screen.
+                    isCollapsed ? "cp-main-collapsed" : "cp-main-expanded"
                 )}
             >
                 <header className="cp-topbar">
@@ -265,7 +270,7 @@ function InnerLayout({
                     </div>
                 </header>
 
-                {isEmailHub || isRdvPage || isTicketBoard ? (
+                {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
                     <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 56px)' }}>
                         {children}

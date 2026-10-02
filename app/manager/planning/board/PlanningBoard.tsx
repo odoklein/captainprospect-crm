@@ -1,13 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarPlus, ChevronLeft, ChevronRight, CircleHelp, Loader2, RotateCcw, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { CalendarPlus, ChevronLeft, ChevronRight, CircleHelp, Loader2, Redo2, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { addDaysToKey, mondayOfKey, parisTodayKey, type BoardOp } from '@/lib/planning/board-shared';
+import { DATE_KEY_RE, addDaysToKey, blockDayUnits, mondayOfKey, parisTodayKey, slotOf, type BoardOp } from '@/lib/planning/board-shared';
 import {
     VIEW_LABELS,
     assignMissionColors,
     buildIndex,
+    cellEntries,
     computeAlerts,
     computeRange,
     formatRangeLabel,
@@ -17,7 +18,7 @@ import {
     type ViewMode,
 } from './engine';
 import { BoardGrid, type Brush, type CellFocus } from './BoardGrid';
-import { ToolDock } from './ToolDock';
+import { BrushHint, ToolDock } from './ToolDock';
 import { AlertsBar } from './AlertsBar';
 import { CellPopover } from './CellPopover';
 import { PlanWeekDialog } from './PlanWeekDialog';
@@ -45,45 +46,83 @@ function writePref(key: string, value: string) {
     } catch { /* storage unavailable */ }
 }
 
+/** The period lives in the URL too, so a refresh or a shared link opens the same week. */
+const VIEW_PARAM: Record<ViewMode, string> = { week: 'semaine', twoWeeks: '2-semaines', month: 'mois' };
+
+function readUrlState(): { view: ViewMode | null; from: string | null } {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const vue = params.get('vue');
+        const view = (Object.keys(VIEW_PARAM) as ViewMode[]).find((v) => VIEW_PARAM[v] === vue) ?? null;
+        const du = params.get('du');
+        return { view, from: du && DATE_KEY_RE.test(du) ? du : null };
+    } catch {
+        return { view: null, from: null };
+    }
+}
+
 const HOW_TO: Array<{ title: string; text: string }> = [
-    { title: 'Planifier', text: 'Choisissez une mission dans la barre du bas, puis glissez sur les cases — plusieurs jours et plusieurs SDR d’un coup.' },
+    { title: 'Planifier', text: 'Choisissez une mission dans la barre du bas, puis glissez un rectangle sur les cases — plusieurs jours et plusieurs SDR d’un coup. Le résultat s’affiche avant de relâcher.' },
     { title: 'Toute une semaine', text: 'Avec le pinceau, cliquez le nom d’un SDR pour remplir toute sa ligne.' },
     { title: 'Demi-journée', text: 'Maintenez Maj en glissant, ou cliquez une mission posée pour choisir matin ou après-midi.' },
-    { title: 'Modifier', text: 'Cliquez une case pour ajouter ou changer une mission. Glissez une mission vers une autre case pour la déplacer.' },
-    { title: 'Se tromper', text: 'Chaque action s’annule avec Ctrl+Z ou le bouton Annuler.' },
+    { title: 'Modifier', text: 'Cliquez une case pour ajouter ou changer une mission. Glissez une mission pour la déplacer, avec Alt pour la copier.' },
+    { title: 'Repérer', text: 'Survolez une mission en bas : ses jours ressortent sur le planning.' },
+    { title: 'Se tromper', text: 'Ctrl+Z annule, Ctrl+Maj+Z rétablit.' },
 ];
 
 const SHORTCUTS: Array<[string, string]> = [
     ['1 – 9', 'Choisir une mission'],
     ['E', 'Gomme'],
+    ['Maj', 'Demi-journée en peignant'],
+    ['Alt + glisser', 'Copier une mission'],
     ['Échap', 'Terminer / fermer'],
     ['Ctrl + Z', 'Annuler'],
+    ['Ctrl + Maj + Z', 'Rétablir'],
     ['← →', 'Période précédente / suivante'],
     ['T', 'Revenir à aujourd’hui'],
 ];
 
+const noopSubscribe = () => () => {};
+
 export function PlanningBoard({ transport = httpTransport }: { transport?: BoardTransport }) {
-    // Preferences live in localStorage, which the server render can't read:
-    // mount the board only on the client so its first render already uses them.
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
-    if (!mounted) return <BoardSkeleton />;
+    // Preferences live in localStorage and the URL, which the server render
+    // can't read: mount the board only on the client so its first render uses them.
+    const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false);
+    if (!isClient) return <BoardSkeleton />;
     return <Board transport={transport} />;
 }
 
 function Board({ transport }: { transport: BoardTransport }) {
     const today = useMemo(() => parisTodayKey(), []);
+    const initialUrl = useMemo(readUrlState, []);
     const [view, setViewState] = useState<ViewMode>(() => {
+        if (initialUrl.view) return initialUrl.view;
         const stored = readPref(PREF.view);
         return stored === 'twoWeeks' || stored === 'month' ? stored : 'week';
     });
-    const [anchor, setAnchor] = useState(() => normalizeAnchor(view, today));
+    const [anchor, setAnchor] = useState(() => normalizeAnchor(view, initialUrl.from ?? today));
     const [showWeekend, setShowWeekendState] = useState(() => readPref(PREF.weekend) === '1');
     const [showTests, setShowTests] = useState(false);
 
     const range = useMemo(() => computeRange(view, anchor, showWeekend), [view, anchor, showWeekend]);
-    const board = usePlanningBoard({ transport, from: range.from, to: range.to });
+    const neighbours = useMemo(
+        () => [-1, 1].map((d) => {
+            const r = computeRange(view, shiftAnchor(view, anchor, d as 1 | -1), showWeekend);
+            return { from: r.from, to: r.to };
+        }),
+        [view, anchor, showWeekend],
+    );
+    const board = usePlanningBoard({ transport, from: range.from, to: range.to, neighbours });
     const { state } = board;
+
+    useEffect(() => {
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('vue', VIEW_PARAM[view]);
+            url.searchParams.set('du', range.from);
+            window.history.replaceState(window.history.state, '', url);
+        } catch { /* URL sync is a convenience */ }
+    }, [view, range.from]);
 
     const index = useMemo(() => (state ? buildIndex(state) : null), [state]);
     const colors = useMemo(() => assignMissionColors(state?.missions ?? []), [state?.missions]);
@@ -94,6 +133,7 @@ function Board({ transport }: { transport: BoardTransport }) {
         setBrushState(next);
         if (next?.kind === 'mission') setLastMissionId(next.missionId);
     }, []);
+    const [highlightId, setHighlightId] = useState<string | null>(null);
 
     const [unplannedFilter, setUnplannedFilter] = useState<string[] | null>(null);
     const [popover, setPopover] = useState<{ cell: Cell; anchor: DOMRect; focus: CellFocus } | null>(null);
@@ -130,12 +170,45 @@ function Board({ transport }: { transport: BoardTransport }) {
         [state, index, teamSdrs, showWeekend],
     );
     const visibleSdrs = unplannedFilter ? teamSdrs.filter((s) => unplannedFilter.includes(s.id)) : teamSdrs;
-    const dockMissions = useMemo(
-        () => (state?.missions ?? [])
+
+    /** Days each mission has on the shown columns, for the team on the board. */
+    const periodDays = useMemo(() => {
+        const days = new Map<string, number>();
+        if (!index) return days;
+        const team = new Set(teamSdrs.map((s) => s.id));
+        const shown = new Set(range.days);
+        for (const [key, blocks] of index.blocksByCell) {
+            const [sdrId, date] = key.split('|');
+            if (!team.has(sdrId) || !shown.has(date)) continue;
+            const entries = cellEntries(blocks);
+            for (const entry of entries.slice(0, 2)) {
+                const units = entries.length > 1 ? 0.5 : blockDayUnits(entry.block.startTime, entry.block.endTime);
+                days.set(entry.missionId, (days.get(entry.missionId) ?? 0) + units);
+            }
+        }
+        return days;
+    }, [index, teamSdrs, range.days]);
+
+    // Dock order: missions already used in the period (most used first) and those
+    // ending in it, then the rest by end date. Taken from the period's opening
+    // snapshot, so chips don't jump while the planner paints.
+    const dockMissions = useMemo(() => {
+        const used = new Map<string, number>();
+        const shown = new Set(range.days);
+        for (const block of board.baseline?.blocks ?? []) {
+            if (shown.has(block.date)) used.set(block.missionId, (used.get(block.missionId) ?? 0) + 1);
+        }
+        const primary = (m: { id: string; endDate: string }) => (used.get(m.id) ?? 0) > 0 || (m.endDate >= today && m.endDate <= range.to);
+        return (state?.missions ?? [])
             .filter((m) => m.paintable)
-            .sort((a, b) => a.endDate.localeCompare(b.endDate) || a.name.localeCompare(b.name, 'fr')),
-        [state?.missions],
-    );
+            .sort((a, b) => {
+                const group = Number(!primary(a)) - Number(!primary(b));
+                if (group !== 0) return group;
+                const usage = (used.get(b.id) ?? 0) - (used.get(a.id) ?? 0);
+                if (usage !== 0) return usage;
+                return a.endDate.localeCompare(b.endDate) || a.name.localeCompare(b.name, 'fr');
+            });
+    }, [state?.missions, board.baseline, range.days, range.to, today]);
 
     // A mission that is no longer running in the shown period can't be painted.
     useEffect(() => {
@@ -143,7 +216,7 @@ function Board({ transport }: { transport: BoardTransport }) {
     }, [brush, dockMissions, state]);
 
     // ── Actions ───────────────────────────────────────────────────────
-    const { dispatch, undo } = board;
+    const { dispatch, undo, redo } = board;
     const onStroke = useCallback((cells: Cell[], half: boolean) => {
         if (!brush || cells.length === 0) return;
         if (brush.kind === 'mission') dispatch({ kind: 'paint', cells, missionId: brush.missionId, mode: half ? 'half' : 'full' });
@@ -151,7 +224,14 @@ function Board({ transport }: { transport: BoardTransport }) {
         else dispatch({ kind: 'absence', cells, absenceType: 'VACATION' });
     }, [brush, dispatch]);
 
-    const onMove = useCallback((blockId: string, to: Cell) => dispatch({ kind: 'move', blockId, to }), [dispatch]);
+    const onMove = useCallback((blockId: string, to: Cell, copy: boolean) => {
+        if (!copy) {
+            dispatch({ kind: 'move', blockId, to });
+            return;
+        }
+        const block = state?.blocks.find((b) => b.id === blockId);
+        if (block) dispatch({ kind: 'place', cell: to, missionId: block.missionId, slot: slotOf(block.startTime, block.endTime) });
+    }, [dispatch, state]);
 
     const planWeekDefault = () => {
         if (view !== 'month') return range.from;
@@ -173,12 +253,19 @@ function Board({ transport }: { transport: BoardTransport }) {
             if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
             if (popover || planWeekFor) return;
 
-            if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+            const mod = event.ctrlKey || event.metaKey;
+            const key = event.key.toLowerCase();
+            if (mod && ((key === 'z' && event.shiftKey) || key === 'y')) {
+                event.preventDefault();
+                redo();
+                return;
+            }
+            if (mod && key === 'z') {
                 event.preventDefault();
                 undo();
                 return;
             }
-            if (event.ctrlKey || event.metaKey || event.altKey) return;
+            if (mod || event.altKey) return;
 
             if (event.key === 'Escape') {
                 setBrushState(null);
@@ -186,13 +273,13 @@ function Board({ transport }: { transport: BoardTransport }) {
             } else if (/^[1-9]$/.test(event.key)) {
                 const mission = dockMissions[Number(event.key) - 1];
                 if (mission) setBrush({ kind: 'mission', missionId: mission.id });
-            } else if (event.key === 'e' || event.key === 'E') {
+            } else if (key === 'e') {
                 setBrushState((current) => (current?.kind === 'eraser' ? null : { kind: 'eraser' }));
             } else if (event.key === 'ArrowLeft') {
                 navigate(-1);
             } else if (event.key === 'ArrowRight') {
                 navigate(1);
-            } else if (event.key === 't' || event.key === 'T') {
+            } else if (key === 't') {
                 goToday();
             } else if (event.key === '?') {
                 setHelpOpen((open) => !open);
@@ -200,9 +287,9 @@ function Board({ transport }: { transport: BoardTransport }) {
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [popover, planWeekFor, undo, dockMissions, setBrush, navigate, goToday]);
+    }, [popover, planWeekFor, undo, redo, dockMissions, setBrush, navigate, goToday]);
 
-    // ── Confirmation bar ──────────────────────────────────────────────
+    // ── Confirmation ──────────────────────────────────────────────────
     const { feedback, dismissFeedback } = board;
     useEffect(() => {
         if (!feedback) return;
@@ -214,31 +301,31 @@ function Board({ transport }: { transport: BoardTransport }) {
     const todayInRange = today >= range.from && today <= range.to;
 
     return (
-        <div className="relative flex h-full flex-col bg-[#FAFAFB]">
+        <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#FAFAFB]">
             {/* ── Top bar ─────────────────────────────────────────────── */}
-            <header className="flex flex-wrap items-center gap-3 px-8 pb-4 pt-6">
-                <h1 className="mr-3 text-[28px] font-semibold tracking-tight text-slate-900">Planning</h1>
+            <header className="flex flex-wrap items-center gap-2.5 px-6 pb-3 pt-4 xl:px-8">
+                <h1 className="mr-2 text-[24px] font-semibold tracking-tight text-slate-900">Planning</h1>
 
-                <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-white px-1">
-                    <button type="button" onClick={() => navigate(-1)} aria-label="Période précédente" className="rounded-xl p-2 text-slate-600 hover:bg-slate-100">
+                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white px-0.5">
+                    <button type="button" onClick={() => navigate(-1)} aria-label="Période précédente" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
                         <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <span className="min-w-[150px] select-none px-3 text-center text-[16px] font-medium capitalize text-slate-800">
+                    <span className="min-w-[140px] select-none px-2 text-center text-[15px] font-medium text-slate-800">
                         {formatRangeLabel(view, range)}
                     </span>
-                    <button type="button" onClick={() => navigate(1)} aria-label="Période suivante" className="rounded-xl p-2 text-slate-600 hover:bg-slate-100">
+                    <button type="button" onClick={() => navigate(1)} aria-label="Période suivante" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
                         <ChevronRight className="h-4 w-4" />
                     </button>
                 </div>
 
-                <div className="flex h-12 items-center rounded-2xl border border-slate-200 bg-white p-1">
+                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-0.5">
                     {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
                         <button
                             key={mode}
                             type="button"
                             onClick={() => mode !== view && setView(mode)}
                             className={cn(
-                                'h-full rounded-xl px-5 text-[14px] transition-colors',
+                                'h-full rounded-[10px] px-4 text-[13px] transition-colors',
                                 mode === view ? 'border border-indigo-100 bg-indigo-50 font-medium text-indigo-600' : 'text-slate-600 hover:text-slate-900',
                             )}
                         >
@@ -248,7 +335,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                 </div>
 
                 {!todayInRange && (
-                    <button type="button" onClick={goToday} className="rounded-xl px-3 py-2 text-[13px] font-medium text-indigo-600 hover:bg-indigo-50">
+                    <button type="button" onClick={goToday} className="rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-indigo-600 hover:bg-indigo-50">
                         Aujourd&apos;hui
                     </button>
                 )}
@@ -260,7 +347,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                             type="button"
                             onClick={() => setHelpOpen((open) => !open)}
                             aria-label="Aide"
-                            className={cn('flex h-12 w-12 items-center justify-center rounded-2xl text-slate-500 hover:bg-slate-100', helpOpen && 'bg-slate-100 text-slate-700')}
+                            className={cn('flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100', helpOpen && 'bg-slate-100 text-slate-700')}
                         >
                             <CircleHelp className="h-5 w-5" />
                         </button>
@@ -269,15 +356,15 @@ function Board({ transport }: { transport: BoardTransport }) {
                     <button
                         type="button"
                         onClick={() => setPlanWeekFor(planWeekDefault())}
-                        className="flex h-12 items-center gap-2.5 rounded-2xl bg-indigo-600 px-5 text-[15px] font-semibold text-white shadow-[0_6px_20px_rgba(79,70,229,0.28)] transition-colors hover:bg-indigo-700"
+                        className="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-[14px] font-semibold text-white shadow-[0_6px_18px_rgba(79,70,229,0.26)] transition-colors hover:bg-indigo-700"
                     >
-                        <CalendarPlus className="h-5 w-5" />
+                        <CalendarPlus className="h-[18px] w-[18px]" />
                         Planifier la semaine
                     </button>
                 </div>
             </header>
 
-            <div className="border-t border-slate-200/70 px-8 py-4">
+            <div className="relative min-h-[50px] border-t border-slate-200/70 px-6 py-2 xl:px-8">
                 {alerts && (
                     <AlertsBar
                         alerts={alerts}
@@ -289,12 +376,67 @@ function Board({ transport }: { transport: BoardTransport }) {
                         onPaintMission={(missionId) => setBrush({ kind: 'mission', missionId })}
                         onDedupe={() => dispatch({ kind: 'dedupe' })}
                         onShowWeekend={() => setShowWeekend(true)}
+                        teamSize={teamSdrs.length}
+                        onPlanWeek={() => setPlanWeekFor(planWeekDefault())}
+                        onHighlight={setHighlightId}
                     />
+                )}
+                {brush && !feedback && (
+                    <div className="pointer-events-none absolute right-6 top-1/2 max-w-[48%] -translate-y-1/2 xl:right-8">
+                        <BrushHint
+                            brush={brush}
+                            mission={brush.kind === 'mission' ? dockMissions.find((m) => m.id === brush.missionId) ?? null : null}
+                            colors={colors}
+                            today={today}
+                        />
+                    </div>
+                )}
+                {feedback && (
+                    <div
+                        key={feedback.id}
+                        className={cn(
+                            'absolute right-6 top-1/2 z-40 flex max-w-[420px] -translate-y-1/2 items-start gap-3 rounded-2xl border bg-white px-4 py-2.5 shadow-[0_10px_32px_rgba(15,23,42,0.12)] animate-in fade-in slide-in-from-right-2 duration-150 xl:right-8',
+                            feedback.tone === 'error' ? 'border-rose-200' : feedback.tone === 'warn' ? 'border-amber-200' : 'border-slate-200',
+                        )}
+                        role="status"
+                    >
+                        <div className="min-w-0 flex-1">
+                            <p className={cn('text-[13px] font-semibold', feedback.tone === 'error' ? 'text-rose-700' : 'text-slate-800')}>{feedback.label}</p>
+                            {feedback.detail && <p className="mt-0.5 text-[12px] text-slate-500">{feedback.detail}</p>}
+                        </div>
+                        {feedback.canUndo && board.canUndo && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    undo();
+                                    dismissFeedback();
+                                }}
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50"
+                            >
+                                <RotateCcw className="h-3.5 w-3.5" /> Annuler
+                            </button>
+                        )}
+                        {feedback.canRedo && board.canRedo && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    redo();
+                                    dismissFeedback();
+                                }}
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50"
+                            >
+                                <Redo2 className="h-3.5 w-3.5" /> Rétablir
+                            </button>
+                        )}
+                        <button type="button" onClick={dismissFeedback} aria-label="Fermer" className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+                            <X className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
                 )}
             </div>
 
             {/* ── Board ───────────────────────────────────────────────── */}
-            <div className={cn('relative min-h-0 flex-1 border-t border-slate-200/70 px-6 pt-2 transition-opacity', board.loading && state && 'opacity-60')}>
+            <div className={cn('relative min-h-0 flex-1 border-t border-slate-200/70 px-4 pt-1 transition-opacity xl:px-6', board.loading && state && 'opacity-60')}>
                 {!state || !index ? (
                     board.error ? (
                         <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
@@ -317,6 +459,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                         days={range.days}
                         sdrs={visibleSdrs}
                         brush={brush}
+                        highlightMissionId={highlightId}
                         activeCellKey={popover ? `${popover.cell.sdrId}|${popover.cell.date}` : null}
                         onStroke={onStroke}
                         onOpenCell={(cell, rect, focus) => setPopover({ cell, anchor: rect, focus })}
@@ -340,41 +483,12 @@ function Board({ transport }: { transport: BoardTransport }) {
                         canEditAbsences={state.canEditAbsences}
                         onBrushChange={setBrush}
                         lastMissionId={lastMissionId}
+                        periodDays={periodDays}
+                        onHighlight={setHighlightId}
                     />
                 )}
 
-                {feedback && (
-                    <div
-                        key={feedback.id}
-                        className={cn(
-                            'absolute right-6 top-4 z-40 flex max-w-[380px] items-start gap-3 rounded-2xl border bg-white px-4 py-3 shadow-[0_10px_32px_rgba(15,23,42,0.12)] animate-in fade-in slide-in-from-top-1 duration-150',
-                            feedback.tone === 'error' ? 'border-rose-200' : feedback.tone === 'warn' ? 'border-amber-200' : 'border-slate-200',
-                        )}
-                        role="status"
-                    >
-                        <div className="min-w-0 flex-1">
-                            <p className={cn('text-[13px] font-semibold', feedback.tone === 'error' ? 'text-rose-700' : 'text-slate-800')}>{feedback.label}</p>
-                            {feedback.detail && <p className="mt-0.5 text-[12px] text-slate-500">{feedback.detail}</p>}
-                        </div>
-                        {feedback.canUndo && board.canUndo && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    undo();
-                                    dismissFeedback();
-                                }}
-                                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50"
-                            >
-                                <RotateCcw className="h-3.5 w-3.5" /> Annuler
-                            </button>
-                        )}
-                        <button type="button" onClick={dismissFeedback} aria-label="Fermer" className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100">
-                            <X className="h-3.5 w-3.5" />
-                        </button>
-                    </div>
-                )}
-
-                {welcome && state && !feedback && (
+                {welcome && state && (
                     <WelcomeCard
                         onClose={() => {
                             setWelcome(false);
@@ -405,7 +519,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                     initialMonday={planWeekFor}
                     sdrIds={teamSdrs.map((s) => s.id)}
                     onCopy={(ops: BoardOp[], label: string, monday: string) => {
-                        dispatch({ kind: 'ops', ops, label, undoable: true });
+                        dispatch({ kind: 'ops', ops, label, role: 'bulk' });
                         setPlanWeekFor(null);
                         showWeek(monday);
                     }}
@@ -431,9 +545,9 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
         return () => document.removeEventListener('mousedown', onDown);
     }, [onClose]);
     return (
-        <div ref={ref} className="absolute right-0 top-14 z-50 w-[380px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_48px_rgba(15,23,42,0.16)] animate-in fade-in zoom-in-95 duration-100">
+        <div ref={ref} className="absolute right-0 top-12 z-50 w-[400px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_48px_rgba(15,23,42,0.16)] animate-in fade-in zoom-in-95 duration-100">
             <p className="text-[15px] font-semibold text-slate-900">Comment ça marche</p>
-            <ul className="mt-3 space-y-2.5">
+            <ul className="mt-3 space-y-2">
                 {HOW_TO.map((item) => (
                     <li key={item.title} className="text-[13px] leading-relaxed text-slate-600">
                         <span className="font-semibold text-slate-800">{item.title} · </span>
@@ -462,7 +576,7 @@ function WelcomeCard({ onClose }: { onClose: () => void }) {
             <p className="text-[15px] font-semibold text-slate-900">Le planning se peint</p>
             <ol className="mt-3 space-y-2 text-[13px] leading-relaxed text-slate-600">
                 <li><span className="font-semibold text-indigo-600">1.</span> Choisissez une mission dans la barre du bas.</li>
-                <li><span className="font-semibold text-indigo-600">2.</span> Glissez sur les jours et les SDR à planifier.</li>
+                <li><span className="font-semibold text-indigo-600">2.</span> Glissez un rectangle sur les jours et les SDR à planifier.</li>
                 <li><span className="font-semibold text-indigo-600">3.</span> Une erreur ? Ctrl+Z. Tout le reste est dans le <span className="font-semibold">?</span> en haut.</li>
             </ol>
             <button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-indigo-600 py-2 text-[13px] font-semibold text-white hover:bg-indigo-700">
@@ -477,11 +591,11 @@ function GridSkeleton() {
         <div className="space-y-5 px-2 pt-10">
             {Array.from({ length: 7 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
-                    <div className="h-11 w-11 animate-pulse rounded-full bg-slate-200/70" />
+                    <div className="h-10 w-10 animate-pulse rounded-full bg-slate-200/70" />
                     <div className="h-4 w-28 animate-pulse rounded bg-slate-200/70" />
                     <div className="ml-6 grid flex-1 grid-cols-5 gap-4">
                         {Array.from({ length: 5 }).map((__, j) => (
-                            <div key={j} className="h-9 animate-pulse rounded-full bg-slate-200/50" />
+                            <div key={j} className="h-8 animate-pulse rounded-full bg-slate-200/50" />
                         ))}
                     </div>
                 </div>
@@ -492,11 +606,11 @@ function GridSkeleton() {
 
 function BoardSkeleton() {
     return (
-        <div className="flex h-full flex-col bg-[#FAFAFB]">
-            <div className="flex items-center gap-4 px-8 pb-4 pt-6">
-                <div className="h-8 w-36 animate-pulse rounded-lg bg-slate-200/70" />
-                <div className="h-12 w-56 animate-pulse rounded-2xl bg-slate-200/50" />
-                <div className="h-12 w-72 animate-pulse rounded-2xl bg-slate-200/50" />
+        <div className="flex h-full min-h-0 flex-1 flex-col bg-[#FAFAFB]">
+            <div className="flex items-center gap-3 px-6 pb-3 pt-4">
+                <div className="h-7 w-32 animate-pulse rounded-lg bg-slate-200/70" />
+                <div className="h-10 w-52 animate-pulse rounded-xl bg-slate-200/50" />
+                <div className="h-10 w-64 animate-pulse rounded-xl bg-slate-200/50" />
             </div>
             <GridSkeleton />
         </div>

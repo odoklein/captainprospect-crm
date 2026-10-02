@@ -98,7 +98,10 @@ const fmt = (key: string, opts: Intl.DateTimeFormatOptions) =>
     keyToUtcDate(key).toLocaleDateString('fr-FR', { timeZone: 'UTC', ...opts });
 
 export function formatRangeLabel(view: ViewMode, range: BoardRange): string {
-    if (view === 'month') return fmt(range.from, { month: 'long', year: 'numeric' });
+    if (view === 'month') {
+        const label = fmt(range.from, { month: 'long', year: 'numeric' });
+        return label.charAt(0).toUpperCase() + label.slice(1);
+    }
     const first = range.days[0] ?? range.from;
     const last = range.days[range.days.length - 1] ?? range.to;
     const sameMonth = first.slice(0, 7) === last.slice(0, 7);
@@ -270,8 +273,11 @@ export type Intent =
     | { kind: 'remove-block'; blockId: string }
     | { kind: 'dedupe' }
     | { kind: 'copy'; creates: Array<{ sdrId: string; missionId: string; date: string; startTime: string; endTime: string }> }
-    /** Ops resolved elsewhere: an undo (not undoable itself) or a previewed bulk copy. */
-    | { kind: 'ops'; ops: BoardOp[]; label: string; undoable?: boolean };
+    /**
+     * Ops resolved elsewhere: an undo or redo (from the history), or a previewed
+     * bulk copy. `historyLabel` is the original action's name, kept across undo/redo.
+     */
+    | { kind: 'ops'; ops: BoardOp[]; label: string; role: 'undo' | 'redo' | 'bulk'; historyLabel?: string };
 
 export interface Resolution {
     ops: BoardOp[];
@@ -548,8 +554,8 @@ export function applyOps(state: BoardState, ops: BoardOp[], results?: BoardOpRes
                     blocks = blocks.map((b) => (b.id === op.id ? next : b));
                 } else {
                     blocks = [...blocks, next];
-                    const { [op.id]: _revived, ...rest } = cancelled;
-                    cancelled = rest;
+                    cancelled = { ...cancelled };
+                    delete cancelled[op.id];
                 }
                 break;
             }
@@ -622,6 +628,8 @@ export function describeProgress(mission: BoardMission, today: string, withEnd =
 export interface BoardAlerts {
     /** SDRs with no day planned on the range's upcoming working days. */
     unplannedSdrIds: string[];
+    /** 'rest' when part of the range is already past and only the remaining days count. */
+    unplannedScope: 'all' | 'rest';
     endingMissions: BoardMission[];
     duplicateBlocks: number;
     /** Blocks on hidden weekend columns. */
@@ -661,7 +669,8 @@ export function computeAlerts(
 
     const weekendBlocks = showWeekend ? 0 : state.blocks.filter((b) => isWeekendKey(b.date) && visible.has(b.sdrId)).length;
 
-    return { unplannedSdrIds, endingMissions, duplicateBlocks, weekendBlocks };
+    const unplannedScope = upcoming.length > 0 && upcoming.length < workingDays.length ? 'rest' : 'all';
+    return { unplannedSdrIds, unplannedScope, endingMissions, duplicateBlocks, weekendBlocks };
 }
 
 /** Working-day load of an SDR over the shown columns, absences excluded from the capacity. */

@@ -23,18 +23,21 @@ interface PlanWeekDialogProps {
  */
 export function PlanWeekDialog({ transport, initialMonday, sdrIds, onCopy, onPlanByHand, onClose }: PlanWeekDialogProps) {
     const [monday, setMonday] = useState(initialMonday);
-    const [snapshot, setSnapshot] = useState<BoardSnapshot | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    // Results are tagged with the week they belong to, so switching weeks shows
+    // "loading" without resetting state inside the effect.
+    const [loaded, setLoaded] = useState<{ monday: string; snapshot?: BoardSnapshot; error?: string } | null>(null);
+    const snapshot = loaded?.monday === monday ? loaded.snapshot ?? null : null;
+    const error = loaded?.monday === monday ? loaded.error ?? null : null;
     const previousMonday = addDaysToKey(monday, -7);
     const friday = addDaysToKey(monday, 4);
 
     useEffect(() => {
         const controller = new AbortController();
-        setSnapshot(null);
-        setError(null);
         transport.load(previousMonday, addDaysToKey(monday, 6), controller.signal)
-            .then(setSnapshot)
-            .catch((err: unknown) => !controller.signal.aborted && setError(err instanceof Error ? err.message : 'Chargement impossible'));
+            .then((data) => setLoaded({ monday, snapshot: data }))
+            .catch((err: unknown) => {
+                if (!controller.signal.aborted) setLoaded({ monday, error: err instanceof Error ? err.message : 'Chargement impossible' });
+            });
         return () => controller.abort();
     }, [transport, monday, previousMonday]);
 
