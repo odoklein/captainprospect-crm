@@ -255,6 +255,11 @@ export const GET = withErrorHandler(async (
                     },
                 },
             },
+        }).catch((err) => {
+            // Secondary insight: never take the whole client page down (e.g. if the
+            // sdr-daily-report-structured.sql columns aren't applied on this DB yet).
+            console.error('[clients/:id] sdrFeedback query failed', err);
+            return [];
         }),
     ]);
 

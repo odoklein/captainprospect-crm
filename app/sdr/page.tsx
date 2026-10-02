@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { Drawer } from "@/components/ui";
 import Link from "next/link";
 import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
-import { SdrPaceCard } from "@/components/sdr/SdrPaceCard";
 import { useSdrPace } from "@/components/sdr/SdrPaceProvider";
+import { formatHours } from "@/lib/sdr-pace/pace";
 import {
     Phone,
     Calendar,
@@ -24,10 +23,23 @@ import {
     Activity,
     User,
     Building2,
-    Flame
+    Flame,
+    CheckCircle2,
+    AlertCircle,
+    HelpCircle,
+    ChevronDown,
+    BookOpen,
+    Shield,
+    Sparkles,
+    Search,
+    Filter,
+    ArrowUpRight,
+    RefreshCw,
+    PhoneCall,
+    Volume2,
+    SlidersHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AreaChart, Area, ResponsiveContainer } from "recharts";
 
 // ============================================
 // TYPES
@@ -66,6 +78,35 @@ interface SDRActionItem {
     companyName?: string;
     note?: string;
     createdAt: string;
+}
+
+interface SDRCallbackItem {
+    id: string;
+    campaignId: string;
+    channel: string;
+    createdAt: string;
+    callbackDate: string | null;
+    note: string | null;
+    contact: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        title: string | null;
+        phone: string | null;
+        email: string | null;
+        company: { id: string; name: string } | null;
+    } | null;
+    company: {
+        id: string;
+        name: string;
+        phone: string | null;
+    } | null;
+    mission: {
+        id: string;
+        name: string;
+        client: { name: string };
+    } | null;
+    sdr?: { id: string; name: string | null };
 }
 
 interface DrawerContact {
@@ -115,63 +156,97 @@ const CHANNEL_ICONS = {
     LINKEDIN: Linkedin,
 };
 
-// ============================================
-// HELPER FOR GRAPHS
-// ============================================
-const DAYS = ["L", "M", "Me", "J", "V", "S", "D"];
-function buildSparklineData(actions: number): { day: string; val: number }[] {
-    const total = actions || 0;
-    return DAYS.map((day, i) => {
-        const progress = (i + 1) / 7;
-        const cumul = Math.round(total * progress);
-        const prev = i === 0 ? 0 : Math.round(total * (i / 7));
-        return { day, val: Math.max(0, cumul - prev) };
-    });
-}
+// Help & Battlecards content for SDR
+const BATTLECARDS = [
+    {
+        id: "gatekeeper",
+        tag: "Standard & Secrétaire",
+        title: "Passer le barrage",
+        prompt: "« Bonjour, je suis en ligne avec M./Mme [Nom] sur son dossier [Sujet], pouvez-vous me basculer directement sur son poste ? »",
+        tip: "Posture assurée, ton direct et fluide. Ne demandez jamais 'Est-ce qu'il est là ?', annoncez la mise en relation.",
+    },
+    {
+        id: "no_time",
+        tag: "Objection fréquente",
+        title: "« Je n'ai pas le temps »",
+        prompt: "« C'est précisément pour cela que je vous appelle : je prends 30 secondes pour voir si le sujet vous concerne, sinon nous n'irons pas plus loin. »",
+        tip: "Désamorcez immédiatement l'urgence en fixant un cadre temporel minuscule (30 sec).",
+    },
+    {
+        id: "provider",
+        tag: "Objection fréquente",
+        title: "« On a déjà un prestataire »",
+        prompt: "« C'est une excellente chose. Notre but n'est pas de remplacer votre partenaire actuel, mais d'avoir un point de comparaison sur vos besoins de fin d'année. »",
+        tip: "Validez leur choix d'abord. Transformez l'appel en démarche de veille/benchmark.",
+    },
+    {
+        id: "qualification",
+        tag: "Checklist RDV",
+        title: "3 critères avant de valider le créneau",
+        prompt: "1. Le contact est-il bien le décideur final ?\n2. Le besoin/projet est-il identifié dans les 3 prochains mois ?\n3. L'email et le numéro direct sont-ils vérifiés ?",
+        tip: "Un RDV non qualifié est un RDV absent à 70%. Mieux vaut disqualifier tôt.",
+    }
+];
 
 // ============================================
-// SDR DASHBOARD PAGE
+// MAIN COMPONENT
 // ============================================
 
 export default function SDRDashboardPage() {
     const { data: session } = useSession();
-    const { pace } = useSdrPace();
+    const { pace, loading: paceLoading } = useSdrPace();
+
+    // Core state
     const [stats, setStats] = useState<SDRStats | null>(null);
     const [missions, setMissions] = useState<Mission[]>([]);
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+
+    // Callbacks & Reminders state
+    const [callbacks, setCallbacks] = useState<SDRCallbackItem[]>([]);
+    const [callbacksLoading, setCallbacksLoading] = useState(true);
+    const [callbackTab, setCallbackTab] = useState<"all" | "today" | "overdue">("today");
+
+    // Actions state
     const [actionsPeriod, setActionsPeriod] = useState<"today" | "all">("today");
     const [myActions, setMyActions] = useState<SDRActionItem[]>([]);
     const [actionsLoading, setActionsLoading] = useState(false);
 
-    // Drawers
+    // Help & Battlecards active tab
+    const [activeBattlecard, setActiveBattlecard] = useState<string>("gatekeeper");
+    const [showShortcuts, setShowShortcuts] = useState(false);
+
+    // Drawers state
     const [drawerContactId, setDrawerContactId] = useState<string | null>(null);
     const [drawerCompanyId, setDrawerCompanyId] = useState<string | null>(null);
     const [drawerContact, setDrawerContact] = useState<DrawerContact | null>(null);
     const [drawerCompany, setDrawerCompany] = useState<DrawerCompany | null>(null);
     const [drawerLoading, setDrawerLoading] = useState(false);
 
-    // Initial load animations
+    // Hero counter animation
+    const heroTarget = pace?.callsDone ?? stats?.actionsToday ?? 0;
     const [heroCount, setHeroCount] = useState(0);
-    const [heroAnimated, setHeroAnimated] = useState(false);
+    const heroShown = useRef(0);
 
     // ============================================
-    // FETCH DATA
+    // DATA FETCHING
     // ============================================
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchInitialData = async () => {
             setIsLoading(true);
             try {
-                const statsRes = await fetch("/api/sdr/stats");
-                const statsJson = await statsRes.json();
-                if (statsJson.success) {
-                    setStats(statsJson.data);
-                }
+                const [statsRes, missionsRes] = await Promise.all([
+                    fetch("/api/sdr/stats"),
+                    fetch("/api/sdr/missions")
+                ]);
+                const [statsJson, missionsJson] = await Promise.all([
+                    statsRes.json(),
+                    missionsRes.json()
+                ]);
 
-                const missionsRes = await fetch("/api/sdr/missions");
-                const missionsJson = await missionsRes.json();
-                if (missionsJson.success) {
+                if (statsJson.success) setStats(statsJson.data);
+                if (missionsJson.success && missionsJson.data) {
                     setMissions(missionsJson.data);
                     const saved = localStorage.getItem("sdr_selected_mission");
                     if (saved && missionsJson.data.some((m: Mission) => m.id === saved)) {
@@ -181,30 +256,62 @@ export default function SDRDashboardPage() {
                     }
                 }
             } catch (err) {
-                console.error("Failed to fetch data:", err);
+                console.error("Failed to load SDR dashboard data:", err);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchData();
+        fetchInitialData();
     }, []);
 
-    // Calls of the day (same number as the pace card) — falls back to all actions until it loads.
-    // The daily goal is the manager-configured quota, prorated when less than a full day is planned.
-    const heroTarget = pace?.callsDone ?? stats?.actionsToday ?? 0;
-    const heroShown = useRef(0);
+    // Fetch Callbacks / Reminders
+    const fetchCallbacks = async () => {
+        setCallbacksLoading(true);
+        try {
+            const res = await fetch("/api/sdr/callbacks?limit=50");
+            const json = await res.json();
+            if (json.success && Array.isArray(json.data)) {
+                setCallbacks(json.data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch SDR callbacks:", err);
+        } finally {
+            setCallbacksLoading(false);
+        }
+    };
 
-    // Count-up animation for hero. Counts from what is already shown, so the
-    // pace refresh (every minute) only animates the difference, not from zero.
     useEffect(() => {
-        setHeroAnimated(true);
+        fetchCallbacks();
+    }, []);
+
+    // Fetch recent actions
+    useEffect(() => {
+        const fetchActions = async () => {
+            setActionsLoading(true);
+            try {
+                const res = await fetch(`/api/sdr/actions?period=${actionsPeriod}&limit=30`);
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    setMyActions(json.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch actions:", err);
+            } finally {
+                setActionsLoading(false);
+            }
+        };
+        fetchActions();
+    }, [actionsPeriod]);
+
+    // Animate hero counter smoothly
+    useEffect(() => {
         let current = heroShown.current;
         if (current === heroTarget) {
             setHeroCount(heroTarget);
             return;
         }
-        const step = Math.max(1, Math.ceil(Math.abs(heroTarget - current) / 20));
+        const step = Math.max(1, Math.ceil(Math.abs(heroTarget - current) / 15));
         const interval = setInterval(() => {
             current = current < heroTarget
                 ? Math.min(current + step, heroTarget)
@@ -212,39 +319,11 @@ export default function SDRDashboardPage() {
             heroShown.current = current;
             setHeroCount(current);
             if (current === heroTarget) clearInterval(interval);
-        }, 40);
+        }, 35);
         return () => clearInterval(interval);
     }, [heroTarget]);
 
-    useEffect(() => {
-        const handleMissionChange = (e: CustomEvent) => {
-            setSelectedMissionId(e.detail);
-        };
-        window.addEventListener("sdr_mission_changed", handleMissionChange as EventListener);
-        return () => {
-            window.removeEventListener("sdr_mission_changed", handleMissionChange as EventListener);
-        };
-    }, []);
-
-    useEffect(() => {
-        const fetchMyActions = async () => {
-            setActionsLoading(true);
-            try {
-                const res = await fetch(`/api/sdr/actions?period=${actionsPeriod}&limit=50`);
-                const json = await res.json();
-                if (json.success) {
-                    setMyActions(json.data);
-                }
-            } catch (err) {
-                console.error("Failed to fetch my actions:", err);
-            } finally {
-                setActionsLoading(false);
-            }
-        };
-        fetchMyActions();
-    }, [actionsPeriod]);
-
-    // Drawers API calls
+    // Drawers logic
     useEffect(() => {
         if (!drawerContactId) {
             setDrawerContact(null);
@@ -252,8 +331,8 @@ export default function SDRDashboardPage() {
         }
         setDrawerLoading(true);
         fetch(`/api/contacts/${drawerContactId}`)
-            .then((res) => res.json())
-            .then((json) => {
+            .then(res => res.json())
+            .then(json => {
                 if (json.success && json.data) {
                     const c = json.data;
                     setDrawerContact({
@@ -269,7 +348,7 @@ export default function SDRDashboardPage() {
                         companyName: c.company?.name ?? undefined,
                         missionId: (c.company as { list?: { mission?: { id: string } } })?.list?.mission?.id,
                     });
-                } else setDrawerContact(null);
+                }
             })
             .catch(() => setDrawerContact(null))
             .finally(() => setDrawerLoading(false));
@@ -282,8 +361,8 @@ export default function SDRDashboardPage() {
         }
         setDrawerLoading(true);
         fetch(`/api/companies/${drawerCompanyId}`)
-            .then((res) => res.json())
-            .then((json) => {
+            .then(res => res.json())
+            .then(json => {
                 if (json.success && json.data) {
                     const co = json.data;
                     setDrawerCompany({
@@ -308,440 +387,799 @@ export default function SDRDashboardPage() {
                         })),
                         _count: { contacts: co._count?.contacts ?? co.contacts?.length ?? 0 },
                     });
-                } else setDrawerCompany(null);
+                }
             })
             .catch(() => setDrawerCompany(null))
             .finally(() => setDrawerLoading(false));
     }, [drawerCompanyId]);
 
-    const openFicheForAction = (item: SDRActionItem) => {
-        if (item.contactId) {
+    const openContactOrCompany = (contactId?: string | null, companyId?: string | null) => {
+        if (contactId) {
             setDrawerCompanyId(null);
-            setDrawerContactId(item.contactId);
-        } else if (item.companyId) {
+            setDrawerContactId(contactId);
+        } else if (companyId) {
             setDrawerContactId(null);
-            setDrawerCompanyId(item.companyId);
+            setDrawerCompanyId(companyId);
         }
     };
 
-    const activeMission = missions.find(m => m.id === selectedMissionId);
-    const ChannelIcon = activeMission ? CHANNEL_ICONS[activeMission.channel] : Phone;
+    // Filtered Callbacks
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
 
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return "Bonjour";
-        if (hour < 18) return "Bon après-midi";
+    const categorizedCallbacks = useMemo(() => {
+        const overdue: SDRCallbackItem[] = [];
+        const today: SDRCallbackItem[] = [];
+        const upcoming: SDRCallbackItem[] = [];
+
+        for (const cb of callbacks) {
+            if (!cb.callbackDate) {
+                today.push(cb);
+                continue;
+            }
+            const cbDate = new Date(cb.callbackDate);
+            const cbDayStr = cb.callbackDate.slice(0, 10);
+
+            if (cbDate.getTime() < now.getTime() && cbDayStr < todayStr) {
+                overdue.push(cb);
+            } else if (cbDayStr === todayStr) {
+                if (cbDate.getTime() < now.getTime()) {
+                    overdue.push(cb); // past time today
+                } else {
+                    today.push(cb);
+                }
+            } else {
+                upcoming.push(cb);
+            }
+        }
+
+        return { overdue, today, upcoming };
+    }, [callbacks, now, todayStr]);
+
+    const displayedCallbacks = useMemo(() => {
+        if (callbackTab === "overdue") return categorizedCallbacks.overdue;
+        if (callbackTab === "today") return [...categorizedCallbacks.overdue, ...categorizedCallbacks.today];
+        return callbacks;
+    }, [callbackTab, categorizedCallbacks, callbacks]);
+
+    const activeMission = missions.find(m => m.id === selectedMissionId) || missions[0];
+    const ChannelIcon = activeMission ? CHANNEL_ICONS[activeMission.channel] || Phone : Phone;
+
+    // Greeting helper
+    const greeting = () => {
+        const h = new Date().getHours();
+        if (h < 12) return "Bonjour";
+        if (h < 18) return "Bon après-midi";
         return "Bonsoir";
     };
 
-    if (isLoading && !stats) {
-        return (
-            <div className="flex items-center justify-center py-32 bg-[#FAF9F6] min-h-screen">
-                <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-8 h-8 text-[#2B5F3E] animate-spin" />
-                    <p className="text-[13px] text-[#8A8A83] font-medium">Chargement du dashboard...</p>
-                </div>
-            </div>
-        );
-    }
+    const sdrFirstName = session?.user?.name?.split(" ")[0] ?? "SDR";
 
-    const dailyProgressPct = pace ? Math.min((pace.callsDone / pace.dayQuota) * 100, 100) : 0;
-    const sparkData = buildSparklineData(stats?.actionsToday ?? 0);
+    // Pacing calculations
+    const dailyProgressPct = pace && pace.dayQuota > 0 ? Math.min((pace.callsDone / pace.dayQuota) * 100, 100) : 0;
+    const isAhead = pace && pace.aheadBy > 0;
+    const isBehind = pace && pace.delta > 0;
 
     return (
-        <div className="min-h-full bg-[#FAF9F6] p-4 md:p-6" style={{ fontFamily: "var(--cp-font, 'DM Sans', 'Inter', system-ui, sans-serif)" }}>
-            {/* Page Header */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-                <div>
-                    <h1 className="text-[22px] font-bold text-[#0E0F0C] tracking-tight">
-                        {getGreeting()}, {session?.user?.name?.split(" ")[0] ?? "vous"} ! 👋
-                    </h1>
-                    <p className="text-[13px] text-[#8A8A83] mt-0.5">Voici votre journée en un coup d'œil</p>
-                </div>
-            </div>
+        <div className="min-h-screen bg-[#F8F9FA] text-zinc-900 antialiased selection:bg-zinc-200">
+            {/* Main Outer Container with generous breathing room */}
+            <div className="max-w-[1520px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-            {/* Call rhythm of the day */}
-            <SdrPaceCard />
-
-            {/* ZONE 1 — KPIs */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-5">
-                {/* Hero KPI - Actions Today */}
-                <div className="flex-[2] bg-gradient-to-br from-[#1C3F2A] to-[#16301F] rounded-2xl p-6 relative overflow-hidden">
-                    {/* Gradients */}
-                    <div className="absolute top-0 right-0 w-48 h-48 bg-[#4E8B66]/15 rounded-full blur-3xl pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-[#7FB394]/10 rounded-full blur-2xl pointer-events-none" />
-
-                    <div className="relative z-10">
-                        <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-[#4E8B66]/25 flex items-center justify-center">
-                                    <Phone className="w-4 h-4 text-[#CFE0D5]" />
-                                </div>
-                                <span className="text-[#8A8A83] text-[13px] font-medium">Appels aujourd'hui</span>
-                            </div>
-                            {dailyProgressPct >= 100 && (
-                                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#10B981]/15 text-[#10B981] text-[11px] font-semibold">
-                                    <Flame className="w-3.5 h-3.5" />
-                                    <span>Objectif atteint</span>
-                                </div>
+                {/* ============================================ */}
+                {/* 1. TOP HEADER & STATUS BAR                   */}
+                {/* ============================================ */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-zinc-200/60">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600 border border-zinc-200/80">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                {new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                            </span>
+                            {pace && (
+                                <span className={cn(
+                                    "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                                    pace.status === "ON_TRACK" && "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+                                    pace.status === "BEHIND" && "bg-amber-50 text-amber-700 border-amber-200/80",
+                                    pace.status === "LATE" && "bg-rose-50 text-rose-700 border-rose-200/80"
+                                )}>
+                                    <Activity className="w-3 h-3" />
+                                    {isAhead && `Rythme : +${pace.aheadBy} d'avance`}
+                                    {isBehind && `Rythme : -${pace.delta} de retard`}
+                                    {!isAhead && !isBehind && "Pile dans le rythme"}
+                                </span>
                             )}
                         </div>
+                        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
+                            {greeting()}, {sdrFirstName}
+                        </h1>
+                        <p className="text-sm text-zinc-500 font-normal">
+                            Votre espace de pilotage quotidien : gérez vos rappels, votre cadence et votre prospection active.
+                        </p>
+                    </div>
 
-                        <div className="flex items-end gap-3 mt-4">
-                            <span className={`text-[52px] font-extrabold text-white leading-none tracking-tight transition-all duration-700 ${heroAnimated ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+                    <div className="flex items-center gap-3">
+                        <Link href="/sdr/action">
+                            <button className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium transition-all shadow-[0_1px_2px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.12)] active:scale-[0.98]">
+                                <Play className="w-4 h-4 fill-current" />
+                                <span>Lancer la prospection</span>
+                            </button>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* ============================================ */}
+                {/* 2. KPI OVERVIEW ROW (Clean, Solid, Refined)  */}
+                {/* ============================================ */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* KPI 1: Calls Today */}
+                    <div className="bg-white rounded-2xl p-5 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all hover:border-zinc-300">
+                        <div className="flex items-center justify-between text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                            <span>Appels Réalisés</span>
+                            <div className="w-8 h-8 rounded-lg bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-700">
+                                <Phone className="w-4 h-4" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 tracking-tight">
                                 {heroCount}
                             </span>
-                            {pace && <span className="text-[#87A491] text-[14px] font-medium mb-2">/ {pace.dayQuota} obj. jour</span>}
+                            {pace && (
+                                <span className="text-xs text-zinc-500 font-medium">
+                                    / {pace.dayQuota} obj.
+                                </span>
+                            )}
                         </div>
-
-                        <div className="mt-5 mb-2">
-                            <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-[11px] text-[#87A491]">Progression vers l'objectif</span>
-                                <span className="text-[11px] font-semibold text-[#CFE0D5]">{Math.round(dailyProgressPct)}%</span>
+                        <div className="mt-3 space-y-1.5">
+                            <div className="flex justify-between text-xs text-zinc-500 font-normal">
+                                <span>Progression journalière</span>
+                                <span className="font-semibold text-zinc-700">{Math.round(dailyProgressPct)}%</span>
                             </div>
-                            <div className="h-2 bg-[#12281A] rounded-full overflow-hidden">
+                            <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-[#CFE0D5] to-[#FAF9F6] rounded-full transition-all duration-1000 ease-out"
+                                    className="h-full bg-zinc-900 rounded-full transition-all duration-700"
                                     style={{ width: `${dailyProgressPct}%` }}
                                 />
                             </div>
                         </div>
-
-                        <div className="h-[48px] mt-4">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={sparkData}>
-                                    <defs>
-                                        <linearGradient id="db-spark-grad-2" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#CFE0D5" stopOpacity={0.3} />
-                                            <stop offset="100%" stopColor="#CFE0D5" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <Area type="monotone" dataKey="val" stroke="#CFE0D5" strokeWidth={2} fill="url(#db-spark-grad-2)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Supporting KPIs */}
-                <div className="flex-[1.2] flex flex-col gap-3">
-                    <div className="flex-1 bg-white rounded-xl border border-[#E8E6DF] p-4 flex items-center justify-between hover:border-[#D5D2C9] transition-colors duration-150">
-                        <div>
-                            <div className="text-[11px] text-[#8A8A83] font-medium mb-0.5">RDV Pris</div>
-                            <div className="text-[28px] font-bold text-[#0E0F0C] leading-none">{stats?.meetingsBooked ?? 0}</div>
-                        </div>
-                        <div className="w-10 h-10 rounded-xl bg-[#F0FDF4] flex items-center justify-center">
-                            <Calendar className="w-5 h-5 text-[#10B981]" />
-                        </div>
                     </div>
 
-                    <div className="flex-1 bg-white rounded-xl border border-[#E8E6DF] p-4 flex items-center justify-between hover:border-[#D5D2C9] transition-colors duration-150">
-                        <div>
-                            <div className="text-[11px] text-[#8A8A83] font-medium mb-0.5">Contacts Chauds</div>
-                            <div className="text-[28px] font-bold text-[#0E0F0C] leading-none">{stats?.opportunitiesGenerated ?? 0}</div>
-                        </div>
-                        <div className="w-10 h-10 rounded-xl bg-[#E7EFE9] flex items-center justify-center">
-                            <Briefcase className="w-5 h-5 text-[#2B5F3E]" />
-                        </div>
-                    </div>
-
-                    <div className="flex-1 bg-white rounded-xl border border-[#E8E6DF] p-4 flex items-center justify-between hover:border-[#D5D2C9] transition-colors duration-150">
-                        <div>
-                            <div className="text-[11px] text-[#8A8A83] font-medium mb-0.5">Rappels Planifiés</div>
-                            <div className="text-[28px] font-bold text-[#0E0F0C] leading-none">{stats?.callbacksPending ?? 0}</div>
-                        </div>
-                        <div className="w-10 h-10 rounded-xl bg-[#FFF7ED] flex items-center justify-center">
-                            <Clock className="w-5 h-5 text-[#F59E0B]" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ZONE 2 & 3 */}
-            <div className="flex flex-col xl:flex-row gap-4">
-                {/* ZONE 2 — Main Work Area (Missions & Recent Calls) */}
-                <div className="flex-[3] flex flex-col gap-4">
-                    {/* Active Mission */}
-                    {activeMission ? (
-                        <div className="bg-white rounded-xl border border-[#E8E6DF] overflow-hidden flex flex-col shadow-sm">
-                            <div className="bg-gradient-to-r from-[#2B5F3E] to-[#224A31] p-5 text-white flex justify-between items-center relative overflow-hidden">
-                                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-                                <div className="absolute top-1/2 left-1/4 w-20 h-20 bg-black/5 rounded-full blur-xl pointer-events-none" />
-
-                                <div className="relative z-10 flex items-center gap-2">
-                                    <Target className="w-5 h-5" />
-                                    <span className="font-semibold text-[15px]">Mission Active</span>
-                                </div>
-                                <div className="relative z-10 flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full text-[11px] font-medium border border-white/30 backdrop-blur-md shadow-sm">
-                                    <ChannelIcon className="w-3.5 h-3.5" />
-                                    {activeMission.channel === "CALL" ? "Appel" : activeMission.channel === "EMAIL" ? "Email" : "LinkedIn"}
-                                </div>
+                    {/* KPI 2: Meetings Booked */}
+                    <div className="bg-white rounded-2xl p-5 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all hover:border-zinc-300">
+                        <div className="flex items-center justify-between text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                            <span>Rendez-vous Pris</span>
+                            <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100/60 flex items-center justify-center text-emerald-600">
+                                <Calendar className="w-4 h-4" />
                             </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 tracking-tight">
+                                {stats?.meetingsBooked ?? 0}
+                            </span>
+                            <span className="text-xs text-emerald-600 font-medium flex items-center gap-0.5">
+                                <TrendingUp className="w-3 h-3" /> Confirmés
+                            </span>
+                        </div>
+                        <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
+                            Rendez-vous qualifiés et validés dans le planning client.
+                        </p>
+                    </div>
 
-                            <div className="p-6 flex flex-col gap-5">
-                                <div>
-                                    <h3 className="text-[20px] font-bold text-[#0E0F0C] tracking-tight">{activeMission.name}</h3>
-                                    <p className="text-[14px] text-[#8A8A83] flex items-center gap-1.5 mt-1">
-                                        <Building2 className="w-3.5 h-3.5" />
-                                        {activeMission.client.name}
-                                    </p>
+                    {/* KPI 3: Callbacks / Reminders */}
+                    <div className="bg-white rounded-2xl p-5 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all hover:border-zinc-300">
+                        <div className="flex items-center justify-between text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                            <span>Rappels En Attente</span>
+                            <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100/60 flex items-center justify-center text-amber-600">
+                                <Clock className="w-4 h-4" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 tracking-tight">
+                                {callbacks.length}
+                            </span>
+                            {categorizedCallbacks.overdue.length > 0 && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-semibold border border-rose-200/60">
+                                    {categorizedCallbacks.overdue.length} urgent(s)
+                                </span>
+                            )}
+                        </div>
+                        <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
+                            {categorizedCallbacks.today.length} rappel(s) prévu(s) pour aujourd'hui.
+                        </p>
+                    </div>
+
+                    {/* KPI 4: Qualified Leads */}
+                    <div className="bg-white rounded-2xl p-5 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] transition-all hover:border-zinc-300">
+                        <div className="flex items-center justify-between text-zinc-500 text-xs font-medium uppercase tracking-wider mb-2">
+                            <span>Contacts Chauds</span>
+                            <div className="w-8 h-8 rounded-lg bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-700">
+                                <Briefcase className="w-4 h-4" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 tracking-tight">
+                                {stats?.opportunitiesGenerated ?? 0}
+                            </span>
+                            <span className="text-xs text-zinc-500 font-medium">identifiés</span>
+                        </div>
+                        <p className="mt-3 text-xs text-zinc-500 leading-relaxed">
+                            Prospects ayant manifesté un intérêt ou projet à court terme.
+                        </p>
+                    </div>
+                </div>
+
+                {/* ============================================ */}
+                {/* 3. CORE TWO-COLUMN WORKSPACE                 */}
+                {/* ============================================ */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+                    {/* LEFT / MAIN WORKSPACE COLUMN (7 of 12) */}
+                    <div className="lg:col-span-7 space-y-6">
+
+                        {/* --- ACTIVE MISSION CARD --- */}
+                        {activeMission ? (
+                            <div className="bg-white rounded-2xl p-6 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-5">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">
+                                                <ChannelIcon className="w-3 h-3 text-zinc-500" />
+                                                {activeMission.channel === "CALL" ? "Campagne Téléphonique" : activeMission.channel}
+                                            </span>
+                                            <span className="text-xs text-zinc-400">•</span>
+                                            <span className="text-xs font-medium text-zinc-500 flex items-center gap-1">
+                                                <Building2 className="w-3.5 h-3.5" />
+                                                Client : {activeMission.client?.name}
+                                            </span>
+                                        </div>
+                                        <h2 className="text-xl font-semibold text-zinc-900 tracking-tight pt-1">
+                                            {activeMission.name}
+                                        </h2>
+                                    </div>
+
+                                    {/* Mission switch dropdown if more than 1 mission */}
+                                    {missions.length > 1 && (
+                                        <div className="relative">
+                                            <select
+                                                aria-label="Changer de mission active"
+                                                value={selectedMissionId || ""}
+                                                onChange={(e) => {
+                                                    setSelectedMissionId(e.target.value);
+                                                    localStorage.setItem("sdr_selected_mission", e.target.value);
+                                                }}
+                                                className="text-xs font-medium bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-lg px-3 py-1.5 text-zinc-700 pr-8 appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                                            >
+                                                {missions.map(m => (
+                                                    <option key={m.id} value={m.id}>
+                                                        {m.name} ({m.client.name})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Progress Indicator */}
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[12px] font-medium text-[#4A4B46]">Progression de la mission</span>
-                                        <span className="text-[12px] font-bold text-[#2B5F3E]">{activeMission.progress || 0}%</span>
+                                {/* Mission stats & progress */}
+                                <div className="grid grid-cols-3 gap-4 pt-1">
+                                    <div className="p-3.5 rounded-xl bg-zinc-50/70 border border-zinc-100">
+                                        <span className="text-xs text-zinc-500 font-medium block">Contacts restants</span>
+                                        <span className="text-lg font-semibold text-zinc-900 mt-0.5 block">
+                                            {activeMission.contactsRemaining.toLocaleString("fr-FR")}
+                                        </span>
                                     </div>
-                                    <div className="h-2.5 bg-[#F1EFE9] rounded-full overflow-hidden shadow-inner">
+                                    <div className="p-3.5 rounded-xl bg-zinc-50/70 border border-zinc-100">
+                                        <span className="text-xs text-zinc-500 font-medium block">Campagnes actives</span>
+                                        <span className="text-lg font-semibold text-zinc-900 mt-0.5 block">
+                                            {activeMission._count?.campaigns ?? 1}
+                                        </span>
+                                    </div>
+                                    <div className="p-3.5 rounded-xl bg-zinc-50/70 border border-zinc-100">
+                                        <span className="text-xs text-zinc-500 font-medium block">Avancement global</span>
+                                        <span className="text-lg font-semibold text-zinc-900 mt-0.5 block">
+                                            {activeMission.progress || 0}%
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
                                         <div
-                                            className="h-full bg-gradient-to-r from-[#2B5F3E] to-[#4E8B66] rounded-full transition-all duration-700 ease-out"
+                                            className="h-full bg-zinc-800 rounded-full transition-all duration-700"
                                             style={{ width: `${activeMission.progress || 0}%` }}
                                         />
                                     </div>
                                 </div>
 
-                                {/* Key Mission Stats */}
-                                <div className="flex items-center gap-8 py-1">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-full bg-[#F1EFE9] flex items-center justify-center">
-                                            <Users className="w-4 h-4 text-[#8A8A83]" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[14px] font-semibold text-[#0E0F0C]">{activeMission.contactsRemaining || 0}</p>
-                                            <p className="text-[11px] text-[#8A8A83]">Contacts rest</p>
-                                        </div>
-                                    </div>
-                                    <div className="w-px h-8 bg-[#E8E6DF]" />
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-full bg-[#F1EFE9] flex items-center justify-center">
-                                            <Target className="w-4 h-4 text-[#8A8A83]" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[14px] font-semibold text-[#0E0F0C]">{activeMission._count?.campaigns || 0}</p>
-                                            <p className="text-[11px] text-[#8A8A83]">Campagnes</p>
-                                        </div>
-                                    </div>
+                                <div className="pt-2 flex items-center justify-between">
+                                    <span className="text-xs text-zinc-500">
+                                        Prêt pour la session ? Accédez au terminal d'appel et qualifiez en temps réel.
+                                    </span>
+                                    <Link href="/sdr/action">
+                                        <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold transition-all">
+                                            <Play className="w-3.5 h-3.5 fill-current" />
+                                            Ouvrir la session d'appel
+                                        </button>
+                                    </Link>
                                 </div>
-
-                                {/* Call to Action Button */}
-                                <Link href="/sdr/action" className="block mt-2">
-                                    <button className="w-full h-12 bg-gradient-to-r from-[#2B5F3E] to-[#224A31] text-white rounded-xl flex items-center justify-center gap-2 text-[14px] font-semibold hover:opacity-90 transition-opacity shadow-[0_4px_16px_rgba(43,95,62,0.3)]">
-                                        <Play className="w-[18px] h-[18px] fill-current" />
-                                        Lancer la session
-                                    </button>
-                                </Link>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-xl border border-dashed border-[#D5D2C9] p-10 flex flex-col items-center justify-center text-center">
-                            <Target className="w-12 h-12 text-[#E8E6DF] mb-4" />
-                            <h3 className="text-[16px] font-bold text-[#0E0F0C]">Aucune mission planifiée aujourd'hui</h3>
-                            <p className="text-[13px] text-[#8A8A83] mt-1.5 max-w-[280px]">
-                                Vous n'avez pas de créneau dans votre planning du jour. Consultez votre planning ou contactez votre manager.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* My actions list */}
-                    <div className="bg-white rounded-xl border border-[#E8E6DF] flex flex-col flex-1 min-h-[320px]">
-                        <div className="p-5 border-b border-[#E8E6DF] flex items-center justify-between">
-                            <h3 className="text-[14px] font-semibold text-[#0E0F0C] flex items-center gap-2">
-                                <Activity className="w-4 h-4 text-[#2B5F3E]" />
-                                Historique des actions
-                            </h3>
-                            <div className="flex rounded-md border border-[#E8E6DF] p-0.5 bg-[#F1EFE9]">
-                                <button
-                                    onClick={() => setActionsPeriod("today")}
-                                    className={cn(
-                                        "px-2.5 py-1 text-[11px] font-medium rounded transition-colors",
-                                        actionsPeriod === "today" ? "bg-white text-[#0E0F0C] shadow-sm" : "text-[#4A4B46] hover:text-[#0E0F0C]"
-                                    )}
-                                >
-                                    Aujourd'hui
-                                </button>
-                                <button
-                                    onClick={() => setActionsPeriod("all")}
-                                    className={cn(
-                                        "px-2.5 py-1 text-[11px] font-medium rounded transition-colors",
-                                        actionsPeriod === "all" ? "bg-white text-[#0E0F0C] shadow-sm" : "text-[#4A4B46] hover:text-[#0E0F0C]"
-                                    )}
-                                >
-                                    Tout
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-3">
-                            {actionsLoading ? (
-                                <div className="flex items-center justify-center py-10">
-                                    <Loader2 className="w-6 h-6 text-[#2B5F3E] animate-spin" />
-                                </div>
-                            ) : myActions.length === 0 ? (
-                                <p className="text-[13px] text-[#8A8A83] text-center py-10">
-                                    {actionsPeriod === "today" ? "Aucune action aujourd'hui." : "Aucune action enregistrée."}
+                        ) : (
+                            <div className="bg-white rounded-2xl p-8 border border-dashed border-zinc-300 text-center space-y-2">
+                                <Target className="w-8 h-8 text-zinc-400 mx-auto" />
+                                <h3 className="text-base font-semibold text-zinc-900">Aucune mission assignée</h3>
+                                <p className="text-xs text-zinc-500 max-w-sm mx-auto">
+                                    Vous n'avez pas de mission active dans votre planning. Contactez votre manager ou vérifiez vos affectations.
                                 </p>
-                            ) : (
-                                <ul className="space-y-1">
-                                    {myActions.map((item) => {
-                                        const name = item.contactName || item.companyName || "—";
-                                        const hasFiche = !!(item.contactId || item.companyId);
+                            </div>
+                        )}
+
+                        {/* --- DEDICATED REMINDERS & CALLBACKS HUB (USER HIGHLIGHTED REQUIREMENT) --- */}
+                        <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden">
+                            {/* Header & Tabs */}
+                            <div className="p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-base font-semibold text-zinc-900 tracking-tight">
+                                            Rappels & Relances
+                                        </h2>
+                                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200/60">
+                                            {callbacks.length}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-zinc-500 mt-0.5">
+                                        Prospects ayant demandé à être recontactés à un horaire précis.
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-1 p-1 bg-zinc-100/80 rounded-xl border border-zinc-200/60 text-xs">
+                                    <button
+                                        onClick={() => setCallbackTab("today")}
+                                        className={cn(
+                                            "px-3 py-1 rounded-lg font-medium transition-all",
+                                            callbackTab === "today"
+                                                ? "bg-white text-zinc-900 shadow-sm"
+                                                : "text-zinc-600 hover:text-zinc-900"
+                                        )}
+                                    >
+                                        Aujourd'hui ({categorizedCallbacks.today.length + categorizedCallbacks.overdue.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setCallbackTab("overdue")}
+                                        className={cn(
+                                            "px-3 py-1 rounded-lg font-medium transition-all",
+                                            callbackTab === "overdue"
+                                                ? "bg-white text-rose-700 shadow-sm font-semibold"
+                                                : "text-zinc-600 hover:text-rose-600"
+                                        )}
+                                    >
+                                        En retard ({categorizedCallbacks.overdue.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setCallbackTab("all")}
+                                        className={cn(
+                                            "px-3 py-1 rounded-lg font-medium transition-all",
+                                            callbackTab === "all"
+                                                ? "bg-white text-zinc-900 shadow-sm"
+                                                : "text-zinc-600 hover:text-zinc-900"
+                                        )}
+                                    >
+                                        Tous ({callbacks.length})
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Callbacks Content List */}
+                            <div className="divide-y divide-zinc-100 max-h-[460px] overflow-y-auto">
+                                {callbacksLoading ? (
+                                    <div className="flex items-center justify-center py-12 text-zinc-400">
+                                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                        <span className="text-xs">Chargement de vos rappels...</span>
+                                    </div>
+                                ) : displayedCallbacks.length === 0 ? (
+                                    <div className="py-12 px-6 text-center space-y-2">
+                                        <div className="w-10 h-10 rounded-full bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-400 mx-auto">
+                                            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                        </div>
+                                        <p className="text-sm font-medium text-zinc-700">
+                                            {callbackTab === "overdue"
+                                                ? "Aucun rappel en retard ! Vous êtes parfaitement à jour."
+                                                : "Aucun rappel prévu pour le moment."}
+                                        </p>
+                                        <p className="text-xs text-zinc-400 max-w-xs mx-auto">
+                                            Les rappels que vous planifiez dans le terminal d'appel s'afficheront directement ici.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    displayedCallbacks.map((cb) => {
+                                        const contactName = cb.contact
+                                            ? `${cb.contact.firstName || ""} ${cb.contact.lastName || ""}`.trim()
+                                            : null;
+                                        const companyName = cb.company?.name || cb.contact?.company?.name || "Entreprise sans nom";
+                                        const displayName = contactName || companyName;
+                                        const phoneNumber = cb.contact?.phone || cb.company?.phone;
+                                        
+                                        const isOverdue = cb.callbackDate && new Date(cb.callbackDate).getTime() < now.getTime();
+                                        const callbackTimeStr = cb.callbackDate
+                                            ? new Date(cb.callbackDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+                                            : "Non planifié";
+                                        const callbackDateStr = cb.callbackDate
+                                            ? new Date(cb.callbackDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+                                            : "";
+
                                         return (
-                                            <li key={item.id}>
-                                                <button
-                                                    onClick={() => hasFiche && openFicheForAction(item)}
-                                                    className={cn(
-                                                        "w-full flex items-center gap-3 p-2.5 rounded-xl text-left border border-transparent transition-all group",
-                                                        hasFiche ? "hover:bg-[#F9FAFB] hover:border-[#E8E6DF] cursor-pointer" : "cursor-default"
-                                                    )}
-                                                >
-                                                    <div className="w-9 h-9 rounded-full bg-[#F1EFE9] border border-[#E8E6DF] flex items-center justify-center flex-shrink-0 group-hover:bg-white group-hover:shadow-sm transition-all">
-                                                        {item.contactId ? (
-                                                            <User className="w-4 h-4 text-[#8A8A83]" />
-                                                        ) : (
-                                                            <Building2 className="w-4 h-4 text-[#8A8A83]" />
+                                            <div
+                                                key={cb.id}
+                                                className="p-4 sm:px-5 hover:bg-zinc-50/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                                            >
+                                                <div className="space-y-1 min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={cn(
+                                                            "inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border",
+                                                            isOverdue
+                                                                ? "bg-rose-50 text-rose-700 border-rose-200/80"
+                                                                : "bg-zinc-100 text-zinc-700 border-zinc-200"
+                                                        )}>
+                                                            <Clock className="w-3 h-3" />
+                                                            {callbackDateStr} à {callbackTimeStr}
+                                                            {isOverdue && " · Dépassé"}
+                                                        </span>
+                                                        {cb.mission && (
+                                                            <span className="text-[11px] text-zinc-400 truncate">
+                                                                • {cb.mission.name}
+                                                            </span>
                                                         )}
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-[13px] font-semibold text-[#0E0F0C] truncate">{name}</p>
-                                                        <p className="text-[11px] text-[#8A8A83] truncate mt-0.5">
-                                                            {item.resultLabel} {item.campaignName && <span className="opacity-70">• {item.campaignName}</span>}
+
+                                                    <div className="flex items-baseline gap-2 pt-0.5">
+                                                        <button
+                                                            onClick={() => openContactOrCompany(cb.contact?.id, cb.company?.id)}
+                                                            className="text-sm font-semibold text-zinc-900 hover:text-zinc-600 transition-colors truncate text-left"
+                                                        >
+                                                            {displayName}
+                                                        </button>
+                                                        {contactName && companyName && (
+                                                            <span className="text-xs text-zinc-500 truncate">
+                                                                chez {companyName}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {cb.note && (
+                                                        <p className="text-xs text-zinc-600 bg-zinc-50 p-2 rounded-lg border border-zinc-100 line-clamp-2 italic">
+                                                            « {cb.note} »
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center gap-2 flex-shrink-0 pt-1 sm:pt-0">
+                                                    {phoneNumber ? (
+                                                        <a
+                                                            href={`tel:${phoneNumber}`}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition-all shadow-xs"
+                                                        >
+                                                            <PhoneCall className="w-3.5 h-3.5" />
+                                                            <span>Appeler ({phoneNumber})</span>
+                                                        </a>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => openContactOrCompany(cb.contact?.id, cb.company?.id)}
+                                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-medium transition-colors"
+                                                        >
+                                                            <span>Voir la fiche</span>
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => openContactOrCompany(cb.contact?.id, cb.company?.id)}
+                                                        className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100 transition-colors"
+                                                        title="Détails"
+                                                    >
+                                                        <ChevronRight className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+
+                        {/* --- RECENT ACTIVITY STREAM --- */}
+                        <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden">
+                            <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <h3 className="text-base font-semibold text-zinc-900 tracking-tight">
+                                        Historique récent des appels
+                                    </h3>
+                                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
+                                        {myActions.length}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-1 p-1 bg-zinc-100/80 rounded-xl border border-zinc-200/60 text-xs">
+                                    <button
+                                        onClick={() => setActionsPeriod("today")}
+                                        className={cn(
+                                            "px-2.5 py-1 rounded-lg font-medium transition-all",
+                                            actionsPeriod === "today"
+                                                ? "bg-white text-zinc-900 shadow-sm"
+                                                : "text-zinc-600 hover:text-zinc-900"
+                                        )}
+                                    >
+                                        Aujourd'hui
+                                    </button>
+                                    <button
+                                        onClick={() => setActionsPeriod("all")}
+                                        className={cn(
+                                            "px-2.5 py-1 rounded-lg font-medium transition-all",
+                                            actionsPeriod === "all"
+                                                ? "bg-white text-zinc-900 shadow-sm"
+                                                : "text-zinc-600 hover:text-zinc-900"
+                                        )}
+                                    >
+                                        Tout
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="divide-y divide-zinc-100 max-h-[360px] overflow-y-auto">
+                                {actionsLoading ? (
+                                    <div className="flex items-center justify-center py-10 text-zinc-400">
+                                        <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                                        <span className="text-xs">Chargement de l'historique...</span>
+                                    </div>
+                                ) : myActions.length === 0 ? (
+                                    <div className="py-10 text-center text-xs text-zinc-400">
+                                        Aucune action enregistrée pour cette période.
+                                    </div>
+                                ) : (
+                                    myActions.map((item) => {
+                                        const name = item.contactName || item.companyName || "Contact sans nom";
+                                        const time = new Date(item.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => openContactOrCompany(item.contactId, item.companyId)}
+                                                className="p-3.5 sm:px-5 hover:bg-zinc-50/60 transition-colors flex items-center justify-between gap-3 cursor-pointer group"
+                                            >
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <div className="w-8 h-8 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-600 flex-shrink-0 group-hover:bg-zinc-200 transition-colors">
+                                                        {item.contactId ? <User className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-semibold text-zinc-900 truncate">
+                                                            {name}
+                                                        </p>
+                                                        <p className="text-[11px] text-zinc-500 truncate">
+                                                            {item.resultLabel} {item.campaignName && `• ${item.campaignName}`}
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                                        <span className="text-[10px] font-medium text-[#4A4B46] bg-[#F1EFE9] px-2 py-1 rounded-md">
-                                                            {new Date(item.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                                        </span>
-                                                        {hasFiche && (
-                                                            <ChevronRight className="w-4 h-4 text-[#C9C6BC] group-hover:text-[#2B5F3E] transition-colors" />
-                                                        )}
-                                                    </div>
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
-                        </div>
-                    </div>
-                </div>
+                                                </div>
 
-                {/* ZONE 3 — Secondary Info (Tips, Weekly, Other Missions) */}
-                <div className="flex-[2] flex flex-col gap-4">
-                    {/* Weekly Progress */}
-                    {stats && (
-                        <div className="bg-white rounded-xl border border-[#E8E6DF] p-5">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[14px] font-semibold text-[#0E0F0C]">Progression par rapport à last week</h3>
-                                <div className={cn(
-                                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold",
-                                    (stats.weeklyProgress ?? 0) >= 0 ? "bg-[#F0FDF4] text-[#10B981]" : "bg-[#FEF3C7] text-[#B45309]"
-                                )}>
-                                    <TrendingUp className={cn("w-3 h-3", (stats.weeklyProgress ?? 0) < 0 && "rotate-180")} />
-                                    <span>{(stats.weeklyProgress ?? 0) >= 0 ? "Beau travail !" : "Rattrapons ça"}</span>
+                                                <div className="flex items-center gap-2 flex-shrink-0">
+                                                    <span className="text-[11px] text-zinc-400 font-mono">
+                                                        {time}
+                                                    </span>
+                                                    <ChevronRight className="w-3.5 h-3.5 text-zinc-300 group-hover:text-zinc-600 transition-colors" />
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* RIGHT / SDR COPILOT & HELP COLUMN (5 of 12) */}
+                    <div className="lg:col-span-5 space-y-6">
+
+                        {/* --- CADENCE & RYTHME DU JOUR (Clean Minimalist Pace Widget) --- */}
+                        {pace && (
+                            <div className="bg-white rounded-2xl p-6 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-700">
+                                            <Activity className="w-3.5 h-3.5" />
+                                        </div>
+                                        <h3 className="text-sm font-semibold text-zinc-900">
+                                            Rythme & Cadence du Jour
+                                        </h3>
+                                    </div>
+                                    <span className="text-xs text-zinc-500 font-medium">
+                                        Cible : {pace.callsPerHour} appels/h
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-3 pt-1">
+                                    <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                                        <span className="text-[11px] text-zinc-500 block">Réalisés</span>
+                                        <span className="text-lg font-bold text-zinc-900 block mt-0.5">
+                                            {pace.callsDone}
+                                            <span className="text-xs font-normal text-zinc-400"> / {pace.dayQuota}</span>
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                                        <span className="text-[11px] text-zinc-500 block">Attendu à ce stade</span>
+                                        <span className="text-lg font-bold text-zinc-900 block mt-0.5">
+                                            {pace.expected}
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                                        <span className="text-[11px] text-zinc-500 block">Écart</span>
+                                        <span className={cn(
+                                            "text-lg font-bold block mt-0.5",
+                                            isAhead && "text-emerald-600",
+                                            isBehind && "text-amber-600",
+                                            !isAhead && !isBehind && "text-zinc-900"
+                                        )}>
+                                            {isAhead && `+${pace.aheadBy}`}
+                                            {isBehind && `-${pace.delta}`}
+                                            {!isAhead && !isBehind && "0"}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5 pt-1">
+                                    <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden relative">
+                                        <div
+                                            className={cn(
+                                                "h-full rounded-full transition-all duration-700",
+                                                pace.status === "ON_TRACK" ? "bg-emerald-600" : pace.status === "BEHIND" ? "bg-amber-500" : "bg-rose-500"
+                                            )}
+                                            style={{ width: `${dailyProgressPct}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-zinc-500 leading-tight">
+                                        {formatHours(pace.effectiveHoursElapsed)} d&apos;appel effectif sur {formatHours(pace.effectiveHoursTarget)} prévues.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- SDR HELP & BATTLECARDS HUB (USER HIGHLIGHTED REQUIREMENT) --- */}
+                        <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden space-y-4 p-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-700">
+                                        <BookOpen className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-zinc-900">
+                                            Aide & Fiches d'Objections
+                                        </h3>
+                                        <p className="text-[11px] text-zinc-500">
+                                            Scripts rapides et parades en direct pendant vos appels.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="h-2 bg-[#F1EFE9] rounded-full overflow-hidden mb-3">
-                                <div
-                                    className={cn(
-                                        "h-full rounded-full transition-all duration-700 ease-out",
-                                        (stats.weeklyProgress ?? 0) >= 0 ? "bg-[#10B981]" : "bg-[#F59E0B]"
-                                    )}
-                                    style={{ width: `${Math.min(Math.max((stats.weeklyProgress ?? 0) + 50, 5), 100)}%` }}
-                                />
+                            {/* Battlecards selector pills */}
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                                {BATTLECARDS.map((card) => (
+                                    <button
+                                        key={card.id}
+                                        onClick={() => setActiveBattlecard(card.id)}
+                                        className={cn(
+                                            "text-xs px-3 py-1.5 rounded-lg font-medium transition-all border",
+                                            activeBattlecard === card.id
+                                                ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+                                                : "bg-zinc-50 text-zinc-600 border-zinc-200/80 hover:bg-zinc-100"
+                                        )}
+                                    >
+                                        {card.title}
+                                    </button>
+                                ))}
                             </div>
 
-                            <p className="text-[12px] text-[#4A4B46] leading-relaxed">
-                                {(stats.weeklyProgress ?? 0) > 0
-                                    ? "Vous avez fait plus d'actions cette semaine que la précédente. Continuez sur cette belle lancée !"
-                                    : (stats.weeklyProgress ?? 0) === 0
-                                        ? "Vous êtes exactement sur le même rythme que la semaine dernière."
-                                        : "Léger ralentissement par rapport à la semaine passée. Rien d'inquiétant, à vous de jouer !"}
-                            </p>
+                            {/* Active Battlecard display */}
+                            {(() => {
+                                const card = BATTLECARDS.find(c => c.id === activeBattlecard) || BATTLECARDS[0];
+                                return (
+                                    <div className="rounded-xl p-4 bg-zinc-50 border border-zinc-200/80 space-y-3">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="font-semibold text-zinc-900">{card.title}</span>
+                                            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-600 bg-white px-2 py-0.5 rounded border border-zinc-200">
+                                                {card.tag}
+                                            </span>
+                                        </div>
+
+                                        <div className="bg-white p-3 rounded-lg border border-zinc-200/80 text-xs font-mono text-zinc-800 leading-relaxed whitespace-pre-line shadow-2xs">
+                                            {card.prompt}
+                                        </div>
+
+                                        <p className="text-[11px] text-zinc-500 leading-relaxed">
+                                            💡 <strong>Conseil :</strong> {card.tip}
+                                        </p>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Keyboard Shortcuts Helper Drawer Toggle */}
+                            <div className="pt-2 border-t border-zinc-100">
+                                <button
+                                    onClick={() => setShowShortcuts(!showShortcuts)}
+                                    className="w-full flex items-center justify-between text-xs text-zinc-600 hover:text-zinc-900 font-medium py-1"
+                                >
+                                    <span className="flex items-center gap-1.5">
+                                        <Zap className="w-3.5 h-3.5 text-zinc-500" />
+                                        Raccourcis clavier d'appel rapide
+                                    </span>
+                                    <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showShortcuts && "rotate-180")} />
+                                </button>
+
+                                {showShortcuts && (
+                                    <div className="mt-3 p-3 rounded-xl bg-zinc-50 border border-zinc-100 space-y-2 text-xs">
+                                        <div className="grid grid-cols-2 gap-2 text-zinc-600">
+                                            <div className="flex items-center gap-2">
+                                                <kbd className="px-1.5 py-0.5 bg-white border border-zinc-300 rounded text-[10px] font-mono shadow-2xs">1</kbd>
+                                                <span>Pas de réponse</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <kbd className="px-1.5 py-0.5 bg-white border border-zinc-300 rounded text-[10px] font-mono shadow-2xs">2</kbd>
+                                                <span>Rappel planifié</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <kbd className="px-1.5 py-0.5 bg-white border border-zinc-300 rounded text-[10px] font-mono shadow-2xs">3</kbd>
+                                                <span>Barrage secrétaire</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <kbd className="px-1.5 py-0.5 bg-white border border-zinc-300 rounded text-[10px] font-mono shadow-2xs">4</kbd>
+                                                <span>RDV Décroché</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <kbd className="px-1.5 py-0.5 bg-white border border-zinc-300 rounded text-[10px] font-mono shadow-2xs">5</kbd>
+                                                <span>Refus / Non intéressé</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <kbd className="px-1.5 py-0.5 bg-white border border-zinc-300 rounded text-[10px] font-mono shadow-2xs">Entrée</kbd>
+                                                <span>Valider & Suivant</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    )}
 
-                    {/* Quick Tips */}
-                    <div className="bg-gradient-to-br from-[#FFF7ED] to-[#FFEDD5] rounded-xl border border-[#FED7AA] p-5 shadow-sm">
-                        <div className="flex items-start gap-3.5">
-                            <div className="w-10 h-10 flex-shrink-0 rounded-full bg-[#FFEDD5] border border-[#FDCB8C] flex items-center justify-center shadow-inner">
-                                <Zap className="w-4.5 h-4.5 text-[#EA580C] ml-0.5" />
-                            </div>
-                            <div>
-                                <h3 className="text-[14px] font-bold text-[#9A3412]">Astuce Pro</h3>
-                                <p className="text-[12.5px] text-[#C2410C] mt-1.5 leading-relaxed font-medium">
-                                    Utilisez les <strong>raccourcis clavier (1 à 6)</strong> lors de vos appels pour catégoriser plus vite. Appuyez sur <strong>Entrée</strong> pour envoyer instantanément.
+                        {/* --- WEEKLY PERFORMANCE OVERVIEW --- */}
+                        {stats && (
+                            <div className="bg-white rounded-2xl p-5 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-xs font-semibold text-zinc-900 uppercase tracking-wider">
+                                        Tendance Hebdomadaire
+                                    </h4>
+                                    <span className={cn(
+                                        "text-xs font-semibold px-2 py-0.5 rounded-full",
+                                        (stats.weeklyProgress ?? 0) >= 0
+                                            ? "bg-emerald-50 text-emerald-700"
+                                            : "bg-amber-50 text-amber-700"
+                                    )}>
+                                        {(stats.weeklyProgress ?? 0) >= 0 ? "+ Forte cadence" : "Rythme stable"}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-zinc-500 leading-relaxed">
+                                    {(stats.weeklyProgress ?? 0) >= 0
+                                        ? "Votre volume d'appels et de qualifications progresse par rapport à la semaine dernière."
+                                        : "Vous maintenez votre cadence habituelle de prospection."}
                                 </p>
                             </div>
-                        </div>
+                        )}
+
                     </div>
-
-                    {/* Other Missions */}
-                    {missions.length > 1 && (
-                        <div className="bg-white rounded-xl border border-[#E8E6DF] p-5 mb-10 xl:mb-0">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-[14px] font-semibold text-[#0E0F0C]">Passer à une autre mission</h3>
-                                <span className="text-[11px] font-semibold text-[#8A8A83] bg-[#F1EFE9] px-2.5 py-1 rounded-full uppercase tracking-wide">
-                                    {missions.length} Missions
-                                </span>
-                            </div>
-
-                            <div className="space-y-2">
-                                {missions
-                                    .filter(m => m.id !== selectedMissionId)
-                                    .map((mission) => {
-                                        const Icon = CHANNEL_ICONS[mission.channel] || Phone;
-                                        return (
-                                            <button
-                                                key={mission.id}
-                                                onClick={() => {
-                                                    setSelectedMissionId(mission.id);
-                                                    localStorage.setItem("sdr_selected_mission", mission.id);
-                                                    window.dispatchEvent(new CustomEvent("sdr_mission_changed", { detail: mission.id }));
-                                                }}
-                                                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-[#F1EFE9] transition-all border border-transparent hover:border-[#E8E6DF] text-left group"
-                                            >
-                                                <div className="w-9 h-9 rounded-full bg-white border border-[#E8E6DF] shadow-sm flex items-center justify-center flex-shrink-0">
-                                                    <Icon className="w-4 h-4 text-[#8A8A83] group-hover:text-[#2B5F3E] transition-colors" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-[13px] font-bold text-[#0E0F0C] truncate group-hover:text-[#2B5F3E] transition-colors">{mission.name}</p>
-                                                    <p className="text-[11px] text-[#8A8A83] truncate mt-0.5">{mission.client.name}</p>
-                                                </div>
-                                                <ChevronRight className="w-4 h-4 text-[#C9C6BC] group-hover:text-[#2B5F3E] transition-colors flex-shrink-0" />
-                                            </button>
-                                        );
-                                    })}
-                            </div>
-                        </div>
-                    )}
                 </div>
+
             </div>
 
-            {/* Drawers */}
-            {(drawerContactId || drawerCompanyId) && drawerLoading && (
-                <Drawer
-                    isOpen
-                    onClose={() => {
-                        setDrawerContactId(null);
-                        setDrawerCompanyId(null);
-                    }}
-                    title="Chargement..."
-                >
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 text-[#2B5F3E] animate-spin" />
-                    </div>
-                </Drawer>
-            )}
-
+            {/* ============================================ */}
+            {/* 4. MODALS & DRAWERS                          */}
+            {/* ============================================ */}
             {drawerContactId && drawerContact && (
                 <ContactDrawer
                     isOpen={!!drawerContactId}
                     onClose={() => { setDrawerContactId(null); setDrawerContact(null); }}
                     contact={drawerContact}
                     onUpdate={(updated) => setDrawerContact(updated)}
-                    isManager={true}
+                    isManager={false}
                     enableGooglePhoneLookup
                     companies={[]}
                 />
@@ -758,7 +1196,7 @@ export default function SDRDashboardPage() {
                         setDrawerCompany(null);
                         setDrawerContactId(contact.id);
                     }}
-                    isManager={true}
+                    isManager={false}
                     enableGooglePhoneLookup
                 />
             )}
