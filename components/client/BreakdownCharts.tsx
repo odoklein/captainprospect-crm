@@ -199,14 +199,14 @@ export function BreakdownChartsView({
                             return (
                                 <li
                                     key={item.label}
-                                    className="group flex items-center gap-3 rounded-2xl px-3 py-2 hover:bg-slate-50 transition-colors"
+                                    className="group flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1.5 rounded-2xl px-3 py-2 hover:bg-slate-50 transition-colors"
                                 >
-                                    <div className="w-[132px] shrink-0 text-xs font-bold text-zinc-700 truncate" title={item.label}>
+                                    <div className="flex-1 min-w-0 sm:flex-none sm:w-[132px] shrink-0 text-xs font-bold text-zinc-700 truncate" title={item.label}>
                                         {item.label}
                                     </div>
 
                                     {/* Track (8px radius) → bar of the same radius; a 2px gap separates the two segments. */}
-                                    <div className="relative flex-1 h-7 rounded-lg bg-slate-100 overflow-hidden" role="img" aria-label={`${item.label} : ${item.calls} appels, ${item.rdv} RDV`}>
+                                    <div className="relative order-last sm:order-none basis-full sm:basis-auto flex-1 h-7 rounded-lg bg-slate-100 overflow-hidden" role="img" aria-label={`${item.label} : ${item.calls} appels, ${item.rdv} RDV`}>
                                         <div
                                             className="h-full flex gap-[2px] rounded-lg overflow-hidden motion-safe:transition-[width] motion-safe:duration-700 ease-out"
                                             style={{ width: `${barW}%`, transitionDelay: `${idx * 45}ms` }}

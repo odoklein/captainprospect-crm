@@ -4,7 +4,7 @@
 // SDR "Accueil" language (components/accueil/AccueilUI.tsx). Pure view: the page
 // owns fetching and filter state, so this renders from props alone.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import {
     Activity, ArrowUpRight, Bell, Calendar, CalendarCheck, ChevronDown, Flame, Loader2, Phone,
@@ -70,17 +70,18 @@ export interface ManagerDashboardViewProps {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
 function usePrefersReducedMotion(): boolean {
-    const [reduced, setReduced] = useState(false);
-    useEffect(() => {
-        const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-        if (!mq) return;
-        setReduced(mq.matches);
-        const onChange = () => setReduced(mq.matches);
-        mq.addEventListener?.("change", onChange);
-        return () => mq.removeEventListener?.("change", onChange);
-    }, []);
-    return reduced;
+    return useSyncExternalStore(
+        (onChange) => {
+            const mq = window.matchMedia(REDUCED_MOTION);
+            mq.addEventListener("change", onChange);
+            return () => mq.removeEventListener("change", onChange);
+        },
+        () => window.matchMedia(REDUCED_MOTION).matches,
+        () => false,
+    );
 }
 
 /** Counts from the value on screen to the new one (never back from 0 on refetch). */
@@ -89,11 +90,7 @@ function useCountUp(target: number): number {
     const [shown, setShown] = useState(0);
     const current = useRef(0);
     useEffect(() => {
-        if (reduced || current.current === target) {
-            current.current = target;
-            setShown(target);
-            return;
-        }
+        if (reduced || current.current === target) return;
         const step = Math.max(1, Math.ceil(Math.abs(target - current.current) / 18));
         const id = setInterval(() => {
             const c = current.current;
@@ -103,7 +100,7 @@ function useCountUp(target: number): number {
         }, 30);
         return () => clearInterval(id);
     }, [target, reduced]);
-    return shown;
+    return reduced ? target : shown;
 }
 
 function pct1(n: number): string {
@@ -126,10 +123,6 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
 
     const meetings = stats?.meetingsBooked ?? 0;
     const actions = stats?.totalActions ?? 0;
-    const breakdown = stats?.resultBreakdown ?? {};
-    const hotLeads = (breakdown.INTERESTED ?? 0) + (breakdown.CALLBACK_REQUESTED ?? 0);
-    const callbackCount = breakdown.CALLBACK_REQUESTED ?? 0;
-    const interestedCount = breakdown.INTERESTED ?? 0;
     const conversion = stats?.conversionRate ?? 0;
 
     const goal = prorateWeeklyGoal(RDV_WEEKLY_GOAL, rangeDays);
@@ -148,6 +141,12 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
     };
 
     const outcomes = useMemo(() => groupOutcomes(stats?.resultBreakdown ?? {}), [stats?.resultBreakdown]);
+    // Families, not single codes: teams log RAPPEL / RELANCE / PROJET_A_SUIVRE far more than
+    // CALLBACK_REQUESTED / INTERESTED, which alone read 0 on real data.
+    const familyCount = (key: "interested" | "callback") => outcomes.slices.find((s) => s.key === key)?.count ?? 0;
+    const callbackCount = familyCount("callback");
+    const interestedCount = familyCount("interested");
+    const hotLeads = callbackCount + interestedCount;
     const missionsNearGoal = useMemo(
         () => missions
             .filter((m) => m.isActive && m.meetingsThisPeriod > 0)
@@ -386,7 +385,7 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-                <HeroTile label="Objectif période">{formatInt(goal)}</HeroTile>
+                <HeroTile label="Objectif">{formatInt(goal)}</HeroTile>
                 <HeroTile label="Atteint">
                     <span className="text-emerald-400">{Math.round(goalPct)} %</span>
                 </HeroTile>
@@ -547,7 +546,7 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
                                                 </span>
                                             )}
                                             <span className="text-sm font-extrabold text-zinc-900 truncate group-hover:text-emerald-700 transition-colors">{m.name}</span>
-                                            <span className="text-xs font-semibold text-zinc-400 truncate">· {m.client.name}</span>
+                                            <span className="hidden sm:inline text-xs font-semibold text-zinc-400 truncate">· {m.client.name}</span>
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <span className="text-sm font-black text-zinc-900 tabular-nums">
@@ -657,11 +656,14 @@ function MiniTag({ tone, children }: { tone: AccueilTone; children: ReactNode })
 function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod | null; goal: number; meetings: number }) {
     const data = useMemo(() => {
         const series = period?.series ?? [];
-        let cumul = 0;
-        return series.map((b, i) => {
-            cumul += b.meetings;
-            return { label: b.label, cumul, objectif: Math.round((goal * (i + 1)) / series.length) };
-        });
+        return series.reduce<{ label: string; cumul: number; objectif: number }[]>((acc, b, i) => [
+            ...acc,
+            {
+                label: b.label,
+                cumul: (acc[i - 1]?.cumul ?? 0) + b.meetings,
+                objectif: Math.round((goal * (i + 1)) / series.length),
+            },
+        ], []);
     }, [period, goal]);
 
     return (

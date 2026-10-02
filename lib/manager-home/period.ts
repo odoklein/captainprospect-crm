@@ -2,6 +2,7 @@
 
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { outcomeOf } from "./outcomes";
 import { bucketSeries, type CountRow, type PeriodRange } from "./rules";
 import type { ManagerHomePeriod, PeriodTotals, RecentMeeting } from "./types";
 
@@ -20,13 +21,16 @@ async function totals(from: Date, to: Date, missionId: string | null): Promise<P
         where: actionWhere(from, to, missionId),
         _count: { _all: true },
     });
-    const count = (r: string) => rows.find((row) => row.result === r)?._count._all ?? 0;
-    return {
-        actions: rows.reduce((sum, row) => sum + row._count._all, 0),
-        meetings: count("MEETING_BOOKED"),
-        // Same definition as the dashboard's "Leads chauds" (from /api/stats resultBreakdown).
-        hotLeads: count("INTERESTED") + count("CALLBACK_REQUESTED"),
-    };
+    let actions = 0, meetings = 0, hotLeads = 0;
+    for (const row of rows) {
+        const n = row._count._all;
+        const family = outcomeOf(row.result);
+        actions += n;
+        if (family === "meeting") meetings += n;
+        // Same definition as the dashboard's "Leads chauds": interested + callback families.
+        if (family === "interested" || family === "callback") hotLeads += n;
+    }
+    return { actions, meetings, hotLeads };
 }
 
 /**

@@ -78,7 +78,7 @@ export function ClientHomeView(props: ClientHomeViewProps) {
     return (
         <div className="w-full space-y-6 pb-12 antialiased text-zinc-900">
             {/* ═══ 1. Greeting ═══ */}
-            <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pt-1">
+            <header className="flex items-start sm:items-end justify-between gap-4 pt-1">
                 <div className="space-y-1.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         {missionName && (
@@ -99,7 +99,7 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                     type="button"
                     onClick={onRefresh}
                     disabled={isRefreshing}
-                    className={cn(ICON_BUTTON, "h-11 w-11 rounded-2xl self-start sm:self-auto")}
+                    className={cn(ICON_BUTTON, "h-11 w-11 rounded-2xl flex-shrink-0")}
                     title="Rafraîchir"
                     aria-label="Actualiser les données"
                 >
@@ -269,11 +269,11 @@ function MeetingRow({ meeting: m }: { meeting: ClientHomeMeeting }) {
             </div>
 
             <div className="flex-1 min-w-0">
-                <div className="flex items-baseline gap-1.5 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-1.5 min-w-0">
                     <span className="text-sm font-extrabold text-zinc-900 truncate">{contactName}</span>
                     <span className="text-xs font-semibold text-zinc-500 truncate">chez {companyName}</span>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex flex-wrap items-center gap-x-2 mt-1">
                     {m.callbackDate ? (
                         <>
                             <span className="text-xs font-bold text-emerald-700 capitalize">{formatMeetingDate(m.callbackDate)}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
@@ -80,13 +80,11 @@ async function fetchPeriod(start: string, end: string, missionId: string): Promi
 /* ─── Page ─── */
 export default function ManagerDashboard() {
     const { data: session } = useSession();
-    const [dateRange, setDateRange] = useState<DateRangeValue>(() => presetValue(DEFAULT_PRESET));
+    // SSR has no storage and renders the skeleton either way, so reading it here can't mismatch.
+    const [dateRange, setDateRange] = useState<DateRangeValue>(
+        () => (typeof window !== "undefined" ? readStoredRange() : null) ?? presetValue(DEFAULT_PRESET),
+    );
     const [missionFilter, setMissionFilter] = useState("");
-
-    useEffect(() => {
-        const stored = readStoredRange();
-        if (stored) setDateRange(stored);
-    }, []);
 
     const changeRange = (v: DateRangeValue) => {
         setDateRange(v);

@@ -143,9 +143,9 @@ export function HeroCard({ className, children }: { className?: string; children
 /** Inner tile of the hero card. 16px radius inside the 24px hero. */
 export function HeroTile({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
     return (
-        <div className={cn("p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-800/60 min-w-0", className)}>
+        <div className={cn("p-3 sm:p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-800/60 min-w-0", className)}>
             <span className="text-[11px] text-emerald-300 font-bold block truncate">{label}</span>
-            <div className="text-lg font-black text-white mt-0.5 leading-tight">{children}</div>
+            <div className="text-base sm:text-lg font-black text-white mt-0.5 leading-tight truncate">{children}</div>
         </div>
     );
 }

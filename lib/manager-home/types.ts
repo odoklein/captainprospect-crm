@@ -6,7 +6,7 @@
 export interface PeriodTotals {
     actions: number;
     meetings: number;
-    /** INTERESTED + CALLBACK_REQUESTED — the dashboard's "Leads chauds". */
+    /** Interested + callback families (INTERESTED, PROJET_A_SUIVRE, CALLBACK_REQUESTED, RAPPEL, RELANCE). */
     hotLeads: number;
 }
 
