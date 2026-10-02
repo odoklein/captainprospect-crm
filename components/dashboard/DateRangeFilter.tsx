@@ -24,7 +24,7 @@ export interface DateRangeValue {
 const PRESETS: { key: DateRangePreset; label: string }[] = [
     { key: "last7", label: "7 derniers jours" },
     { key: "last4weeks", label: "4 dernières semaines" },
-    { key: "lastMonth", label: "Mois dernier" },
+    { key: "lastMonth", label: "30 derniers jours" },
     { key: "last6months", label: "6 derniers mois" },
     { key: "last12months", label: "12 derniers mois" },
     { key: "monthToDate", label: "Mois en cours" },
@@ -210,24 +210,24 @@ export function DateRangeFilter({
         <div
             ref={containerRef}
             className={cn(
-                "bg-white rounded-xl border border-[#E8EBF0] shadow-lg overflow-hidden",
+                "bg-white rounded-3xl border border-slate-200/90 shadow-[0_12px_40px_rgba(15,23,42,0.12)] overflow-hidden",
                 "w-full max-w-[780px] min-w-[360px]",
                 className
             )}
         >
             <div className="flex">
                 {/* Left: Presets */}
-                <div className="w-[220px] shrink-0 border-r border-[#E8EBF0] bg-[#F9FAFB] py-2">
+                <div className="w-[220px] shrink-0 border-r border-slate-100 bg-slate-50/70 p-2 space-y-0.5">
                     {PRESETS.map((p) => (
                         <button
                             key={p.key}
                             type="button"
                             onClick={() => applyPreset(p.key)}
                             className={cn(
-                                "w-full text-left px-4 py-2 text-[13px] font-medium transition-colors",
+                                "w-full text-left px-3 h-9 rounded-xl text-[13px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45",
                                 preset === p.key
-                                    ? "bg-[#EEF2FF] text-[#7C5CFC]"
-                                    : "text-[#12122A] hover:bg-[#F4F6F9]"
+                                    ? "bg-white text-zinc-900 font-bold shadow-[0_1px_2px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.04)]"
+                                    : "text-zinc-600 hover:bg-white/80 hover:text-zinc-900"
                             )}
                         >
                             {p.label}
@@ -239,7 +239,7 @@ export function DateRangeFilter({
                 <div className="flex-1 p-4 min-w-0">
                     <div className="grid grid-cols-2 gap-3 mb-4">
                         <div>
-                            <label className="block text-[11px] font-medium text-[#8B8BA7] uppercase tracking-wider mb-1">
+                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
                                 Début
                             </label>
                             <input
@@ -247,11 +247,11 @@ export function DateRangeFilter({
                                 placeholder="JJ / MM / AAAA"
                                 value={startInput}
                                 onChange={(e) => setStartInput(e.target.value)}
-                                className="w-full px-3 py-2 text-[13px] text-[#12122A] bg-white border border-[#E8EBF0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30 focus:border-[#7C5CFC]"
+                                className="w-full h-9 px-3 text-[13px] font-semibold text-zinc-900 bg-white border border-slate-200 rounded-xl placeholder:text-zinc-300 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                             />
                         </div>
                         <div>
-                            <label className="block text-[11px] font-medium text-[#8B8BA7] uppercase tracking-wider mb-1">
+                            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">
                                 Fin
                             </label>
                             <input
@@ -259,7 +259,7 @@ export function DateRangeFilter({
                                 placeholder="JJ / MM / AAAA"
                                 value={endInput}
                                 onChange={(e) => setEndInput(e.target.value)}
-                                className="w-full px-3 py-2 text-[13px] text-[#12122A] bg-white border border-[#E8EBF0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30 focus:border-[#7C5CFC]"
+                                className="w-full h-9 px-3 text-[13px] font-semibold text-zinc-900 bg-white border border-slate-200 rounded-xl placeholder:text-zinc-300 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-colors"
                             />
                         </div>
                     </div>
@@ -286,18 +286,18 @@ export function DateRangeFilter({
                         />
                     </div>
 
-                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-[#E8EBF0]">
+                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={handleClear}
-                            className="px-4 py-2 text-[13px] font-medium text-[#5A5A7A] bg-white border border-[#E8EBF0] rounded-lg hover:bg-[#F4F6F9] transition-colors"
+                            className="h-9 px-4 text-xs font-bold text-zinc-700 bg-white border border-slate-200 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45"
                         >
                             Effacer
                         </button>
                         <button
                             type="button"
                             onClick={handleApply}
-                            className="px-4 py-2 text-[13px] font-semibold text-white bg-[#7C5CFC] rounded-lg hover:bg-[#6C4CE0] transition-colors shadow-sm"
+                            className="h-9 px-4 text-xs font-black text-white bg-zinc-950 rounded-xl hover:bg-zinc-800 transition-colors shadow-[0_4px_12px_rgba(9,9,11,0.18),inset_0_1px_0_rgba(255,255,255,0.10)] outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45 focus-visible:ring-offset-2"
                         >
                             Appliquer
                         </button>
@@ -349,17 +349,17 @@ function MonthCalendar({
                 <button
                     type="button"
                     onClick={onPrev}
-                    className="p-1.5 rounded text-[#8B8BA7] hover:bg-[#F4F6F9] hover:text-[#12122A]"
+                    className="p-1.5 rounded-lg text-zinc-400 hover:bg-slate-100 hover:text-zinc-900 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45"
                 >
                     <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-[13px] font-semibold text-[#12122A] capitalize">
+                <span className="text-[13px] font-extrabold text-zinc-900 capitalize">
                     {monthLabel}
                 </span>
                 <button
                     type="button"
                     onClick={onNext}
-                    className="p-1.5 rounded text-[#8B8BA7] hover:bg-[#F4F6F9] hover:text-[#12122A]"
+                    className="p-1.5 rounded-lg text-zinc-400 hover:bg-slate-100 hover:text-zinc-900 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45"
                 >
                     <ChevronRight className="w-4 h-4" />
                 </button>
@@ -368,7 +368,7 @@ function MonthCalendar({
                 {WEEKDAYS.map((w) => (
                     <div
                         key={w}
-                        className="text-[11px] font-medium text-[#8B8BA7] py-1.5"
+                        className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 py-1.5"
                     >
                         {w}
                     </div>
@@ -410,13 +410,13 @@ function MonthCalendar({
                             type="button"
                             onClick={() => onDayClick(year, month, cell.day!)}
                             className={cn(
-                                "min-w-[32px] min-h-[32px] w-8 h-8 flex items-center justify-center text-[13px] font-medium rounded-md transition-colors",
-                                !cell.isCurrent && "text-[#C5C8D4]",
-                                cell.isCurrent && "text-[#12122A] hover:bg-[#F4F6F9]",
-                                isStart && "bg-[#7C5CFC] text-white hover:bg-[#6C4CE0]",
-                                isEnd && "bg-[#7C5CFC] text-white hover:bg-[#6C4CE0]",
-                                inRange && "bg-[#EEF2FF] text-[#7C5CFC]",
-                                isToday && !isStart && !isEnd && !inRange && "ring-1 ring-[#7C5CFC]"
+                                "min-w-[32px] min-h-[32px] w-8 h-8 flex items-center justify-center text-[13px] font-semibold rounded-lg transition-colors tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45",
+                                !cell.isCurrent && "text-zinc-300",
+                                cell.isCurrent && "text-zinc-800 hover:bg-slate-100",
+                                isStart && "bg-zinc-950 text-white font-black hover:bg-zinc-800",
+                                isEnd && "bg-zinc-950 text-white font-black hover:bg-zinc-800",
+                                inRange && "bg-emerald-50 text-emerald-800",
+                                isToday && !isStart && !isEnd && !inRange && "ring-1 ring-inset ring-emerald-500"
                             )}
                         >
                             {cell.day}

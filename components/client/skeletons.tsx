@@ -1,48 +1,5 @@
 import { Skeleton } from "@/components/ui/Skeleton";
 
-export function DashboardSkeleton() {
-    return (
-        <div className="min-h-full bg-[#F4F6F9] p-4 md:p-6 space-y-8">
-            <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                    <Skeleton className="h-8 w-48" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-8 w-8 rounded-lg" />
-            </div>
-            <div className="bg-white rounded-2xl border border-[#E8EBF0] p-8">
-                <div className="flex flex-col md:flex-row gap-8">
-                    <div className="flex-1 flex flex-col items-center md:items-start gap-4">
-                        <Skeleton className="h-5 w-40" />
-                        <Skeleton className="h-16 w-24" />
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="w-[120px] h-[120px] rounded-full" />
-                    </div>
-                    <div className="hidden md:block w-px bg-[#E8EBF0]" />
-                    <div className="flex-1 space-y-6">
-                        <Skeleton className="h-5 w-36" />
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="flex justify-between items-center">
-                                <Skeleton className="h-4 w-28" />
-                                <Skeleton className="h-5 w-16" />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-[#E8EBF0] p-6 space-y-4">
-                <Skeleton className="h-5 w-32" />
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-center gap-3">
-                        <Skeleton className="h-4 w-4" />
-                        <Skeleton className="h-4 w-full max-w-md" />
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
 export function MeetingsSkeleton() {
     return (
         <div className="min-h-full bg-[#F4F6F9] p-4 md:p-6 space-y-8">
