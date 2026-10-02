@@ -8,7 +8,7 @@ import { PermissionContextValue } from "./types";
 // PERMISSION CONTEXT
 // ============================================
 
-const PermissionContext = createContext<PermissionContextValue | null>(null);
+export const PermissionContext = createContext<PermissionContextValue | null>(null); // TEMP export for preview-nav — revert
 
 // ============================================
 // PERMISSION PROVIDER

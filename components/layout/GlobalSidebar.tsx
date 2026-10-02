@@ -1,26 +1,24 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-    LogOut,
-    ShieldOff,
     ChevronsLeft,
     Menu,
     X,
     Search,
     Command,
     ChevronRight,
-    Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useToast } from "@/components/ui";
 import { useSidebar } from "./SidebarProvider";
+import { SidebarUserMenu } from "./SidebarUserMenu";
 import { usePermissions } from "@/lib/permissions/PermissionProvider";
-import { NavSection, NavItem, ROLE_CONFIG } from "@/lib/navigation/config";
+import { NavSection, NavItem } from "@/lib/navigation/config";
+import { findActiveNav, readLastTab, type ActiveNav } from "@/lib/navigation/active";
 import { UserRole } from "@prisma/client";
 import { formatCallbackDate } from "@/lib/utils/parseDateFromNote";
 import logoCaptain from "../../logocaptainroseblanc.png";
@@ -34,23 +32,26 @@ function SidebarNavItem({
     item,
     isExpanded,
     onMobileClose,
+    active,
     depth = 0,
 }: {
     item: NavItem;
     isExpanded: boolean;
     onMobileClose?: () => void;
+    active: ActiveNav | null;
     depth?: number;
 }) {
-    const pathname = usePathname();
     const { hasPermission } = usePermissions();
+
+    if (item.children?.length) {
+        return <SidebarHub item={item} isExpanded={isExpanded} onMobileClose={onMobileClose} active={active} />;
+    }
 
     if (item.permission && !hasPermission(item.permission)) {
         return null;
     }
 
-    const isActive =
-        pathname === item.href ||
-        (item.href !== "/" && pathname.startsWith(item.href + "/"));
+    const isActive = active?.item === item;
 
     const content = (
         <>
@@ -127,21 +128,129 @@ function SidebarNavItem({
     );
 }
 
+/**
+ * A group of pages. Its row opens the tab used last; the chevron folds the
+ * pages in and out without navigating. The hub holding the current page
+ * opens by itself, the others stay folded to keep the sidebar short.
+ */
+function SidebarHub({
+    item,
+    isExpanded,
+    onMobileClose,
+    active,
+}: {
+    item: NavItem;
+    isExpanded: boolean;
+    onMobileClose?: () => void;
+    active: ActiveNav | null;
+}) {
+    const router = useRouter();
+    const { hasPermission } = usePermissions();
+    const isCurrent = active?.item === item;
+    // A manual fold only holds while the hub stays (or stays not) current.
+    const [manual, setManual] = useState<{ whenCurrent: boolean; open: boolean } | null>(null);
+    const open = manual && manual.whenCurrent === isCurrent ? manual.open : isCurrent;
+
+    const children = (item.children ?? []).filter((c) => !c.permission || hasPermission(c.permission));
+    if (children.length === 0) return null;
+
+    const first = children[0];
+    const badgeTotal = children.reduce((sum, c) => sum + (Number(c.badge) || 0), 0);
+    const showOpen = isExpanded && open;
+
+    return (
+        <div className="cp-nav-hub">
+            <div className="cp-nav-hub-row">
+                <Link
+                    href={first.href}
+                    onClick={(event) => {
+                        onMobileClose?.();
+                        const last = readLastTab(item);
+                        if (last && last !== first.href && children.some((c) => c.href === last)) {
+                            event.preventDefault();
+                            router.push(last);
+                        }
+                    }}
+                    className={cn(
+                        "cp-nav-item",
+                        isCurrent && (showOpen ? "cp-nav-hub-current" : "cp-nav-item-active"),
+                    )}
+                    aria-current={isCurrent && !showOpen ? "page" : undefined}
+                >
+                    <div className={cn("cp-nav-icon-wrap", isCurrent && "cp-nav-icon-active")}>
+                        <item.icon className="w-[16px] h-[16px]" strokeWidth={isCurrent ? 2 : 1.75} />
+                    </div>
+                    <div className={cn("cp-nav-label", isExpanded ? "cp-nav-label-visible" : "cp-nav-label-hidden")}>
+                        <span className="truncate">{item.label}</span>
+                    </div>
+                    {badgeTotal > 0 && !showOpen && (
+                        <div className={cn("cp-nav-badge", isExpanded ? "cp-nav-badge-hub" : "cp-nav-badge-collapsed")}>
+                            {badgeTotal > 99 ? "99+" : badgeTotal}
+                        </div>
+                    )}
+                </Link>
+                {isExpanded && (
+                    <button
+                        type="button"
+                        onClick={() => setManual({ whenCurrent: isCurrent, open: !open })}
+                        className={cn("cp-nav-chevron", showOpen && "cp-nav-chevron-open")}
+                        aria-label={showOpen ? `Replier ${item.label}` : `Déplier ${item.label}`}
+                        aria-expanded={showOpen}
+                    >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                )}
+            </div>
+
+            {isExpanded && (
+                <div className={cn("cp-nav-children-wrap", showOpen && "cp-nav-children-wrap-open")}>
+                    <div className="cp-nav-children" aria-hidden={!showOpen}>
+                        {children.map((child) => {
+                            const isActive = active?.child === child;
+                            return (
+                                <Link
+                                    key={child.href}
+                                    href={child.href}
+                                    onClick={onMobileClose}
+                                    tabIndex={showOpen ? 0 : -1}
+                                    title={child.description}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={cn("cp-nav-child", isActive && "cp-nav-child-active")}
+                                >
+                                    <span className="truncate">{child.label}</span>
+                                    {child.badge != null && child.badge !== "" && (
+                                        <span className="cp-nav-child-badge">
+                                            {Number(child.badge) > 99 ? "99+" : child.badge}
+                                        </span>
+                                    )}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function SidebarSection({
     section,
     isExpanded,
     onMobileClose,
     isFirst,
+    active,
 }: {
     section: NavSection;
     isExpanded: boolean;
     onMobileClose?: () => void;
     isFirst?: boolean;
+    active: ActiveNav | null;
 }) {
     const { hasPermission } = usePermissions();
+    const canSee = (item: NavItem) => !item.permission || hasPermission(item.permission);
 
-    const visibleItems = section.items.filter(
-        (item) => !item.permission || hasPermission(item.permission)
+    const visibleItems = section.items.filter((item) =>
+        item.children?.length ? item.children.some(canSee) : canSee(item)
     );
 
     if (visibleItems.length === 0) return null;
@@ -175,6 +284,7 @@ function SidebarSection({
                         item={item}
                         isExpanded={isExpanded}
                         onMobileClose={onMobileClose}
+                        active={active}
                     />
                 ))}
             </div>
@@ -207,28 +317,6 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
         null
     );
     const [commsUnreadCount, setCommsUnreadCount] = useState<number>(0);
-    const [showUserMenu, setShowUserMenu] = useState(false);
-    const [loggingOutOthers, setLoggingOutOthers] = useState(false);
-    const userMenuRef = useRef<HTMLDivElement>(null);
-    const { success: toastSuccess, error: toastError } = useToast();
-
-    const logoutOtherDevices = useCallback(async () => {
-        setLoggingOutOthers(true);
-        try {
-            const res = await fetch("/api/account/sessions/logout-others", { method: "POST" });
-            const j = await res.json();
-            if (j.success) {
-                toastSuccess("Appareils déconnectés", j.data?.message ?? "");
-            } else {
-                toastError("Erreur", j.error ?? "Impossible de déconnecter les autres appareils");
-            }
-        } catch {
-            toastError("Erreur", "Impossible de déconnecter les autres appareils");
-        } finally {
-            setLoggingOutOthers(false);
-            setShowUserMenu(false);
-        }
-    }, [toastSuccess, toastError]);
 
     // Session polls every 60s (see Providers.tsx) and lib/auth.ts's jwt() callback
     // re-validates isActive/revocation on each poll. If a manager deactivates this
@@ -242,7 +330,6 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
     }, [session?.user?.isActive]);
 
     const userRole = session?.user?.role as UserRole | undefined;
-    const roleConfig = userRole ? ROLE_CONFIG[userRole] : null;
 
     useEffect(() => {
         let cancelled = false;
@@ -293,29 +380,14 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
         };
     }, [userRole]);
 
-    useEffect(() => {
-        function handleClickOutside(e: MouseEvent) {
-            if (
-                userMenuRef.current &&
-                !userMenuRef.current.contains(e.target as Node)
-            ) {
-                setShowUserMenu(false);
-            }
-        }
-        if (showUserMenu) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () =>
-            document.removeEventListener("mousedown", handleClickOutside);
-    }, [showUserMenu]);
-
     const effectiveNavigation = useMemo(() => {
         const hasRappels = callbacksCount !== null || nextCallbackDate;
         const hasComms = commsUnreadCount > 0;
         if (!hasRappels && !hasComms) return navigation;
-        return navigation.map((section) => ({
-            ...section,
-            items: section.items.map((item) => {
+        const withBadge = (item: NavItem): NavItem => {
+                if (item.children?.length) {
+                    return { ...item, children: item.children.map(withBadge) };
+                }
                 if (item.href === RAPPELS_HREF && hasRappels) {
                     return {
                         ...item,
@@ -324,24 +396,27 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                                 ? String(callbacksCount)
                                 : undefined,
                         badgeDetail: nextCallbackDate ?? undefined,
-                        badgeVariant: "rappels" as const,
                     };
                 }
                 if (COMMS_HREFS.includes(item.href) && hasComms) {
                     return {
                         ...item,
                         badge: String(commsUnreadCount),
-                        badgeVariant: "comms" as const,
                     };
                 }
                 return item;
-            }),
-        }));
+        };
+        return navigation.map((section) => ({ ...section, items: section.items.map(withBadge) }));
     }, [navigation, callbacksCount, nextCallbackDate, commsUnreadCount]);
 
-    const userName = session?.user?.name ?? "";
-    const userEmail = session?.user?.email ?? "";
-    const userInitial = userName.charAt(0).toUpperCase() || "U";
+    // Resolved once, from the same objects the sections render, so `===` holds.
+    const pathname = usePathname();
+    const { hasPermission } = usePermissions();
+    const active = useMemo(
+        () => findActiveNav(effectiveNavigation, pathname, (leaf) => !leaf.permission || hasPermission(leaf.permission)),
+        [effectiveNavigation, pathname, hasPermission],
+    );
+
 
     return (
         <>
@@ -443,12 +518,13 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                             isExpanded={isExpanded}
                             onMobileClose={closeMobile}
                             isFirst={idx === 0}
+                            active={active}
                         />
                     ))}
                 </nav>
 
                 {/* Footer */}
-                <div className="cp-sidebar-footer" ref={userMenuRef}>
+                <div className="cp-sidebar-footer">
                     {/* Manager-only support entry (sits above the profile) */}
                     {userRole === "MANAGER" && (
                         <ManagerSupportSidebarEntry isExpanded={isExpanded} />
@@ -465,90 +541,8 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                         </button>
                     )}
 
-                    {/* User popover menu */}
-                    {showUserMenu && (
-                        <div className="cp-user-menu">
-                            <div className="cp-user-menu-header">
-                                <p className="text-[13px] font-semibold text-white truncate">
-                                    {userName}
-                                </p>
-                                <p className="text-[11px] text-slate-400 truncate">
-                                    {userEmail}
-                                </p>
-                            </div>
-                            <div className="cp-user-menu-divider" />
-                            <div className="cp-user-menu-items">
-                                {roleConfig && (
-                                    <div className="cp-user-menu-role">
-                                        <div
-                                            className={cn(
-                                                "w-2 h-2 rounded-full",
-                                                roleConfig.color === "indigo" &&
-                                                    "bg-indigo-500",
-                                                roleConfig.color ===
-                                                    "emerald" &&
-                                                    "bg-emerald-500",
-                                                roleConfig.color === "blue" &&
-                                                    "bg-blue-500"
-                                            )}
-                                        />
-                                        <span>{roleConfig.label}</span>
-                                    </div>
-                                )}
-                                <button
-                                    onClick={logoutOtherDevices}
-                                    disabled={loggingOutOthers}
-                                    className="cp-user-menu-item disabled:opacity-50"
-                                >
-                                    <ShieldOff className="w-3.5 h-3.5" />
-                                    <span>
-                                        {loggingOutOthers
-                                            ? "Déconnexion…"
-                                            : "Déconnecter les autres appareils"}
-                                    </span>
-                                </button>
-                                <button
-                                    onClick={() =>
-                                        signOut({ callbackUrl: "/login" })
-                                    }
-                                    className="cp-user-menu-item cp-user-menu-item-danger"
-                                >
-                                    <LogOut className="w-3.5 h-3.5" />
-                                    <span>Deconnexion</span>
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* User button */}
-                    <button
-                        onClick={() => setShowUserMenu(!showUserMenu)}
-                        className={cn(
-                            "cp-user-btn",
-                            !isExpanded && "cp-user-btn-collapsed"
-                        )}
-                    >
-                        <div className="cp-avatar">
-                            <span>{userInitial}</span>
-                            <div className="cp-avatar-status" />
-                        </div>
-                        {isExpanded && (
-                            <div className="cp-user-info">
-                                <p className="cp-user-name">{userName}</p>
-                                <p className="cp-user-role">
-                                    {roleConfig?.label ?? "User"}
-                                </p>
-                            </div>
-                        )}
-                        {isExpanded && (
-                            <ChevronRight
-                                className={cn(
-                                    "w-3.5 h-3.5 text-slate-400 transition-transform duration-150",
-                                    showUserMenu && "rotate-90"
-                                )}
-                            />
-                        )}
-                    </button>
+                    {/* Profile button + account menu (photo, settings, sign-out) */}
+                    <SidebarUserMenu isExpanded={isExpanded} />
                 </div>
             </aside>
         </>

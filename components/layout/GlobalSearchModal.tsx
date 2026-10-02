@@ -36,6 +36,8 @@ function flattenNav(
                         id: child.href,
                         href: child.href,
                         label: child.label,
+                        // "Clients" exists in two hubs: the hub tells them apart.
+                        subtitle: child.description ? `${item.label} · ${child.description}` : item.label,
                         openInNewTab: child.openInNewTab,
                     });
                 }

@@ -15,6 +15,10 @@ const notificationsSchema = z.object({
     meetingAlerts: z.boolean().optional(),
     dailyDigest: z.boolean().optional(),
     soundEnabled: z.boolean().optional(),
+    // Client portal toggles (were stripped by this schema, so they never saved)
+    reportPublished: z.boolean().optional(),
+    meetingReminder: z.boolean().optional(),
+    milestones: z.boolean().optional(),
 });
 
 const appearanceSchema = z.object({
@@ -76,9 +80,14 @@ export async function GET() {
             select: {
                 name: true,
                 email: true,
+                role: true,
                 phone: true,
+                alloPhoneNumber: true,
                 timezone: true,
                 preferences: true,
+                createdAt: true,
+                lastSignInAt: true,
+                client: { select: { name: true } },
             },
         });
 
@@ -92,6 +101,11 @@ export async function GET() {
             data: {
                 name: user.name,
                 email: user.email,
+                role: user.role,
+                clientName: user.client?.name ?? null,
+                createdAt: user.createdAt,
+                lastSignInAt: user.lastSignInAt,
+                alloPhoneNumber: user.alloPhoneNumber,
                 phone: user.phone ?? "",
                 timezone: user.timezone ?? "Europe/Paris",
                 language: (prefs as { language?: string }).language ?? "fr",

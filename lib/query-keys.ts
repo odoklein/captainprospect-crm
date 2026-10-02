@@ -56,3 +56,13 @@ export function sdrScriptCompanionDataKey(campaignId: string | null) {
 }
 
 export const SDR_MEETINGS_QUERY_KEY = ["sdr", "meetings"] as const;
+
+// Signed-in user's profile picture (sidebar button, settings hero)
+export function myAvatarQueryKey(userId: string | null | undefined) {
+    return ["me", "avatar", userId ?? ""] as const;
+}
+
+// Signed-in user's profile (/api/users/me/profile) — settings pages
+export function myProfileQueryKey(userId: string | null | undefined) {
+    return ["me", "profile", userId ?? ""] as const;
+}

@@ -218,14 +218,17 @@ export const authOptions: NextAuthOptions = {
                 const valid = await isSessionValid(token.id, token.sessionId);
                 if (!valid) token.isActive = false;
             }
-            // Re-read dismissed flag from DB only when the client explicitly triggers a session
-            // update (e.g. after calling PATCH /api/client/onboarding-dismissed).
-            if (trigger === "update" && token.role === "CLIENT") {
+            // Re-read profile fields from DB only when the client explicitly triggers a session
+            // update (after saving the profile, or PATCH /api/client/onboarding-dismissed).
+            if (trigger === "update" && token.id) {
                 const u = await prisma.user.findUnique({
                     where: { id: token.id },
-                    select: { clientOnboardingDismissedPermanently: true },
+                    select: { name: true, clientOnboardingDismissedPermanently: true },
                 });
-                token.clientOnboardingDismissedPermanently = u?.clientOnboardingDismissedPermanently ?? false;
+                if (u?.name) token.name = u.name;
+                if (token.role === "CLIENT") {
+                    token.clientOnboardingDismissedPermanently = u?.clientOnboardingDismissedPermanently ?? false;
+                }
             }
             return token;
         },

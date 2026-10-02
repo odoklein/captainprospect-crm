@@ -8,6 +8,7 @@ import { SidebarProvider, useSidebar } from "./SidebarProvider";
 import { PermissionProvider } from "@/lib/permissions/PermissionProvider";
 import { GlobalSidebar, MobileMenuButton } from "./GlobalSidebar";
 import { GlobalSearchModal } from "./GlobalSearchModal";
+import { SectionTabs } from "./SectionTabs";
 import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
@@ -218,17 +219,12 @@ function InnerLayout({
                 )}
             >
                 <header className="cp-topbar">
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
                         <MobileMenuButton />
-                        <nav className="cp-breadcrumb" aria-label="Breadcrumb">
-                            <span className="cp-breadcrumb-root">
-                                {roleConfig?.label || "App"}
-                            </span>
-                            <span className="cp-breadcrumb-sep">/</span>
-                            <span className="cp-breadcrumb-current">
-                                {currentPage}
-                            </span>
-                        </nav>
+                        <SectionTabs
+                            navigation={navigation}
+                            fallback={{ root: roleConfig?.label || "App", current: currentPage }}
+                        />
                     </div>
 
                     <div className="flex items-center gap-3">

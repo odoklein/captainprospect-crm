@@ -37,6 +37,11 @@ import {
   Sparkles,
   LifeBuoy,
   Wallet,
+  CalendarCheck,
+  CalendarDays,
+  MessagesSquare,
+  Settings2,
+  Tag,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 
@@ -52,7 +57,14 @@ export interface NavItem {
   roles?: UserRole[]; // Restrict to specific roles (if no permission set)
   badge?: string; // Optional badge text (e.g. count)
   badgeDetail?: string; // Optional secondary badge (e.g. "Proch. 31 janv.")
-  children?: NavItem[]; // Sub-items for nested navigation
+  /**
+   * Sub-pages. An item with children is a hub: the sidebar shows the hub
+   * (opening on the last tab used), the top bar shows its children as tabs.
+   * A hub is visible as soon as one child is; it has no permission of its own.
+   */
+  children?: NavItem[];
+  /** One line on what the page is for — tab and sidebar tooltips. */
+  description?: string;
   openInNewTab?: boolean; // Open in new tab (e.g. email inbox)
 }
 
@@ -63,8 +75,10 @@ export interface NavSection {
 }
 
 // ============================================
-// MANAGER NAVIGATION — Grouped Sections
+// MANAGER NAVIGATION — hubs
 // ============================================
+// 28 pages grouped into 11 entries. Routes are unchanged: only where a page
+// is listed moved. The first child of a hub is where it opens the first time.
 
 export const MANAGER_NAV: NavSection[] = [
   {
@@ -78,173 +92,121 @@ export const MANAGER_NAV: NavSection[] = [
     ],
   },
   {
-    title: "Prospection",
+    title: "Production",
     items: [
       {
         href: "/manager/lists",
-        icon: Database,
-        label: "Listes & Prospection",
-        permission: "pages.prospects",
+        icon: Target,
+        label: "Prospection",
+        children: [
+          { href: "/manager/lists", icon: Database, label: "Listes", permission: "pages.prospects", description: "Fichiers de prospects et leur préparation" },
+          { href: "/manager/prospection", icon: Phone, label: "Appels", permission: "pages.missions", description: "Activité d'appel des SDR, mission par mission" },
+          { href: "/manager/exclusions", icon: Ban, label: "BlackList", permission: "pages.prospects", description: "Sociétés et contacts à ne jamais rappeler" },
+        ],
       },
       {
-        href: "/manager/prospection",
-        icon: Phone,
-        label: "Appels",
-        permission: "pages.missions",
-      },
-      {
-        href: "/manager/exclusions",
-        icon: Ban,
-        label: "BlackList",
-        permission: "pages.prospects",
-      },
-    ],
-  },
-  {
-    title: "Suivi",
-    items: [
-      {
-        href: "/manager/assistant",
-        icon: Sparkles,
-        label: "Assistant Projet",
-        permission: "pages.clients",
-      },
-      {
-        href: "/manager/dashboard-projet",
-        icon: UserCheck,
-        label: "Dashboard Projet",
-        permission: "pages.clients",
+        href: "/manager/rdv",
+        icon: CalendarCheck,
+        label: "Rendez-vous",
+        children: [
+          { href: "/manager/rdv", icon: Calendar, label: "SAS RDV", permission: "pages.analytics", description: "Confirmer les rendez-vous avant envoi au client" },
+          { href: "/manager/rdv-absences", icon: UserX, label: "Signalements absents", permission: "pages.analytics", description: "Rendez-vous où le prospect ne s'est pas présenté" },
+        ],
       },
       {
         href: "/manager/clients",
         icon: Building2,
         label: "Clients",
-        permission: "pages.clients",
+        children: [
+          { href: "/manager/clients", icon: Building2, label: "Clients", permission: "pages.clients", description: "Fiches clients et leurs missions" },
+          { href: "/manager/dashboard-projet", icon: UserCheck, label: "Dashboard projet", permission: "pages.clients", description: "Avancement de chaque projet client" },
+          { href: "/manager/assistant", icon: Sparkles, label: "Assistant projet", permission: "pages.clients", description: "Assistant IA sur les données d'un projet" },
+        ],
       },
       {
-        href: "/manager/rdv",
-        icon: Calendar,
-        label: "SAS RDV",
-        permission: "pages.analytics",
+        href: "/manager/emails",
+        icon: MessagesSquare,
+        label: "Communication",
+        children: [
+          { href: "/manager/emails", icon: Mail, label: "Email Hub", permission: "pages.email", description: "Boîtes mail partagées et conversations" },
+          { href: "/manager/emailing", icon: Send, label: "Emailing", permission: "pages.email", description: "Campagnes et séquences d'emails" },
+          { href: "/manager/broadcasts", icon: Megaphone, label: "Broadcasts", permission: "pages.email", description: "Annonces et notifications à l'équipe ou aux clients" },
+        ],
       },
+    ],
+  },
+  {
+    title: "Gestion",
+    items: [
       {
-        href: "/manager/rdv-absences",
-        icon: UserX,
-        label: "Signalements absents",
-        permission: "pages.analytics",
+        href: "/manager/planning",
+        icon: Users,
+        label: "RH",
+        children: [
+          { href: "/manager/planning", icon: Calendar, label: "Planning", permission: "pages.planning", description: "Qui travaille sur quelle mission, chaque jour" },
+          { href: "/manager/utilisateurs", icon: Users, label: "Utilisateurs & accès", permission: "pages.sdrs", description: "Comptes, rôles et permissions" },
+          { href: "/manager/rh", icon: Wallet, label: "Paie", permission: "pages.hr", description: "Jours travaillés, absences et rémunération" },
+          { href: "/manager/sdr-feedback", icon: MessageSquare, label: "Avis SDR", permission: "pages.sdrs", description: "Retours de fin de journée des SDR" },
+        ],
       },
       {
         href: "/manager/analytics",
         icon: BarChart3,
-        label: "Statistiques",
-        permission: "pages.analytics",
-      },
-      {
-        href: "/manager/analyse-ia",
-        icon: Brain,
-        label: "Analyse IA",
-        permission: "pages.analytics",
-      },
-      {
-        href: "/manager/emailing",
-        icon: Send,
-        label: "Emailing",
-        permission: "pages.email",
-      },
-      {
-        href: "/manager/emails",
-        icon: Mail,
-        label: "Email Hub",
-        permission: "pages.email",
-      },
-      {
-        href: "/manager/broadcasts",
-        icon: Megaphone,
-        label: "Broadcasts & Notifications",
-        permission: "pages.email",
-      },
-    ],
-  },
-  {
-    title: "Équipe",
-    items: [
-      {
-        href: "/manager/utilisateurs",
-        icon: Users,
-        label: "Utilisateurs",
-        permission: "pages.sdrs",
-      },
-      {
-        href: "/manager/rh",
-        icon: Wallet,
-        label: "RH",
-        permission: "pages.hr",
-      },
-      {
-        href: "/manager/sdr-feedback",
-        icon: MessageSquare,
-        label: "Avis SDR",
-        permission: "pages.sdrs",
-      },
-      {
-        href: "/manager/planning",
-        icon: Calendar,
-        label: "Planning",
-        permission: "pages.planning",
-      },
-      {
-        href: "/manager/projects",
-        icon: FolderKanban,
-        label: "Projets",
-        permission: "pages.projects",
-      },
-      {
-        href: "/manager/tickets",
-        icon: LifeBuoy,
-        label: "Support technique",
-        permission: "pages.tickets",
-      },
-    ],
-  },
-  {
-    title: "",
-    dividerBefore: true,
-    items: [
-      {
-        href: "/manager/settings",
-        icon: Mail,
-        label: "Paramètres email",
-        permission: "pages.sdrs",
-      },
-      {
-        href: "/manager/api",
-        icon: Key,
-        label: "API & Intégrations",
-        permission: "pages.sdrs",
-      },
-      {
-        href: "/manager/acces",
-        icon: ShieldCheck,
-        label: "Coffre d'accès",
-        permission: "pages.sdrs",
-      },
-      {
-        href: "/manager/audit",
-        icon: ScrollText,
-        label: "Journal d'audit",
-        permission: "pages.sdrs",
+        label: "Pilotage",
+        children: [
+          { href: "/manager/analytics", icon: BarChart3, label: "Statistiques", permission: "pages.analytics", description: "Volumes, conversions et performance" },
+          { href: "/manager/analyse-ia", icon: Brain, label: "Analyse IA", permission: "pages.analytics", description: "Analyses générées à partir des appels" },
+        ],
       },
       {
         href: "/manager/billing",
         icon: Receipt,
         label: "Facturation",
-        permission: "pages.billing",
+        children: [
+          { href: "/manager/billing", icon: LayoutDashboard, label: "Vue d'ensemble", permission: "pages.billing", description: "Encours, échéances et alertes" },
+          { href: "/manager/billing/invoices", icon: FileText, label: "Factures", permission: "pages.billing", description: "Factures émises et brouillons" },
+          { href: "/manager/billing/clients", icon: Building2, label: "Clients", permission: "pages.billing", description: "Coordonnées de facturation" },
+          { href: "/manager/billing/offres", icon: Tag, label: "Offres & tarifs", permission: "pages.billing", description: "Catalogue d'offres et prix" },
+          { href: "/manager/billing/engagements", icon: CalendarDays, label: "Engagements", permission: "pages.billing", description: "Contrats et volumes engagés" },
+          { href: "/manager/billing/settings", icon: Settings, label: "Paramètres", permission: "pages.billing", description: "Mentions, numérotation et TVA" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "Outils",
+    items: [
+      {
+        href: "/manager/tickets",
+        icon: LifeBuoy,
+        label: "Support technique",
+        permission: "pages.tickets",
+        description: "Tickets de développement et demandes d'évolution",
       },
       {
-        href: "/manager/files",
-        icon: FileText,
-        label: "Fichiers",
-        permission: "pages.files",
+        href: "/manager/projects",
+        icon: FolderKanban,
+        label: "Organisation",
+        children: [
+          { href: "/manager/projects", icon: FolderKanban, label: "Projets", permission: "pages.projects", description: "Projets internes et tâches" },
+          { href: "/manager/files", icon: FileText, label: "Fichiers", permission: "pages.files", description: "Documents partagés" },
+        ],
+      },
+    ],
+  },
+  {
+    dividerBefore: true,
+    items: [
+      {
+        href: "/manager/settings",
+        icon: Settings2,
+        label: "Réglages",
+        children: [
+          { href: "/manager/settings", icon: Mail, label: "Email", permission: "pages.sdrs", description: "Comptes d'envoi et signatures" },
+          { href: "/manager/api", icon: Key, label: "API & intégrations", permission: "pages.sdrs", description: "Clés d'API et connecteurs" },
+          { href: "/manager/acces", icon: ShieldCheck, label: "Coffre d'accès", permission: "pages.sdrs", description: "Identifiants partagés par mission" },
+          { href: "/manager/audit", icon: ScrollText, label: "Journal d'audit", permission: "pages.sdrs", description: "Qui a fait quoi, et quand" },
+        ],
       },
     ],
   },
