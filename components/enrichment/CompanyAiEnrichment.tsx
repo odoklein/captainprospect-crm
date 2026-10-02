@@ -16,8 +16,12 @@ import {
     X,
     type LucideIcon,
 } from "lucide-react";
-import { useToast } from "@/components/ui";
+import { Modal, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import {
+    COMPANY_AI_COMING_SOON_MESSAGE,
+    COMPANY_AI_ENRICHMENT_ENABLED,
+} from "@/lib/enrichment/company-ai-availability";
 import {
     FIELD_LABELS,
     missingCompanyFields,
@@ -177,9 +181,12 @@ export function CompanyAiEnrichment({
     const lookup = useQuery<CompanyAiLookupPayload>({
         queryKey,
         queryFn: () => callApi<CompanyAiLookupPayload>(`${ENDPOINT}?companyId=${encodeURIComponent(companyId)}`),
-        enabled: gaps.length > 0,
+        enabled: COMPANY_AI_ENRICHMENT_ENABLED && gaps.length > 0,
         staleTime: 30_000,
     });
+
+    // While the feature is gated, the click opens an info pop-up instead of calling the API.
+    const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
     const search = useMutation({
         mutationFn: (force: boolean) =>
@@ -309,32 +316,59 @@ export function CompanyAiEnrichment({
 
     const searchedWithoutLuck = search.isSuccess && !search.data.found;
     return (
-        <Shell>
-            <button
-                type="button"
-                onClick={() => search.mutate(searchedWithoutLuck)}
-                disabled={lookup.isLoading}
-                className="group flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-indigo-50/50 active:scale-[0.995] disabled:opacity-60"
-            >
-                <span className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-indigo-600">
+        <>
+            <Shell>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (!COMPANY_AI_ENRICHMENT_ENABLED) {
+                            setComingSoonOpen(true);
+                            return;
+                        }
+                        search.mutate(searchedWithoutLuck);
+                    }}
+                    disabled={lookup.isLoading}
+                    className="group flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-indigo-50/50 active:scale-[0.995] disabled:opacity-60"
+                >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-indigo-600">
+                            <Sparkles className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="min-w-0">
+                            <span className="block text-sm font-semibold text-slate-800">
+                                {searchedWithoutLuck ? "Rien de fiable trouvé" : "Fiche incomplète"}
+                            </span>
+                            <span className="block truncate text-xs text-slate-500">
+                                {searchedWithoutLuck
+                                    ? "Aucune source n'a confirmé ces informations."
+                                    : `Manque : ${missingLabels.join(", ")}`}
+                            </span>
+                        </span>
+                    </span>
+                    <span className="shrink-0 text-xs font-semibold text-indigo-600 transition-transform group-hover:translate-x-0.5">
+                        {searchedWithoutLuck ? "Relancer" : "Compléter avec l'IA"}
+                    </span>
+                </button>
+            </Shell>
+            <Modal isOpen={comingSoonOpen} onClose={() => setComingSoonOpen(false)} title="Bientôt disponible" size="sm">
+                <div className="flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                         <Sparkles className="h-4 w-4" aria-hidden="true" />
                     </span>
-                    <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-slate-800">
-                            {searchedWithoutLuck ? "Rien de fiable trouvé" : "Fiche incomplète"}
-                        </span>
-                        <span className="block truncate text-xs text-slate-500">
-                            {searchedWithoutLuck
-                                ? "Aucune source n'a confirmé ces informations."
-                                : `Manque : ${missingLabels.join(", ")}`}
-                        </span>
-                    </span>
-                </span>
-                <span className="shrink-0 text-xs font-semibold text-indigo-600 transition-transform group-hover:translate-x-0.5">
-                    {searchedWithoutLuck ? "Relancer" : "Compléter avec l'IA"}
-                </span>
-            </button>
-        </Shell>
+                    <p className="text-sm leading-6 text-slate-600">
+                        {COMPANY_AI_COMING_SOON_MESSAGE} D&apos;ici là, vous pouvez compléter la fiche manuellement.
+                    </p>
+                </div>
+                <div className="mt-5 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => setComingSoonOpen(false)}
+                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 active:scale-95"
+                    >
+                        Compris
+                    </button>
+                </div>
+            </Modal>
+        </>
     );
 }

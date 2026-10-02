@@ -22,6 +22,10 @@ import {
 import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 import { MistralError } from "@/lib/ai/mistral";
 import { buildEnrichmentHash } from "@/lib/enrichment/company-ai-core";
+import {
+    COMPANY_AI_COMING_SOON_MESSAGE,
+    COMPANY_AI_ENRICHMENT_ENABLED,
+} from "@/lib/enrichment/company-ai-availability";
 import { enrichCompanyViaAi } from "@/lib/enrichment/company-ai";
 import {
     ENRICHABLE_FIELDS,
@@ -111,6 +115,7 @@ async function loadHints(company: { id: string; listId: string }) {
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     await requireRole(ALLOWED_ROLES, request);
+    if (!COMPANY_AI_ENRICHMENT_ENABLED) return errorResponse(COMPANY_AI_COMING_SOON_MESSAGE, 503);
     const companyId = request.nextUrl.searchParams.get("companyId");
     if (!companyId) return errorResponse("companyId requis", 400);
 
@@ -126,6 +131,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(ALLOWED_ROLES, request);
+    if (!COMPANY_AI_ENRICHMENT_ENABLED) return errorResponse(COMPANY_AI_COMING_SOON_MESSAGE, 503);
     const { companyId, force } = await validateRequest(request, searchSchema);
 
     const company = await prisma.company.findUnique({ where: { id: companyId }, select: companySelect });
@@ -227,6 +233,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
 export const PATCH = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(ALLOWED_ROLES, request);
+    if (!COMPANY_AI_ENRICHMENT_ENABLED) return errorResponse(COMPANY_AI_COMING_SOON_MESSAGE, 503);
     const { lookupId, decisions } = await validateRequest(request, reviewSchema);
 
     const outcome = await prisma.$transaction(async (tx) => {

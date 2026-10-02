@@ -630,6 +630,7 @@ export default function SDRActionPage() {
     // Drawer for table view (contact/company fiche)
     const [drawerContactId, setDrawerContactId] = useState<string | null>(null);
     const [drawerCompanyId, setDrawerCompanyId] = useState<string | null>(null);
+    const [companyBlockedModalOpen, setCompanyBlockedModalOpen] = useState(false);
     const { data: drawerContact = null, isFetching: drawerContactLoading } = useQuery({
         queryKey: sdrDrawerContactKey(drawerContactId),
         queryFn: async () => {
@@ -2855,7 +2856,11 @@ export default function SDRActionPage() {
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-2">
                                         <div>
-                                            <h2 className="text-[18px] font-medium text-neutral-900 truncate leading-tight">
+                                            <h2
+                                                onClick={() => setCompanyBlockedModalOpen(true)}
+                                                className="text-[18px] font-medium text-neutral-900 truncate leading-tight hover:text-[#2B5F3E] cursor-pointer transition-colors"
+                                                title="Fiche entreprise"
+                                            >
                                                 {currentAction.company?.name}
                                             </h2>
                                             <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -2872,7 +2877,7 @@ export default function SDRActionPage() {
                                             </div>
                                         </div>
                                         {currentAction.company?.id && (
-                                            <Button variant="ghost" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
+                                            <Button variant="ghost" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
                                                 <PenLine className="w-3.5 h-3.5" />
                                             </Button>
                                         )}
@@ -3095,11 +3100,16 @@ export default function SDRActionPage() {
                                         <span className="text-[15px] font-medium text-white">{getInitials(null, null, currentAction.company.name)}</span>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[18px] font-medium text-neutral-900 leading-tight">{currentAction.company.name}</p>
+                                        <p
+                                            onClick={() => setCompanyBlockedModalOpen(true)}
+                                            className="text-[18px] font-medium text-neutral-900 leading-tight hover:text-[#2B5F3E] cursor-pointer transition-colors"
+                                        >
+                                            {currentAction.company.name}
+                                        </p>
                                         <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md mt-1 inline-block">Entreprise</span>
                                     </div>
                                     {currentAction.company.id && (
-                                        <Button variant="ghost" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
+                                        <Button variant="ghost" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
                                             <PenLine className="w-3.5 h-3.5" />
                                         </Button>
                                     )}
@@ -3155,7 +3165,7 @@ export default function SDRActionPage() {
                                             );
                                         })()
                                     ) : (
-                                        <Button variant="outline" size="sm" onClick={() => setDrawerCompanyId(currentAction.company!.id)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
+                                        <Button variant="outline" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
                                             <PenLine className="w-3.5 h-3.5" />
                                             Ajouter un numéro
                                         </Button>
@@ -3743,6 +3753,42 @@ export default function SDRActionPage() {
                 onOpenDetails={handleAlreadyContactedOpenDetails}
                 info={alreadyContactedModalInfo}
             />
+
+            {/* Mini Coming Soon Pop-up for Company Action */}
+            {companyBlockedModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+                    <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
+                        <button
+                            onClick={() => setCompanyBlockedModalOpen(false)}
+                            className="absolute top-4 right-4 p-1 rounded-full text-zinc-400 hover:text-zinc-700 hover:bg-slate-100 transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                        <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
+                            <Sparkles className="w-6 h-6 text-amber-500 fill-amber-100" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 uppercase tracking-wider">
+                                Bientôt disponible
+                            </span>
+                            <h3 className="text-base font-extrabold text-zinc-900 pt-1">
+                                Fiche Entreprise en Action Unifiée
+                            </h3>
+                            <p className="text-xs text-zinc-600 leading-relaxed font-medium">
+                                Cette fonctionnalité sera disponible dès la semaine prochaine en version stable.
+                            </p>
+                        </div>
+                        <div className="pt-2">
+                            <button
+                                onClick={() => setCompanyBlockedModalOpen(false)}
+                                className="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition-all shadow-sm active:scale-[0.98]"
+                            >
+                                Compris
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
