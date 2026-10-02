@@ -147,6 +147,21 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         );
     }
 
+    // Same SDR, same day, same mission already planned: a second block would
+    // only double-count the day (bulk duplication used to create these).
+    const duplicate = await prisma.scheduleBlock.findFirst({
+        where: {
+            sdrId: data.sdrId,
+            missionId: data.missionId,
+            date: blockDate,
+            status: { not: 'CANCELLED' },
+        },
+        select: { id: true },
+    });
+    if (duplicate) {
+        return errorResponse('Ce SDR est déjà planifié sur cette mission ce jour-là', 409);
+    }
+
     // ← fixed: missionId_sdrId instead of sdrId_missionId
     await prisma.sDRAssignment.upsert({
         where: {
