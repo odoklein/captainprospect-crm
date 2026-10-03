@@ -15,7 +15,7 @@ import {
     Calendar,
     Search,
     Filter,
-    Sparkles,
+    ListChecks,
     ChevronDown,
     Clock,
     ArrowUpRight,
@@ -23,7 +23,6 @@ import {
     ChevronRight,
     X,
     AlertTriangle,
-    Zap,
     ArrowUp,
     ArrowRight,
     ArrowDown,
@@ -54,25 +53,25 @@ export interface SessionTaskItem {
 // ============================================
 
 const ROLE_TABS = [
-    { key: "ALL", label: "Toutes", icon: Globe, color: "#7C5CFC", bg: "#EEF2FF" },
+    { key: "ALL", label: "Toutes", icon: Globe, color: "var(--brand-primary-600)", bg: "var(--brand-primary-50)" },
     { key: "SDR", label: "SDRs", icon: Headphones, color: "#10B981", bg: "#F0FDF4" },
     { key: "MANAGER", label: "Managers", icon: Briefcase, color: "#F59E0B", bg: "#FFF7ED" },
     { key: "DEV", label: "Devs", icon: Monitor, color: "#3B82F6", bg: "#EFF6FF" },
-    { key: "ALWAYS", label: "Toujours", icon: Users, color: "#8B5CF6", bg: "#F5F3FF" },
+    { key: "ALWAYS", label: "Toujours", icon: Users, color: "var(--brand-accent-600)", bg: "var(--brand-accent-50)" },
 ] as const;
 
 const PRIORITY_CONFIG = {
-    URGENT: { label: "Urgent", icon: Zap, color: "#EF4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)" },
+    URGENT: { label: "Urgent", icon: AlertTriangle, color: "#EF4444", bg: "rgba(239,68,68,0.08)", border: "rgba(239,68,68,0.2)" },
     HIGH: { label: "Haute", icon: ArrowUp, color: "#F59E0B", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
     MEDIUM: { label: "Moyenne", icon: ArrowRight, color: "#3B82F6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)" },
-    LOW: { label: "Basse", icon: ArrowDown, color: "#6B7280", bg: "rgba(107,114,128,0.08)", border: "rgba(107,114,128,0.2)" },
+    LOW: { label: "Basse", icon: ArrowDown, color: "var(--ds-ink-3)", bg: "color-mix(in oklab, var(--ds-ink-3) 8%, transparent)", border: "color-mix(in oklab, var(--ds-ink-3) 20%, transparent)" },
 };
 
 const ROLE_BADGE_CONFIG = {
     SDR: { label: "SDR", color: "#10B981", bg: "rgba(16,185,129,0.1)" },
     MANAGER: { label: "Manager", color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
     DEV: { label: "Dev", color: "#3B82F6", bg: "rgba(59,130,246,0.1)" },
-    ALWAYS: { label: "Tous", color: "#8B5CF6", bg: "rgba(139,92,246,0.1)" },
+    ALWAYS: { label: "Tous", color: "var(--brand-accent-600)", bg: "color-mix(in oklab, var(--brand-accent-500) 10%, transparent)" },
 };
 
 // ============================================
@@ -181,29 +180,25 @@ export default function SessionTaskBoard() {
 
     return (
         <div className="space-y-0">
-            {/* ── Premium Header ── */}
+            {/* ── Header ── */}
             <div
                 className="relative overflow-hidden rounded-2xl p-6 mb-6"
                 style={{
-                    background: "linear-gradient(135deg, #1A1040 0%, #0F0A2A 50%, #12122A 100%)",
+                    background: "var(--ds-inverse)",
                 }}
             >
-                {/* Background effects */}
-                <div className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] pointer-events-none" style={{ background: "rgba(124,92,252,0.12)" }} />
-                <div className="absolute bottom-0 left-1/4 w-48 h-48 rounded-full blur-[60px] pointer-events-none" style={{ background: "rgba(167,139,250,0.06)" }} />
-                <div className="absolute top-1/2 right-1/3 w-32 h-32 rounded-full blur-[40px] pointer-events-none" style={{ background: "rgba(59,130,246,0.05)" }} />
 
                 <div className="relative z-10">
                     <div className="flex items-center justify-between mb-5">
                         <div>
                             <h1 className="text-[22px] font-bold text-white tracking-tight flex items-center gap-2.5">
-                                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(124,92,252,0.2)" }}>
-                                    <Sparkles className="w-[18px] h-[18px] text-[#A78BFA]" />
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--ds-inverse-raised)" }}>
+                                    <ListChecks className="w-[18px] h-[18px] text-accent-300" />
                                 </div>
                                 Tâches d'équipe
                             </h1>
-                            <p className="text-[13px] mt-1.5 ml-[46px]" style={{ color: "#6A6A8A" }}>
-                                Tasks extraites des comptes rendus de session
+                            <p className="text-[13px] mt-1.5 ml-[46px]" style={{ color: "var(--ds-inverse-ink-3)" }}>
+                                Tâches extraites des comptes rendus de session
                             </p>
                         </div>
 
@@ -220,9 +215,9 @@ export default function SessionTaskBoard() {
                                         "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[12px] font-semibold transition-all duration-200",
                                         view === key
                                             ? "text-white shadow-lg"
-                                            : "text-[#6A6A8A] hover:text-[#9A9ABB]"
+                                            : "text-inverse-ink-3 hover:text-inverse-ink-2"
                                     )}
-                                    style={view === key ? { background: "rgba(124,92,252,0.25)" } : {}}
+                                    style={view === key ? { background: "var(--ds-inverse-raised)" } : {}}
                                 >
                                     <Icon className="w-3.5 h-3.5" />
                                     {label}
@@ -240,7 +235,7 @@ export default function SessionTaskBoard() {
                                 style={{ background: "rgba(255,255,255,0.04)" }}
                             >
                                 <div className="w-2 h-2 rounded-full" style={{ background: tab.color }} />
-                                <span className="text-[11px] font-medium" style={{ color: "#8B8BA7" }}>
+                                <span className="text-[11px] font-medium" style={{ color: "var(--ds-inverse-ink-2)" }}>
                                     {tab.label}
                                 </span>
                                 <span className="text-[12px] font-bold text-white">
@@ -265,13 +260,13 @@ export default function SessionTaskBoard() {
                                 "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 whitespace-nowrap border",
                                 isActive
                                     ? "shadow-sm"
-                                    : "bg-white border-[#E8EBF0] text-[#5A5A7A] hover:border-[#C5C8D4] hover:text-[#12122A]"
+                                    : "bg-white border-line text-ink-2 hover:border-line-strong hover:text-ink"
                             )}
                             style={
                                 isActive
                                     ? {
                                           background: tab.bg,
-                                          borderColor: `${tab.color}30`,
+                                          borderColor: `color-mix(in oklab, ${tab.color} 19%, transparent)`,
                                           color: tab.color,
                                       }
                                     : {}
@@ -283,7 +278,7 @@ export default function SessionTaskBoard() {
                                 <span
                                     className={cn(
                                         "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-                                        isActive ? "text-white" : "text-[#8B8BA7] bg-[#F4F6F9]"
+                                        isActive ? "text-white" : "text-ink-3 bg-surface-3"
                                     )}
                                     style={isActive ? { background: tab.color } : {}}
                                 >
@@ -298,17 +293,17 @@ export default function SessionTaskBoard() {
             {/* ── Search & Filters ── */}
             <div className="flex items-center gap-3 mb-5">
                 <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8B8BA7]" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3" />
                     <input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Rechercher une tâche, client ou assigné..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#E8EBF0] rounded-xl text-[13px] text-[#12122A] placeholder:text-[#B0B0C7] focus:outline-none focus:border-[#7C5CFC] focus:ring-2 focus:ring-[#7C5CFC]/10 transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-line rounded-xl text-[13px] text-ink placeholder:text-ink-4 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/10 transition-all"
                     />
                     {searchQuery && (
                         <button
                             onClick={() => setSearchQuery("")}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B8BA7] hover:text-[#12122A]"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink"
                         >
                             <X className="w-3.5 h-3.5" />
                         </button>
@@ -321,7 +316,7 @@ export default function SessionTaskBoard() {
                         "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-semibold border transition-all",
                         showDone
                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                            : "bg-white border-[#E8EBF0] text-[#5A5A7A] hover:border-[#C5C8D4]"
+                            : "bg-white border-line text-ink-2 hover:border-line-strong"
                     )}
                 >
                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -333,8 +328,8 @@ export default function SessionTaskBoard() {
             {isLoading ? (
                 <div className="flex items-center justify-center py-20">
                     <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-7 h-7 text-[#7C5CFC] animate-spin" />
-                        <span className="text-[13px] text-[#8B8BA7] font-medium">Chargement des tâches...</span>
+                        <Loader2 className="w-7 h-7 text-primary-600 animate-spin" />
+                        <span className="text-[13px] text-ink-3 font-medium">Chargement des tâches...</span>
                     </div>
                 </div>
             ) : (
@@ -351,7 +346,7 @@ export default function SessionTaskBoard() {
                                         className="rounded-2xl border overflow-hidden flex flex-col"
                                         style={{
                                             background: "white",
-                                            borderColor: "#E8EBF0",
+                                            borderColor: "var(--ds-line)",
                                         }}
                                     >
                                         {/* Column Header */}
@@ -365,7 +360,7 @@ export default function SessionTaskBoard() {
                                             <div className="flex items-center gap-2">
                                                 <div
                                                     className="w-7 h-7 rounded-lg flex items-center justify-center"
-                                                    style={{ background: `${config.color}15` }}
+                                                    style={{ background: `color-mix(in oklab, ${config.color} 8%, transparent)` }}
                                                 >
                                                     <PriorityIcon
                                                         className="w-3.5 h-3.5"
@@ -396,8 +391,8 @@ export default function SessionTaskBoard() {
                                             ))}
 
                                             {column.tasks.length === 0 && (
-                                                <div className="flex items-center justify-center h-20 border-2 border-dashed border-[#E8EBF0] rounded-xl">
-                                                    <span className="text-[12px] text-[#B0B0C7]">Aucune tâche</span>
+                                                <div className="flex items-center justify-center h-20 border-2 border-dashed border-line rounded-xl">
+                                                    <span className="text-[12px] text-ink-4">Aucune tâche</span>
                                                 </div>
                                             )}
                                         </div>
@@ -409,14 +404,14 @@ export default function SessionTaskBoard() {
 
                     {/* ── List View ── */}
                     {view === "list" && (
-                        <div className="bg-white rounded-2xl border border-[#E8EBF0] overflow-hidden shadow-sm">
+                        <div className="bg-white rounded-2xl border border-line overflow-hidden shadow-sm">
                             {/* Table Header */}
-                            <div className="grid grid-cols-[1fr_120px_100px_100px_140px] gap-4 px-5 py-3 border-b border-[#E8EBF0] bg-[#FAFBFC]">
-                                <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Tâche</span>
-                                <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Client</span>
-                                <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Rôle</span>
-                                <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Priorité</span>
-                                <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">Session</span>
+                            <div className="grid grid-cols-[1fr_120px_100px_100px_140px] gap-4 px-5 py-3 border-b border-line bg-surface-2">
+                                <span className="text-[11px] font-bold text-ink-3 uppercase tracking-wider">Tâche</span>
+                                <span className="text-[11px] font-bold text-ink-3 uppercase tracking-wider">Client</span>
+                                <span className="text-[11px] font-bold text-ink-3 uppercase tracking-wider">Rôle</span>
+                                <span className="text-[11px] font-bold text-ink-3 uppercase tracking-wider">Priorité</span>
+                                <span className="text-[11px] font-bold text-ink-3 uppercase tracking-wider">Session</span>
                             </div>
 
                             {/* Pending Tasks */}
@@ -432,9 +427,10 @@ export default function SessionTaskBoard() {
                             {/* Completed Tasks */}
                             {showDone && doneTasks.length > 0 && (
                                 <>
-                                    <div className="px-5 py-2.5 bg-[#F4F6F9] border-y border-[#E8EBF0]">
-                                        <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wider">
-                                            ✓ Terminées ({doneTasks.length})
+                                    <div className="px-5 py-2.5 bg-surface-3 border-y border-line">
+                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-ink-3 uppercase tracking-wider">
+                                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                                            Terminées ({doneTasks.length})
                                         </span>
                                     </div>
                                     {doneTasks.map((task) => (
@@ -451,11 +447,11 @@ export default function SessionTaskBoard() {
                             {/* Empty State */}
                             {filteredTasks.length === 0 && (
                                 <div className="flex flex-col items-center justify-center py-16">
-                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#F4F6F9" }}>
-                                        <CheckCircle2 className="w-7 h-7 text-[#C5C8D4]" />
+                                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "var(--ds-surface-2)" }}>
+                                        <CheckCircle2 className="w-7 h-7 text-ink-4" />
                                     </div>
-                                    <p className="text-[14px] font-semibold text-[#12122A]">Aucune tâche</p>
-                                    <p className="text-[12px] text-[#8B8BA7] mt-1">
+                                    <p className="text-[14px] font-semibold text-ink">Aucune tâche</p>
+                                    <p className="text-[12px] text-ink-3 mt-1">
                                         Les tâches extraites des CRs apparaîtront ici
                                     </p>
                                 </div>
@@ -487,8 +483,8 @@ function TaskCard({
     return (
         <div
             className={cn(
-                "group relative bg-white rounded-xl border border-[#E8EBF0] p-3.5 transition-all duration-200",
-                "hover:border-[#C5C8D4] hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)]",
+                "group relative bg-white rounded-xl border border-line p-3.5 transition-all duration-200",
+                "hover:border-line-strong hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)]",
                 isDone && "opacity-60"
             )}
         >
@@ -501,11 +497,11 @@ function TaskCard({
                         "mt-0.5 flex-shrink-0 transition-all duration-200",
                         isDone
                             ? "text-emerald-500 hover:text-emerald-600"
-                            : "text-[#C5C8D4] hover:text-[#7C5CFC]"
+                            : "text-ink-4 hover:text-primary-600"
                     )}
                 >
                     {isUpdating ? (
-                        <Loader2 className="w-4.5 h-4.5 animate-spin text-[#7C5CFC]" />
+                        <Loader2 className="w-4.5 h-4.5 animate-spin text-primary-600" />
                     ) : isDone ? (
                         <CheckCircle2 className="w-[18px] h-[18px]" />
                     ) : (
@@ -519,8 +515,8 @@ function TaskCard({
                         className={cn(
                             "text-[13px] font-medium leading-snug",
                             isDone
-                                ? "line-through text-[#8B8BA7]"
-                                : "text-[#12122A]"
+                                ? "line-through text-ink-3"
+                                : "text-ink"
                         )}
                     >
                         {task.label}
@@ -540,14 +536,14 @@ function TaskCard({
                         </span>
 
                         {/* Client */}
-                        <span className="flex items-center gap-1 text-[10px] text-[#8B8BA7]">
+                        <span className="flex items-center gap-1 text-[10px] text-ink-3">
                             <Building2 className="w-3 h-3" />
                             {task.clientName}
                         </span>
 
                         {/* Assignee */}
                         {task.assignee && (
-                            <span className="text-[10px] text-[#5A5A7A] font-medium bg-[#F4F6F9] px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] text-ink-2 font-medium bg-surface-3 px-1.5 py-0.5 rounded">
                                 {task.assignee}
                             </span>
                         )}
@@ -579,7 +575,7 @@ function TaskListRow({
     return (
         <div
             className={cn(
-                "grid grid-cols-[1fr_120px_100px_100px_140px] gap-4 px-5 py-3 border-b border-[#F2F3F5] items-center transition-all hover:bg-[#FAFBFC] group",
+                "grid grid-cols-[1fr_120px_100px_100px_140px] gap-4 px-5 py-3 border-b border-line-subtle items-center transition-all hover:bg-surface-2 group",
                 isDone && "opacity-50"
             )}
         >
@@ -592,11 +588,11 @@ function TaskListRow({
                         "flex-shrink-0 transition-all",
                         isDone
                             ? "text-emerald-500 hover:text-emerald-600"
-                            : "text-[#C5C8D4] hover:text-[#7C5CFC]"
+                            : "text-ink-4 hover:text-primary-600"
                     )}
                 >
                     {isUpdating ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#7C5CFC]" />
+                        <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
                     ) : isDone ? (
                         <CheckCircle2 className="w-[16px] h-[16px]" />
                     ) : (
@@ -607,13 +603,13 @@ function TaskListRow({
                     <p
                         className={cn(
                             "text-[13px] font-medium truncate",
-                            isDone ? "line-through text-[#8B8BA7]" : "text-[#12122A]"
+                            isDone ? "line-through text-ink-3" : "text-ink"
                         )}
                     >
                         {task.label}
                     </p>
                     {task.assignee && (
-                        <p className="text-[10px] text-[#8B8BA7] mt-0.5 truncate">
+                        <p className="text-[10px] text-ink-3 mt-0.5 truncate">
                             → {task.assignee}
                         </p>
                     )}
@@ -621,7 +617,7 @@ function TaskListRow({
             </div>
 
             {/* Client */}
-            <span className="text-[12px] text-[#5A5A7A] truncate">{task.clientName}</span>
+            <span className="text-[12px] text-ink-2 truncate">{task.clientName}</span>
 
             {/* Role */}
             <span
@@ -640,7 +636,7 @@ function TaskListRow({
             </div>
 
             {/* Session Date */}
-            <div className="flex items-center gap-1.5 text-[11px] text-[#8B8BA7]">
+            <div className="flex items-center gap-1.5 text-[11px] text-ink-3">
                 <Calendar className="w-3 h-3" />
                 <span>
                     {new Date(task.sessionDate).toLocaleDateString("fr-FR", {
@@ -648,7 +644,7 @@ function TaskListRow({
                         month: "short",
                     })}
                 </span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F4F6F9] text-[#5A5A7A] font-medium">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-ink-2 font-medium">
                     {task.sessionType}
                 </span>
             </div>

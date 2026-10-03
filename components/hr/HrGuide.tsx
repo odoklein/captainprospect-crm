@@ -185,7 +185,7 @@ function GuideRun({ steps, onClose }: Omit<HrGuideProps, "open">) {
       {rect && (
         <div
           aria-hidden
-          className="pointer-events-none absolute rounded-xl ring-2 ring-indigo-400 transition-all duration-200"
+          className="pointer-events-none absolute rounded-xl ring-2 ring-primary-400 transition-all duration-200"
           style={{
             top: rect.top - PAD,
             left: rect.left - PAD,
@@ -211,7 +211,7 @@ function GuideRun({ steps, onClose }: Omit<HrGuideProps, "open">) {
       >
         <div className="flex items-start justify-between gap-3 px-4 pt-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-primary-600">
               Guide RH · {index + 1} / {steps.length}
             </p>
             <h3 id={titleId} className="mt-0.5 text-sm font-bold text-slate-900">
@@ -222,7 +222,7 @@ function GuideRun({ steps, onClose }: Omit<HrGuideProps, "open">) {
             type="button"
             onClick={onClose}
             aria-label="Fermer le guide"
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           >
             <X className="h-4 w-4" />
           </button>
@@ -234,7 +234,7 @@ function GuideRun({ steps, onClose }: Omit<HrGuideProps, "open">) {
           {steps.map((_, i) => (
             <span
               key={i}
-              className={`h-1 flex-1 rounded-full ${i <= index ? "bg-indigo-500" : "bg-slate-200"}`}
+              className={`h-1 flex-1 rounded-full ${i <= index ? "bg-primary-500" : "bg-slate-200"}`}
             />
           ))}
         </div>
@@ -261,7 +261,7 @@ function GuideRun({ steps, onClose }: Omit<HrGuideProps, "open">) {
             <button
               type="button"
               onClick={() => go(1)}
-              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700"
+              className="inline-flex items-center gap-1 rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-700"
             >
               {isLast ? "J’ai compris" : "Suivant"}
               {!isLast && <ChevronRight className="h-3.5 w-3.5" />}

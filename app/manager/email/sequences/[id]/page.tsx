@@ -138,7 +138,7 @@ function StepEditor({
                     </div>
                 )}
                 
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm">
+                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center text-primary-600 font-semibold text-sm">
                     {stepNumber}
                 </div>
                 
@@ -216,7 +216,7 @@ function StepEditor({
                             value={step.subject}
                             onChange={(e) => onChange({ subject: e.target.value })}
                             disabled={!isEditable}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-slate-50"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:bg-slate-50"
                         />
                     </div>
 
@@ -230,7 +230,7 @@ function StepEditor({
                             onChange={(e) => onChange({ bodyHtml: e.target.value })}
                             disabled={!isEditable}
                             rows={8}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono disabled:bg-slate-50"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none font-mono disabled:bg-slate-50"
                         />
                     </div>
 
@@ -242,7 +242,7 @@ function StepEditor({
                                 checked={step.skipIfOpened}
                                 onChange={(e) => onChange({ skipIfOpened: e.target.checked })}
                                 disabled={!isEditable}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-600">Passer si ouvert</span>
                         </label>
@@ -252,7 +252,7 @@ function StepEditor({
                                 checked={step.skipIfClicked}
                                 onChange={(e) => onChange({ skipIfClicked: e.target.checked })}
                                 disabled={!isEditable}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-600">Passer si cliqué</span>
                         </label>
@@ -262,7 +262,7 @@ function StepEditor({
                                 checked={step.skipIfReplied}
                                 onChange={(e) => onChange({ skipIfReplied: e.target.checked })}
                                 disabled={!isEditable}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-600">Passer si répondu</span>
                         </label>
@@ -285,7 +285,7 @@ function EnrollmentList({ enrollments, sequenceId }: { enrollments: Enrollment[]
             case "COMPLETED":
                 return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">Terminé</span>;
             case "REPLIED":
-                return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">Répondu</span>;
+                return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-accent-100 text-accent-700">Répondu</span>;
             case "BOUNCED":
                 return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">Bounce</span>;
             case "PAUSED":
@@ -505,7 +505,7 @@ export default function SequenceDetailPage({ params }: { params: Promise<{ id: s
                 <p className="text-slate-500">{error || "Séquence non trouvée"}</p>
                 <button
                     onClick={() => router.back()}
-                    className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+                    className="mt-4 text-primary-600 hover:text-primary-700 text-sm font-medium"
                 >
                     Retour
                 </button>
@@ -516,7 +516,7 @@ export default function SequenceDetailPage({ params }: { params: Promise<{ id: s
     const getStatusBadge = () => {
         switch (sequence.status) {
             case "ACTIVE":
-                return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />Active</span>;
+                return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Active</span>;
             case "DRAFT":
                 return <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">Brouillon</span>;
             case "PAUSED":
@@ -570,7 +570,7 @@ export default function SequenceDetailPage({ params }: { params: Promise<{ id: s
                         <button
                             onClick={handleSave}
                             disabled={isSaving}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 disabled:opacity-50 transition-colors"
                         >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             Sauvegarder
@@ -584,8 +584,8 @@ export default function SequenceDetailPage({ params }: { params: Promise<{ id: s
                 <Card>
                     <CardContent className="pt-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                <Users className="w-5 h-5 text-indigo-600" />
+                            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                <Users className="w-5 h-5 text-primary-600" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-slate-900">{sequence.totalEnrolled}</p>
@@ -610,8 +610,8 @@ export default function SequenceDetailPage({ params }: { params: Promise<{ id: s
                 <Card>
                     <CardContent className="pt-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                                <Reply className="w-5 h-5 text-purple-600" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
+                                <Reply className="w-5 h-5 text-accent-600" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-slate-900">{sequence.totalReplied}</p>
@@ -695,7 +695,7 @@ export default function SequenceDetailPage({ params }: { params: Promise<{ id: s
                     {isEditable && (
                         <button
                             onClick={addStep}
-                            className="w-full py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors flex items-center justify-center gap-2"
+                            className="w-full py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors flex items-center justify-center gap-2"
                         >
                             <Plus className="w-5 h-5" />
                             Ajouter une étape
@@ -711,7 +711,7 @@ export default function SequenceDetailPage({ params }: { params: Promise<{ id: s
                             <CardTitle>Contacts inscrits</CardTitle>
                             <a
                                 href={`/manager/email/sequences/${id}/enroll`}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                             >
                                 <UserPlus className="w-4 h-4" />
                                 Inscrire des contacts

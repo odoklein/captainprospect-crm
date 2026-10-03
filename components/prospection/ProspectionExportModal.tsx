@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { buildExportQuery } from "@/lib/prospection-export/filters";
 import type { ExportChannel, TreatmentFilter } from "@/lib/prospection-export/types";
 import type { ExportPreview } from "@/lib/prospection-export/workbook";
+import { brand } from "@/lib/brand";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -87,8 +88,8 @@ function Section({ icon: Icon, title, hint, children, aside }: {
         <section className="space-y-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
-                        <Icon className="w-3.5 h-3.5 text-indigo-600" aria-hidden />
+                    <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center shrink-0 mt-0.5">
+                        <Icon className="w-3.5 h-3.5 text-primary-600" aria-hidden />
                     </div>
                     <div>
                         <h3 className="text-sm font-black text-slate-900">{title}</h3>
@@ -113,9 +114,9 @@ function Chip({ active, onClick, disabled, children, count }: {
             aria-pressed={active}
             className={cn(
                 "flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-xl border text-[11px] font-bold transition-all",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 disabled:opacity-40 disabled:cursor-not-allowed",
                 active
-                    ? "bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm"
+                    ? "bg-primary-50 border-primary-300 text-primary-700 shadow-sm"
                     : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
             )}
         >
@@ -283,7 +284,7 @@ export function ProspectionExportModal({
             isOpen={isOpen}
             onClose={() => { if (!downloading) onClose(); }}
             title="Exporter la base prospectée"
-            description={`${missionName} — le fichier du client dans son format d'origine, enrichi du suivi Captain Prospect.`}
+            description={`${missionName} — le fichier du client dans son format d'origine, enrichi du suivi ${brand.name}.`}
             size="xl"
             contentClassName="p-0 md:p-0 overflow-hidden flex flex-col min-h-0"
         >
@@ -308,7 +309,7 @@ export function ProspectionExportModal({
                     aside={lists.length > 1 ? (
                         <div className="flex items-center gap-1 shrink-0">
                             <button type="button" onClick={() => setSelectedLists(visibleLists.map((l) => l.id))}
-                                className="px-2 py-1 rounded-lg text-[11px] font-bold text-indigo-700 hover:bg-indigo-50">Tout</button>
+                                className="px-2 py-1 rounded-lg text-[11px] font-bold text-primary-700 hover:bg-primary-50">Tout</button>
                             <button type="button" onClick={() => setSelectedLists([])}
                                 className="px-2 py-1 rounded-lg text-[11px] font-bold text-slate-500 hover:bg-slate-100">Aucune</button>
                         </div>
@@ -327,13 +328,13 @@ export function ProspectionExportModal({
                                 return (
                                     <label key={l.id} className={cn(
                                         "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors",
-                                        checked ? "bg-indigo-50/40" : "hover:bg-slate-50"
+                                        checked ? "bg-primary-50/40" : "hover:bg-slate-50"
                                     )}>
                                         <input
                                             type="checkbox"
                                             checked={checked}
                                             onChange={() => toggleList(l.id)}
-                                            className="mt-0.5 w-4 h-4 rounded border-slate-300 accent-indigo-600 cursor-pointer"
+                                            className="mt-0.5 w-4 h-4 rounded border-slate-300 accent-primary-600 cursor-pointer"
                                         />
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
@@ -371,7 +372,7 @@ export function ProspectionExportModal({
                                             )}
                                         </div>
                                         {checked && l.exportedRows !== null && (
-                                            <span className="shrink-0 text-xs font-black text-indigo-700 tabular-nums">
+                                            <span className="shrink-0 text-xs font-black text-primary-700 tabular-nums">
                                                 {nf.format(l.exportedRows)}
                                             </span>
                                         )}
@@ -408,14 +409,14 @@ export function ProspectionExportModal({
                                 aria-checked={treatment === opt.value}
                                 onClick={() => setTreatment(opt.value)}
                                 className={cn(
-                                    "px-3 py-2.5 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+                                    "px-3 py-2.5 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400",
                                     treatment === opt.value
-                                        ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
+                                        ? "bg-primary-600 border-primary-600 text-white shadow-sm"
                                         : "bg-white border-slate-200 text-slate-700 hover:border-slate-300"
                                 )}
                             >
                                 <span className="block text-xs font-bold">{opt.label}</span>
-                                <span className={cn("block text-[11px] tabular-nums mt-0.5", treatment === opt.value ? "text-indigo-100" : "text-slate-400")}>
+                                <span className={cn("block text-[11px] tabular-nums mt-0.5", treatment === opt.value ? "text-primary-100" : "text-slate-400")}>
                                     {opt.count !== undefined ? `${nf.format(opt.count)} lignes` : "…"}
                                 </span>
                             </button>
@@ -427,7 +428,7 @@ export function ProspectionExportModal({
                             <div className="flex items-center justify-between">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Statut actuel</p>
                                 {statuses.length > 0 && (
-                                    <button type="button" onClick={() => setStatuses([])} className="text-[11px] font-bold text-indigo-700 hover:underline">
+                                    <button type="button" onClick={() => setStatuses([])} className="text-[11px] font-bold text-primary-700 hover:underline">
                                         Tous les statuts
                                     </button>
                                 )}
@@ -460,7 +461,7 @@ export function ProspectionExportModal({
                                 id="export-sdr"
                                 value={sdrId}
                                 onChange={(e) => setSdrId(e.target.value)}
-                                className="w-full h-9 px-3 text-sm font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                                className="w-full h-9 px-3 text-sm font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-primary-400 cursor-pointer"
                             >
                                 <option value="">Tous les SDR</option>
                                 {sdrOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -486,10 +487,10 @@ export function ProspectionExportModal({
                             <div className="flex items-center gap-1.5">
                                 <Calendar className="w-3.5 h-3.5 text-slate-400" aria-hidden />
                                 <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Du"
-                                    className="h-9 px-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-indigo-400" />
+                                    className="h-9 px-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-primary-400" />
                                 <span className="text-xs text-slate-400">→</span>
                                 <input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Au"
-                                    className="h-9 px-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-indigo-400" />
+                                    className="h-9 px-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-700 focus:outline-none focus:border-primary-400" />
                             </div>
                             {PERIOD_PRESETS.map((p) => (
                                 <button key={p.label} type="button"
@@ -525,10 +526,10 @@ export function ProspectionExportModal({
                             return (
                                 <button key={f.value} type="button" onClick={() => setFormat(f.value)} aria-pressed={active}
                                     className={cn(
-                                        "flex items-start gap-3 p-3 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
-                                        active ? "border-indigo-400 bg-indigo-50/60 ring-1 ring-indigo-400" : "border-slate-200 bg-white hover:border-slate-300"
+                                        "flex items-start gap-3 p-3 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400",
+                                        active ? "border-primary-400 bg-primary-50/60 ring-1 ring-primary-400" : "border-slate-200 bg-white hover:border-slate-300"
                                     )}>
-                                    <Icon className={cn("w-5 h-5 shrink-0 mt-0.5", active ? "text-indigo-600" : "text-slate-400")} aria-hidden />
+                                    <Icon className={cn("w-5 h-5 shrink-0 mt-0.5", active ? "text-primary-600" : "text-slate-400")} aria-hidden />
                                     <span>
                                         <span className="block text-xs font-bold text-slate-900">{f.label}</span>
                                         <span className="block text-[11px] text-slate-500 mt-0.5 leading-snug">{f.desc}</span>
@@ -541,12 +542,12 @@ export function ProspectionExportModal({
                         <div className="flex flex-wrap gap-4 pt-1">
                             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
                                 <input type="checkbox" checked={includeSummary} onChange={(e) => setIncludeSummary(e.target.checked)}
-                                    className="w-4 h-4 rounded border-slate-300 accent-indigo-600" />
+                                    className="w-4 h-4 rounded border-slate-300 accent-primary-600" />
                                 Feuille « Synthèse » (avancement, statuts, SDR)
                             </label>
                             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
                                 <input type="checkbox" checked={includeHistory} onChange={(e) => setIncludeHistory(e.target.checked)}
-                                    className="w-4 h-4 rounded border-slate-300 accent-indigo-600" />
+                                    className="w-4 h-4 rounded border-slate-300 accent-primary-600" />
                                 Feuille « Historique » (une ligne par action)
                             </label>
                         </div>
@@ -566,7 +567,7 @@ export function ProspectionExportModal({
                     ) : totals ? (
                         <span className="flex items-center gap-2 text-slate-600">
                             {previewLoading
-                                ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" aria-hidden />
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-500" aria-hidden />
                                 : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" aria-hidden />}
                             <span>
                                 <span className="font-black text-slate-900 tabular-nums">{nf.format(exportedRows)}</span> ligne{exportedRows !== 1 ? "s" : ""}
@@ -589,7 +590,7 @@ export function ProspectionExportModal({
                         type="button"
                         onClick={handleExport}
                         disabled={downloading || previewLoading || !totals || exportedRows === 0 || selectedCount === 0}
-                        className="h-10 px-5 flex items-center gap-2 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                        className="h-10 px-5 flex items-center gap-2 rounded-xl bg-primary-600 text-white text-sm font-bold shadow-sm hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                     >
                         {downloading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden /> : <Download className="w-4 h-4" aria-hidden />}
                         {downloading ? "Génération du fichier…" : `Exporter ${format === "xlsx" ? "en Excel" : "en CSV"}`}

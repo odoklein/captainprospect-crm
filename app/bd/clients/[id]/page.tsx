@@ -19,7 +19,6 @@ import {
     Globe,
     Loader2,
     ChevronRight,
-    Sparkles,
     Send,
 } from "lucide-react";
 import Link from "next/link";
@@ -79,7 +78,7 @@ const ONBOARDING_STATUS_CONFIG: Record<string, { label: string; color: string; i
 const CHANNEL_CONFIG: Record<string, { label: string; color: string }> = {
     CALL: { label: "Appel", color: "bg-amber-100 text-amber-700" },
     EMAIL: { label: "Email", color: "bg-blue-100 text-blue-700" },
-    LINKEDIN: { label: "LinkedIn", color: "bg-indigo-100 text-indigo-700" },
+    LINKEDIN: { label: "LinkedIn", color: "bg-primary-100 text-primary-700" },
 };
 
 export default function BDClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -162,7 +161,7 @@ export default function BDClientDetailPage({ params }: { params: Promise<{ id: s
     return (
         <div className="space-y-6">
             {/* Hero Header */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 text-white">
+            <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-8 text-white">
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjwvc3ZnPg==')] opacity-50" />
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-6">
@@ -172,7 +171,7 @@ export default function BDClientDetailPage({ params }: { params: Promise<{ id: s
                         >
                             <ArrowLeft className="w-4 h-4" />
                         </Link>
-                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-2xl font-bold">
+                        <div className="w-14 h-14 rounded-xl bg-emerald-600 flex items-center justify-center text-2xl font-bold">
                             {client.name[0]}
                         </div>
                         <div className="flex-1">
@@ -243,8 +242,8 @@ export default function BDClientDetailPage({ params }: { params: Promise<{ id: s
                 </Card>
                 <Card className="!p-5">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                            <Users className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                            <Users className="w-6 h-6 text-primary-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{client._count.users}</p>
@@ -351,8 +350,8 @@ export default function BDClientDetailPage({ params }: { params: Promise<{ id: s
                     {client.onboarding?.scripts && Object.values(client.onboarding.scripts).some(s => s) && (
                         <Card>
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                                <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-primary-600" />
                                 </div>
                                 <h2 className="text-lg font-semibold text-slate-900">Scripts</h2>
                             </div>
@@ -480,8 +479,8 @@ export default function BDClientDetailPage({ params }: { params: Promise<{ id: s
                     {client.onboarding?.notes && (
                         <Card>
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-                                    <FileText className="w-5 h-5 text-violet-600" />
+                                <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
+                                    <FileText className="w-5 h-5 text-accent-600" />
                                 </div>
                                 <h2 className="text-lg font-semibold text-slate-900">Notes</h2>
                             </div>

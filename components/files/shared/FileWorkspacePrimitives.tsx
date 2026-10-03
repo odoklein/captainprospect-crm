@@ -86,8 +86,8 @@ export function FileDropzone({
       className={cn(
         "relative rounded-2xl border-2 border-dashed px-6 py-10 transition-colors",
         isDragActive
-          ? "border-indigo-400 bg-indigo-50/80"
-          : "border-slate-300 bg-white/70 hover:border-indigo-300 hover:bg-white",
+          ? "border-primary-400 bg-primary-50/80"
+          : "border-slate-300 bg-white/70 hover:border-primary-300 hover:bg-white",
         disabled && "cursor-not-allowed opacity-70",
         className,
       )}
@@ -98,7 +98,7 @@ export function FileDropzone({
       <div className="flex flex-col items-center justify-center gap-4 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200/70">
           {uploading ? (
-            <Loader2 className="h-7 w-7 animate-spin text-indigo-600" />
+            <Loader2 className="h-7 w-7 animate-spin text-primary-600" />
           ) : (
             <Upload className="h-7 w-7 text-slate-600" />
           )}
@@ -115,7 +115,7 @@ export function FileDropzone({
           variant="secondary"
           onClick={open}
           disabled={disabled}
-          className="focus-visible:ring-2 focus-visible:ring-indigo-500/40"
+          className="focus-visible:ring-2 focus-visible:ring-primary-500/40"
         >
           Parcourir
         </Button>
@@ -167,7 +167,7 @@ export function UploadQueue({
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200/70">
                 {item.status === "uploading" || item.status === "pending" ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary-600" />
                 ) : item.status === "success" ? (
                   <Check className="h-4 w-4 text-emerald-600" />
                 ) : (
@@ -250,7 +250,7 @@ export function FileToolbar({
               type="button"
               onClick={() => onTabChange(tab.value)}
               className={cn(
-                "rounded-xl px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
+                "rounded-xl px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40",
                 activeTab === tab.value
                   ? "bg-slate-900 text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200",
@@ -299,7 +299,7 @@ export function FileToolbar({
                   type="button"
                   onClick={() => onViewModeChange(mode)}
                   className={cn(
-                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
+                    "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40",
                     viewMode === mode
                       ? "bg-slate-900 text-white"
                       : "text-slate-600 hover:bg-slate-100",
@@ -339,7 +339,7 @@ function ToolbarSelect({
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-[42px] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+        className="h-[42px] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -392,7 +392,7 @@ export function FileActionsMenu({
         aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
+        className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
       >
         <MoreVertical className="h-4 w-4" />
       </button>
@@ -414,7 +414,7 @@ export function FileActionsMenu({
                 buttonRef.current?.focus();
               }}
               className={cn(
-                "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
+                "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40",
                 item.tone === "danger"
                   ? "text-red-600 hover:bg-red-50"
                   : "text-slate-700 hover:bg-slate-50",
@@ -461,7 +461,7 @@ export function FileListRow({
     <div
       className={cn(
         "flex items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50",
-        selected && "bg-indigo-50/70",
+        selected && "bg-primary-50/70",
       )}
       aria-selected={selected}
     >
@@ -471,9 +471,9 @@ export function FileListRow({
           aria-pressed={selected}
           onClick={() => onSelectChange?.(!selected)}
           className={cn(
-            "flex h-5 w-5 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
+            "flex h-5 w-5 items-center justify-center rounded-md border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40",
             selected
-              ? "border-indigo-600 bg-indigo-600 text-white"
+              ? "border-primary-600 bg-primary-600 text-white"
               : "border-slate-300 bg-white text-transparent hover:text-slate-400",
           )}
         >
@@ -604,7 +604,7 @@ export function FileDetailsPanel({
             type="button"
             aria-label="Fermer le panneau de détails"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
           >
             <X className="h-4 w-4" />
           </button>
@@ -690,7 +690,7 @@ export function FolderBreadcrumbs({
             type="button"
             onClick={() => onNavigate(item.id, item.name)}
             className={cn(
-              "rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40",
+              "rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40",
               index === items.length - 1
                 ? "bg-slate-100 text-slate-900"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-900",
@@ -812,7 +812,7 @@ export function DefaultFileRowActions({
           href={item.externalUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
+          className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
           aria-label="Ouvrir le lien"
         >
           <ExternalLink className="h-4 w-4" />
@@ -821,7 +821,7 @@ export function DefaultFileRowActions({
         <button
           type="button"
           onClick={onOpen}
-          className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40"
+          className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
           aria-label="Voir les détails"
         >
           <Eye className="h-4 w-4" />

@@ -4,6 +4,7 @@
 // manual audio-upload flow (app/api/actions/[id]/upload-audio).
 // ============================================
 
+import { brand } from "@/lib/brand";
 export interface FicheData {
   contexte: string;
   besoinsProblemes: string;
@@ -59,7 +60,7 @@ export async function generateFicheFromTranscription(
     return { ok: false, message: "Clé API Mistral non configurée (MISTRAL_API_KEY)", status: 503 };
   }
 
-  const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM CaptainProspect).
+  const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM ${brand.name}).
 
 Ta tâche: à partir d'une transcription d'échange (appel / RDV), extraire et structurer les informations dans une "fiche RDV".
 

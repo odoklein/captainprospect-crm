@@ -94,7 +94,7 @@ function StepEditor({
                     </button>
                 </div>
                 
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm">
+                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center text-primary-600 font-semibold text-sm">
                     {stepNumber}
                 </div>
                 
@@ -159,7 +159,7 @@ function StepEditor({
                             value={step.subject}
                             onChange={(e) => onChange({ subject: e.target.value })}
                             placeholder="Re: {{firstName}}, suite à notre échange..."
-                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         />
                         <p className="mt-1 text-xs text-slate-500">
                             Variables: {"{{firstName}}"}, {"{{lastName}}"}, {"{{company}}"}, {"{{title}}"}
@@ -176,7 +176,7 @@ function StepEditor({
                             onChange={(e) => onChange({ bodyHtml: e.target.value })}
                             placeholder="Bonjour {{firstName}},&#10;&#10;Je me permets de vous relancer concernant..."
                             rows={8}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none font-mono"
                         />
                     </div>
 
@@ -187,7 +187,7 @@ function StepEditor({
                                 type="checkbox"
                                 checked={step.skipIfOpened}
                                 onChange={(e) => onChange({ skipIfOpened: e.target.checked })}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-600">Passer si ouvert</span>
                         </label>
@@ -196,7 +196,7 @@ function StepEditor({
                                 type="checkbox"
                                 checked={step.skipIfClicked}
                                 onChange={(e) => onChange({ skipIfClicked: e.target.checked })}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-600">Passer si cliqué</span>
                         </label>
@@ -205,7 +205,7 @@ function StepEditor({
                                 type="checkbox"
                                 checked={step.skipIfReplied}
                                 onChange={(e) => onChange({ skipIfReplied: e.target.checked })}
-                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-600">Passer si répondu</span>
                         </label>
@@ -419,7 +419,7 @@ export default function NewSequencePage() {
                 <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium rounded-xl hover:from-indigo-400 hover:to-indigo-500 disabled:opacity-50 transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 disabled:opacity-50 transition-colors"
                 >
                     {isSaving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -455,7 +455,7 @@ export default function NewSequencePage() {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="Ex: Relance prospect froid"
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                 />
                             </div>
 
@@ -468,7 +468,7 @@ export default function NewSequencePage() {
                                     onChange={(e) => setDescription(e.target.value)}
                                     placeholder="Décrivez l'objectif de cette séquence..."
                                     rows={3}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                                 />
                             </div>
 
@@ -479,7 +479,7 @@ export default function NewSequencePage() {
                                 <select
                                     value={mailboxId}
                                     onChange={(e) => setMailboxId(e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
                                 >
                                     <option value="">Sélectionner...</option>
                                     {mailboxes.map((mb) => (
@@ -497,7 +497,7 @@ export default function NewSequencePage() {
                                 <select
                                     value={campaignId}
                                     onChange={(e) => setCampaignId(e.target.value)}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
                                 >
                                     <option value="">Aucune</option>
                                     {campaigns.map((c) => (
@@ -520,7 +520,7 @@ export default function NewSequencePage() {
                                     type="checkbox"
                                     checked={stopOnReply}
                                     onChange={(e) => setStopOnReply(e.target.checked)}
-                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                 />
                                 <span className="text-sm text-slate-700">Arrêter si réponse reçue</span>
                             </label>
@@ -529,7 +529,7 @@ export default function NewSequencePage() {
                                     type="checkbox"
                                     checked={stopOnBounce}
                                     onChange={(e) => setStopOnBounce(e.target.checked)}
-                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                 />
                                 <span className="text-sm text-slate-700">Arrêter si bounce</span>
                             </label>
@@ -570,7 +570,7 @@ export default function NewSequencePage() {
                                     type="checkbox"
                                     checked={sendOnWeekends}
                                     onChange={(e) => setSendOnWeekends(e.target.checked)}
-                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                 />
                                 <span className="text-sm text-slate-700">Envoyer le week-end</span>
                             </label>
@@ -586,7 +586,7 @@ export default function NewSequencePage() {
                         </h2>
                         <button
                             onClick={addStep}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Ajouter une étape
@@ -612,7 +612,7 @@ export default function NewSequencePage() {
                     {/* Add step button */}
                     <button
                         onClick={addStep}
-                        className="w-full py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50/50 transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-4 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:border-primary-300 hover:text-primary-600 hover:bg-primary-50/50 transition-colors flex items-center justify-center gap-2"
                     >
                         <Plus className="w-5 h-5" />
                         Ajouter une étape

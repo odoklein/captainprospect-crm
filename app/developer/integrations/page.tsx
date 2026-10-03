@@ -11,9 +11,11 @@ import {
     Loader2,
     AlertCircle,
     ExternalLink,
-    Sparkles,
     Shield,
+    Inbox,
+    Server,
 } from "lucide-react";
+import { brand } from "@/lib/brand";
 
 interface EmailAccount {
     id: string;
@@ -33,24 +35,21 @@ const PROVIDER_INFO = {
         color: "text-red-600",
         bg: "bg-red-50",
         border: "border-red-200",
-        icon: "📧",
-        gradient: "from-red-500 to-red-600"
+        icon: Mail,
     },
     OUTLOOK: {
         name: "Outlook",
         color: "text-blue-600",
         bg: "bg-blue-50",
         border: "border-blue-200",
-        icon: "📨",
-        gradient: "from-blue-500 to-blue-600"
+        icon: Inbox,
     },
     CUSTOM: {
         name: "SMTP/IMAP",
         color: "text-slate-600",
         bg: "bg-slate-50",
         border: "border-slate-200",
-        icon: "⚙️",
-        gradient: "from-slate-500 to-slate-600"
+        icon: Server,
     },
 };
 
@@ -177,15 +176,15 @@ export default function IntegrationsPage() {
             <div>
                 <h1 className="text-2xl font-bold text-slate-900">Intégrations Email</h1>
                 <p className="text-sm text-slate-500 mt-1">
-                    Connectez vos comptes email pour envoyer des emails depuis Suzalink
+                    Connectez vos comptes email pour envoyer des emails depuis {brand.name}
                 </p>
             </div>
 
             {/* Premium Add Account Cards */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                        <Plus className="w-5 h-5 text-white" />
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                        <Plus className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold text-slate-900">Ajouter un compte</h2>
@@ -200,8 +199,8 @@ export default function IntegrationsPage() {
                         className="dev-integration-card dev-integration-gmail group text-left"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                <span className="text-3xl">📧</span>
+                            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+                                <Mail className="w-6 h-6 text-red-600" />
                             </div>
                             <div>
                                 <p className="font-semibold text-slate-900">Gmail</p>
@@ -220,8 +219,8 @@ export default function IntegrationsPage() {
                         className="dev-integration-card dev-integration-outlook group text-left"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                <span className="text-3xl">📨</span>
+                            <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center">
+                                <Inbox className="w-6 h-6 text-blue-600" />
                             </div>
                             <div>
                                 <p className="font-semibold text-slate-900">Outlook</p>
@@ -240,8 +239,8 @@ export default function IntegrationsPage() {
                         className="dev-integration-card group text-left"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                <span className="text-3xl">⚙️</span>
+                            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                                <Server className="w-6 h-6 text-slate-600" />
                             </div>
                             <div>
                                 <p className="font-semibold text-slate-900">SMTP/IMAP</p>
@@ -286,7 +285,7 @@ export default function IntegrationsPage() {
                                 <div key={account.id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-xl ${provider.bg} flex items-center justify-center`}>
-                                            <span className="text-2xl">{provider.icon}</span>
+                                            <provider.icon className={`w-5 h-5 ${provider.color}`} />
                                         </div>
                                         <div>
                                             <p className="text-sm font-medium text-slate-900">{account.email}</p>
@@ -331,8 +330,8 @@ export default function IntegrationsPage() {
                 <div className="fixed inset-0 dev-modal-overlay z-50 flex items-center justify-center p-4">
                     <div className="dev-modal w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                                <Server className="w-5 h-5 text-slate-600" />
                             </div>
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Configuration SMTP/IMAP</h2>

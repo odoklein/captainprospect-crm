@@ -24,7 +24,8 @@ export function truncate(text: string, max: number): string {
 }
 
 /**
- * Maps status strings to emoji badges.
+ * Maps status strings to badges with one leading status emoji. Unknown
+ * statuses are returned as-is.
  */
 export function badge(status: string): string {
   switch (status.toUpperCase()) {
@@ -44,7 +45,7 @@ export function badge(status: string): string {
     case "REOPENED":
       return "🔄 Réouvert";
     default:
-      return "⚪ " + status;
+      return status;
   }
 }
 

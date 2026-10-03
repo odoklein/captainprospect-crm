@@ -69,7 +69,7 @@ export default function SDRContactFichePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
             </div>
         );
     }
@@ -101,8 +101,8 @@ export default function SDRContactFichePage() {
 
             <Card className="!p-6">
                 <div className="flex items-start gap-4 mb-6">
-                    <div className="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                        <User className="w-7 h-7 text-indigo-500" />
+                    <div className="w-14 h-14 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                        <User className="w-7 h-7 text-primary-500" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h1 className="text-xl font-bold text-slate-900">{fullName}</h1>
@@ -112,7 +112,7 @@ export default function SDRContactFichePage() {
                         {contact.company && (
                             <Link
                                 href={`/sdr/companies/${contact.company.id}`}
-                                className="inline-flex items-center gap-1 text-indigo-600 hover:underline text-sm mt-2"
+                                className="inline-flex items-center gap-1 text-primary-600 hover:underline text-sm mt-2"
                             >
                                 <Building2 className="w-4 h-4" />
                                 Voir la fiche entreprise · {contact.company.name}
@@ -126,7 +126,7 @@ export default function SDRContactFichePage() {
                     {contact.email && (
                         <div className="flex items-center gap-3">
                             <Mail className="w-5 h-5 text-slate-400" />
-                            <a href={`mailto:${contact.email}`} className="text-slate-700 hover:text-indigo-600">
+                            <a href={`mailto:${contact.email}`} className="text-slate-700 hover:text-primary-600">
                                 {contact.email}
                             </a>
                         </div>
@@ -134,7 +134,7 @@ export default function SDRContactFichePage() {
                     {contact.phone && (
                         <div className="flex items-center gap-3">
                             <Phone className="w-5 h-5 text-slate-400" />
-                            <a href={`tel:${contact.phone}`} className="text-slate-700 hover:text-indigo-600">
+                            <a href={`tel:${contact.phone}`} className="text-slate-700 hover:text-primary-600">
                                 {contact.phone}
                             </a>
                         </div>
@@ -146,7 +146,7 @@ export default function SDRContactFichePage() {
                                 href={contact.linkedin.startsWith("http") ? contact.linkedin : `https://${contact.linkedin}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-slate-700 hover:text-indigo-600"
+                                className="text-slate-700 hover:text-primary-600"
                             >
                                 Profil LinkedIn
                             </a>

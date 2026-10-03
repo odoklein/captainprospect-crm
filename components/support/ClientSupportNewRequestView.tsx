@@ -362,7 +362,7 @@ export function ClientSupportNewRequestView({
                             onChange={(e) => setIncludeContext(e.target.checked)}
                             style={{ accentColor: T.brand }}
                         />
-                        <Compass className="w-3.5 h-3.5 text-indigo-600" />
+                        <Compass className="w-3.5 h-3.5 text-primary-600" />
                         <span style={{ fontSize: 12, color: T.ink2 }}>
                             Joindre le contexte de ma page actuelle : <strong>{pageLabel}</strong>
                         </span>
@@ -425,7 +425,7 @@ export function ClientSupportNewRequestView({
                         gap: 8,
                     }}
                 >
-                    <Sparkles className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <Sparkles className="w-4 h-4 text-primary-600 shrink-0" />
                     <span style={{ fontSize: 11.5, color: T.brandStrong, fontWeight: 500, lineHeight: 1.3 }}>
                         Prise en charge directe par l&apos;équipe des managers. Un accusé de réception automatique vous confirme la création du ticket.
                     </span>

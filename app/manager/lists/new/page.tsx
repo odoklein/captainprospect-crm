@@ -163,7 +163,7 @@ export default function NewListPage() {
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Ex: Tech Startups France Q1"
-                            className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 ${errors.name ? "border-red-500" : "border-slate-200"
+                            className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 ${errors.name ? "border-red-500" : "border-slate-200"
                                 }`}
                         />
                         {errors.name && (
@@ -175,9 +175,9 @@ export default function NewListPage() {
                     <Select
                         label="Type de liste *"
                         options={[
-                            { value: "SUZALI", label: "🔵 Suzali - Liste interne enrichie" },
-                            { value: "CLIENT", label: "🟠 Client - Données fournies par le client" },
-                            { value: "MIXED", label: "🟢 Mixte - Fusion de sources" },
+                            { value: "SUZALI", label: "Suzali - Liste interne enrichie" },
+                            { value: "CLIENT", label: "Client - Données fournies par le client" },
+                            { value: "MIXED", label: "Mixte - Fusion de sources" },
                         ]}
                         value={formData.type}
                         onChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
@@ -193,7 +193,7 @@ export default function NewListPage() {
                             value={formData.source}
                             onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
                             placeholder="Ex: Apollo, LinkedIn, CSV Import..."
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
 
@@ -227,10 +227,10 @@ export default function NewListPage() {
             </Card>
 
             {/* Info Card */}
-            <Card className="bg-indigo-50 border-indigo-200">
+            <Card className="bg-primary-50 border-primary-200">
                 <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <List className="w-5 h-5 text-indigo-600" />
+                    <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
+                        <List className="w-5 h-5 text-primary-600" />
                     </div>
                     <div>
                         <h3 className="font-medium text-slate-900">Prochaine étape</h3>

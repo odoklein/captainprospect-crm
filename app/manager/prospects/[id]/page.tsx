@@ -19,7 +19,7 @@ import {
     Users,
     FileText,
     Activity,
-    Sparkles,
+    ListChecks,
     Zap,
     Loader2,
 } from "lucide-react";
@@ -285,7 +285,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+                <RefreshCw className="w-8 h-8 text-primary-600 animate-spin" />
             </div>
         );
     }
@@ -386,7 +386,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                 tabs={[
                     { id: "overview", label: "Vue d'ensemble", icon: <User className="w-4 h-4" /> },
                     { id: "events", label: `Événements (${profile.events.length})`, icon: <Activity className="w-4 h-4" /> },
-                    { id: "decisions", label: `Décisions (${profile.decisionLogs.length})`, icon: <Sparkles className="w-4 h-4" /> },
+                    { id: "decisions", label: `Décisions (${profile.decisionLogs.length})`, icon: <ListChecks className="w-4 h-4" /> },
                 ]}
                 activeTab={activeTab}
                 onTabChange={(tab) => setActiveTab(tab as any)}
@@ -429,7 +429,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                                         <Mail className="w-4 h-4 text-slate-400" />
                                         <a
                                             href={`mailto:${profile.email}`}
-                                            className="text-indigo-600 hover:underline"
+                                            className="text-primary-600 hover:underline"
                                         >
                                             {profile.email}
                                         </a>
@@ -440,7 +440,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                                         <Phone className="w-4 h-4 text-slate-400" />
                                         <a
                                             href={`tel:${profile.phone}`}
-                                            className="text-indigo-600 hover:underline"
+                                            className="text-primary-600 hover:underline"
                                         >
                                             {profile.phone}
                                         </a>
@@ -472,7 +472,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                                     </div>
                                     <div className="w-full bg-slate-200 rounded-full h-2">
                                         <div
-                                            className="bg-indigo-600 h-2 rounded-full"
+                                            className="bg-primary-600 h-2 rounded-full"
                                             style={{ width: `${profile.qualityScore}%` }}
                                         />
                                     </div>
@@ -513,7 +513,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                                         <div className="text-xs text-slate-500 mb-1">Mission</div>
                                         <Link
                                             href={`/manager/missions/${profile.assignedMission.id}`}
-                                            className="flex items-center gap-2 text-sm text-indigo-600 hover:underline"
+                                            className="flex items-center gap-2 text-sm text-primary-600 hover:underline"
                                         >
                                             <Target className="w-4 h-4" />
                                             {profile.assignedMission.name}
@@ -555,7 +555,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                                 <div className="text-sm">
                                     <Link
                                         href={`/manager/prospects/sources/${profile.source.id}`}
-                                        className="text-indigo-600 hover:underline"
+                                        className="text-primary-600 hover:underline"
                                     >
                                         {profile.source.name}
                                     </Link>
@@ -583,7 +583,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <Badge className="bg-indigo-100 text-indigo-700">
+                                                <Badge className="bg-primary-100 text-primary-700">
                                                     {event.step}
                                                 </Badge>
                                                 <span className="text-sm font-medium text-slate-900">
@@ -662,11 +662,11 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                 size="md"
             >
                 <div className="space-y-4">
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
-                        <p className="text-sm text-indigo-900">
+                    <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
+                        <p className="text-sm text-primary-900">
                             <strong>Que fait l'activation ?</strong>
                         </p>
-                        <ul className="text-xs text-indigo-800 mt-2 space-y-1 list-disc list-inside">
+                        <ul className="text-xs text-primary-800 mt-2 space-y-1 list-disc list-inside">
                             <li>Crée un Contact dans le CRM</li>
                             <li>Crée une Company (si nom d'entreprise fourni)</li>
                             <li>Assigne le prospect à la mission sélectionnée</li>
@@ -704,7 +704,7 @@ export default function ProspectDetailPage({ params }: { params: Promise<{ id: s
                         </label>
                         {isLoadingMissions ? (
                             <div className="flex items-center gap-2 py-2">
-                                <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                                <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
                                 <span className="text-sm text-slate-500">Chargement des missions...</span>
                             </div>
                         ) : (

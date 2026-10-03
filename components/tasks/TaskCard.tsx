@@ -35,12 +35,12 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 const LABEL_COLORS = [
-    "bg-violet-100 text-violet-700",
+    "bg-accent-100 text-accent-700",
     "bg-sky-100 text-sky-700",
     "bg-emerald-100 text-emerald-700",
     "bg-amber-100 text-amber-700",
     "bg-rose-100 text-rose-700",
-    "bg-indigo-100 text-indigo-700",
+    "bg-primary-100 text-primary-700",
 ];
 
 export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
@@ -58,8 +58,8 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
             onClick={onClick}
             className={cn(
                 "group bg-white border border-slate-200 rounded-lg p-3 cursor-pointer transition-all duration-150",
-                "hover:border-indigo-300 hover:shadow-md",
-                isDragging && "shadow-lg border-indigo-400 rotate-2 opacity-90"
+                "hover:border-primary-300 hover:shadow-md",
+                isDragging && "shadow-lg border-primary-400 rotate-2 opacity-90"
             )}
         >
             {/* Priority bar */}
@@ -132,7 +132,7 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
                 {/* Assignee avatar */}
                 {task.assignee && (
                     <div
-                        className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold shrink-0"
+                        className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[10px] font-bold shrink-0"
                         title={task.assignee.name}
                     >
                         {task.assignee.name

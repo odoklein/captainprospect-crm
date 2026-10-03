@@ -6,7 +6,8 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 
 interface MessageSuggestion {
     content: string;
@@ -58,7 +59,7 @@ export function SuggestionChips({
     }
 
     const typeStyles = {
-        quick_reply: "bg-indigo-50 text-indigo-700 border-indigo-200",
+        quick_reply: "bg-primary-50 text-primary-700 border-primary-200",
         follow_up: "bg-amber-50 text-amber-700 border-amber-200",
         clarification: "bg-blue-50 text-blue-700 border-blue-200",
     };
@@ -66,7 +67,7 @@ export function SuggestionChips({
     return (
         <div className={cn("flex items-center gap-2 flex-wrap", className)}>
             <div className="flex items-center gap-1 text-xs text-slate-400">
-                <Sparkles className="w-3 h-3" />
+                <AiMark className="w-3 h-3" />
                 <span>Suggestions:</span>
             </div>
 
@@ -81,7 +82,7 @@ export function SuggestionChips({
                         key={i}
                         onClick={() => handleSelect(suggestion)}
                         className={cn(
-                            "text-xs px-3 py-1.5 rounded-full border transition-all hover:scale-105 hover:shadow-sm",
+                            "text-xs px-3 py-1.5 rounded-full border transition-all hover:shadow-sm",
                             typeStyles[suggestion.type]
                         )}
                     >

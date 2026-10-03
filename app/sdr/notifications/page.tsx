@@ -63,16 +63,16 @@ function StatCard({
     color: "indigo" | "emerald" | "amber" | "rose" | "blue" | "purple";
 }) {
     const colors = {
-        indigo: "from-indigo-500 to-indigo-600",
-        emerald: "from-emerald-500 to-emerald-600",
-        amber: "from-amber-500 to-amber-600",
-        rose: "from-rose-500 to-rose-600",
-        blue: "from-blue-500 to-blue-600",
-        purple: "from-purple-500 to-purple-600",
+        indigo: "bg-primary-600",
+        emerald: "bg-emerald-600",
+        amber: "bg-amber-600",
+        rose: "bg-rose-600",
+        blue: "bg-blue-600",
+        purple: "bg-accent-600",
     };
 
     return (
-        <div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-5 group hover:shadow-lg hover:shadow-slate-200/50 transition-all duration-300">
+        <div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-5 group hover:shadow-md transition-shadow duration-300">
             <div className="flex items-start justify-between">
                 <div>
                     <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
@@ -82,16 +82,12 @@ function StatCard({
                     )}
                 </div>
                 <div className={cn(
-                    "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg",
+                    "w-12 h-12 rounded-xl flex items-center justify-center",
                     colors[color]
                 )}>
                     <Icon className="w-6 h-6 text-white" />
                 </div>
             </div>
-            <div className={cn(
-                "absolute -right-4 -bottom-4 w-24 h-24 rounded-full opacity-10 bg-gradient-to-br",
-                colors[color]
-            )} />
         </div>
     );
 }
@@ -165,10 +161,10 @@ function NotificationCard({
             className={cn(
                 "group relative bg-white rounded-xl border transition-all duration-200 hover:shadow-md",
                 isSelected
-                    ? "border-indigo-500 ring-2 ring-indigo-100"
+                    ? "border-primary-500 ring-2 ring-primary-100"
                     : notification.isRead
                         ? "border-slate-200"
-                        : "border-slate-300 bg-gradient-to-r from-indigo-50/50 to-white"
+                        : "border-slate-300 bg-primary-50/40"
             )}
         >
             <div className="flex items-start gap-4 p-4">
@@ -178,8 +174,8 @@ function NotificationCard({
                     className={cn(
                         "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors",
                         isSelected
-                            ? "bg-indigo-500 border-indigo-500 text-white"
-                            : "border-slate-300 hover:border-indigo-400"
+                            ? "bg-primary-500 border-primary-500 text-white"
+                            : "border-slate-300 hover:border-primary-400"
                     )}
                 >
                     {isSelected && <Check className="w-3 h-3" />}
@@ -212,7 +208,7 @@ function NotificationCard({
                                     {formatDate(notification.createdAt)}
                                 </span>
                                 {!notification.isRead && (
-                                    <span className="px-2 py-0.5 text-[10px] font-medium bg-indigo-100 text-indigo-700 rounded-full">
+                                    <span className="px-2 py-0.5 text-[10px] font-medium bg-primary-100 text-primary-700 rounded-full">
                                         Nouveau
                                     </span>
                                 )}
@@ -233,7 +229,7 @@ function NotificationCard({
                             {notification.link && (
                                 <button
                                     onClick={() => onNavigate(notification.link!)}
-                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                    className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                                     title="Voir détails"
                                 >
                                     <ChevronRight className="w-4 h-4" />
@@ -252,7 +248,7 @@ function NotificationCard({
 
                 {/* Unread indicator */}
                 {!notification.isRead && (
-                    <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0 mt-1" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-primary-500 flex-shrink-0 mt-1" />
                 )}
             </div>
         </div>
@@ -430,7 +426,7 @@ export default function NotificationsPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                        <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center">
                             <Bell className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -521,7 +517,7 @@ export default function NotificationsPage() {
                                         className={cn(
                                             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                             filter === opt.value
-                                                ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                                ? "bg-primary-100 text-primary-700 shadow-sm"
                                                 : "text-slate-600 hover:bg-slate-100"
                                         )}
                                     >
@@ -571,15 +567,15 @@ export default function NotificationsPage() {
                                 className={cn(
                                     "w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors",
                                     selectedIds.size === filteredNotifications.length
-                                        ? "bg-indigo-500 border-indigo-500 text-white"
+                                        ? "bg-primary-500 border-primary-500 text-white"
                                         : selectedIds.size > 0
-                                            ? "bg-indigo-100 border-indigo-400"
-                                            : "border-slate-300 hover:border-indigo-400"
+                                            ? "bg-primary-100 border-primary-400"
+                                            : "border-slate-300 hover:border-primary-400"
                                 )}
                             >
                                 {selectedIds.size === filteredNotifications.length && <Check className="w-3 h-3" />}
                                 {selectedIds.size > 0 && selectedIds.size < filteredNotifications.length && (
-                                    <div className="w-2 h-2 bg-indigo-500 rounded-sm" />
+                                    <div className="w-2 h-2 bg-primary-500 rounded-sm" />
                                 )}
                             </button>
                             <span className="text-sm text-slate-500">
@@ -595,7 +591,7 @@ export default function NotificationsPage() {
                 <div className="p-4">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-16">
-                            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
+                            <Loader2 className="w-8 h-8 text-primary-500 animate-spin mb-3" />
                             <p className="text-sm text-slate-500">Chargement des notifications...</p>
                         </div>
                     ) : filteredNotifications.length === 0 ? (

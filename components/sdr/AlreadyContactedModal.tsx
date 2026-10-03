@@ -96,8 +96,8 @@ export function AlreadyContactedModal({
             <div className="p-6">
                 {/* Header Icon + Title */}
                 <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center flex-shrink-0 text-amber-600 shadow-sm shadow-amber-200/50">
-                        <AlertTriangle className="w-6 h-6 animate-pulse" />
+                    <div className="w-12 h-12 rounded-2xl bg-amber-100 border border-amber-200 flex items-center justify-center flex-shrink-0 text-amber-600 shadow-sm">
+                        <AlertTriangle className="w-6 h-6" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 mb-1.5">
@@ -162,8 +162,8 @@ export function AlreadyContactedModal({
                     )}
 
                     {lastAction.callbackDate && (
-                        <div className="flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-50/80 border border-indigo-200 px-2.5 py-1.5 rounded-lg font-medium">
-                            <Calendar className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-xs text-primary-700 bg-primary-50/80 border border-primary-200 px-2.5 py-1.5 rounded-lg font-medium">
+                            <Calendar className="w-3.5 h-3.5 text-primary-600 shrink-0" />
                             Rappel initialement prévu le{" "}
                             {new Date(lastAction.callbackDate).toLocaleDateString("fr-FR", {
                                 day: "numeric",
@@ -214,7 +214,7 @@ export function AlreadyContactedModal({
                             "text-xs font-semibold justify-center text-white shadow-sm",
                             actionIntent === "CALL"
                                 ? "bg-emerald-600 hover:bg-emerald-700"
-                                : "bg-violet-600 hover:bg-violet-700"
+                                : "bg-accent-600 hover:bg-accent-700"
                         )}
                     >
                         {actionIntent === "CALL" ? (

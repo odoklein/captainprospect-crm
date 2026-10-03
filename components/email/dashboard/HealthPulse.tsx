@@ -7,7 +7,7 @@ import {
     Flame,
     Send,
     Eye,
-    Zap,
+    Workflow,
     AlertTriangle,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -55,10 +55,10 @@ const colorMap = {
         label: "text-amber-600",
     },
     indigo: {
-        bg: "bg-[#E7EFE9] hover:bg-[#D9E5DD] border-[#C4D6CB]",
-        icon: "text-[#2B5F3E]",
-        value: "text-[#16301F]",
-        label: "text-[#2B5F3E]",
+        bg: "bg-primary-50 hover:bg-primary-100 border-primary-200",
+        icon: "text-primary-700",
+        value: "text-ink",
+        label: "text-primary-700",
     },
     emerald: {
         bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
@@ -67,10 +67,10 @@ const colorMap = {
         label: "text-emerald-600",
     },
     violet: {
-        bg: "bg-[#E7EFE9] hover:bg-[#D9E5DD] border-[#C4D6CB]",
-        icon: "text-violet-500",
-        value: "text-[#16301F]",
-        label: "text-[#2B5F3E]",
+        bg: "bg-primary-50 hover:bg-primary-100 border-primary-200",
+        icon: "text-accent-500",
+        value: "text-ink",
+        label: "text-primary-700",
     },
     red: {
         bg: "bg-red-50 hover:bg-red-100 border-red-200",
@@ -101,7 +101,6 @@ function Pill({ icon, label, value, color, onClick, pulse }: PillProps) {
             </span>
             {pulse && (
                 <span className="relative flex h-2 w-2 ml-1">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                 </span>
             )}
@@ -151,7 +150,7 @@ export function HealthPulse({ data, isLoading, onNavigate }: HealthPulseProps) {
                 onClick={() => onNavigate("analytics")}
             />
             <Pill
-                icon={<Zap className="w-4 h-4" />}
+                icon={<Workflow className="w-4 h-4" />}
                 label="séquences actives"
                 value={data.activeSequences}
                 color="indigo"

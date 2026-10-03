@@ -38,6 +38,7 @@ import {
   Copy,
   ExternalLink,
   CalendarClock,
+  XCircle,
 } from "lucide-react";
 import { downloadICS, proximityLabel } from "../../_lib/formatters";
 import { DetailTab } from "./DetailTab";
@@ -455,8 +456,9 @@ export function DetailPanel({
                 justifyContent: "space-between",
               }}
             >
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red)" }}>
-                ✕ {isReplaced ? "Rendez-vous replacé" : "Rendez-vous Annulé"}
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red)", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                <XCircle size={12} />
+                {isReplaced ? "Rendez-vous replacé" : "Rendez-vous annulé"}
               </span>
               <button
                 onClick={handleConfirm}

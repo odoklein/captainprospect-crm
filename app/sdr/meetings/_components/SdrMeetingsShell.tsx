@@ -183,7 +183,7 @@ export function SdrMeetingsShell() {
     ];
 
     return (
-        <div className="min-h-full bg-[#F2F3F7] px-4 py-7 pb-20 sm:px-6 animate-fade-in">
+        <div className="min-h-full bg-canvas px-4 py-7 pb-20 sm:px-6 animate-fade-in">
             <div className="mx-auto max-w-7xl space-y-6">
                 <SdrMeetingsHeader
                     query={filters.query}

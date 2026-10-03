@@ -5,7 +5,7 @@ import {
     Mail,
     Inbox,
     Users,
-    Zap,
+    Workflow,
     Shield,
     ArrowRight,
     ArrowLeft,
@@ -17,6 +17,7 @@ import {
     EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { brand } from "@/lib/brand";
 
 // ============================================
 // TYPES
@@ -38,7 +39,7 @@ const PROVIDERS = [
         name: "Gmail",
         description: "Connexion via Google OAuth",
         icon: "/icons/gmail.svg",
-        color: "from-red-500 to-orange-500",
+        color: "bg-red-500",
         bgColor: "bg-red-50",
         borderColor: "border-red-200 hover:border-red-400",
         selectedBorder: "border-red-400 ring-2 ring-red-400/20",
@@ -49,7 +50,7 @@ const PROVIDERS = [
         name: "Outlook / Microsoft 365",
         description: "Connexion via Microsoft OAuth",
         icon: "/icons/outlook.svg",
-        color: "from-blue-500 to-cyan-500",
+        color: "bg-blue-500",
         bgColor: "bg-blue-50",
         borderColor: "border-blue-200 hover:border-blue-400",
         selectedBorder: "border-blue-400 ring-2 ring-blue-400/20",
@@ -60,7 +61,7 @@ const PROVIDERS = [
         name: "IMAP / SMTP",
         description: "Configuration manuelle",
         icon: null,
-        color: "from-slate-500 to-slate-600",
+        color: "bg-slate-600",
         bgColor: "bg-slate-50",
         borderColor: "border-slate-200 hover:border-slate-400",
         selectedBorder: "border-slate-400 ring-2 ring-slate-400/20",
@@ -80,13 +81,13 @@ const FEATURES = [
         description: "Associez les emails à vos clients",
     },
     {
-        icon: Zap,
+        icon: Workflow,
         title: "Séquences automatisées",
         description: "Automatisez vos campagnes email",
     },
     {
         icon: Shield,
-        title: "Sécurité maximale",
+        title: "Connexion sécurisée",
         description: "Tokens chiffrés, OAuth2 sécurisé",
     },
 ];
@@ -106,7 +107,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
                             i < currentStep
                                 ? "bg-emerald-500 text-white"
                                 : i === currentStep
-                                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30"
+                                    ? "bg-primary-600 text-white"
                                     : "bg-slate-100 text-slate-400"
                         )}
                     >
@@ -222,7 +223,7 @@ function ImapConfigForm({
                         required
                         value={formData.email}
                         onChange={(e) => handleEmailChange(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                         placeholder="vous@example.com"
                     />
                 </div>
@@ -235,7 +236,7 @@ function ImapConfigForm({
                         type="text"
                         value={formData.displayName}
                         onChange={(e) => updateField("displayName", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                         placeholder="Prénom Nom"
                     />
                 </div>
@@ -250,7 +251,7 @@ function ImapConfigForm({
                             required
                             value={formData.password}
                             onChange={(e) => updateField("password", e.target.value)}
-                            className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                            className="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                             placeholder="••••••••"
                         />
                         <button
@@ -275,7 +276,7 @@ function ImapConfigForm({
                         required
                         value={formData.imapHost}
                         onChange={(e) => updateField("imapHost", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                         placeholder="imap.example.com"
                     />
                 </div>
@@ -289,7 +290,7 @@ function ImapConfigForm({
                         required
                         value={formData.imapPort}
                         onChange={(e) => updateField("imapPort", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                         placeholder="993"
                     />
                 </div>
@@ -303,7 +304,7 @@ function ImapConfigForm({
                         required
                         value={formData.smtpHost}
                         onChange={(e) => updateField("smtpHost", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                         placeholder="smtp.example.com"
                     />
                 </div>
@@ -317,7 +318,7 @@ function ImapConfigForm({
                         required
                         value={formData.smtpPort}
                         onChange={(e) => updateField("smtpPort", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                         placeholder="587"
                     />
                 </div>
@@ -336,7 +337,7 @@ function ImapConfigForm({
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-sm hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg hover:shadow-indigo-500/25 transition-all disabled:opacity-50"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 text-white font-semibold text-sm hover:bg-primary-500 transition-colors disabled:opacity-50"
                 >
                     {isLoading ? (
                         <>
@@ -451,7 +452,7 @@ export function EmailOnboarding({ onMailboxConnected }: EmailOnboardingProps) {
                     <h2 className="text-xl font-bold text-slate-900 mb-2">Boîte mail connectée !</h2>
                     <p className="text-sm text-slate-500">Synchronisation en cours...</p>
                     <div className="mt-4">
-                        <Loader2 className="w-5 h-5 text-indigo-500 animate-spin mx-auto" />
+                        <Loader2 className="w-5 h-5 text-primary-500 animate-spin mx-auto" />
                     </div>
                 </div>
             </div>
@@ -468,7 +469,7 @@ export function EmailOnboarding({ onMailboxConnected }: EmailOnboardingProps) {
                     </div>
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 animate-in slide-in-from-right-3 fade-in duration-300">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+                            <div className="w-12 h-12 rounded-xl bg-slate-600 flex items-center justify-center">
                                 <Server className="w-6 h-6 text-white" />
                             </div>
                             <div>
@@ -502,14 +503,14 @@ export function EmailOnboarding({ onMailboxConnected }: EmailOnboardingProps) {
 
                 {/* Header */}
                 <div className="text-center mb-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-xl shadow-indigo-500/30">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-primary-600 flex items-center justify-center">
                         <Mail className="w-8 h-8 text-white" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900 mb-2">
                         Bienvenue dans Email Hub
                     </h1>
                     <p className="text-slate-500 max-w-md mx-auto">
-                        Connectez votre boîte mail pour commencer à gérer vos emails directement depuis Suzalink
+                        Connectez votre boîte mail pour commencer à gérer vos emails directement depuis {brand.name}
                     </p>
                 </div>
 
@@ -527,12 +528,12 @@ export function EmailOnboarding({ onMailboxConnected }: EmailOnboardingProps) {
                                     "group relative flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all",
                                     provider.borderColor,
                                     provider.bgColor,
-                                    "hover:shadow-md hover:-translate-y-0.5"
+                                    "hover:shadow-md"
                                 )}
                                 style={{ animationDelay: `${idx * 100}ms` }}
                             >
                                 <div className={cn(
-                                    "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-lg flex-shrink-0",
+                                    "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
                                     provider.color
                                 )}>
                                     {provider.icon ? (
@@ -579,8 +580,8 @@ export function EmailOnboarding({ onMailboxConnected }: EmailOnboardingProps) {
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {FEATURES.map((feature, idx) => (
                             <div key={idx} className="text-center p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-indigo-50 flex items-center justify-center">
-                                    <feature.icon className="w-5 h-5 text-indigo-600" />
+                                <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-primary-50 flex items-center justify-center">
+                                    <feature.icon className="w-5 h-5 text-primary-600" />
                                 </div>
                                 <h3 className="text-sm font-medium text-slate-900 mb-0.5">
                                     {feature.title}

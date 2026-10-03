@@ -17,8 +17,9 @@ import Link from "next/link";
 import {
     LayoutDashboard, Users, AlertTriangle, CheckCircle2, Download,
     Search, Pencil, Check, X as XIcon, Loader2, Phone, Mail, Briefcase,
-    Sparkles, Clock, UserCog,
+    Lightbulb, Clock, UserCog,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { DataTable, StatCard, Badge, Button, Input, Drawer, useToast, EmptyState, type Column } from "@/components/ui";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { cn, avatarColorForId, initialsFromName } from "@/lib/utils";
@@ -204,7 +205,7 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-                    className="w-16 h-8 px-2 text-sm border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                    className="w-16 h-8 px-2 text-sm border border-primary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/30"
                 />
                 <button onClick={save} disabled={saving} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
                     {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
@@ -221,20 +222,20 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
             <div className="flex items-center gap-1.5">
                 <button
                     onClick={() => setEditing(true)}
-                    className="group/days inline-flex items-center gap-1.5 rounded-lg px-2 py-1 -mx-2 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    className="group/days inline-flex items-center gap-1.5 rounded-lg px-2 py-1 -mx-2 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                     title="Modifier le nombre de jours/semaine"
                 >
                     <Badge className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">À renseigner</Badge>
-                    <Pencil className="w-3 h-3 text-slate-300 group-hover/days:text-indigo-500 transition-colors" />
+                    <Pencil className="w-3 h-3 text-slate-300 group-hover/days:text-primary-500 transition-colors" />
                 </button>
                 {row.suggestedDaysPerWeek != null && (
                     <button
                         onClick={() => void persist(row.suggestedDaysPerWeek, "Valeur suggérée appliquée")}
                         disabled={saving}
                         title="Inféré à partir du planning réel des 30 derniers jours"
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-full px-2 py-0.5 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-full px-2 py-0.5 transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                     >
-                        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                        {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lightbulb className="w-3 h-3" />}
                         {row.suggestedDaysPerWeek} j ?
                     </button>
                 )}
@@ -245,11 +246,11 @@ function DaysPerWeekCell({ row, onSaved }: { row: StaffingRow; onSaved: (clientI
     return (
         <button
             onClick={() => setEditing(true)}
-            className="group/days inline-flex items-center gap-1.5 rounded-lg px-2 py-1 -mx-2 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="group/days inline-flex items-center gap-1.5 rounded-lg px-2 py-1 -mx-2 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             title="Modifier le nombre de jours/semaine"
         >
             <span className="text-sm font-semibold text-slate-900 tabular-nums">{row.contractedDaysPerWeek} j</span>
-            <Pencil className="w-3 h-3 text-slate-300 group-hover/days:text-indigo-500 transition-colors" />
+            <Pencil className="w-3 h-3 text-slate-300 group-hover/days:text-primary-500 transition-colors" />
         </button>
     );
 }
@@ -364,14 +365,14 @@ export default function DashboardProjetPage() {
                 const ChannelIcon = CHANNEL_ICON[row.channel];
                 return (
                     <div className="min-w-0">
-                        <Link href={`/manager/clients/${row.clientId}`} className="text-sm font-semibold text-slate-900 hover:text-indigo-600 transition-colors">
+                        <Link href={`/manager/clients/${row.clientId}`} className="text-sm font-semibold text-slate-900 hover:text-primary-600 transition-colors">
                             {row.clientName}
                         </Link>
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
                             <span title={CHANNEL_LABEL[row.channel]} className="inline-flex shrink-0">
                                 <ChannelIcon className="w-3 h-3" aria-hidden />
                             </span>
-                            <Link href={`/manager/clients?client=${row.clientId}&mission=${row.missionId}`} className="hover:text-indigo-600 transition-colors truncate">
+                            <Link href={`/manager/clients?client=${row.clientId}&mission=${row.missionId}`} className="hover:text-primary-600 transition-colors truncate">
                                 {row.missionName}
                             </Link>
                         </div>
@@ -472,7 +473,7 @@ export default function DashboardProjetPage() {
                     aria-label="Ouvrir l'assistant sur ce projet"
                     className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-pink-50 hover:text-pink-600"
                 >
-                    <Sparkles className="w-4 h-4" />
+                    <AiMark className="w-4 h-4" />
                 </button>
             ),
         },
@@ -484,7 +485,7 @@ export default function DashboardProjetPage() {
         <div className="p-6 max-w-[1600px] mx-auto space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200 shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-primary-600 flex items-center justify-center shrink-0">
                         <LayoutDashboard className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -511,8 +512,8 @@ export default function DashboardProjetPage() {
                     label="Missions actives"
                     value={loading ? "—" : kpis?.activeMissions ?? 0}
                     icon={LayoutDashboard}
-                    iconBg="bg-indigo-100"
-                    iconColor="text-indigo-600"
+                    iconBg="bg-primary-100"
+                    iconColor="text-primary-600"
                     subtitle={<span className="text-slate-400">{kpis?.totalMissions ?? 0} missions au total</span>}
                 />
                 <StatCard
@@ -636,7 +637,7 @@ export default function DashboardProjetPage() {
                 })}
                 <span className="text-slate-300">·</span>
                 <span className="inline-flex items-center gap-1">
-                    <Sparkles className="w-3 h-3 text-indigo-400" /> jours/semaine suggéré à partir du planning réel
+                    <Lightbulb className="w-3 h-3 text-primary-400" /> jours/semaine suggéré à partir du planning réel
                 </span>
             </div>
 

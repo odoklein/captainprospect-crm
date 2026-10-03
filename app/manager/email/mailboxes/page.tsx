@@ -18,6 +18,7 @@ import {
     X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
+import { brand } from "@/lib/brand";
 
 // ============================================
 // TYPES
@@ -103,7 +104,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
             id: 'gmail',
             name: 'Gmail',
             description: 'Connexion sécurisée via Google OAuth',
-            color: 'from-red-500 to-orange-500',
+            color: 'bg-red-500',
             bgColor: 'bg-red-50 hover:bg-red-100',
             borderColor: 'border-red-200',
         },
@@ -111,7 +112,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
             id: 'outlook',
             name: 'Outlook / Microsoft 365',
             description: 'Connexion sécurisée via Microsoft OAuth',
-            color: 'from-blue-500 to-cyan-500',
+            color: 'bg-blue-500',
             bgColor: 'bg-blue-50 hover:bg-blue-100',
             borderColor: 'border-blue-200',
         },
@@ -119,15 +120,15 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
             id: 'imap',
             name: 'IMAP / SMTP',
             description: 'Configuration manuelle pour tout fournisseur',
-            color: 'from-slate-500 to-slate-600',
+            color: 'bg-slate-600',
             bgColor: 'bg-slate-50 hover:bg-slate-100',
             borderColor: 'border-slate-200',
         },
         {
             id: 'reachinbox',
             name: 'ReachInbox',
-            description: 'Connexion via cle API ReachInbox',
-            color: 'from-emerald-500 to-teal-500',
+            description: 'Connexion via clé API ReachInbox',
+            color: 'bg-emerald-500',
             bgColor: 'bg-emerald-50 hover:bg-emerald-100',
             borderColor: 'border-emerald-200',
         },
@@ -263,7 +264,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                         )}
                                     >
                                         <div className={cn(
-                                            "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-lg",
+                                            "w-12 h-12 rounded-xl flex items-center justify-center",
                                             provider.color
                                         )}>
                                             {provider.id === 'imap' || provider.id === 'reachinbox' ? (
@@ -299,7 +300,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={reachInboxForm.email}
                                             onChange={(e) => setReachInboxForm({ ...reachInboxForm, email: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="vous@example.com"
                                         />
                                     </div>
@@ -312,8 +313,8 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             type="text"
                                             value={reachInboxForm.displayName}
                                             onChange={(e) => setReachInboxForm({ ...reachInboxForm, displayName: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
-                                            placeholder="Equipe Captain Prospect"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
+                                            placeholder={`Équipe ${brand.name}`}
                                         />
                                     </div>
 
@@ -326,7 +327,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={reachInboxForm.apiKey}
                                             onChange={(e) => setReachInboxForm({ ...reachInboxForm, apiKey: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="ri_..."
                                         />
                                     </div>
@@ -344,7 +345,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                     <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-medium text-sm hover:from-emerald-400 hover:to-teal-500 transition-all disabled:opacity-50"
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-500 transition-colors disabled:opacity-50"
                                     >
                                         {isLoading ? (
                                             <>
@@ -376,7 +377,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={imapForm.email}
                                             onChange={(e) => setImapForm({ ...imapForm, email: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="vous@example.com"
                                         />
                                     </div>
@@ -389,7 +390,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             type="text"
                                             value={imapForm.displayName}
                                             onChange={(e) => setImapForm({ ...imapForm, displayName: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="John Doe"
                                         />
                                     </div>
@@ -403,7 +404,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={imapForm.password}
                                             onChange={(e) => setImapForm({ ...imapForm, password: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="••••••••"
                                         />
                                     </div>
@@ -417,7 +418,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={imapForm.imapHost}
                                             onChange={(e) => setImapForm({ ...imapForm, imapHost: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="imap.example.com"
                                         />
                                     </div>
@@ -431,7 +432,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={imapForm.imapPort}
                                             onChange={(e) => setImapForm({ ...imapForm, imapPort: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="993"
                                         />
                                     </div>
@@ -445,7 +446,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={imapForm.smtpHost}
                                             onChange={(e) => setImapForm({ ...imapForm, smtpHost: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="smtp.example.com"
                                         />
                                     </div>
@@ -459,7 +460,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                             required
                                             value={imapForm.smtpPort}
                                             onChange={(e) => setImapForm({ ...imapForm, smtpPort: e.target.value })}
-                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-[#2B5F3E] focus:ring-2 focus:ring-[#2B5F3E]/20 outline-none transition-all text-sm"
+                                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                             placeholder="587"
                                         />
                                     </div>
@@ -477,7 +478,7 @@ function AddMailboxModal({ isOpen, onClose, onSuccess }: AddMailboxModalProps) {
                                     <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-[#2B5F3E] to-[#224A31] text-white font-medium text-sm hover:from-[#356F4A] hover:to-[#2B5F3E] transition-all disabled:opacity-50"
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white font-medium text-sm hover:bg-primary-hover transition-colors disabled:opacity-50"
                                     >
                                         {isLoading ? (
                                             <>
@@ -731,7 +732,7 @@ function TeamPermissionsModal({ mailbox, isOpen, onClose }: TeamPermissionsModal
                             type="button"
                             onClick={handleSave}
                             disabled={isSaving || isLoading}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2B5F3E] text-sm font-medium text-white hover:bg-[#224A31] disabled:opacity-50"
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-50"
                         >
                             {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
                             Sauvegarder
@@ -898,7 +899,7 @@ export default function MailboxesPage() {
                 </div>
                 <button
                     onClick={() => setIsAddModalOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-[#2B5F3E] to-[#224A31] text-white text-sm font-medium rounded-xl hover:from-[#356F4A] hover:to-[#2B5F3E] hover:shadow-lg hover:shadow-[#2B5F3E]/30 transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     Ajouter une boîte mail
@@ -925,18 +926,18 @@ export default function MailboxesPage() {
             ) : mailboxes.length === 0 ? (
                 <Card>
                     <CardContent className="py-12 text-center">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#2B5F3E]/30">
+                        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
                             <Mail className="w-8 h-8 text-white" />
                         </div>
                         <h3 className="text-lg font-semibold text-slate-900 mb-2">
                             Aucune boîte mail connectée
                         </h3>
                         <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
-                            Connectez votre première boîte mail pour commencer à gérer vos emails depuis Suzalink.
+                            Connectez votre première boîte mail pour commencer à gérer vos emails depuis {brand.name}.
                         </p>
                         <button
                             onClick={() => setIsAddModalOpen(true)}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-[#2B5F3E] to-[#224A31] text-white text-sm font-medium rounded-xl hover:from-[#356F4A] hover:to-[#2B5F3E] hover:shadow-lg hover:shadow-[#2B5F3E]/30 transition-all"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary-hover transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Connecter une boîte mail
@@ -1057,7 +1058,7 @@ export default function MailboxesPage() {
                                         </a>
                                         <button
                                             onClick={() => setTeamMailbox(mailbox)}
-                                            className="p-2 text-slate-500 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg transition-colors"
+                                            className="p-2 text-slate-500 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
                                             title="Accès équipe"
                                         >
                                             <Users className="w-4 h-4" />

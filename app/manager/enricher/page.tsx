@@ -1,7 +1,9 @@
 'use client';
+// brand-check-ignore-file: intentional neon "terminal" UI, deliberately off-brand
 
 import React, { useCallback, useRef, useState } from 'react';
 import Papa from 'papaparse';
+import { Download, FileSpreadsheet, Pause, Phone, Play, X } from 'lucide-react';
 
 const MAX_CONCURRENCY = 5;
 const MAX_RETRIES = 2;
@@ -232,7 +234,7 @@ export default function EnricherPage() {
         setIsPaused(false);
         shouldStopRef.current = false;
         startTimeRef.current = Date.now();
-        addLog('info', '▶ Enrichissement démarré — Website Scraper + Web Search fallback');
+        addLog('info', 'Enrichissement démarré — Website Scraper + Web Search fallback');
 
         const pending = results.filter((r) => r.status === 'pending');
         let idx = 0;
@@ -272,13 +274,13 @@ export default function EnricherPage() {
 
         setIsRunning(false);
         const found = pending.filter((r) => r.status === 'found').length;
-        addLog('ok', `✓ Terminé — ${found}/${rows.length} téléphones trouvés`);
+        addLog('ok', `Terminé — ${found}/${rows.length} téléphones trouvés`);
     }, [isRunning, isPaused, results, rows.length, enrichRow, columnMapping, addLog]);
 
     const pauseEnrichment = useCallback(() => {
         if (!isRunning) return;
         setIsPaused((p) => !p);
-        addLog('warn', isPaused ? '▶ Repris' : '⏸ Pause');
+        addLog('warn', isPaused ? 'Repris' : 'Pause');
     }, [isRunning, isPaused, addLog]);
 
     const exportCSV = useCallback(() => {
@@ -299,7 +301,7 @@ export default function EnricherPage() {
         a.download = `enriched_phones_${new Date().toISOString().slice(0, 10)}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        addLog('ok', `✓ Export ${results.length} lignes`);
+        addLog('ok', `Export ${results.length} lignes`);
     }, [results, addLog]);
 
     const resetAll = useCallback(() => {
@@ -331,7 +333,7 @@ export default function EnricherPage() {
             <div className="max-w-6xl mx-auto">
                 <div className="mb-12">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="w-9 h-9 rounded-md bg-[#00ff88] flex items-center justify-center text-black font-bold text-lg">☎</div>
+                        <div className="w-9 h-9 rounded-md bg-[#00ff88] flex items-center justify-center text-black"><Phone className="w-4 h-4" /></div>
                         <h1 className="text-xl font-semibold font-mono">
                             Company Phone Enricher{' '}
                             <span className="text-xs px-2 py-0.5 rounded border border-[#00ff88]/30 bg-[#00ff88]/10 text-[#00ff88] ml-2">
@@ -352,7 +354,7 @@ export default function EnricherPage() {
                         onDrop={onDrop}
                         onClick={() => fileInputRef.current?.click()}
                     >
-                        <span className="text-5xl block mb-4">📊</span>
+                        <FileSpreadsheet className="w-12 h-12 mx-auto mb-4 text-[#666680]" />
                         <div className="font-mono text-base mb-2">Déposez votre fichier CSV</div>
                         <div className="text-sm text-[#666680] mb-4">
                             ou cliquez pour parcourir — mapping auto des colonnes Company, Website, Address
@@ -371,7 +373,7 @@ export default function EnricherPage() {
                             type="button"
                             className="mt-4 px-6 py-2.5 rounded-md bg-[#00ff88] text-black font-mono font-semibold text-sm hover:bg-[#00dd77]"
                         >
-                            📂 Choisir un fichier
+                            Choisir un fichier
                         </button>
                     </div>
                 )}
@@ -451,7 +453,7 @@ export default function EnricherPage() {
                             </div>
                             <div className="h-1.5 bg-[#1a1a24] rounded overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-[#00ff88] to-[#0088ff] rounded transition-all duration-300"
+                                    className="h-full bg-[#00ff88] rounded transition-all duration-300"
                                     style={{ width: `${pct}%` }}
                                 />
                             </div>
@@ -463,32 +465,36 @@ export default function EnricherPage() {
                                 type="button"
                                 onClick={startEnrichment}
                                 disabled={isRunning}
-                                className="px-5 py-2 rounded-md bg-[#00ff88] text-black font-mono font-medium text-sm disabled:opacity-40"
+                                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-md bg-[#00ff88] text-black font-mono font-medium text-sm disabled:opacity-40"
                             >
-                                ▶ Démarrer
+                                <Play className="w-4 h-4 shrink-0" />
+                                Démarrer
                             </button>
                             {isRunning && (
                                 <button
                                     type="button"
                                     onClick={pauseEnrichment}
-                                    className="px-5 py-2 rounded-md border border-[#2a2a3a] text-[#666680] font-mono text-sm"
+                                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-md border border-[#2a2a3a] text-[#666680] font-mono text-sm"
                                 >
-                                    {isPaused ? '▶ Reprendre' : '⏸ Pause'}
+                                    {isPaused ? <Play className="w-4 h-4 shrink-0" /> : <Pause className="w-4 h-4 shrink-0" />}
+                                    {isPaused ? 'Reprendre' : 'Pause'}
                                 </button>
                             )}
                             <button
                                 type="button"
                                 onClick={exportCSV}
-                                className="px-5 py-2 rounded-md border border-[#2a2a3a] text-[#666680] font-mono text-sm hover:border-[#0088ff] hover:text-white"
+                                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-md border border-[#2a2a3a] text-[#666680] font-mono text-sm hover:border-[#0088ff] hover:text-white"
                             >
-                                ↓ Export CSV
+                                <Download className="w-4 h-4 shrink-0" />
+                                Export CSV
                             </button>
                             <button
                                 type="button"
                                 onClick={resetAll}
-                                className="px-5 py-2 rounded-md border border-[#ff4455]/30 text-[#ff4455] font-mono text-sm hover:bg-[#ff4455]/10"
+                                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-md border border-[#ff4455]/30 text-[#ff4455] font-mono text-sm hover:bg-[#ff4455]/10"
                             >
-                                ✕ Reset
+                                <X className="w-4 h-4 shrink-0" />
+                                Reset
                             </button>
                         </div>
 
@@ -556,7 +562,7 @@ export default function EnricherPage() {
                                                                 r.status === 'found' ? 'bg-[#00ff88]/10 text-[#00ff88] border border-[#00ff88]/20' :
                                                                     r.status === 'not_found' ? 'bg-[#ffaa00]/10 text-[#ffaa00] border border-[#ffaa00]/20' :
                                                                         r.status === 'error' ? 'bg-[#ff4455]/10 text-[#ff4455] border border-[#ff4455]/20' :
-                                                                            r.status === 'processing' ? 'bg-[#0088ff]/15 text-[#0088ff] border border-[#0088ff]/30 animate-pulse' :
+                                                                            r.status === 'processing' ? 'bg-[#0088ff]/15 text-[#0088ff] border border-[#0088ff]/30' :
                                                                                 'bg-[#0088ff]/10 text-[#0088ff] border border-[#0088ff]/20'
                                                             }`}
                                                         >
@@ -569,7 +575,7 @@ export default function EnricherPage() {
                                                             onClick={() => toggleLog(i)}
                                                             className="text-[#0088ff] text-[10px] hover:underline"
                                                         >
-                                                            📋 {r.log.length} étapes
+                                                            {r.log.length} étapes
                                                         </button>
                                                     </td>
                                                 </tr>

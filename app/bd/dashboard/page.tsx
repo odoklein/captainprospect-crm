@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Card, Badge, Button, Drawer } from "@/components/ui";
+import { Card, Badge, Button, Drawer, Spinner } from "@/components/ui";
 import Link from "next/link";
 import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
 import {
@@ -13,7 +13,7 @@ import {
     Target,
     ChevronRight,
     TrendingUp,
-    Zap,
+    Lightbulb,
     Users,
     Mail,
     Linkedin,
@@ -324,7 +324,7 @@ export default function BDDashboardPage() {
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="text-center">
-                    <Loader2 className="w-8 h-8 text-emerald-500 animate-spin mx-auto mb-4" />
+                    <Spinner className="size-8 text-primary mx-auto mb-4" />
                     <p className="text-slate-500">Chargement du dashboard...</p>
                 </div>
             </div>
@@ -336,7 +336,7 @@ export default function BDDashboardPage() {
             {/* Welcome Header — BD variant */}
             <div className="text-center py-4">
                 <h1 className="text-2xl font-bold text-slate-900">
-                    {getGreeting()}, {session?.user?.name?.split(" ")[0] ?? "vous"} ! 👋
+                    {getGreeting()}, {session?.user?.name?.split(" ")[0] ?? "vous"}
                 </h1>
                 <p className="text-slate-500 mt-1">
                     Vue d'ensemble de votre journée et de votre portfolio
@@ -347,8 +347,8 @@ export default function BDDashboardPage() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Card className="!p-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                            <Phone className="w-5 h-5 text-emerald-500" />
+                        <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+                            <Phone className="w-5 h-5 text-primary" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{sdrStats?.actionsToday || 0}</p>
@@ -359,11 +359,11 @@ export default function BDDashboardPage() {
 
                 <Card className="!p-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
-                            <Calendar className="w-5 h-5 text-teal-500" />
+                        <div className="w-10 h-10 rounded-xl bg-accent-50 flex items-center justify-center">
+                            <Calendar className="w-5 h-5 text-accent" />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold text-teal-600">{sdrStats?.meetingsBooked || 0}</p>
+                            <p className="text-2xl font-bold text-accent">{sdrStats?.meetingsBooked || 0}</p>
                             <p className="text-xs text-slate-500">RDV pris</p>
                         </div>
                     </div>
@@ -371,11 +371,11 @@ export default function BDDashboardPage() {
 
                 <Card className="!p-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-emerald-600" />
+                        <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                            <Building2 className="w-5 h-5 text-primary-700" />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold text-emerald-600">{bdStats?.totalClients || 0}</p>
+                            <p className="text-2xl font-bold text-primary-700">{bdStats?.totalClients || 0}</p>
                             <p className="text-xs text-slate-500">Clients portfolio</p>
                         </div>
                     </div>
@@ -419,10 +419,10 @@ export default function BDDashboardPage() {
                 </Card>
             )}
 
-            {/* Active Mission Card — emerald theme */}
+            {/* Active Mission Card — tokenized */}
             {activeMission && (
                 <Card className="!p-0 overflow-hidden">
-                    <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-4 text-white">
+                    <div className="bg-inverse p-4 text-white">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Target className="w-5 h-5" />
@@ -444,11 +444,11 @@ export default function BDDashboardPage() {
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-slate-500">Progression</span>
-                                <span className="font-medium text-emerald-600">{activeMission.progress || 0}%</span>
+                                <span className="font-medium text-primary">{activeMission.progress || 0}%</span>
                             </div>
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-full transition-all duration-500"
+                                    className="h-full bg-primary rounded-full transition-all duration-500"
                                     style={{ width: `${activeMission.progress || 0}%` }}
                                 />
                             </div>
@@ -466,7 +466,7 @@ export default function BDDashboardPage() {
                         </div>
 
                         <Link href="/sdr/action" className="block">
-                            <Button variant="primary" size="lg" className="w-full gap-2 !bg-emerald-600 hover:!bg-emerald-700">
+                            <Button variant="primary" size="lg" className="w-full gap-2">
                                 <Play className="w-5 h-5" />
                                 Commencer à prospecter
                             </Button>
@@ -492,7 +492,7 @@ export default function BDDashboardPage() {
                                 return (
                                     <Card
                                         key={mission.id}
-                                        className="!p-3 hover:border-emerald-300 cursor-pointer transition-all"
+                                        className="!p-3 hover:border-primary-300 cursor-pointer transition-all"
                                         onClick={() => {
                                             setSelectedMissionId(mission.id);
                                             if (typeof window !== "undefined") {
@@ -527,7 +527,7 @@ export default function BDDashboardPage() {
             <Card className="!p-4">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-emerald-500" />
+                        <Activity className="w-5 h-5 text-primary" />
                         Mes appels et actions
                     </h2>
                     <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
@@ -537,7 +537,7 @@ export default function BDDashboardPage() {
                             className={cn(
                                 "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
                                 actionsPeriod === "today"
-                                    ? "bg-white text-emerald-600 shadow-sm"
+                                    ? "bg-white text-primary font-semibold shadow-sm"
                                     : "text-slate-600 hover:text-slate-900"
                             )}
                         >
@@ -610,10 +610,10 @@ export default function BDDashboardPage() {
             </Card>
 
             {/* Quick Tips — BD-specific */}
-            <Card className="!p-4 bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100">
+            <Card className="!p-4 bg-emerald-50 border-emerald-100">
                 <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                        <Zap className="w-5 h-5 text-emerald-600" />
+                        <Lightbulb className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div>
                         <h3 className="font-medium text-emerald-900">Astuce du jour</h3>
@@ -637,14 +637,14 @@ export default function BDDashboardPage() {
                             <TrendingUp className="w-4 h-4" />
                             <span>
                                 {sdrStats.weeklyProgress != null && sdrStats.weeklyProgress >= 0
-                                    ? "Beau travail !"
+                                    ? "Bon rythme"
                                     : "À toi de jouer"}
                             </span>
                         </div>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500"
+                            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                             style={{
                                 width: `${Math.min(Math.max(sdrStats.weeklyProgress ?? 0, 0), 100)}%`,
                             }}
@@ -655,7 +655,7 @@ export default function BDDashboardPage() {
                             ? "Tu as fait plus d'actions cette semaine que la précédente."
                             : sdrStats.weeklyProgress === 0
                               ? "Même rythme que la semaine dernière."
-                              : "Continue comme ça !"}
+                              : "Moins d'actions que la semaine précédente."}
                     </p>
                 </Card>
             )}

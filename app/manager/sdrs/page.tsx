@@ -12,7 +12,6 @@ import {
     Users,
     Eye,
     X,
-    Sparkles,
     Mail,
 } from "lucide-react";
 
@@ -162,7 +161,7 @@ export default function SDRsPage() {
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                     <p className="text-sm text-slate-500">Chargement des SDRs...</p>
                 </div>
             </div>
@@ -200,8 +199,8 @@ export default function SDRsPage() {
             <div className="grid grid-cols-3 gap-5">
                 <div className="mgr-stat-card">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                            <Users className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                            <Users className="w-6 h-6 text-primary-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{totalSDRs}</p>
@@ -258,8 +257,8 @@ export default function SDRsPage() {
             {/* Premium SDR List */}
             {filteredSDRs.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-4">
-                        <Users className="w-8 h-8 text-indigo-500" />
+                    <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-4">
+                        <Users className="w-8 h-8 text-primary-500" />
                     </div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-2">
                         {searchQuery ? "Aucun SDR trouvé" : "Aucun SDR"}
@@ -287,7 +286,7 @@ export default function SDRsPage() {
                         >
                             {/* Avatar */}
                             <div className="relative">
-                                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center text-lg font-bold text-indigo-600">
+                                <div className="w-14 h-14 rounded-xl bg-primary-100 flex items-center justify-center text-lg font-bold text-primary-600">
                                     {sdr.name.split(" ").map((n) => n[0]).join("")}
                                 </div>
                                 <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white bg-emerald-500" />
@@ -324,7 +323,7 @@ export default function SDRsPage() {
                             </div>
 
                             {/* View Button */}
-                            <button className="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors flex items-center gap-2">
+                            <button className="px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors flex items-center gap-2">
                                 <Eye className="w-4 h-4" />
                                 Détails
                             </button>
@@ -333,13 +332,13 @@ export default function SDRsPage() {
                 </div>
             )}
 
-            {/* Premium Create SDR Modal */}
+            {/* Create SDR Modal */}
             {showCreateModal && (
                 <div className="fixed inset-0 dev-modal-overlay z-50 flex items-center justify-center p-4">
                     <div className="dev-modal w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
+                                <UserPlus className="w-5 h-5 text-white" />
                             </div>
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Ajouter un SDR</h2>
@@ -357,7 +356,7 @@ export default function SDRsPage() {
                                     value={formData.name}
                                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                     placeholder="Ex: Marie Laurent"
-                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                                     autoFocus
                                 />
                                 {formErrors.name && (
@@ -374,7 +373,7 @@ export default function SDRsPage() {
                                     value={formData.email}
                                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                                     placeholder="marie.l@suzali.com"
-                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                                 />
                                 {formErrors.email && (
                                     <p className="text-sm text-red-500 mt-1">{formErrors.email}</p>
@@ -390,7 +389,7 @@ export default function SDRsPage() {
                                     value={formData.password}
                                     onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                                     placeholder="Laisser vide pour générer automatiquement"
-                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                                 />
                                 <p className="text-xs text-slate-400 mt-1.5">
                                     Un mot de passe sera généré si laissé vide

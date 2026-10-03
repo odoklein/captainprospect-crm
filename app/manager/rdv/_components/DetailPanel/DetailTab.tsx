@@ -25,6 +25,9 @@ import {
   ArrowUpRight,
   Loader2,
   UserRoundCog,
+  Briefcase,
+  Globe,
+  Users,
 } from "lucide-react";
 
 interface DetailTabProps {
@@ -312,7 +315,7 @@ export function DetailTab({
             {meeting.callbackDate && (() => {
               const prox = proximityLabel(meeting.callbackDate);
               return (
-                <span style={{ fontSize: 11, fontWeight: 600, color: prox.color, background: `${prox.color}12`, borderRadius: 6, padding: "2px 8px" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: prox.color, background: `color-mix(in oklab, ${prox.color} 7%, transparent)`, borderRadius: 6, padding: "2px 8px" }}>
                   {prox.text}
                 </span>
               );
@@ -336,9 +339,9 @@ export function DetailTab({
             onChange={(e) => setDetailForm((f) => ({ ...f, meetingType: e.target.value }))}
           >
             <option value="">— Sélectionner —</option>
-            <option value="VISIO">📹 Visio</option>
-            <option value="PHYSIQUE">📍 Physique</option>
-            <option value="TELEPHONIQUE">📞 Téléphonique</option>
+            <option value="VISIO">Visio</option>
+            <option value="PHYSIQUE">Physique</option>
+            <option value="TELEPHONIQUE">Téléphonique</option>
           </select>
         ) : (
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -704,10 +707,10 @@ export function DetailTab({
           <div>
             <div style={{ color: "var(--ink)", fontWeight: 600, fontSize: 14 }}>{meeting.company.name}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 6 }}>
-              {meeting.company.industry && <div style={{ fontSize: 12, color: "var(--ink3)" }}>🏭 {meeting.company.industry}</div>}
-              {meeting.company.country && <div style={{ fontSize: 12, color: "var(--ink3)" }}>🌍 {meeting.company.country}</div>}
-              {meeting.company.size && <div style={{ fontSize: 12, color: "var(--ink3)" }}>👥 {meeting.company.size} salariés</div>}
-              {meeting.company.phone && <div style={{ fontSize: 12, color: "var(--ink3)" }}>📞 {meeting.company.phone}</div>}
+              {meeting.company.industry && <div style={{ fontSize: 12, color: "var(--ink3)", display: "flex", alignItems: "center", gap: 5 }}><Briefcase size={11} style={{ flexShrink: 0 }} />{meeting.company.industry}</div>}
+              {meeting.company.country && <div style={{ fontSize: 12, color: "var(--ink3)", display: "flex", alignItems: "center", gap: 5 }}><Globe size={11} style={{ flexShrink: 0 }} />{meeting.company.country}</div>}
+              {meeting.company.size && <div style={{ fontSize: 12, color: "var(--ink3)", display: "flex", alignItems: "center", gap: 5 }}><Users size={11} style={{ flexShrink: 0 }} />{meeting.company.size} salariés</div>}
+              {meeting.company.phone && <div style={{ fontSize: 12, color: "var(--ink3)", display: "flex", alignItems: "center", gap: 5 }}><Phone size={11} style={{ flexShrink: 0 }} />{meeting.company.phone}</div>}
               {meeting.company.website && (
                 <a
                   href={meeting.company.website.startsWith("http") ? meeting.company.website : `https://${meeting.company.website}`}

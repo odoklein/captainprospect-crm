@@ -24,10 +24,10 @@ import {
     Loader2,
     MessageSquarePlus,
     Search,
-    Sparkles,
     X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ui/AiMark";
 import Markdown from "./Markdown";
 // One implementation of the password card, shared with the vault list, so the
 // masking and the 2-minute wipe cannot drift between the two surfaces.
@@ -462,7 +462,7 @@ export default function AssistantProjetPanel({
         <div className={cn("ap-root", className)}>
             <header className="ap-header">
                 <span className="ap-mark">
-                    <Sparkles className="h-4 w-4" />
+                    <AiMark className="h-4 w-4" />
                 </span>
                 <span className="ap-titles">
                     <span className="ap-title">Assistant Projet</span>
@@ -531,7 +531,7 @@ export default function AssistantProjetPanel({
                 {messages.length === 0 && !isLoading && (
                     <div className="ap-welcome">
                         <span className="ap-welcome-mark">
-                            <Sparkles className="h-6 w-6" />
+                            <AiMark className="h-6 w-6" />
                         </span>
                         <p className="ap-welcome-title">
                             {clientId ? "Sur quoi je t'aide ?" : "Vue agence"}
@@ -549,7 +549,7 @@ export default function AssistantProjetPanel({
                                     className="ap-prompt"
                                     onClick={() => void send(prompt)}
                                 >
-                                    <Sparkles className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                                    <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
                                     <span>{prompt}</span>
                                 </button>
                             ))}

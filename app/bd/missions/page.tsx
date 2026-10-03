@@ -47,7 +47,7 @@ interface Mission {
 const CHANNEL_CONFIG = {
     CALL: { icon: Phone, label: "Appel", className: "bg-amber-100 text-amber-700" },
     EMAIL: { icon: Mail, label: "Email", className: "bg-blue-100 text-blue-700" },
-    LINKEDIN: { icon: Linkedin, label: "LinkedIn", className: "bg-indigo-100 text-indigo-700" },
+    LINKEDIN: { icon: Linkedin, label: "LinkedIn", className: "bg-primary-100 text-primary-700" },
 };
 
 export default function BDMissionsPage() {
@@ -212,7 +212,7 @@ export default function BDMissionsPage() {
                                 className="group hover:border-emerald-300 transition-all cursor-pointer"
                             >
                                 <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-lg font-bold text-emerald-600 group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-lg font-bold text-emerald-600 flex-shrink-0">
                                         {mission.client?.name?.[0] || "M"}
                                     </div>
 

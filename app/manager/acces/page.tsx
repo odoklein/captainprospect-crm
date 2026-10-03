@@ -16,6 +16,7 @@ import { KeyRound, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { Badge, Button, Input, Modal, ModalFooter, PageHeader, Select, useToast } from "@/components/ui";
 import AssistantProjetPanel from "@/components/assistant-projet/AssistantProjetPanel";
 import VaultCredentialList, { type VaultCredential } from "@/components/vault/VaultCredentialList";
+import { brand } from "@/lib/brand";
 
 interface ScopeClient {
     id: string;
@@ -46,7 +47,7 @@ interface ActivityEvent {
 }
 
 const TYPE_OPTIONS = [
-    { value: "PORTAL", label: "Portail Captain Prospect" },
+    { value: "PORTAL", label: `Portail ${brand.name}` },
     { value: "EMAIL", label: "Boîte email" },
     { value: "CALENDAR", label: "Agenda" },
     { value: "CRM_EXTERNAL", label: "CRM externe" },

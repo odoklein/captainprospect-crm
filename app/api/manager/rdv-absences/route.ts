@@ -278,7 +278,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     if (targetSdrId) {
         createNotification({
             userId: targetSdrId,
-            title: `⚠ RDV absent à relancer : ${contact}`,
+            title: `RDV absent à relancer : ${contact}`,
             message: `${company} — ${clientName}. Signalé absent par ${reporter}. À rappeler en priorité absolue.`,
             type: "warning",
             link: "/sdr/action",

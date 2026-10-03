@@ -11,7 +11,6 @@ import {
     Search,
     Loader2,
     ArrowRight,
-    Sparkles,
     X,
 } from "lucide-react";
 
@@ -231,7 +230,7 @@ export default function ProjectsPage() {
                                 style={{ animationDelay: `${index * 50}ms` }}
                             >
                                 <div className="flex items-start justify-between mb-4">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                    <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
                                         <FolderKanban className="w-6 h-6 text-blue-600" />
                                     </div>
                                     <div className="flex items-center gap-1.5">
@@ -285,8 +284,8 @@ export default function ProjectsPage() {
                 <div className="fixed inset-0 dev-modal-overlay z-50 flex items-center justify-center p-4">
                     <div className="dev-modal w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                                <FolderKanban className="w-5 h-5 text-blue-600" />
                             </div>
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Nouveau projet</h2>

@@ -98,7 +98,7 @@ export function AudienceFilter({ filters, onChange }: AudienceFilterProps) {
                 <div className="md:col-span-1 space-y-4">
                     <Card className="p-5 h-full">
                         <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-indigo-600" />
+                            <Building2 className="w-4 h-4 text-primary-600" />
                             Critères de ciblage
                         </h3>
 
@@ -344,12 +344,12 @@ export function AudienceFilter({ filters, onChange }: AudienceFilterProps) {
                 <div className="md:col-span-2 space-y-4">
                     {/* Stat Cards */}
                     <div className="grid grid-cols-2 gap-4">
-                        <Card className="p-5 flex flex-col justify-center items-center bg-indigo-50 border-indigo-100">
+                        <Card className="p-5 flex flex-col justify-center items-center bg-primary-50 border-primary-100">
                             <div className="text-sm font-medium text-slate-500 mb-1 flex items-center gap-2">
                                 <Users className="w-4 h-4" />
                                 Taille du marché
                             </div>
-                            <div className="text-3xl font-bold text-indigo-600 flex items-center gap-2">
+                            <div className="text-3xl font-bold text-primary-600 flex items-center gap-2">
                                 {isLoadingStats ? (
                                     <Loader2 className="w-6 h-6 animate-spin" />
                                 ) : (
@@ -363,7 +363,7 @@ export function AudienceFilter({ filters, onChange }: AudienceFilterProps) {
                                     </>
                                 )}
                             </div>
-                            <div className="text-xs text-indigo-400 mt-2 flex items-center gap-1">
+                            <div className="text-xs text-primary-400 mt-2 flex items-center gap-1">
                                 {stats?.isMock ? (
                                     <AlertCircle className="w-3 h-3" />
                                 ) : (
@@ -454,7 +454,7 @@ export function AudienceFilter({ filters, onChange }: AudienceFilterProps) {
                                                     href={company.website.startsWith('http') ? company.website : `https://${company.website}`} 
                                                     target="_blank" 
                                                     rel="noreferrer" 
-                                                    className="text-slate-400 hover:text-indigo-600 ml-4"
+                                                    className="text-slate-400 hover:text-primary-600 ml-4"
                                                 >
                                                     <Globe className="w-4 h-4" />
                                                 </a>

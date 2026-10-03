@@ -111,8 +111,9 @@ export function ToastProvider({
 
             {/* Toast Container */}
             <div
+                aria-live="polite"
                 className={cn(
-                    "fixed z-[100] flex flex-col gap-2 pointer-events-none",
+                    "fixed z-[130] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2 pointer-events-none",
                     positionClasses[position]
                 )}
             >
@@ -139,33 +140,35 @@ interface ToastItemProps {
 
 function ToastItem({ toast, onClose }: ToastItemProps) {
     const icons = {
-        success: <CheckCircle2 className="w-5 h-5" />,
-        error: <AlertCircle className="w-5 h-5" />,
-        warning: <AlertTriangle className="w-5 h-5" />,
-        info: <Info className="w-5 h-5" />,
+        success: <CheckCircle2 className="size-4" />,
+        error: <AlertCircle className="size-4" />,
+        warning: <AlertTriangle className="size-4" />,
+        info: <Info className="size-4" />,
     };
 
-    const colors = {
-        success: "bg-emerald-50 border-emerald-200 text-emerald-600",
-        error: "bg-red-50 border-red-200 text-red-600",
-        warning: "bg-amber-50 border-amber-200 text-amber-600",
-        info: "bg-blue-50 border-blue-200 text-blue-600",
+    const tiles = {
+        success: "bg-success-soft text-success ring-success-line",
+        error: "bg-danger-soft text-danger ring-danger-line",
+        warning: "bg-warning-soft text-warning ring-warning-line",
+        info: "bg-info-soft text-info ring-info-line",
     };
 
     return (
         <div
+            role={toast.type === "error" ? "alert" : "status"}
             className={cn(
-                "pointer-events-auto min-w-[300px] max-w-md flex items-start gap-3 p-4",
-                "bg-white border rounded-xl shadow-xl shadow-slate-200/50",
-                "animate-slide-in",
-                colors[toast.type]
+                "pointer-events-auto w-full flex items-start gap-3 p-3.5 pr-3",
+                "bg-surface border border-line rounded-panel shadow-overlay",
+                "animate-ds-slide-in"
             )}
         >
-            <span className="flex-shrink-0">{icons[toast.type]}</span>
-            <div className="flex-1 min-w-0">
-                <p className="font-medium text-slate-900">{toast.title}</p>
+            <span className={cn("inline-flex size-8 shrink-0 items-center justify-center rounded-[10px] ring-1 ring-inset", tiles[toast.type])}>
+                {icons[toast.type]}
+            </span>
+            <div className="flex-1 min-w-0 pt-0.5">
+                <p className="text-sm font-semibold text-ink">{toast.title}</p>
                 {toast.message && (
-                    <p className="text-sm text-slate-600 mt-0.5">{toast.message}</p>
+                    <p className="text-[13px] leading-relaxed text-ink-3 mt-0.5">{toast.message}</p>
                 )}
                 {toast.action && (
                     <button
@@ -174,17 +177,19 @@ function ToastItem({ toast, onClose }: ToastItemProps) {
                             toast.action?.onClick();
                             onClose();
                         }}
-                        className="mt-2 text-sm font-semibold text-indigo-600 underline-offset-2 hover:underline"
+                        className="mt-2 text-[13px] font-semibold text-link underline-offset-2 hover:underline"
                     >
                         {toast.action.label}
                     </button>
                 )}
             </div>
             <button
+                type="button"
                 onClick={onClose}
-                className="flex-shrink-0 p-1 -m-1 text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Fermer"
+                className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-4 transition-colors hover:bg-surface-3 hover:text-ink-2"
             >
-                <X className="w-4 h-4" />
+                <X className="size-4" />
             </button>
         </div>
     );

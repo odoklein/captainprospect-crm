@@ -189,7 +189,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   return successResponse({
     id: apiKey.id,
     name: apiKey.name,
-    apiKey: fullKey, // ⚠️ This is the ONLY time the full key is shown
+    apiKey: fullKey, // NOTE: this is the ONLY time the full key is shown
     keyPrefix: apiKey.keyPrefix,
     role: apiKey.role,
     clientId: apiKey.clientId,

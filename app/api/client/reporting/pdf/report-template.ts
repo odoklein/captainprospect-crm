@@ -1,3 +1,4 @@
+import { brand } from "@/lib/brand";
 /**
  * Modern SaaS-style PDF report — HTML template for Puppeteer.
  * Design: Stripe / Linear / Notion — minimal, airy, strong hierarchy.
@@ -84,7 +85,7 @@ export function getReportHtml(data: ReportTemplateData): string {
     body { font-family: 'Inter', system-ui, sans-serif; }
   </style>
 </head>
-<body class="bg-white text-[#0f172a] antialiased">
+<body class="bg-white text-slate-900 antialiased">
   <div class="max-w-3xl mx-auto px-10 pt-12 pb-16">
     <!-- Cover: top ~30% -->
     <section class="mb-16">
@@ -199,7 +200,7 @@ export function getReportHtml(data: ReportTemplateData): string {
 
     <!-- Footer -->
     <footer class="pt-8 border-t border-slate-200">
-      <p class="text-xs text-slate-400">Suzalink · Rapport d'activité</p>
+      <p class="text-xs text-slate-400">${brand.name} · Rapport d'activité</p>
     </footer>
   </div>
 </body>

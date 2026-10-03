@@ -12,7 +12,7 @@ export function Skeleton({ className }: SkeletonProps) {
     return (
         <div
             className={cn(
-                "bg-slate-200 rounded animate-pulse",
+                "bg-surface-3 rounded-md motion-safe:animate-pulse",
                 className
             )}
         />
@@ -64,7 +64,7 @@ export function CardSkeleton({
     return (
         <div
             className={cn(
-                "p-6 bg-white border border-slate-200 rounded-2xl shadow-sm",
+                "p-6 bg-surface border border-line rounded-2xl shadow-sm",
                 className
             )}
         >
@@ -101,9 +101,9 @@ export function TableSkeleton({
     className,
 }: TableSkeletonProps) {
     return (
-        <div className={cn("overflow-hidden rounded-xl border border-slate-200 bg-white", className)}>
+        <div className={cn("overflow-hidden rounded-xl border border-line bg-surface", className)}>
             {/* Header */}
-            <div className="flex gap-4 p-4 bg-slate-50 border-b border-slate-200">
+            <div className="flex gap-4 p-4 bg-surface-2 border-b border-line">
                 {Array.from({ length: columns }).map((_, i) => (
                     <Skeleton key={i} className="h-4 flex-1" />
                 ))}
@@ -112,7 +112,7 @@ export function TableSkeleton({
             {Array.from({ length: rows }).map((_, rowIndex) => (
                 <div
                     key={rowIndex}
-                    className="flex gap-4 p-4 border-t border-slate-100"
+                    className="flex gap-4 p-4 border-t border-line-subtle"
                 >
                     {Array.from({ length: columns }).map((_, colIndex) => (
                         <Skeleton key={colIndex} className="h-4 flex-1" />
@@ -131,7 +131,7 @@ export function StatCardSkeleton({ className }: SkeletonProps) {
     return (
         <div
             className={cn(
-                "p-6 bg-white border border-slate-200 rounded-2xl shadow-sm",
+                "p-6 bg-surface border border-line rounded-2xl shadow-sm",
                 className
             )}
         >
@@ -165,7 +165,7 @@ export function ListSkeleton({
     return (
         <div className={cn("space-y-4", className)}>
             {Array.from({ length: items }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                <div key={i} className="flex items-center gap-4 p-4 bg-surface-2 rounded-xl">
                     {hasAvatar && <Skeleton className="w-12 h-12 rounded-xl flex-shrink-0" />}
                     <div className="flex-1 space-y-2">
                         <Skeleton className="h-4 w-3/4" />

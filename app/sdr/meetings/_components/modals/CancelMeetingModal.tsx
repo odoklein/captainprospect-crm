@@ -38,7 +38,7 @@ export function CancelMeetingModal({ isOpen, reason, onReasonChange, note, onNot
                         value={note}
                         onChange={(e) => onNoteChange(e.target.value)}
                         placeholder="Précision..."
-                        className="w-full min-h-[80px] px-3 py-2 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full min-h-[80px] px-3 py-2 border border-slate-200 rounded-xl text-slate-700 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         rows={2}
                     />
                 </div>

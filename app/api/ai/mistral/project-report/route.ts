@@ -58,7 +58,7 @@ Le rapport doit inclure :
 Contraintes :
 - Ton professionnel mais accessible
 - Format markdown propre
-- Utiliser des indicateurs (✅ ⚠️ 🔴) pour les statuts
+- Pas d'emojis : indiquer les statuts en toutes lettres (ex. « En bonne voie », « À surveiller », « En retard »)
 - Répondre en français
 - Maximum 500 mots`;
 

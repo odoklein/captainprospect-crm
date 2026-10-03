@@ -9,6 +9,7 @@ import {
   DEFAULT_PASSWORD_RECOVERY_SUBJECT,
   applyEmailTemplateVariables,
 } from "@/lib/email/templates/security-auth";
+import { brand } from "@/lib/brand";
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,9 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Build reset URL
     const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.NEXTAUTH_URL ||
-      "https://app.captainprospect.fr";
+      brand.appUrl;
     const resetUrl = `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(normalizedEmail)}`;
 
     const customTemplate = await (prisma as any).systemEmailTemplate.findUnique({

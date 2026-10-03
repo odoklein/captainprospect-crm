@@ -183,7 +183,7 @@ export default function OffresPage() {
                             type="checkbox"
                             checked={showArchived}
                             onChange={(e) => setShowArchived(e.target.checked)}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                         />
                         Afficher archivées
                     </label>
@@ -286,7 +286,7 @@ export default function OffresPage() {
             )}
 
             <div className="flex items-center gap-2 text-sm text-slate-500">
-                <Link href="/manager/billing" className="text-indigo-600 hover:text-indigo-700">
+                <Link href="/manager/billing" className="text-primary-600 hover:text-primary-700">
                     Retour Facturation
                 </Link>
             </div>
@@ -324,7 +324,7 @@ export default function OffresPage() {
                                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                                     placeholder="Brève description"
                                     rows={2}
-                                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">

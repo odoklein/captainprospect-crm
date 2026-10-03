@@ -12,6 +12,7 @@ import {
   validateRequest,
 } from "@/lib/api-utils";
 import { z } from "zod";
+import { brand } from "@/lib/brand";
 
 const schema = z.object({
   transcription: z.string().min(20, "Transcription requise").max(120_000, "Transcription trop longue"),
@@ -28,7 +29,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   const { transcription } = await validateRequest(request, schema);
 
-  const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM CaptainProspect).
+  const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM ${brand.name}).
 
 Ta tâche: à partir d'une transcription d'échange (appel / RDV), extraire et structurer les informations dans une "fiche RDV".
 

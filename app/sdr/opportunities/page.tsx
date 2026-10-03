@@ -11,7 +11,6 @@ import {
     Calendar,
     ChevronRight,
     Loader2,
-    Sparkles,
     DollarSign,
     ArrowUpRight,
     Filter,
@@ -51,9 +50,9 @@ interface Opportunity {
 // ============================================
 
 const URGENCY_STYLES = {
-    SHORT: { label: "Court terme", color: "bg-red-50 text-red-600", icon: "🔴" },
-    MEDIUM: { label: "Moyen terme", color: "bg-amber-50 text-amber-600", icon: "🟠" },
-    LONG: { label: "Long terme", color: "bg-emerald-50 text-emerald-600", icon: "🟢" },
+    SHORT: { label: "Court terme", color: "bg-red-50 text-red-600", dot: "bg-red-500" },
+    MEDIUM: { label: "Moyen terme", color: "bg-amber-50 text-amber-600", dot: "bg-amber-500" },
+    LONG: { label: "Long terme", color: "bg-emerald-50 text-emerald-600", dot: "bg-emerald-500" },
 };
 
 // ============================================
@@ -134,7 +133,7 @@ export default function SDROpportunitiesPage() {
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="text-center">
-                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mx-auto mb-4" />
+                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin mx-auto mb-4" />
                     <p className="text-slate-500">Chargement des opportunités...</p>
                 </div>
             </div>
@@ -155,8 +154,8 @@ export default function SDROpportunitiesPage() {
             <div className="grid grid-cols-2 gap-3">
                 <Card className="!p-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-                            <Briefcase className="w-5 h-5 text-purple-500" />
+                        <div className="w-10 h-10 rounded-xl bg-accent-50 flex items-center justify-center">
+                            <Briefcase className="w-5 h-5 text-accent-500" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
@@ -201,7 +200,7 @@ export default function SDROpportunitiesPage() {
                         <span className={cn(
                             "ml-1.5 px-1.5 py-0.5 rounded-full text-xs",
                             filter === tab.value
-                                ? "bg-indigo-100 text-indigo-600"
+                                ? "bg-primary-100 text-primary-600"
                                 : "bg-slate-200 text-slate-500"
                         )}>
                             {tab.count}
@@ -234,7 +233,7 @@ export default function SDROpportunitiesPage() {
                             key={opp.id}
                             className={cn(
                                 "!p-4 transition-all",
-                                opp.handedOff ? "opacity-75" : "hover:border-indigo-300"
+                                opp.handedOff ? "opacity-75" : "hover:border-primary-300"
                             )}
                         >
                             {/* Header */}
@@ -253,10 +252,11 @@ export default function SDROpportunitiesPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className={cn(
-                                        "text-xs px-2 py-1 rounded-full",
+                                        "inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full",
                                         URGENCY_STYLES[opp.urgency].color
                                     )}>
-                                        {URGENCY_STYLES[opp.urgency].icon} {URGENCY_STYLES[opp.urgency].label}
+                                        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", URGENCY_STYLES[opp.urgency].dot)} />
+                                        {URGENCY_STYLES[opp.urgency].label}
                                     </span>
                                     {opp.handedOff && (
                                         <Badge variant="success">Transmis</Badge>
@@ -299,14 +299,14 @@ export default function SDROpportunitiesPage() {
 
             {/* Empty state motivation */}
             {opportunities.length === 0 && (
-                <Card className="!p-4 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100">
+                <Card className="!p-4 bg-primary-50 border-primary-100">
                     <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                            <Sparkles className="w-5 h-5 text-indigo-600" />
+                        <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
+                            <Briefcase className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
-                            <h3 className="font-medium text-indigo-900">Créez vos premières opportunités</h3>
-                            <p className="text-sm text-indigo-700 mt-1">
+                            <h3 className="font-medium text-primary-900">Aucune opportunité pour le moment</h3>
+                            <p className="text-sm text-primary-700 mt-1">
                                 Lorsque vous marquez un contact comme "Intéressé" avec une note descriptive,
                                 une opportunité est automatiquement créée ici.
                             </p>

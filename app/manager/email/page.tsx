@@ -6,7 +6,7 @@
 import { InboxLayout } from "@/components/email/inbox";
 
 export const metadata = {
-    title: "Email | Suzalink",
+    title: "Email",
     description: "Gérez vos emails et conversations",
 };
 

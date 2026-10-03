@@ -8,7 +8,7 @@ import {
     CheckCircle2,
     AlertCircle,
     ArrowRight,
-    Sparkles,
+    ScanSearch,
     Table,
     X,
 } from "lucide-react";
@@ -43,25 +43,25 @@ interface ImportDialogProps {
 // ============================================
 
 const FIELD_OPTIONS = [
-    { value: "", label: "❌ Ignorer cette colonne", group: "Actions" },
+    { value: "", label: "Ignorer cette colonne", group: "Actions" },
 
     // Company fields
-    { value: "company.name", label: "🏢 Nom de société *", group: "Société" },
-    { value: "company.industry", label: "🏭 Industrie", group: "Société" },
-    { value: "company.country", label: "🌍 Pays", group: "Société" },
-    { value: "company.website", label: "🌐 Site web", group: "Société" },
-    { value: "company.phone", label: "📞 Téléphone société", group: "Société" },
-    { value: "company.additionalPhones", label: "📞 Téléphones société (suppl.)", group: "Société" },
-    { value: "company.size", label: "👥 Taille", group: "Société" },
+    { value: "company.name", label: "Nom de société *", group: "Société" },
+    { value: "company.industry", label: "Industrie", group: "Société" },
+    { value: "company.country", label: "Pays", group: "Société" },
+    { value: "company.website", label: "Site web", group: "Société" },
+    { value: "company.phone", label: "Téléphone société", group: "Société" },
+    { value: "company.additionalPhones", label: "Téléphones société (suppl.)", group: "Société" },
+    { value: "company.size", label: "Taille", group: "Société" },
 
     // Contact fields
-    { value: "contact.firstName", label: "👤 Prénom", group: "Contact" },
-    { value: "contact.lastName", label: "👤 Nom", group: "Contact" },
-    { value: "contact.email", label: "📧 Email", group: "Contact" },
-    { value: "contact.phone", label: "📱 Téléphone", group: "Contact" },
-    { value: "contact.additionalPhones", label: "📱 Téléphones (suppl.)", group: "Contact" },
-    { value: "contact.title", label: "💼 Fonction", group: "Contact" },
-    { value: "contact.linkedin", label: "🔗 LinkedIn", group: "Contact" },
+    { value: "contact.firstName", label: "Prénom", group: "Contact" },
+    { value: "contact.lastName", label: "Nom", group: "Contact" },
+    { value: "contact.email", label: "Email", group: "Contact" },
+    { value: "contact.phone", label: "Téléphone", group: "Contact" },
+    { value: "contact.additionalPhones", label: "Téléphones (suppl.)", group: "Contact" },
+    { value: "contact.title", label: "Fonction", group: "Contact" },
+    { value: "contact.linkedin", label: "LinkedIn", group: "Contact" },
 ];
 
 // Count lines in file by streaming (avoids loading full file; used for progress %)
@@ -397,12 +397,12 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
     const renderStep1 = () => (
         <div className="space-y-6">
             <div className="text-center py-6">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center mx-auto mb-4">
-                    <Upload className="w-8 h-8 text-indigo-500" />
+                <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-4">
+                    <Upload className="w-8 h-8 text-primary-500" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-900 mb-2">Importer une liste CSV</h3>
                 <p className="text-slate-500">
-                    Importez vos sociétés et contacts en quelques clics
+                    Sociétés et contacts à partir d&apos;un fichier CSV
                 </p>
             </div>
 
@@ -424,7 +424,7 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
                     value={listName}
                     onChange={(e) => setListName(e.target.value)}
                     placeholder="Ex: Prospects Q1 2024"
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
             </div>
 
@@ -473,9 +473,9 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
                             {csvHeaders.length} colonnes détectées · {mappedCount} mappées
                         </p>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg">
-                        <Sparkles className="w-4 h-4 text-indigo-500" />
-                        <span className="text-sm font-medium text-indigo-700">Auto-détecté</span>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-50 rounded-lg">
+                        <ScanSearch className="w-4 h-4 text-primary-500" />
+                        <span className="text-sm font-medium text-primary-700">Auto-détecté</span>
                     </div>
                 </div>
 

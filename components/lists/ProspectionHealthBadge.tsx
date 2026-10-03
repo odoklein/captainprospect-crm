@@ -44,7 +44,7 @@ export const STATUS_CONFIG: Record<HealthStatus, {
     STALLED: {
         color: "bg-rose-50 text-rose-700 border-rose-200",
         dotColor: "bg-rose-500",
-        icon: "⏸",
+        icon: "‖",
     },
     INSUFFICIENT_DATA: {
         color: "bg-slate-50 text-slate-500 border-slate-200",

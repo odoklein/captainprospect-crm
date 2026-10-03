@@ -11,6 +11,7 @@ import {
   substituteVariables,
 } from "@/lib/broadcast/compiler";
 import { BROADCAST_VARIABLES_REGISTRY } from "@/lib/broadcast/types";
+import { brandUrl } from "@/lib/brand";
 
 const previewSchema = z.object({
   key: z.string().optional(),
@@ -62,8 +63,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     sampleMap.scheduledTime = sampleMap.scheduledTime || "14:30";
     sampleMap.meetingType = sampleMap.meetingType || "Visioconférence";
     sampleMap.meetingJoinUrl = sampleMap.meetingJoinUrl || "https://meet.google.com/xyz";
-    sampleMap.portalUrl = sampleMap.portalUrl || "https://app.captainprospect.fr/client/portal/meetings";
-    sampleMap.resetUrl = sampleMap.resetUrl || "https://app.captainprospect.fr/reset-password?token=example";
+    sampleMap.portalUrl = sampleMap.portalUrl || brandUrl("/client/portal/meetings");
+    sampleMap.resetUrl = sampleMap.resetUrl || brandUrl("/reset-password?token=example");
     sampleMap.otpCode = sampleMap.otpCode || "729 481";
     sampleMap.expiryMinutes = sampleMap.expiryMinutes || "60";
 

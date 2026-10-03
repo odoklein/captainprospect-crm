@@ -22,7 +22,7 @@ export function SdrMeetingsHeader({ query, onQueryChange, onImport }: SdrMeeting
                             onChange={(e) => onQueryChange(e.target.value)}
                             placeholder="Contact, entreprise, mission..."
                             aria-label="Rechercher un rendez-vous"
-                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-primary-300 focus:ring-4 focus:ring-primary-100"
                         />
                     </div>
                     <Button

@@ -153,7 +153,7 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
     >
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
-          <RefreshCw className="h-4 w-4 animate-spin text-indigo-600" />
+          <RefreshCw className="h-4 w-4 animate-spin text-primary-600" />
           Chargement…
         </div>
       ) : loadError ? (
@@ -185,12 +185,12 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 return (
                   <label
                     key={c.value}
-                    className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 text-xs transition-all focus-within:ring-2 focus-within:ring-indigo-500 ${
-                      selected ? "border-indigo-600 bg-indigo-50/50 font-semibold text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                    className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 text-xs transition-all focus-within:ring-2 focus-within:ring-primary-500 ${
+                      selected ? "border-primary-600 bg-primary-50/50 font-semibold text-primary-950" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                     }`}
                   >
                     <input type="radio" name="contractType" checked={selected} onChange={() => setContractType(c.value)} className="sr-only" />
-                    <Icon className="h-4 w-4 text-indigo-600" />
+                    <Icon className="h-4 w-4 text-primary-600" />
                     {c.label}
                   </label>
                 );
@@ -206,8 +206,8 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 return (
                   <label
                     key={m.value}
-                    className={`cursor-pointer rounded-xl border p-3 text-left transition-all focus-within:ring-2 focus-within:ring-indigo-500 ${
-                      selected ? "border-indigo-600 bg-indigo-50/50 text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                    className={`cursor-pointer rounded-xl border p-3 text-left transition-all focus-within:ring-2 focus-within:ring-primary-500 ${
+                      selected ? "border-primary-600 bg-primary-50/50 text-primary-950" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                     }`}
                   >
                     <input type="radio" name="remunerationMode" checked={selected} onChange={() => setRemunerationMode(m.value)} className="sr-only" />
@@ -257,7 +257,7 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 onChange={(e) => setQuotaInput(e.target.value)}
                 placeholder="Ex : 80"
                 aria-invalid={Boolean(fieldErrors.quota)}
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 aria-[invalid=true]:border-rose-400"
+                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 aria-[invalid=true]:border-rose-400"
               />
               {fieldErrors.quota && <p className="text-[11px] text-rose-600">{fieldErrors.quota}</p>}
             </div>
@@ -275,7 +275,7 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 type="date"
                 value={effectiveFrom}
                 onChange={(e) => setEffectiveFrom(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -295,7 +295,7 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 id="hr-manager"
                 value={managerId}
                 onChange={(e) => setManagerId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Aucun manager</option>
                 {managers.map((m) => (
@@ -315,7 +315,7 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Ex : augmentation annuelle, passage à temps plein…"
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -333,7 +333,7 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
             <button
               type="submit"
               disabled={isSaving || invalid}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
             >
               {isSaving ? "Enregistrement…" : "Enregistrer les règles"}
             </button>
@@ -376,7 +376,7 @@ function MoneyField({
           onChange={(e) => onChange(e.target.value)}
           placeholder="0"
           aria-invalid={Boolean(error)}
-          className="w-full rounded-lg border border-slate-200 bg-white p-2.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 aria-[invalid=true]:border-rose-400"
+          className="w-full rounded-lg border border-slate-200 bg-white p-2.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 aria-[invalid=true]:border-rose-400"
         />
         <span className="absolute right-3 top-2.5 text-xs text-slate-400">€</span>
       </div>

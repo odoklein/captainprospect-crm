@@ -174,7 +174,7 @@ export function ClientCalCredentials({ clientId }: { clientId: string }) {
                     <button
                         type="button"
                         onClick={() => setCreating(true)}
-                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold uppercase tracking-wider transition-colors"
+                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 text-xs font-semibold uppercase tracking-wider transition-colors"
                     >
                         Enregistrer les identifiants
                     </button>
@@ -193,7 +193,7 @@ export function ClientCalCredentials({ clientId }: { clientId: string }) {
                         value={newLogin}
                         onChange={(e) => setNewLogin(e.target.value)}
                         placeholder="agenda@client.com"
-                        className="w-full px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                     />
                 </div>
                 <div>
@@ -205,7 +205,7 @@ export function ClientCalCredentials({ clientId }: { clientId: string }) {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-slate-200 rounded-lg outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                     />
                 </div>
                 <div className="flex items-center gap-2 pt-1">
@@ -224,7 +224,7 @@ export function ClientCalCredentials({ clientId }: { clientId: string }) {
                                 },
                             )
                         }
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="px-3 py-1.5 rounded-lg bg-primary-600 text-white text-xs font-semibold hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                         {save.isPending ? "Enregistrement…" : "Enregistrer"}
                     </button>
@@ -288,7 +288,7 @@ export function ClientCalCredentials({ clientId }: { clientId: string }) {
                                 }
                             }}
                             placeholder="Nouveau mot de passe"
-                            className="flex-1 px-2.5 py-1.5 text-sm font-mono text-slate-900 bg-white border border-indigo-400 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            className="flex-1 px-2.5 py-1.5 text-sm font-mono text-slate-900 bg-white border border-primary-400 rounded-lg outline-none focus:ring-2 focus:ring-primary-500/20"
                         />
                         <button
                             type="button"
@@ -344,7 +344,7 @@ export function ClientCalCredentials({ clientId }: { clientId: string }) {
                                     type="button"
                                     disabled={reveal.isPending}
                                     onClick={() => (revealed ? hideRevealed() : reveal.mutate())}
-                                    className="text-slate-400 hover:text-indigo-600 transition-colors"
+                                    className="text-slate-400 hover:text-primary-600 transition-colors"
                                     aria-label={revealed ? "Masquer" : "Afficher le mot de passe"}
                                     title={revealed ? "Masquer" : "Afficher le mot de passe"}
                                 >
@@ -403,7 +403,7 @@ export function ClientCalCredentials({ clientId }: { clientId: string }) {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="text-slate-300 hover:text-indigo-600"
+                            className="text-slate-300 hover:text-primary-600"
                             aria-label="Ouvrir la page de connexion"
                         >
                             <ExternalLink className="w-3 h-3" />

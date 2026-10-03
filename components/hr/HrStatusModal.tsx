@@ -130,7 +130,7 @@ export function HrStatusModal({
                     aria-pressed={selected}
                     title={t.reason}
                     className={`flex h-full w-full flex-col gap-1 rounded-xl border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-45 ${
-                      selected ? "border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20" : "border-slate-200 bg-white hover:border-slate-300"
+                      selected ? "border-primary-600 bg-primary-50/60 ring-2 ring-primary-500/20" : "border-slate-200 bg-white hover:border-slate-300"
                     }`}
                   >
                     <span className="flex w-full items-center justify-between">
@@ -138,7 +138,7 @@ export function HrStatusModal({
                         {i + 1}. {STATUS_LABELS[opt.value]}
                         {opt.value === currentStatus && <span className="ml-1 font-normal text-slate-400">(actuel)</span>}
                       </span>
-                      <Icon className={`h-4 w-4 ${selected ? "text-indigo-600" : "text-slate-400"}`} />
+                      <Icon className={`h-4 w-4 ${selected ? "text-primary-600" : "text-slate-400"}`} />
                     </span>
                     <span className="text-[10px] leading-snug text-slate-500">{t.allowed ? opt.desc : t.reason}</span>
                   </button>
@@ -190,7 +190,7 @@ export function HrStatusModal({
                     onChange={(e) => setAdjustmentInput(e.target.value)}
                     placeholder="0"
                     aria-invalid={adjustmentCents === null}
-                    className="w-full rounded-lg border border-slate-200 bg-white p-2.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 aria-[invalid=true]:border-rose-400"
+                    className="w-full rounded-lg border border-slate-200 bg-white p-2.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 aria-[invalid=true]:border-rose-400"
                   />
                   <span className="absolute right-3 top-2.5 text-xs text-slate-400">€</span>
                 </div>
@@ -207,7 +207,7 @@ export function HrStatusModal({
                   value={adjustmentNote}
                   onChange={(e) => setAdjustmentNote(e.target.value)}
                   placeholder="Ex : prime challenge de septembre, régularisation transport…"
-                  className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 {noteMissing && <p className="text-[11px] text-rose-600">Expliquez pourquoi cet ajustement est appliqué.</p>}
               </div>
@@ -235,7 +235,7 @@ export function HrStatusModal({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
           >
             {isSubmitting ? "Enregistrement…" : status !== currentStatus ? `Passer en « ${STATUS_LABELS[status]} »` : "Enregistrer"}
           </button>

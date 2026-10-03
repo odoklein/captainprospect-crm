@@ -12,7 +12,6 @@ import {
     LayoutGrid,
     List,
     X,
-    Sparkles,
 } from "lucide-react";
 
 interface Task {
@@ -40,7 +39,7 @@ const PRIORITY_STYLES: Record<string, { bg: string; text: string; icon: string }
     LOW: { bg: "dev-priority-low", text: "text-slate-600", icon: "↓" },
     MEDIUM: { bg: "dev-priority-medium", text: "text-blue-700", icon: "→" },
     HIGH: { bg: "dev-priority-high", text: "text-amber-700", icon: "↑" },
-    URGENT: { bg: "dev-priority-urgent", text: "text-red-700", icon: "⚡" },
+    URGENT: { bg: "dev-priority-urgent", text: "text-red-700", icon: "↑↑" },
 };
 
 export default function TasksPage() {
@@ -225,7 +224,7 @@ export default function TasksPage() {
                                                     )}
                                                     {task.assignee && (
                                                         <div className="flex items-center gap-1">
-                                                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-[10px] font-medium text-blue-700">
+                                                            <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-medium text-blue-700">
                                                                 {task.assignee.name.charAt(0)}
                                                             </div>
                                                         </div>
@@ -307,7 +306,7 @@ export default function TasksPage() {
                                         <td className="px-4 py-4">
                                             {task.assignee ? (
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xs font-medium text-blue-700">
+                                                    <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-700">
                                                         {task.assignee.name.charAt(0)}
                                                     </div>
                                                     <span className="text-sm text-slate-600">{task.assignee.name}</span>
@@ -402,8 +401,8 @@ function NewTaskModal({
         <div className="fixed inset-0 dev-modal-overlay z-50 flex items-center justify-center p-4">
             <div className="dev-modal w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-white" />
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                        <CheckSquare className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold text-slate-900">Nouvelle tâche</h2>

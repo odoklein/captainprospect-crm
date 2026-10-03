@@ -11,7 +11,7 @@ import { fr } from "date-fns/locale";
 import {
     MessageSquare,
     AtSign,
-    Zap,
+    SmilePlus,
     CheckCircle,
     Flag,
     Loader2,
@@ -91,13 +91,13 @@ export function ActivityFeed({
             case "new_thread":
                 return <Flag className="w-4 h-4 text-emerald-500" />;
             case "new_message":
-                return <MessageSquare className="w-4 h-4 text-indigo-500" />;
+                return <MessageSquare className="w-4 h-4 text-primary-500" />;
             case "mention":
                 return <AtSign className="w-4 h-4 text-amber-500" />;
             case "status_change":
                 return <CheckCircle className="w-4 h-4 text-slate-500" />;
             case "reaction":
-                return <Zap className="w-4 h-4 text-rose-500" />;
+                return <SmilePlus className="w-4 h-4 text-rose-500" />;
         }
     };
 

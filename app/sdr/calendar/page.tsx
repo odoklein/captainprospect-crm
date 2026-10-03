@@ -261,7 +261,7 @@ export default function SdrCalendarPage() {
     if (loading && !data) {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-120px)]">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
             </div>
         );
     }
@@ -290,7 +290,7 @@ export default function SdrCalendarPage() {
                     </div>
                     <button
                         onClick={goToToday}
-                        className="ml-2 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                        className="ml-2 px-3 py-1.5 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
                     >
                         Aujourd&apos;hui
                     </button>
@@ -309,7 +309,7 @@ export default function SdrCalendarPage() {
                         )}
                         <div className="flex items-center gap-2">
                             <span className="text-slate-500">Alloué:</span>
-                            <span className="font-semibold text-indigo-600">{totalAllocated}j</span>
+                            <span className="font-semibold text-primary-600">{totalAllocated}j</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-slate-500">Planifié:</span>
@@ -369,7 +369,7 @@ export default function SdrCalendarPage() {
                                                     isWeekend && cell.isCurrentMonth && "bg-slate-50/40",
                                                     selectedDate === cell.date &&
                                                         cell.isCurrentMonth &&
-                                                        "ring-2 ring-indigo-500 ring-inset",
+                                                        "ring-2 ring-primary-500 ring-inset",
                                                     hasAbsence && "bg-amber-50/50"
                                                 )}
                                             >
@@ -378,7 +378,7 @@ export default function SdrCalendarPage() {
                                                     <span
                                                         className={cn(
                                                             "text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full",
-                                                            cell.isToday && "bg-indigo-600 text-white shadow-sm",
+                                                            cell.isToday && "bg-primary-600 text-white shadow-sm",
                                                             !cell.isToday && cell.isCurrentMonth && "text-slate-700",
                                                             !cell.isToday &&
                                                                 !cell.isCurrentMonth &&
@@ -389,7 +389,7 @@ export default function SdrCalendarPage() {
                                                     </span>
 
                                                     {dateBlocks.length > 0 && (
-                                                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+                                                        <span className="text-[10px] font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">
                                                             {dateBlocks.length}
                                                         </span>
                                                     )}
@@ -470,7 +470,7 @@ export default function SdrCalendarPage() {
                                     return (
                                         <div
                                             key={block.id}
-                                            className="border border-slate-200 rounded-xl p-4 hover:border-indigo-300 transition-colors"
+                                            className="border border-slate-200 rounded-xl p-4 hover:border-primary-300 transition-colors"
                                         >
                                             <div className="flex items-start gap-3">
                                                 <div

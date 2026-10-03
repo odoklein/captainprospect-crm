@@ -17,7 +17,8 @@ import {
     Building2,
     User,
     XCircle,
-    Sparkles,
+    GitMerge,
+    Linkedin,
     Search,
     RotateCcw,
     Save,
@@ -41,6 +42,7 @@ import {
     ListChecks,
     PhoneCall,
     PlusCircle,
+    type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
@@ -171,7 +173,7 @@ function inferDataType(samples: string[]): ColumnStats["dataType"] {
 
 const COMPANY_FIELDS = [
     { value: "", label: "Ignorer" },
-    { value: "__custom_company__", label: "➕ Champ personnalisé société..." },
+    { value: "__custom_company__", label: "+ Champ personnalisé société..." },
     { value: "company.name", label: "Nom de société *" },
     { value: "company.industry", label: "Industrie" },
     { value: "company.country", label: "Pays" },
@@ -182,7 +184,7 @@ const COMPANY_FIELDS = [
 ];
 
 const CONTACT_FIELDS = [
-    { value: "__custom_contact__", label: "➕ Champ personnalisé contact..." },
+    { value: "__custom_contact__", label: "+ Champ personnalisé contact..." },
     { value: "contact.firstName", label: "Prénom" },
     { value: "contact.lastName", label: "Nom" },
     { value: "contact.email", label: "Email" },
@@ -371,7 +373,7 @@ export default function ImportListPage() {
             value: "smart_merge",
             title: "Enrichir & compléter",
             description: "Garde les fiches existantes et remplit uniquement les champs vides (téléphone, site, taille…). Ajoute les nouveaux contacts.",
-            icon: Sparkles,
+            icon: GitMerge,
             badge: "Recommandé",
         },
         {
@@ -530,10 +532,10 @@ export default function ImportListPage() {
         EMAIL: "Email",
         LINKEDIN: "LinkedIn",
     };
-    const channelEmojiByValue: Record<"CALL" | "EMAIL" | "LINKEDIN", string> = {
-        CALL: "📞",
-        EMAIL: "📧",
-        LINKEDIN: "💼",
+    const channelIconByValue: Record<"CALL" | "EMAIL" | "LINKEDIN", LucideIcon> = {
+        CALL: Phone,
+        EMAIL: Mail,
+        LINKEDIN: Linkedin,
     };
 
     const reconstructedActionPreview = previewData.slice(0, 3).map((row, idx) => {
@@ -594,7 +596,7 @@ export default function ImportListPage() {
             return {
                 channel: mappedChannel,
                 channelLabel: channelLabelByValue[mappedChannel],
-                channelEmoji: channelEmojiByValue[mappedChannel],
+                channelIcon: channelIconByValue[mappedChannel],
                 date: dates[actionIdx] ?? dates[0] ?? "",
                 callbackDate: callbacks[actionIdx] ?? callbacks[0] ?? "",
                 sourceStatus: status,
@@ -1395,9 +1397,9 @@ export default function ImportListPage() {
                         aria-label={`Étape ${s.num} : ${s.label}`}
                         aria-current={step === s.num ? "step" : undefined}
                         className={`h-1.5 flex-1 rounded-full transition-colors ${step > s.num
-                            ? "bg-indigo-500 cursor-pointer hover:bg-indigo-600"
+                            ? "bg-primary-500 cursor-pointer hover:bg-primary-600"
                             : step === s.num
-                                ? "bg-indigo-500"
+                                ? "bg-primary-500"
                                 : "bg-slate-200 cursor-default"
                             }`}
                     />
@@ -1453,7 +1455,7 @@ export default function ImportListPage() {
                                     value={listName}
                                     onChange={(e) => setListName(e.target.value)}
                                     placeholder="Ex: Liste CSV Mars 2025"
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                                 />
                             </div>
                         ) : (
@@ -1506,7 +1508,7 @@ export default function ImportListPage() {
                             />
                             {duplicateScope === "mission" && missionId && (
                                 <div className="mt-2 flex items-start gap-2 text-xs text-slate-500">
-                                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-indigo-400" />
+                                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary-400" />
                                     <span>
                                         {otherMissionListsCount > 0
                                             ? `${otherMissionListsCount} autre${otherMissionListsCount > 1 ? "s" : ""} liste${otherMissionListsCount > 1 ? "s" : ""} de cette mission ${otherMissionListsCount > 1 ? "seront vérifiées" : "sera vérifiée"} en plus de la liste cible.`
@@ -1523,7 +1525,7 @@ export default function ImportListPage() {
                             <select
                                 value={whenAlreadyWorkedOn}
                                 onChange={(e) => setWhenAlreadyWorkedOn(e.target.value as "skip" | "add_anyway")}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             >
                                 <option value="skip">Ignorer la société (ne pas la relancer)</option>
                                 <option value="add_anyway">Ajouter quand même (nouveaux interlocuteurs possibles)</option>
@@ -1570,13 +1572,13 @@ export default function ImportListPage() {
                             <button
                                 onClick={() => setImportType("companies-only")}
                                 className={`p-6 rounded-xl border-2 transition-all text-left ${importType === "companies-only"
-                                    ? "border-indigo-500 bg-indigo-50"
+                                    ? "border-primary-500 bg-primary-50"
                                     : "border-slate-200 bg-white hover:border-slate-300"
                                     }`}
                             >
                                 <div className="flex items-start gap-4">
                                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${importType === "companies-only"
-                                        ? "bg-indigo-100 text-indigo-600"
+                                        ? "bg-primary-100 text-primary-600"
                                         : "bg-slate-100 text-slate-400"
                                         }`}>
                                         <Building2 className="w-6 h-6" />
@@ -1588,7 +1590,7 @@ export default function ImportListPage() {
                                         </p>
                                     </div>
                                     {importType === "companies-only" && (
-                                        <Check className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                                        <Check className="w-5 h-5 text-primary-600 flex-shrink-0" />
                                     )}
                                 </div>
                             </button>
@@ -1596,13 +1598,13 @@ export default function ImportListPage() {
                             <button
                                 onClick={() => setImportType("companies-contacts")}
                                 className={`p-6 rounded-xl border-2 transition-all text-left ${importType === "companies-contacts"
-                                    ? "border-indigo-500 bg-indigo-50"
+                                    ? "border-primary-500 bg-primary-50"
                                     : "border-slate-200 bg-white hover:border-slate-300"
                                     }`}
                             >
                                 <div className="flex items-start gap-4">
                                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${importType === "companies-contacts"
-                                        ? "bg-indigo-100 text-indigo-600"
+                                        ? "bg-primary-100 text-primary-600"
                                         : "bg-slate-100 text-slate-400"
                                         }`}>
                                         <User className="w-6 h-6" />
@@ -1614,7 +1616,7 @@ export default function ImportListPage() {
                                         </p>
                                     </div>
                                     {importType === "companies-contacts" && (
-                                        <Check className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                                        <Check className="w-5 h-5 text-primary-600 flex-shrink-0" />
                                     )}
                                 </div>
                             </button>
@@ -1657,9 +1659,9 @@ export default function ImportListPage() {
                             </div>
                             <div className="flex items-center gap-2">
                                 <Tooltip content="Détection automatique basée sur les noms de colonnes">
-                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg">
-                                        <Sparkles className="w-4 h-4 text-indigo-500" />
-                                        <span className="text-sm font-medium text-indigo-700">Auto-détecté</span>
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 rounded-lg">
+                                        <ListChecks className="w-4 h-4 text-primary-500" />
+                                        <span className="text-sm font-medium text-primary-700">Auto-détecté</span>
                                     </div>
                                 </Tooltip>
                             </div>
@@ -1670,7 +1672,7 @@ export default function ImportListPage() {
                                 <p className="text-xs text-slate-500">{mappingCompletion}%</p>
                             </div>
                             <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                                <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${mappingCompletion}%` }} />
+                                <div className="h-full bg-primary-500 transition-all duration-300" style={{ width: `${mappingCompletion}%` }} />
                             </div>
                             {!requiredMapped && (
                                 <p className="text-xs text-rose-600 mt-2">Le champ obligatoire `Nom de société` n&apos;est pas encore mappé.</p>
@@ -1711,7 +1713,7 @@ export default function ImportListPage() {
                                         placeholder="Rechercher une colonne..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                        className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                                     />
                                 </div>
                                 <Button
@@ -1741,7 +1743,7 @@ export default function ImportListPage() {
                                 <button
                                     type="button"
                                     onClick={() => setImportActions(!importActions)}
-                                    className={`relative w-11 h-6 rounded-full transition-colors ${importActions ? "bg-indigo-600" : "bg-slate-300"}`}
+                                    className={`relative w-11 h-6 rounded-full transition-colors ${importActions ? "bg-primary-600" : "bg-slate-300"}`}
                                 >
                                     <span
                                         className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${importActions ? "translate-x-5" : ""}`}
@@ -1768,7 +1770,7 @@ export default function ImportListPage() {
 
                                 const getFieldIcon = () => {
                                     if (currentTarget.startsWith("company.")) return <Building2 className="w-4 h-4 text-blue-500" />;
-                                    if (currentTarget.startsWith("contact.")) return <User className="w-4 h-4 text-purple-500" />;
+                                    if (currentTarget.startsWith("contact.")) return <User className="w-4 h-4 text-accent-500" />;
                                     return null;
                                 };
 
@@ -1782,7 +1784,7 @@ export default function ImportListPage() {
                                         className={
                                             isDuplicate
                                                 ? "flex items-center gap-4 p-4 bg-rose-50 border-2 border-rose-300 rounded-xl transition-colors"
-                                                : "flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 transition-colors"
+                                                : "flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl hover:border-primary-300 transition-colors"
                                         }
                                     >
                                         <div className="flex-1 min-w-0">
@@ -1811,7 +1813,7 @@ export default function ImportListPage() {
                                                         <span className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600">
                                                             {stat.uniqueValues} uniques
                                                         </span>
-                                                        <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-600">
+                                                        <span className="text-[11px] px-2 py-0.5 rounded bg-primary-50 text-primary-600">
                                                             {stat.dataType}
                                                         </span>
                                                     </div>
@@ -1867,12 +1869,12 @@ export default function ImportListPage() {
                                     onChange={setAssignedSdrId}
                                     searchable
                                 />
-                                <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
-                                    <p className="text-xs font-medium text-indigo-800 mb-1">Format multi-appels accepte</p>
-                                    <p className="text-xs text-indigo-700">
+                                <div className="rounded-lg border border-primary-100 bg-primary-50/60 p-3">
+                                    <p className="text-xs font-medium text-primary-800 mb-1">Format multi-appels accepte</p>
+                                    <p className="text-xs text-primary-700">
                                         Vous pouvez separer les sequences avec <strong>;</strong>, <strong>|</strong>, retour a la ligne, <strong>-&gt;</strong>, <strong>=&gt;</strong>, <strong>→</strong> ou <strong>»</strong>.
                                     </p>
-                                    <p className="text-[11px] text-indigo-700 mt-1">
+                                    <p className="text-[11px] text-primary-700 mt-1">
                                         Exemple: <span className="font-medium">No answer ; Callback requested ; Meeting booked</span>
                                     </p>
                                 </div>
@@ -1896,14 +1898,14 @@ export default function ImportListPage() {
                                         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
                                             <button
                                                 type="button"
-                                                className={`px-3 py-1.5 text-xs rounded ${actionColumnMode === "single" ? "bg-indigo-600 text-white" : "text-slate-700"}`}
+                                                className={`px-3 py-1.5 text-xs rounded ${actionColumnMode === "single" ? "bg-primary-600 text-white" : "text-slate-700"}`}
                                                 onClick={() => setActionColumnMode("single")}
                                             >
                                                 Colonne unique
                                             </button>
                                             <button
                                                 type="button"
-                                                className={`px-3 py-1.5 text-xs rounded ${actionColumnMode === "multi-column" ? "bg-indigo-600 text-white" : "text-slate-700"}`}
+                                                className={`px-3 py-1.5 text-xs rounded ${actionColumnMode === "multi-column" ? "bg-primary-600 text-white" : "text-slate-700"}`}
                                                 onClick={() => setActionColumnMode("multi-column")}
                                             >
                                                 Multi-colonnes
@@ -2157,12 +2159,12 @@ export default function ImportListPage() {
                                             {reconstructedActionPreview.map((row, rowIdx) => (
                                                 <div key={`reco-${rowIdx}`} className="rounded-lg border border-slate-200 bg-white p-3">
                                                     <p className="text-sm font-semibold text-slate-900">
-                                                        {row.companyName} - {row.actionCount} action{row.actionCount > 1 ? "s" : ""} detectee{row.actionCount > 1 ? "s" : ""}
+                                                        {row.companyName} - {row.actionCount} action{row.actionCount > 1 ? "s" : ""} détectée{row.actionCount > 1 ? "s" : ""}
                                                     </p>
                                                     <div className="mt-2 space-y-1.5">
                                                         {row.actions.length > 0 ? row.actions.map((action, actionIdx) => (
                                                             <div key={`reco-${rowIdx}-action-${actionIdx}`} className="text-xs text-slate-700">
-                                                                <span>{action.channelEmoji} {action.channelLabel}</span>
+                                                                <span className="inline-flex items-center gap-1 align-middle"><action.channelIcon className="w-3.5 h-3.5 shrink-0 text-slate-500" />{action.channelLabel}</span>
                                                                 <span> · {action.date || "date non fournie"}</span>
                                                                 <span> · {action.mappedLabel || action.sourceStatus}</span>
                                                                 {action.callbackDate && (
@@ -2327,8 +2329,8 @@ export default function ImportListPage() {
                                             label="Doublons détectés"
                                             value={simulation.existingCompanies}
                                             icon={Layers}
-                                            iconBg="bg-indigo-100"
-                                            iconColor="text-indigo-600"
+                                            iconBg="bg-primary-100"
+                                            iconColor="text-primary-600"
                                             subtitle={
                                                 <Badge variant="primary">
                                                     {duplicateScenario === "smart_merge" ? "Enrichis"
@@ -2358,7 +2360,7 @@ export default function ImportListPage() {
                                             Aucun doublon détecté — toutes les sociétés du fichier sont nouvelles.
                                         </div>
                                     ) : (
-                                        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
+                                        <div className="bg-primary-50 border border-primary-100 rounded-xl p-4 text-sm text-primary-900">
                                             <p className="font-medium mb-1">Voici ce qui va se passer</p>
                                             <p>
                                                 {simulation.newCompanies} société{simulation.newCompanies > 1 ? "s" : ""} créée{simulation.newCompanies > 1 ? "s" : ""}
@@ -2478,7 +2480,7 @@ export default function ImportListPage() {
                             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
                                 <Check className="w-8 h-8 text-emerald-600" />
                             </div>
-                            <h2 className="text-xl font-semibold text-slate-900">Import terminé !</h2>
+                            <h2 className="text-xl font-semibold text-slate-900">Import terminé</h2>
                             <p className="text-slate-500 mt-1">
                                 {importResult.companies} sociétés et {importResult.contacts} contacts importés
                             </p>
@@ -2495,9 +2497,9 @@ export default function ImportListPage() {
                             <StatCard
                                 label="Sociétés enrichies"
                                 value={importResult.companiesUpdated}
-                                icon={Sparkles}
-                                iconBg="bg-indigo-100"
-                                iconColor="text-indigo-600"
+                                icon={GitMerge}
+                                iconBg="bg-primary-100"
+                                iconColor="text-primary-600"
                             />
                             <StatCard
                                 label="Doublons évités"

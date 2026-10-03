@@ -3,13 +3,14 @@
 // ============================================
 
 import type { AssistantContext } from "@/lib/ai/tools/types";
+import { brand } from "@/lib/brand";
 
 export const ASSISTANT_PROJET_PROMPT_VERSION = "projet-v1";
 
 export function getAssistantSystemPrompt(ctx: AssistantContext): string {
     const project = ctx.project;
 
-    return `Tu es l'Assistant Projet de Captain Prospect, un CRM de prospection B2B français.
+    return `Tu es l'Assistant Projet de ${brand.name}, un CRM de prospection B2B français.
 Tu parles à ${ctx.userName}, manager de l'agence. Tu réponds en français, court, sans blabla.
 
 # Ce qu'est un projet

@@ -49,7 +49,7 @@ interface Invoice {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string; borderColor: string }> = {
     DRAFT: { label: "Brouillon", color: "text-slate-600", bg: "bg-slate-100", dot: "bg-slate-400", borderColor: "border-slate-200" },
-    VALIDATED: { label: "Validée", color: "text-indigo-700", bg: "bg-indigo-50", dot: "bg-indigo-500", borderColor: "border-indigo-200" },
+    VALIDATED: { label: "Validée", color: "text-primary-700", bg: "bg-primary-50", dot: "bg-primary-500", borderColor: "border-primary-200" },
     SENT: { label: "Envoyée", color: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500", borderColor: "border-amber-200" },
     PAID: { label: "Payée", color: "text-emerald-700", bg: "bg-emerald-50", dot: "bg-emerald-500", borderColor: "border-emerald-200" },
     CANCELLED: { label: "Annulée", color: "text-red-700", bg: "bg-red-50", dot: "bg-red-500", borderColor: "border-red-200" },
@@ -228,7 +228,7 @@ export default function InvoicesPage() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && fetchInvoices()}
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200"
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all duration-200"
                     />
                 </div>
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
@@ -259,7 +259,7 @@ export default function InvoicesPage() {
             {isLoading ? (
                 <div className="flex items-center justify-center py-16">
                     <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-400 mb-3" />
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary-400 mb-3" />
                         <p className="text-sm text-slate-500">Chargement...</p>
                     </div>
                 </div>
@@ -288,7 +288,7 @@ export default function InvoicesPage() {
                             <button
                                 key={invoice.id}
                                 onClick={() => router.push(`/manager/billing/invoices/${invoice.id}`)}
-                                className={`w-full text-left px-6 py-4 flex items-center gap-4 hover:bg-indigo-50/30 transition-all duration-150 group ${
+                                className={`w-full text-left px-6 py-4 flex items-center gap-4 hover:bg-primary-50/30 transition-all duration-150 group ${
                                     invoice.status === "CANCELLED" ? "opacity-50" : ""
                                 }`}
                             >
@@ -306,7 +306,7 @@ export default function InvoicesPage() {
                                 {/* Content */}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors truncate">
+                                        <span className="font-semibold text-slate-900 group-hover:text-primary-700 transition-colors truncate">
                                             {invoice.invoiceNumber || "Brouillon"}
                                         </span>
                                         {isCredit && (
@@ -355,7 +355,7 @@ export default function InvoicesPage() {
                                 </div>
 
                                 {/* Chevron */}
-                                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-primary-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                             </button>
                         );
                     })}

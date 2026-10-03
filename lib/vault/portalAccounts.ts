@@ -1,5 +1,5 @@
 // ============================================
-// ACCESS VAULT — Captain Prospect portal accounts
+// ACCESS VAULT — agency portal accounts (brand.name)
 //
 // `POST /api/clients/[id]/interlocuteurs/[iid]/activate-portal` already creates
 // a COMMERCIAL account, but it shows the generated password exactly once and
@@ -18,11 +18,12 @@ import {
     getCredential,
     recordVaultAudit,
 } from "./service";
+import { brand } from "@/lib/brand";
 
 /** Where a portal user signs in. Used as the credential's `url`. */
 export function portalLoginUrl(): string {
     const base =
-        process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.captainprospect.fr";
+        brand.appUrl;
     return `${base.replace(/\/$/, "")}/login`;
 }
 
@@ -137,7 +138,7 @@ export async function createPortalAccountForInterlocuteur(
             clientId: interlocuteur.clientId,
             missionId: options.missionId ?? null,
             type: "PORTAL",
-            label: `Portail Captain Prospect — ${fullName}`,
+            label: `Portail ${brand.name} — ${fullName}`,
             login: email,
             password,
             url: portalLoginUrl(),

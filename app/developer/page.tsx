@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Spinner } from "@/components/ui";
 
 export default function DeveloperIndexPage() {
     const router = useRouter();
@@ -12,7 +13,7 @@ export default function DeveloperIndexPage() {
 
     return (
         <div className="min-h-screen flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <Spinner className="size-6 text-primary" />
         </div>
     );
 }

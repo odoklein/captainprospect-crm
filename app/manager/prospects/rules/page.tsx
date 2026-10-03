@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, Badge, Button, useToast, DataTable, ConfirmModal } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import { RuleWizard } from "@/components/prospects/RuleWizard";
-import { Plus, RefreshCw, Edit, Trash2, Sparkles, CheckCircle, XCircle } from "lucide-react";
+import { Plus, RefreshCw, Edit, Trash2, Workflow, CheckCircle, XCircle } from "lucide-react";
 import { ProspectPipelineStep } from "@prisma/client";
 
 interface ProspectRule {
@@ -88,7 +88,7 @@ export default function RulesPage() {
             key: "step",
             header: "Étape",
             render: (rule) => (
-                <Badge className="bg-indigo-100 text-indigo-700">{rule.step}</Badge>
+                <Badge className="bg-primary-100 text-primary-700">{rule.step}</Badge>
             ),
         },
         {
@@ -170,7 +170,7 @@ export default function RulesPage() {
                     </div>
                 ) : rules.length === 0 ? (
                     <div className="text-center py-12">
-                        <Sparkles className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                        <Workflow className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                         <h3 className="text-lg font-medium text-slate-700">Aucune règle configurée</h3>
                         <p className="text-slate-500 mt-1 mb-4">
                             Créez votre première règle pour automatiser le traitement des prospects.

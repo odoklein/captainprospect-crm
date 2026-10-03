@@ -128,7 +128,7 @@ export function ToolDock({ missions, colors, today, brush, canEditAbsences, onBr
                                 title={`${mission.name} · ${mission.clientName}\n${describeProgress(mission, today)}${shortcut < 9 ? `\nRaccourci : ${shortcut + 1}` : ''}`}
                                 className={cn(
                                     'flex h-10 shrink-0 items-center gap-2 rounded-full pl-2.5 pr-3.5 text-[13px] font-medium transition-all',
-                                    selected ? 'bg-white ring-2 ring-indigo-500' : 'hover:brightness-[0.97]',
+                                    selected ? 'bg-white ring-2 ring-primary-500' : 'hover:brightness-[0.97]',
                                 )}
                                 style={selected ? { color: color.text } : { backgroundColor: color.bg, color: color.text }}
                             >
@@ -139,7 +139,7 @@ export function ToolDock({ missions, colors, today, brush, canEditAbsences, onBr
                                         {formatDays(days)}
                                     </span>
                                 )}
-                                {selected && <CheckCircle2 className="h-5 w-5 shrink-0 fill-indigo-600 text-white" />}
+                                {selected && <CheckCircle2 className="h-5 w-5 shrink-0 fill-primary-600 text-white" />}
                             </button>
                         );
                     })}
@@ -163,7 +163,7 @@ export function ToolDock({ missions, colors, today, brush, canEditAbsences, onBr
                             title="Peindre des jours d'absence"
                             className={cn(
                                 'flex h-10 shrink-0 items-center rounded-full px-3.5 text-[13px] font-medium text-slate-600 transition-all',
-                                brush?.kind === 'absence' && 'ring-2 ring-indigo-500',
+                                brush?.kind === 'absence' && 'ring-2 ring-primary-500',
                             )}
                             style={{ background: HATCH }}
                         >
@@ -187,7 +187,7 @@ export function ToolDock({ missions, colors, today, brush, canEditAbsences, onBr
                     aria-pressed={brush?.kind === 'mission'}
                     className={cn(
                         'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
-                        brush?.kind === 'mission' ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:bg-slate-100',
+                        brush?.kind === 'mission' ? 'bg-primary-100 text-primary-600' : 'text-slate-500 hover:bg-slate-100',
                     )}
                 >
                     <BrushIcon className="h-[18px] w-[18px]" />
@@ -292,7 +292,7 @@ function MissionPicker({
             className="absolute bottom-[calc(100%+10px)] left-1/2 w-[380px] -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_16px_48px_rgba(15,23,42,0.16)] animate-in fade-in slide-in-from-bottom-1 duration-150"
             onPointerLeave={() => onHighlight(null)}
         >
-            <label className="mb-2 flex items-center gap-2 rounded-xl border border-slate-200 px-2.5 focus-within:border-indigo-300 focus-within:ring-2 focus-within:ring-indigo-100">
+            <label className="mb-2 flex items-center gap-2 rounded-xl border border-slate-200 px-2.5 focus-within:border-primary-300 focus-within:ring-2 focus-within:ring-primary-100">
                 <Search className="h-3.5 w-3.5 text-slate-400" />
                 <input
                     autoFocus
@@ -312,7 +312,7 @@ function MissionPicker({
                                 type="button"
                                 onClick={() => onPick(mission.id)}
                                 onPointerEnter={() => onHighlight(mission.id)}
-                                className={cn('flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left hover:bg-slate-50', selectedId === mission.id && 'bg-indigo-50')}
+                                className={cn('flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left hover:bg-slate-50', selectedId === mission.id && 'bg-primary-50')}
                             >
                                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color.solid }} />
                                 <span className="min-w-0 flex-1">

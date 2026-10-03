@@ -119,7 +119,7 @@ export default function EditSourcePage({ params }: { params: Promise<{ id: strin
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
             </div>
         );
     }
@@ -199,7 +199,7 @@ export default function EditSourcePage({ params }: { params: Promise<{ id: strin
                             id="autoActivate"
                             checked={formData.autoActivate}
                             onChange={(e) => setFormData({ ...formData, autoActivate: e.target.checked })}
-                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                            className="w-4 h-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500"
                         />
                         <label htmlFor="autoActivate" className="text-sm font-medium text-slate-700">
                             Auto-activation
@@ -216,7 +216,7 @@ export default function EditSourcePage({ params }: { params: Promise<{ id: strin
                             id="isActive"
                             checked={formData.isActive}
                             onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                            className="w-4 h-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500"
                         />
                         <label htmlFor="isActive" className="text-sm font-medium text-slate-700">
                             Source active

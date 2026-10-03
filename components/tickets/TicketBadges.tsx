@@ -12,18 +12,18 @@ const PILL = "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium r
 const STATUS_STYLES: Record<TicketStatus, string> = {
     NEW: "bg-slate-100 text-slate-700 border-slate-200",
     TODO: "bg-sky-50 text-sky-700 border-sky-200",
-    IN_PROGRESS: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    IN_PROGRESS: "bg-primary-50 text-primary-700 border-primary-200",
     BLOCKED: "bg-red-50 text-red-700 border-red-200",
-    TESTING: "bg-violet-50 text-violet-700 border-violet-200",
+    TESTING: "bg-accent-50 text-accent-700 border-accent-200",
     COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 const STATUS_DOTS: Record<TicketStatus, string> = {
     NEW: "bg-slate-400",
     TODO: "bg-sky-500",
-    IN_PROGRESS: "bg-indigo-500",
+    IN_PROGRESS: "bg-primary-500",
     BLOCKED: "bg-red-500",
-    TESTING: "bg-violet-500",
+    TESTING: "bg-accent-500",
     COMPLETED: "bg-emerald-500",
 };
 
@@ -37,14 +37,14 @@ const PRIORITY_STYLES: Record<TaskPriority, string> = {
 const CATEGORY_STYLES: Record<TicketCategory, string> = {
     BUG: "bg-rose-50 text-rose-700 border-rose-200",
     IMPROVEMENT: "bg-teal-50 text-teal-700 border-teal-200",
-    FEATURE_REQUEST: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    FEATURE_REQUEST: "bg-primary-50 text-primary-700 border-primary-200",
     TECHNICAL_SUPPORT: "bg-slate-100 text-slate-700 border-slate-200",
 };
 
 const SCOPE_STYLES: Record<TicketScope, string> = {
     INTERNAL: "bg-slate-100 text-slate-600 border-slate-200",
     CLIENT_FACING: "bg-sky-50 text-sky-700 border-sky-200",
-    MISSION_RELATED: "bg-purple-50 text-purple-700 border-purple-200",
+    MISSION_RELATED: "bg-accent-50 text-accent-700 border-accent-200",
 };
 
 export function TicketStatusBadge({ status, className }: { status: TicketStatus; className?: string }) {

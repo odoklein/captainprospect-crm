@@ -36,7 +36,7 @@ export function SupportQuickReplies({
                 }}
             >
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <Sparkles className="w-3.5 h-3.5 text-primary-600" />
                     <span
                         style={{
                             fontSize: 11,

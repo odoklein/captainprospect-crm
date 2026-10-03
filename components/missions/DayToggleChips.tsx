@@ -53,7 +53,7 @@ export function DayToggleChips({ value, onChange, frequency, disabled }: DayTogg
                         className={cn(
                             "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
                             isSelected
-                                ? "bg-indigo-500 text-white"
+                                ? "bg-primary-500 text-white"
                                 : "bg-slate-100 text-slate-600 hover:bg-slate-200",
                             disabled && "opacity-50 cursor-not-allowed"
                         )}

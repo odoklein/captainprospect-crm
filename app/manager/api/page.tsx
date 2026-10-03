@@ -291,8 +291,8 @@ export default function ApiManagementPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 rounded-lg">
-                <Key className="w-6 h-6 text-indigo-600" />
+              <div className="p-2 bg-primary-100 rounded-lg">
+                <Key className="w-6 h-6 text-primary-600" />
               </div>
               API Management
             </h1>
@@ -302,7 +302,7 @@ export default function ApiManagementPage() {
           </div>
           <Button 
             onClick={() => setShowCreateDialog(true)}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-primary-600 hover:bg-primary-700"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create API Key
@@ -365,8 +365,8 @@ export default function ApiManagementPage() {
                       {stats.totalRequests.toLocaleString()}
                     </p>
                   </div>
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <TrendingUp className="w-5 h-5 text-purple-600" />
+                  <div className="p-3 bg-accent-100 rounded-lg">
+                    <TrendingUp className="w-5 h-5 text-accent-600" />
                   </div>
                 </div>
               </CardContent>
@@ -575,7 +575,7 @@ export default function ApiManagementPage() {
                             });
                           }
                         }}
-                        className="mt-1 h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                        className="mt-1 h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -669,7 +669,7 @@ export default function ApiManagementPage() {
                 !formData.name.trim() ||
                 formData.selectedEndpoints.length === 0
               }
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="bg-primary-600 hover:bg-primary-700 text-white"
             >
               {creating ? (
                 <>
@@ -780,7 +780,7 @@ export default function ApiManagementPage() {
           <ModalFooter className="mt-6">
             <Button 
               onClick={() => setNewKeyData(null)} 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
+              className="bg-primary-600 hover:bg-primary-700 text-white w-full sm:w-auto"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
               I&apos;ve Saved the Key
@@ -792,7 +792,7 @@ export default function ApiManagementPage() {
       {/* API Keys List */}
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="w-8 h-8 animate-spin text-indigo-400" />
+          <RefreshCw className="w-8 h-8 animate-spin text-primary-400" />
           <p className="ml-3 text-gray-500">Loading API keys...</p>
         </div>
       ) : apiKeys.length === 0 ? (
@@ -805,7 +805,7 @@ export default function ApiManagementPage() {
             <p className="text-gray-500 mb-6 max-w-md mx-auto">
               Create your first API key to enable external integrations and start accessing your CRM data programmatically
             </p>
-            <Button onClick={() => setShowCreateDialog(true)} className="bg-indigo-600 hover:bg-indigo-700">
+            <Button onClick={() => setShowCreateDialog(true)} className="bg-primary-600 hover:bg-primary-700">
               <Plus className="w-4 h-4 mr-2" />
               Create Your First API Key
             </Button>
@@ -837,8 +837,8 @@ export default function ApiManagementPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${key.isActive ? "bg-indigo-100" : "bg-gray-100"}`}>
-                      <Key className={`w-5 h-5 ${key.isActive ? "text-indigo-600" : "text-gray-500"}`} />
+                    <div className={`p-2 rounded-lg ${key.isActive ? "bg-primary-100" : "bg-gray-100"}`}>
+                      <Key className={`w-5 h-5 ${key.isActive ? "text-primary-600" : "text-gray-500"}`} />
                     </div>
                     <div>
                       <CardTitle className="text-lg">{key.name}</CardTitle>
@@ -852,7 +852,7 @@ export default function ApiManagementPage() {
                     {key.isActive ? 'Active' : 'Revoked'}
                   </span>
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    key.role === "admin" ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-800'
+                    key.role === "admin" ? 'bg-primary-100 text-primary-800' : 'bg-gray-100 text-gray-800'
                   }`}>
                     {key.role}
                   </span>

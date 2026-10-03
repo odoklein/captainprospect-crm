@@ -100,10 +100,10 @@ function StatCard({
 }) {
     const colorMap = {
         indigo: {
-            bg: "bg-indigo-50",
-            icon: "bg-indigo-100 text-indigo-600",
-            value: "text-indigo-700",
-            border: "border-indigo-100",
+            bg: "bg-primary-50",
+            icon: "bg-primary-100 text-primary-600",
+            value: "text-primary-700",
+            border: "border-primary-100",
         },
         emerald: {
             bg: "bg-emerald-50",
@@ -130,10 +130,10 @@ function StatCard({
             border: "border-red-100",
         },
         violet: {
-            bg: "bg-violet-50",
-            icon: "bg-violet-100 text-violet-600",
-            value: "text-violet-700",
-            border: "border-violet-100",
+            bg: "bg-accent-50",
+            icon: "bg-accent-100 text-accent-600",
+            value: "text-accent-700",
+            border: "border-accent-100",
         },
     };
 
@@ -142,7 +142,7 @@ function StatCard({
     return (
         <div className={cn(
             "relative overflow-hidden rounded-2xl border p-5 transition-all duration-300",
-            "bg-white hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-0.5",
+            "bg-white hover:shadow-md",
             c.border
         )}>
             <div className="flex items-start justify-between">
@@ -172,10 +172,10 @@ function StatCard({
 function StatusBadge({ status }: { status?: string }) {
     const statusConfig: Record<string, { label: string; className: string }> = {
         SENT: { label: "Envoyé", className: "bg-blue-50 text-blue-700 border-blue-200" },
-        DELIVERED: { label: "Délivré", className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+        DELIVERED: { label: "Délivré", className: "bg-primary-50 text-primary-700 border-primary-200" },
         OPENED: { label: "Ouvert", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
         CLICKED: { label: "Cliqué", className: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-        REPLIED: { label: "Répondu", className: "bg-violet-50 text-violet-700 border-violet-200" },
+        REPLIED: { label: "Répondu", className: "bg-accent-50 text-accent-700 border-accent-200" },
         BOUNCED: { label: "Rebond", className: "bg-amber-50 text-amber-700 border-amber-200" },
         FAILED: { label: "Échoué", className: "bg-red-50 text-red-700 border-red-200" },
     };
@@ -389,7 +389,7 @@ export default function SDRMissionEmailsSentPage() {
             onClick={() => handleSort(col)}
             className={cn(
                 "inline-flex items-center gap-1 text-left font-semibold text-xs uppercase tracking-wider",
-                sortBy === col ? "text-indigo-600" : "text-slate-400 hover:text-slate-600"
+                sortBy === col ? "text-primary-600" : "text-slate-400 hover:text-slate-600"
             )}
         >
             {label}
@@ -419,7 +419,7 @@ export default function SDRMissionEmailsSentPage() {
                     </button>
                     <Link
                         href="/sdr/action"
-                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-indigo-500 rounded-xl hover:from-indigo-500 hover:to-indigo-400 shadow-sm shadow-indigo-200 transition-all hover:-translate-y-0.5"
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-500 shadow-sm transition-colors"
                     >
                         <Send className="w-4 h-4" />
                         Nouvelle action
@@ -484,7 +484,7 @@ export default function SDRMissionEmailsSentPage() {
                             placeholder="Rechercher par contact, sujet, société..."
                             value={debouncedSearch}
                             onChange={(e) => setDebouncedSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 placeholder:text-slate-400 transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 placeholder:text-slate-400 transition-all"
                         />
                     </div>
 
@@ -493,7 +493,7 @@ export default function SDRMissionEmailsSentPage() {
                         <select
                             value={missionFilter}
                             onChange={(e) => { setMissionFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
-                            className="appearance-none pl-4 pr-10 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 min-w-[180px] transition-all"
+                            className="appearance-none pl-4 pr-10 py-2.5 border border-slate-200 rounded-xl text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 min-w-[180px] transition-all"
                         >
                             <option value="">Toutes les missions</option>
                             {missions.map((m) => (
@@ -509,14 +509,14 @@ export default function SDRMissionEmailsSentPage() {
                         className={cn(
                             "inline-flex items-center gap-2 px-3.5 py-2.5 text-sm font-medium rounded-xl border transition-all",
                             showFilters
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                ? "bg-primary-50 text-primary-700 border-primary-200"
                                 : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                         )}
                     >
                         <Filter className="w-4 h-4" />
                         Filtres
                         {hasActiveFilters && (
-                            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                            <span className="w-2 h-2 rounded-full bg-primary-500" />
                         )}
                     </button>
 
@@ -540,7 +540,7 @@ export default function SDRMissionEmailsSentPage() {
                             <select
                                 value={statusFilter}
                                 onChange={(e) => { setStatusFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
-                                className="appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 min-w-[140px]"
+                                className="appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-w-[140px]"
                             >
                                 <option value="">Tous</option>
                                 <option value="SENT">Envoyé</option>
@@ -558,7 +558,7 @@ export default function SDRMissionEmailsSentPage() {
                             <select
                                 value={hasOpenedFilter}
                                 onChange={(e) => { setHasOpenedFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
-                                className="appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 min-w-[140px]"
+                                className="appearance-none px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-w-[140px]"
                             >
                                 <option value="">Tous</option>
                                 <option value="true">Ouverts</option>
@@ -572,7 +572,7 @@ export default function SDRMissionEmailsSentPage() {
                                 type="date"
                                 value={dateFrom}
                                 onChange={(e) => { setDateFrom(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
-                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                             />
                         </div>
 
@@ -582,7 +582,7 @@ export default function SDRMissionEmailsSentPage() {
                                 type="date"
                                 value={dateTo}
                                 onChange={(e) => { setDateTo(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
-                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                className="px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                             />
                         </div>
                     </div>
@@ -598,10 +598,10 @@ export default function SDRMissionEmailsSentPage() {
 
             {/* Batch Actions */}
             {selected.size > 0 && (
-                <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3 animate-fade-in">
+                <div className="flex items-center justify-between bg-primary-50 border border-primary-200 rounded-2xl px-5 py-3 animate-fade-in">
                     <div className="flex items-center gap-2.5">
-                        <CheckSquare className="w-4.5 h-4.5 text-indigo-600" />
-                        <span className="text-sm font-semibold text-indigo-900">
+                        <CheckSquare className="w-4.5 h-4.5 text-primary-600" />
+                        <span className="text-sm font-semibold text-primary-900">
                             {selected.size} email{selected.size > 1 ? "s" : ""} sélectionné{selected.size > 1 ? "s" : ""}
                         </span>
                     </div>
@@ -617,7 +617,7 @@ export default function SDRMissionEmailsSentPage() {
                         <button
                             onClick={() => handleBatchAction("resend")}
                             disabled={isBatchLoading}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-all disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-600 bg-white border border-primary-200 rounded-lg hover:bg-primary-50 transition-all disabled:opacity-50"
                         >
                             {isBatchLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
                             Renvoyer
@@ -634,14 +634,14 @@ export default function SDRMissionEmailsSentPage() {
                 <div className="flex flex-col items-center justify-center py-20">
                     <div className="relative">
                         <div className="w-12 h-12 rounded-full border-2 border-slate-200" />
-                        <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin" />
+                        <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-primary-500 border-t-transparent animate-spin" />
                     </div>
                     <p className="mt-4 text-sm text-slate-500 font-medium">Chargement des emails...</p>
                 </div>
             ) : emails.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-200 py-20 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-50 flex items-center justify-center mx-auto mb-5">
-                        <Mail className="w-8 h-8 text-indigo-500" />
+                    <div className="w-16 h-16 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-5">
+                        <Mail className="w-8 h-8 text-primary-500" />
                     </div>
                     <h3 className="text-lg font-bold text-slate-900 mb-2">
                         {hasActiveFilters ? "Aucun résultat" : "Aucun email envoyé"}
@@ -654,7 +654,7 @@ export default function SDRMissionEmailsSentPage() {
                     {hasActiveFilters ? (
                         <button
                             onClick={clearFilters}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-all"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-primary-600 bg-primary-50 rounded-xl hover:bg-primary-100 transition-all"
                         >
                             <RotateCcw className="w-4 h-4" />
                             Réinitialiser les filtres
@@ -662,7 +662,7 @@ export default function SDRMissionEmailsSentPage() {
                     ) : (
                         <Link
                             href="/sdr/action"
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-medium rounded-xl hover:from-indigo-500 hover:to-indigo-400 shadow-sm shadow-indigo-200 transition-all hover:-translate-y-0.5"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 shadow-sm transition-colors"
                         >
                             <Send className="w-4 h-4" />
                             Commencer une mission
@@ -681,7 +681,7 @@ export default function SDRMissionEmailsSentPage() {
                                             type="checkbox"
                                             checked={selected.size === emails.length && emails.length > 0}
                                             onChange={toggleSelectAll}
-                                            className="rounded-[4px] border-slate-300 text-indigo-600 focus:ring-indigo-500/20 w-4 h-4"
+                                            className="rounded-[4px] border-slate-300 text-primary-600 focus:ring-primary-500/20 w-4 h-4"
                                         />
                                     </th>
                                     <th className="text-left py-3.5 px-4">
@@ -711,7 +711,7 @@ export default function SDRMissionEmailsSentPage() {
                                         className={cn(
                                             "group transition-colors",
                                             selected.has(e.id)
-                                                ? "bg-indigo-50/40"
+                                                ? "bg-primary-50/40"
                                                 : "hover:bg-slate-50/80"
                                         )}
                                         style={{ animationDelay: `${idx * 20}ms` }}
@@ -721,13 +721,13 @@ export default function SDRMissionEmailsSentPage() {
                                                 type="checkbox"
                                                 checked={selected.has(e.id)}
                                                 onChange={() => toggleSelect(e.id)}
-                                                className="rounded-[4px] border-slate-300 text-indigo-600 focus:ring-indigo-500/20 w-4 h-4"
+                                                className="rounded-[4px] border-slate-300 text-primary-600 focus:ring-primary-500/20 w-4 h-4"
                                             />
                                         </td>
                                         <td className="py-3.5 px-4">
                                             <div className="min-w-[200px]">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center shrink-0">
+                                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
                                                         <span className="text-xs font-bold text-slate-500">
                                                             {(e.contact?.firstName?.[0] || e.contact?.email?.[0] || "?").toUpperCase()}
                                                         </span>
@@ -805,7 +805,7 @@ export default function SDRMissionEmailsSentPage() {
                             <select
                                 value={pagination.limit}
                                 onChange={(e) => setPagination((p) => ({ ...p, limit: parseInt(e.target.value), page: 1 }))}
-                                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                             >
                                 <option value="10">10 / page</option>
                                 <option value="25">25 / page</option>
@@ -835,7 +835,7 @@ export default function SDRMissionEmailsSentPage() {
                                         className={cn(
                                             "w-9 h-9 rounded-lg text-xs font-medium transition-all",
                                             pageNum === pagination.page
-                                                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200"
+                                                ? "bg-primary-600 text-white shadow-sm"
                                                 : "text-slate-500 hover:bg-white hover:text-slate-700"
                                         )}
                                     >

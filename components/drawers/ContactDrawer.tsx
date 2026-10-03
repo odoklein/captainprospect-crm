@@ -728,7 +728,7 @@ export function ContactDrawer({
                 {/* Avatar & Status */}
                 {!isEditing && !isCreating && StatusIcon && (
                     <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-2xl font-bold text-emerald-600">
+                        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-600">
                             {(contact!.firstName?.[0] || contact!.lastName?.[0] || "?").toUpperCase()}
                         </div>
                         <div>
@@ -757,7 +757,7 @@ export function ContactDrawer({
                         {(contact.phone || contact.companyPhone) && (
                             <a
                                 href={`tel:${contact.phone || contact.companyPhone}`}
-                                className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white rounded-xl font-semibold text-base shadow-lg shadow-emerald-500/25 transition-all hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-[1.02]"
+                                className="flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-base shadow-sm transition-colors"
                             >
                                 <PhoneCall className="w-5 h-5" />
                                 {contact.phone ? (
@@ -774,7 +774,7 @@ export function ContactDrawer({
                                 {contact.email && (
                                     <a
                                         href={`mailto:${contact.email}`}
-                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-medium text-sm hover:bg-indigo-100 transition-colors"
+                                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary-50 text-primary-600 rounded-xl font-medium text-sm hover:bg-primary-100 transition-colors"
                                     >
                                         <Send className="w-4 h-4" />
                                         Email
@@ -931,24 +931,24 @@ export function ContactDrawer({
                             <DrawerField
                                 label="Société"
                                 value={contact.companyName}
-                                icon={<Building2 className="w-5 h-5 text-indigo-500" />}
+                                icon={<Building2 className="w-5 h-5 text-primary-500" />}
                             />
                             <div className="grid grid-cols-2 gap-4">
                                 <DrawerField
                                     label="Prénom"
                                     value={contact.firstName}
-                                    icon={<User className="w-5 h-5 text-indigo-500" />}
+                                    icon={<User className="w-5 h-5 text-primary-500" />}
                                 />
                                 <DrawerField
                                     label="Nom"
                                     value={contact.lastName}
-                                    icon={<User className="w-5 h-5 text-indigo-500" />}
+                                    icon={<User className="w-5 h-5 text-primary-500" />}
                                 />
                             </div>
                             <DrawerField
                                 label="Poste"
                                 value={contact.title}
-                                icon={<Briefcase className="w-5 h-5 text-indigo-500" />}
+                                icon={<Briefcase className="w-5 h-5 text-primary-500" />}
                             />
                             <DrawerField
                                 label="Email"
@@ -957,7 +957,7 @@ export function ContactDrawer({
                                         <div className="flex items-center gap-2">
                                             <a
                                                 href={`mailto:${contact.email}`}
-                                                className="text-indigo-600 hover:underline truncate max-w-[200px]"
+                                                className="text-primary-600 hover:underline truncate max-w-[200px]"
                                             >
                                                 {contact.email}
                                             </a>
@@ -970,7 +970,7 @@ export function ContactDrawer({
                                         </div>
                                     )
                                 }
-                                icon={<Mail className="w-5 h-5 text-indigo-500" />}
+                                icon={<Mail className="w-5 h-5 text-primary-500" />}
                             />
                             <DrawerField
                                 label="Téléphone"
@@ -1066,21 +1066,21 @@ export function ContactDrawer({
                                 return extraEmails.length > 0 ? (
                                     <div className="space-y-2">
                                         <p className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                            <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                                            <Mail className="w-3.5 h-3.5 text-primary-500" />
                                             Autres emails
                                         </p>
                                         <div className="flex flex-wrap gap-2">
                                             {extraEmails.map((em, idx) => (
                                                 <div
                                                     key={idx}
-                                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-100 text-sm"
+                                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-50 border border-primary-100 text-sm"
                                                 >
-                                                    <a href={`mailto:${em}`} className="text-indigo-700 hover:underline truncate max-w-[180px]">
+                                                    <a href={`mailto:${em}`} className="text-primary-700 hover:underline truncate max-w-[180px]">
                                                         {em}
                                                     </a>
                                                     <button
                                                         onClick={() => copyToClipboard(em, "Email")}
-                                                        className="p-1 text-indigo-500 hover:bg-indigo-100 rounded-lg transition-colors shrink-0"
+                                                        className="p-1 text-primary-500 hover:bg-primary-100 rounded-lg transition-colors shrink-0"
                                                         aria-label="Copier"
                                                     >
                                                         <Copy className="w-3.5 h-3.5" />
@@ -1100,7 +1100,7 @@ export function ContactDrawer({
                                                 href={contact.linkedin.startsWith("http") ? contact.linkedin : `https://${contact.linkedin}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-indigo-600 hover:underline truncate max-w-[200px]"
+                                                className="text-primary-600 hover:underline truncate max-w-[200px]"
                                             >
                                                 {contact.linkedin}
                                             </a>
@@ -1121,7 +1121,7 @@ export function ContactDrawer({
                                         </div>
                                     )
                                 }
-                                icon={<Linkedin className="w-5 h-5 text-indigo-500" />}
+                                icon={<Linkedin className="w-5 h-5 text-primary-500" />}
                             />
                         </div>
                     ) : null}
@@ -1155,9 +1155,9 @@ export function ContactDrawer({
                                 />
                                 {/* Meeting booké: show client booking drawer */}
                                 {newActionResult === "MEETING_BOOKED" && (clientBookingUrl || clientInterlocuteurs.some(i => (i.bookingLinks?.length ?? 0) > 0)) && contact && (
-                                    <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 space-y-3">
+                                    <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-3 space-y-3">
                                         <div className="flex items-center gap-2">
-                                            <Calendar className="w-5 h-5 text-indigo-600" />
+                                            <Calendar className="w-5 h-5 text-primary-600" />
                                             <span className="text-sm font-medium text-slate-900">Calendrier client</span>
                                         </div>
                                         <div>
@@ -1173,7 +1173,7 @@ export function ContactDrawer({
                                                 value={rdvDate}
                                                 onChange={(e) => setRdvDate(e.target.value)}
                                                 min={new Date().toISOString().slice(0, 16)}
-                                                className="w-full px-3 py-2 text-sm border border-indigo-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300"
+                                                className="w-full px-3 py-2 text-sm border border-primary-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-300"
                                             />
                                         </div>
                                         <div>
@@ -1186,7 +1186,7 @@ export function ContactDrawer({
                                                         onClick={() => setMeetingType(type)}
                                                         className={cn(
                                                             "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-colors",
-                                                            meetingType === type ? "border-indigo-500 bg-indigo-100 text-indigo-800" : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:bg-indigo-50/50"
+                                                            meetingType === type ? "border-primary-500 bg-primary-100 text-primary-800" : "border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50/50"
                                                         )}
                                                     >
                                                         {type === "VISIO" && <Video className="w-4 h-4" />}
@@ -1210,7 +1210,7 @@ export function ContactDrawer({
                                                     value={meetingJoinUrl}
                                                     onChange={(e) => setMeetingJoinUrl(e.target.value)}
                                                     placeholder="Récupéré automatiquement depuis le calendrier si disponible"
-                                                    className="w-full px-3 py-2 text-sm border border-indigo-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300"
+                                                    className="w-full px-3 py-2 text-sm border border-primary-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-300"
                                                 />
                                                 <p className="text-xs text-slate-500 mt-1.5">
                                                     Le lien visio sera auto-renseigné si le calendrier le renvoie après réservation.
@@ -1226,7 +1226,7 @@ export function ContactDrawer({
                                                     value={meetingAddress}
                                                     onChange={(e) => setMeetingAddress(e.target.value)}
                                                     placeholder="Adresse du rendez-vous"
-                                                    className="w-full px-3 py-2 text-sm border border-indigo-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300"
+                                                    className="w-full px-3 py-2 text-sm border border-primary-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-300"
                                                 />
                                             </div>
                                         )}
@@ -1239,7 +1239,7 @@ export function ContactDrawer({
                                                     value={meetingPhone || (contact?.phone ?? "")}
                                                     onChange={(e) => setMeetingPhone(e.target.value)}
                                                     placeholder={contact?.phone ?? "Numéro du contact"}
-                                                    className="w-full px-3 py-2 text-sm border border-indigo-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-300"
+                                                    className="w-full px-3 py-2 text-sm border border-primary-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-300"
                                                 />
                                             </div>
                                         )}
@@ -1261,9 +1261,9 @@ export function ContactDrawer({
                                 )}
                                 {/* Envoie mail: ouvrir l'envoi par template */}
                                 {newActionResult === "ENVOIE_MAIL" && (
-                                    <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3">
+                                    <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-3">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Send className="w-5 h-5 text-indigo-600" />
+                                            <Send className="w-5 h-5 text-primary-600" />
                                             <span className="text-sm font-medium text-slate-900">Envoyer un email avec template</span>
                                         </div>
                                         <p className="text-xs text-slate-600 mb-3">
@@ -1309,7 +1309,7 @@ export function ContactDrawer({
                                                 placeholder="Ajouter une note (requise pour Intéressé / Rappel demandé)..."
                                                 rows={3}
                                                 maxLength={500}
-                                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                                             />
                                             <p className="text-xs text-slate-400 mt-1 text-right">{newActionNote.length}/500</p>
                                         </div>
@@ -1524,7 +1524,7 @@ export function ContactDrawer({
                                                 <p className="text-xs text-slate-500">{a.campaign.name}</p>
                                             )}
                                             {a.sdr?.name && (
-                                                <span className="text-xs text-indigo-500 font-medium bg-indigo-50 px-1.5 py-0.5 rounded">
+                                                <span className="text-xs text-primary-500 font-medium bg-primary-50 px-1.5 py-0.5 rounded">
                                                     {a.sdr.name}
                                                 </span>
                                             )}

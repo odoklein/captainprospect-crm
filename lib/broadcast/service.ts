@@ -23,6 +23,7 @@ import {
   DEFAULT_PASSWORD_OTP_HTML,
   DEFAULT_PASSWORD_OTP_SUBJECT,
 } from "@/lib/email/templates/security-auth";
+import { brand } from "@/lib/brand";
 
 export interface BroadcastItemView {
   key: string;
@@ -70,7 +71,7 @@ export function getDefaultSystemContent(key: string): {
   }
   const found = SYSTEM_BROADCAST_DEFINITIONS.find((d) => d.key === key);
   return {
-    subject: found?.defaultSubject || "Notification Captain Prospect",
+    subject: found?.defaultSubject || `Notification ${brand.name}`,
     bodyHtml: found ? compileBlocksToHtml(found.defaultSubject, found.defaultBlocks) : "",
   };
 }

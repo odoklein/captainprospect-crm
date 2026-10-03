@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { Meeting } from "../../_types";
 import type { UseFicheRdvReturn } from "../../_hooks/useFicheRdv";
-import { FileText, Check, RefreshCw, Copy, CheckCheck, Sparkles } from "lucide-react";
+import { FileText, Check, RefreshCw, Copy, CheckCheck } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 
 interface FicheTabProps {
   meeting: Meeting;
@@ -56,24 +57,23 @@ export function FicheTab({ meeting, setSelectedMeeting, ficheState }: FicheTabPr
             title="Copier toute la fiche formatée"
           >
             {copiedFiche ? <CheckCheck size={12} style={{ color: "var(--green)" }} /> : <Copy size={12} />}
-            <span>{copiedFiche ? "Copié !" : "Copier"}</span>
+            <span>{copiedFiche ? "Copié" : "Copier"}</span>
           </button>
         </div>
 
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {ficheAutoSaveStatus === "saving" && <span style={{ fontSize: 11, color: "var(--ink3)", fontWeight: 500 }}>Enregistrement…</span>}
-          {ficheAutoSaveStatus === "saved" && <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 500 }}>Sauvegardé ✓</span>}
+          {ficheAutoSaveStatus === "saved" && <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={11} />Sauvegardé</span>}
           {ficheAutoSaveStatus === "error" && <span style={{ fontSize: 11, color: "var(--red)", fontWeight: 500 }}>Erreur</span>}
-          {ficheSaved && ficheAutoSaveStatus === "idle" && <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 500 }}>Sauvegardé ✓</span>}
+          {ficheSaved && ficheAutoSaveStatus === "idle" && <span style={{ fontSize: 11, color: "var(--green)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 3 }}><Check size={11} />Sauvegardé</span>}
 
           <button
             className="rdv-btn"
             style={{
               fontSize: 11,
               padding: "5px 10px",
-              background: "linear-gradient(135deg, #4f46e5, #7c3aed)",
+              background: "#7c3aed",
               color: "#ffffff",
-              boxShadow: "0 2px 6px rgba(79, 70, 229, 0.25)",
             }}
             disabled={ficheLoading}
             onClick={() => generateWithAI(meeting, (updated) => setSelectedMeeting(updated))}
@@ -81,7 +81,7 @@ export function FicheTab({ meeting, setSelectedMeeting, ficheState }: FicheTabPr
             {ficheLoading ? (
               <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} />
             ) : (
-              <Sparkles size={12} />
+              <AiMark size={12} />
             )}
             Générer IA
           </button>

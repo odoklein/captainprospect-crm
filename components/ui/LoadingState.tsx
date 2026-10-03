@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "./Spinner";
 
 interface LoadingStateProps {
     message?: string;
@@ -10,27 +10,24 @@ interface LoadingStateProps {
 }
 
 export function LoadingState({
-    message = "Chargement...",
+    message = "Chargement…",
     className,
     size = "md",
 }: LoadingStateProps) {
     const sizes = {
-        sm: "w-5 h-5",
-        md: "w-8 h-8",
-        lg: "w-12 h-12",
+        sm: "size-5",
+        md: "size-7",
+        lg: "size-10",
     };
 
     return (
-        <div className={cn(
+        <div role="status" className={cn(
             "flex items-center justify-center py-20",
             className
         )}>
             <div className="flex flex-col items-center gap-3">
-                <Loader2 className={cn(
-                    "text-indigo-500 animate-spin",
-                    sizes[size]
-                )} />
-                <p className="text-sm text-slate-500">{message}</p>
+                <Spinner className={cn("text-primary-600", sizes[size])} label={message} />
+                <p className="text-sm text-ink-3">{message}</p>
             </div>
         </div>
     );

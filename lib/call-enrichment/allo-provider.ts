@@ -365,7 +365,7 @@ export class AlloProvider implements CallProvider {
           report.bothMatch += 1;
           report.stopReason = "matched";
           console.log(
-            `[call-enrichment][allo] ✓ match callId=${call.id} from=${call.from} to=${call.to} ` +
+            `[call-enrichment][allo] match callId=${call.id} from=${call.from} to=${call.to} ` +
               `start=${call.start_time ?? call.created_at} duration=${call.duration}s line=${alloNumber} ` +
               `hasSummary=${!!call.summary?.trim()} hasRecording=${!!call.recording_url?.trim()}`,
           );

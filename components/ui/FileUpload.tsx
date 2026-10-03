@@ -120,7 +120,7 @@ export function FileUpload({
     return (
         <div className={cn("space-y-2", className)}>
             {label && (
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-ink-2">
                     {label}
                 </label>
             )}
@@ -135,10 +135,10 @@ export function FileUpload({
                     "relative flex flex-col items-center justify-center gap-3 p-8",
                     "border-2 border-dashed rounded-xl cursor-pointer transition-all",
                     isDragging
-                        ? "border-indigo-500 bg-indigo-50"
+                        ? "border-primary-500 bg-primary-50"
                         : error
                             ? "border-red-500 bg-red-50/50"
-                            : "border-slate-200 hover:border-slate-300 bg-slate-50",
+                            : "border-line hover:border-line-strong bg-surface-2",
                     disabled && "opacity-50 cursor-not-allowed"
                 )}
             >
@@ -155,25 +155,25 @@ export function FileUpload({
                 <div
                     className={cn(
                         "w-12 h-12 rounded-full flex items-center justify-center",
-                        isDragging ? "bg-indigo-100" : "bg-white shadow-sm"
+                        isDragging ? "bg-primary-100" : "bg-surface shadow-sm"
                     )}
                 >
                     <Upload
                         className={cn(
                             "w-6 h-6",
-                            isDragging ? "text-indigo-500" : "text-slate-400"
+                            isDragging ? "text-primary-500" : "text-ink-4"
                         )}
                     />
                 </div>
 
                 <div className="text-center">
-                    <p className="text-sm text-slate-600">
-                        <span className="text-indigo-500 font-medium">
+                    <p className="text-sm text-ink-2">
+                        <span className="text-primary-500 font-medium">
                             Cliquez pour sélectionner
                         </span>{" "}
                         ou glissez-déposez
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-ink-4 mt-1">
                         {accept === "*" ? "Tous types" : accept} · Max {maxSize}MB
                     </p>
                 </div>
@@ -203,21 +203,21 @@ export function FileUpload({
                     {files.map((file, index) => (
                         <div
                             key={`${file.name}-${index}`}
-                            className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg"
+                            className="flex items-center gap-3 p-3 bg-surface-2 border border-line rounded-lg"
                         >
-                            <div className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center">
-                                <FileText className="w-4 h-4 text-slate-400" />
+                            <div className="w-8 h-8 rounded-lg bg-surface shadow-sm flex items-center justify-center">
+                                <FileText className="w-4 h-4 text-ink-4" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm text-slate-900 truncate">{file.name}</p>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-sm text-ink truncate">{file.name}</p>
+                                <p className="text-xs text-ink-3">
                                     {formatFileSize(file.size)}
                                 </p>
                             </div>
                             <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                             <button
                                 onClick={() => removeFile(index)}
-                                className="p-1 text-slate-400 hover:text-slate-600 transition-colors"
+                                className="p-1 text-ink-4 hover:text-ink-2 transition-colors"
                             >
                                 <X className="w-4 h-4" />
                             </button>

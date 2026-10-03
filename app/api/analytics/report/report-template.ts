@@ -1,3 +1,4 @@
+import { brand } from "@/lib/brand";
 /** Self-contained HTML used by Chromium to render the analytics PDF. */
 
 export interface AnalyticsReportTemplateData {
@@ -79,7 +80,7 @@ export function getAnalyticsReportHtml(data: AnalyticsReportTemplateData): strin
   <main class="page">
     <header class="brand">
       <div>
-        <p class="eyebrow">CaptainProspect · Export statistiques</p>
+        <p class="eyebrow">${brand.name} · Export statistiques</p>
         <h1>${esc(data.missionLabel)}</h1>
         <p class="period">${esc(data.periodLabel)}</p>
       </div>
@@ -116,7 +117,7 @@ export function getAnalyticsReportHtml(data: AnalyticsReportTemplateData): strin
       <div class="insight"><p>${esc(data.aiSummary)}</p></div>
     </section>
 
-    <footer>Document exporté depuis CaptainProspect · ${k.noResponse} sans réponse · ${k.callbacks} rappels ou intéressés</footer>
+    <footer>Document exporté depuis ${brand.name} · ${k.noResponse} sans réponse · ${k.callbacks} rappels ou intéressés</footer>
   </main>
 </body>
 </html>`;

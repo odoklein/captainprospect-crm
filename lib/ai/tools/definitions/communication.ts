@@ -23,6 +23,7 @@ import {
     resolveOnboardingRecipients,
     sendOnboardingEmails,
 } from "@/lib/vault/onboardingEmail";
+import { brand } from "@/lib/brand";
 
 // ============================================
 // DRAFTS (artifacts)
@@ -181,7 +182,7 @@ export const sendOnboardingEmailsTool = defineConfirmTool({
             title: `Envoyer l'email d'accès — ${ready.length} destinataire${ready.length > 1 ? "s" : ""}`,
             details: [
                 { label: "Client", value: project.clientName },
-                { label: "Objet", value: "Ton acces a la plateforme Captain Prospect" },
+                { label: "Objet", value: `Ton accès à la plateforme ${brand.name}` },
                 {
                     label: "Contenu",
                     value: "Lien de connexion, identifiant, mot de passe, confirmation du calendrier, chat en direct",
@@ -214,7 +215,7 @@ export const sendOnboardingEmailsTool = defineConfirmTool({
             data: {
                 kind: "EMAIL_DRAFT",
                 title: `Email d'accès — ${project.clientName}`,
-                subject: "Ton acces a la plateforme Captain Prospect",
+                subject: `Ton accès à la plateforme ${brand.name}`,
                 body: "Email d'accès standard (lien, identifiant, mot de passe, calendrier, chat en direct).",
                 clientId: project.clientId,
                 missionId: project.missionId,

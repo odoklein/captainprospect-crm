@@ -628,7 +628,7 @@ export default function ManagerFilesWorkspace() {
   const bulkMoveDisabled = activeTab !== "crm" || selectionCount === 0;
 
   return (
-    <div className="space-y-6 rounded-[28px] border border-slate-200/70 bg-gradient-to-br from-slate-50 via-white to-slate-100/60 p-4 sm:p-6">
+    <div className="space-y-6 rounded-[28px] border border-slate-200/70 bg-slate-50 p-4 sm:p-6">
       <PageHeader
         title="Fichiers & dossiers"
         subtitle={`Espace de travail: ${currentLocation}`}
@@ -667,8 +667,8 @@ export default function ManagerFilesWorkspace() {
                 {files.length}
               </p>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 ring-1 ring-indigo-200/60">
-              <HardDrive className="h-5 w-5 text-indigo-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 ring-1 ring-primary-200/60">
+              <HardDrive className="h-5 w-5 text-primary-600" />
             </div>
           </div>
         </Card>
@@ -820,7 +820,7 @@ export default function ManagerFilesWorkspace() {
                       }
                       className={`ml-3 flex h-5 w-5 items-center justify-center rounded-md border ${
                         selectedFolders.includes(folder.id)
-                          ? "border-indigo-600 bg-indigo-600 text-white"
+                          ? "border-primary-600 bg-primary-600 text-white"
                           : "border-slate-300 bg-white text-transparent"
                       }`}
                     >
@@ -880,7 +880,7 @@ export default function ManagerFilesWorkspace() {
                   <select
                     value={clientFilter}
                     onChange={(event) => setClientFilter(event.target.value)}
-                    className="h-[42px] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                    className="h-[42px] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
                   >
                     <option value="">Tous les clients</option>
                     {(clientsQuery.data ?? []).map((client) => (
@@ -1450,7 +1450,7 @@ export default function ManagerFilesWorkspace() {
             type="button"
             onClick={() => setMoveDestination(null)}
             className={`w-full rounded-xl border px-3 py-2 text-left ${
-              moveDestination === null ? "border-indigo-600 bg-indigo-50" : "border-slate-200"
+              moveDestination === null ? "border-primary-600 bg-primary-50" : "border-slate-200"
             }`}
           >
             Racine
@@ -1462,7 +1462,7 @@ export default function ManagerFilesWorkspace() {
               onClick={() => setMoveDestination(folder.id)}
               className={`w-full rounded-xl border px-3 py-2 text-left ${
                 moveDestination === folder.id
-                  ? "border-indigo-600 bg-indigo-50"
+                  ? "border-primary-600 bg-primary-50"
                   : "border-slate-200"
               }`}
             >
@@ -1493,7 +1493,7 @@ export default function ManagerFilesWorkspace() {
           <select
             value={shareClientId}
             onChange={(event) => setShareClientId(event.target.value)}
-            className="h-[42px] w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+            className="h-[42px] w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
           >
             <option value="">Choisir un client</option>
             {(clientsQuery.data ?? []).map((client) => (

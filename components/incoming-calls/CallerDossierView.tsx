@@ -14,7 +14,7 @@ import {
     Linkedin,
     Mail,
     PhoneIncoming,
-    Sparkles,
+    UserPlus,
     UserRound,
     Users,
 } from "lucide-react";
@@ -118,7 +118,7 @@ export function computeVerdict(
 const VERDICT_STYLE: Record<Verdict["tone"], { box: string; icon: typeof CheckCircle2; iconClass: string }> = {
     mine: { box: "bg-emerald-50 border-emerald-200 text-emerald-900", icon: CheckCircle2, iconClass: "text-emerald-600" },
     team: { box: "bg-amber-50 border-amber-200 text-amber-900", icon: Users, iconClass: "text-amber-600" },
-    new: { box: "bg-sky-50 border-sky-200 text-sky-900", icon: Sparkles, iconClass: "text-sky-600" },
+    new: { box: "bg-sky-50 border-sky-200 text-sky-900", icon: UserPlus, iconClass: "text-sky-600" },
     unknown: { box: "bg-slate-50 border-slate-200 text-slate-800", icon: UserRound, iconClass: "text-slate-500" },
 };
 
@@ -165,7 +165,7 @@ export function CallerDossierView({
                 <div
                     className={cn(
                         "w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 text-lg font-bold",
-                        dossier ? "bg-[#7C5CFC]/10 text-[#5B3FD9]" : "bg-slate-100 text-slate-500",
+                        dossier ? "bg-primary/10 text-primary-700" : "bg-slate-100 text-slate-500",
                     )}
                 >
                     {dossier && !dossier.contact ? <Building2 className="w-6 h-6" /> : initials(dossier ? name : call.alloPersonName)}
@@ -178,15 +178,15 @@ export function CallerDossierView({
                         </div>
                     ) : (
                         <>
-                            <h2 id="incoming-call-title" className="text-xl font-bold text-[#12122A] leading-tight truncate">
+                            <h2 id="incoming-call-title" className="text-xl font-bold text-ink leading-tight truncate">
                                 {name}
                             </h2>
-                            <p className="text-[13px] text-[#5A5A7A] mt-0.5 truncate">{subtitle}</p>
+                            <p className="text-[13px] text-ink-2 mt-0.5 truncate">{subtitle}</p>
                         </>
                     )}
                     <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         {dossier?.mission && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#7C5CFC]/10 text-[#5B3FD9] text-[11px] font-semibold">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary-700 text-[11px] font-semibold">
                                 {dossier.mission.name}
                                 {dossier.mission.clientName ? ` · ${dossier.mission.clientName}` : ""}
                             </span>
@@ -235,8 +235,8 @@ export function CallerDossierView({
 
             {/* Several CRM records share the number */}
             {candidates && candidates.length > 1 && (
-                <div className="rounded-xl border border-[#E8EBF0] p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#8B8BA7] mb-2">
+                <div className="rounded-xl border border-line p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-ink-3 mb-2">
                         {candidates.length} fiches correspondent à ce numéro — laquelle vous appelle ?
                     </p>
                     <div className="grid gap-1.5 sm:grid-cols-2">
@@ -251,14 +251,14 @@ export function CallerDossierView({
                                     className={cn(
                                         "text-left rounded-lg border px-3 py-2 transition-colors",
                                         selected
-                                            ? "border-[#7C5CFC] bg-[#7C5CFC]/5"
-                                            : "border-[#E8EBF0] hover:border-[#C5C8D4] hover:bg-slate-50",
+                                            ? "border-primary-500 bg-primary/5"
+                                            : "border-line hover:border-line-strong hover:bg-slate-50",
                                     )}
                                 >
-                                    <p className="text-[12px] font-semibold text-[#12122A] truncate">
+                                    <p className="text-[12px] font-semibold text-ink truncate">
                                         {c.callerName ?? `${c.companyName} (standard)`}
                                     </p>
-                                    <p className="text-[11px] text-[#8B8BA7] truncate">
+                                    <p className="text-[11px] text-ink-3 truncate">
                                         {[c.callerName ? c.companyName : null, c.missionName].filter(Boolean).join(" · ")}
                                     </p>
                                     {(c.myActionCount > 0 || c.excluded || !c.missionActive) && (
@@ -293,64 +293,64 @@ export function CallerDossierView({
             {/* Status tiles */}
             {dossier && (
                 <div className="grid gap-2 sm:grid-cols-3">
-                    <div className="rounded-xl border border-[#E8EBF0] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#8B8BA7]">Dernier statut</p>
+                    <div className="rounded-xl border border-line p-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3">Dernier statut</p>
                         {dossier.lastAction ? (
                             <>
                                 <div className="mt-1.5">
                                     <ResultBadge result={dossier.lastAction.result} label={dossier.lastAction.resultLabel} />
                                 </div>
-                                <p className="text-[11px] text-[#5A5A7A] mt-1.5">
+                                <p className="text-[11px] text-ink-2 mt-1.5">
                                     {ago(dossier.lastAction.createdAt)}
                                     {dossier.lastAction.sdrName ? ` · ${dossier.lastAction.isMine ? "vous" : dossier.lastAction.sdrName}` : ""}
                                 </p>
                             </>
                         ) : (
-                            <p className="text-[12px] text-[#8B8BA7] mt-1.5">Aucune action</p>
+                            <p className="text-[12px] text-ink-3 mt-1.5">Aucune action</p>
                         )}
                     </div>
                     <div
                         className={cn(
                             "rounded-xl border p-3",
-                            dossier.callback?.overdue ? "border-amber-300 bg-amber-50" : "border-[#E8EBF0]",
+                            dossier.callback?.overdue ? "border-amber-300 bg-amber-50" : "border-line",
                         )}
                     >
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#8B8BA7] flex items-center gap-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 flex items-center gap-1">
                             <CalendarClock className="w-3 h-3" /> Rappel prévu
                         </p>
                         {dossier.callback ? (
                             <>
-                                <p className="text-[13px] font-semibold text-[#12122A] mt-1.5">{when(dossier.callback.date)}</p>
-                                <p className={cn("text-[11px] mt-0.5", dossier.callback.overdue ? "text-amber-700 font-semibold" : "text-[#5A5A7A]")}>
+                                <p className="text-[13px] font-semibold text-ink mt-1.5">{when(dossier.callback.date)}</p>
+                                <p className={cn("text-[11px] mt-0.5", dossier.callback.overdue ? "text-amber-700 font-semibold" : "text-ink-2")}>
                                     {dossier.callback.overdue ? "En retard — il vous rappelle" : ago(dossier.callback.date)}
                                 </p>
                             </>
                         ) : (
-                            <p className="text-[12px] text-[#8B8BA7] mt-1.5">Aucun</p>
+                            <p className="text-[12px] text-ink-3 mt-1.5">Aucun</p>
                         )}
                     </div>
                     <div
                         className={cn(
                             "rounded-xl border p-3",
-                            dossier.meeting && !dossier.meeting.cancelled ? "border-emerald-200 bg-emerald-50/60" : "border-[#E8EBF0]",
+                            dossier.meeting && !dossier.meeting.cancelled ? "border-emerald-200 bg-emerald-50/60" : "border-line",
                         )}
                     >
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#8B8BA7] flex items-center gap-1">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-3 flex items-center gap-1">
                             <CalendarCheck className="w-3 h-3" /> Rendez-vous
                         </p>
                         {dossier.meeting ? (
                             <>
-                                <p className="text-[13px] font-semibold text-[#12122A] mt-1.5">
+                                <p className="text-[13px] font-semibold text-ink mt-1.5">
                                     {dossier.meeting.date ? when(dossier.meeting.date) : "Date non renseignée"}
                                 </p>
-                                <p className={cn("text-[11px] mt-0.5", dossier.meeting.cancelled ? "text-rose-600 font-semibold" : "text-[#5A5A7A]")}>
+                                <p className={cn("text-[11px] mt-0.5", dossier.meeting.cancelled ? "text-rose-600 font-semibold" : "text-ink-2")}>
                                     {dossier.meeting.cancelled
                                         ? "Annulé par la suite"
                                         : `Pris ${ago(dossier.meeting.bookedAt)}${dossier.meeting.sdrName ? ` par ${dossier.meeting.sdrName}` : ""}`}
                                 </p>
                             </>
                         ) : (
-                            <p className="text-[12px] text-[#8B8BA7] mt-1.5">Aucun</p>
+                            <p className="text-[12px] text-ink-3 mt-1.5">Aucun</p>
                         )}
                     </div>
                 </div>
@@ -358,43 +358,43 @@ export function CallerDossierView({
 
             {/* Summary of this very call, once Allo sent it */}
             {call.summary && (
-                <div className="rounded-xl border border-[#7C5CFC]/20 bg-[#7C5CFC]/5 px-4 py-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#5B3FD9] mb-1">Résumé Allo de cet appel</p>
-                    <p className="text-[12px] text-[#12122A] whitespace-pre-line">{call.summary}</p>
+                <div className="rounded-xl border border-primary-500/20 bg-primary/5 px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-primary-700 mb-1">Résumé Allo de cet appel</p>
+                    <p className="text-[12px] text-ink whitespace-pre-line">{call.summary}</p>
                 </div>
             )}
 
             {/* CRM history */}
             {dossier && dossier.actions.length > 0 && (
                 <section>
-                    <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8B8BA7] mb-2">
+                    <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-3 mb-2">
                         <History className="w-3.5 h-3.5" /> Historique CRM
                         <span className="font-medium normal-case tracking-normal">
                             ({dossier.stats.totalActions} action{dossier.stats.totalActions > 1 ? "s" : ""})
                         </span>
                     </h3>
-                    <ol className="relative border-l border-[#E8EBF0] ml-1.5 space-y-3">
+                    <ol className="relative border-l border-line ml-1.5 space-y-3">
                         {dossier.actions.map((a) => (
                             <li key={a.id} className="pl-4 relative">
                                 <span
                                     className={cn(
                                         "absolute -left-[5px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white",
-                                        a.isMine ? "bg-[#7C5CFC]" : "bg-slate-300",
+                                        a.isMine ? "bg-primary" : "bg-slate-300",
                                     )}
                                 />
                                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                     <ResultBadge result={a.result} label={a.resultLabel} />
-                                    <span className="text-[11px] text-[#5A5A7A]">
+                                    <span className="text-[11px] text-ink-2">
                                         {when(a.createdAt)} · {a.isMine ? "Vous" : a.sdrName ?? "—"}
                                         {a.durationSec ? ` · ${formatDuration(a.durationSec)}` : ""}
                                     </span>
                                     {a.missionName && dossier.mission?.name !== a.missionName && (
-                                        <span className="text-[10px] text-[#8B8BA7]">({a.missionName})</span>
+                                        <span className="text-[10px] text-ink-3">({a.missionName})</span>
                                     )}
                                 </div>
-                                {a.note && <p className="text-[12px] text-[#12122A] mt-1 line-clamp-3 whitespace-pre-line">{a.note}</p>}
+                                {a.note && <p className="text-[12px] text-ink mt-1 line-clamp-3 whitespace-pre-line">{a.note}</p>}
                                 {a.callSummary && !a.note && (
-                                    <p className="text-[12px] text-[#5A5A7A] mt-1 line-clamp-2 italic">{a.callSummary}</p>
+                                    <p className="text-[12px] text-ink-2 mt-1 line-clamp-2 italic">{a.callSummary}</p>
                                 )}
                             </li>
                         ))}
@@ -404,7 +404,7 @@ export function CallerDossierView({
 
             {/* Allo call history (call-vault) */}
             <section>
-                <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#8B8BA7] mb-2">
+                <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-3 mb-2">
                     <PhoneIncoming className="w-3.5 h-3.5" /> Appels Allo avec {formatPhone(call.fromNumber)}
                     <span className="font-medium normal-case tracking-normal">(6 derniers mois)</span>
                 </h3>
@@ -415,33 +415,33 @@ export function CallerDossierView({
                         ))}
                     </div>
                 ) : !history.available ? (
-                    <p className="text-[12px] text-[#8B8BA7]">Historique téléphonique indisponible (call-vault non joignable).</p>
+                    <p className="text-[12px] text-ink-3">Historique téléphonique indisponible (call-vault non joignable).</p>
                 ) : history.calls.length === 0 ? (
-                    <p className="text-[12px] text-[#8B8BA7]">Aucun appel synchronisé avec ce numéro.</p>
+                    <p className="text-[12px] text-ink-3">Aucun appel synchronisé avec ce numéro.</p>
                 ) : (
-                    <ul className="divide-y divide-[#F1F2F6] rounded-xl border border-[#E8EBF0]">
+                    <ul className="divide-y divide-line-subtle rounded-xl border border-line">
                         {history.calls.slice(0, 6).map((c) => (
                             <li key={c.callId} className="px-3 py-2 flex items-start gap-2.5">
                                 {c.direction === "OUTBOUND" ? (
-                                    <ArrowUpRight className="w-4 h-4 text-[#7C5CFC] mt-0.5 shrink-0" />
+                                    <ArrowUpRight className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />
                                 ) : (
                                     <ArrowDownLeft className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
                                 )}
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-[12px] text-[#12122A]">
+                                    <p className="text-[12px] text-ink">
                                         <span className="font-semibold">{c.direction === "OUTBOUND" ? "Sortant" : "Entrant"}</span>
                                         {" · "}
                                         {when(c.startedAt)} · {formatDuration(c.durationSec)}
                                         <span
                                             className={cn(
                                                 "ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold",
-                                                c.onMyLine ? "bg-[#7C5CFC]/10 text-[#5B3FD9]" : "bg-slate-100 text-slate-500",
+                                                c.onMyLine ? "bg-primary/10 text-primary-700" : "bg-slate-100 text-slate-500",
                                             )}
                                         >
                                             {c.onMyLine ? "Votre ligne" : "Autre ligne"}
                                         </span>
                                     </p>
-                                    {c.summary && <p className="text-[11px] text-[#5A5A7A] mt-0.5 line-clamp-2">{c.summary}</p>}
+                                    {c.summary && <p className="text-[11px] text-ink-2 mt-0.5 line-clamp-2">{c.summary}</p>}
                                 </div>
                             </li>
                         ))}

@@ -229,7 +229,7 @@ export function ScriptCompanionDrawer({
                                     onChange={(e) => setAdditionalDraft(e.target.value)}
                                     rows={16}
                                     placeholder="Ajoutez votre script additionel ici..."
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
                                 />
                                 <div className="flex items-center justify-between text-xs text-slate-500">
                                     <span>{hasUnsavedChanges ? "Modifications non sauvegardées" : "Brouillon à jour"}</span>

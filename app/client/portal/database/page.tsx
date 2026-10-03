@@ -37,8 +37,8 @@ const STAGE_COLOR: Record<PortalStage, string> = {
     opportunity: "#0f8f86",
     callback: "#d4870a",
     in_progress: "#3b6fe0",
-    closed: "#a39e98",
-    untreated: "#cfd2cc",
+    closed: "var(--brand-neutral-400)",
+    untreated: "var(--brand-neutral-300)",
 };
 
 const TRACK: PortalStage[] = ["untreated", "in_progress", "callback", "opportunity", "meeting"];

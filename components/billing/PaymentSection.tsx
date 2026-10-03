@@ -82,8 +82,7 @@ export function PaymentSection({
     if (invoiceStatus === "PAID" && confirmedPayments.length > 0) {
         const payment = confirmedPayments[0];
         return (
-            <div className="relative overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50 p-5">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-100 rounded-full -translate-y-6 translate-x-6 opacity-50" />
+            <div className="relative overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50 p-5">
                 <div className="relative">
                     <div className="flex items-center gap-3 mb-3">
                         <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -124,13 +123,12 @@ export function PaymentSection({
                 {matchedPayments.map((payment) => (
                     <div
                         key={payment.id}
-                        className="relative overflow-hidden rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-5"
+                        className="relative overflow-hidden rounded-xl border border-amber-200 bg-amber-50 p-5"
                     >
-                        <div className="absolute -bottom-3 -right-3 w-16 h-16 bg-amber-100 rounded-full opacity-40" />
                         <div className="relative">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center animate-pulse">
+                                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
                                         <Banknote className="w-5 h-5 text-amber-600" />
                                     </div>
                                     <div>

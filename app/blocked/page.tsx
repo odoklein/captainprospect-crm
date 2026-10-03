@@ -2,10 +2,11 @@
 
 import { signOut } from "next-auth/react";
 import { ShieldX, LogOut, Mail } from "lucide-react";
+import { brand } from "@/lib/brand";
 
 export default function BlockedPage() {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
             <div className="max-w-md w-full text-center">
                 {/* Icon */}
                 <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
@@ -34,7 +35,7 @@ export default function BlockedPage() {
                     </button>
                     
                     <a
-                        href="mailto:support@suzalink.com"
+                        href={`mailto:${brand.email.supportAddress}`}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-medium transition-colors"
                     >
                         <Mail className="w-4 h-4" />

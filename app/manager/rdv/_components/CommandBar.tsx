@@ -6,7 +6,7 @@ import type { MeetingFiltersState } from "../_hooks/useMeetingFilters";
 import type { ViewMode, DatePreset, ConfirmationFilter } from "../_types";
 import { SearchInput } from "./shared/SearchInput";
 import { downloadCSV } from "../_lib/csv-export";
-import { List, CalendarDays, Download, Plus, Upload, Mic, SortAsc, SortDesc, X, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { List, CalendarDays, Download, Plus, Upload, Mic, SortAsc, SortDesc, X, Clock, CheckCircle2, XCircle, MessageSquare, Search } from "lucide-react";
 import { AddRdvModal } from "./modals/AddRdvModal";
 import { ImportRdvModal } from "./modals/ImportRdvModal";
 
@@ -301,7 +301,8 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
             background: "var(--accentLight)", color: "var(--accent)", borderRadius: 20,
             padding: "2px 8px 2px 10px", border: "1px solid var(--accent)",
           }}>
-            🎙 {hasAudio ? "Avec audio" : "Sans audio"}
+            <Mic size={11} />
+            {hasAudio ? "Avec audio" : "Sans audio"}
             <button onClick={() => setHasAudio(null)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", display: "flex", padding: 0 }}>
               <X size={11} />
             </button>
@@ -313,7 +314,8 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
             background: "var(--accentLight)", color: "var(--accent)", borderRadius: 20,
             padding: "2px 8px 2px 10px", border: "1px solid var(--accent)",
           }}>
-            💬 {hasFeedback ? "Avec feedback" : "Sans feedback"}
+            <MessageSquare size={11} />
+            {hasFeedback ? "Avec feedback" : "Sans feedback"}
             <button onClick={() => setHasFeedback(null)} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", display: "flex", padding: 0 }}>
               <X size={11} />
             </button>
@@ -325,7 +327,8 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
             background: "var(--accentLight)", color: "var(--accent)", borderRadius: 20,
             padding: "2px 8px 2px 10px", border: "1px solid var(--accent)",
           }}>
-            🔍 &ldquo;{search}&rdquo;
+            <Search size={11} />
+            &ldquo;{search}&rdquo;
             <button onClick={() => setSearch("")} style={{ background: "none", border: "none", color: "var(--accent)", cursor: "pointer", display: "flex", padding: 0 }}>
               <X size={11} />
             </button>

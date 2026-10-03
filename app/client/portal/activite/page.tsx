@@ -16,7 +16,6 @@ import {
     Activity,
     Target,
     TrendingUp,
-    Sparkles,
 } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
@@ -65,10 +64,10 @@ function MissionSection({ missionName, calls, defaultOpen, statusOrder, resultMe
     const campaigns = [...new Set(calls.map((c) => c.campaign.name))];
 
     const kpis = [
-        { value: calls.length, label: "appels", from: "from-indigo-50", to: "to-violet-50", border: "border-indigo-100/60", text: "text-indigo-700" },
-        { value: byDay.length,  label: "jours",  from: "from-sky-50",    to: "to-cyan-50",   border: "border-sky-100/60",    text: "text-sky-700"   },
-        { value: meetings,      label: "RDV",    from: "from-emerald-50",to: "to-teal-50",   border: "border-emerald-100/60",text: "text-emerald-700"},
-        { value: `${convRate}%`,label: "taux",   from: "from-violet-50", to: "to-purple-50", border: "border-violet-100/60", text: "text-violet-700" },
+        { value: calls.length, label: "appels", bg: "bg-primary-50", border: "border-primary-100/60", text: "text-primary-700" },
+        { value: byDay.length,  label: "jours",  bg: "bg-sky-50",     border: "border-sky-100/60",    text: "text-sky-700"   },
+        { value: meetings,      label: "RDV",    bg: "bg-emerald-50", border: "border-emerald-100/60",text: "text-emerald-700"},
+        { value: `${convRate}%`,label: "taux",   bg: "bg-accent-50",  border: "border-accent-100/60", text: "text-accent-700" },
     ];
 
     return (
@@ -77,33 +76,33 @@ function MissionSection({ missionName, calls, defaultOpen, statusOrder, resultMe
             style={{ animation: `dashFadeUp 0.4s ease both ${index * 80}ms` }}
         >
             {/* Mission header – mirrors BreakdownCharts header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-4 border-b border-[#E8EBF0]">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4 pb-4 border-b border-line">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-violet-500/20 flex-shrink-0">
-                        <Target className="w-4.5 h-4.5 text-white" style={{ width: 18, height: 18 }} />
+                    <div className="w-9 h-9 rounded-xl bg-accent-50 ring-1 ring-inset ring-accent-100 flex items-center justify-center flex-shrink-0">
+                        <Target className="w-4.5 h-4.5 text-accent-600" style={{ width: 18, height: 18 }} />
                     </div>
                     <div className="min-w-0">
-                        <h3 className="text-sm font-semibold text-[#12122A] uppercase tracking-wider truncate">
+                        <h3 className="text-sm font-semibold text-ink uppercase tracking-wider truncate">
                             {missionName}
                         </h3>
-                        <p className="text-[11px] text-[#8B8DAF] mt-0.5 truncate">
+                        <p className="text-[11px] text-ink-3 mt-0.5 truncate">
                             {campaigns.join(" · ")}
                         </p>
                     </div>
                 </div>
 
-                {/* KPI chips – same gradient card style as BreakdownCharts */}
+                {/* KPI chips – same card style as BreakdownCharts */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    {kpis.map(({ value, label, from, to, border, text }) => (
+                    {kpis.map(({ value, label, bg, border, text }) => (
                         <div
                             key={label}
                             className={cn(
-                                "rounded-lg bg-gradient-to-br border px-3 py-1.5 text-center",
-                                from, to, border
+                                "rounded-lg border px-3 py-1.5 text-center",
+                                bg, border
                             )}
                         >
                             <p className={cn("text-sm font-black leading-none", text)}>{value}</p>
-                            <p className="text-[9px] uppercase tracking-wider text-[#A0A3BD] mt-0.5">{label}</p>
+                            <p className="text-[9px] uppercase tracking-wider text-ink-4 mt-0.5">{label}</p>
                         </div>
                     ))}
                     <button
@@ -112,8 +111,8 @@ function MissionSection({ missionName, calls, defaultOpen, statusOrder, resultMe
                         className={cn(
                             "w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200",
                             open
-                                ? "bg-[#7C5CFC] border-[#7C5CFC] text-white shadow-sm shadow-violet-500/25"
-                                : "bg-[#F4F5FA] border-[#E8EBF0] text-[#8B8DAF] hover:border-[#7C5CFC]/40"
+                                ? "bg-primary border-primary-500 text-white shadow-sm"
+                                : "bg-surface-2 border-line text-ink-3 hover:border-primary-500/40"
                         )}
                     >
                         <ChevronDown className={cn("w-4 h-4 transition-transform duration-200", open && "rotate-180")} />
@@ -123,7 +122,7 @@ function MissionSection({ missionName, calls, defaultOpen, statusOrder, resultMe
 
             {/* Day sections */}
             {open && (
-                <div className="px-5 py-4 space-y-2.5 bg-[#FAFBFE]">
+                <div className="px-5 py-4 space-y-2.5 bg-surface-2">
                     {byDay.map(([dk, dayCalls], i) => (
                         <DayBlock
                             key={dk}
@@ -144,24 +143,24 @@ function MissionSection({ missionName, calls, defaultOpen, statusOrder, resultMe
 function SkeletonMission() {
     return (
         <div className="premium-card overflow-hidden animate-pulse">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-[#E8EBF0]">
-                <div className="w-9 h-9 rounded-xl bg-[#E8EBF0]" />
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-line">
+                <div className="w-9 h-9 rounded-xl bg-surface-3" />
                 <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-40 rounded-full bg-[#E8EBF0]" />
-                    <div className="h-2.5 w-24 rounded-full bg-[#EEF0F8]" />
+                    <div className="h-3 w-40 rounded-full bg-surface-3" />
+                    <div className="h-2.5 w-24 rounded-full bg-surface-3" />
                 </div>
                 <div className="flex gap-2">
-                    {[1, 2, 3, 4].map((i) => <div key={i} className="w-14 h-10 rounded-lg bg-[#EEF0F8]" />)}
+                    {[1, 2, 3, 4].map((i) => <div key={i} className="w-14 h-10 rounded-lg bg-surface-3" />)}
                 </div>
             </div>
             <div className="px-5 py-4 space-y-2.5">
                 {[1, 2].map((i) => (
-                    <div key={i} className="rounded-xl border border-[#E8EBF0] p-3 space-y-2">
+                    <div key={i} className="rounded-xl border border-line p-3 space-y-2">
                         <div className="flex gap-3">
-                            <div className="w-[52px] h-16 rounded-xl bg-[#E8EBF0]" />
+                            <div className="w-[52px] h-16 rounded-xl bg-surface-3" />
                             <div className="flex-1 space-y-2 pt-1">
-                                <div className="h-3 w-24 rounded-full bg-[#E8EBF0]" />
-                                <div className="h-2 w-full rounded-full bg-[#EEF0F8]" />
+                                <div className="h-3 w-24 rounded-full bg-surface-3" />
+                                <div className="h-2 w-full rounded-full bg-surface-3" />
                             </div>
                         </div>
                     </div>
@@ -282,7 +281,7 @@ export default function ClientPortalActivitePage() {
 
     return (
         <div
-            className="min-h-full bg-gradient-to-br from-[#F8F9FC] via-[#F4F6F9] to-[#ECEEF4] p-4 md:p-6 space-y-5"
+            className="min-h-full bg-surface-2 p-4 md:p-6 space-y-5"
             style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
         >
             {/* ── Header ── mirrors BreakdownCharts header ── */}
@@ -290,16 +289,16 @@ export default function ClientPortalActivitePage() {
                 className="premium-card overflow-hidden"
                 style={{ animation: "dashFadeUp 0.4s ease both" }}
             >
-                <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-[#E8EBF0]">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5 pb-4 border-b border-line">
                     <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-sm shadow-violet-500/20">
+                        <div className="w-8 h-8 rounded-lg bg-accent-600 flex items-center justify-center">
                             <PhoneCall className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-sm font-semibold text-[#12122A] uppercase tracking-wider">
+                            <h1 className="text-sm font-semibold text-ink uppercase tracking-wider">
                                 Activité de prospection
                             </h1>
-                            <p className="text-[11px] text-[#8B8DAF] mt-0.5">
+                            <p className="text-[11px] text-ink-3 mt-0.5">
                                 Jours travaillés, contacts appelés et résultats par mission
                             </p>
                         </div>
@@ -307,7 +306,7 @@ export default function ClientPortalActivitePage() {
 
                     <div className="flex items-center gap-2 flex-wrap">
                         {/* Period selector – same as BreakdownCharts */}
-                        <div className="flex items-center rounded-xl bg-[#F4F5FA] border border-[#E8EBF0] p-0.5 gap-0.5">
+                        <div className="flex items-center rounded-xl bg-surface-2 border border-line p-0.5 gap-0.5">
                             {PERIODS.map(({ key, label }) => (
                                 <button
                                     key={key}
@@ -315,8 +314,8 @@ export default function ClientPortalActivitePage() {
                                     className={cn(
                                         "text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-all duration-150 whitespace-nowrap",
                                         dateRange === key
-                                            ? "bg-white text-[#7C5CFC] shadow-sm"
-                                            : "text-[#8B8DAF] hover:text-[#4B4D7A]"
+                                            ? "bg-white text-primary-600 shadow-sm"
+                                            : "text-ink-3 hover:text-ink-2"
                                     )}
                                 >
                                     {label}
@@ -327,14 +326,14 @@ export default function ClientPortalActivitePage() {
                             type="button"
                             onClick={() => fetchCalls()}
                             disabled={isLoading}
-                            className="w-8 h-8 rounded-lg border border-[#E8EBF0] bg-[#F4F5FA] flex items-center justify-center text-[#8B8DAF] hover:text-[#7C5CFC] hover:border-[#7C5CFC]/40 transition-all disabled:opacity-50"
+                            className="w-8 h-8 rounded-lg border border-line bg-surface-2 flex items-center justify-center text-ink-3 hover:text-primary-600 hover:border-primary-500/40 transition-all disabled:opacity-50"
                         >
                             <RefreshCw className={cn("w-3.5 h-3.5", isLoading && "animate-spin")} />
                         </button>
                     </div>
                 </div>
 
-                {/* ── KPI row – same gradient card style as BreakdownCharts ── */}
+                {/* ── KPI row – same card style as BreakdownCharts ── */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 py-5">
                     {[
                         {
@@ -342,16 +341,16 @@ export default function ClientPortalActivitePage() {
                             value: stats.total,
                             label: "Appels passés",
                             sub: `sur ${dateRange} jours`,
-                            bg: "from-indigo-50 to-violet-50",
-                            border: "border-indigo-100/60",
-                            text: "text-indigo-600",
+                            bg: "bg-primary-50",
+                            border: "border-primary-100/60",
+                            text: "text-primary-600",
                         },
                         {
                             icon: <CalendarDays className="w-3.5 h-3.5" />,
                             value: stats.activeDays,
                             label: "Jours travaillés",
                             sub: "jours d'activité",
-                            bg: "from-sky-50 to-cyan-50",
+                            bg: "bg-sky-50",
                             border: "border-sky-100/60",
                             text: "text-sky-600",
                         },
@@ -360,7 +359,7 @@ export default function ClientPortalActivitePage() {
                             value: stats.meetings,
                             label: "RDV obtenus",
                             sub: `taux ${stats.convRate}%`,
-                            bg: "from-emerald-50 to-teal-50",
+                            bg: "bg-emerald-50",
                             border: "border-emerald-100/60",
                             text: "text-emerald-600",
                         },
@@ -369,15 +368,15 @@ export default function ClientPortalActivitePage() {
                             value: stats.missions,
                             label: "Missions actives",
                             sub: "sur la période",
-                            bg: "from-violet-50 to-purple-50",
-                            border: "border-violet-100/60",
-                            text: "text-violet-600",
+                            bg: "bg-accent-50",
+                            border: "border-accent-100/60",
+                            text: "text-accent-600",
                         },
                     ].map(({ icon, value, label, sub, bg, border, text }, i) => (
                         <div
                             key={label}
                             className={cn(
-                                "rounded-xl bg-gradient-to-br border p-3.5 flex flex-col gap-1.5",
+                                "rounded-xl border p-3.5 flex flex-col gap-1.5",
                                 bg, border
                             )}
                             style={{ animation: `dashFadeUp 0.35s ease both ${100 + i * 60}ms` }}
@@ -386,12 +385,12 @@ export default function ClientPortalActivitePage() {
                                 {icon}
                                 <span className="text-[10.5px] uppercase tracking-wide">{label}</span>
                             </div>
-                            <div className="text-[26px] font-black text-[#12122A] leading-none">
+                            <div className="text-[26px] font-black text-ink leading-none">
                                 {isLoading
                                     ? <span className="inline-block w-10 h-6 rounded bg-white/60 animate-pulse" />
                                     : value}
                             </div>
-                            <p className="text-[10.5px] text-[#A0A3BD]">{sub}</p>
+                            <p className="text-[10.5px] text-ink-4">{sub}</p>
                         </div>
                     ))}
                 </div>
@@ -403,28 +402,28 @@ export default function ClientPortalActivitePage() {
                 style={{ animation: "dashFadeUp 0.4s ease both 300ms" }}
             >
                 <div className="relative flex-1 min-w-[200px] max-w-md">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0A3BD]" />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-4" />
                     <input
                         type="search"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Rechercher un contact, une entreprise, une mission…"
-                        className="w-full h-10 pl-10 pr-9 rounded-xl border border-[#E8EBF0] bg-white text-sm text-[#12122A] focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/30 focus:border-[#7C5CFC]/50 shadow-sm placeholder:text-[#A0A3BD]"
+                        className="w-full h-10 pl-10 pr-9 rounded-xl border border-line bg-white text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500/50 shadow-sm placeholder:text-ink-4"
                     />
                     {search && (
                         <button
                             type="button"
                             onClick={() => setSearch("")}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A0A3BD] hover:text-[#7C5CFC] transition-colors"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-4 hover:text-primary-600 transition-colors"
                         >
                             <X className="w-4 h-4" />
                         </button>
                     )}
                 </div>
                 {!isLoading && (
-                    <p className="text-[12px] font-semibold text-[#8B8DAF]">
+                    <p className="text-[12px] font-semibold text-ink-3">
                         {normalizedFiltered.length} appel{normalizedFiltered.length > 1 ? "s" : ""}
-                        {search && <span className="text-[#7C5CFC]"> · filtrés</span>}
+                        {search && <span className="text-primary-600"> · filtrés</span>}
                     </p>
                 )}
             </div>
@@ -440,11 +439,11 @@ export default function ClientPortalActivitePage() {
                     className="premium-card flex flex-col items-center justify-center py-20 px-6 text-center"
                     style={{ animation: "dashFadeUp 0.4s ease both 200ms" }}
                 >
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F4F5FA] to-[#E8EBF0] flex items-center justify-center mb-4">
-                        <PhoneCall className="w-6 h-6 text-[#C0C3D8]" />
+                    <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                        <PhoneCall className="w-6 h-6 text-ink-4" />
                     </div>
-                    <p className="text-sm font-semibold text-[#8B8DAF]">Aucune activité trouvée</p>
-                    <p className="text-xs text-[#A0A3BD] mt-1">Ajustez la période ou la recherche.</p>
+                    <p className="text-sm font-semibold text-ink-3">Aucune activité trouvée</p>
+                    <p className="text-xs text-ink-4 mt-1">Ajustez la période ou la recherche.</p>
                 </div>
             ) : (
                 <div className="space-y-4">

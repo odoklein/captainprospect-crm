@@ -68,7 +68,7 @@ export function CommsPageHeader({
         >
             <div className="flex items-center gap-3 min-w-0">
                 {icon && (
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0 text-white">
+                    <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center shrink-0 text-white">
                         {icon}
                     </div>
                 )}

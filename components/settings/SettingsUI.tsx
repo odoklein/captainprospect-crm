@@ -231,9 +231,9 @@ const NOTICE: Record<AccueilTone, string> = {
     emerald: "bg-emerald-50/70 border-emerald-200/80",
     amber: "bg-amber-50/70 border-amber-200/80",
     rose: "bg-rose-50/70 border-rose-200/80",
-    indigo: "bg-indigo-50/60 border-indigo-200/80",
+    indigo: "bg-primary-50/60 border-primary-200/80",
     teal: "bg-teal-50/60 border-teal-200/80",
-    violet: "bg-violet-50/60 border-violet-200/80",
+    violet: "bg-accent-50/60 border-accent-200/80",
     slate: "bg-slate-50 border-slate-200",
 };
 

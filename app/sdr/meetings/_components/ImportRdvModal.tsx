@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Upload, FileSpreadsheet, X, ChevronRight, ChevronLeft, Check, AlertCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, X, ChevronRight, ChevronLeft, Check, AlertCircle, Video, MapPin } from "lucide-react";
 import { Button, Modal } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -243,7 +243,7 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
                 <div
                   className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold",
-                    step === s ? "bg-indigo-600 text-white" : step > s ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-600"
+                    step === s ? "bg-primary-600 text-white" : step > s ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-600"
                   )}
                 >
                   {step > s ? <Check className="w-4 h-4" /> : s}
@@ -270,7 +270,7 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
               <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Check className="w-6 h-6 text-emerald-600" />
               </div>
-              <h3 className="text-lg font-semibold text-emerald-900 mb-1">Import terminé !</h3>
+              <h3 className="text-lg font-semibold text-emerald-900 mb-1">Import terminé</h3>
               <p className="text-emerald-700">
                 <strong>{result.created}</strong> RDV créé(s) sur <strong>{result.totalRows}</strong> ligne(s)
                 {result.skipped > 0 && ` (${result.skipped} ignoré(s))`}
@@ -312,7 +312,7 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
                     Mission <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none"
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-primary-300 focus:ring-4 focus:ring-primary-100 outline-none"
                     value={missionId}
                     onChange={(e) => setMissionId(e.target.value)}
                   >
@@ -330,7 +330,7 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
                     Liste (optionnel)
                   </label>
                   <select
-                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                    className="w-full h-11 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-primary-300 focus:ring-4 focus:ring-primary-100 outline-none disabled:bg-slate-50 disabled:text-slate-400"
                     value={listId}
                     onChange={(e) => setListId(e.target.value)}
                     disabled={!missionId || lists.length === 0}
@@ -349,7 +349,7 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
                   <div
                     className={cn(
                       "border-2 border-dashed rounded-xl p-6 text-center transition-colors",
-                      file ? "border-emerald-300 bg-emerald-50/50" : "border-slate-300 hover:border-indigo-300 hover:bg-slate-50"
+                      file ? "border-emerald-300 bg-emerald-50/50" : "border-slate-300 hover:border-primary-300 hover:bg-slate-50"
                     )}
                   >
                     <input
@@ -397,8 +397,8 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
 
             {step === 2 && (
               <div className="space-y-4">
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-4">
-                  <p className="text-sm text-indigo-800">
+                <div className="bg-primary-50 border border-primary-100 rounded-lg p-4">
+                  <p className="text-sm text-primary-800">
                     Associez les colonnes du fichier aux champs RDV. Au moins une colonne permettant 
                     d'identifier le contact (Email ou Société) est requise.
                   </p>
@@ -412,7 +412,7 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
                         {required && <span className="text-red-500 ml-1">*</span>}
                       </label>
                       <select
-                        className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 outline-none"
+                        className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none"
                         value={mappings[key] ?? ""}
                         onChange={(e) => setMappings((m) => ({ ...m, [key]: e.target.value || undefined }))}
                       >
@@ -466,7 +466,10 @@ export function SdrImportRdvModal({ isOpen, onClose, onSuccess }: SdrImportRdvMo
                               {row[mappings.companyNameColumn ?? ""] || row[mappings.contactEmailColumn ?? ""] || "—"}
                             </td>
                             <td className="py-2 px-3 text-slate-600">
-                              {row[mappings.meetingJoinUrlColumn ?? ""] ? "📹 Visio" : "📍 Physique"}
+                              <span className="inline-flex items-center gap-1.5">
+                                {row[mappings.meetingJoinUrlColumn ?? ""] ? <Video className="h-3.5 w-3.5 shrink-0" /> : <MapPin className="h-3.5 w-3.5 shrink-0" />}
+                                {row[mappings.meetingJoinUrlColumn ?? ""] ? "Visio" : "Physique"}
+                              </span>
                             </td>
                             <td className="py-2 px-3">
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">

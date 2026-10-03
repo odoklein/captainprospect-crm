@@ -1,3 +1,4 @@
+import { brand } from "@/lib/brand";
 export const PASSWORD_RECOVERY_TEMPLATE_VARIABLES = [
   { name: "{{userName}}", description: "Nom de l'utilisateur" },
   { name: "{{resetUrl}}", description: "Lien de reinitialisation" },
@@ -11,7 +12,7 @@ export const PASSWORD_OTP_TEMPLATE_VARIABLES = [
 ] as const;
 
 export const DEFAULT_PASSWORD_RECOVERY_SUBJECT =
-  "Reinitialisation de votre mot de passe - Captain Prospect";
+  `Réinitialisation de votre mot de passe - ${brand.name}`;
 
 export const DEFAULT_PASSWORD_RECOVERY_HTML = `<!DOCTYPE html>
 <html lang="fr">
@@ -58,7 +59,7 @@ export const DEFAULT_PASSWORD_RECOVERY_HTML = `<!DOCTYPE html>
 </html>`;
 
 export const DEFAULT_PASSWORD_OTP_SUBJECT =
-  "Votre code OTP de recuperation - Captain Prospect";
+  `Votre code OTP de récupération - ${brand.name}`;
 
 export const DEFAULT_PASSWORD_OTP_HTML = `<!DOCTYPE html>
 <html lang="fr">

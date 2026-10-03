@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Card, Button, Modal, ModalFooter, Select, Tabs, useToast } from "@/components/ui";
-import { MessageSquare, Loader2, Wand2 } from "lucide-react";
+import { MessageSquare, Loader2 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { CreateMissionInput } from "@/app/actions/mission-wizard";
 import { Channel } from "@prisma/client";
 
@@ -230,7 +231,7 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                 <div className="flex items-center justify-between mb-6">
                     <div>
                         <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <MessageSquare className="w-5 h-5 text-indigo-500" />
+                            <MessageSquare className="w-5 h-5 text-primary-500" />
                             Script de prospection
                         </h3>
                         <p className="text-sm text-slate-500 mt-1">Construisez votre argumentaire étape par étape</p>
@@ -253,12 +254,12 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                             variant="secondary"
                             onClick={() => generateWithMistral("all")}
                             disabled={isGenerating || !data.icp || !data.pitch}
-                            className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-indigo-200 text-indigo-700 hover:from-purple-100 hover:to-indigo-100"
+                            className="gap-2 bg-primary-50 border-primary-200 text-primary-700 hover:bg-primary-100"
                         >
                             {isGenerating && generatingSection === "all" ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                                <Wand2 className="w-4 h-4" />
+                                <AiMark className="w-4 h-4" />
                             )}
                             Générer avec IA
                         </Button>
@@ -277,12 +278,12 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                     type="button"
                                     onClick={() => generateWithMistral("intro")}
                                     disabled={isGenerating || !data.icp || !data.pitch}
-                                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                 >
                                     {isGenerating && generatingSection === "intro" ? (
                                         <Loader2 className="w-3 h-3 animate-spin" />
                                     ) : (
-                                        <Wand2 className="w-3 h-3" />
+                                        <AiMark className="w-3 h-3" />
                                     )}
                                     Générer
                                 </button>
@@ -294,7 +295,7 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                             onChange={(e) => handleChange("scriptIntro", e.target.value)}
                             placeholder="Comment vous présentez-vous et captez l'attention ?"
                             rows={3}
-                            className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none ${errors.scriptIntro ? "border-red-500" : "border-slate-200"}`}
+                            className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none ${errors.scriptIntro ? "border-red-500" : "border-slate-200"}`}
                         />
                         {errors.scriptIntro && (
                             <p className="text-xs text-red-500 mt-1 font-medium">{errors.scriptIntro}</p>
@@ -313,12 +314,12 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                         type="button"
                                         onClick={() => generateWithMistral("discovery")}
                                         disabled={isGenerating || !data.icp || !data.pitch}
-                                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                     >
                                         {isGenerating && generatingSection === "discovery" ? (
                                             <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                            <Wand2 className="w-3 h-3" />
+                                            <AiMark className="w-3 h-3" />
                                         )}
                                         Générer
                                     </button>
@@ -330,7 +331,7 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                 onChange={(e) => handleChange("scriptDiscovery", e.target.value)}
                                 placeholder="Quelles questions pour qualifier le besoin ?"
                                 rows={4}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none"
                             />
                         </div>
 
@@ -345,12 +346,12 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                         type="button"
                                         onClick={() => generateWithMistral("objection")}
                                         disabled={isGenerating || !data.icp || !data.pitch}
-                                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                     >
                                         {isGenerating && generatingSection === "objection" ? (
                                             <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                            <Wand2 className="w-3 h-3" />
+                                            <AiMark className="w-3 h-3" />
                                         )}
                                         Générer
                                     </button>
@@ -362,7 +363,7 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                 onChange={(e) => handleChange("scriptObjection", e.target.value)}
                                 placeholder="Arguments face aux refus classiques..."
                                 rows={4}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none"
                             />
                         </div>
                     </div>
@@ -378,12 +379,12 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                     type="button"
                                     onClick={() => generateWithMistral("closing")}
                                     disabled={isGenerating || !data.icp || !data.pitch}
-                                    className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                 >
                                     {isGenerating && generatingSection === "closing" ? (
                                         <Loader2 className="w-3 h-3 animate-spin" />
                                     ) : (
-                                        <Wand2 className="w-3 h-3" />
+                                        <AiMark className="w-3 h-3" />
                                     )}
                                     Générer
                                 </button>
@@ -395,7 +396,7 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                             onChange={(e) => handleChange("scriptClosing", e.target.value)}
                             placeholder="Comment proposez-vous le rendez-vous ?"
                             rows={2}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none"
                         />
                     </div>
                 </div>
@@ -442,7 +443,7 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                             className={[
                                                 "w-full text-left rounded-xl border p-4 transition-all",
                                                 selected
-                                                    ? "border-indigo-300 bg-indigo-50"
+                                                    ? "border-primary-300 bg-primary-50"
                                                     : "border-slate-200 bg-white hover:bg-slate-50",
                                             ].join(" ")}
                                         >
@@ -454,7 +455,7 @@ export function ScriptBuilder({ data, onChange, clientName, errors }: ScriptBuil
                                                     className={[
                                                         "text-[11px] font-bold px-2 py-1 rounded-full",
                                                         selected
-                                                            ? "bg-indigo-600 text-white"
+                                                            ? "bg-primary-600 text-white"
                                                             : "bg-slate-100 text-slate-600",
                                                     ].join(" ")}
                                                 >

@@ -4,9 +4,9 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-    AlertTriangle, TrendingDown,
+    AlertTriangle, TrendingDown, TrendingUp,
     Search, Loader2,
-    Trophy, Flame, Target, Zap,
+    Target, Activity, PieChart, CalendarCheck,
     Clock, ChevronRight, Info, ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
@@ -303,7 +303,7 @@ function DenseListRow({ summary }: { summary: ListHealthSummary }) {
             {/* List name */}
             <div className="flex items-center gap-1.5 min-w-0">
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors truncate">
+                    <p className="text-xs font-semibold text-slate-800 group-hover:text-primary-600 transition-colors truncate">
                         {summary.listName}
                     </p>
                 </div>
@@ -439,7 +439,7 @@ function MissionCard({
                             {inactiveCount} INACTIVE
                         </span>
                     )}
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary-50 text-primary-700 border border-primary-200">
                         Score: {avgActivityScore}
                     </span>
                 </div>
@@ -699,7 +699,7 @@ export function ListHealthDashboard({
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                 <p className="text-sm text-slate-500">Calcul des métriques de santé…</p>
                 <p className="text-xs text-slate-400">Analyse des actions et contacts en cours</p>
             </div>
@@ -746,7 +746,7 @@ export function ListHealthDashboard({
                             value={aggregateStats.totalActions7d}
                             sub={`Score moyen: ${aggregateStats.avgActivityScore}/100`}
                             color="border-blue-200"
-                            icon={<Zap className="w-4 h-4 text-blue-500" />}
+                            icon={<Activity className="w-4 h-4 text-blue-500" />}
                         />
                         <MiniStatCard
                             label="Couverture globale"
@@ -755,8 +755,8 @@ export function ListHealthDashboard({
                                 : '—'
                             }
                             sub={`${aggregateStats.totalContacts} contact${aggregateStats.totalContacts !== 1 ? 's' : ''} suivis`}
-                            color="border-indigo-200"
-                            icon={<Trophy className="w-4 h-4 text-indigo-500" />}
+                            color="border-primary-200"
+                            icon={<PieChart className="w-4 h-4 text-primary-500" />}
                         />
                     </div>
 
@@ -771,7 +771,7 @@ export function ListHealthDashboard({
                             {aggregateStats.topPerformers.length > 0 && (
                                 <div className="space-y-2">
                                     <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                                        <Flame className="w-3.5 h-3.5 text-amber-500" />
+                                        <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
                                         Listes les plus actives
                                     </h3>
                                     {aggregateStats.topPerformers.map((s, i) => (
@@ -817,14 +817,14 @@ export function ListHealthDashboard({
                             value={intel.totalActions7d}
                             sub={`${intel.totalActions} total`}
                             color="border-blue-200"
-                            icon={<Zap className="w-4 h-4 text-blue-500" />}
+                            icon={<Activity className="w-4 h-4 text-blue-500" />}
                         />
                         <MiniStatCard
                             label="RDV générés"
                             value={intel.totalMeetings}
                             sub={`Toutes missions confondues`}
-                            color="border-indigo-200"
-                            icon={<Trophy className="w-4 h-4 text-indigo-500" />}
+                            color="border-primary-200"
+                            icon={<CalendarCheck className="w-4 h-4 text-primary-500" />}
                         />
                         <MiniStatCard
                             label="Listes à risque"
@@ -846,7 +846,7 @@ export function ListHealthDashboard({
                         {intel.topPerformers.length > 0 && (
                             <div className="space-y-2">
                                 <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                                    <Flame className="w-3.5 h-3.5 text-amber-500" />
+                                    <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
                                     Meilleures listes
                                 </h3>
                                 {intel.topPerformers.map((s, i) => (
@@ -902,7 +902,7 @@ export function ListHealthDashboard({
                         placeholder="Rechercher une liste…"
                         value={filters.search}
                         onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
-                        className="w-full h-7 pl-8 pr-3 text-xs font-medium bg-slate-50 border border-transparent focus:bg-white focus:border-indigo-400 rounded-md transition-all"
+                        className="w-full h-7 pl-8 pr-3 text-xs font-medium bg-slate-50 border border-transparent focus:bg-white focus:border-primary-400 rounded-md transition-all"
                     />
                 </div>
 
@@ -917,7 +917,7 @@ export function ListHealthDashboard({
                         onClick={() => setFilters(f => ({ ...f, status: s }))}
                         className={`px-2 py-1 rounded-md text-xs font-semibold transition-all ${
                             filters.status === s
-                                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                ? 'bg-primary-50 text-primary-700 border border-primary-200'
                                 : 'text-slate-500 hover:bg-slate-50 border border-transparent'
                         }`}
                     >

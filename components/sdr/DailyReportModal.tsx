@@ -134,9 +134,9 @@ function DailyReportForm({
         <div className="space-y-6">
             {status && status.missions.length > 0 && (
                 <section>
-                    <p className="text-[12px] font-semibold text-[#12122A] mb-2">
+                    <p className="text-[12px] font-semibold text-ink mb-2">
                         Mission(s) concernée(s){" "}
-                        <span className="font-normal text-[#8B8BA7]">· aujourd’hui</span>
+                        <span className="font-normal text-ink-3">· aujourd’hui</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
                         {status.missions.map((mission) => {
@@ -150,15 +150,15 @@ function DailyReportForm({
                                     className={cn(
                                         "rounded-lg border px-3 py-1.5 text-left transition-colors",
                                         selected
-                                            ? "border-[#7C5CFC] bg-[#F5F3FF]"
-                                            : "border-[#E8EBF0] bg-white hover:border-[#C5C8D4]",
+                                            ? "border-primary-500 bg-accent-50"
+                                            : "border-line bg-white hover:border-line-strong",
                                     )}
                                 >
-                                    <span className="block text-[12px] font-semibold text-[#12122A]">
+                                    <span className="block text-[12px] font-semibold text-ink">
                                         {mission.name}
                                     </span>
                                     {mission.client?.name && (
-                                        <span className="block text-[11px] text-[#8B8BA7]">{mission.client.name}</span>
+                                        <span className="block text-[11px] text-ink-3">{mission.client.name}</span>
                                     )}
                                 </button>
                             );
@@ -171,13 +171,13 @@ function DailyReportForm({
                 const single = question.mode === "single";
                 return (
                     <fieldset key={question.key}>
-                        <legend className="text-[13px] font-semibold text-[#12122A]">
+                        <legend className="text-[13px] font-semibold text-ink">
                             {index + 1}. {question.title}{" "}
-                            <span className="text-[#E5484D]" aria-hidden>
+                            <span className="text-danger" aria-hidden>
                                 *
                             </span>
                         </legend>
-                        <p className="text-[11px] text-[#8B8BA7] mt-0.5 mb-2">{question.hint}</p>
+                        <p className="text-[11px] text-ink-3 mt-0.5 mb-2">{question.hint}</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {question.options.map((option) => {
                                 const checked = single
@@ -190,10 +190,10 @@ function DailyReportForm({
                                         key={option.value}
                                         className={cn(
                                             "flex items-center gap-2.5 rounded-xl border px-3 py-2.5 cursor-pointer transition-colors",
-                                            "focus-within:ring-2 focus-within:ring-[#7C5CFC]/30",
+                                            "focus-within:ring-2 focus-within:ring-primary-500/30",
                                             checked
-                                                ? "border-[#7C5CFC] bg-[#F5F3FF]"
-                                                : "border-[#E8EBF0] bg-white hover:border-[#C5C8D4]",
+                                                ? "border-primary-500 bg-accent-50"
+                                                : "border-line bg-white hover:border-line-strong",
                                         )}
                                     >
                                         <input
@@ -208,7 +208,7 @@ function DailyReportForm({
                                             className={cn(
                                                 "flex h-4 w-4 shrink-0 items-center justify-center border text-white",
                                                 single ? "rounded-full" : "rounded",
-                                                checked ? "border-[#7C5CFC] bg-[#7C5CFC]" : "border-[#C5C8D4] bg-white",
+                                                checked ? "border-primary-500 bg-primary" : "border-line-strong bg-white",
                                             )}
                                         >
                                             {checked &&
@@ -226,7 +226,7 @@ function DailyReportForm({
                                                     </svg>
                                                 ))}
                                         </span>
-                                        <span className="text-[13px] leading-snug text-[#12122A]">{option.label}</span>
+                                        <span className="text-[13px] leading-snug text-ink">{option.label}</span>
                                     </label>
                                 );
                             })}
@@ -236,18 +236,18 @@ function DailyReportForm({
             })}
 
             <section>
-                <label htmlFor="sdr-report-comment" className="block text-[13px] font-semibold text-[#12122A]">
+                <label htmlFor="sdr-report-comment" className="block text-[13px] font-semibold text-ink">
                     Commentaire / retour terrain complémentaire{" "}
-                    <span className="font-normal text-[#8B8BA7]">· facultatif</span>
+                    <span className="font-normal text-ink-3">· facultatif</span>
                 </label>
-                <p className="text-[11px] text-[#8B8BA7] mt-0.5 mb-2">Une phrase suffit.</p>
+                <p className="text-[11px] text-ink-3 mt-0.5 mb-2">Une phrase suffit.</p>
                 <textarea
                     id="sdr-report-comment"
                     value={answers.fieldComment}
                     maxLength={FIELD_COMMENT_MAX_LENGTH}
                     onChange={(e) => setAnswers((prev) => ({ ...prev, fieldComment: e.target.value }))}
                     placeholder="Ex : « Beaucoup de prospects disent être déjà sous contrat jusqu’à fin d’année » ou « Les standards demandent systématiquement le nom exact du responsable »"
-                    className="w-full min-h-[76px] rounded-xl border border-[#E8EBF0] px-3 py-2.5 text-[13px] text-[#12122A] placeholder:text-[#8B8BA7] focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/25 focus:border-[#7C5CFC] resize-y"
+                    className="w-full min-h-[76px] rounded-xl border border-line px-3 py-2.5 text-[13px] text-ink placeholder:text-ink-3 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-500 resize-y"
                 />
             </section>
 
@@ -257,8 +257,8 @@ function DailyReportForm({
                 </p>
             )}
 
-            <div className="flex items-center justify-between gap-3 pt-3 border-t border-[#EEF1F6]">
-                <p className="text-[11px] text-[#8B8BA7]">
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-line-subtle">
+                <p className="text-[11px] text-ink-3">
                     {complete
                         ? blocking
                             ? "Tout est rempli — l’écran se débloque dès l’envoi."
@@ -269,7 +269,7 @@ function DailyReportForm({
                     type="button"
                     onClick={() => void submit()}
                     disabled={!complete || submitting}
-                    className="h-9 px-4 rounded-lg bg-[#7C5CFC] text-white text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-9 px-4 rounded-lg bg-primary text-white text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {submitting ? "Envoi…" : alreadySent ? "Mettre à jour mon retour" : "Envoyer mon retour"}
                 </button>

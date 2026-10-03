@@ -83,7 +83,7 @@ function formatRelative(value: string | null): string {
 
 const ALERT_TYPE_CONFIG: Record<string, { color: string; bg: string; border: string }> = {
     "Signal client": { color: "#8B1A14", bg: "#FDE8E7", border: "rgba(217,48,37,0.18)" },
-    "Avis client": { color: "#4238D0", bg: "#EEEDFB", border: "rgba(91,79,232,0.18)" },
+    "Avis client": { color: "var(--brand-primary-700)", bg: "var(--brand-primary-50)", border: "color-mix(in oklab, var(--brand-primary) 18%, transparent)" },
     "Demande report": { color: "#8A4A00", bg: "#FEF6E4", border: "rgba(201,123,42,0.22)" },
     "Annulation client": { color: "#8B1A14", bg: "#FDE8E7", border: "rgba(217,48,37,0.18)" },
     "Message support": { color: "#155B7A", bg: "#E4EEF4", border: "rgba(21,91,122,0.18)" },
@@ -1239,9 +1239,9 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                         style={{
                                             padding: "6px 12px",
                                             borderRadius: T.radiusS,
-                                            background: "#F5F3FF",
-                                            border: "1px solid #DDD6FE",
-                                            color: "#6D28D9",
+                                            background: "var(--brand-accent-50)",
+                                            border: "1px solid var(--brand-accent-200)",
+                                            color: "var(--brand-accent-700)",
                                             fontSize: 12,
                                             fontWeight: 600,
                                             cursor: "pointer",
@@ -1251,7 +1251,7 @@ export function ManagerSupportWorkspace({ isOpen, onClose }: ManagerSupportWorks
                                             transition: "all 150ms ease",
                                         }}
                                     >
-                                        <Ticket className="w-3.5 h-3.5 text-purple-600" />
+                                        <Ticket className="w-3.5 h-3.5 text-accent-600" />
                                         <span>Créer ticket Dev</span>
                                     </button>
                                     <button
@@ -1776,7 +1776,7 @@ function AlertDetailView({ alert, onBack }: { alert: ClientAlert; onBack: () => 
                                 </>
                             ) : (
                                 <>
-                                    <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                                    <Mail className="w-3.5 h-3.5 text-primary-500" />
                                     <span>Information</span>
                                 </>
                             )}

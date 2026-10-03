@@ -7,6 +7,7 @@
 import PDFDocument from "pdfkit";
 import { PDFDocument as PDFLibDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString, AFRelationship } from "pdf-lib";
 import { Invoice, InvoiceItem, BillingClient, CompanyIssuer } from "@prisma/client";
+import { brand } from "@/lib/brand";
 
 // Extended types with new schema fields
 interface ExtendedCompanyIssuer extends CompanyIssuer {
@@ -298,7 +299,7 @@ export class FacturXService {
                     info: {
                         Title: `${invoice.documentType === "CREDIT_NOTE" ? "Avoir" : "Facture"} ${invoice.invoiceNumber || ""}`,
                         Author: invoice.companyIssuer.legalName,
-                        Creator: "Suzalink - Facturation Factur-X EN16931",
+                        Creator: `${brand.productName} - Facturation Factur-X EN16931`,
                     },
                 });
 
@@ -544,8 +545,8 @@ export class FacturXService {
             const title = `${invoice.documentType === "CREDIT_NOTE" ? "Avoir" : "Facture"} ${invoice.invoiceNumber || ""}`;
             pdfDoc.setTitle(title);
             pdfDoc.setAuthor(invoice.companyIssuer.legalName);
-            pdfDoc.setCreator("Suzalink Facturation - Factur-X EN16931");
-            pdfDoc.setProducer("Suzalink / pdf-lib / pdfkit");
+            pdfDoc.setCreator(`${brand.productName} Facturation - Factur-X EN16931`);
+            pdfDoc.setProducer(`${brand.productName} / pdf-lib / pdfkit`);
             pdfDoc.setCreationDate(new Date());
             pdfDoc.setModificationDate(new Date());
 
@@ -599,7 +600,7 @@ export class FacturXService {
           <rdf:li>${now}</rdf:li>
         </rdf:Seq>
       </dc:date>
-      <pdf:Producer>Suzalink / pdf-lib / pdfkit</pdf:Producer>
+      <pdf:Producer>${brand.productName} / pdf-lib / pdfkit</pdf:Producer>
       <pdfaid:part>3</pdfaid:part>
       <pdfaid:conformance>B</pdfaid:conformance>
       <fx:DocumentType>INVOICE</fx:DocumentType>

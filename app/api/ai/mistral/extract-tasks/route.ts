@@ -12,6 +12,7 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { brand } from "@/lib/brand";
 
 const extractTasksSchema = z.object({
     content: z.string().min(10).max(50000),
@@ -28,7 +29,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const { content, clientName, sessionType } =
         await validateRequest(request, extractTasksSchema);
 
-    const systemPrompt = `Tu es un assistant expert en gestion de projet pour une agence de prospection commerciale B2B (Captain Prospect).
+    const systemPrompt = `Tu es un assistant expert en gestion de projet pour une agence de prospection commerciale B2B (${brand.name}).
 
 Analyse le contenu suivant (compte rendu de session${sessionType ? ` de type "${sessionType}"` : ''}${clientName ? ` avec le client "${clientName}"` : ''}) et extrais TOUTES les tâches mentionnées, qu'elles soient explicites ou implicites.
 

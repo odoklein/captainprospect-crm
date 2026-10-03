@@ -4,8 +4,8 @@ import Link from "next/link";
 
 export default function UnauthorizedPage() {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 p-4">
-            <Card variant="glass" className="max-w-md w-full text-center shadow-xl shadow-slate-200/50">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+            <Card variant="glass" className="max-w-md w-full text-center shadow-sm">
                 <div className="w-16 h-16 rounded-2xl bg-red-50 mx-auto mb-6 flex items-center justify-center">
                     <ShieldX className="w-8 h-8 text-red-500" />
                 </div>

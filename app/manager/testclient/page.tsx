@@ -24,12 +24,10 @@ import {
     TrendingUp,
     BarChart3,
     Calendar,
-    Zap,
     ListChecks,
     ArrowUpRight,
     ChevronLeft,
     ChevronRight,
-    Sparkles,
     FileText,
 } from "lucide-react";
 import Link from "next/link";
@@ -127,7 +125,7 @@ const CHANNEL_CONFIG = {
         icon: Phone,
         label: "Appel",
         className: "mgr-channel-call",
-        color: "from-blue-500 to-indigo-600",
+        color: "bg-blue-600",
         bgLight: "bg-blue-50",
         textColor: "text-blue-600",
     },
@@ -135,15 +133,15 @@ const CHANNEL_CONFIG = {
         icon: Mail,
         label: "Email",
         className: "mgr-channel-email",
-        color: "from-violet-500 to-purple-600",
-        bgLight: "bg-violet-50",
-        textColor: "text-violet-600",
+        color: "bg-accent-600",
+        bgLight: "bg-accent-50",
+        textColor: "text-accent-600",
     },
     LINKEDIN: {
         icon: Linkedin,
         label: "LinkedIn",
         className: "mgr-channel-linkedin",
-        color: "from-sky-500 to-blue-600",
+        color: "bg-sky-600",
         bgLight: "bg-sky-50",
         textColor: "text-sky-600",
     },
@@ -315,7 +313,7 @@ export default function UnifiedDashboardPage() {
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                     <p className="text-sm text-slate-500">Chargement...</p>
                 </div>
             </div>
@@ -327,25 +325,23 @@ export default function UnifiedDashboardPage() {
             {/* ═══════════════════════════════════════════════════════════ */}
             {/* HERO HEADER — UNIFIED STATS */}
             {/* ═══════════════════════════════════════════════════════════ */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-7 text-white">
-                <div className="absolute -top-12 -right-12 w-56 h-56 rounded-full bg-indigo-600/20 blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-16 -left-10 w-64 h-64 rounded-full bg-violet-700/15 blur-3xl pointer-events-none" />
+            <div className="relative overflow-hidden rounded-2xl bg-slate-900 p-7 text-white">
 
                 <div className="relative z-10">
                     <div className="flex items-start justify-between gap-4 mb-6">
                         <div>
                             <div className="flex items-center gap-2 mb-2">
                                 <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/10">
-                                    <Sparkles className="w-4 h-4 text-indigo-300" />
+                                    <Building2 className="w-4 h-4 text-primary-300" />
                                 </div>
-                                <span className="text-xs font-medium text-indigo-300 uppercase tracking-widest">
+                                <span className="text-xs font-medium text-primary-300 uppercase tracking-widest">
                                     Centre de pilotage
                                 </span>
                             </div>
                             <h1 className="text-3xl font-bold tracking-tight">Clients & Missions</h1>
                             <p className="text-sm text-slate-400 mt-1">
                                 {activeView === "clients" 
-                                    ? "Gérez votre portefeuille et démarrez de nouvelles missions"
+                                    ? "Portefeuille clients et leurs missions"
                                     : selectedClient 
                                         ? `Missions de ${selectedClient.name}`
                                         : "Toutes les missions actives"}
@@ -381,7 +377,7 @@ export default function UnifiedDashboardPage() {
                                     </Link>
                                     <button
                                         onClick={() => setShowOnboardingModal(true)}
-                                        className="flex items-center gap-2 h-10 px-5 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-indigo-50 transition-all shadow-lg shadow-black/20"
+                                        className="flex items-center gap-2 h-10 px-5 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-primary-50 transition-all shadow-sm"
                                     >
                                         <Plus className="w-4 h-4" />
                                         Nouveau client
@@ -390,7 +386,7 @@ export default function UnifiedDashboardPage() {
                             ) : (
                                 <Link
                                     href="/manager/missions/new"
-                                    className="flex items-center gap-2 h-10 px-5 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-indigo-50 transition-all shadow-lg shadow-black/20"
+                                    className="flex items-center gap-2 h-10 px-5 rounded-xl bg-white text-slate-900 text-sm font-semibold hover:bg-primary-50 transition-all shadow-sm"
                                 >
                                     <Plus className="w-4 h-4" />
                                     Nouvelle mission
@@ -401,16 +397,16 @@ export default function UnifiedDashboardPage() {
 
                     {/* UNIFIED STATS */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10 backdrop-blur-sm">
-                            <div className="w-9 h-9 rounded-lg bg-indigo-500/30 flex items-center justify-center shrink-0">
-                                <Building2 className="w-4 h-4 text-indigo-300" />
+                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10">
+                            <div className="w-9 h-9 rounded-lg bg-primary-500/30 flex items-center justify-center shrink-0">
+                                <Building2 className="w-4 h-4 text-primary-300" />
                             </div>
                             <div>
                                 <p className="text-xl font-bold leading-tight">{totalClients}</p>
                                 <p className="text-xs text-slate-400">Clients</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10">
                             <div className="w-9 h-9 rounded-lg bg-emerald-500/30 flex items-center justify-center shrink-0">
                                 <Target className="w-4 h-4 text-emerald-300" />
                             </div>
@@ -419,21 +415,21 @@ export default function UnifiedDashboardPage() {
                                 <p className="text-xs text-slate-400">Missions</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10">
                             <div className="w-9 h-9 rounded-lg bg-amber-500/30 flex items-center justify-center shrink-0">
-                                <Zap className="w-4 h-4 text-amber-300" />
+                                <Activity className="w-4 h-4 text-amber-300" />
                             </div>
                             <div>
                                 <p className="text-xl font-bold leading-tight text-amber-300">{activeMissions}</p>
                                 <p className="text-xs text-slate-400">Actives</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10 backdrop-blur-sm">
-                            <div className="w-9 h-9 rounded-lg bg-violet-500/30 flex items-center justify-center shrink-0">
-                                <Users className="w-4 h-4 text-violet-300" />
+                        <div className="flex items-center gap-3 bg-white/8 rounded-xl px-4 py-3 border border-white/10">
+                            <div className="w-9 h-9 rounded-lg bg-accent-500/30 flex items-center justify-center shrink-0">
+                                <Users className="w-4 h-4 text-accent-300" />
                             </div>
                             <div>
-                                <p className="text-xl font-bold leading-tight text-violet-300">{totalUsers}</p>
+                                <p className="text-xl font-bold leading-tight text-accent-300">{totalUsers}</p>
                                 <p className="text-xs text-slate-400">Utilisateurs</p>
                             </div>
                         </div>
@@ -452,7 +448,7 @@ export default function UnifiedDashboardPage() {
                         placeholder={activeView === "clients" ? "Rechercher un client..." : "Rechercher une mission..."}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-10 pl-10 pr-9 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 placeholder:text-slate-400 transition-all"
+                        className="w-full h-10 pl-10 pr-9 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 placeholder:text-slate-400 transition-all"
                     />
                     {searchQuery && (
                         <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-slate-200 transition-colors">
@@ -527,14 +523,14 @@ export default function UnifiedDashboardPage() {
             {/* LEEXI SECTION (CLIENTS VIEW ONLY) */}
             {/* ═══════════════════════════════════════════════════════════ */}
             {activeView === "clients" && leexiData && leexiData.totalRecaps > 0 && (
-                <div className="bg-white border border-violet-200 rounded-2xl overflow-hidden">
+                <div className="bg-white border border-accent-200 rounded-2xl overflow-hidden">
                     <button
                         onClick={() => setShowLeexiSection(!showLeexiSection)}
-                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-violet-50/50 transition-colors"
+                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-accent-50/50 transition-colors"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center">
-                                <Mic className="w-5 h-5 text-violet-600" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-50 ring-1 ring-inset ring-accent-100 flex items-center justify-center">
+                                <Mic className="w-5 h-5 text-accent-600" />
                             </div>
                             <div className="text-left">
                                 <h3 className="text-sm font-semibold text-slate-900">Récapitulatifs Leexi</h3>
@@ -544,7 +540,7 @@ export default function UnifiedDashboardPage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 text-xs">
+                            <Badge variant="outline" className="bg-accent-50 text-accent-700 border-accent-200 text-xs">
                                 {leexiData.totalRecaps} recap{leexiData.totalRecaps > 1 ? "s" : ""}
                             </Badge>
                             {showLeexiSection ? (
@@ -556,22 +552,22 @@ export default function UnifiedDashboardPage() {
                     </button>
 
                     {showLeexiSection && (
-                        <div className="border-t border-violet-100 px-6 py-4 space-y-3 max-h-80 overflow-y-auto">
+                        <div className="border-t border-accent-100 px-6 py-4 space-y-3 max-h-80 overflow-y-auto">
                             {leexiData.matched.map((group) => (
                                 <div key={group.clientId} className="space-y-2">
                                     {group.recaps.map((recap) => (
                                         <div
                                             key={recap.id}
-                                            className="p-3 bg-violet-50/50 border border-violet-100 rounded-xl"
+                                            className="p-3 bg-accent-50/50 border border-accent-100 rounded-xl"
                                         >
                                             <div
                                                 className="flex items-center justify-between cursor-pointer"
                                                 onClick={() => setExpandedRecapId(expandedRecapId === recap.id ? null : recap.id)}
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
-                                                    <Mic className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
+                                                    <Mic className="w-3.5 h-3.5 text-accent-500 flex-shrink-0" />
                                                     <span className="text-sm font-medium text-slate-900 truncate">{recap.title}</span>
-                                                    <Badge variant="outline" className="text-[10px] bg-white border-violet-200 text-violet-600 flex-shrink-0">
+                                                    <Badge variant="outline" className="text-[10px] bg-white border-accent-200 text-accent-600 flex-shrink-0">
                                                         {group.clientName}
                                                     </Badge>
                                                 </div>
@@ -588,7 +584,7 @@ export default function UnifiedDashboardPage() {
                                                 </div>
                                             </div>
                                             {expandedRecapId === recap.id && (
-                                                <p className="mt-2 text-xs text-slate-600 whitespace-pre-line border-t border-violet-100 pt-2">
+                                                <p className="mt-2 text-xs text-slate-600 whitespace-pre-line border-t border-accent-100 pt-2">
                                                     {recap.recapText.slice(0, 800)}
                                                     {recap.recapText.length > 800 && "..."}
                                                 </p>
@@ -599,7 +595,7 @@ export default function UnifiedDashboardPage() {
                             ))}
 
                             {leexiData.unmatched.length > 0 && (
-                                <div className="pt-2 border-t border-violet-100">
+                                <div className="pt-2 border-t border-accent-100">
                                     <p className="text-xs font-medium text-slate-500 mb-2">
                                         Non associés ({leexiData.unmatched.length})
                                     </p>
@@ -625,7 +621,7 @@ export default function UnifiedDashboardPage() {
                                                             e.stopPropagation();
                                                             handleCreateFromRecap(recap.recapText);
                                                         }}
-                                                        className="text-[10px] font-medium px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors"
+                                                        className="text-[10px] font-medium px-2 py-0.5 bg-primary-50 text-primary-600 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
                                                     >
                                                         Créer client
                                                     </button>
@@ -648,7 +644,7 @@ export default function UnifiedDashboardPage() {
                                                     </p>
                                                     <button
                                                         onClick={() => handleCreateFromRecap(recap.recapText)}
-                                                        className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
                                                     >
                                                         <Plus className="w-3.5 h-3.5" />
                                                         Créer le client depuis cet appel
@@ -703,18 +699,16 @@ export default function UnifiedDashboardPage() {
                                     <div
                                         key={client.id}
                                         onClick={() => handleClientSelect(client.id)}
-                                        className="group bg-white rounded-2xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100/50 transition-all duration-300 cursor-pointer flex flex-col relative overflow-hidden"
+                                        className="group bg-white rounded-2xl border border-slate-200 p-5 hover:border-primary-300 hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col relative overflow-hidden"
                                         style={{ animationDelay: `${index * 50}ms` }}
                                     >
-                                        <div className="absolute top-0 left-0 w-1 bg-indigo-500 h-0 group-hover:h-full transition-all duration-300"></div>
-
                                         <div className="flex items-start justify-between mb-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100/50 flex items-center justify-center border border-indigo-100/50 flex-shrink-0 group-hover:scale-105 transition-transform">
-                                                    <Building2 className="w-5 h-5 text-indigo-600" />
+                                                <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center border border-primary-100/50 flex-shrink-0">
+                                                    <Building2 className="w-5 h-5 text-primary-600" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-base font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                                    <h3 className="text-base font-semibold text-slate-900 group-hover:text-primary-600 transition-colors">
                                                         {client.name}
                                                     </h3>
                                                     <p className="text-xs text-slate-500 font-medium">
@@ -761,15 +755,15 @@ export default function UnifiedDashboardPage() {
                                                     <div>
                                                         <div className="flex items-center justify-between mb-2">
                                                             <span className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                                                                <Mic className="w-3.5 h-3.5 text-violet-500" /> Récaps Leexi
+                                                                <Mic className="w-3.5 h-3.5 text-accent-500" /> Récaps Leexi
                                                             </span>
-                                                            <span className="text-[11px] font-medium text-violet-600 bg-violet-50 px-2.5 py-0.5 rounded-full border border-violet-100">
+                                                            <span className="text-[11px] font-medium text-accent-600 bg-accent-50 px-2.5 py-0.5 rounded-full border border-accent-100">
                                                                 {recapCount}
                                                             </span>
                                                         </div>
                                                         <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                                             <div
-                                                                className="h-full bg-gradient-to-r from-violet-400 to-indigo-500 rounded-full"
+                                                                className="h-full bg-accent-500 rounded-full"
                                                                 style={{ width: `${recapPercent}%`, transition: "width 1s ease-in-out" }}
                                                             />
                                                         </div>
@@ -782,7 +776,7 @@ export default function UnifiedDashboardPage() {
                                             <span className="flex items-center gap-1.5">
                                                 <Clock className="w-3.5 h-3.5" /> Créé le {new Date(client.createdAt).toLocaleDateString("fr-FR")}
                                             </span>
-                                            <span className="text-indigo-600 font-semibold opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all flex items-center gap-1">
+                                            <span className="text-primary-600 font-semibold opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all flex items-center gap-1">
                                                 Voir missions <ArrowRight className="w-3.5 h-3.5" />
                                             </span>
                                         </div>
@@ -801,11 +795,11 @@ export default function UnifiedDashboardPage() {
                 <>
                     {isLoadingMissions ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                            <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                         </div>
                     ) : filteredMissions.length === 0 ? (
                         <div className="text-center py-20 bg-white rounded-2xl border border-slate-200 border-dashed">
-                            <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center mx-auto mb-5 border border-slate-200">
+                            <div className="w-20 h-20 rounded-3xl bg-slate-100 flex items-center justify-center mx-auto mb-5 border border-slate-200">
                                 <Target className="w-9 h-9 text-slate-300" />
                             </div>
                             <h3 className="text-lg font-bold text-slate-900 mb-1">
@@ -838,15 +832,13 @@ export default function UnifiedDashboardPage() {
                                     <Link
                                         key={mission.id}
                                         href={`/manager/missions/${mission.id}`}
-                                        className="group relative bg-white border border-slate-200 rounded-2xl overflow-hidden cursor-pointer hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/8 transition-all duration-300 hover:-translate-y-0.5"
+                                        className="group relative bg-white border border-slate-200 rounded-2xl overflow-hidden cursor-pointer hover:border-primary-300 hover:shadow-md transition-all duration-200"
                                         style={{ animationDelay: `${index * 40}ms` }}
                                     >
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl transition-all duration-300 ${mission.status === "ACTIVE" ? "bg-gradient-to-b from-emerald-400 to-emerald-600" : mission.status === "PAUSED" ? "bg-gradient-to-b from-amber-300 to-amber-500" : "bg-gradient-to-b from-slate-200 to-slate-300"}`} />
-
-                                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-r from-indigo-500/3 via-transparent to-transparent" />
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl transition-all duration-300 ${mission.status === "ACTIVE" ? "bg-emerald-500" : mission.status === "PAUSED" ? "bg-amber-400" : "bg-slate-300"}`} />
 
                                         <div className="flex items-center gap-5 px-6 py-5 pl-7">
-                                            <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${channel.color} flex items-center justify-center text-xl font-bold text-white flex-shrink-0 shadow-md group-hover:scale-105 transition-transform duration-300`}>
+                                            <div className={`relative w-14 h-14 rounded-2xl ${channel.color} flex items-center justify-center text-xl font-bold text-white flex-shrink-0`}>
                                                 {mission.client?.name?.[0] || "M"}
                                                 <div className={`absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full ${channel.bgLight} border-2 border-white flex items-center justify-center shadow-sm`}>
                                                     <ChannelIcon className={`w-3 h-3 ${channel.textColor}`} />
@@ -855,7 +847,7 @@ export default function UnifiedDashboardPage() {
 
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2.5 mb-1 flex-wrap">
-                                                    <h3 className="font-bold text-slate-900 group-hover:text-indigo-700 transition-colors text-base truncate">
+                                                    <h3 className="font-bold text-slate-900 group-hover:text-primary-700 transition-colors text-base truncate">
                                                         {mission.name}
                                                     </h3>
                                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide ${mission.status === "ACTIVE"
@@ -913,7 +905,7 @@ export default function UnifiedDashboardPage() {
                                                                 {mission.sdrAssignments.slice(0, 4).map((a, i) => (
                                                                     <div
                                                                         key={a.sdr.id}
-                                                                        className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow-sm"
+                                                                        className="w-7 h-7 rounded-full bg-primary-600 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white"
                                                                         style={{ zIndex: 10 - i }}
                                                                         title={a.sdr.name}
                                                                     >
@@ -958,7 +950,7 @@ export default function UnifiedDashboardPage() {
                                                     )}
                                                 </div>
 
-                                                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-50 group-hover:bg-indigo-600 border border-slate-100 group-hover:border-indigo-600 transition-all duration-300 shadow-sm">
+                                                <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-50 group-hover:bg-primary-600 border border-slate-100 group-hover:border-primary-600 transition-all duration-300 shadow-sm">
                                                     <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors duration-300" />
                                                 </div>
                                             </div>
@@ -968,7 +960,7 @@ export default function UnifiedDashboardPage() {
                                             <div className="px-7 pb-3">
                                                 <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
                                                     <div
-                                                        className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-500 transition-all duration-700"
+                                                        className="h-full rounded-full bg-primary-500 transition-all duration-700"
                                                         style={{ width: `${Math.min(100, ((listCount + campaignCount) / Math.max(1, listCount + campaignCount + 2)) * 100)}%` }}
                                                     />
                                                 </div>

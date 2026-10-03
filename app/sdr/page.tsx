@@ -23,12 +23,11 @@ import {
     Activity,
     User,
     Building2,
-    Flame,
     CheckCircle2,
     AlertCircle,
     ChevronDown,
     BookOpen,
-    Sparkles,
+    Lightbulb,
     PhoneCall,
     Copy,
     Check,
@@ -134,7 +133,7 @@ const BATTLECARDS = [
         id: "gatekeeper",
         badge: "Standard",
         title: "Passer le standard",
-        color: "text-indigo-600 bg-indigo-50 border-indigo-200/80",
+        color: "text-primary-600 bg-primary-50 border-primary-200/80",
         prompt: "« Bonjour, je suis en ligne avec M./Mme [Nom] sur son dossier [Sujet], pouvez-vous me basculer directement sur son poste ? »",
         tip: "Ton direct et posé. Ne demandez pas 'Est-ce qu'il est disponible ?', annoncez la mise en relation avec confiance.",
     },
@@ -234,7 +233,7 @@ function CompanyComingSoonModal({ isOpen, onClose }: { isOpen: boolean; onClose:
                     <X className="w-4 h-4" />
                 </button>
                 <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
-                    <Sparkles className="w-6 h-6 text-amber-500 fill-amber-100" />
+                    <Clock className="w-6 h-6 text-amber-500" />
                 </div>
                 <div className="space-y-1.5">
                     <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 uppercase tracking-wider">
@@ -526,7 +525,7 @@ export default function SDRDashboardPage() {
                         )}
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
-                        Bonjour, {sdrFirstName} ! 👋
+                        Bonjour, {sdrFirstName}
                     </h1>
                     <p className="text-xs sm:text-sm text-zinc-500 font-medium">
                         Votre espace de phoning : avancez sur vos rappels, qualifiez vos prospects et suivez votre cadence.
@@ -647,7 +646,7 @@ export default function SDRDashboardPage() {
                             <span className="text-3xl font-black text-zinc-900 tracking-tight">
                                 {stats?.opportunitiesGenerated ?? 0}
                             </span>
-                            <span className="text-[10px] font-extrabold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-extrabold text-primary-800 bg-primary-100 px-2 py-0.5 rounded-full">
                                 Qualifiés
                             </span>
                         </div>
@@ -655,7 +654,7 @@ export default function SDRDashboardPage() {
                             Intérêt & projet confirmés
                         </span>
                     </div>
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-[0_4px_14px_rgba(79,70,229,0.35)]">
+                    <div className="w-12 h-12 rounded-2xl bg-primary-600 text-white flex items-center justify-center shadow-[0_4px_14px_rgba(79,70,229,0.35)]">
                         <Briefcase className="w-6 h-6 stroke-[2.2]" />
                     </div>
                 </div>
@@ -671,14 +670,14 @@ export default function SDRDashboardPage() {
 
                     {/* ACTIVE MISSION CARD (NevBank Forest Green Style) */}
                     {activeMission ? (
-                        <div className="rounded-3xl bg-[#0B3524] text-white p-6 sm:p-7 shadow-[0_4px_16px_rgba(11,53,36,0.22)] relative overflow-hidden space-y-5 border border-emerald-900/60">
+                        <div className="rounded-3xl bg-inverse text-white p-6 sm:p-7 shadow-[0_4px_16px_color-mix(in_oklab,var(--brand-primary)_28%,transparent),inset_0_1px_0_rgba(255,255,255,0.06)] relative overflow-hidden space-y-5 border border-inverse-line">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                 <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-800/90 text-emerald-200 border border-emerald-700/60 flex items-center gap-1.5 shadow-2xs">
-                                        <ChannelIcon className="w-3.5 h-3.5 text-emerald-300" />
+                                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-inverse-ink-2 border border-inverse-line flex items-center gap-1.5 shadow-2xs">
+                                        <ChannelIcon className="w-3.5 h-3.5 text-inverse-ink-2" />
                                         {activeMission.channel === "CALL" ? "Campagne Téléphonique" : activeMission.channel}
                                     </span>
-                                    <span className="text-xs text-emerald-400 font-semibold">
+                                    <span className="text-xs text-accent-300 font-semibold">
                                         Client : {activeMission.client?.name}
                                     </span>
                                 </div>
@@ -692,15 +691,15 @@ export default function SDRDashboardPage() {
                                                 setSelectedMissionId(e.target.value);
                                                 localStorage.setItem("sdr_selected_mission", e.target.value);
                                             }}
-                                            className="text-xs font-semibold bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-700/80 rounded-xl px-3 py-1.5 text-emerald-100 pr-7 appearance-none cursor-pointer focus:outline-none"
+                                            className="text-xs font-semibold bg-inverse-raised hover:bg-white/10 border border-inverse-line rounded-xl px-3 py-1.5 text-inverse-ink pr-7 appearance-none cursor-pointer focus:outline-none"
                                         >
                                             {missions.map(m => (
-                                                <option key={m.id} value={m.id} className="bg-zinc-900 text-white">
+                                                <option key={m.id} value={m.id} className="bg-primary-900 text-white">
                                                     {m.name} ({m.client.name})
                                                 </option>
                                             ))}
                                         </select>
-                                        <ChevronDown className="w-3.5 h-3.5 text-emerald-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                                        <ChevronDown className="w-3.5 h-3.5 text-accent-300 absolute right-2.5 top-2.5 pointer-events-none" />
                                     </div>
                                 )}
                             </div>
@@ -709,48 +708,48 @@ export default function SDRDashboardPage() {
                                 <h2 className="text-2xl font-black tracking-tight text-white">
                                     {activeMission.name}
                                 </h2>
-                                <p className="text-xs text-emerald-200/80 font-medium">
+                                <p className="text-xs text-inverse-ink-2 font-medium">
                                     {activeMission.contactsRemaining.toLocaleString("fr-FR")} fiches à prospecter dans cette mission.
                                 </p>
                             </div>
 
                             <div className="grid grid-cols-3 gap-3 pt-1">
-                                <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-800/60">
-                                    <span className="text-[11px] text-emerald-300 font-bold block">Fiches restantes</span>
+                                <div className="p-3.5 rounded-2xl bg-inverse-raised border border-inverse-line">
+                                    <span className="text-[11px] text-inverse-ink-2 font-bold block">Fiches restantes</span>
                                     <span className="text-lg font-black text-white mt-0.5 block">
                                         {activeMission.contactsRemaining.toLocaleString("fr-FR")}
                                     </span>
                                 </div>
-                                <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-800/60">
-                                    <span className="text-[11px] text-emerald-300 font-bold block">Campagnes</span>
+                                <div className="p-3.5 rounded-2xl bg-inverse-raised border border-inverse-line">
+                                    <span className="text-[11px] text-inverse-ink-2 font-bold block">Campagnes</span>
                                     <span className="text-lg font-black text-white mt-0.5 block">
                                         {activeMission._count?.campaigns ?? 1}
                                     </span>
                                 </div>
-                                <div className="p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-800/60">
-                                    <span className="text-[11px] text-emerald-300 font-bold block">Progression</span>
-                                    <span className="text-lg font-black text-emerald-400 mt-0.5 block">
+                                <div className="p-3.5 rounded-2xl bg-inverse-raised border border-inverse-line">
+                                    <span className="text-[11px] text-inverse-ink-2 font-bold block">Progression</span>
+                                    <span className="text-lg font-black text-accent-300 mt-0.5 block">
                                         {activeMission.progress || 0}%
                                     </span>
                                 </div>
                             </div>
 
                             <div className="space-y-1.5">
-                                <div className="h-2 w-full bg-emerald-950/80 rounded-full overflow-hidden">
+                                <div className="h-2 w-full bg-inverse-raised rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full transition-all duration-700"
+                                        className="h-full bg-accent rounded-full transition-all duration-700"
                                         style={{ width: `${activeMission.progress || 0}%` }}
                                     />
                                 </div>
                             </div>
 
-                            <div className="pt-2 flex items-center justify-between border-t border-emerald-800/50">
-                                <span className="text-xs text-emerald-200 font-medium">
+                            <div className="pt-2 flex items-center justify-between border-t border-inverse-line">
+                                <span className="text-xs text-inverse-ink-2 font-medium">
                                     Raccourcis clavier actifs (touches 1 à 5 pour qualifier)
                                 </span>
                                 <Link href="/sdr/action">
-                                    <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-emerald-50 text-emerald-950 text-xs font-black tracking-tight shadow-md transition-all active:scale-[0.98]">
-                                        <Play className="w-3.5 h-3.5 fill-current text-emerald-600" />
+                                    <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-surface-2 text-primary text-xs font-black tracking-tight shadow-md transition-all active:scale-[0.98]">
+                                        <Play className="w-3.5 h-3.5 fill-current text-accent" />
                                         <span>Ouvrir la session d'appel</span>
                                     </button>
                                 </Link>
@@ -858,7 +857,7 @@ export default function SDRDashboardPage() {
                                             className={cn(
                                                 "p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs",
                                                 isOverdue
-                                                    ? "bg-[#FEF2F2] border-rose-200 hover:border-rose-300"
+                                                    ? "bg-danger-soft border-rose-200 hover:border-rose-300"
                                                     : "bg-white border-slate-200 hover:border-slate-300"
                                             )}
                                         >
@@ -885,7 +884,7 @@ export default function SDRDashboardPage() {
                                                     {contactName ? (
                                                         <button
                                                             onClick={() => handleEntityClick(cb.contact?.id, null)}
-                                                            className="text-sm font-extrabold text-zinc-900 hover:text-indigo-600 transition-colors truncate text-left"
+                                                            className="text-sm font-extrabold text-zinc-900 hover:text-primary-600 transition-colors truncate text-left"
                                                         >
                                                             {contactName}
                                                         </button>
@@ -893,7 +892,7 @@ export default function SDRDashboardPage() {
                                                     {companyName && (
                                                         <button
                                                             onClick={handleCompanyClick}
-                                                            className="text-xs text-zinc-500 hover:text-indigo-600 font-semibold truncate transition-colors"
+                                                            className="text-xs text-zinc-500 hover:text-primary-600 font-semibold truncate transition-colors"
                                                             title="Ouvrir la fiche entreprise"
                                                         >
                                                             {contactName ? `chez ${companyName}` : companyName}
@@ -948,7 +947,7 @@ export default function SDRDashboardPage() {
                     <div className="bg-white rounded-3xl border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden space-y-3 p-6 sm:p-7">
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                             <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                                <div className="w-8 h-8 rounded-xl bg-primary-600 text-white flex items-center justify-center shadow-xs">
                                     <Activity className="w-4 h-4" />
                                 </div>
                                 <h3 className="text-base font-extrabold text-zinc-900 tracking-tight">
@@ -1012,7 +1011,7 @@ export default function SDRDashboardPage() {
                                         >
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-zinc-700 flex-shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                                                    {item.contactId ? <User className="w-4 h-4 text-indigo-600" /> : <Building2 className="w-4 h-4 text-emerald-600" />}
+                                                    {item.contactId ? <User className="w-4 h-4 text-primary-600" /> : <Building2 className="w-4 h-4 text-emerald-600" />}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-bold text-zinc-900 truncate">
@@ -1030,7 +1029,7 @@ export default function SDRDashboardPage() {
                                                     isSuccess && "bg-emerald-100 text-emerald-800 border border-emerald-300",
                                                     isCallback && "bg-amber-100 text-amber-800 border border-amber-300",
                                                     isUnreachable && "bg-slate-200 text-slate-700",
-                                                    !isSuccess && !isCallback && !isUnreachable && "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                                    !isSuccess && !isCallback && !isUnreachable && "bg-primary-50 text-primary-700 border border-primary-200"
                                                 )}>
                                                     {item.resultLabel}
                                                 </span>
@@ -1129,8 +1128,8 @@ export default function SDRDashboardPage() {
                     <div className="bg-white rounded-3xl border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] overflow-hidden space-y-4 p-6">
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                             <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-xs">
-                                    <Sparkles className="w-4 h-4" />
+                                <div className="w-8 h-8 rounded-xl bg-accent-600 text-white flex items-center justify-center shadow-xs">
+                                    <BookOpen className="w-4 h-4" />
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-black text-zinc-900 tracking-tight">
@@ -1185,7 +1184,7 @@ export default function SDRDashboardPage() {
                                     </div>
 
                                     <p className="text-[11px] text-zinc-600 font-medium leading-relaxed">
-                                        💡 <strong>Conseil :</strong> {card.tip}
+                                        <Lightbulb className="inline-block w-3.5 h-3.5 mr-1 -mt-0.5 text-amber-500 shrink-0" /><strong>Conseil :</strong> {card.tip}
                                     </p>
                                 </div>
                             );

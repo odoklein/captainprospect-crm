@@ -98,8 +98,8 @@ export default function ClientExclusionsPage() {
                 }
             />
 
-            <Card className="p-4 bg-indigo-50/60 border-indigo-200">
-                <p className="text-sm text-indigo-900">
+            <Card className="p-4 bg-primary-50/60 border-primary-200">
+                <p className="text-sm text-primary-900">
                     Une exclusion prend effet <strong>immédiatement</strong> : la fiche sort des files d&apos;appel de
                     nos SDR et les séquences email en cours sont arrêtées. Elle reste active même si la liste est
                     réimportée plus tard.

@@ -65,7 +65,7 @@ export function MessageReactions({
                     className={cn(
                         "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs border transition-colors",
                         hasReacted(r)
-                            ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                            ? "bg-primary-50 border-primary-200 text-primary-700"
                             : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
                     )}
                 >

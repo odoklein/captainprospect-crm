@@ -85,7 +85,7 @@ interface MonthlyRevenue {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
     DRAFT: { label: "Brouillon", color: "text-slate-600", bg: "bg-slate-100", dot: "bg-slate-400" },
-    VALIDATED: { label: "Validée", color: "text-indigo-700", bg: "bg-indigo-50", dot: "bg-indigo-500" },
+    VALIDATED: { label: "Validée", color: "text-primary-700", bg: "bg-primary-50", dot: "bg-primary-500" },
     SENT: { label: "Envoyée", color: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500" },
     PAID: { label: "Payée", color: "text-emerald-700", bg: "bg-emerald-50", dot: "bg-emerald-500" },
     CANCELLED: { label: "Annulée", color: "text-red-700", bg: "bg-red-50", dot: "bg-red-500" },
@@ -184,7 +184,7 @@ export default function BillingDashboardPage() {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-400 mb-3" />
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary-400 mb-3" />
                     <p className="text-sm text-slate-500">Chargement du tableau de bord...</p>
                 </div>
             </div>
@@ -196,15 +196,9 @@ export default function BillingDashboardPage() {
     return (
         <div className="space-y-8 max-w-[1280px] mx-auto">
             {/* Hero Header */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-8 text-white">
-                <div className="absolute inset-0 opacity-20">
-                    <div className="absolute inset-0" style={{
-                        backgroundImage: "radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.3) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.2) 0%, transparent 50%)"
-                    }} />
-                </div>
-                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -translate-y-20 translate-x-20 blur-3xl" />
+            <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-8 text-white">
                 <div className="relative z-10">
-                    <div className="flex items-center gap-2 text-indigo-300 text-sm font-medium mb-2">
+                    <div className="flex items-center gap-2 text-primary-300 text-sm font-medium mb-2">
                         <Shield className="w-4 h-4" />
                         <span>Conforme Factur-X EN16931 / EU 2026</span>
                     </div>
@@ -231,7 +225,7 @@ export default function BillingDashboardPage() {
                                 </Button>
                             </Link>
                             <Link href="/manager/billing/invoices/new">
-                                <Button className="bg-white text-indigo-700 hover:bg-indigo-50 shadow-lg shadow-black/20">
+                                <Button className="bg-white text-primary-700 hover:bg-primary-50 shadow-sm">
                                     <Plus className="w-4 h-4 mr-2" />
                                     Nouvelle facture
                                 </Button>
@@ -244,10 +238,10 @@ export default function BillingDashboardPage() {
             {/* KPI Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Revenue */}
-                <div className="col-span-2 lg:col-span-1 rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-300">
+                <div className="col-span-2 lg:col-span-1 rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
                     <div className="flex items-center justify-between mb-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
-                            <Euro className="w-5 h-5 text-indigo-600" />
+                        <div className="w-10 h-10 rounded-xl bg-primary-50 ring-1 ring-inset ring-primary-100 flex items-center justify-center">
+                            <Euro className="w-5 h-5 text-primary-600" />
                         </div>
                         {growth !== 0 && (
                             <div className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-full ${
@@ -263,18 +257,18 @@ export default function BillingDashboardPage() {
                 </div>
 
                 {/* Invoices */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-300">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-cyan-100 flex items-center justify-center mb-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 ring-1 ring-inset ring-blue-100 flex items-center justify-center mb-3">
                         <FileText className="w-5 h-5 text-blue-600" />
                     </div>
                     <p className="text-2xl font-bold text-slate-900">{stats?.totalInvoices || 0}</p>
                     <p className="text-xs text-slate-500 mt-1">Factures total</p>
-                    <p className="text-[11px] text-indigo-600 font-medium mt-1">{stats?.paidCount || 0} payées</p>
+                    <p className="text-[11px] text-primary-600 font-medium mt-1">{stats?.paidCount || 0} payées</p>
                 </div>
 
                 {/* DSO */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-300">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center mb-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 ring-1 ring-inset ring-amber-100 flex items-center justify-center mb-3">
                         <Clock className="w-5 h-5 text-amber-600" />
                     </div>
                     <p className="text-2xl font-bold text-slate-900">{dso}<span className="text-sm font-normal text-slate-400 ml-1">j</span></p>
@@ -284,13 +278,13 @@ export default function BillingDashboardPage() {
                 {/* Overdue */}
                 <div className={`rounded-2xl border p-5 hover:shadow-lg transition-all duration-300 ${
                     (stats?.overdueCount || 0) > 0
-                        ? "border-red-200 bg-gradient-to-br from-white to-red-50/30"
+                        ? "border-red-200 bg-red-50/30"
                         : "border-slate-200 bg-white"
                 }`}>
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
                         (stats?.overdueCount || 0) > 0
-                            ? "bg-gradient-to-br from-red-100 to-rose-100"
-                            : "bg-gradient-to-br from-slate-100 to-slate-50"
+                            ? "bg-red-50 ring-1 ring-inset ring-red-100"
+                            : "bg-slate-100"
                     }`}>
                         <AlertTriangle className={`w-5 h-5 ${(stats?.overdueCount || 0) > 0 ? "text-red-500" : "text-slate-400"}`} />
                     </div>
@@ -304,13 +298,13 @@ export default function BillingDashboardPage() {
                 </div>
 
                 {/* Credit Notes */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-indigo-200 transition-all duration-300">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 flex items-center justify-center mb-3">
-                        <FileX2 className="w-5 h-5 text-violet-600" />
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 hover:shadow-lg hover:border-primary-200 transition-all duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-accent-50 ring-1 ring-inset ring-accent-100 flex items-center justify-center mb-3">
+                        <FileX2 className="w-5 h-5 text-accent-600" />
                     </div>
                     <p className="text-2xl font-bold text-slate-900">{stats?.creditNoteCount || 0}</p>
                     <p className="text-xs text-slate-500 mt-1">Avoirs</p>
-                    <p className="text-[11px] text-indigo-600 font-medium mt-1">{stats?.totalClients || 0} clients</p>
+                    <p className="text-[11px] text-primary-600 font-medium mt-1">{stats?.totalClients || 0} clients</p>
                 </div>
             </div>
 
@@ -324,7 +318,7 @@ export default function BillingDashboardPage() {
                             <p className="text-xs text-slate-500 mt-0.5">12 derniers mois</p>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-slate-400">
-                            <div className="w-3 h-3 rounded bg-indigo-500" />
+                            <div className="w-3 h-3 rounded bg-primary-500" />
                             Revenus
                         </div>
                     </div>
@@ -414,29 +408,29 @@ export default function BillingDashboardPage() {
                     <div className="border-t border-slate-100 mt-5 pt-5">
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Actions rapides</p>
                         <div className="space-y-2">
-                            <Link href="/manager/billing/invoices/new" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-indigo-50 transition-colors group">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                    <Plus className="w-4 h-4 text-indigo-600" />
+                            <Link href="/manager/billing/invoices/new" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary-50 transition-colors group">
+                                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                                    <Plus className="w-4 h-4 text-primary-600" />
                                 </div>
-                                <span className="text-sm text-slate-700 group-hover:text-indigo-700">Nouvelle facture</span>
+                                <span className="text-sm text-slate-700 group-hover:text-primary-700">Nouvelle facture</span>
                             </Link>
-                            <Link href="/manager/billing/clients" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-indigo-50 transition-colors group">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                    <Users className="w-4 h-4 text-indigo-600" />
+                            <Link href="/manager/billing/clients" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary-50 transition-colors group">
+                                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                                    <Users className="w-4 h-4 text-primary-600" />
                                 </div>
-                                <span className="text-sm text-slate-700 group-hover:text-indigo-700">Gérer les clients</span>
+                                <span className="text-sm text-slate-700 group-hover:text-primary-700">Gérer les clients</span>
                             </Link>
-                            <Link href="/manager/billing/offres" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-indigo-50 transition-colors group">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                    <Tag className="w-4 h-4 text-indigo-600" />
+                            <Link href="/manager/billing/offres" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary-50 transition-colors group">
+                                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                                    <Tag className="w-4 h-4 text-primary-600" />
                                 </div>
-                                <span className="text-sm text-slate-700 group-hover:text-indigo-700">Offres & Tarifs</span>
+                                <span className="text-sm text-slate-700 group-hover:text-primary-700">Offres & Tarifs</span>
                             </Link>
-                            <Link href="/manager/billing/engagements" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-indigo-50 transition-colors group">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                    <CalendarDays className="w-4 h-4 text-indigo-600" />
+                            <Link href="/manager/billing/engagements" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary-50 transition-colors group">
+                                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                                    <CalendarDays className="w-4 h-4 text-primary-600" />
                                 </div>
-                                <span className="text-sm text-slate-700 group-hover:text-indigo-700">Engagements</span>
+                                <span className="text-sm text-slate-700 group-hover:text-primary-700">Engagements</span>
                             </Link>
                         </div>
                     </div>
@@ -499,7 +493,7 @@ export default function BillingDashboardPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white p-6">
                     <div className="flex items-center justify-between mb-5">
                         <h3 className="text-base font-semibold text-slate-900">Dernières factures</h3>
-                        <Link href="/manager/billing/invoices" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1">
+                        <Link href="/manager/billing/invoices" className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors flex items-center gap-1">
                             Tout voir <ChevronRight className="w-3 h-3" />
                         </Link>
                     </div>
@@ -539,7 +533,7 @@ export default function BillingDashboardPage() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-medium text-slate-900 truncate group-hover:text-indigo-700 transition-colors">
+                                                <span className="text-sm font-medium text-slate-900 truncate group-hover:text-primary-700 transition-colors">
                                                     {invoice.invoiceNumber || "Brouillon"}
                                                 </span>
                                                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${sc.bg} ${sc.color}`}>

@@ -37,7 +37,7 @@ export function SdrStatTiles({ stats, statusFilter, onSelect }: SdrStatTilesProp
                             iconBg={t.iconBg}
                             iconColor={t.iconColor}
                             className={cn(
-                                "cursor-pointer transition hover:-translate-y-0.5 hover:shadow-md",
+                                "cursor-pointer transition hover:shadow-md",
                                 isActive ? `${t.activeBg} ${t.activeBorder}` : "border-slate-200"
                             )}
                         />

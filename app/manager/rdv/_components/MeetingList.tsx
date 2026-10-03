@@ -110,7 +110,7 @@ const MeetingRow = memo(function MeetingRow({
             <div style={{ fontSize: 12, fontWeight: 600, color: proximity.color, lineHeight: 1.1 }}>
               {rdvDate.day} {rdvDate.month}
             </div>
-            <span style={{ fontSize: 9, fontWeight: 700, color: proximity.color, background: `${proximity.color}15`, borderRadius: 4, padding: "1px 5px", alignSelf: "flex-start" }}>
+            <span style={{ fontSize: 9, fontWeight: 700, color: proximity.color, background: `color-mix(in oklab, ${proximity.color} 9%, transparent)`, borderRadius: 4, padding: "1px 5px", alignSelf: "flex-start" }}>
               {proximity.text}
             </span>
           </>

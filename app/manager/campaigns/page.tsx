@@ -113,7 +113,7 @@ export default function CampaignsPage() {
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                     <p className="text-sm text-slate-500">Chargement des campagnes...</p>
                 </div>
             </div>
@@ -151,8 +151,8 @@ export default function CampaignsPage() {
             <div className="grid grid-cols-3 gap-5">
                 <div className="mgr-stat-card">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                            <FileText className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-primary-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
@@ -207,7 +207,7 @@ export default function CampaignsPage() {
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-11 px-4 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                    className="h-11 px-4 border border-slate-200 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/10"
                 >
                     <option value="all">Tous les statuts</option>
                     <option value="active">Actives</option>
@@ -218,8 +218,8 @@ export default function CampaignsPage() {
             {/* Campaigns Grid */}
             {filteredCampaigns.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center mx-auto mb-4">
-                        <FileText className="w-8 h-8 text-indigo-500" />
+                    <div className="w-16 h-16 rounded-2xl bg-primary-100 flex items-center justify-center mx-auto mb-4">
+                        <FileText className="w-8 h-8 text-primary-500" />
                     </div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-2">
                         {searchQuery || statusFilter !== "all"
@@ -252,11 +252,11 @@ export default function CampaignsPage() {
                         >
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                                        <FileText className="w-6 h-6 text-indigo-600" />
+                                    <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                                        <FileText className="w-6 h-6 text-primary-600" />
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                        <h3 className="font-semibold text-slate-900 group-hover:text-primary-600 transition-colors">
                                             {campaign.name}
                                         </h3>
                                         <p className="text-sm text-slate-500">
@@ -268,7 +268,7 @@ export default function CampaignsPage() {
                                     <span className={campaign.isActive ? "mgr-badge-active" : "mgr-badge-paused"}>
                                         {campaign.isActive ? "Active" : "Inactive"}
                                     </span>
-                                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
                                 </div>
                             </div>
 

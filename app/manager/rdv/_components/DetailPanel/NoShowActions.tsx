@@ -279,7 +279,7 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
                                     className={
                                         "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors "
                                         + (recontact === opt.value
-                                            ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                                            ? "border-primary-300 bg-primary-50 text-primary-700"
                                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")
                                     }
                                 >
@@ -299,7 +299,7 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
                             rows={3}
                             maxLength={1000}
                             placeholder="Ce que le client a dit, le contexte…"
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
 
@@ -310,7 +310,7 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
                         <select
                             value={sdrId}
                             onChange={(e) => setSdrId(e.target.value)}
-                            className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         >
                             <option value="">
                                 Conserver le télépro initial{meeting.sdr?.name ? ` (${meeting.sdr.name})` : ""}

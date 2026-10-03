@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle, Loader2, ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { brand } from "@/lib/brand";
 
 function ResetPasswordForm() {
     const router = useRouter();
@@ -85,12 +87,7 @@ function ResetPasswordForm() {
                     position: relative;
                     overflow: hidden;
 
-                    background:
-                        radial-gradient(55.87% 55.87% at 35.49% -18.37%, #d1aad7 0%, rgba(255,255,255,0) 100%),
-                        radial-gradient(70.81% 48.44% at -24.53% -16.02%, #c88bc4 0%, rgba(255,255,255,0) 100%),
-                        radial-gradient(91.61% 92.58% at 104.86% -43.36%, #7b8fdd 0%, rgba(255,255,255,0) 100%),
-                        radial-gradient(50.59% 55.55% at -2.99% -8.69%, #86bff2 9.06%, rgba(255,255,255,0) 100%),
-                        #f7fafc;
+                    background: #f7fafc;
                 }
 
                 .lp-card {
@@ -98,14 +95,11 @@ function ResetPasswordForm() {
                     width: 100%; max-width: 360px;
                     padding: 32px 28px 28px;
                     border-radius: 22px;
-                    background: rgba(255,255,255,.82);
-                    backdrop-filter: blur(20px) saturate(150%);
-                    -webkit-backdrop-filter: blur(20px) saturate(150%);
-                    border: 1px solid rgba(255,255,255,.9);
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
                     box-shadow:
-                        rgba(50, 50, 93, 0.25) 0px 50px 100px -20px,
-                        rgba(0, 0, 0, 0.3) 0px 30px 60px -30px,
-                        inset 0 1px 0 rgba(255,255,255,.95);
+                        0 1px 2px rgba(15,23,42,.05),
+                        0 12px 32px -12px rgba(15,23,42,.18);
                     opacity: 0;
                     transform: translateY(16px) scale(.98);
                     transition: opacity .45s var(--spring, ease), transform .45s var(--spring, ease);
@@ -216,8 +210,8 @@ function ResetPasswordForm() {
 
                 .lp-btn {
                     width: 100%; height: 46px; border-radius: 12px; border: none;
-                    background: linear-gradient(160deg, var(--cp500) 0%, var(--cp950) 100%);
-                    box-shadow: 0 2px 12px rgba(99,102,241,.25);
+                    background: var(--cp600);
+                    box-shadow: 0 1px 2px rgba(15,23,42,.08);
                     color: #fff; font-family: inherit; font-weight: 600;
                     font-size: 14px; letter-spacing: .01em;
                     cursor: pointer; display: flex; align-items: center;
@@ -226,8 +220,7 @@ function ResetPasswordForm() {
                     margin-bottom: 16px;
                 }
                 .lp-btn:hover:not(:disabled) {
-                    filter: brightness(1.08); transform: translateY(-1px);
-                    box-shadow: 0 4px 20px rgba(99,102,241,.30);
+                    background: var(--cp700);
                 }
                 .lp-btn:active:not(:disabled) { filter: brightness(.96); transform: translateY(0); }
                 .lp-btn:disabled { opacity: .55; cursor: not-allowed; }
@@ -273,12 +266,10 @@ function ResetPasswordForm() {
                 <div className={`lp-card${mounted ? " show" : ""}`}>
                     <div className="lp-inner">
 
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src="/logocaptainblue-rose.png"
-                            alt="Captain Prospect"
+                        <BrandLogo
+                            height={28}
+                            priority
                             className="lp-logo"
-                            draggable={false}
                         />
 
                         {isInvalid ? (
@@ -427,7 +418,7 @@ function ResetPasswordForm() {
                 </div>
 
                 <p className="lp-footer">
-                    Captain Prospect &copy; {new Date().getFullYear()}
+                    {brand.name} &copy; {new Date().getFullYear()}
                 </p>
             </div>
         </>

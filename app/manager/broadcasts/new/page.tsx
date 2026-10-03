@@ -22,6 +22,8 @@ import { BROADCAST_VARIABLES_REGISTRY } from "@/lib/broadcast/types";
 import { VisualEmailEditor } from "@/components/broadcast/VisualEmailEditor";
 import { LivePreviewModal } from "@/components/broadcast/LivePreviewModal";
 import { SendTestEmailModal } from "@/components/broadcast/SendTestEmailModal";
+import { brand } from "@/lib/brand";
+import { brandUrl } from "@/lib/brand";
 
 export default function NewBroadcastWizardPage() {
   const router = useRouter();
@@ -55,7 +57,7 @@ export default function NewBroadcastWizardPage() {
     {
       id: "nb_title",
       type: "heading",
-      content: "Bienvenue sur votre espace Captain Prospect",
+      content: `Bienvenue sur votre espace ${brand.name}`,
       props: { align: "left" },
     },
     {
@@ -69,14 +71,14 @@ export default function NewBroadcastWizardPage() {
       type: "button",
       props: {
         buttonText: "Accéder à mon tableau de bord →",
-        buttonUrl: "https://app.captainprospect.fr",
+        buttonUrl: brandUrl("/"),
         buttonColor: "#4f46e5",
       },
     },
     {
       id: "nb_foot",
       type: "footer",
-      content: "Captain Prospect · Équipe Succès Client",
+      content: `${brand.name} · Équipe Succès Client`,
     },
   ]);
   const [rawHtml, setRawHtml] = useState("");
@@ -133,7 +135,7 @@ export default function NewBroadcastWizardPage() {
       {/* Back button */}
       <Link
         href="/manager/broadcasts"
-        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors"
+        className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-primary-600 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Retour au Hub Broadcasts
@@ -162,7 +164,7 @@ export default function NewBroadcastWizardPage() {
             onClick={() => s.num < step && setStep(s.num as any)}
             className={`p-3 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition-all cursor-pointer ${
               step === s.num
-                ? "border-indigo-600 bg-indigo-50/60 text-indigo-700 shadow-xs"
+                ? "border-primary-600 bg-primary-50/60 text-primary-700 shadow-xs"
                 : step > s.num
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                 : "border-slate-200 bg-white text-slate-400"
@@ -171,7 +173,7 @@ export default function NewBroadcastWizardPage() {
             <div
               className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                 step === s.num
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-primary-600 text-white"
                   : step > s.num
                   ? "bg-emerald-600 text-white"
                   : "bg-slate-200 text-slate-500"
@@ -202,7 +204,7 @@ export default function NewBroadcastWizardPage() {
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="Ex: Bienvenue Nouveau Client"
-                className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+                className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50"
               />
             </div>
 
@@ -246,7 +248,7 @@ export default function NewBroadcastWizardPage() {
                 <label
                   className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer ${
                     triggerType === "EVENT"
-                      ? "border-indigo-600 bg-indigo-50/50"
+                      ? "border-primary-600 bg-primary-50/50"
                       : "border-slate-200"
                   }`}
                 >
@@ -255,7 +257,7 @@ export default function NewBroadcastWizardPage() {
                     name="trig"
                     checked={triggerType === "EVENT"}
                     onChange={() => setTriggerType("EVENT")}
-                    className="accent-indigo-600 mt-1"
+                    className="accent-primary-600 mt-1"
                   />
                   <div>
                     <span className="text-sm font-bold text-slate-900 block">
@@ -270,7 +272,7 @@ export default function NewBroadcastWizardPage() {
                 <label
                   className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer ${
                     triggerType === "MANUAL"
-                      ? "border-indigo-600 bg-indigo-50/50"
+                      ? "border-primary-600 bg-primary-50/50"
                       : "border-slate-200"
                   }`}
                 >
@@ -279,7 +281,7 @@ export default function NewBroadcastWizardPage() {
                     name="trig"
                     checked={triggerType === "MANUAL"}
                     onChange={() => setTriggerType("MANUAL")}
-                    className="accent-indigo-600 mt-1"
+                    className="accent-primary-600 mt-1"
                   />
                   <div>
                     <span className="text-sm font-bold text-slate-900 block">
@@ -299,7 +301,7 @@ export default function NewBroadcastWizardPage() {
               type="button"
               disabled={!name.trim()}
               onClick={() => setStep(2)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 transition-colors"
             >
               Étape suivante : Actions
               <ChevronRight className="w-4 h-4" />
@@ -324,11 +326,11 @@ export default function NewBroadcastWizardPage() {
                 type="checkbox"
                 checked={actionEmail}
                 onChange={(e) => setActionEmail(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 mt-1"
+                className="w-4 h-4 rounded text-primary-600 accent-primary-600 mt-1"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-indigo-600" />
+                  <Mail className="w-4 h-4 text-primary-600" />
                   <span className="text-sm font-bold text-slate-900">Envoyer un Email</span>
                   <span className="text-[10px] font-semibold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
                     Recommandé
@@ -345,7 +347,7 @@ export default function NewBroadcastWizardPage() {
                 type="checkbox"
                 checked={actionInApp}
                 onChange={(e) => setActionInApp(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 mt-1"
+                className="w-4 h-4 rounded text-primary-600 accent-primary-600 mt-1"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -365,7 +367,7 @@ export default function NewBroadcastWizardPage() {
                 type="checkbox"
                 checked={actionTeamAlert}
                 onChange={(e) => setActionTeamAlert(e.target.checked)}
-                className="w-4 h-4 rounded text-indigo-600 accent-indigo-600 mt-1"
+                className="w-4 h-4 rounded text-primary-600 accent-primary-600 mt-1"
               />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -393,7 +395,7 @@ export default function NewBroadcastWizardPage() {
               type="button"
               disabled={!actionEmail && !actionInApp && !actionTeamAlert}
               onClick={() => setStep(3)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 transition-colors"
             >
               Étape suivante : Audience
               <ChevronRight className="w-4 h-4" />
@@ -436,7 +438,7 @@ export default function NewBroadcastWizardPage() {
                 key={aud.id}
                 className={`p-4 rounded-xl border cursor-pointer block transition-all ${
                   audienceTarget === aud.id
-                    ? "border-indigo-600 bg-indigo-50/50"
+                    ? "border-primary-600 bg-primary-50/50"
                     : "border-slate-200 hover:bg-slate-50"
                 }`}
               >
@@ -445,7 +447,7 @@ export default function NewBroadcastWizardPage() {
                   name="aud_target"
                   checked={audienceTarget === aud.id}
                   onChange={() => setAudienceTarget(aud.id as any)}
-                  className="accent-indigo-600 mb-2"
+                  className="accent-primary-600 mb-2"
                 />
                 <span className="text-sm font-bold text-slate-900 block">{aud.label}</span>
                 <span className="text-xs text-slate-500">{aud.desc}</span>
@@ -464,7 +466,7 @@ export default function NewBroadcastWizardPage() {
             <button
               type="button"
               onClick={() => setStep(4)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors"
             >
               Étape suivante : Message
               <ChevronRight className="w-4 h-4" />
@@ -530,7 +532,7 @@ export default function NewBroadcastWizardPage() {
                 type="button"
                 disabled={submitting}
                 onClick={handleCreateBroadcast}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 shadow-md shadow-indigo-600/20 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 shadow-md shadow-primary-600/20 transition-all"
               >
                 {submitting ? (
                   <>

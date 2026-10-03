@@ -64,7 +64,7 @@ const SOURCE_TYPE_CONFIG = {
     API: {
         label: "API",
         icon: Code,
-        color: "bg-purple-100 text-purple-700",
+        color: "bg-accent-100 text-accent-700",
     },
     PARTNER_FEED: {
         label: "Flux Partenaire",
@@ -320,7 +320,7 @@ export default function SourcesPage() {
                         placeholder="Rechercher une source..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     />
                 </div>
             </Card>

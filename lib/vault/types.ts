@@ -1,4 +1,5 @@
 import type { VaultAuditAction, VaultCredentialType } from "@prisma/client";
+import { brand } from "@/lib/brand";
 
 /**
  * What the browser is allowed to know about a credential.
@@ -19,7 +20,7 @@ export interface VaultCredentialDTO {
     client: { id: string; name: string };
     mission: { id: string; name: string } | null;
     interlocuteur: { id: string; name: string } | null;
-    /** Set when this credential is a Captain Prospect portal account. */
+    /** Set when this credential is a portal account of this CRM. */
     portalUser: { id: string; email: string; role: string } | null;
 
     createdBy: { id: string; name: string } | null;
@@ -44,7 +45,7 @@ export interface VaultAuditEventDTO {
 }
 
 export const VAULT_TYPE_LABELS: Record<VaultCredentialType, string> = {
-    PORTAL: "Portail Captain Prospect",
+    PORTAL: `Portail ${brand.name}`,
     EMAIL: "Boîte email",
     CALENDAR: "Agenda",
     CRM_EXTERNAL: "CRM externe",

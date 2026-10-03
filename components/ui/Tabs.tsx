@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ReactNode } from "react";
+import { ReactNode, useRef, type KeyboardEvent } from "react";
+import { FOCUS_RING } from "./recipes";
 
 interface Tab {
     id: string;
@@ -15,6 +16,7 @@ interface TabsProps {
     activeTab: string;
     onTabChange: (tabId: string) => void;
     className?: string;
+    /** underline — page-level sections; pills — compact switcher inside a card */
     variant?: "underline" | "pills";
 }
 
@@ -23,10 +25,8 @@ function TabBadge({ badge, active }: { badge?: string | number; active: boolean 
     return (
         <span
             className={cn(
-                "ml-1.5 px-1.5 py-0.5 text-[10px] font-semibold rounded-full min-w-[18px] text-center leading-tight",
-                active
-                    ? "bg-indigo-100 text-indigo-700"
-                    : "bg-slate-200 text-slate-600"
+                "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-3xs font-bold tabular-nums",
+                active ? "bg-accent text-accent-fg" : "bg-surface-3 text-ink-3"
             )}
         >
             {badge}
@@ -41,50 +41,91 @@ export function Tabs({
     className,
     variant = "underline",
 }: TabsProps) {
+    const refs = useRef<(HTMLButtonElement | null)[]>([]);
+
+    // Arrow keys move between tabs (WAI-ARIA tabs pattern, automatic activation).
+    const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+        e.preventDefault();
+        const at = tabs.findIndex((t) => t.id === activeTab);
+        const next =
+            e.key === "Home" ? 0
+            : e.key === "End" ? tabs.length - 1
+            : (at + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        onTabChange(tabs[next].id);
+        refs.current[next]?.focus();
+    };
+
     if (variant === "pills") {
         return (
-            <div className={cn(
-                "flex bg-slate-100 border border-slate-200 rounded-xl p-1",
-                className
-            )}>
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => onTabChange(tab.id)}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                            activeTab === tab.id
-                                ? "bg-white text-indigo-600 shadow-sm"
-                                : "text-slate-600 hover:text-slate-900"
-                        )}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                        <TabBadge badge={tab.badge} active={activeTab === tab.id} />
-                    </button>
-                ))}
+            <div
+                role="tablist"
+                onKeyDown={onKeyDown}
+                className={cn("inline-flex gap-0.5 rounded-control border border-line bg-surface-3 p-1", className)}
+            >
+                {tabs.map((tab, i) => {
+                    const active = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            ref={(el) => {
+                                refs.current[i] = el;
+                            }}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            tabIndex={active ? 0 : -1}
+                            onClick={() => onTabChange(tab.id)}
+                            className={cn(
+                                "flex h-8 items-center gap-2 rounded-lg px-3.5 text-[13px] font-semibold whitespace-nowrap transition-[background-color,color,box-shadow] duration-150",
+                                FOCUS_RING,
+                                "focus-visible:ring-offset-surface-3",
+                                active
+                                    ? "bg-surface text-ink shadow-sm ring-1 ring-line/70"
+                                    : "text-ink-3 hover:text-ink"
+                            )}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                            <TabBadge badge={tab.badge} active={active} />
+                        </button>
+                    );
+                })}
             </div>
         );
     }
 
     return (
-        <div className={cn("flex border-b border-slate-200", className)}>
-            {tabs.map((tab) => (
-                <button
-                    key={tab.id}
-                    onClick={() => onTabChange(tab.id)}
-                    className={cn(
-                        "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-                        activeTab === tab.id
-                            ? "text-indigo-600 border-indigo-600"
-                            : "text-slate-500 border-transparent hover:text-slate-700"
-                    )}
-                >
-                    {tab.icon}
-                    {tab.label}
-                    <TabBadge badge={tab.badge} active={activeTab === tab.id} />
-                </button>
-            ))}
+        <div role="tablist" onKeyDown={onKeyDown} className={cn("flex gap-1 overflow-x-auto border-b border-line", className)}>
+            {tabs.map((tab, i) => {
+                const active = activeTab === tab.id;
+                return (
+                    <button
+                        key={tab.id}
+                        ref={(el) => {
+                            refs.current[i] = el;
+                        }}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        tabIndex={active ? 0 : -1}
+                        onClick={() => onTabChange(tab.id)}
+                        className={cn(
+                            "relative -mb-px flex h-10 items-center gap-2 whitespace-nowrap rounded-t-lg px-3 text-sm font-medium transition-colors",
+                            FOCUS_RING,
+                            "focus-visible:ring-offset-0",
+                            "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors",
+                            active
+                                ? "text-ink after:bg-accent"
+                                : "text-ink-3 after:bg-transparent hover:text-ink-2 hover:after:bg-line-strong"
+                        )}
+                    >
+                        {tab.icon}
+                        {tab.label}
+                        <TabBadge badge={tab.badge} active={active} />
+                    </button>
+                );
+            })}
         </div>
     );
 }

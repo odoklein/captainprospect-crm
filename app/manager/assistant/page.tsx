@@ -9,7 +9,7 @@
  * client page without changes.
  */
 
-import { Sparkles } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { PageHeader } from "@/components/ui";
 import AssistantProjetPanel from "@/components/assistant-projet/AssistantProjetPanel";
 
@@ -18,8 +18,8 @@ export default function AssistantProjetPage() {
         <div className="flex h-[calc(100vh-1px)] flex-col gap-4 p-6">
             <PageHeader
                 title="Assistant Projet"
-                subtitle="Un assistant par projet : il connaît le client, la mission, les documents, les accès et les chiffres."
-                icon={<Sparkles className="h-4 w-4" />}
+                subtitle="Questions sur un projet : client, mission, documents, accès et chiffres."
+                icon={<AiMark className="h-4 w-4" />}
             />
 
             <div className="min-h-0 flex-1">

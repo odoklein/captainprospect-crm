@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { Check, Loader2, Lock, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 /**
  * Entry screen of the client portal: "Vérification de votre accès".
@@ -127,7 +128,7 @@ export function PortalAccessGate() {
             aria-labelledby="portal-gate-title"
             aria-live="polite"
             className={cn(
-                "fixed inset-0 z-[200] flex items-center justify-center bg-[#EEF1FB] px-4 transition-opacity duration-300",
+                "fixed inset-0 z-[200] flex items-center justify-center bg-surface-3 px-4 transition-opacity duration-300",
                 leaving ? "opacity-0" : "opacity-100"
             )}
         >
@@ -137,23 +138,22 @@ export function PortalAccessGate() {
                 style={{ backgroundImage: "url('/login-bg.webp')" }}
             />
 
-            <div className="relative w-full max-w-[380px] rounded-2xl border border-[#E4E6EF] bg-white/95 p-6 shadow-[0_12px_40px_-12px_rgba(39,53,95,0.25)] backdrop-blur-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logocaptainblue-rose.png" alt="Captain Prospect" className="mx-auto h-6 w-auto" />
+            <div className="relative w-full max-w-[380px] rounded-2xl border border-line bg-white/95 p-6 shadow-[0_12px_40px_-12px_rgba(39,53,95,0.25)] backdrop-blur-sm">
+                <BrandLogo height={24} className="mx-auto" />
 
                 <div className="mt-6 flex flex-col items-center text-center">
                     <span
                         className={cn(
                             "flex h-12 w-12 items-center justify-center rounded-full transition-colors duration-300",
-                            done ? "bg-emerald-50 text-emerald-600" : outcome === "checking" ? "bg-[#27355F]/5 text-[#27355F]" : "bg-red-50 text-red-600"
+                            done ? "bg-emerald-50 text-emerald-600" : outcome === "checking" ? "bg-primary/5 text-primary" : "bg-red-50 text-red-600"
                         )}
                     >
                         {done ? <ShieldCheck className="h-6 w-6" /> : outcome === "checking" ? <Lock className="h-5 w-5" /> : <X className="h-5 w-5" />}
                     </span>
-                    <h1 id="portal-gate-title" className="mt-3 text-[15px] font-semibold text-[#1A1D2E]">
+                    <h1 id="portal-gate-title" className="mt-3 text-[15px] font-semibold text-ink">
                         {done ? "Accès vérifié" : outcome === "checking" ? "Vérification de votre accès" : outcome === "denied" ? "Accès non autorisé" : "Vérification impossible"}
                     </h1>
-                    <p className="mt-1 text-[12.5px] text-[#8A90A8]">
+                    <p className="mt-1 text-[12.5px] text-ink-3">
                         {done
                             ? "Bienvenue dans votre espace sécurisé."
                             : outcome === "checking"
@@ -168,19 +168,19 @@ export function PortalAccessGate() {
                     {steps.map((s) => (
                         <li
                             key={s.label}
-                            className="flex items-center gap-3 rounded-xl border border-[#EEF0F6] bg-[#F9FAFD] px-3 py-2.5"
+                            className="flex items-center gap-3 rounded-xl border border-line-subtle bg-surface-2 px-3 py-2.5"
                         >
                             <span
                                 className={cn(
                                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
-                                    s.state === "ok" ? "bg-emerald-500 text-white" : s.state === "fail" ? "bg-red-500 text-white" : "bg-white text-[#A3A8BD] ring-1 ring-[#E4E6EF]"
+                                    s.state === "ok" ? "bg-emerald-500 text-white" : s.state === "fail" ? "bg-red-500 text-white" : "bg-white text-ink-4 ring-1 ring-line"
                                 )}
                             >
                                 {s.state === "ok" ? <Check className="h-3.5 w-3.5" /> : s.state === "fail" ? <X className="h-3.5 w-3.5" /> : <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                             </span>
                             <div className="min-w-0 flex-1">
-                                <div className="text-[13px] font-medium text-[#1A1D2E]">{s.label}</div>
-                                {s.detail && <div className="truncate text-[11.5px] text-[#8A90A8]">{s.detail}</div>}
+                                <div className="text-[13px] font-medium text-ink">{s.label}</div>
+                                {s.detail && <div className="truncate text-[11.5px] text-ink-3">{s.detail}</div>}
                             </div>
                         </li>
                     ))}
@@ -190,7 +190,7 @@ export function PortalAccessGate() {
                     <button
                         type="button"
                         onClick={() => void run()}
-                        className="mt-5 h-10 w-full rounded-lg bg-[#27355F] text-[13.5px] font-medium text-white hover:bg-[#1E2A4D]"
+                        className="mt-5 h-10 w-full rounded-lg bg-primary text-[13.5px] font-medium text-white hover:bg-primary-active"
                     >
                         Réessayer
                     </button>
@@ -199,7 +199,7 @@ export function PortalAccessGate() {
                     <button
                         type="button"
                         onClick={() => void signOut({ callbackUrl: "/login" })}
-                        className="mt-5 h-10 w-full rounded-lg border border-[#E4E6EF] bg-white text-[13.5px] font-medium text-[#1A1D2E] hover:bg-[#F6F7FB]"
+                        className="mt-5 h-10 w-full rounded-lg border border-line bg-white text-[13.5px] font-medium text-ink hover:bg-surface-2"
                     >
                         Se déconnecter
                     </button>

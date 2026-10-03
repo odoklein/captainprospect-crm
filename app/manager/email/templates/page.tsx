@@ -154,7 +154,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
             <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
             <div className="fixed right-0 top-0 bottom-0 z-50 w-full max-w-4xl bg-white shadow-2xl flex flex-col animate-slide-in-right">
                 <form onSubmit={handleSubmit} className="flex flex-col h-full">
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-600 to-violet-600">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-primary-600">
                         <h2 className="text-lg font-semibold text-white">
                             {template ? "Modifier le template" : "Nouveau template"}
                         </h2>
@@ -176,7 +176,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                     required
                                     value={form.name}
                                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     placeholder="Ex: Relance prospect froid"
                                 />
                             </div>
@@ -185,7 +185,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                 <select
                                     value={form.category}
                                     onChange={(e) => setForm({ ...form, category: e.target.value })}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 >
                                     {categories.map((cat) => (
                                         <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -198,7 +198,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                         type="checkbox"
                                         checked={form.isShared}
                                         onChange={(e) => setForm({ ...form, isShared: e.target.checked })}
-                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                     />
                                     <span className="text-sm text-slate-700">Partager avec l&apos;équipe</span>
                                 </label>
@@ -210,7 +210,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                     required
                                     value={form.subject}
                                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     placeholder="Re: {{firstName}}, suite à notre échange"
                                 />
                             </div>
@@ -225,7 +225,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                         key={v.name}
                                         type="button"
                                         onClick={() => insertVariable(v.name)}
-                                        className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-colors"
+                                        className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-primary-50 hover:border-primary-200 hover:text-primary-700 transition-colors"
                                         title={v.description}
                                     >
                                         {`{{${v.name}}}`}
@@ -269,7 +269,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                             onClick={() => setBodyMode("text")}
                                             className={cn(
                                                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                                                bodyMode === "text" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                                                bodyMode === "text" ? "bg-white text-primary-600 shadow-sm" : "text-slate-600"
                                             )}
                                         >
                                             <Type className="w-3.5 h-3.5" /> Texte
@@ -279,7 +279,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                             onClick={() => setBodyMode("html")}
                                             className={cn(
                                                 "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                                                bodyMode === "html" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                                                bodyMode === "html" ? "bg-white text-primary-600 shadow-sm" : "text-slate-600"
                                             )}
                                         >
                                             <Code className="w-3.5 h-3.5" /> HTML / CSS
@@ -290,7 +290,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                                         value={form.bodyHtml}
                                         onChange={(e) => setForm({ ...form, bodyHtml: e.target.value })}
                                         rows={bodyMode === "html" ? 20 : 14}
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y min-h-[280px]"
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y min-h-[280px]"
                                         placeholder={bodyMode === "text"
                                             ? "Bonjour {{firstName}},\n\nJe me permets de vous contacter..."
                                             : '<style>.title{font-family:Arial;}</style>\n<p class="title">Bonjour {{firstName}},</p>'}
@@ -328,7 +328,7 @@ function TemplateEditor({ template, onClose, onSave }: TemplateEditorProps) {
                         <button
                             type="submit"
                             disabled={isSaving}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 disabled:opacity-50 transition-colors"
                         >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             {template ? "Mettre à jour" : "Créer"}
@@ -437,7 +437,7 @@ export default function EmailTemplatesPage() {
             intro: "bg-blue-100 text-blue-700",
             "follow-up": "bg-amber-100 text-amber-700",
             sales: "bg-emerald-100 text-emerald-700",
-            meeting: "bg-purple-100 text-purple-700",
+            meeting: "bg-accent-100 text-accent-700",
             "thank-you": "bg-pink-100 text-pink-700",
         };
         const labels: Record<string, string> = {
@@ -469,7 +469,7 @@ export default function EmailTemplatesPage() {
                         setEditingTemplate(null);
                         setEditorOpen(true);
                     }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium rounded-xl hover:from-indigo-400 hover:to-indigo-500 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     Nouveau template
@@ -502,7 +502,7 @@ export default function EmailTemplatesPage() {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Rechercher..."
-                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         />
                     </div>
                 </div>
@@ -523,14 +523,14 @@ export default function EmailTemplatesPage() {
                             Aucun template
                         </h3>
                         <p className="text-sm text-slate-500 mb-6 max-w-sm mx-auto">
-                            Créez votre premier template pour gagner du temps dans vos emails.
+                            Créez un template pour réutiliser un email type.
                         </p>
                         <button
                             onClick={() => {
                                 setEditingTemplate(null);
                                 setEditorOpen(true);
                             }}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-500 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Créer un template

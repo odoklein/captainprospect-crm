@@ -21,9 +21,10 @@ import {
   Table as TableIcon,
   Minus,
   Code2,
-  Sparkles,
   LayoutTemplate,
 } from "lucide-react";
+import { brand } from "@/lib/brand";
+import { brandUrl } from "@/lib/brand";
 
 interface VisualEmailEditorProps {
   subject: string;
@@ -88,7 +89,7 @@ export function VisualEmailEditor({
           type,
           props: {
             buttonText: "Consulter mon espace",
-            buttonUrl: "https://app.captainprospect.fr",
+            buttonUrl: brandUrl("/"),
             buttonColor: accentColor,
             align: "center",
           },
@@ -100,8 +101,8 @@ export function VisualEmailEditor({
           type,
           props: {
             items: [
-              { icon: "📅", label: "Date", value: "{{scheduledDate}}" },
-              { icon: "⏰", label: "Heure", value: "{{scheduledTime}}" },
+              { label: "Date", value: "{{scheduledDate}}" },
+              { label: "Heure", value: "{{scheduledTime}}" },
             ],
           },
         };
@@ -113,7 +114,7 @@ export function VisualEmailEditor({
         newBlock = {
           id,
           type,
-          content: "Cet email vous a été envoyé automatiquement par Captain Prospect.",
+          content: `Cet email vous a été envoyé automatiquement par ${brand.name}.`,
           props: { align: "center" },
         };
         break;
@@ -184,7 +185,7 @@ export function VisualEmailEditor({
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            <LayoutTemplate className="w-3.5 h-3.5 text-indigo-600" />
+            <LayoutTemplate className="w-3.5 h-3.5 text-primary-600" />
             Éditeur Visuel (Sans Code)
           </button>
           <button
@@ -225,7 +226,7 @@ export function VisualEmailEditor({
           value={subject}
           onChange={(e) => onSubjectChange(e.target.value)}
           placeholder="Ex: Confirmation de votre rendez-vous avec {{companyName}}"
-          className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-slate-50/50 text-slate-900 font-medium"
+          className="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-400 bg-slate-50/50 text-slate-900 font-medium"
         />
       </div>
 
@@ -257,7 +258,7 @@ export function VisualEmailEditor({
                   onClick={() => setActiveBlockId(block.id)}
                   className={`rounded-2xl border transition-all p-4 bg-white shadow-xs ${
                     isSelected
-                      ? "border-indigo-400 ring-2 ring-indigo-100"
+                      ? "border-primary-400 ring-2 ring-primary-100"
                       : "border-slate-200/90 hover:border-slate-300"
                   }`}
                 >
@@ -265,14 +266,14 @@ export function VisualEmailEditor({
                   <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-700 uppercase tracking-wide text-[11px] px-2 py-0.5 rounded-md bg-slate-100">
-                        {block.type === "header" && "🏷️ En-tête / Logo"}
-                        {block.type === "heading" && "📌 Titre"}
-                        {block.type === "paragraph" && "📝 Paragraphe de texte"}
-                        {block.type === "callout" && "💡 Encadré mis en avant"}
-                        {block.type === "key_value" && "📊 Données clés (RDV / Infos)"}
-                        {block.type === "button" && "🔘 Bouton d'action"}
-                        {block.type === "divider" && "➖ Séparateur"}
-                        {block.type === "footer" && "🔻 Pied de page"}
+                        {block.type === "header" && "En-tête / Logo"}
+                        {block.type === "heading" && "Titre"}
+                        {block.type === "paragraph" && "Paragraphe de texte"}
+                        {block.type === "callout" && "Encadré mis en avant"}
+                        {block.type === "key_value" && "Données clés (RDV / Infos)"}
+                        {block.type === "button" && "Bouton d'action"}
+                        {block.type === "divider" && "Séparateur"}
+                        {block.type === "footer" && "Pied de page"}
                       </span>
                     </div>
 
@@ -353,7 +354,7 @@ export function VisualEmailEditor({
                               onClick={() => updateBlock(block.id, { props: { ...block.props, align } })}
                               className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                                 block.props?.align === align
-                                  ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                  ? "bg-primary-50 border-primary-200 text-primary-700"
                                   : "border-slate-200 text-slate-600"
                               }`}
                             >
@@ -462,7 +463,8 @@ export function VisualEmailEditor({
                                   nextItems[itemIdx].icon = e.target.value;
                                   updateBlock(block.id, { props: { ...block.props, items: nextItems } });
                                 }}
-                                placeholder="📅"
+                                placeholder="—"
+                                title="Symbole optionnel affiché avant le libellé"
                                 className="w-10 px-2 py-1.5 text-xs text-center rounded-lg border border-slate-200 bg-slate-50"
                               />
                               <input
@@ -505,11 +507,11 @@ export function VisualEmailEditor({
                           onClick={() => {
                             const nextItems = [
                               ...(block.props?.items || []),
-                              { icon: "📌", label: "Information", value: "" },
+                              { label: "Information", value: "" },
                             ];
                             updateBlock(block.id, { props: { ...block.props, items: nextItems } });
                           }}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700"
                         >
                           <Plus className="w-3 h-3" />
                           Ajouter une ligne
@@ -547,49 +549,49 @@ export function VisualEmailEditor({
               <button
                 type="button"
                 onClick={() => addBlock("heading")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-xs transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-primary-300 hover:text-primary-600 shadow-xs transition-all"
               >
-                <Heading className="w-3.5 h-3.5 text-indigo-500" />
+                <Heading className="w-3.5 h-3.5 text-primary-500" />
                 Titre
               </button>
               <button
                 type="button"
                 onClick={() => addBlock("paragraph")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-xs transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-primary-300 hover:text-primary-600 shadow-xs transition-all"
               >
-                <AlignLeft className="w-3.5 h-3.5 text-indigo-500" />
+                <AlignLeft className="w-3.5 h-3.5 text-primary-500" />
                 Paragraphe
               </button>
               <button
                 type="button"
                 onClick={() => addBlock("callout")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-xs transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-primary-300 hover:text-primary-600 shadow-xs transition-all"
               >
-                <Info className="w-3.5 h-3.5 text-indigo-500" />
+                <Info className="w-3.5 h-3.5 text-primary-500" />
                 Encadré d&apos;info
               </button>
               <button
                 type="button"
                 onClick={() => addBlock("button")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-xs transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-primary-300 hover:text-primary-600 shadow-xs transition-all"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-indigo-500" />
+                <ExternalLink className="w-3.5 h-3.5 text-primary-500" />
                 Bouton CTA
               </button>
               <button
                 type="button"
                 onClick={() => addBlock("key_value")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-xs transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-primary-300 hover:text-primary-600 shadow-xs transition-all"
               >
-                <TableIcon className="w-3.5 h-3.5 text-indigo-500" />
+                <TableIcon className="w-3.5 h-3.5 text-primary-500" />
                 Tableau de données
               </button>
               <button
                 type="button"
                 onClick={() => addBlock("divider")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 shadow-xs transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 hover:border-primary-300 hover:text-primary-600 shadow-xs transition-all"
               >
-                <Minus className="w-3.5 h-3.5 text-indigo-500" />
+                <Minus className="w-3.5 h-3.5 text-primary-500" />
                 Séparateur
               </button>
             </div>

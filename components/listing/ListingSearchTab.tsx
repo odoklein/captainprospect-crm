@@ -22,7 +22,6 @@ import {
     RefreshCw,
     MapPin,
     Loader2,
-    Zap,
     TrendingDown,
     Database,
     Shield,
@@ -438,7 +437,7 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
             render: (_value, result) => (
                 <div className="whitespace-nowrap text-sm">
                     {result.company.phone ? (
-                        <a href={`tel:${result.company.phone}`} className="text-slate-700 hover:text-indigo-600">
+                        <a href={`tel:${result.company.phone}`} className="text-slate-700 hover:text-primary-600">
                             {result.company.phone}
                         </a>
                     ) : (
@@ -457,7 +456,7 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                 return (
                     <div className="text-sm">
                         {email ? (
-                            <a href={`mailto:${email}`} className="text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 truncate max-w-[180px]">
+                            <a href={`mailto:${email}`} className="text-primary-600 hover:text-primary-700 inline-flex items-center gap-1 truncate max-w-[180px]">
                                 <Mail className="w-3 h-3 shrink-0" />
                                 <span className="truncate">{email}</span>
                             </a>
@@ -501,7 +500,7 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                         href={`https://${result.company.domain}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-600 hover:text-indigo-700 text-sm inline-flex items-center gap-1"
+                        className="text-primary-600 hover:text-primary-700 text-sm inline-flex items-center gap-1"
                     >
                         <Globe className="w-3 h-3" />
                         Visiter
@@ -679,7 +678,7 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
     return (
         <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* Left filter sidebar — mockup 260px */}
-            <aside className="w-[260px] min-w-[260px] bg-white border-r border-[#E8EBF0] flex flex-col overflow-y-auto p-4 shrink-0">
+            <aside className="w-[260px] min-w-[260px] bg-white border-r border-line flex flex-col overflow-y-auto p-4 shrink-0">
                 {/* Source selector — mockup pills */}
                 <div className="flex flex-wrap gap-2 mb-4">
                     <button
@@ -687,14 +686,14 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                         className={cn(
                             "flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium border transition-all duration-150",
                             source === "apollo"
-                                ? "bg-white border-[#7C5CFC]/30 text-[#12122A] shadow-sm"
-                                : "bg-white/50 border-[#E8EBF0] text-[#8B8BA7] hover:bg-white hover:text-[#12122A]"
+                                ? "bg-white border-primary-500/30 text-ink shadow-sm"
+                                : "bg-white/50 border-line text-ink-3 hover:bg-white hover:text-ink"
                         )}
                     >
                         <Globe className="w-4 h-4" style={{ color: source === "apollo" ? "#7C5CFC" : undefined }} />
                         <span>Apollo.io</span>
                         {creditData && source === "apollo" && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F4F6F9] text-[#8B8BA7] font-semibold">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-ink-3 font-semibold">
                                 {creditData.currentMonthSaved ?? 0} crédits
                             </span>
                         )}
@@ -704,8 +703,8 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                         className={cn(
                             "flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-medium border transition-all duration-150",
                             source === "apify"
-                                ? "bg-white border-[#10B981]/30 text-[#12122A] shadow-sm"
-                                : "bg-white/50 border-[#E8EBF0] text-[#8B8BA7] hover:bg-white hover:text-[#12122A]"
+                                ? "bg-white border-success/30 text-ink shadow-sm"
+                                : "bg-white/50 border-line text-ink-3 hover:bg-white hover:text-ink"
                         )}
                     >
                         <MapPin className="w-4 h-4" style={{ color: source === "apify" ? "#10B981" : undefined }} />
@@ -715,26 +714,26 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
 
                 {/* Credits — mockup */}
                 {source === "apollo" && creditData && (
-                    <div className="mb-4 p-3 rounded-xl border border-[#E8EBF0] bg-[#F9FAFB]">
+                    <div className="mb-4 p-3 rounded-xl border border-line bg-surface-2">
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] font-semibold text-[#8B8BA7] uppercase tracking-wide">Crédits Apollo</span>
+                            <span className="text-[11px] font-semibold text-ink-3 uppercase tracking-wide">Crédits Apollo</span>
                         </div>
                         <div className="flex items-center gap-4">
                             <div>
-                                <div className="text-[10px] text-[#8B8BA7]">Utilisés</div>
-                                <div className="text-[16px] font-bold text-[#12122A]">{creditData.currentMonthUsed}</div>
+                                <div className="text-[10px] text-ink-3">Utilisés</div>
+                                <div className="text-[16px] font-bold text-ink">{creditData.currentMonthUsed}</div>
                             </div>
                             <div>
-                                <div className="text-[10px] text-[#8B8BA7]">Restants</div>
-                                <div className="text-[16px] font-bold text-[#10B981]">{creditData.currentMonthSaved}</div>
+                                <div className="text-[10px] text-ink-3">Restants</div>
+                                <div className="text-[16px] font-bold text-success">{creditData.currentMonthSaved}</div>
                             </div>
                         </div>
                     </div>
                 )}
 
                 <div className="flex items-center gap-2 mb-4">
-                    <Filter className="w-3.5 h-3.5 text-[#8B8BA7]" />
-                    <span className="text-[11px] font-bold text-[#8B8BA7] uppercase tracking-wide">Filtres</span>
+                    <Filter className="w-3.5 h-3.5 text-ink-3" />
+                    <span className="text-[11px] font-bold text-ink-3 uppercase tracking-wide">Filtres</span>
                 </div>
 
                     <div className="flex-1 overflow-y-auto space-y-3 pr-0.5 text-[13px]">
@@ -891,12 +890,12 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                     </div>
 
                 {/* Search button — mockup */}
-                <div className="pt-4 mt-2 border-t border-[#E8EBF0] shrink-0 space-y-2">
+                <div className="pt-4 mt-2 border-t border-line shrink-0 space-y-2">
                     <button
                         type="button"
                         onClick={source === "apollo" ? handleApolloSearch : handleApifySearch}
                         disabled={isLoading}
-                        className="w-full py-2.5 bg-gradient-to-r from-[#7C5CFC] to-[#6C4CE0] text-white rounded-lg text-[13px] font-semibold shadow-sm shadow-[#7C5CFC]/25 hover:from-[#6C4CE0] hover:to-[#5C3CD0] transition-all duration-150 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        className="w-full py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-[13px] font-semibold shadow-sm transition-all duration-150 disabled:opacity-50 flex items-center justify-center gap-1.5"
                     >
                         {isLoading ? (
                             <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Recherche...</>
@@ -904,7 +903,7 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                             <><Search className="w-3.5 h-3.5" /> Rechercher</>
                         )}
                     </button>
-                    <button type="button" className="w-full py-2 text-[12px] text-[#8B8BA7] hover:text-[#12122A] transition-colors duration-150">
+                    <button type="button" className="w-full py-2 text-[12px] text-ink-3 hover:text-ink transition-colors duration-150">
                         Réinitialiser les filtres
                     </button>
                 </div>
@@ -913,18 +912,18 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
             {/* Main results area — mockup */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-white">
                 {/* Search bar */}
-                <div className="px-5 py-3 border-b border-[#E8EBF0] shrink-0">
+                <div className="px-5 py-3 border-b border-line shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#B0B3C0]" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-4" />
                             <input
                                 type="text"
                                 placeholder={source === "apollo" ? "Recherche B2B via Apollo.io — Organisation search" : "Recherche locale via Google Maps"}
-                                className="w-full pl-10 pr-4 py-2.5 bg-[#F4F6F9] border border-[#E8EBF0] rounded-lg text-[13px] text-[#12122A] placeholder-[#B0B3C0] focus:outline-none focus:border-[#7C5CFC] focus:ring-1 focus:ring-[#7C5CFC]/20 focus:bg-white transition-all duration-150"
+                                className="w-full pl-10 pr-4 py-2.5 bg-surface-3 border border-line rounded-lg text-[13px] text-ink placeholder-[#B0B3C0] focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/20 focus:bg-white transition-all duration-150"
                             />
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-[#8B8BA7]">
-                            <span className="px-2 py-1 bg-[#F4F6F9] rounded text-[#5A5A7A] font-medium">
+                        <div className="flex items-center gap-2 text-[11px] text-ink-3">
+                            <span className="px-2 py-1 bg-surface-3 rounded text-ink-2 font-medium">
                                 {source === "apollo" && creditData ? `${creditData.currentMonthSaved ?? 0} crédits` : "Gratuit"}
                             </span>
                         </div>
@@ -933,13 +932,13 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
 
                 {/* Selection bar — mockup */}
                 {selected.size > 0 && (
-                    <div className="px-5 py-2.5 bg-[#EEF2FF] border-b border-[#7C5CFC]/15 flex items-center justify-between shrink-0">
-                        <span className="text-[12px] font-medium text-[#7C5CFC]">{selected.size} contact(s) sélectionné(s)</span>
+                    <div className="px-5 py-2.5 bg-primary-50 border-b border-primary-500/15 flex items-center justify-between shrink-0">
+                        <span className="text-[12px] font-medium text-primary-600">{selected.size} contact(s) sélectionné(s)</span>
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
                                 onClick={handleImport}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#7C5CFC] to-[#6C4CE0] text-white rounded-lg text-[11px] font-semibold transition-all duration-150"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-[11px] font-semibold transition-all duration-150"
                             >
                                 <Target className="w-3 h-3" />
                                 <span>Ajouter à une mission</span>
@@ -970,7 +969,7 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                         />
                     ) : (
                         <div className="flex flex-col min-h-0 flex-1">
-                            <div className="px-5 py-2.5 flex items-center justify-between text-[11px] text-[#8B8BA7] border-b border-[#E8EBF0] bg-[#F9FAFB] shrink-0">
+                            <div className="px-5 py-2.5 flex items-center justify-between text-[11px] text-ink-3 border-b border-line bg-surface-2 shrink-0">
                                 <div className="flex items-center gap-3">
                                     <span className="font-medium">{results.length} résultats trouvés</span>
                                     <div className="relative" ref={columnPickerRef}>
@@ -980,22 +979,22 @@ export function ListingSearchTab({ onImport }: ListingSearchTabProps) {
                                             className={cn(
                                                 "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors",
                                                 showColumnPicker
-                                                    ? "bg-[#7C5CFC] text-white"
-                                                    : "bg-white border border-[#E8EBF0] text-[#5A5A7A] hover:border-[#7C5CFC]/40 hover:text-[#7C5CFC]"
+                                                    ? "bg-primary text-white"
+                                                    : "bg-white border border-line text-ink-2 hover:border-primary-500/40 hover:text-primary-600"
                                             )}
                                         >
                                             <Columns className="w-3.5 h-3.5" />
                                             Colonnes
                                         </button>
                                         {showColumnPicker && (
-                                            <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] py-1.5 bg-white border border-[#E8EBF0] rounded-lg shadow-lg">
+                                            <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] py-1.5 bg-white border border-line rounded-lg shadow-lg">
                                                 <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                                                     Afficher les colonnes
                                                 </div>
                                                 {columnPickerOptions.map((opt) => (
                                                     <label
                                                         key={opt.key}
-                                                        className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-[#F4F6F9] cursor-pointer text-[12px] text-slate-700"
+                                                        className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-surface-3 cursor-pointer text-[12px] text-slate-700"
                                                     >
                                                         <input
                                                             type="checkbox"

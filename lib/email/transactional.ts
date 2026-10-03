@@ -1,5 +1,6 @@
 import * as nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
+import { brand } from "@/lib/brand";
 
 export interface TransactionalEmailOptions {
   to: string | string[];
@@ -53,7 +54,7 @@ async function getConfiguredFromAddress(): Promise<string> {
   return (
     process.env.SYSTEM_SMTP_FROM ||
     process.env.SMTP_FROM ||
-    `Captain Prospect <${process.env.SYSTEM_SMTP_USER || process.env.SMTP_USER}>`
+    `${brand.email.senderName} <${process.env.SYSTEM_SMTP_USER || process.env.SMTP_USER}>`
   );
 }
 

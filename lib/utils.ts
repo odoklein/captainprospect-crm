@@ -1,6 +1,20 @@
-// Suzalink CRM Utility Functions
+// CRM utility functions
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+
+// tailwind-merge must know the design-system tokens (app/globals.css), or it
+// can't tell that `rounded-card` and `rounded-xl` conflict.
+const twMerge = extendTailwindMerge({
+  extend: {
+    theme: {
+      radius: ["card", "panel", "control", "chip"],
+      shadow: ["card", "raised", "overlay", "primary"],
+      text: ["2xs", "3xs"],
+      font: ["display"],
+      ease: ["snappy", "emphasized"],
+    },
+  },
+});
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -35,15 +49,6 @@ export function getStatusColor(status: CompletenessStatus): string {
     ACTIONABLE: "text-green-500",
   };
   return colors[status];
-}
-
-export function getStatusEmoji(status: CompletenessStatus): string {
-  const emojis = {
-    INCOMPLETE: "🔴",
-    PARTIAL: "🟠",
-    ACTIONABLE: "🟢",
-  };
-  return emojis[status];
 }
 
 // Avatar helpers — stable color per id, used wherever we render initials avatars

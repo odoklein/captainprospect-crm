@@ -125,11 +125,11 @@ interface CalendarOption {
 }
 
 const AVATAR_COLORS = [
-    "bg-indigo-100 text-indigo-700",
+    "bg-primary-100 text-primary-700",
     "bg-rose-100 text-rose-700",
     "bg-emerald-100 text-emerald-700",
     "bg-amber-100 text-amber-700",
-    "bg-purple-100 text-purple-700",
+    "bg-accent-100 text-accent-700",
     "bg-cyan-100 text-cyan-700",
 ];
 
@@ -287,7 +287,7 @@ function formatRdvDate(iso: string): string {
 }
 
 const MEETING_TYPE_LABELS: Record<string, { label: string; icon: React.ElementType; colorClass: string }> = {
-    VISIO: { label: "Visio", icon: Video, colorClass: "text-indigo-600" },
+    VISIO: { label: "Visio", icon: Video, colorClass: "text-primary-600" },
     PHYSIQUE: { label: "Physique", icon: MapPin, colorClass: "text-emerald-600" },
     TELEPHONIQUE: { label: "Téléphonique", icon: Phone, colorClass: "text-amber-600" },
 };
@@ -318,7 +318,7 @@ function BookingConfirmation({
             <div className="max-w-md mx-auto px-6 py-10 flex flex-col items-center gap-5 text-center">
                 <CheckCircle2 className="w-14 h-14 text-emerald-500" aria-hidden="true" />
                 <div className="space-y-1">
-                    <p className="text-lg font-semibold text-slate-900">RDV confirmé !</p>
+                    <p className="text-lg font-semibold text-slate-900">RDV confirmé</p>
                     <p className="text-sm text-slate-500">
                         Rendez-vous avec {contactName}
                         {companyName ? ` — ${companyName}` : ""} enregistré.
@@ -327,7 +327,7 @@ function BookingConfirmation({
 
                 <div className="w-full rounded-xl border border-slate-200 bg-white p-4 space-y-2.5 text-left text-sm text-slate-700">
                     <p className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-indigo-400 shrink-0" aria-hidden="true" />
+                        <Clock className="w-4 h-4 text-primary-400 shrink-0" aria-hidden="true" />
                         <span className="font-medium capitalize">
                             {booking.rdvDate ? formatRdvDate(booking.rdvDate) : "Date à confirmer"}
                         </span>
@@ -379,7 +379,7 @@ function BookingConfirmation({
                     type="button"
                     onClick={onContinue}
                     autoFocus
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg transition-all"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 shadow-md hover:shadow-lg transition-all"
                 >
                     Continuer
                 </button>
@@ -701,8 +701,8 @@ export function BookingDrawer({
             className={cn(
                 "inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all",
                 selectedOptionId === opt.id
-                    ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
-                    : "bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50"
+                    ? "bg-primary-600 border-primary-600 text-white shadow-sm"
+                    : "bg-white border-slate-200 text-slate-700 hover:border-primary-300 hover:bg-primary-50/50"
             )}
         >
             <span className={cn(
@@ -882,14 +882,14 @@ export function BookingDrawer({
                     className="w-full max-w-5xl h-[88vh] min-h-[560px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-indigo-600 text-white">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-primary-600 text-white">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
                                 <CalendarCheck className="w-5 h-5" />
                             </div>
                             <div>
                                 <h2 className="text-base font-semibold">Planifier un rendez-vous</h2>
-                                <p className="text-xs text-indigo-100 mt-0.5">
+                                <p className="text-xs text-primary-100 mt-0.5">
                                     {contactName}
                                     {contactInfo?.companyName ? ` — ${contactInfo.companyName}` : ""}
                                 </p>
@@ -934,8 +934,8 @@ export function BookingDrawer({
                                         {contactInfo?.email && (
                                             <FadeIn delay={displayName.length * 20 + 320}>
                                                 <p className="flex items-center gap-1">
-                                                    <Mail className="w-3 h-3 text-indigo-500 shrink-0" />
-                                                    <a href={`mailto:${contactInfo.email}`} className="truncate hover:text-indigo-600">
+                                                    <Mail className="w-3 h-3 text-primary-500 shrink-0" />
+                                                    <a href={`mailto:${contactInfo.email}`} className="truncate hover:text-primary-600">
                                                         {contactInfo.email}
                                                     </a>
                                                     <CopyPill text={contactInfo.email} label="email" />
@@ -968,8 +968,8 @@ export function BookingDrawer({
                                             <p className="text-sm font-semibold text-slate-900">{contactInfo.companyName}</p>
                                             {contactInfo.companyEmail && (
                                                 <p className="flex items-center gap-1">
-                                                    <Mail className="w-3 h-3 text-indigo-500 shrink-0" />
-                                                    <a href={`mailto:${contactInfo.companyEmail}`} className="truncate hover:text-indigo-600">
+                                                    <Mail className="w-3 h-3 text-primary-500 shrink-0" />
+                                                    <a href={`mailto:${contactInfo.companyEmail}`} className="truncate hover:text-primary-600">
                                                         {contactInfo.companyEmail}
                                                     </a>
                                                     <CopyPill text={contactInfo.companyEmail} label="email société" />
@@ -990,8 +990,8 @@ export function BookingDrawer({
 
                                 {/* ── Live RDV summary — updates as user fills form ── */}
                                 {(effectiveRdvDate || effectiveMeetingType || effectiveMeetingCategory) && (
-                                    <div className="pt-2 border-t border-indigo-100 space-y-1.5 mt-1">
-                                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-500 uppercase tracking-wide">
+                                    <div className="pt-2 border-t border-primary-100 space-y-1.5 mt-1">
+                                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-primary-500 uppercase tracking-wide">
                                             <Calendar className="w-3 h-3" />
                                             Récapitulatif RDV
                                         </div>
@@ -999,7 +999,7 @@ export function BookingDrawer({
                                         {/* Date */}
                                         {effectiveRdvDate && (
                                             <p className="flex items-center gap-1.5 text-[11px] text-slate-700">
-                                                <Clock className="w-3 h-3 text-indigo-400 shrink-0" />
+                                                <Clock className="w-3 h-3 text-primary-400 shrink-0" />
                                                 <span className="font-medium capitalize">{formatRdvDate(effectiveRdvDate)}</span>
                                             </p>
                                         )}
@@ -1035,7 +1035,7 @@ export function BookingDrawer({
                                         {/* Category */}
                                         {effectiveMeetingCategory && (
                                             <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block shrink-0" />
+                                                <span className="w-1.5 h-1.5 rounded-full bg-primary-400 inline-block shrink-0" />
                                                 {MEETING_CATEGORY_LABELS[effectiveMeetingCategory]}
                                             </p>
                                         )}
@@ -1070,7 +1070,7 @@ export function BookingDrawer({
                                         value={effectiveRdvDate}
                                         onChange={setEffectiveRdvDate}
                                         placeholder="Choisir date et heure…"
-                                        triggerClassName="border-slate-200 focus:ring-indigo-400/30 focus:border-indigo-400 bg-white"
+                                        triggerClassName="border-slate-200 focus:ring-primary-400/30 focus:border-primary-400 bg-white"
                                     />
                                     <p className="text-[11px] text-slate-400">
                                         Se remplit automatiquement si l&apos;outil de réservation du client transmet le créneau.
@@ -1089,7 +1089,7 @@ export function BookingDrawer({
                                             className={cn(
                                                 "px-3 py-1.5 rounded-full border text-xs font-semibold transition-all",
                                                 effectiveMeetingType === type
-                                                    ? "bg-indigo-50 border-indigo-400 text-indigo-700"
+                                                    ? "bg-primary-50 border-primary-400 text-primary-700"
                                                     : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                                             )}
                                         >
@@ -1133,7 +1133,7 @@ export function BookingDrawer({
                                     <input
                                         value={effectiveMeetingJoinUrl}
                                         onChange={(e) => setEffectiveMeetingJoinUrl(e.target.value)}
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
                                         placeholder="Auto-récupéré du calendrier, ou saisir manuellement…"
                                     />
                                 </div>
@@ -1164,7 +1164,7 @@ export function BookingDrawer({
                                             className={cn(
                                                 "px-3 py-1.5 rounded-full border text-xs font-semibold transition-all",
                                                 effectiveMeetingCategory === cat
-                                                    ? "bg-indigo-50 border-indigo-400 text-indigo-700"
+                                                    ? "bg-primary-50 border-primary-400 text-primary-700"
                                                     : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                                             )}
                                         >
@@ -1183,8 +1183,8 @@ export function BookingDrawer({
                                     className={cn(
                                         "w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-semibold text-white transition-all",
                                         confirmDisabled
-                                            ? "bg-indigo-300 cursor-not-allowed"
-                                            : "bg-indigo-600 hover:bg-indigo-700 shadow-md hover:shadow-lg"
+                                            ? "bg-primary-300 cursor-not-allowed"
+                                            : "bg-primary-600 hover:bg-primary-700 shadow-md hover:shadow-lg"
                                     )}
                                 >
                                     {isProcessing ? (
@@ -1219,7 +1219,7 @@ export function BookingDrawer({
                                         <div className="flex-shrink-0 px-4 py-3 border-b border-slate-200 bg-slate-50/80">
                                             {hasPreferred ? (
                                                 <>
-                                                    <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                                                    <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                                                         <UserCheck className="w-3.5 h-3.5" />
                                                         {preferredCommercialCount > 1 ? "Commerciaux de cette base" : "Commercial de cette base"}
                                                     </p>
@@ -1263,7 +1263,7 @@ export function BookingDrawer({
                                     <div className="flex-1 min-h-0 relative">
                                         {showEmbedFallback ? (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
-                                                <span className="w-12 h-12 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                                <span className="w-12 h-12 rounded-xl bg-primary-100 text-primary-600 flex items-center justify-center">
                                                     <Calendar className="w-6 h-6" aria-hidden="true" />
                                                 </span>
                                                 <div>
@@ -1276,7 +1276,7 @@ export function BookingDrawer({
                                                     href={selectedOption.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 shadow-md hover:shadow-lg transition-all"
+                                                    className="inline-flex items-center gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 shadow-md hover:shadow-lg transition-all"
                                                 >
                                                     Ouvrir dans un nouvel onglet
                                                     <ExternalLink className="w-4 h-4" aria-hidden="true" />
@@ -1286,7 +1286,7 @@ export function BookingDrawer({
                                             <>
                                                 {iframeLoading && !isProcessing && (
                                                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white z-10">
-                                                        <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
+                                                        <Loader2 className="w-7 h-7 text-primary-500 animate-spin" />
                                                         <p className="text-sm text-slate-500">Chargement du calendrier…</p>
                                                     </div>
                                                 )}
@@ -1303,7 +1303,7 @@ export function BookingDrawer({
                                         )}
                                         {isProcessing && (
                                             <div className="absolute inset-0 bg-white/95 z-20 flex flex-col items-center justify-center gap-3">
-                                                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                                                <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
                                                 <p className="text-sm font-medium text-slate-700">Enregistrement du rendez-vous…</p>
                                             </div>
                                         )}

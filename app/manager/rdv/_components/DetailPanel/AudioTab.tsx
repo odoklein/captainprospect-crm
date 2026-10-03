@@ -12,7 +12,6 @@ import {
   ChevronDown,
   ChevronUp,
   Headphones,
-  Wand2,
   Search,
   Phone,
   PhoneOff,
@@ -22,6 +21,7 @@ import {
 import type { Meeting } from "../../_types";
 import type { UseFicheRdvReturn } from "../../_hooks/useFicheRdv";
 import { useToast } from "@/components/ui";
+import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
 
 interface AudioTabProps {
@@ -210,7 +210,7 @@ function InlineCallPicker({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-3">
-        <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+        <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
         <span className="text-sm text-slate-500 font-medium">Chargement des appels Allo…</span>
       </div>
     );
@@ -226,8 +226,8 @@ function InlineCallPicker({
             className={cn(
               "text-[11px] font-semibold rounded-full px-2.5 py-1 border transition-all",
               activeSource === "all"
-                ? "bg-indigo-600 text-white border-indigo-600"
-                : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/50",
+                ? "bg-primary-600 text-white border-primary-600"
+                : "bg-white text-slate-600 border-slate-200 hover:border-primary-200 hover:bg-primary-50/50",
             )}
           >
             Tous ({allCalls.length})
@@ -239,8 +239,8 @@ function InlineCallPicker({
               className={cn(
                 "text-[11px] font-semibold rounded-full px-2.5 py-1 border transition-all",
                 activeSource === s.key
-                  ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/50",
+                  ? "bg-primary-600 text-white border-primary-600"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-primary-200 hover:bg-primary-50/50",
               )}
             >
               {s.label} · <span className="font-mono">{s.phone.startsWith("+33") ? "0" + s.phone.slice(3) : s.phone}</span>
@@ -260,7 +260,7 @@ function InlineCallPicker({
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Filtrer par heure, numéro, résumé…"
-              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
             />
           </div>
           <div className="flex gap-1.5">
@@ -326,15 +326,15 @@ function InlineCallPicker({
                         className={cn(
                           "w-full text-left rounded-xl border transition-all",
                           isSelected
-                            ? "border-indigo-500 bg-indigo-50/80 ring-2 ring-indigo-400/30 shadow-md"
-                            : "border-slate-200 bg-white hover:border-indigo-200 hover:shadow-sm",
+                            ? "border-primary-500 bg-primary-50/80 ring-2 ring-primary-400/30 shadow-md"
+                            : "border-slate-200 bg-white hover:border-primary-200 hover:shadow-sm",
                         )}
                       >
                         <div className="p-2.5 flex gap-2">
                           <div
                             className={cn(
                               "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0",
-                              call.direction === "OUTBOUND" ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600",
+                              call.direction === "OUTBOUND" ? "bg-primary-100 text-primary-600" : "bg-emerald-100 text-emerald-600",
                             )}
                           >
                             <Phone className="w-3.5 h-3.5" />
@@ -358,7 +358,7 @@ function InlineCallPicker({
                                 </span>
                               )}
                               {call.sources.length > 0 && (
-                                <span className="text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-violet-100 text-violet-700">
+                                <span className="text-[9px] font-bold uppercase tracking-wide px-1 py-0.5 rounded bg-accent-100 text-accent-700">
                                   {call.sources.join(" · ")}
                                 </span>
                               )}
@@ -374,7 +374,7 @@ function InlineCallPicker({
                               </p>
                             )}
                           </div>
-                          {isSelected && <CheckCircle2 className="w-4 h-4 text-indigo-600 flex-shrink-0 self-start mt-0.5" />}
+                          {isSelected && <CheckCircle2 className="w-4 h-4 text-primary-600 flex-shrink-0 self-start mt-0.5" />}
                         </div>
                       </button>
                     );
@@ -715,8 +715,8 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
 
       {/* ─── Fiche generation status ─── */}
       {ficheGenStatus === "generating" && (
-        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-violet-50 border border-violet-100 text-violet-700 text-xs font-medium">
-          <Wand2 className="w-3.5 h-3.5 animate-pulse" />
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-accent-50 border border-accent-100 text-accent-700 text-xs font-medium">
+          <AiMark className="w-3.5 h-3.5" />
           Génération de la fiche RDV depuis la transcription…
         </div>
       )}
@@ -729,10 +729,10 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
 
       {/* ─── Audio player ─── */}
       {hasRecording && (
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-              <Headphones className="w-4 h-4 text-indigo-600" />
+            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+              <Headphones className="w-4 h-4 text-primary-600" />
             </div>
             <div>
               <p className="text-xs font-bold text-slate-800">Enregistrement</p>
@@ -747,7 +747,7 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
 
       {/* ─── Summary ─── */}
       {hasSummary && (
-        <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50/50 to-white shadow-sm overflow-hidden">
+        <div className="rounded-2xl border border-amber-100 bg-amber-50/40 shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-amber-100/60">
             <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
               <FileText className="w-4 h-4 text-amber-600" />
@@ -799,7 +799,7 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
           <div className="flex flex-wrap items-center justify-center gap-2">
             <button
               onClick={openManualSearch}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm shadow-indigo-200/60"
+              className="inline-flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
             >
               <Search className="w-4 h-4" />
               Rechercher l&apos;audio manuellement
@@ -871,8 +871,8 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
 
           {/* Phone sources info */}
           {!manualLoading && phoneSources.length > 0 && (
-            <div className="px-4 py-2.5 border-b border-slate-100 bg-indigo-50/40">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 mb-1.5">Numéros recherchés</p>
+            <div className="px-4 py-2.5 border-b border-slate-100 bg-primary-50/40">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-primary-600 mb-1.5">Numéros recherchés</p>
               <div className="flex flex-wrap gap-2">
                 {phoneSources.map((s) => (
                   <div key={s.key} className="flex items-center gap-1.5">
@@ -930,7 +930,7 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
                   className={cn(
                     "inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors",
                     selectedCallId && !linking
-                      ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                      ? "bg-primary-600 hover:bg-primary-700 text-white shadow-sm"
                       : "bg-slate-100 text-slate-400 cursor-not-allowed",
                   )}
                 >

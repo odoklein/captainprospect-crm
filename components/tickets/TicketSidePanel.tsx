@@ -102,7 +102,7 @@ export function TicketSidePanel({ ticket, currentUserId, isManager, onRefresh }:
                 <div className="space-y-1.5 p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
                     <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         <span>Cycle de vie</span>
-                        <span className="text-indigo-600 font-medium normal-case">
+                        <span className="text-primary-600 font-medium normal-case">
                             {TICKET_STATUS_LABELS[ticket.status]}
                         </span>
                     </div>
@@ -122,9 +122,9 @@ export function TicketSidePanel({ ticket, currentUserId, isManager, onRefresh }:
                                     className={cn(
                                         "h-2 flex-1 rounded-full transition-all",
                                         isCurrent
-                                            ? "bg-indigo-600 ring-2 ring-indigo-200"
+                                            ? "bg-primary-600 ring-2 ring-primary-200"
                                             : isPassed
-                                            ? "bg-indigo-400"
+                                            ? "bg-primary-400"
                                             : "bg-slate-200",
                                     )}
                                     title={step.label}
@@ -328,7 +328,7 @@ function PublicationSection({ ticket, onRefresh }: { ticket: TicketDetail; onRef
                     value={publicDescription}
                     onChange={(event) => setPublicDescription(event.target.value)}
                     rows={3}
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
             </div>
 
@@ -338,7 +338,7 @@ function PublicationSection({ ticket, onRefresh }: { ticket: TicketDetail; onRef
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
                         Aperçu sur la roadmap client
                     </span>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 border border-primary-200">
                         {TICKET_STATUS_LABELS[ticket.status]}
                     </span>
                 </div>

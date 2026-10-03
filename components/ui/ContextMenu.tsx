@@ -70,7 +70,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
     return createPortal(
         <div
             ref={menuRef}
-            className="fixed z-[100] min-w-[180px] bg-white rounded-xl shadow-lg border border-slate-200 py-1 animate-in fade-in zoom-in-95 duration-100"
+            className="fixed z-[100] min-w-[180px] bg-surface rounded-xl shadow-lg border border-line py-1 animate-in fade-in zoom-in-95 duration-100"
             style={{ left: adjustedX, top: adjustedY }}
         >
             {items.map((item, index) => (
@@ -87,10 +87,10 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
                         }}
                         disabled={item.disabled}
                         className={`w-full flex items-center gap-3 px-3 py-2 text-sm transition-colors ${item.disabled
-                                ? "text-slate-400 cursor-not-allowed"
+                                ? "text-ink-4 cursor-not-allowed"
                                 : item.variant === "danger"
                                     ? "text-red-600 hover:bg-red-50"
-                                    : "text-slate-700 hover:bg-slate-50"
+                                    : "text-ink-2 hover:bg-surface-2"
                             }`}
                     >
                         {item.icon}

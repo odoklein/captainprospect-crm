@@ -49,7 +49,7 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
     return (
         <div className="flex min-w-0 items-center gap-3">
             <div className="flex shrink-0 items-center gap-2.5" title={item.description}>
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-[0_2px_8px_rgba(99,102,241,0.35)]">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600 text-white">
                     <Icon className="h-[15px] w-[15px]" strokeWidth={2} />
                 </span>
                 <span className="text-[14px] font-semibold tracking-tight text-slate-900">{item.label}</span>
@@ -73,7 +73,7 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
                                     aria-current={current ? "page" : undefined}
                                     className={cn(
                                         "group relative flex h-14 shrink-0 items-center gap-1.5 px-2.5 text-[13px] font-medium transition-colors",
-                                        current ? "text-indigo-700" : "text-slate-500 hover:text-slate-900",
+                                        current ? "text-primary-700" : "text-slate-500 hover:text-slate-900",
                                     )}
                                 >
                                     <span
@@ -83,12 +83,12 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
                                         )}
                                     >
                                         <TabIcon
-                                            className={cn("h-3.5 w-3.5", current ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-500")}
+                                            className={cn("h-3.5 w-3.5", current ? "text-primary-600" : "text-slate-400 group-hover:text-slate-500")}
                                             strokeWidth={current ? 2.2 : 1.8}
                                         />
                                         {tab.label}
                                         {tab.badge != null && tab.badge !== "" && (
-                                            <span className="rounded-full bg-indigo-600 px-1.5 text-[10px] font-semibold leading-4 text-white">
+                                            <span className="rounded-full bg-primary-600 px-1.5 text-[10px] font-semibold leading-4 text-white">
                                                 {tab.badge}
                                             </span>
                                         )}
@@ -96,7 +96,7 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
                                     <span
                                         className={cn(
                                             "absolute inset-x-2.5 bottom-0 h-[2px] rounded-t-full transition-opacity",
-                                            current ? "bg-indigo-600 opacity-100" : "opacity-0",
+                                            current ? "bg-primary-600 opacity-100" : "opacity-0",
                                         )}
                                         aria-hidden
                                     />

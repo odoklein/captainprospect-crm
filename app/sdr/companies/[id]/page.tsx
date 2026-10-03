@@ -71,7 +71,7 @@ export default function SDRCompanyFichePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
             </div>
         );
     }
@@ -101,8 +101,8 @@ export default function SDRCompanyFichePage() {
 
             <Card className="!p-6">
                 <div className="flex items-start gap-4 mb-6">
-                    <div className="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                        <Building2 className="w-7 h-7 text-indigo-500" />
+                    <div className="w-14 h-14 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                        <Building2 className="w-7 h-7 text-primary-500" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h1 className="text-xl font-bold text-slate-900">{company.name}</h1>
@@ -125,7 +125,7 @@ export default function SDRCompanyFichePage() {
                                 href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-slate-700 hover:text-indigo-600"
+                                className="text-slate-700 hover:text-primary-600"
                             >
                                 {company.website}
                             </a>
@@ -152,7 +152,7 @@ export default function SDRCompanyFichePage() {
             {company.contacts && company.contacts.length > 0 && (
                 <Card className="!p-6">
                     <h2 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                        <User className="w-5 h-5 text-indigo-500" />
+                        <User className="w-5 h-5 text-primary-500" />
                         Contacts
                     </h2>
                     <ul className="space-y-2">
@@ -162,13 +162,13 @@ export default function SDRCompanyFichePage() {
                                 <li key={contact.id}>
                                     <Link
                                         href={`/sdr/contacts/${contact.id}`}
-                                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 transition-colors group"
+                                        className="flex items-center gap-3 p-3 rounded-lg hover:bg-primary-50 transition-colors group"
                                     >
                                         <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
                                             <User className="w-4 h-4 text-slate-500" />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-slate-900 group-hover:text-indigo-600 truncate">
+                                            <p className="font-medium text-slate-900 group-hover:text-primary-600 truncate">
                                                 {fullName}
                                             </p>
                                             {contact.title && (

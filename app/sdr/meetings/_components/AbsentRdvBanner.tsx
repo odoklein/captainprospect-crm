@@ -10,7 +10,7 @@ export function AbsentRdvBanner({ absentMeetings, onOpen }: AbsentRdvBannerProps
     if (absentMeetings.length === 0) return null;
 
     return (
-        <div className="rounded-2xl border-2 border-red-200 bg-gradient-to-r from-red-50 via-red-50/80 to-orange-50/60 p-5 shadow-sm animate-fade-in">
+        <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-5 shadow-sm animate-fade-in">
             <div className="flex items-start gap-4">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-600">
                     <XCircle className="h-5 w-5" />

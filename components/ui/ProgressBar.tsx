@@ -10,7 +10,17 @@ interface ProgressBarProps {
     showLabel?: boolean;
     height?: "sm" | "md" | "lg";
     variant?: "default" | "shimmer";
+    /** Fill colour: primary by default; success/warning/danger for thresholds, accent on the brand surface. */
+    tone?: "primary" | "accent" | "success" | "warning" | "danger";
 }
+
+const FILL = {
+    primary: "bg-primary",
+    accent: "bg-accent",
+    success: "bg-success",
+    warning: "bg-warning",
+    danger: "bg-danger",
+};
 
 export function ProgressBar({
     value,
@@ -19,6 +29,7 @@ export function ProgressBar({
     showLabel = false,
     height = "md",
     variant = "shimmer",
+    tone = "primary",
 }: ProgressBarProps) {
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
@@ -31,11 +42,17 @@ export function ProgressBar({
 
     return (
         <div className={cn("w-full", className)}>
-            <div className={cn(heightClass, "w-full bg-[#E8EBF0]/60 rounded-full overflow-hidden backdrop-blur-sm")}>
+            <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={max}
+                aria-valuenow={value}
+                className={cn(heightClass, "w-full bg-surface-3 rounded-full overflow-hidden")}
+            >
                 <div
                     className={cn(
                         "h-full rounded-full relative",
-                        "bg-gradient-to-r from-[#6C3AFF] via-[#7C5CFC] to-[#A78BFA]",
+                        FILL[tone],
                         variant === "shimmer" && mounted && "progress-shimmer"
                     )}
                     style={{
@@ -45,7 +62,7 @@ export function ProgressBar({
                 />
             </div>
             {showLabel && (
-                <div className="flex justify-between mt-1.5 text-xs text-[#6B7194]">
+                <div className="flex justify-between mt-1.5 text-xs text-ink-3 tabular-nums">
                     <span>{value}</span>
                     <span>{max}</span>
                 </div>

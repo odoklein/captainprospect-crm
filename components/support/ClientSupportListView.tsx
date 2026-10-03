@@ -473,7 +473,7 @@ export function ClientSupportListView({
                                         e.currentTarget.style.borderColor = T.line;
                                     }}
                                 >
-                                    {getIntentLucideIcon("RDV", "w-4 h-4 text-indigo-600")}
+                                    {getIntentLucideIcon("RDV", "w-4 h-4 text-primary-600")}
                                     <span>Question sur un rendez-vous</span>
                                 </button>
                                 <button

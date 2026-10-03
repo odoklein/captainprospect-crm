@@ -249,7 +249,7 @@ export default function BDClientsPage() {
                             >
                                 <Card className="h-full hover:border-emerald-300 hover:shadow-lg transition-all">
                                     <div className="flex items-start justify-between mb-4">
-                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-xl font-bold text-emerald-600 group-hover:scale-110 transition-transform duration-300">
+                                        <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-xl font-bold text-emerald-600">
                                             {client.name[0]}
                                         </div>
                                         <ArrowRight className="w-5 h-5 text-slate-300 -rotate-45 group-hover:rotate-0 group-hover:text-emerald-500 transition-all duration-300" />

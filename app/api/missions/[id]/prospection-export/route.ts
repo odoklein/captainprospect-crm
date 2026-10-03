@@ -6,6 +6,7 @@ import { parseExportFilters } from '@/lib/prospection-export/filters';
 import { loadProspectionExportData } from '@/lib/prospection-export/load';
 import { buildExportCsv, buildExportSheets } from '@/lib/prospection-export/workbook';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
+import { brand } from "@/lib/brand";
 
 // Large missions (tens of thousands of lines, full history) take a while to build.
 export const maxDuration = 300;
@@ -21,7 +22,7 @@ function fileSlug(value: string): string {
 
 // ============================================
 // GET /api/missions/[id]/prospection-export
-// Client deliverable: the lists in their original layout + Captain Prospect's
+// Client deliverable: the lists in their original layout + the agency's
 // follow-up (treated, status, call attempts, comments, history).
 //   format=xlsx (default) | csv
 //   summary=0 / history=0 to drop the Synthèse / Historique sheets (xlsx only)
@@ -63,7 +64,7 @@ export const GET = withErrorHandler(async (
         });
         body = buildXlsx(sheets, {
             title: `Export prospection — ${data.mission.name}`,
-            creator: 'Captain Prospect',
+            creator: brand.name,
         });
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }

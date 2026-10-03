@@ -14,10 +14,15 @@ import {
     ChevronUp,
     Loader2,
     AlertCircle,
-    Sparkles,
     Download,
     CheckCheck,
+    FileImage,
+    FileText,
+    FileSpreadsheet,
+    FileArchive,
+    Paperclip,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -82,14 +87,14 @@ interface ThreadViewProps {
 
 function getAvatarColor(name: string): string {
     const colors = [
-        "from-violet-400 to-violet-600",
-        "from-blue-400 to-blue-600",
-        "from-emerald-400 to-emerald-600",
-        "from-amber-400 to-amber-600",
-        "from-rose-400 to-rose-600",
-        "from-teal-400 to-teal-600",
-        "from-indigo-400 to-indigo-600",
-        "from-pink-400 to-pink-600",
+        "bg-accent-500",
+        "bg-blue-500",
+        "bg-emerald-500",
+        "bg-amber-500",
+        "bg-rose-500",
+        "bg-teal-500",
+        "bg-primary-500",
+        "bg-pink-500",
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -112,13 +117,19 @@ function formatFileSize(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function getFileIcon(mimeType: string): string {
-    if (mimeType.startsWith("image/")) return "🖼️";
-    if (mimeType === "application/pdf") return "📄";
-    if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return "📊";
-    if (mimeType.includes("document") || mimeType.includes("word")) return "📝";
-    if (mimeType.includes("zip") || mimeType.includes("archive")) return "📦";
-    return "📎";
+function FileTypeIcon({ mimeType }: { mimeType: string }) {
+    const Icon = mimeType.startsWith("image/")
+        ? FileImage
+        : mimeType === "application/pdf"
+            ? FileText
+            : mimeType.includes("spreadsheet") || mimeType.includes("excel")
+                ? FileSpreadsheet
+                : mimeType.includes("document") || mimeType.includes("word")
+                    ? FileText
+                    : mimeType.includes("zip") || mimeType.includes("archive")
+                        ? FileArchive
+                        : Paperclip;
+    return <Icon className="w-4 h-4 text-slate-500 shrink-0" />;
 }
 
 function sanitizeHtml(html: string): string {
@@ -408,7 +419,7 @@ export function ThreadView({
     if (isLoading) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
+                <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
                 <p className="text-xs text-slate-400">Chargement du thread...</p>
             </div>
         );
@@ -427,7 +438,7 @@ export function ThreadView({
                 <p className="text-sm text-slate-500 mb-5">{error}</p>
                 <button
                     onClick={onClose}
-                    className="px-5 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                    className="px-5 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
                 >
                     Retour à la liste
                 </button>
@@ -514,7 +525,7 @@ export function ThreadView({
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handleReply}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-sm font-semibold rounded-xl hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-[1px] active:translate-y-0 transition-all duration-200"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-500 transition-colors duration-200"
                         >
                             <Reply className="w-4 h-4" />
                             Répondre
@@ -593,7 +604,7 @@ function EmailMessage({
         <div className={cn(
             "border rounded-2xl overflow-hidden bg-white transition-all duration-200",
             isLast
-                ? "border-indigo-200/60 shadow-sm shadow-indigo-500/5"
+                ? "border-primary-200/60 shadow-sm"
                 : "border-slate-200/80",
             isExpanded ? "shadow-sm" : "hover:shadow-sm"
         )}>
@@ -604,9 +615,9 @@ function EmailMessage({
             >
                 {/* Avatar */}
                 <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-semibold flex-shrink-0 bg-gradient-to-br text-white shadow-sm",
+                    "w-10 h-10 rounded-full flex items-center justify-center text-[13px] font-semibold flex-shrink-0 text-white shadow-sm",
                     isOutbound
-                        ? "from-indigo-400 to-violet-600"
+                        ? "bg-primary-600"
                         : avatarColor
                 )}>
                     {initials}
@@ -671,23 +682,23 @@ function EmailMessage({
                                         e.stopPropagation();
                                         onRequestRecap();
                                     }}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-indigo-100/60 bg-indigo-50/40 hover:bg-indigo-50/80 text-indigo-600 text-[13px] font-medium transition-colors"
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-primary-100/60 bg-primary-50/40 hover:bg-primary-50/80 text-primary-600 text-[13px] font-medium transition-colors"
                                 >
-                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <AiMark className="w-3.5 h-3.5" />
                                     Résumer avec l&apos;IA
                                 </button>
                             ) : (
-                                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-gradient-to-r from-indigo-50/80 to-violet-50/80 border border-indigo-100/60">
-                                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                                        <Sparkles className="w-3.5 h-3.5 text-white" />
+                                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-primary-50/80 border border-primary-100/60">
+                                    <div className="w-6 h-6 rounded-lg bg-primary-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <AiMark className="w-3.5 h-3.5 text-white" />
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider mb-1">
+                                        <p className="text-[11px] font-bold text-primary-600 uppercase tracking-wider mb-1">
                                             Résumé IA
                                         </p>
                                         {recapLoading && (
                                             <div className="flex items-center gap-2 text-sm text-slate-500">
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0 text-indigo-400" />
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin flex-shrink-0 text-primary-400" />
                                                 <span className="text-[13px]">Analyse en cours...</span>
                                             </div>
                                         )}
@@ -699,7 +710,7 @@ function EmailMessage({
                                                         e.stopPropagation();
                                                         onRequestRecap();
                                                     }}
-                                                    className="text-[12px] text-indigo-500 hover:text-indigo-700 font-medium flex-shrink-0"
+                                                    className="text-[12px] text-primary-500 hover:text-primary-700 font-medium flex-shrink-0"
                                                 >
                                                     Réessayer
                                                 </button>
@@ -727,7 +738,7 @@ function EmailMessage({
                                         href={`/api/email/attachments/${attachment.id}`}
                                         className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 hover:border-slate-300 transition-all group"
                                     >
-                                        <span className="text-sm">{getFileIcon(attachment.mimeType)}</span>
+                                        <FileTypeIcon mimeType={attachment.mimeType} />
                                         <div className="min-w-0">
                                             <span className="text-[13px] text-slate-700 truncate max-w-[140px] block font-medium">
                                                 {attachment.filename}
@@ -745,7 +756,7 @@ function EmailMessage({
 
                     {/* Email body */}
                     <div className="px-4 py-4">
-                        <div className="prose prose-sm prose-slate max-w-none text-slate-800 [&_a]:text-indigo-600 [&_a]:no-underline hover:[&_a]:underline [&_img]:rounded-lg [&_blockquote]:border-l-indigo-200 [&_blockquote]:text-slate-500">
+                        <div className="prose prose-sm prose-slate max-w-none text-slate-800 [&_a]:text-primary-600 [&_a]:no-underline hover:[&_a]:underline [&_img]:rounded-lg [&_blockquote]:border-l-primary-200 [&_blockquote]:text-slate-500">
                             {email.bodyHtml ? (
                                 <div
                                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(email.bodyHtml) }}

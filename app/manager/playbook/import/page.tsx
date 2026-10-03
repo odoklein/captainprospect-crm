@@ -15,8 +15,8 @@ import {
   ChevronDown,
   ChevronRight,
   Brain,
-  Sparkles,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
 import type {
   ParsedPlaybook,
@@ -46,8 +46,8 @@ const PARSING_MESSAGES = [
 
 const CARD_BORDER: Record<string, string> = {
   client: "border-l-blue-500",
-  mission: "border-l-violet-500",
-  campaign: "border-l-indigo-500",
+  mission: "border-l-accent-500",
+  campaign: "border-l-primary-500",
   script: "border-l-amber-500",
   email: "border-l-teal-500",
 };
@@ -77,7 +77,7 @@ function InlineField({
   }, [local, onChange]);
 
   if (editing) {
-    const common = "w-full px-2 py-1.5 rounded-lg border border-violet-200 bg-white text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500";
+    const common = "w-full px-2 py-1.5 rounded-lg border border-accent-200 bg-white text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-accent-500";
     return multiline ? (
       <textarea
         autoFocus
@@ -270,7 +270,7 @@ export default function PlaybookImportPage() {
   ];
 
   const currentStepId = step === "upload" ? 1 : step === "parsing" ? 2 : 3;
-  const pageBg = "min-h-screen bg-gradient-to-b from-[#fafafa] to-[#f6f7fb]";
+  const pageBg = "min-h-screen bg-surface-2";
 
   return (
     <div className={pageBg}>
@@ -282,7 +282,7 @@ export default function PlaybookImportPage() {
               <div
                 className={cn(
                   "rounded-full px-4 py-2 text-sm font-medium transition-all",
-                  currentStepId === s.id && "bg-violet-600 text-white shadow-md",
+                  currentStepId === s.id && "bg-accent-600 text-white shadow-md",
                   currentStepId > s.id && "bg-emerald-100 text-emerald-700",
                   currentStepId < s.id && "bg-slate-200 text-slate-500"
                 )}
@@ -327,7 +327,7 @@ export default function PlaybookImportPage() {
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Collez ici le contenu du playbook (export Notion, markdown...)"
                     rows={12}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-y"
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent resize-y"
                   />
                 </div>
                 <div className="flex items-center gap-3 pt-4 border-t border-slate-200">
@@ -342,9 +342,9 @@ export default function PlaybookImportPage() {
                     onClick={handleParse}
                     disabled={!content.trim() || isParsing}
                     isLoading={isParsing}
-                    className="gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-95 shadow-lg"
+                    className="gap-2 rounded-xl bg-primary-600 hover:bg-primary-500 shadow-sm"
                   >
-                    {isParsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {isParsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <AiMark className="w-4 h-4" />}
                     Analyser le playbook
                   </Button>
                 </div>
@@ -356,10 +356,10 @@ export default function PlaybookImportPage() {
         {/* ----- Parsing step (AI panel) ----- */}
         {step === "parsing" && (
           <div className="max-w-lg mx-auto">
-            <div className="bg-white rounded-2xl shadow-lg border border-violet-200/50 p-8">
+            <div className="bg-white rounded-2xl shadow-lg border border-accent-200/50 p-8">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center">
-                  <Brain className="w-6 h-6 text-violet-600" />
+                <div className="w-12 h-12 rounded-xl bg-accent-100 flex items-center justify-center">
+                  <Brain className="w-6 h-6 text-accent-600" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-slate-900">Parsing playbook</h2>
@@ -372,13 +372,13 @@ export default function PlaybookImportPage() {
                     key={msg}
                     className={cn(
                       "flex items-center gap-3 py-2 px-3 rounded-lg text-sm transition-all",
-                      i <= parsingPhase ? "bg-violet-50 text-violet-800" : "bg-slate-50 text-slate-400"
+                      i <= parsingPhase ? "bg-accent-50 text-accent-800" : "bg-slate-50 text-slate-400"
                     )}
                   >
                     {i < parsingPhase ? (
                       <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                     ) : i === parsingPhase ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-violet-500 shrink-0" />
+                      <Loader2 className="w-4 h-4 animate-spin text-accent-500 shrink-0" />
                     ) : (
                       <span className="w-4 h-4 shrink-0 rounded-full border-2 border-slate-300" />
                     )}
@@ -398,7 +398,7 @@ export default function PlaybookImportPage() {
               <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    <Brain className="w-5 h-5 text-violet-600" />
+                    <Brain className="w-5 h-5 text-accent-600" />
                     <span className="text-lg font-semibold text-slate-900">Résultat de l'import IA</span>
                   </div>
                   <span className="text-sm text-slate-600">{entityCount} entité(s) détectée(s)</span>
@@ -420,7 +420,7 @@ export default function PlaybookImportPage() {
                     onClick={handleImport}
                     disabled={!edited.client?.name?.trim() || isImporting}
                     isLoading={isImporting}
-                    className="gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-95 shadow-lg px-6"
+                    className="gap-2 rounded-xl bg-primary-600 hover:bg-primary-500 shadow-sm px-6"
                   >
                     {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     Tout créer ({entityCount})
@@ -486,7 +486,7 @@ export default function PlaybookImportPage() {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-violet-100 text-violet-600 text-sm font-semibold">2</span>
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-accent-100 text-accent-600 text-sm font-semibold">2</span>
                       <h3 className="text-xl font-semibold text-slate-900">Mission</h3>
                     </div>
                     <span className="rounded-full bg-emerald-50 text-emerald-600 px-3 py-1 text-xs font-medium">Détecté</span>
@@ -495,7 +495,7 @@ export default function PlaybookImportPage() {
                     {(edited.missions ?? []).map((m, i) => (
                       <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200/60">
                         <span className="text-sm font-medium text-slate-900">{m.name}</span>
-                        <span className="rounded-full bg-violet-100 text-violet-700 px-2.5 py-0.5 text-xs font-medium">{m.channel}</span>
+                        <span className="rounded-full bg-accent-100 text-accent-700 px-2.5 py-0.5 text-xs font-medium">{m.channel}</span>
                       </div>
                     ))}
                     {(!edited.missions || edited.missions.length === 0) && (
@@ -514,7 +514,7 @@ export default function PlaybookImportPage() {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 text-sm font-semibold">3</span>
+                      <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-600 text-sm font-semibold">3</span>
                       <h3 className="text-xl font-semibold text-slate-900">Campagne — ICP & Ciblage</h3>
                     </div>
                     <span className="rounded-full bg-emerald-50 text-emerald-600 px-3 py-1 text-xs font-medium">Détecté</span>
@@ -738,7 +738,7 @@ export default function PlaybookImportPage() {
                     onClick={handleImport}
                     disabled={!edited.client?.name?.trim() || isImporting}
                     isLoading={isImporting}
-                    className="w-full gap-2 rounded-xl py-4 text-base font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:opacity-95 shadow-lg"
+                    className="w-full gap-2 rounded-xl py-4 text-base font-semibold bg-primary-600 hover:bg-primary-500 shadow-sm"
                   >
                     {isImporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
                     Tout créer ({entityCount} entités)

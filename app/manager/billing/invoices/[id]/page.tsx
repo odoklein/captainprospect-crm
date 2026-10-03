@@ -122,7 +122,7 @@ interface Invoice {
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
     DRAFT: { label: "Brouillon", color: "text-slate-600", bg: "bg-slate-100", dot: "bg-slate-400" },
-    VALIDATED: { label: "Validée", color: "text-indigo-700", bg: "bg-indigo-50", dot: "bg-indigo-500" },
+    VALIDATED: { label: "Validée", color: "text-primary-700", bg: "bg-primary-50", dot: "bg-primary-500" },
     SENT: { label: "Envoyée", color: "text-amber-700", bg: "bg-amber-50", dot: "bg-amber-500" },
     PAID: { label: "Payée", color: "text-emerald-700", bg: "bg-emerald-50", dot: "bg-emerald-500" },
     CANCELLED: { label: "Annulée", color: "text-red-700", bg: "bg-red-50", dot: "bg-red-500" },
@@ -240,7 +240,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-400 mb-3" />
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary-400 mb-3" />
                     <p className="text-sm text-slate-500">Chargement de la facture...</p>
                 </div>
             </div>
@@ -341,7 +341,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
 
             {/* Cancelled banner */}
             {invoice.status === "CANCELLED" && (
-                <div className="rounded-xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 p-4 flex items-center gap-3">
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
                         <Ban className="w-4 h-4 text-red-600" />
                     </div>
@@ -358,7 +358,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
             {isCredit && invoice.relatedInvoice && (
                 <Link
                     href={`/manager/billing/invoices/${invoice.relatedInvoice.id}`}
-                    className="flex items-center justify-between rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 hover:shadow-md transition-shadow group"
+                    className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-4 hover:shadow-md transition-shadow group"
                 >
                     <div className="flex items-center gap-3">
                         <FileText className="w-5 h-5 text-amber-600" />
@@ -380,8 +380,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                             {/* Issuer */}
                             <div className="p-6">
                                 <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                        <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                                    <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center">
+                                        <Building2 className="w-3.5 h-3.5 text-primary-600" />
                                     </div>
                                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Émetteur</span>
                                 </div>
@@ -401,8 +401,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                             {/* Client */}
                             <div className="p-6">
                                 <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-7 h-7 rounded-lg bg-violet-100 flex items-center justify-center">
-                                        <Building2 className="w-3.5 h-3.5 text-violet-600" />
+                                    <div className="w-7 h-7 rounded-lg bg-accent-100 flex items-center justify-center">
+                                        <Building2 className="w-3.5 h-3.5 text-accent-600" />
                                     </div>
                                     <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Client</span>
                                 </div>
@@ -443,7 +443,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                 <button
                                     type="button"
                                     onClick={() => setShowMissionBreakdown((v) => !v)}
-                                    className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600"
+                                    className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-primary-600"
                                 >
                                     {showMissionBreakdown ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                     Détail par mission ({(invoice.missionBreakdown as Array<{ missionName: string; rdvCount: number }>)?.length ?? 0} missions)
@@ -474,14 +474,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                     <Link
                                         key={cn.id}
                                         href={`/manager/billing/invoices/${cn.id}`}
-                                        className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-indigo-50/50 transition-all duration-150 group"
+                                        className="flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-primary-50/50 transition-all duration-150 group"
                                     >
                                         <div className="flex items-center gap-3">
                                             <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center">
                                                 <FileX2 className="w-4 h-4 text-red-500" />
                                             </div>
                                             <div>
-                                                <span className="font-medium text-slate-900 group-hover:text-indigo-700 transition-colors">
+                                                <span className="font-medium text-slate-900 group-hover:text-primary-700 transition-colors">
                                                     {cn.invoiceNumber || "Brouillon"}
                                                 </span>
                                                 <p className="text-xs text-slate-500">{format(new Date(cn.createdAt), "dd/MM/yyyy", { locale: fr })}</p>
@@ -492,7 +492,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                                 {STATUS_CONFIG[cn.status]?.label}
                                             </span>
                                             <span className="font-semibold text-red-600 tabular-nums">-{formatCurrency(Number(cn.totalTtc))}</span>
-                                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
+                                            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-400 group-hover:translate-x-0.5 transition-all" />
                                         </div>
                                     </Link>
                                 ))}
@@ -509,14 +509,14 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                             </h2>
                             <div className="relative">
                                 {/* Timeline line */}
-                                <div className="absolute left-[18px] top-2 bottom-2 w-px bg-gradient-to-b from-indigo-200 via-slate-200 to-transparent" />
+                                <div className="absolute left-[18px] top-2 bottom-2 w-px bg-slate-200" />
                                 <div className="space-y-5">
                                     {invoice.auditLogs.map((log, idx) => (
                                         <div key={log.id} className="flex items-start gap-4 relative">
                                             <div className={`w-[38px] h-[38px] rounded-full border-2 bg-white flex items-center justify-center flex-shrink-0 z-10 ${
-                                                idx === 0 ? "border-indigo-400" : "border-slate-200"
+                                                idx === 0 ? "border-primary-400" : "border-slate-200"
                                             }`}>
-                                                <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 ? "bg-indigo-500" : "bg-slate-300"}`} />
+                                                <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 ? "bg-primary-500" : "bg-slate-300"}`} />
                                             </div>
                                             <div className="flex-1 pb-1">
                                                 <p className="text-sm font-medium text-slate-900">
@@ -540,7 +540,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 {/* Right sidebar */}
                 <div className="lg:col-span-4 space-y-6">
                     {/* Totals Card */}
-                    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/50 p-6">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-6">
                         <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Montants</h3>
                         <div className="space-y-3">
                             <div className="flex justify-between text-sm">
@@ -551,10 +551,10 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                                 <span className="text-slate-500">TVA</span>
                                 <span className="font-medium text-slate-700 tabular-nums">{formatCurrency(Number(invoice.totalVat))}</span>
                             </div>
-                            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
+                            <div className="h-px bg-slate-200" />
                             <div className="flex justify-between items-center">
                                 <span className="font-bold text-slate-900">Total TTC</span>
-                                <span className={`text-2xl font-bold tabular-nums ${isCredit ? "text-red-600" : "text-indigo-600"}`}>
+                                <span className={`text-2xl font-bold tabular-nums ${isCredit ? "text-red-600" : "text-primary-600"}`}>
                                     {isCredit ? "-" : ""}{formatCurrency(Number(invoice.totalTtc))}
                                 </span>
                             </div>

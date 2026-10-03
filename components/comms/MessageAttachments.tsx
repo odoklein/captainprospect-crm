@@ -109,7 +109,7 @@ export function MessageAttachments({
                             className={cn(
                                 "flex items-center gap-2 rounded-xl border border-dashed px-3 py-2 text-sm cursor-pointer transition-colors",
                                 isDragActive
-                                    ? "border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20"
+                                    ? "border-primary-400 bg-primary-50 dark:bg-indigo-900/20"
                                     : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50",
                                 disabled && "opacity-50 pointer-events-none"
                             )}
@@ -138,7 +138,7 @@ export function MessageAttachments({
                             {...getRootProps()}
                             className={cn(
                                 "inline-flex items-center justify-center w-9 h-9 rounded-lg cursor-pointer transition-colors",
-                                "text-slate-400 hover:text-indigo-600 hover:bg-indigo-500/10",
+                                "text-slate-400 hover:text-primary-600 hover:bg-primary-500/10",
                                 disabled && "opacity-50 pointer-events-none"
                             )}
                             title="Joindre des fichiers (max 5, 15 Mo)"

@@ -168,10 +168,10 @@ function ConfirmSendDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-primary-50 to-white">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <Send className="w-4 h-4 text-indigo-600" />
+            <div className="w-8 h-8 rounded-xl bg-primary-100 flex items-center justify-center">
+              <Send className="w-4 h-4 text-primary-600" />
             </div>
             <span className="font-semibold text-slate-800">Confirmer l&apos;envoi</span>
           </div>
@@ -213,7 +213,7 @@ function ConfirmSendDialog({
           <button
             onClick={onConfirm}
             disabled={sending}
-            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-60 transition-colors"
+            className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl disabled:opacity-60 transition-colors"
           >
             {sending ? (
               <>
@@ -249,8 +249,8 @@ function HistoryCard({ item }: { item: BroadcastRecord }) {
         onClick={() => setExpanded((p) => !p)}
         className="w-full flex items-start gap-4 px-5 py-4 text-left hover:bg-slate-50/60 transition-colors"
       >
-        <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0 mt-0.5">
-          <Mail className="w-4 h-4 text-indigo-500" />
+        <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0 mt-0.5">
+          <Mail className="w-4 h-4 text-primary-500" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -275,7 +275,7 @@ function HistoryCard({ item }: { item: BroadcastRecord }) {
             </span>
             <span className="text-slate-300">·</span>
             <span className="flex items-center gap-1">
-              <Eye className="w-3 h-3 text-indigo-500" />
+              <Eye className="w-3 h-3 text-primary-500" />
               {openedCount}/{deliveredCount || item.sentCount} ouverts
             </span>
             {item.failedCount > 0 && (
@@ -312,9 +312,9 @@ function HistoryCard({ item }: { item: BroadcastRecord }) {
               <p className="text-emerald-700 font-semibold">{item.sentCount}</p>
               <p className="text-emerald-600">Envoyés</p>
             </div>
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
-              <p className="text-indigo-700 font-semibold">{openedCount}</p>
-              <p className="text-indigo-600">Ouverts</p>
+            <div className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2">
+              <p className="text-primary-700 font-semibold">{openedCount}</p>
+              <p className="text-primary-600">Ouverts</p>
             </div>
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
               <p className="text-red-700 font-semibold">{item.failedCount}</p>
@@ -345,7 +345,7 @@ function HistoryCard({ item }: { item: BroadcastRecord }) {
                     <span
                       className={`px-2 py-0.5 rounded-full border ${
                         recipient.openedAt
-                          ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                          ? "border-primary-200 bg-primary-50 text-primary-700"
                           : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}
                     >
@@ -548,7 +548,7 @@ export default function BroadcastEmailPage() {
         {/* Back link */}
         <Link
           href="/manager/settings"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 font-medium transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-primary-600 font-medium transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour aux paramètres
@@ -556,8 +556,8 @@ export default function BroadcastEmailPage() {
 
         {/* Header */}
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center shrink-0">
-            <Megaphone className="w-6 h-6 text-indigo-600" />
+          <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center shrink-0">
+            <Megaphone className="w-6 h-6 text-primary-600" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
@@ -586,7 +586,7 @@ export default function BroadcastEmailPage() {
               <t.icon className="w-4 h-4" />
               {t.label}
               {t.id === "history" && historyTotal > 0 && (
-                <span className="ml-0.5 text-[10px] font-bold bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">
+                <span className="ml-0.5 text-[10px] font-bold bg-primary-100 text-primary-600 px-1.5 py-0.5 rounded-full">
                   {historyTotal}
                 </span>
               )}
@@ -619,8 +619,8 @@ export default function BroadcastEmailPage() {
             {/* Audience */}
             <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
               <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center">
-                  <Users className="w-3.5 h-3.5 text-indigo-600" />
+                <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+                  <Users className="w-3.5 h-3.5 text-primary-600" />
                 </div>
                 <span className="text-sm font-semibold text-slate-700">Audience</span>
               </div>
@@ -639,8 +639,8 @@ export default function BroadcastEmailPage() {
                       key={opt.value}
                       className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${
                         audienceType === opt.value
-                          ? "border-indigo-300 bg-indigo-50/60 shadow-sm"
-                          : "border-slate-200 hover:border-indigo-200 hover:bg-slate-50/60"
+                          ? "border-primary-300 bg-primary-50/60 shadow-sm"
+                          : "border-slate-200 hover:border-primary-200 hover:bg-slate-50/60"
                       }`}
                     >
                       <input
@@ -652,10 +652,10 @@ export default function BroadcastEmailPage() {
                           setAudienceType(opt.value);
                           setSendResult(null);
                         }}
-                        className="accent-indigo-600 w-4 h-4 shrink-0"
+                        className="accent-primary-600 w-4 h-4 shrink-0"
                       />
-                      <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
-                        <opt.icon className="w-4 h-4 text-indigo-600" />
+                      <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
+                        <opt.icon className="w-4 h-4 text-primary-600" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -687,7 +687,7 @@ export default function BroadcastEmailPage() {
                         className="flex-1 text-sm bg-transparent focus:outline-none placeholder:text-slate-400"
                       />
                       {selectedIds.size > 0 && (
-                        <span className="text-xs font-semibold bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full">
+                        <span className="text-xs font-semibold bg-primary-100 text-primary-700 px-2.5 py-1 rounded-full">
                           {selectedIds.size} sélectionné{selectedIds.size > 1 ? "s" : ""}
                         </span>
                       )}
@@ -695,7 +695,7 @@ export default function BroadcastEmailPage() {
 
                     {loadingUsers ? (
                       <div className="flex items-center justify-center py-10">
-                        <div className="w-6 h-6 rounded-full border-2 border-indigo-200 border-t-indigo-500 animate-spin" />
+                        <div className="w-6 h-6 rounded-full border-2 border-primary-200 border-t-primary-500 animate-spin" />
                       </div>
                     ) : (
                       <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
@@ -718,13 +718,13 @@ export default function BroadcastEmailPage() {
                                   });
                                 }}
                                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                                  selected ? "bg-indigo-50" : "hover:bg-white"
+                                  selected ? "bg-primary-50" : "hover:bg-white"
                                 }`}
                               >
                                 <div
                                   className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
                                     selected
-                                      ? "bg-indigo-600 border-indigo-600"
+                                      ? "bg-primary-600 border-primary-600"
                                       : "border-slate-300"
                                   }`}
                                 >
@@ -761,8 +761,8 @@ export default function BroadcastEmailPage() {
             {/* Subject */}
             <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
               <div className="flex items-center gap-2.5 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center">
-                  <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                <div className="w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+                  <Mail className="w-3.5 h-3.5 text-primary-600" />
                 </div>
                 <span className="text-sm font-semibold text-slate-700">Objet de l&apos;email</span>
               </div>
@@ -775,7 +775,7 @@ export default function BroadcastEmailPage() {
                     setSendResult(null);
                   }}
                   placeholder="Ex: Mise à jour importante de votre espace…"
-                  className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent bg-slate-50 text-slate-800 placeholder:text-slate-400 transition-all"
+                  className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent bg-slate-50 text-slate-800 placeholder:text-slate-400 transition-all"
                 />
               </div>
             </div>
@@ -895,7 +895,7 @@ export default function BroadcastEmailPage() {
           <div className="space-y-4">
             {historyLoading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 rounded-full border-2 border-indigo-100 border-t-indigo-500 animate-spin" />
+                <div className="w-8 h-8 rounded-full border-2 border-primary-100 border-t-primary-500 animate-spin" />
               </div>
             ) : history.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
@@ -914,7 +914,7 @@ export default function BroadcastEmailPage() {
                     <button
                       disabled={historyPage <= 1}
                       onClick={() => loadHistory(historyPage - 1)}
-                      className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:border-indigo-200 disabled:opacity-40 transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:border-primary-200 disabled:opacity-40 transition-colors"
                     >
                       Précédent
                     </button>
@@ -924,7 +924,7 @@ export default function BroadcastEmailPage() {
                     <button
                       disabled={historyPage >= Math.ceil(historyTotal / 10)}
                       onClick={() => loadHistory(historyPage + 1)}
-                      className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:border-indigo-200 disabled:opacity-40 transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-xl hover:border-primary-200 disabled:opacity-40 transition-colors"
                     >
                       Suivant
                     </button>

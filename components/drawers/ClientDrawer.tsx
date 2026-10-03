@@ -60,7 +60,7 @@ import {
     Archive,
     MoreHorizontal,
     CircleDashed,
-    Sparkles,
+    Crosshair,
     ChevronRight,
     Inbox,
     User as UserIcon,
@@ -253,12 +253,12 @@ interface ClientSessionLite {
 // Same palette as the client portal, so a CR looks the same to the
 // manager and to the client reading it in their portal.
 const SESSION_TYPE_COLORS: Record<string, string> = {
-    "Kick-Off": "bg-indigo-100 text-indigo-700 border-indigo-200",
+    "Kick-Off": "bg-primary-100 text-primary-700 border-primary-200",
     "Onboarding": "bg-emerald-100 text-emerald-700 border-emerald-200",
     "Validation": "bg-pink-100 text-pink-700 border-pink-200",
     "Reporting": "bg-amber-100 text-amber-700 border-amber-200",
     "Suivi": "bg-slate-100 text-slate-600 border-slate-200",
-    "Autre": "bg-purple-100 text-purple-700 border-purple-200",
+    "Autre": "bg-accent-100 text-accent-700 border-accent-200",
 };
 const SESSION_ROLE_BADGE: Record<string, { color: string; bg: string; label: string }> = {
     SDR: { color: "#10B981", bg: "rgba(16,185,129,0.1)", label: "SDR" },
@@ -267,7 +267,7 @@ const SESSION_ROLE_BADGE: Record<string, { color: string; bg: string; label: str
     ALWAYS: { color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", label: "Tous" },
 };
 const SESSION_PRIORITY_INDICATOR: Record<string, { color: string; label: string }> = {
-    URGENT: { color: "#EF4444", label: "⚡" },
+    URGENT: { color: "#EF4444", label: "↑↑" },
     HIGH: { color: "#F59E0B", label: "↑" },
     MEDIUM: { color: "#3B82F6", label: "→" },
     LOW: { color: "#6B7280", label: "↓" },
@@ -408,7 +408,7 @@ function SectionCard({
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                     {icon && (
-                        <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                        <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
                             {icon}
                         </div>
                     )}
@@ -437,7 +437,7 @@ function StatPill({
     tone?: "indigo" | "emerald" | "amber" | "slate";
 }) {
     const tones: Record<string, string> = {
-        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
+        indigo: "bg-primary-50 text-primary-600 border-primary-100",
         emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
         amber: "bg-amber-50 text-amber-600 border-amber-100",
         slate: "bg-slate-50 text-slate-600 border-slate-100",
@@ -870,7 +870,7 @@ export function ClientDrawer({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="text-slate-300 hover:text-indigo-600"
+                                        className="text-slate-300 hover:text-primary-600"
                                     >
                                         <ExternalLink className="w-3 h-3" />
                                     </a>
@@ -967,7 +967,7 @@ export function ClientDrawer({
             />
 
             {/* ICP / Persona */}
-            <SectionCard title="Persona idéal (ICP)" icon={<Sparkles className="w-3.5 h-3.5" />}>
+            <SectionCard title="Persona idéal (ICP)" icon={<Crosshair className="w-3.5 h-3.5" />}>
                 <InlineText
                     value={icp}
                     placeholder="Décrivez l’ICP de ce client (secteur, taille, poste cible, douleur, budget…)"
@@ -996,7 +996,7 @@ export function ClientDrawer({
                 <button
                     type="button"
                     onClick={() => setShowNewMission(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
                 >
                     <Plus className="w-4 h-4" /> Nouvelle mission
                 </button>
@@ -1056,7 +1056,7 @@ export function ClientDrawer({
                 action={
                     <Link
                         href={`/manager/clients/${client.id}`}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-semibold uppercase tracking-wider transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 text-xs font-semibold uppercase tracking-wider transition-colors"
                     >
                         {usersList.length > 0 ? "Gérer" : "Créer un accès"}
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -1077,7 +1077,7 @@ export function ClientDrawer({
                                     key={u.id}
                                     className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors"
                                 >
-                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-semibold text-sm flex-shrink-0">
+                                    <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm flex-shrink-0">
                                         {(u.name || u.email)[0]?.toUpperCase()}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -1149,7 +1149,7 @@ export function ClientDrawer({
                                 ...mailboxes.map((mb) => ({
                                     value: mb.id,
                                     label: mb.displayName ? `${mb.displayName} <${mb.email}>` : mb.email,
-                                    icon: <Mail className="w-3.5 h-3.5 text-indigo-500" />,
+                                    icon: <Mail className="w-3.5 h-3.5 text-primary-500" />,
                                 })),
                             ]}
                             onSave={(v) => saveField({ defaultMailboxId: v })}
@@ -1194,10 +1194,10 @@ export function ClientDrawer({
                     {interlocuteurs.map((i) => (
                         <div
                             key={i.id}
-                            className="rounded-xl border border-slate-200 bg-white p-4 hover:border-indigo-200 hover:shadow-sm transition-all"
+                            className="rounded-xl border border-slate-200 bg-white p-4 hover:border-primary-200 hover:shadow-sm transition-all"
                         >
                             <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center text-indigo-700 font-semibold text-sm flex-shrink-0">
+                                <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold text-sm flex-shrink-0">
                                     {i.firstName[0]}
                                     {i.lastName[0]}
                                 </div>
@@ -1222,7 +1222,7 @@ export function ClientDrawer({
                                         {i.email && (
                                             <a
                                                 href={`mailto:${i.email}`}
-                                                className="inline-flex items-center gap-1.5 text-xs text-indigo-600 hover:underline truncate"
+                                                className="inline-flex items-center gap-1.5 text-xs text-primary-600 hover:underline truncate"
                                             >
                                                 <Mail className="w-3 h-3 flex-shrink-0" />
                                                 <span className="truncate">{i.email}</span>
@@ -1317,7 +1317,7 @@ export function ClientDrawer({
     })();
 
     const toneToClass: Record<string, string> = {
-        indigo: "bg-indigo-500",
+        indigo: "bg-primary-500",
         emerald: "bg-emerald-500",
         amber: "bg-amber-500",
         slate: "bg-slate-400",
@@ -1438,7 +1438,7 @@ export function ClientDrawer({
                             renderCallExtra={(call) => {
                                 const sdr = sdrByCallId.get(call.id);
                                 return sdr ? (
-                                    <span className="flex items-center gap-1 text-[11px] font-semibold text-[#7C5CFC]">
+                                    <span className="flex items-center gap-1 text-[11px] font-semibold text-primary-600">
                                         <UserIcon className="w-3 h-3" />
                                         {sdr}
                                     </span>
@@ -1463,7 +1463,7 @@ export function ClientDrawer({
                 </div>
                 <Link
                     href="/manager/sdr-feedback"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-indigo-200 hover:text-indigo-600"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-primary-200 hover:text-primary-600"
                 >
                     <ExternalLink className="w-3.5 h-3.5" />
                     Tous les avis
@@ -1486,7 +1486,7 @@ export function ClientDrawer({
                             <div key={feedback.id} className="rounded-2xl border border-slate-200 bg-white p-4">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center text-sm font-bold">
+                                        <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">
                                             {(feedback.sdr.name || feedback.sdr.email)[0]?.toUpperCase()}
                                         </div>
                                         <div>
@@ -1555,7 +1555,7 @@ export function ClientDrawer({
                 {client && (
                     <Link
                         href={`/manager/clients/${client.id}?tab=sessions`}
-                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
+                        className="text-xs font-semibold text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
                     >
                         Gérer les sessions <ChevronRight className="w-3.5 h-3.5" />
                     </Link>
@@ -1579,7 +1579,7 @@ export function ClientDrawer({
                         return (
                             <div
                                 key={s.id}
-                                className="rounded-xl border border-slate-200 bg-white overflow-hidden hover:border-indigo-200 transition-colors"
+                                className="rounded-xl border border-slate-200 bg-white overflow-hidden hover:border-primary-200 transition-colors"
                             >
                                 <button
                                     type="button"
@@ -1609,7 +1609,7 @@ export function ClientDrawer({
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 onClick={(e) => e.stopPropagation()}
-                                                className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline"
+                                                className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:underline"
                                             >
                                                 <Mic className="w-3.5 h-3.5" /> Enregistrement
                                             </a>
@@ -1634,7 +1634,7 @@ export function ClientDrawer({
                                                 className={cn(
                                                     "px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors",
                                                     sessionCrTab === "cr"
-                                                        ? "border-indigo-600 text-indigo-600"
+                                                        ? "border-primary-600 text-primary-600"
                                                         : "border-transparent text-slate-500 hover:text-slate-900"
                                                 )}
                                             >
@@ -1646,7 +1646,7 @@ export function ClientDrawer({
                                                 className={cn(
                                                     "px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors",
                                                     sessionCrTab === "email"
-                                                        ? "border-indigo-600 text-indigo-600"
+                                                        ? "border-primary-600 text-primary-600"
                                                         : "border-transparent text-slate-500 hover:text-slate-900"
                                                 )}
                                             >
@@ -1898,7 +1898,7 @@ function MissionRow({
             aria-label={`Ouvrir la mission ${mission.name}`}
             className={
                 "group flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50/60 transition-colors " +
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 " +
+                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 " +
                 (isLast ? "" : "border-b border-slate-100")
             }
         >
@@ -1915,7 +1915,7 @@ function MissionRow({
             </div>
 
             <div className="flex-1 min-w-0">
-                <span className="block truncate text-left text-sm font-semibold text-slate-900 transition-colors group-hover:text-indigo-600">
+                <span className="block truncate text-left text-sm font-semibold text-slate-900 transition-colors group-hover:text-primary-600">
                     {mission.name}
                 </span>
                 {mission.objective && (
@@ -1965,7 +1965,7 @@ function MissionRow({
             {/* Script action */}
             <button
                 onClick={onScriptClick}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-primary-50 hover:text-primary-700 hover:border-primary-200 transition-colors"
             >
                 <FileText className="w-3.5 h-3.5" />
                 Script
@@ -2142,7 +2142,7 @@ function ScriptModal({
                             onClose();
                             onOpenFull?.();
                         }}
-                        className="inline-flex items-center gap-1.5 mt-4 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium"
+                        className="inline-flex items-center gap-1.5 mt-4 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
                     >
                         <Plus className="w-4 h-4" /> Créer une campagne
                     </button>
@@ -2153,7 +2153,7 @@ function ScriptModal({
                         <textarea
                             value={scriptDraft}
                             onChange={(e) => setScriptDraft(e.target.value)}
-                            className="w-full min-h-[320px] rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                            className="w-full min-h-[320px] rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-300"
                             placeholder="Ecrivez le script principal de cette mission..."
                         />
                     </div>
@@ -2168,7 +2168,7 @@ function ScriptModal({
                                 onClose();
                                 onOpenFull?.();
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm font-medium hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30 transition-all"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
                         >
                             <Settings2 className="w-4 h-4" />
                             Ouvrir la mission
@@ -2237,7 +2237,7 @@ function EngagementSection({
                         <p className="text-sm text-slate-600">Aucun engagement pour ce client.</p>
                         <button
                             onClick={() => setModal("create")}
-                            className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors"
+                            className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors"
                         >
                             <Plus className="w-4 h-4" /> Créer un engagement
                         </button>
@@ -2434,7 +2434,7 @@ function EngagementModal({
                         <select
                             value={offreTarifId}
                             onChange={(e) => setOffreTarifId(e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-300"
                         >
                             <option value="">Sélectionner une offre…</option>
                             {offres.map((o) => (
@@ -2456,7 +2456,7 @@ function EngagementModal({
                         <select
                             value={String(dureeMois)}
                             onChange={(e) => setDureeMois(Number(e.target.value))}
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-300"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-300"
                         >
                             {durationOptions.map((m) => (
                                 <option key={m} value={m}>

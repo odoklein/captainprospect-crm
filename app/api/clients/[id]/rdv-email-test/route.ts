@@ -12,6 +12,7 @@ import {
   buildRdvEmailFromCustomTemplate,
   buildRdvNotificationEmail,
 } from "@/lib/email/templates/rdv-notification";
+import { brand } from "@/lib/brand";
 
 const schema = z
   .object({
@@ -129,9 +130,7 @@ export const POST = withErrorHandler(
       meetingChannel: "CALL" as const,
       meetingJoinUrl: "https://meet.google.com/abc-defg-hij",
       appUrl:
-        process.env.NEXT_PUBLIC_APP_URL ||
-        process.env.NEXTAUTH_URL ||
-        "https://app.captainprospect.fr",
+        brand.appUrl,
       portalPath,
     };
 

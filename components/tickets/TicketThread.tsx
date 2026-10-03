@@ -108,7 +108,7 @@ function TicketMarkdown({ content, className, isMine }: { content: string; class
                     ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
                     li: ({ children }) => <li className="leading-relaxed">{children}</li>,
                     a: ({ href, children }) => (
-                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 underline">
+                        <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-800 underline">
                             {children}
                         </a>
                     ),
@@ -128,7 +128,7 @@ function TicketMarkdown({ content, className, isMine }: { content: string; class
                         );
                     },
                     blockquote: ({ children }) => (
-                        <blockquote className="border-l-2 border-indigo-400 pl-3 italic text-slate-600 my-2">
+                        <blockquote className="border-l-2 border-primary-400 pl-3 italic text-slate-600 my-2">
                             {children}
                         </blockquote>
                     ),
@@ -232,10 +232,10 @@ export function TicketThread({ ticket, currentUserId, canComment, onRefresh }: T
                             <button
                                 type="button"
                                 onClick={handleCopyBranch}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/70 rounded-md transition-colors"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/70 rounded-md transition-colors"
                                 title="Copier la commande git checkout -b ..."
                             >
-                                {copiedBranch ? <Check className="w-3 h-3 text-emerald-600" /> : <GitBranch className="w-3 h-3 text-indigo-500" />}
+                                {copiedBranch ? <Check className="w-3 h-3 text-emerald-600" /> : <GitBranch className="w-3 h-3 text-primary-500" />}
                                 <span>Branche Git</span>
                             </button>
                         </div>
@@ -301,7 +301,7 @@ export function TicketThread({ ticket, currentUserId, canComment, onRefresh }: T
                             }}
                             rows={2}
                             placeholder="Ajouter un commentaire… (Ctrl+Entrée pour envoyer)"
-                            className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 resize-none focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 resize-none focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         />
                         <Button onClick={handleSend} isLoading={isSending} disabled={!message.trim()} className="!p-3">
                             <Send className="w-4 h-4" />
@@ -319,7 +319,7 @@ function CommentBubble({ comment, isMine }: { comment: TicketComment; isMine: bo
             <div
                 className={cn(
                     "w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-[11px] font-semibold",
-                    isMine ? "bg-indigo-100 text-indigo-700" : "bg-slate-200 text-slate-600",
+                    isMine ? "bg-primary-100 text-primary-700" : "bg-slate-200 text-slate-600",
                 )}
             >
                 {initials(comment.user.name)}
@@ -329,7 +329,7 @@ function CommentBubble({ comment, isMine }: { comment: TicketComment; isMine: bo
                     className={cn(
                         "inline-block px-4 py-2.5 rounded-2xl text-sm text-left shadow-2xs",
                         isMine
-                            ? "bg-indigo-50 text-slate-800 border border-indigo-100"
+                            ? "bg-primary-50 text-slate-800 border border-primary-100"
                             : "bg-white text-slate-700 border border-slate-200",
                     )}
                 >

@@ -156,7 +156,7 @@ export function EditMissionDialog({ isOpen, onClose, mission, onSaved }: EditMis
                         value={formData.name}
                         onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                         placeholder="Ex: Prospection SaaS Q1 2026"
-                        className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 ${errors.name ? "border-red-500" : "border-slate-200"}`}
+                        className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 ${errors.name ? "border-red-500" : "border-slate-200"}`}
                     />
                     {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name}</p>}
                 </div>
@@ -168,7 +168,7 @@ export function EditMissionDialog({ isOpen, onClose, mission, onSaved }: EditMis
                         onChange={(e) => setFormData((prev) => ({ ...prev, objective: e.target.value }))}
                         placeholder="Ex: Générer 50 meetings qualifiés"
                         rows={3}
-                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none"
                     />
                 </div>
 
@@ -186,7 +186,7 @@ export function EditMissionDialog({ isOpen, onClose, mission, onSaved }: EditMis
                                 <label
                                     key={opt.value}
                                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                                        isSelected ? "border-indigo-500 bg-indigo-50" : "border-slate-200 bg-white hover:border-slate-300"
+                                        isSelected ? "border-primary-500 bg-primary-50" : "border-slate-200 bg-white hover:border-slate-300"
                                     }`}
                                 >
                                     <input
@@ -203,7 +203,7 @@ export function EditMissionDialog({ isOpen, onClose, mission, onSaved }: EditMis
                                                 channel: next[0],
                                             }));
                                         }}
-                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                     />
                                     <span className="text-sm font-medium text-slate-700">{opt.label}</span>
                                     </label>
@@ -232,7 +232,7 @@ export function EditMissionDialog({ isOpen, onClose, mission, onSaved }: EditMis
                             type="date"
                             value={formData.startDate}
                             onChange={(e) => setFormData((prev) => ({ ...prev, startDate: e.target.value }))}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
                     <div>
@@ -241,7 +241,7 @@ export function EditMissionDialog({ isOpen, onClose, mission, onSaved }: EditMis
                             type="date"
                             value={formData.endDate}
                             onChange={(e) => setFormData((prev) => ({ ...prev, endDate: e.target.value }))}
-                            className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 ${errors.endDate ? "border-red-500" : "border-slate-200"}`}
+                            className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 ${errors.endDate ? "border-red-500" : "border-slate-200"}`}
                         />
                         {errors.endDate && <p className="text-sm text-red-500 mt-1">{errors.endDate}</p>}
                         {formData.endDate &&

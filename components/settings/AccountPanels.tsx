@@ -27,6 +27,7 @@ import { ROLE_LABEL } from "./roles";
 import {
     DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SECONDARY_BUTTON, SaveBar, SettingRow, SettingsCard, Toggle,
 } from "./SettingsUI";
+import { brand } from "@/lib/brand";
 
 // ── Profile data ────────────────────────────────────────────────────────────
 
@@ -132,15 +133,15 @@ export function ProfileHero() {
                     onClick={picker.open}
                     aria-label={hasPhoto ? "Changer la photo de profil" : "Ajouter une photo de profil"}
                     className={cn(
-                        "group relative block rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B3524]",
-                        dragging && "ring-2 ring-emerald-300 ring-offset-2 ring-offset-[#0B3524]",
+                        "group relative block rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-inverse",
+                        dragging && "ring-2 ring-accent-300 ring-offset-2 ring-offset-inverse",
                     )}
                 >
                     <UserAvatar
                         name={profile.name}
                         src={avatar?.url}
-                        className="w-24 h-24 rounded-[22px] text-2xl shadow-[0_6px_18px_rgba(2,44,34,0.45)] ring-1 ring-emerald-700/70"
-                        fallbackClassName="bg-emerald-800 text-emerald-50"
+                        className="w-24 h-24 rounded-[22px] text-2xl shadow-[0_6px_18px_rgba(2,44,34,0.45)] ring-1 ring-inverse-line"
+                        fallbackClassName="bg-white/10 text-inverse-ink"
                     />
                     <span
                         aria-hidden
@@ -155,7 +156,7 @@ export function ProfileHero() {
                 </button>
                 <span
                     aria-hidden
-                    className="pointer-events-none absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-white text-emerald-900 border border-emerald-100 shadow-[0_2px_8px_rgba(2,44,34,0.35)] flex items-center justify-center"
+                    className="pointer-events-none absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-white text-primary border border-line shadow-[0_2px_8px_rgba(2,44,34,0.35)] flex items-center justify-center"
                 >
                     <Camera className="w-4 h-4" />
                 </span>
@@ -168,13 +169,13 @@ export function ProfileHero() {
                 </div>
                 <div className="min-w-0">
                     <h2 className="text-2xl sm:text-[28px] font-black tracking-tight leading-tight truncate">{profile.name}</h2>
-                    <p className="text-sm font-medium text-emerald-200/80 truncate">{profile.email}</p>
+                    <p className="text-sm font-medium text-inverse-ink-2 truncate">{profile.email}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                     <button
                         type="button"
                         onClick={picker.open}
-                        className="inline-flex items-center gap-2 h-9 px-3.5 rounded-xl bg-white text-emerald-950 text-xs font-black shadow-sm hover:bg-emerald-50 active:scale-[0.98] transition-[background-color,transform] outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B3524]"
+                        className="inline-flex items-center gap-2 h-9 px-3.5 rounded-xl bg-white text-primary text-xs font-black shadow-sm hover:bg-surface-2 active:scale-[0.98] transition-[background-color,transform] outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-inverse"
                     >
                         <Camera className="w-3.5 h-3.5" aria-hidden />
                         {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
@@ -184,13 +185,13 @@ export function ProfileHero() {
                             type="button"
                             onClick={removePhoto}
                             disabled={removing}
-                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-emerald-700/70 text-xs font-bold text-emerald-200 hover:text-white hover:bg-emerald-900/80 transition-colors disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-inverse-line text-xs font-bold text-inverse-ink-2 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
                         >
                             {removing ? <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" aria-hidden /> : <Trash2 className="w-3.5 h-3.5" aria-hidden />}
                             Retirer
                         </button>
                     )}
-                    <span className="text-[11px] font-semibold text-emerald-300/70 hidden sm:inline">PNG, JPEG, WebP ou GIF · glissez-déposez sur la photo</span>
+                    <span className="text-[11px] font-semibold text-inverse-ink-3 hidden sm:inline">PNG, JPEG, WebP ou GIF · glissez-déposez sur la photo</span>
                 </div>
             </div>
 
@@ -706,7 +707,7 @@ export function DesktopNotificationsCard() {
         bump((n) => n + 1); // some browsers don't fire the permission change event
     };
     const test = () => {
-        new Notification("Captain Prospect", { body: "Les notifications du bureau fonctionnent.", tag: "cp-notification-test" });
+        new Notification(brand.name, { body: "Les notifications du bureau fonctionnent.", tag: "cp-notification-test" });
     };
 
     const state: Record<Permission, { tone: AccueilTone; label: string; text: string }> = {

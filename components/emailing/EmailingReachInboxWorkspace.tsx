@@ -22,13 +22,14 @@ import {
     Reply,
     Send,
     ShieldCheck,
-    Sparkles,
+    Mail,
     TrendingUp,
     Users,
     XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
+import { brand } from "@/lib/brand";
 
 type EmailingVariant = "manager" | "client";
 
@@ -262,12 +263,11 @@ function HeaderShell({
     isRefreshing?: boolean;
 }) {
     return (
-        <div className="relative overflow-hidden rounded-[22px] border bg-[#0b1220] p-6 text-white shadow-xl shadow-slate-200/70">
-            <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_70%_30%,rgba(52,211,153,0.28),transparent_35%),radial-gradient(circle_at_40%_80%,rgba(59,130,246,0.24),transparent_38%)]" />
+        <div className="relative overflow-hidden rounded-[22px] border bg-inverse p-6 text-white shadow-sm">
             <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                 <div className="max-w-3xl">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[12px] font-semibold text-emerald-100">
-                        <Sparkles className="h-3.5 w-3.5" />
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[12px] font-semibold text-inverse-ink">
+                        <Mail className="h-3.5 w-3.5" />
                         Emailing ReachInbox
                     </div>
                     <h1 className="mt-4 text-[30px] font-semibold tracking-tight md:text-[36px]">
@@ -275,8 +275,8 @@ function HeaderShell({
                     </h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
                         {variant === "manager"
-                            ? "Lecture seule des campagnes ReachInbox. La seule action disponible est de lier une campagne a un client pour lui afficher ses stats dans le portail."
-                            : "Statistiques des campagnes emailing que votre manager a explicitement liees a votre espace client."}
+                            ? "Lecture seule des campagnes ReachInbox. La seule action disponible est de lier une campagne à un client pour lui afficher ses stats dans le portail."
+                            : "Statistiques des campagnes emailing que votre manager a explicitement liées à votre espace client."}
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -368,7 +368,7 @@ function ConnectReachInboxCard({ onConnected }: { onConnected: () => void }) {
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
                         Cette connexion sert uniquement a lire les statistiques des campagnes. Les campagnes restent gerees
-                        dans ReachInbox, pas dans Captain Prospect.
+                        dans ReachInbox, pas dans {brand.name}.
                     </p>
                     <div className="mt-5 grid gap-3 md:grid-cols-3">
                         {[

@@ -34,7 +34,7 @@ import {
   UserX,
   ShieldCheck,
   ScrollText,
-  Sparkles,
+  Milestone,
   LifeBuoy,
   Wallet,
   CalendarCheck,
@@ -44,6 +44,7 @@ import {
   Tag,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
+import { AiMark } from "@/components/ui/AiMark";
 
 // ============================================
 // NAVIGATION ITEM TYPES
@@ -120,7 +121,7 @@ export const MANAGER_NAV: NavSection[] = [
         children: [
           { href: "/manager/clients", icon: Building2, label: "Clients", permission: "pages.clients", description: "Fiches clients et leurs missions" },
           { href: "/manager/dashboard-projet", icon: UserCheck, label: "Dashboard projet", permission: "pages.clients", description: "Avancement de chaque projet client" },
-          { href: "/manager/assistant", icon: Sparkles, label: "Assistant projet", permission: "pages.clients", description: "Assistant IA sur les données d'un projet" },
+          { href: "/manager/assistant", icon: AiMark, label: "Assistant projet", permission: "pages.clients", description: "Assistant IA sur les données d'un projet" },
         ],
       },
       {
@@ -584,7 +585,7 @@ export const CLIENT_NAV: NavSection[] = [
     items: [
       {
         href: "/client/portal/evolutions",
-        icon: Sparkles,
+        icon: Milestone,
         label: "Évolutions",
         permission: "pages.client_roadmap",
       },

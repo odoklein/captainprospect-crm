@@ -595,12 +595,12 @@ export function CompanyDrawer({
                             <DrawerField
                                 label="Industrie"
                                 value={company!.industry}
-                                icon={<Briefcase className="w-5 h-5 text-indigo-500" />}
+                                icon={<Briefcase className="w-5 h-5 text-primary-500" />}
                             />
                             <DrawerField
                                 label="Pays"
                                 value={company!.country}
-                                icon={<MapPin className="w-5 h-5 text-indigo-500" />}
+                                icon={<MapPin className="w-5 h-5 text-primary-500" />}
                             />
                             <DrawerField
                                 label="Site web"
@@ -611,7 +611,7 @@ export function CompanyDrawer({
                                                 href={company!.website.startsWith("http") ? company!.website : `https://${company!.website}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-indigo-600 hover:underline truncate max-w-[200px]"
+                                                className="text-primary-600 hover:underline truncate max-w-[200px]"
                                             >
                                                 {company!.website}
                                             </a>
@@ -632,7 +632,7 @@ export function CompanyDrawer({
                                         </div>
                                     )
                                 }
-                                icon={<Globe className="w-5 h-5 text-indigo-500" />}
+                                icon={<Globe className="w-5 h-5 text-primary-500" />}
                             />
                             <DrawerField
                                 label="Téléphone"
@@ -643,7 +643,7 @@ export function CompanyDrawer({
                                                 <div key={phone} className="flex items-center gap-2">
                                                     <a
                                                         href={`tel:${phone}`}
-                                                        className="text-indigo-600 hover:underline font-medium"
+                                                        className="text-primary-600 hover:underline font-medium"
                                                     >
                                                         {phone}
                                                     </a>
@@ -678,7 +678,7 @@ export function CompanyDrawer({
                             <DrawerField
                                 label="Taille"
                                 value={company!.size}
-                                icon={<Users className="w-5 h-5 text-indigo-500" />}
+                                icon={<Users className="w-5 h-5 text-primary-500" />}
                             />
                         </div>
                     ) : null}
@@ -689,7 +689,7 @@ export function CompanyDrawer({
                     <div className="-mt-2">
                         <a
                             href={`tel:${primaryCompanyPhone}`}
-                            className="flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white rounded-xl font-semibold text-base shadow-lg shadow-emerald-500/25 transition-all hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-[1.02]"
+                            className="flex items-center justify-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-semibold text-base shadow-sm transition-colors"
                         >
                             <Phone className="w-5 h-5" />
                             Appeler {company.name}
@@ -728,7 +728,7 @@ export function CompanyDrawer({
                                         <button
                                             key={contact.id}
                                             onClick={() => onContactClick?.(contact)}
-                                            className="w-full text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:shadow-sm transition-all group"
+                                            className="w-full text-left p-4 bg-white border border-slate-200 rounded-xl hover:border-primary-300 hover:shadow-sm transition-all group"
                                         >
                                             <div className="flex items-start gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center flex-shrink-0">
@@ -736,7 +736,7 @@ export function CompanyDrawer({
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
-                                                        <p className="font-medium text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                                        <p className="font-medium text-slate-900 group-hover:text-primary-600 transition-colors">
                                                             {contact.firstName || ""} {contact.lastName || ""}
                                                             {!contact.firstName && !contact.lastName && (
                                                                 <span className="text-slate-400 italic">Sans nom</span>
@@ -811,9 +811,9 @@ export function CompanyDrawer({
                                 />
                                 {/* Envoie mail: ouvrir l'envoi par template */}
                                 {newActionResult === "ENVOIE_MAIL" && (
-                                    <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-3">
+                                    <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-3">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <Mail className="w-5 h-5 text-indigo-600" />
+                                            <Mail className="w-5 h-5 text-primary-600" />
                                             <span className="text-sm font-medium text-slate-900">Envoyer un email avec template</span>
                                         </div>
                                         <p className="text-xs text-slate-600 mb-3">
@@ -859,7 +859,7 @@ export function CompanyDrawer({
                                                 placeholder="Ajouter une note (requise pour Intéressé / Rappel demandé)..."
                                                 rows={3}
                                                 maxLength={500}
-                                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                                             />
                                             <p className="text-xs text-slate-400 mt-1 text-right">{newActionNote.length}/500</p>
                                         </div>
@@ -941,7 +941,7 @@ export function CompanyDrawer({
                                 <p className="text-xs text-slate-500">{a.campaign.name}</p>
                             )}
                             {a.sdr?.name && (
-                                <span className="text-xs text-indigo-500 font-medium bg-indigo-50 px-1.5 py-0.5 rounded">
+                                <span className="text-xs text-primary-500 font-medium bg-primary-50 px-1.5 py-0.5 rounded">
                                     {a.sdr.name}
                                 </span>
                             )}

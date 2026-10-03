@@ -61,9 +61,9 @@ const SOURCE_TYPES = [
         name: "API",
         description: "Intégration API pour recevoir des leads programmatiquement",
         icon: Code,
-        color: "from-purple-500 to-purple-600",
-        bgColor: "bg-purple-50",
-        borderColor: "border-purple-200 hover:border-purple-400",
+        color: "from-accent-500 to-accent-600",
+        bgColor: "bg-accent-50",
+        borderColor: "border-accent-200 hover:border-accent-400",
     },
     {
         id: "PARTNER_FEED" as ProspectSourceType,
@@ -382,7 +382,7 @@ export function SourceSetupWizard({ isOpen, onClose, onSuccess }: SourceSetupWiz
                                                     <p className="text-sm text-slate-600 mt-1">{type.description}</p>
                                                 </div>
                                                 {isSelected && (
-                                                    <CheckCircle className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                                                    <CheckCircle className="w-5 h-5 text-primary-600 flex-shrink-0" />
                                                 )}
                                             </div>
                                         </button>
@@ -511,7 +511,7 @@ export function SourceSetupWizard({ isOpen, onClose, onSuccess }: SourceSetupWiz
                                     type="checkbox"
                                     checked={formData.autoActivate}
                                     onChange={(e) => updateField("autoActivate", e.target.checked)}
-                                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                    className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                 />
                                 <span className="text-sm text-slate-700">
                                     Activation automatique pour les prospects haute qualité
@@ -581,9 +581,9 @@ export function SourceSetupWizard({ isOpen, onClose, onSuccess }: SourceSetupWiz
                         )}
 
                         {testResult?.success && (
-                            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                                <h4 className="font-medium text-indigo-900 mb-2">Source prête !</h4>
-                                <p className="text-sm text-indigo-700">
+                            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
+                                <h4 className="font-medium text-primary-900 mb-2">Source prête</h4>
+                                <p className="text-sm text-primary-700">
                                     Votre source est configurée et fonctionne correctement. Les nouveaux leads seront automatiquement traités.
                                 </p>
                             </div>
@@ -613,7 +613,7 @@ export function SourceSetupWizard({ isOpen, onClose, onSuccess }: SourceSetupWiz
                                     className={cn(
                                         "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
                                         index <= currentStep
-                                            ? "bg-indigo-600 border-indigo-600 text-white"
+                                            ? "bg-primary-600 border-primary-600 text-white"
                                             : "bg-white border-slate-300 text-slate-400"
                                     )}
                                 >
@@ -629,7 +629,7 @@ export function SourceSetupWizard({ isOpen, onClose, onSuccess }: SourceSetupWiz
                                 <div
                                     className={cn(
                                         "h-0.5 flex-1 mx-2",
-                                        index < currentStep ? "bg-indigo-600" : "bg-slate-300"
+                                        index < currentStep ? "bg-primary-600" : "bg-slate-300"
                                     )}
                                 />
                             )}

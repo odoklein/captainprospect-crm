@@ -1,82 +1,386 @@
 @import "tailwindcss";
 
-/* ============================================
-   CAPTAIN PROSPECT CRM DESIGN SYSTEM (UNIFIED)
-   Tailwind CSS v4 Tokens & Unified Theme
-   ============================================ */
+/* ============================================================================
+   DESIGN SYSTEM — TOKENS
+   ----------------------------------------------------------------------------
+   Three layers, top to bottom:
+
+   1. BRAND RAMPS — injected by components/brand/BrandStyle from
+      brand/brand.config.ts (two seed colours → 50…950 ramps, see
+      lib/brand/color.ts):
+        --brand-primary-{50…950}  structure colour (sidebar, heroes, main actions)
+        --brand-accent-{50…950}   highlight colour (active nav, selection, AI)
+        --brand-neutral-{50…950}  greys tinted with the primary hue
+        --brand-primary / --brand-accent        the seeds themselves
+        --brand-primary-fg / --brand-accent-fg  readable text on the seeds
+      Never hard-code a brand hex in a component: a clone changes two seeds.
+
+   2. SEMANTIC ROLES — below in :root, namespaced --ds-* (older CSS in this
+      file and in CSS modules already owns --ink, --accent, --canvas…).
+      Components speak in roles (surface, ink, line, primary, accent,
+      success…), not in shades.
+
+   3. TAILWIND UTILITIES — @theme inline below:
+        bg-canvas bg-surface bg-surface-2 bg-surface-3 bg-inverse
+        text-ink text-ink-2 text-ink-3 text-ink-4 text-inverse-ink…
+        border-line border-line-subtle border-line-strong
+        bg-primary text-primary-fg bg-primary-50…950 (same for accent)
+        text-success bg-success-soft border-success-line (warning/danger/info)
+        font-display  rounded-card rounded-panel rounded-control
+        shadow-card shadow-raised shadow-overlay  ease-snappy  text-2xs
+      Every grey family (slate, gray, zinc, neutral) resolves to the brand
+      neutral ramp, and indigo / violet / purple resolve to the primary /
+      accent ramps, so older screens follow the brand without edits.
+      New code should use the role names (primary, accent, ink, line…).
+   ============================================================================ */
 
 :root {
-    /* Brand Colors (Unified Canonical Primary: #7C5CFC) */
-    --brand-primary: #7c5cfc;
-    --brand-primary-hover: #6b46f6;
-    --brand-primary-light: #a78bfa;
-    --brand-primary-dark: #5b36e8;
-    --brand-accent: #06b6d4;
-    --brand-success: #10b981;
-    --brand-warning: #f59e0b;
-    --brand-danger: #ef4444;
-    --brand-info: #3b82f6;
+    /* ── Surfaces ─────────────────────────────────────────────── */
+    --ds-canvas: color-mix(in oklab, var(--brand-neutral-100) 55%, var(--brand-neutral-50));
+    --ds-surface: #ffffff;
+    --ds-surface-2: var(--brand-neutral-50);        /* tiles, table heads, hover rows */
+    --ds-surface-3: var(--brand-neutral-100);       /* tracks, wells, segmented controls */
 
-    /* Neutral Palette (Light theme default) */
-    --neutral-50: #fafafa;
-    --neutral-100: #f4f4f5;
-    --neutral-200: #e4e4e7;
-    --neutral-300: #d4d4d8;
-    --neutral-400: #a1a1aa;
-    --neutral-500: #71717a;
-    --neutral-600: #52525b;
-    --neutral-700: #3f3f46;
-    --neutral-800: #27272a;
-    --neutral-900: #18181b;
-    --neutral-950: #09090b;
+    /* Brand-coloured surface (sidebar, hero cards) and what sits on it */
+    --ds-inverse: var(--brand-primary);
+    --ds-inverse-raised: color-mix(in oklab, var(--brand-primary-950) 55%, var(--brand-primary));
+    --ds-inverse-line: color-mix(in oklab, #ffffff 12%, transparent);
+    --ds-inverse-ink: var(--brand-primary-fg);
+    --ds-inverse-ink-2: color-mix(in oklab, var(--brand-primary-fg) 72%, var(--brand-primary));
+    --ds-inverse-ink-3: color-mix(in oklab, var(--brand-primary-fg) 50%, var(--brand-primary));
 
-    /* Background & Foreground (Fixed light-mode baseline) */
-    --background: #f8fafc;
-    --foreground: #0f172a;
-    --muted: #64748b;
-    --muted-foreground: #94a3b8;
+    /* ── Ink (text & icons) ──────────────────────────────────── */
+    --ds-ink: var(--brand-neutral-900);             /* titles, values */
+    --ds-ink-2: var(--brand-neutral-600);           /* body, labels */
+    --ds-ink-3: var(--brand-neutral-500);           /* secondary, meta (≥ 4.5:1 on white) */
+    --ds-ink-4: var(--brand-neutral-400);           /* placeholders, disabled */
 
-    /* Card & Surface */
-    --card: #ffffff;
-    --card-foreground: #0f172a;
-    --card-border: #e2e8f0;
+    /* ── Lines ───────────────────────────────────────────────── */
+    --ds-line-subtle: var(--brand-neutral-100);     /* dividers inside a card */
+    --ds-line: var(--brand-neutral-200);            /* card & field borders */
+    --ds-line-strong: var(--brand-neutral-300);     /* hover borders, separators that must read */
 
-    /* Status Colors */
-    --status-incomplete: #ef4444;
-    --status-partial: #f59e0b;
-    --status-actionable: #10b981;
+    /* ── Brand roles ─────────────────────────────────────────── */
+    --ds-primary: var(--brand-primary);             /* the page's main action, selected structure */
+    --ds-primary-hover: var(--brand-primary-800);
+    --ds-primary-active: var(--brand-primary-950);
+    --ds-primary-fg: var(--brand-primary-fg);
+    --ds-primary-soft: var(--brand-primary-50);
+    --ds-primary-soft-ink: var(--brand-primary-700);
+    --ds-link: var(--brand-primary-600);
 
-    /* Sidebar Canonical Tokens */
-    --sidebar-bg: #12122a;
-    --sidebar-border: #1e1e3a;
-    --sidebar-hover: #1a1a35;
-    --sidebar-muted: #8b8ba7;
-    --sidebar-active: #7c5cfc;
+    --ds-accent: var(--brand-accent);               /* active nav, selection, AI, focus */
+    --ds-accent-hover: var(--brand-accent-600);
+    --ds-accent-fg: var(--brand-accent-fg);
+    --ds-accent-soft: var(--brand-accent-50);
+    --ds-accent-soft-ink: var(--brand-accent-700);
 
-    /* Glassmorphism */
-    --glass-bg: rgba(255, 255, 255, 0.85);
-    --glass-border: rgba(226, 232, 240, 0.8);
+    --ds-focus: color-mix(in oklab, var(--brand-accent) 55%, transparent);
+
+    /* ── Status (meaning, not brand — same for every agency) ──── */
+    --ds-success: #059669;
+    --ds-success-soft: #ecfdf5;
+    --ds-success-line: #a7f3d0;
+    --ds-success-ink: #047857;       /* text on success-soft, ≥ 4.5:1 */
+    --ds-warning: #d97706;
+    --ds-warning-soft: #fffbeb;
+    --ds-warning-line: #fde68a;
+    --ds-warning-ink: #b45309;
+    --ds-danger: #dc2626;
+    --ds-danger-soft: #fef2f2;
+    --ds-danger-line: #fecaca;
+    --ds-danger-ink: #b91c1c;
+    --ds-info: #2563eb;
+    --ds-info-soft: #eff6ff;
+    --ds-info-line: #bfdbfe;
+    --ds-info-ink: #1d4ed8;
+
+    /* ── Elevation: shadows tinted with the brand ink, never pure black ── */
+    --ds-shadow-color: var(--brand-neutral-950);
+
+    /* ── Legacy aliases (older CSS below and a few components read these) ── */
+    --brand-primary-hover: var(--ds-primary-hover);
+    --brand-primary-light: var(--brand-primary-400);
+    --brand-primary-dark: var(--ds-primary-active);
+    --brand-success: var(--ds-success);
+    --brand-warning: var(--ds-warning);
+    --brand-danger: var(--ds-danger);
+    --brand-info: var(--ds-info);
+    --neutral-50: var(--brand-neutral-50);
+    --neutral-100: var(--brand-neutral-100);
+    --neutral-200: var(--brand-neutral-200);
+    --neutral-300: var(--brand-neutral-300);
+    --neutral-400: var(--brand-neutral-400);
+    --neutral-500: var(--brand-neutral-500);
+    --neutral-600: var(--brand-neutral-600);
+    --neutral-700: var(--brand-neutral-700);
+    --neutral-800: var(--brand-neutral-800);
+    --neutral-900: var(--brand-neutral-900);
+    --neutral-950: var(--brand-neutral-950);
+    --background: var(--ds-canvas);
+    --foreground: var(--ds-ink);
+    --muted: var(--ds-ink-3);
+    --muted-foreground: var(--ds-ink-4);
+    --card: var(--ds-surface);
+    --card-foreground: var(--ds-ink);
+    --card-border: var(--ds-line);
+    --status-incomplete: var(--ds-danger);
+    --status-partial: var(--ds-warning);
+    --status-actionable: var(--ds-success);
+    --sidebar-bg: var(--ds-inverse);
+    --sidebar-border: var(--ds-inverse-line);
+    --sidebar-hover: color-mix(in oklab, #ffffff 7%, transparent);
+    --sidebar-muted: var(--ds-inverse-ink-3);
+    --sidebar-active: var(--ds-accent);
+    --glass-bg: var(--ds-surface);
+    --glass-border: var(--ds-line);
+
+    /* Old font variable names → the brand fonts (brand/fonts.ts) */
+    --font-geist-sans: var(--font-body-face);
+    --font-geist-mono: var(--font-code-face);
+    --font-dm-sans: var(--font-body-face);
+    --font-dm-mono: var(--font-code-face);
 }
 
 @theme inline {
-    --color-background: var(--background);
-    --color-foreground: var(--foreground);
-    --color-brand-primary: var(--brand-primary);
-    --color-brand-primary-hover: var(--brand-primary-hover);
-    --color-brand-primary-light: var(--brand-primary-light);
-    --color-brand-primary-dark: var(--brand-primary-dark);
-    --color-brand-accent: var(--brand-accent);
-    --color-brand-success: var(--brand-success);
-    --color-brand-warning: var(--brand-warning);
-    --color-brand-danger: var(--brand-danger);
-    --color-brand-info: var(--brand-info);
+    /* Typography */
+    --font-sans: var(--font-body-face), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-display: var(--font-display-face), var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+    --font-mono: var(--font-code-face), ui-monospace, "SFMono-Regular", Menlo, monospace;
+    --text-3xs: 0.625rem;
+    --text-3xs--line-height: 0.875rem;
+    --text-2xs: 0.6875rem;
+    --text-2xs--line-height: 1rem;
+
+    /* Roles */
+    --color-canvas: var(--ds-canvas);
+    --color-surface: var(--ds-surface);
+    --color-surface-2: var(--ds-surface-2);
+    --color-surface-3: var(--ds-surface-3);
+    --color-inverse: var(--ds-inverse);
+    --color-inverse-raised: var(--ds-inverse-raised);
+    --color-inverse-line: var(--ds-inverse-line);
+    --color-inverse-ink: var(--ds-inverse-ink);
+    --color-inverse-ink-2: var(--ds-inverse-ink-2);
+    --color-inverse-ink-3: var(--ds-inverse-ink-3);
+    --color-ink: var(--ds-ink);
+    --color-ink-2: var(--ds-ink-2);
+    --color-ink-3: var(--ds-ink-3);
+    --color-ink-4: var(--ds-ink-4);
+    --color-line: var(--ds-line);
+    --color-line-subtle: var(--ds-line-subtle);
+    --color-line-strong: var(--ds-line-strong);
+    --color-focus: var(--ds-focus);
+    --color-link: var(--ds-link);
+
+    --color-primary: var(--ds-primary);
+    --color-primary-hover: var(--ds-primary-hover);
+    --color-primary-active: var(--ds-primary-active);
+    --color-primary-fg: var(--ds-primary-fg);
+    --color-primary-soft: var(--ds-primary-soft);
+    --color-primary-soft-ink: var(--ds-primary-soft-ink);
+    --color-primary-50: var(--brand-primary-50);
+    --color-primary-100: var(--brand-primary-100);
+    --color-primary-200: var(--brand-primary-200);
+    --color-primary-300: var(--brand-primary-300);
+    --color-primary-400: var(--brand-primary-400);
+    --color-primary-500: var(--brand-primary-500);
+    --color-primary-600: var(--brand-primary-600);
+    --color-primary-700: var(--brand-primary-700);
+    --color-primary-800: var(--brand-primary-800);
+    --color-primary-900: var(--brand-primary-900);
+    --color-primary-950: var(--brand-primary-950);
+    --color-accent: var(--ds-accent);
+    --color-accent-hover: var(--ds-accent-hover);
+    --color-accent-fg: var(--ds-accent-fg);
+    --color-accent-soft: var(--ds-accent-soft);
+    --color-accent-soft-ink: var(--ds-accent-soft-ink);
+    --color-accent-50: var(--brand-accent-50);
+    --color-accent-100: var(--brand-accent-100);
+    --color-accent-200: var(--brand-accent-200);
+    --color-accent-300: var(--brand-accent-300);
+    --color-accent-400: var(--brand-accent-400);
+    --color-accent-500: var(--brand-accent-500);
+    --color-accent-600: var(--brand-accent-600);
+    --color-accent-700: var(--brand-accent-700);
+    --color-accent-800: var(--brand-accent-800);
+    --color-accent-900: var(--brand-accent-900);
+    --color-accent-950: var(--brand-accent-950);
+    --color-success: var(--ds-success);
+    --color-success-soft: var(--ds-success-soft);
+    --color-success-line: var(--ds-success-line);
+    --color-success-ink: var(--ds-success-ink);
+    --color-warning: var(--ds-warning);
+    --color-warning-soft: var(--ds-warning-soft);
+    --color-warning-line: var(--ds-warning-line);
+    --color-warning-ink: var(--ds-warning-ink);
+    --color-danger: var(--ds-danger);
+    --color-danger-soft: var(--ds-danger-soft);
+    --color-danger-line: var(--ds-danger-line);
+    --color-danger-ink: var(--ds-danger-ink);
+    --color-info: var(--ds-info);
+    --color-info-soft: var(--ds-info-soft);
+    --color-info-line: var(--ds-info-line);
+    --color-info-ink: var(--ds-info-ink);
+
+    /* Legacy utility names kept working (bg-brand-primary, bg-sidebar-bg…) */
+    --color-background: var(--ds-canvas);
+    --color-foreground: var(--ds-ink);
+    --color-brand-primary: var(--ds-primary);
+    --color-brand-primary-hover: var(--ds-primary-hover);
+    --color-brand-primary-light: var(--brand-primary-400);
+    --color-brand-primary-dark: var(--ds-primary-active);
+    --color-brand-accent: var(--ds-accent);
+    --color-brand-success: var(--ds-success);
+    --color-brand-warning: var(--ds-warning);
+    --color-brand-danger: var(--ds-danger);
+    --color-brand-info: var(--ds-info);
     --color-sidebar-bg: var(--sidebar-bg);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-hover: var(--sidebar-hover);
     --color-sidebar-muted: var(--sidebar-muted);
     --color-sidebar-active: var(--sidebar-active);
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+
+    /* Every grey family is the brand neutral */
+    --color-slate-50: var(--brand-neutral-50);
+    --color-slate-100: var(--brand-neutral-100);
+    --color-slate-200: var(--brand-neutral-200);
+    --color-slate-300: var(--brand-neutral-300);
+    --color-slate-400: var(--brand-neutral-400);
+    --color-slate-500: var(--brand-neutral-500);
+    --color-slate-600: var(--brand-neutral-600);
+    --color-slate-700: var(--brand-neutral-700);
+    --color-slate-800: var(--brand-neutral-800);
+    --color-slate-900: var(--brand-neutral-900);
+    --color-slate-950: var(--brand-neutral-950);
+    --color-gray-50: var(--brand-neutral-50);
+    --color-gray-100: var(--brand-neutral-100);
+    --color-gray-200: var(--brand-neutral-200);
+    --color-gray-300: var(--brand-neutral-300);
+    --color-gray-400: var(--brand-neutral-400);
+    --color-gray-500: var(--brand-neutral-500);
+    --color-gray-600: var(--brand-neutral-600);
+    --color-gray-700: var(--brand-neutral-700);
+    --color-gray-800: var(--brand-neutral-800);
+    --color-gray-900: var(--brand-neutral-900);
+    --color-gray-950: var(--brand-neutral-950);
+    --color-zinc-50: var(--brand-neutral-50);
+    --color-zinc-100: var(--brand-neutral-100);
+    --color-zinc-200: var(--brand-neutral-200);
+    --color-zinc-300: var(--brand-neutral-300);
+    --color-zinc-400: var(--brand-neutral-400);
+    --color-zinc-500: var(--brand-neutral-500);
+    --color-zinc-600: var(--brand-neutral-600);
+    --color-zinc-700: var(--brand-neutral-700);
+    --color-zinc-800: var(--brand-neutral-800);
+    --color-zinc-900: var(--brand-neutral-900);
+    --color-zinc-950: var(--brand-neutral-950);
+    --color-neutral-50: var(--brand-neutral-50);
+    --color-neutral-100: var(--brand-neutral-100);
+    --color-neutral-200: var(--brand-neutral-200);
+    --color-neutral-300: var(--brand-neutral-300);
+    --color-neutral-400: var(--brand-neutral-400);
+    --color-neutral-500: var(--brand-neutral-500);
+    --color-neutral-600: var(--brand-neutral-600);
+    --color-neutral-700: var(--brand-neutral-700);
+    --color-neutral-800: var(--brand-neutral-800);
+    --color-neutral-900: var(--brand-neutral-900);
+    --color-neutral-950: var(--brand-neutral-950);
+    /* indigo → primary, violet/purple → accent (older screens used them as "brand") */
+    --color-indigo-50: var(--brand-primary-50);
+    --color-indigo-100: var(--brand-primary-100);
+    --color-indigo-200: var(--brand-primary-200);
+    --color-indigo-300: var(--brand-primary-300);
+    --color-indigo-400: var(--brand-primary-400);
+    --color-indigo-500: var(--brand-primary-500);
+    --color-indigo-600: var(--brand-primary-600);
+    --color-indigo-700: var(--brand-primary-700);
+    --color-indigo-800: var(--brand-primary-800);
+    --color-indigo-900: var(--brand-primary-900);
+    --color-indigo-950: var(--brand-primary-950);
+    --color-violet-50: var(--brand-accent-50);
+    --color-violet-100: var(--brand-accent-100);
+    --color-violet-200: var(--brand-accent-200);
+    --color-violet-300: var(--brand-accent-300);
+    --color-violet-400: var(--brand-accent-400);
+    --color-violet-500: var(--brand-accent-500);
+    --color-violet-600: var(--brand-accent-600);
+    --color-violet-700: var(--brand-accent-700);
+    --color-violet-800: var(--brand-accent-800);
+    --color-violet-900: var(--brand-accent-900);
+    --color-violet-950: var(--brand-accent-950);
+    --color-purple-50: var(--brand-accent-50);
+    --color-purple-100: var(--brand-accent-100);
+    --color-purple-200: var(--brand-accent-200);
+    --color-purple-300: var(--brand-accent-300);
+    --color-purple-400: var(--brand-accent-400);
+    --color-purple-500: var(--brand-accent-500);
+    --color-purple-600: var(--brand-accent-600);
+    --color-purple-700: var(--brand-accent-700);
+    --color-purple-800: var(--brand-accent-800);
+    --color-purple-900: var(--brand-accent-900);
+    --color-purple-950: var(--brand-accent-950);
+
+    /* Shape — concentric: a child inset by p inside radius R gets R − p */
+    --radius-card: 1.5rem;      /* page cards, hero */
+    --radius-panel: 1rem;       /* tiles inside cards, popovers, menus */
+    --radius-control: 0.75rem;  /* buttons, inputs, selects */
+    --radius-chip: 9999px;
+
+    /* Elevation — soft, layered, brand-tinted */
+    --shadow-2xs: 0 1px 0 color-mix(in oklab, var(--ds-shadow-color) 4%, transparent);
+    --shadow-xs: 0 1px 2px color-mix(in oklab, var(--ds-shadow-color) 6%, transparent);
+    --shadow-sm: 0 1px 2px color-mix(in oklab, var(--ds-shadow-color) 6%, transparent), 0 1px 3px color-mix(in oklab, var(--ds-shadow-color) 6%, transparent);
+    --shadow-md: 0 2px 4px -1px color-mix(in oklab, var(--ds-shadow-color) 6%, transparent), 0 4px 10px -2px color-mix(in oklab, var(--ds-shadow-color) 8%, transparent);
+    --shadow-lg: 0 4px 8px -2px color-mix(in oklab, var(--ds-shadow-color) 6%, transparent), 0 12px 24px -6px color-mix(in oklab, var(--ds-shadow-color) 10%, transparent);
+    --shadow-xl: 0 8px 16px -4px color-mix(in oklab, var(--ds-shadow-color) 7%, transparent), 0 20px 40px -8px color-mix(in oklab, var(--ds-shadow-color) 12%, transparent);
+    --shadow-2xl: 0 24px 56px -12px color-mix(in oklab, var(--ds-shadow-color) 22%, transparent);
+    --shadow-card: 0 1px 2px color-mix(in oklab, var(--ds-shadow-color) 4%, transparent), 0 2px 8px color-mix(in oklab, var(--ds-shadow-color) 3%, transparent);
+    --shadow-raised: 0 2px 4px color-mix(in oklab, var(--ds-shadow-color) 4%, transparent), 0 8px 24px -6px color-mix(in oklab, var(--ds-shadow-color) 10%, transparent);
+    --shadow-overlay: 0 0 0 1px color-mix(in oklab, var(--ds-shadow-color) 6%, transparent), 0 16px 48px -12px color-mix(in oklab, var(--ds-shadow-color) 28%, transparent);
+    --shadow-primary: 0 1px 2px color-mix(in oklab, var(--brand-primary) 30%, transparent), 0 4px 12px -2px color-mix(in oklab, var(--brand-primary) 30%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.1);
+
+    /* Motion */
+    --ease-snappy: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+    --animate-ds-enter: ds-enter 0.32s var(--ease-snappy) both;
+    --animate-ds-pop: ds-pop 0.18s var(--ease-snappy) both;
+    --animate-ds-slide-in: ds-slide-in 0.28s var(--ease-emphasized) both;
+    --animate-ds-shimmer: ds-shimmer 1.6s linear infinite;
+}
+
+@keyframes ds-enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes ds-pop {
+    from { opacity: 0; transform: scale(0.97) translateY(2px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes ds-slide-in {
+    from { opacity: 0; transform: translateX(16px); }
+    to { opacity: 1; transform: none; }
+}
+@keyframes ds-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+@layer base {
+    html {
+        scrollbar-color: var(--brand-neutral-300) transparent;
+    }
+    h1, h2 {
+        font-family: var(--font-display-face), var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+        font-optical-sizing: auto;
+    }
+    ::selection {
+        background: color-mix(in oklab, var(--brand-accent) 22%, transparent);
+    }
+    :focus-visible {
+        outline: 2px solid var(--ds-focus);
+        outline-offset: 2px;
+    }
 }
 
 @keyframes shake {
@@ -105,9 +409,9 @@ html {
 }
 
 body {
-    background: #f8fafc;
-    color: #0f172a;
-    font-family: var(--font-geist-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-body-face), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -127,12 +431,11 @@ body {
 
 .card:hover {
     border-color: var(--brand-primary);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
 }
 
 .card-glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
+    background: var(--card);
     border: 1px solid var(--glass-border);
     border-radius: 1rem;
     padding: 1.5rem;
@@ -154,14 +457,12 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-dark));
+    background: var(--brand-primary);
     color: white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, var(--brand-primary-light), var(--brand-primary));
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+    background: var(--brand-primary-hover);
 }
 
 .btn-secondary {
@@ -176,13 +477,12 @@ body {
 }
 
 .btn-success {
-    background: linear-gradient(135deg, var(--brand-success), #059669);
+    background: #059669;
     color: white;
 }
 
 .btn-success:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
+    background: #047857;
 }
 
 .btn-large {
@@ -206,7 +506,7 @@ body {
 .input:focus {
     outline: none;
     border-color: var(--brand-primary);
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-primary-500) 20%, transparent);
 }
 
 .input::placeholder {
@@ -218,12 +518,12 @@ body {
 input:not(.input),
 textarea:not(.input):not(.code),
 select:not(.input) {
-    color: #0f172a;
+    color: var(--brand-neutral-900);
 }
 
 input::placeholder,
 textarea::placeholder {
-    color: #64748b;
+    color: var(--brand-neutral-500);
 }
 
 /* ============================================
@@ -233,7 +533,7 @@ textarea::placeholder {
 
 /* Email body content: force readable text, override inline white/light from senders */
 .email-body {
-    color: #0f172a !important;
+    color: var(--brand-neutral-900) !important;
     font-size: 14px;
     line-height: 1.7;
     word-break: break-word;
@@ -250,7 +550,7 @@ textarea::placeholder {
 }
 
 .email-body a {
-    color: #6366f1 !important;
+    color: var(--brand-primary-500) !important;
     text-decoration: none;
 }
 
@@ -275,18 +575,18 @@ textarea::placeholder {
 .email-body pre {
     white-space: pre-wrap;
     word-break: break-word;
-    background: #f8fafc;
+    background: var(--brand-neutral-50);
     padding: 0.75rem 1rem;
     border-radius: 0.5rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     font-size: 13px;
 }
 
 .email-body blockquote {
-    border-left: 3px solid #c7d2fe;
+    border-left: 3px solid var(--brand-primary-200);
     padding-left: 1rem;
     margin-left: 0;
-    color: #64748b !important;
+    color: var(--brand-neutral-500) !important;
 }
 
 .email-body h1,
@@ -295,7 +595,7 @@ textarea::placeholder {
 .email-body h4,
 .email-body h5,
 .email-body h6 {
-    color: #0f172a !important;
+    color: var(--brand-neutral-900) !important;
     margin-top: 1em;
     margin-bottom: 0.5em;
     font-weight: 600;
@@ -303,7 +603,7 @@ textarea::placeholder {
 
 .email-body hr {
     border: none;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--brand-neutral-200);
     margin: 1rem 0;
 }
 
@@ -311,10 +611,10 @@ textarea::placeholder {
 .email-body .gmail_quote,
 .email-body .yahoo_quoted,
 .email-body blockquote[type="cite"] {
-    border-left: 3px solid #c7d2fe;
+    border-left: 3px solid var(--brand-primary-200);
     padding-left: 0.75rem;
     margin-top: 0.75rem;
-    color: #64748b !important;
+    color: var(--brand-neutral-500) !important;
     font-size: 13px;
 }
 
@@ -329,18 +629,18 @@ textarea::placeholder {
 }
 
 .email-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--brand-neutral-300);
     border-radius: 3px;
 }
 
 .email-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--brand-neutral-400);
 }
 
 /* Firefox thin scrollbar */
 .email-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
+    scrollbar-color: var(--brand-neutral-300) transparent;
 }
 
 /* Email thread list item hover effect */
@@ -351,7 +651,7 @@ textarea::placeholder {
 /* Email composer rich text editor placeholder */
 [contenteditable]:empty:before {
     content: attr(data-placeholder);
-    color: #94a3b8;
+    color: var(--brand-neutral-400);
     pointer-events: none;
     display: block;
 }
@@ -464,9 +764,9 @@ textarea::placeholder {
 
 .skeleton-shimmer {
     background: linear-gradient(90deg,
-            #f1f5f9 25%,
-            #e2e8f0 50%,
-            #f1f5f9 75%);
+            var(--brand-neutral-100) 25%,
+            var(--brand-neutral-200) 50%,
+            var(--brand-neutral-100) 75%);
     background-size: 200% 100%;
     animation: skeletonShimmer 1.5s ease-in-out infinite;
 }
@@ -498,7 +798,7 @@ textarea::placeholder {
 }
 
 .badge-primary {
-    background: rgba(99, 102, 241, 0.15);
+    background: color-mix(in oklab, var(--brand-primary-500) 15%, transparent);
     color: var(--brand-primary-light);
 }
 
@@ -541,7 +841,7 @@ textarea::placeholder {
 
 .radio-option.selected {
     border-color: var(--brand-primary);
-    background: rgba(99, 102, 241, 0.1);
+    background: color-mix(in oklab, var(--brand-primary-500) 10%, transparent);
 }
 
 .radio-option input {
@@ -778,28 +1078,28 @@ textarea::placeholder {
 
 :root {
     /* Mature Blue Palette */
-    --dev-blue-50: #eff6ff;
-    --dev-blue-100: #dbeafe;
-    --dev-blue-200: #bfdbfe;
-    --dev-blue-300: #93c5fd;
-    --dev-blue-400: #60a5fa;
-    --dev-blue-500: #3b82f6;
-    --dev-blue-600: #2563eb;
-    --dev-blue-700: #1d4ed8;
-    --dev-blue-800: #1e40af;
-    --dev-blue-900: #1e3a8a;
+    --dev-blue-50: var(--brand-primary-50);
+    --dev-blue-100: var(--brand-primary-100);
+    --dev-blue-200: var(--brand-primary-200);
+    --dev-blue-300: var(--brand-primary-300);
+    --dev-blue-400: var(--brand-primary-400);
+    --dev-blue-500: var(--brand-primary-500);
+    --dev-blue-600: var(--brand-primary-600);
+    --dev-blue-700: var(--brand-primary-700);
+    --dev-blue-800: var(--brand-primary-800);
+    --dev-blue-900: var(--brand-primary-900);
 
     /* Slate neutrals for professional look */
-    --dev-slate-50: #f8fafc;
-    --dev-slate-100: #f1f5f9;
-    --dev-slate-200: #e2e8f0;
-    --dev-slate-300: #cbd5e1;
-    --dev-slate-400: #94a3b8;
-    --dev-slate-500: #64748b;
-    --dev-slate-600: #475569;
-    --dev-slate-700: #334155;
-    --dev-slate-800: #1e293b;
-    --dev-slate-900: #0f172a;
+    --dev-slate-50: var(--brand-neutral-50);
+    --dev-slate-100: var(--brand-neutral-100);
+    --dev-slate-200: var(--brand-neutral-200);
+    --dev-slate-300: var(--brand-neutral-300);
+    --dev-slate-400: var(--brand-neutral-400);
+    --dev-slate-500: var(--brand-neutral-500);
+    --dev-slate-600: var(--brand-neutral-600);
+    --dev-slate-700: var(--brand-neutral-700);
+    --dev-slate-800: var(--brand-neutral-800);
+    --dev-slate-900: var(--brand-neutral-900);
 
     /* Developer glassmorphism */
     --dev-glass-bg: rgba(255, 255, 255, 0.85);
@@ -818,7 +1118,7 @@ textarea::placeholder {
 }
 
 .dev-nav-item.active {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%);
+    background: rgba(59, 130, 246, 0.12);
     color: var(--dev-blue-400);
 }
 
@@ -830,7 +1130,7 @@ textarea::placeholder {
     transform: translateY(-50%);
     width: 3px;
     height: 60%;
-    background: linear-gradient(180deg, var(--dev-blue-400), var(--dev-blue-600));
+    background: var(--dev-blue-500);
     border-radius: 0 2px 2px 0;
 }
 
@@ -852,14 +1152,13 @@ textarea::placeholder {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, var(--dev-blue-500), var(--dev-blue-600));
+    background: var(--dev-blue-600);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .dev-stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(30, 64, 175, 0.12);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
     border-color: var(--dev-blue-200);
 }
 
@@ -868,13 +1167,13 @@ textarea::placeholder {
 }
 
 .dev-stat-card-blue {
-    background: linear-gradient(135deg, var(--dev-blue-500) 0%, var(--dev-blue-600) 100%);
+    background: var(--dev-blue-600);
     border: none;
     color: white;
 }
 
 .dev-stat-card-blue:hover {
-    box-shadow: 0 12px 40px rgba(37, 99, 235, 0.35);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 8%, transparent);
 }
 
 .dev-stat-icon {
@@ -884,13 +1183,8 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--dev-blue-50) 0%, var(--dev-blue-100) 100%);
+    background: var(--dev-blue-50);
     color: var(--dev-blue-600);
-    transition: transform 0.3s ease;
-}
-
-.dev-stat-card:hover .dev-stat-icon {
-    transform: scale(1.1);
 }
 
 /* Premium Project Cards */
@@ -904,29 +1198,8 @@ textarea::placeholder {
 }
 
 .dev-project-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 20px 50px rgba(30, 64, 175, 0.15);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
     border-color: var(--dev-blue-300);
-}
-
-.dev-project-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 1rem;
-    padding: 1px;
-    background: linear-gradient(135deg, transparent 50%, var(--dev-blue-400) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-}
-
-.dev-project-card:hover::after {
-    opacity: 1;
 }
 
 /* Premium Search Input */
@@ -942,7 +1215,7 @@ textarea::placeholder {
 .dev-search-input:focus {
     outline: none;
     border-color: var(--dev-blue-400);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1), 0 4px 12px rgba(59, 130, 246, 0.08);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 }
 
 /* Kanban Board Styles */
@@ -995,14 +1268,14 @@ textarea::placeholder {
 }
 
 .dev-task-card:hover {
-    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.1);
+    box-shadow: 0 2px 8px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
     border-color: var(--dev-blue-200);
 }
 
 .dev-task-card.dragging {
     opacity: 0.8;
     transform: rotate(3deg) scale(1.02);
-    box-shadow: 0 16px 40px rgba(30, 64, 175, 0.2);
+    box-shadow: 0 12px 32px color-mix(in oklab, var(--brand-neutral-900) 16%, transparent);
 }
 
 /* Priority Badges */
@@ -1039,16 +1312,15 @@ textarea::placeholder {
 
 /* Glassmorphism Modal */
 .dev-modal-overlay {
-    background: rgba(15, 23, 42, 0.6);
+    background: color-mix(in oklab, var(--brand-neutral-900) 60%, transparent);
     backdrop-filter: blur(4px);
 }
 
 .dev-modal {
-    background: var(--dev-glass-bg);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--dev-glass-border);
+    background: white;
+    border: 1px solid var(--dev-slate-200);
     border-radius: 1.25rem;
-    box-shadow: var(--dev-glass-shadow), 0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+    box-shadow: 0 20px 50px color-mix(in oklab, var(--brand-neutral-900) 15%, transparent);
     animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1066,23 +1338,18 @@ textarea::placeholder {
 
 /* Premium Buttons */
 .dev-btn-primary {
-    background: linear-gradient(135deg, var(--dev-blue-500) 0%, var(--dev-blue-600) 100%);
+    background: var(--dev-blue-600);
     color: white;
     border: none;
     border-radius: 0.625rem;
     padding: 0.625rem 1.25rem;
     font-weight: 500;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--brand-neutral-900) 8%, transparent);
 }
 
 .dev-btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
-}
-
-.dev-btn-primary:active {
-    transform: translateY(0);
+    background: var(--dev-blue-700);
 }
 
 /* Integration Cards */
@@ -1096,17 +1363,15 @@ textarea::placeholder {
 
 .dev-integration-card:hover {
     border-color: var(--dev-blue-300);
-    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.08);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
 }
 
 .dev-integration-gmail:hover {
     border-color: #ea4335;
-    box-shadow: 0 8px 24px rgba(234, 67, 53, 0.15);
 }
 
 .dev-integration-outlook:hover {
     border-color: #0078d4;
-    box-shadow: 0 8px 24px rgba(0, 120, 212, 0.15);
 }
 
 /* Modern Toggle Switch */
@@ -1121,7 +1386,7 @@ textarea::placeholder {
 }
 
 .dev-toggle.active {
-    background: linear-gradient(135deg, var(--dev-blue-500) 0%, var(--dev-blue-600) 100%);
+    background: var(--dev-blue-600);
 }
 
 .dev-toggle::after {
@@ -1194,7 +1459,7 @@ textarea::placeholder {
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--dev-blue-100) 0%, var(--dev-blue-200) 100%);
+    background: var(--dev-blue-100);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1206,9 +1471,7 @@ textarea::placeholder {
     position: absolute;
     inset: -3px;
     border-radius: 50%;
-    border: 2px solid transparent;
-    background: linear-gradient(white, white) padding-box,
-        linear-gradient(135deg, var(--dev-blue-400), var(--dev-blue-600)) border-box;
+    border: 1px solid var(--dev-blue-200);
 }
 
 /* Animated Counter */
@@ -1281,16 +1544,16 @@ textarea::placeholder {
 
 :root {
     /* Manager Indigo Palette */
-    --mgr-indigo-50: #eef2ff;
-    --mgr-indigo-100: #e0e7ff;
-    --mgr-indigo-200: #c7d2fe;
-    --mgr-indigo-300: #a5b4fc;
-    --mgr-indigo-400: #818cf8;
-    --mgr-indigo-500: #6366f1;
-    --mgr-indigo-600: #4f46e5;
-    --mgr-indigo-700: #4338ca;
-    --mgr-indigo-800: #3730a3;
-    --mgr-indigo-900: #312e81;
+    --mgr-indigo-50: var(--brand-primary-50);
+    --mgr-indigo-100: var(--brand-primary-100);
+    --mgr-indigo-200: var(--brand-primary-200);
+    --mgr-indigo-300: var(--brand-primary-300);
+    --mgr-indigo-400: var(--brand-primary-400);
+    --mgr-indigo-500: var(--brand-primary-500);
+    --mgr-indigo-600: var(--brand-primary-600);
+    --mgr-indigo-700: var(--brand-primary-700);
+    --mgr-indigo-800: var(--brand-primary-800);
+    --mgr-indigo-900: var(--brand-primary-900);
 }
 
 /* Manager Stat Cards */
@@ -1311,14 +1574,13 @@ textarea::placeholder {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, var(--mgr-indigo-500), var(--mgr-indigo-600));
+    background: var(--mgr-indigo-600);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .mgr-stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
     border-color: var(--mgr-indigo-200);
 }
 
@@ -1337,8 +1599,7 @@ textarea::placeholder {
 }
 
 .mgr-mission-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 40px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
     border-color: var(--mgr-indigo-300);
 }
 
@@ -1352,46 +1613,24 @@ textarea::placeholder {
 }
 
 .mgr-client-card:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
     border-color: var(--mgr-indigo-300);
-}
-
-.mgr-client-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 1rem;
-    padding: 1px;
-    background: linear-gradient(135deg, transparent 50%, var(--mgr-indigo-400) 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    pointer-events: none;
-}
-
-.mgr-client-card:hover::after {
-    opacity: 1;
 }
 
 /* Manager Button Primary */
 .mgr-btn-primary {
-    background: linear-gradient(135deg, var(--mgr-indigo-500) 0%, var(--mgr-indigo-600) 100%);
+    background: var(--mgr-indigo-600);
     color: white;
     border: none;
     border-radius: 0.625rem;
     padding: 0.625rem 1.25rem;
     font-weight: 500;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--brand-neutral-900) 8%, transparent);
 }
 
 .mgr-btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+    background: var(--mgr-indigo-700);
 }
 
 /* Manager Search Input */
@@ -1407,7 +1646,7 @@ textarea::placeholder {
 .mgr-search-input:focus {
     outline: none;
     border-color: var(--mgr-indigo-400);
-    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1), 0 4px 12px rgba(99, 102, 241, 0.08);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand-primary-500) 10%, transparent);
 }
 
 /* Manager Chart Card */
@@ -1445,23 +1684,23 @@ textarea::placeholder {
 }
 
 .mgr-leaderboard-rank-1 {
-    background: linear-gradient(135deg, #fcd34d, #fbbf24);
+    background: #fcd34d;
     color: #92400e;
 }
 
 .mgr-leaderboard-rank-2 {
-    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
-    color: #475569;
+    background: var(--brand-neutral-200);
+    color: var(--brand-neutral-600);
 }
 
 .mgr-leaderboard-rank-3 {
-    background: linear-gradient(135deg, #fdba74, #fb923c);
+    background: #fdba74;
     color: #9a3412;
 }
 
 /* Manager Badge Styles */
 .mgr-badge-active {
-    background: linear-gradient(135deg, #10b981, #059669);
+    background: #059669;
     color: white;
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
@@ -1503,9 +1742,9 @@ textarea::placeholder {
 }
 
 .mgr-channel-linkedin {
-    background: #e0e7ff;
-    color: #4f46e5;
-    border-color: #a5b4fc;
+    background: var(--brand-primary-100);
+    color: var(--brand-primary-600);
+    border-color: var(--brand-primary-300);
 }
 
 /* Manager File Item */
@@ -1561,7 +1800,7 @@ textarea::placeholder {
 }
 
 /* ============================================
-   SUZALINK — PREMIUM SIDEBAR SYSTEM
+   PREMIUM SIDEBAR SYSTEM
    Linear / Notion quality navigation
    ============================================ */
 
@@ -1569,7 +1808,7 @@ textarea::placeholder {
 .cp-layout {
     height: 100vh;
     overflow: hidden;
-    background: #f8f9fb;
+    background: var(--ds-canvas);
 }
 
 .cp-main {
@@ -1611,7 +1850,7 @@ textarea::placeholder {
     min-height: 56px;
     height: 56px;
     background: #fff;
-    border-bottom: 1px solid #E8EBF0;
+    border-bottom: 1px solid var(--ds-line);
 }
 
 .cp-breadcrumb {
@@ -1622,16 +1861,16 @@ textarea::placeholder {
 }
 
 .cp-breadcrumb-root {
-    color: #8B8BA7;
+    color: var(--ds-inverse-ink-2);
     font-weight: 500;
 }
 
 .cp-breadcrumb-sep {
-    color: #C5C8D4;
+    color: var(--ds-line-strong);
 }
 
 .cp-breadcrumb-current {
-    color: #12122A;
+    color: var(--ds-ink);
     font-weight: 600;
 }
 
@@ -1643,8 +1882,8 @@ textarea::placeholder {
 .cp-spinner {
     width: 28px;
     height: 28px;
-    border: 2.5px solid #e2e8f0;
-    border-top-color: #6366f1;
+    border: 2.5px solid var(--ds-line);
+    border-top-color: var(--ds-accent);
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
 }
@@ -1658,7 +1897,7 @@ textarea::placeholder {
     z-index: 50;
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, #101026 0%, #0A0A18 100%);
+    background: var(--ds-inverse);
     border-right: 1px solid rgba(255, 255, 255, 0.07);
     will-change: width, transform;
     transition: width 160ms cubic-bezier(0.2, 0, 0, 1),
@@ -1748,12 +1987,7 @@ textarea::placeholder {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: linear-gradient(135deg, #7C5CFC 0%, #A78BFA 100%);
-    transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
-}
-
-.cp-brand:hover .cp-brand-mark {
-    transform: scale(1.05);
+    background: var(--ds-accent);
 }
 
 .cp-brand-name {
@@ -1767,7 +2001,7 @@ textarea::placeholder {
 }
 
 .cp-brand-name-accent {
-    color: #A78BFA;
+    color: var(--brand-accent-300);
 }
 
 .cp-collapse-btn {
@@ -1777,7 +2011,7 @@ textarea::placeholder {
     border-radius: 6px;
     align-items: center;
     justify-content: center;
-    color: #8B8BA7;
+    color: var(--ds-inverse-ink-2);
     background: transparent;
     border: none;
     cursor: pointer;
@@ -1797,7 +2031,7 @@ textarea::placeholder {
 .cp-mobile-close {
     display: none;
     padding: 6px;
-    color: #8B8BA7;
+    color: var(--ds-inverse-ink-2);
     background: none;
     border: none;
     cursor: pointer;
@@ -1837,14 +2071,13 @@ textarea::placeholder {
 
 .cp-search-trigger:hover {
     background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(124, 92, 252, 0.4);
-    box-shadow: 0 0 14px rgba(124, 92, 252, 0.14);
+    border-color: color-mix(in oklab, var(--brand-accent) 40%, transparent);
 }
 
 .cp-search-text {
     flex: 1;
     font-size: 12.5px;
-    color: #8B8BA7;
+    color: var(--ds-inverse-ink-2);
     text-align: left;
     white-space: nowrap;
 }
@@ -1856,7 +2089,7 @@ textarea::placeholder {
     padding: 2px 5px;
     font-size: 10px;
     font-weight: 600;
-    color: #94A3B8;
+    color: var(--ds-inverse-ink-3);
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 4px;
@@ -1874,7 +2107,7 @@ textarea::placeholder {
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.04);
-    color: #8B8BA7;
+    color: var(--ds-inverse-ink-2);
     cursor: pointer;
     transition: all 120ms cubic-bezier(0.2, 0, 0, 1);
     flex-shrink: 0;
@@ -1882,9 +2115,8 @@ textarea::placeholder {
 
 .cp-search-trigger-mini:hover {
     background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(124, 92, 252, 0.4);
+    border-color: color-mix(in oklab, var(--brand-accent) 40%, transparent);
     color: #fff;
-    box-shadow: 0 0 10px rgba(124, 92, 252, 0.15);
 }
 
 /* --- Navigation --- */
@@ -1920,7 +2152,7 @@ textarea::placeholder {
 
 .cp-section-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08) 20%, rgba(255, 255, 255, 0.08) 80%, transparent);
+    background: rgba(255, 255, 255, 0.07);
     margin: 10px 10px 4px;
 }
 
@@ -1928,7 +2160,7 @@ textarea::placeholder {
     padding: 12px 10px 4px;
     font-size: 10px;
     font-weight: 700;
-    color: #616187;
+    color: var(--ds-inverse-ink-3);
     letter-spacing: 0.09em;
     text-transform: uppercase;
     white-space: nowrap;
@@ -1946,12 +2178,12 @@ textarea::placeholder {
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: #4A4A6A;
+    background: var(--ds-inverse-ink-3);
 }
 
 /* Admin section — clean modern styling */
 .cp-nav-section-admin .cp-nav-item {
-    color: #79799A;
+    color: var(--ds-inverse-ink-3);
 }
 
 .cp-nav-section-admin .cp-nav-item:hover {
@@ -1975,7 +2207,7 @@ textarea::placeholder {
     border-radius: 8px;
     font-size: 13px;
     font-weight: 500;
-    color: #8E8EA8;
+    color: var(--ds-inverse-ink-2);
     text-decoration: none;
     cursor: pointer;
     transition: all 100ms cubic-bezier(0.2, 0, 0, 1);
@@ -1988,7 +2220,6 @@ textarea::placeholder {
 .cp-nav-item:hover {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.06);
-    transform: translateX(2px);
 }
 
 .cp-nav-item:active {
@@ -1997,16 +2228,16 @@ textarea::placeholder {
 
 .cp-nav-item-active {
     color: #ffffff;
-    background: linear-gradient(90deg, rgba(124, 92, 252, 0.18) 0%, rgba(124, 92, 252, 0.04) 100%);
+    background: color-mix(in oklab, var(--brand-accent) 14%, transparent);
     font-weight: 600;
 }
 
 .cp-nav-item-active:hover {
     color: #ffffff;
-    background: linear-gradient(90deg, rgba(124, 92, 252, 0.24) 0%, rgba(124, 92, 252, 0.07) 100%);
+    background: color-mix(in oklab, var(--brand-accent) 18%, transparent);
 }
 
-/* Active indicator bar with soft neon glow */
+/* Active indicator bar */
 .cp-nav-item-active::before {
     content: '';
     position: absolute;
@@ -2016,8 +2247,7 @@ textarea::placeholder {
     width: 3px;
     height: 18px;
     border-radius: 0 3px 3px 0;
-    background: #7C5CFC;
-    box-shadow: 0 0 10px rgba(124, 92, 252, 0.7);
+    background: var(--ds-accent);
 }
 
 /* --- Nav Icon --- */
@@ -2029,16 +2259,11 @@ textarea::placeholder {
     justify-content: center;
     flex-shrink: 0;
     color: inherit;
-    transition: transform 100ms ease, color 100ms ease;
+    transition: color 100ms ease;
 }
 
 .cp-nav-icon-active {
-    color: #A78BFA;
-    filter: drop-shadow(0 0 5px rgba(124, 92, 252, 0.45));
-}
-
-.cp-nav-item:hover .cp-nav-icon-wrap {
-    transform: scale(1.06);
+    color: var(--brand-accent-300);
 }
 
 /* --- Nav Label --- */
@@ -2071,12 +2296,11 @@ textarea::placeholder {
     font-size: 10px;
     font-weight: 700;
     border-radius: 9px;
-    background: #7c5cfc;
+    background: var(--ds-accent);
     color: #fff;
     flex-shrink: 0;
     letter-spacing: -0.01em;
     line-height: 1;
-    box-shadow: 0 0 8px rgba(124, 92, 252, 0.35);
 }
 
 .cp-nav-badge-collapsed {
@@ -2088,14 +2312,13 @@ textarea::placeholder {
     padding: 0;
     font-size: 0;
     border-radius: 50%;
-    background: #7c5cfc;
-    border: 1.5px solid #101026;
-    box-shadow: 0 0 6px rgba(124, 92, 252, 0.6);
+    background: var(--ds-accent);
+    border: 1.5px solid var(--ds-inverse);
 }
 
 .cp-nav-detail {
     font-size: 10px;
-    color: #94a3b8;
+    color: var(--ds-inverse-ink-3);
     flex-shrink: 0;
     max-width: 90px;
     overflow: hidden;
@@ -2125,10 +2348,10 @@ textarea::placeholder {
     align-items: center;
     gap: 6px;
     padding: 5px 11px;
-    background: rgba(20, 20, 42, 0.96);
+    background: var(--brand-primary-950);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    color: #f1f5f9;
+    color: var(--ds-inverse-ink);
     font-size: 12px;
     font-weight: 500;
     border-radius: 7px;
@@ -2183,7 +2406,7 @@ textarea::placeholder {
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    color: #5c5c7e;
+    color: var(--ds-inverse-ink-3);
     transition: color 100ms ease, background 100ms ease;
 }
 
@@ -2197,7 +2420,7 @@ textarea::placeholder {
 }
 
 .cp-nav-chevron-open {
-    color: #a3a3c2;
+    color: var(--ds-inverse-ink-2);
 }
 
 .cp-nav-chevron-open svg {
@@ -2256,7 +2479,7 @@ textarea::placeholder {
     border-radius: 7px;
     font-size: 12.5px;
     font-weight: 500;
-    color: #7b7b9a;
+    color: var(--ds-inverse-ink-2);
     text-decoration: none;
     white-space: nowrap;
     transition: color 100ms ease, background 100ms ease;
@@ -2270,7 +2493,7 @@ textarea::placeholder {
 .cp-nav-child-active {
     color: #ffffff;
     font-weight: 600;
-    background: linear-gradient(90deg, rgba(124, 92, 252, 0.2) 0%, rgba(124, 92, 252, 0.05) 100%);
+    background: color-mix(in oklab, var(--brand-accent) 14%, transparent);
 }
 
 /* Marker sitting on the guide line, level with the current page */
@@ -2283,8 +2506,7 @@ textarea::placeholder {
     height: 14px;
     transform: translateY(-50%);
     border-radius: 2px;
-    background: #7c5cfc;
-    box-shadow: 0 0 8px rgba(124, 92, 252, 0.65);
+    background: var(--ds-accent);
 }
 
 .cp-nav-child-badge {
@@ -2298,7 +2520,7 @@ textarea::placeholder {
     font-size: 10px;
     font-weight: 700;
     border-radius: 8px;
-    background: #7c5cfc;
+    background: var(--ds-accent);
     color: #ffffff;
 }
 
@@ -2327,7 +2549,7 @@ textarea::placeholder {
     border-radius: 6px;
     border: none;
     background: transparent;
-    color: #8B8BA7;
+    color: var(--ds-inverse-ink-2);
     cursor: pointer;
     transition: all 120ms ease;
     margin-bottom: 4px;
@@ -2367,7 +2589,7 @@ textarea::placeholder {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #7C5CFC 0%, #A78BFA 100%);
+    background: var(--ds-accent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2385,9 +2607,8 @@ textarea::placeholder {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #10b981;
-    border: 1.5px solid #101026;
-    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    background: var(--ds-success);
+    border: 1.5px solid var(--ds-inverse);
 }
 
 .cp-user-info {
@@ -2408,7 +2629,7 @@ textarea::placeholder {
 
 .cp-user-role {
     font-size: 10px;
-    color: #79799A;
+    color: var(--ds-inverse-ink-3);
     line-height: 1.3;
 }
 
@@ -2418,8 +2639,8 @@ textarea::placeholder {
     bottom: calc(100% + 6px);
     left: 8px;
     right: 8px;
-    background: #181830;
-    border: 1px solid #2a2a4a;
+    background: var(--brand-primary-950);
+    border: 1px solid var(--ds-inverse-line);
     border-radius: 10px;
     box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5),
         0 4px 12px -2px rgba(0, 0, 0, 0.3);
@@ -2446,7 +2667,7 @@ textarea::placeholder {
 
 .cp-user-menu-divider {
     height: 1px;
-    background: #252545;
+    background: color-mix(in oklab, #ffffff 8%, transparent);
 }
 
 .cp-user-menu-items {
@@ -2460,7 +2681,7 @@ textarea::placeholder {
     padding: 7px 10px;
     font-size: 12px;
     font-weight: 500;
-    color: #94a3b8;
+    color: var(--ds-inverse-ink-3);
     border-radius: 6px;
 }
 
@@ -2472,7 +2693,7 @@ textarea::placeholder {
     padding: 7px 10px;
     font-size: 12.5px;
     font-weight: 500;
-    color: #cbd5e1;
+    color: var(--ds-inverse-ink-2);
     border: none;
     background: none;
     border-radius: 6px;
@@ -2482,7 +2703,7 @@ textarea::placeholder {
 }
 
 .cp-user-menu-item:hover {
-    background: #252545;
+    background: color-mix(in oklab, #ffffff 8%, transparent);
     color: #ffffff;
 }
 
@@ -2540,17 +2761,17 @@ textarea::placeholder {
 }
 
 .drawer-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--brand-neutral-300);
     border-radius: 3px;
 }
 
 .drawer-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--brand-neutral-400);
 }
 
 .drawer-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
+    scrollbar-color: var(--brand-neutral-300) transparent;
 }
 
 /* ============================================
@@ -2670,14 +2891,14 @@ textarea::placeholder {
     justify-content: space-between;
     gap: 1.5rem;
     padding-bottom: 1.25rem;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--brand-neutral-200);
     flex-wrap: wrap;
 }
 
 /* KPI Cards — generous sizing, premium hover */
 .mgr-kpi-card {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 1rem;
     padding: 1.25rem 1.5rem;
     position: relative;
@@ -2692,16 +2913,14 @@ textarea::placeholder {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: var(--brand-primary-500);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .mgr-kpi-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.08),
-        0 4px 12px rgba(0, 0, 0, 0.04);
-    border-color: #c7d2fe;
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
+    border-color: var(--brand-primary-200);
 }
 
 .mgr-kpi-card:hover::before {
@@ -2711,7 +2930,7 @@ textarea::placeholder {
 .mgr-kpi-label {
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     letter-spacing: 0.01em;
     text-transform: none;
 }
@@ -2719,7 +2938,7 @@ textarea::placeholder {
 .mgr-kpi-value {
     font-size: 2rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--brand-neutral-900);
     line-height: 1.2;
     margin-top: 0.25rem;
     letter-spacing: -0.02em;
@@ -2729,7 +2948,7 @@ textarea::placeholder {
 /* Panels — consistent card style */
 .mgr-panel {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 1rem;
     padding: 1.5rem;
     transition: box-shadow 0.3s ease;
@@ -2745,7 +2964,7 @@ textarea::placeholder {
 
 .team-stat-card {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 1rem;
     padding: 1.25rem 1.5rem;
     position: relative;
@@ -2760,16 +2979,14 @@ textarea::placeholder {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: var(--brand-primary-500);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .team-stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 40px rgba(99, 102, 241, 0.08),
-        0 4px 12px rgba(0, 0, 0, 0.04);
-    border-color: #c7d2fe;
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
+    border-color: var(--brand-primary-200);
 }
 
 .team-stat-card:hover::before {
@@ -2778,7 +2995,7 @@ textarea::placeholder {
 
 .team-panel {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 1rem;
     padding: 1.5rem;
     transition: box-shadow 0.3s ease;
@@ -2790,16 +3007,15 @@ textarea::placeholder {
 
 .team-member-card {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 1rem;
     overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .team-member-card:hover {
-    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.08),
-        0 4px 12px rgba(0, 0, 0, 0.04);
-    border-color: #c7d2fe;
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
+    border-color: var(--brand-primary-200);
 }
 
 .team-list-row {
@@ -2813,7 +3029,7 @@ textarea::placeholder {
 }
 
 .team-list-row:hover {
-    background: #f8fafc;
+    background: var(--brand-neutral-50);
 }
 
 /* Mission rows — generous click area */
@@ -2831,8 +3047,8 @@ textarea::placeholder {
 }
 
 .mgr-mission-row:hover {
-    background: #f8fafc;
-    border-color: #e2e8f0;
+    background: var(--brand-neutral-50);
+    border-color: var(--brand-neutral-200);
 }
 
 /* Link buttons */
@@ -2842,7 +3058,7 @@ textarea::placeholder {
     gap: 0.375rem;
     font-size: 0.8125rem;
     font-weight: 600;
-    color: #6366f1;
+    color: var(--brand-primary-500);
     transition: all 0.2s ease;
     text-decoration: none;
     padding: 0.375rem 0.5rem;
@@ -2850,8 +3066,8 @@ textarea::placeholder {
 }
 
 .mgr-link-btn:hover {
-    color: #4f46e5;
-    background: #eef2ff;
+    color: var(--brand-primary-600);
+    background: var(--brand-primary-50);
 }
 
 /* Files strip */
@@ -2860,8 +3076,8 @@ textarea::placeholder {
     align-items: center;
     gap: 1rem;
     padding: 0.875rem 1.25rem;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--brand-neutral-50);
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 1rem;
 }
 
@@ -2950,7 +3166,7 @@ textarea::placeholder {
     animation: client-fadeSlideUp 0.4s 0.28s ease-out both;
 }
 
-/* KPI Cards — hover lift with gradient top bar */
+/* KPI Cards — hover top bar */
 .client-kpi-card {
     position: relative;
     overflow: hidden;
@@ -2964,15 +3180,14 @@ textarea::placeholder {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    background: var(--brand-primary-500);
     opacity: 0;
     transition: opacity 0.3s ease;
 }
 
 .client-kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 24px -4px rgba(99, 102, 241, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.06);
-    border-color: #c7d2fe;
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
+    border-color: var(--brand-primary-200);
 }
 
 .client-kpi-card:hover::before {
@@ -2982,14 +3197,14 @@ textarea::placeholder {
 /* Panel sections */
 .client-panel {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 1rem;
     padding: 1.5rem;
     transition: all 0.2s ease;
 }
 
 .client-panel:hover {
-    border-color: #cbd5e1;
+    border-color: var(--brand-neutral-300);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
@@ -2999,28 +3214,28 @@ textarea::placeholder {
 }
 
 .client-opp-card:hover {
-    border-color: #a5b4fc;
-    box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.1), 0 2px 8px -2px rgba(0, 0, 0, 0.04);
+    border-color: var(--brand-primary-300);
+    box-shadow: 0 1px 3px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
 }
 
 .client-opp-card:focus-visible {
-    outline: 2px solid #6366f1;
+    outline: 2px solid var(--brand-primary-500);
     outline-offset: 2px;
 }
 
 /* Results page - mission rows */
 .client-mission-row {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 0.75rem;
     padding: 1rem 1.25rem;
     transition: all 0.2s ease;
 }
 
 .client-mission-row:hover {
-    background: #f8fafc;
-    border-color: #c7d2fe;
-    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.06);
+    background: var(--brand-neutral-50);
+    border-color: var(--brand-primary-200);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--brand-neutral-900) 5%, transparent);
 }
 
 /* Accessibility: respect reduced motion */
@@ -3062,14 +3277,14 @@ textarea::placeholder {
 .db-title {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--brand-neutral-800);
     letter-spacing: -0.02em;
     margin: 0;
 }
 
 .db-subtitle {
     font-size: 0.875rem;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     margin: 0.25rem 0 0;
 }
 
@@ -3082,7 +3297,7 @@ textarea::placeholder {
 
 .db-period-selector {
     display: flex;
-    background: #f1f5f9;
+    background: var(--brand-neutral-100);
     border-radius: 0.5rem;
     padding: 2px;
 }
@@ -3091,7 +3306,7 @@ textarea::placeholder {
     padding: 0.375rem 0.75rem;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     background: transparent;
     border: none;
     border-radius: 0.375rem;
@@ -3100,21 +3315,21 @@ textarea::placeholder {
 }
 
 .db-period-btn:hover {
-    color: #475569;
+    color: var(--brand-neutral-600);
 }
 
 .db-period-btn-active {
     background: white;
-    color: #4f46e5;
+    color: var(--brand-primary-600);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .db-mission-select {
     padding: 0.375rem 0.75rem;
     font-size: 0.8125rem;
-    color: #334155;
+    color: var(--brand-neutral-700);
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 0.5rem;
     cursor: pointer;
     min-width: 10rem;
@@ -3122,8 +3337,8 @@ textarea::placeholder {
 
 .db-mission-select:focus {
     outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    border-color: var(--brand-primary-500);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary-500) 20%, transparent);
 }
 
 .db-refresh-btn {
@@ -3132,18 +3347,18 @@ textarea::placeholder {
     justify-content: center;
     width: 2.25rem;
     height: 2.25rem;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 0.5rem;
     cursor: pointer;
     transition: color 0.15s, background 0.15s;
 }
 
 .db-refresh-btn:hover {
-    color: #4f46e5;
-    background: #eef2ff;
-    border-color: #c7d2fe;
+    color: var(--brand-primary-600);
+    background: var(--brand-primary-50);
+    border-color: var(--brand-primary-200);
 }
 
 .db-loader {
@@ -3173,10 +3388,9 @@ textarea::placeholder {
 }
 
 .db-hero {
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%);
+    background: var(--brand-primary-600);
     border-radius: 1rem;
     padding: 1.25rem 1.5rem;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
     color: white;
 }
 
@@ -3281,7 +3495,7 @@ textarea::placeholder {
     gap: 0.75rem;
     padding: 1rem 1.25rem;
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 0.75rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
@@ -3297,8 +3511,8 @@ textarea::placeholder {
 }
 
 .db-kpi-icon-calls {
-    background: #eef2ff;
-    color: #6366f1;
+    background: var(--brand-primary-50);
+    color: var(--brand-primary-500);
 }
 
 .db-kpi-icon-hot {
@@ -3314,14 +3528,14 @@ textarea::placeholder {
 .db-kpi-value {
     font-size: 1.25rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--brand-neutral-800);
     margin: 0;
     line-height: 1.2;
 }
 
 .db-kpi-label {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     margin: 0.125rem 0 0;
 }
 
@@ -3348,7 +3562,7 @@ textarea::placeholder {
 /* Cards */
 .db-card {
     background: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--brand-neutral-200);
     border-radius: 0.75rem;
     padding: 1.25rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -3366,13 +3580,13 @@ textarea::placeholder {
 .db-card-title {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--brand-neutral-800);
     margin: 0;
 }
 
 .db-card-count {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     font-weight: 500;
 }
 
@@ -3385,8 +3599,8 @@ textarea::placeholder {
     padding: 0 0.375rem;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #4f46e5;
-    background: #eef2ff;
+    color: var(--brand-primary-600);
+    background: var(--brand-primary-50);
     border-radius: 999px;
 }
 
@@ -3396,13 +3610,13 @@ textarea::placeholder {
     gap: 0.25rem;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #6366f1;
+    color: var(--brand-primary-500);
     text-decoration: none;
     transition: color 0.15s;
 }
 
 .db-link-btn:hover {
-    color: #4f46e5;
+    color: var(--brand-primary-600);
     text-decoration: underline;
 }
 
@@ -3431,7 +3645,7 @@ textarea::placeholder {
     align-items: center;
     gap: 0.375rem;
     font-size: 0.75rem;
-    color: #475569;
+    color: var(--brand-neutral-600);
 }
 
 .db-result-dot {
@@ -3447,16 +3661,16 @@ textarea::placeholder {
 
 .db-result-val {
     font-weight: 600;
-    color: #1e293b;
+    color: var(--brand-neutral-800);
 }
 
 .db-result-pct {
-    color: #94a3b8;
+    color: var(--brand-neutral-400);
 }
 
 .db-empty {
     font-size: 0.8125rem;
-    color: #94a3b8;
+    color: var(--brand-neutral-400);
     margin: 0;
     padding: 0.5rem 0;
 }
@@ -3498,7 +3712,7 @@ textarea::placeholder {
 }
 
 .db-mission-row:hover {
-    background: #f8fafc;
+    background: var(--brand-neutral-50);
 }
 
 .db-mission-avatar {
@@ -3509,8 +3723,8 @@ textarea::placeholder {
     justify-content: center;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #4f46e5;
-    background: #eef2ff;
+    color: var(--brand-primary-600);
+    background: var(--brand-primary-50);
     border-radius: 0.5rem;
     flex-shrink: 0;
 }
@@ -3523,7 +3737,7 @@ textarea::placeholder {
 .db-mission-name {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #1e293b;
+    color: var(--brand-neutral-800);
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -3532,7 +3746,7 @@ textarea::placeholder {
 
 .db-mission-client {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     margin: 0.25rem 0 0;
 }
 
@@ -3546,12 +3760,12 @@ textarea::placeholder {
 .db-mission-rdv {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: #4f46e5;
+    color: var(--brand-primary-600);
 }
 
 .db-mission-calls {
     font-size: 0.75rem;
-    color: #94a3b8;
+    color: var(--brand-neutral-400);
 }
 
 /* Leaderboard */
@@ -3571,7 +3785,7 @@ textarea::placeholder {
 }
 
 .db-lb-row:hover {
-    background: #f8fafc;
+    background: var(--brand-neutral-50);
 }
 
 .db-lb-rank {
@@ -3587,23 +3801,23 @@ textarea::placeholder {
 }
 
 .db-lb-rank-1 {
-    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    background: #f59e0b;
     color: white;
 }
 
 .db-lb-rank-2 {
-    background: linear-gradient(135deg, #94a3b8, #64748b);
+    background: var(--brand-neutral-500);
     color: white;
 }
 
 .db-lb-rank-3 {
-    background: linear-gradient(135deg, #d97706, #b45309);
+    background: #b45309;
     color: white;
 }
 
 .db-lb-rank-n {
-    background: #f1f5f9;
-    color: #64748b;
+    background: var(--brand-neutral-100);
+    color: var(--brand-neutral-500);
 }
 
 .db-lb-avatar {
@@ -3614,8 +3828,8 @@ textarea::placeholder {
     justify-content: center;
     font-size: 0.6875rem;
     font-weight: 600;
-    color: #4f46e5;
-    background: #eef2ff;
+    color: var(--brand-primary-600);
+    background: var(--brand-primary-50);
     border-radius: 0.5rem;
     flex-shrink: 0;
 }
@@ -3628,13 +3842,13 @@ textarea::placeholder {
 .db-lb-name {
     font-size: 0.875rem;
     font-weight: 500;
-    color: #1e293b;
+    color: var(--brand-neutral-800);
     margin: 0;
 }
 
 .db-lb-sub {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--brand-neutral-500);
     margin: 0.125rem 0 0;
 }
 
@@ -3647,12 +3861,12 @@ textarea::placeholder {
 .db-lb-rdv {
     font-size: 1.125rem;
     font-weight: 700;
-    color: #4f46e5;
+    color: var(--brand-primary-600);
 }
 
 .db-lb-unit {
     font-size: 0.625rem;
-    color: #94a3b8;
+    color: var(--brand-neutral-400);
     font-weight: 500;
 }
 
@@ -3696,13 +3910,13 @@ textarea::placeholder {
 .db-goal-number {
     font-size: 1.75rem;
     font-weight: 800;
-    color: #1e293b;
+    color: var(--brand-neutral-800);
     line-height: 1.1;
 }
 
 .db-goal-of {
     font-size: 0.75rem;
-    color: #64748b;
+    color: var(--brand-neutral-500);
 }
 
 .db-goal-badge {
@@ -3746,7 +3960,7 @@ textarea::placeholder {
     display: flex;
     gap: 0.5rem;
     padding: 0.375rem 0;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--brand-neutral-100);
 }
 
 .db-activity-row:last-child {
@@ -3757,7 +3971,7 @@ textarea::placeholder {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #6366f1;
+    background: var(--brand-primary-500);
     flex-shrink: 0;
     margin-top: 0.5rem;
 }
@@ -3769,14 +3983,14 @@ textarea::placeholder {
 
 .db-activity-text {
     font-size: 0.8125rem;
-    color: #334155;
+    color: var(--brand-neutral-700);
     margin: 0;
     line-height: 1.4;
 }
 
 .db-activity-time {
     font-size: 0.6875rem;
-    color: #94a3b8;
+    color: var(--brand-neutral-400);
     margin: 0.25rem 0 0;
 }
 
@@ -3810,11 +4024,11 @@ textarea::placeholder {
 
     0%,
     100% {
-        box-shadow: 0 0 0 0 rgba(124, 92, 252, 0);
+        box-shadow: 0 0 0 0 color-mix(in oklab, var(--brand-primary) 0%, transparent);
     }
 
     50% {
-        box-shadow: 0 0 20px 4px rgba(124, 92, 252, 0.15);
+        box-shadow: 0 0 20px 4px color-mix(in oklab, var(--brand-primary) 15%, transparent);
     }
 }
 
@@ -3885,30 +4099,24 @@ textarea::placeholder {
     border: 1px solid rgba(232, 235, 240, 0.8);
     box-shadow:
         0 1px 3px rgba(0, 0, 0, 0.04),
-        0 4px 12px rgba(43, 95, 62, 0.03);
+        0 4px 12px color-mix(in oklab, var(--brand-primary) 3%, transparent);
     transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .premium-card:hover {
     box-shadow:
-        0 4px 16px rgba(0, 0, 0, 0.06),
-        0 8px 32px rgba(43, 95, 62, 0.08);
-    transform: translateY(-2px);
-    border-color: rgba(43, 95, 62, 0.15);
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        0 4px 12px color-mix(in oklab, var(--brand-neutral-900) 5%, transparent);
+    border-color: color-mix(in oklab, var(--brand-primary) 15%, transparent);
 }
 
 .glass-card {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: white;
+    border: 1px solid var(--brand-neutral-200);
 }
 
 .gradient-text {
-    background: linear-gradient(135deg, #224A31 0%, #2B5F3E 40%, #4E8B66 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--ds-primary);
 }
 
 .animate-pulse-glow {
@@ -3963,37 +4171,37 @@ textarea::placeholder {
 /* ============================================ */
 
 :root {
-    --canvas: #FAFAF8;
-    --surface: #FFFFFF;
-    --s2: #F4F3F0;
-    --s3: #EEECEA;
-    --ink: #111110;
-    --ink2: #44403C;
-    --ink3: #78716C;
-    --ink4: #A8A29E;
-    --rule: rgba(0, 0, 0, 0.07);
-    --accent: #4F46E5;
-    --a-light: #EEF2FF;
-    --a-text: #4338CA;
-    --green: #16A34A;
-    --g-light: #F0FDF4;
-    --g-text: #15803D;
-    --amber: #D97706;
-    --am-light: #FFFBEB;
-    --am-text: #B45309;
-    --red: #DC2626;
-    --r-light: #FEF2F2;
-    --r-text: #B91C1C;
-    --slate: #64748B;
-    --sl-light: #F8FAFC;
-    --sl-text: #475569;
+    --canvas: var(--ds-surface-2);
+    --surface: var(--ds-surface);
+    --s2: var(--ds-surface-3);
+    --s3: var(--ds-surface-3);
+    --ink: var(--ds-ink);
+    --ink2: var(--ds-ink-2);
+    --ink3: var(--ds-ink-3);
+    --ink4: var(--ds-ink-4);
+    --rule: color-mix(in oklab, var(--ds-ink) 8%, transparent);
+    --accent: var(--brand-primary-600);
+    --a-light: var(--brand-primary-50);
+    --a-text: var(--brand-primary-700);
+    --green: var(--ds-success);
+    --g-light: var(--ds-success-soft);
+    --g-text: var(--ds-success-ink);
+    --amber: var(--ds-warning);
+    --am-light: var(--ds-warning-soft);
+    --am-text: var(--ds-warning-ink);
+    --red: var(--ds-danger);
+    --r-light: var(--ds-danger-soft);
+    --r-text: var(--ds-danger-ink);
+    --slate: var(--brand-neutral-500);
+    --sl-light: var(--brand-neutral-50);
+    --sl-text: var(--brand-neutral-600);
     --ease: cubic-bezier(0.16, 1, 0.3, 1);
     --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-    --fd: 'Fraunces', Georgia, serif;
-    --fu: 'DM Sans', system-ui, sans-serif;
-    --sh-sm: 0 1px 3px rgba(0, 0, 0, 0.07), 0 1px 2px rgba(0, 0, 0, 0.04);
-    --sh-md: 0 4px 12px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.04);
-    --sh-lg: 0 12px 32px rgba(0, 0, 0, 0.09), 0 4px 8px rgba(0, 0, 0, 0.04);
+    --fd: var(--font-display-face), var(--font-body-face), system-ui, sans-serif;
+    --fu: var(--font-body-face), system-ui, sans-serif;
+    --sh-sm: 0 1px 3px color-mix(in oklab, var(--ds-shadow-color) 8%, transparent), 0 1px 2px color-mix(in oklab, var(--ds-shadow-color) 5%, transparent);
+    --sh-md: 0 4px 12px color-mix(in oklab, var(--ds-shadow-color) 8%, transparent), 0 2px 4px color-mix(in oklab, var(--ds-shadow-color) 5%, transparent);
+    --sh-lg: 0 12px 32px color-mix(in oklab, var(--ds-shadow-color) 10%, transparent), 0 4px 8px color-mix(in oklab, var(--ds-shadow-color) 5%, transparent);
 }
 
 /* ── CLIENT GRID ─────────────────────────────────────── */
@@ -4018,9 +4226,8 @@ textarea::placeholder {
 }
 
 .cc:hover {
-    box-shadow: 0 0 0 1px rgba(79, 70, 229, .1), var(--sh-lg);
-    transform: translateY(-3px);
-    border-color: rgba(79, 70, 229, .18);
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--brand-primary-600) 10%, transparent), var(--sh-lg);
+    border-color: color-mix(in oklab, var(--brand-primary-600) 18%, transparent);
 }
 
 /* Health stripe — 3px left border coded by status */
@@ -4369,7 +4576,7 @@ textarea::placeholder {
 }
 
 .qa-btn.primary:hover {
-    background: #4338CA;
+    background: var(--brand-primary-700);
 }
 
 .qa-spacer {
@@ -4460,7 +4667,7 @@ textarea::placeholder {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #A0A0B0;
+    color: var(--ds-ink-4);
     margin-bottom: 12px;
 }
 
@@ -4498,33 +4705,33 @@ textarea::placeholder {
 .sdr-info-lbl {
     font-size: 10px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.06em;
-    color: #A0A0B0;
+    color: var(--ds-ink-4);
 }
 .sdr-info-val {
     font-size: 13px; font-weight: 500;
-    color: #2D2D35;
+    color: var(--ds-ink-2);
 }
 .sdr-info-val a {
-    color: #4238D0; text-decoration: none;
+    color: var(--brand-primary-700); text-decoration: none;
     transition: color 0.14s;
 }
-.sdr-info-val a:hover { color: #5B4FE8; text-decoration: underline; }
+.sdr-info-val a:hover { color: var(--ds-primary-hover); text-decoration: underline; }
 
 /* Note quote */
 .sdr-note-quote {
     position: relative;
     padding: 12px 14px 12px 18px;
     border-radius: 10px;
-    background: linear-gradient(135deg, rgba(91,79,232,0.04), rgba(91,79,232,0.02));
+    background: rgba(91,79,232,0.03);
     border: 1px solid rgba(91,79,232,0.1);
     font-size: 12.5px; font-style: italic;
-    color: #6B6B7B; line-height: 1.65;
+    color: var(--ds-ink-3); line-height: 1.65;
 }
 .sdr-note-quote::before {
     content: ''; position: absolute;
     left: 0; top: 10px; bottom: 10px;
     width: 3px; border-radius: 2px;
-    background: linear-gradient(to bottom, #7B72EF, #5B4FE8);
+    background: var(--ds-primary-hover);
 }
 
 /* Pill badge */
@@ -4545,20 +4752,17 @@ textarea::placeholder {
     border-radius: 10px;
     font-size: 13px; font-weight: 600;
     cursor: pointer; border: 1.5px solid rgba(0,0,0,0.08);
-    background: #FFFFFF; color: #6B6B7B;
+    background: #FFFFFF; color: var(--ds-ink-3);
     transition: all 0.18s cubic-bezier(0.16,1,0.3,1);
     user-select: none; outline: none;
     font-family: inherit;
 }
 .sdr-chip:hover {
     border-color: rgba(0,0,0,0.15);
-    color: #2D2D35;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 10px -3px rgba(0,0,0,0.08);
+    color: var(--ds-ink-2);
 }
 .sdr-chip.sel {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px -4px rgba(91,79,232,0.2);
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--brand-neutral-900) 6%, transparent);
 }
 
 /* Quick action button */
@@ -4568,12 +4772,11 @@ textarea::placeholder {
     padding: 10px 16px; border-radius: 10px;
     font-family: inherit; font-size: 13px; font-weight: 600;
     cursor: pointer; border: 1px solid rgba(0,0,0,0.08);
-    background: #FFFFFF; color: #6B6B7B;
+    background: #FFFFFF; color: var(--ds-ink-3);
     transition: all 0.16s ease; outline: none;
 }
 .sdr-qaction:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px -4px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 .sdr-qaction:active { transform: scale(0.98); }
 .sdr-qaction:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
@@ -4607,15 +4810,15 @@ textarea::placeholder {
 /* AI summary */
 .sdr-ai-summary {
     padding: 12px 14px; border-radius: 10px;
-    background: linear-gradient(135deg, #EEEDFB, #F3F2FD);
+    background: #F1F0FC;
     border: 1px solid rgba(91,79,232,0.14);
-    font-size: 12px; line-height: 1.65; color: #2D2D35;
+    font-size: 12px; line-height: 1.65; color: var(--ds-ink-2);
 }
 
 /* Form input */
 .sdr-textarea {
     width: 100%; font-family: inherit;
-    font-size: 13px; color: #0A0A0B;
+    font-size: 13px; color: var(--ds-ink);
     background: #FFFFFF;
     border: 1px solid rgba(0,0,0,0.08);
     border-radius: 10px;
@@ -4625,14 +4828,14 @@ textarea::placeholder {
     line-height: 1.6;
 }
 .sdr-textarea:focus {
-    border-color: #5B4FE8;
+    border-color: var(--ds-primary-hover);
     box-shadow: 0 0 0 3px rgba(91,79,232,0.1);
 }
-.sdr-textarea::placeholder { color: #A0A0B0; }
+.sdr-textarea::placeholder { color: var(--ds-ink-4); }
 
 .sdr-input {
     width: 100%; font-family: inherit;
-    font-size: 13px; color: #0A0A0B;
+    font-size: 13px; color: var(--ds-ink);
     background: #FFFFFF;
     border: 1px solid rgba(0,0,0,0.08);
     border-radius: 10px;
@@ -4640,10 +4843,10 @@ textarea::placeholder {
     transition: border-color 0.16s, box-shadow 0.16s;
 }
 .sdr-input:focus {
-    border-color: #5B4FE8;
+    border-color: var(--ds-primary-hover);
     box-shadow: 0 0 0 3px rgba(91,79,232,0.1);
 }
-.sdr-input::placeholder { color: #A0A0B0; }
+.sdr-input::placeholder { color: var(--ds-ink-4); }
 
 /* Submit btn */
 .sdr-submit {
@@ -4653,13 +4856,11 @@ textarea::placeholder {
     transition: all 0.16s ease; white-space: nowrap;
     font-family: inherit; outline: none;
     padding: 0 18px; height: 38px;
-    background: #5B4FE8; color: white;
-    box-shadow: 0 2px 10px rgba(91,79,232,0.28);
+    background: var(--ds-primary-hover); color: white;
+    box-shadow: 0 1px 2px color-mix(in oklab, var(--brand-neutral-900) 8%, transparent);
 }
 .sdr-submit:hover:not(:disabled) {
-    background: #4238D0;
-    box-shadow: 0 4px 18px rgba(91,79,232,0.38);
-    transform: translateY(-1px);
+    background: var(--brand-primary-700);
 }
 .sdr-submit:active:not(:disabled) { transform: scale(0.97); }
 .sdr-submit:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -4670,11 +4871,11 @@ textarea::placeholder {
     cursor: pointer; transition: all 0.16s ease; white-space: nowrap;
     font-family: inherit; outline: none;
     padding: 0 14px; height: 38px;
-    background: #FFFFFF; color: #2D2D35;
+    background: #FFFFFF; color: var(--ds-ink-2);
     border: 1px solid rgba(0,0,0,0.08);
 }
 .sdr-submit-secondary:hover:not(:disabled) {
-    background: #FAFAFA; border-color: rgba(0,0,0,0.12);
+    background: var(--ds-surface-2); border-color: rgba(0,0,0,0.12);
 }
 .sdr-submit-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -4693,18 +4894,18 @@ textarea::placeholder {
     padding: 7px 12px; border-radius: 8px;
     font-size: 13px; font-weight: 500;
     cursor: pointer; border: none; background: transparent;
-    color: #6B6B7B; transition: all 0.16s ease;
+    color: var(--ds-ink-3); transition: all 0.16s ease;
     font-family: inherit; outline: none;
 }
-.sdr-tab:hover:not(.active) { color: #2D2D35; background: rgba(0,0,0,0.03); }
+.sdr-tab:hover:not(.active) { color: var(--ds-ink-2); background: rgba(0,0,0,0.03); }
 .sdr-tab.active {
-    background: #FFFFFF; color: #0A0A0B; font-weight: 600;
+    background: #FFFFFF; color: var(--ds-ink); font-weight: 600;
     box-shadow: 0 1px 6px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
 }
 
 /* Summary card */
 .sdr-summary {
-    background: #FAFAFA;
+    background: var(--ds-surface-2);
     border-radius: 12px;
     border: 1px solid rgba(0,0,0,0.06);
     padding: 14px 16px;
@@ -4712,11 +4913,11 @@ textarea::placeholder {
 .sdr-summary-lbl {
     font-size: 10px; font-weight: 600;
     text-transform: uppercase; letter-spacing: 0.06em;
-    color: #A0A0B0; margin-bottom: 2px;
+    color: var(--ds-ink-4); margin-bottom: 2px;
 }
 .sdr-summary-val {
     font-size: 13px; font-weight: 600;
-    color: #0A0A0B;
+    color: var(--ds-ink);
 }
 
 /* Custom data tag */
@@ -4724,10 +4925,10 @@ textarea::placeholder {
     display: inline-flex; gap: 4px;
     padding: 3px 9px; border-radius: 8px;
     background: #F3F4F6; border: 1px solid rgba(0,0,0,0.06);
-    font-size: 11px; color: #2D2D35;
+    font-size: 11px; color: var(--ds-ink-2);
 }
 .sdr-tag-key {
-    color: #A0A0B0; font-weight: 500;
+    color: var(--ds-ink-4); font-weight: 500;
 }
 .sdr-tag-val {
     font-weight: 600;
@@ -4738,14 +4939,13 @@ textarea::placeholder {
     padding: 6px 12px; border-radius: 9px;
     font-size: 12.5px; font-weight: 600;
     cursor: pointer; border: 1.5px solid rgba(0,0,0,0.08);
-    background: #FFFFFF; color: #6B6B7B;
+    background: #FFFFFF; color: var(--ds-ink-3);
     transition: all 0.16s ease; font-family: inherit; outline: none;
 }
-.sdr-meeting-chip:hover { border-color: rgba(0,0,0,0.15); color: #2D2D35; }
+.sdr-meeting-chip:hover { border-color: rgba(0,0,0,0.15); color: var(--ds-ink-2); }
 .sdr-meeting-chip.sel {
-    background: #5B4FE8; color: white;
-    border-color: #5B4FE8;
-    box-shadow: 0 2px 8px rgba(91,79,232,0.25);
+    background: var(--ds-primary-hover); color: white;
+    border-color: var(--ds-primary-hover);
 }
 
 /* Improve note button */
@@ -4756,7 +4956,7 @@ textarea::placeholder {
     cursor: pointer; font-family: inherit; outline: none;
     border: 1px solid rgba(91,79,232,0.2);
     background: rgba(91,79,232,0.04);
-    color: #5B4FE8;
+    color: var(--ds-primary-hover);
     transition: all 0.14s ease;
 }
 .sdr-ai-btn:hover:not(:disabled) {
@@ -4774,7 +4974,7 @@ textarea::placeholder {
 /* Meeting box */
 .sdr-meeting-box {
     padding: 14px 16px; border-radius: 12px;
-    background: linear-gradient(135deg, rgba(91,79,232,0.04), rgba(91,79,232,0.02));
+    background: rgba(91,79,232,0.03);
     border: 1px solid rgba(91,79,232,0.12);
 }
 
@@ -4789,44 +4989,44 @@ textarea::placeholder {
     .sdr-drawer * { animation: none !important; transition: none !important; }
 }
 /* ============================================
-   CAPTAIN PROSPECT DESIGN SYSTEM — TOKENS
-   Source of truth: designsystemfinal/CaptainProspect Design System.html
-   Warm cream canvas, deep green accent, DM Sans/DM Mono.
-   Prefix: --cp-* (variables) / .cpds-* (utilities) to avoid
-   collisions with the legacy .cp-* sidebar classes above.
+   LEGACY ALIASES — --cp-* variables / .cpds-* utilities
+   Older pages still read these names; every value now resolves to the
+   --ds-* design-system roles above. New code should use the roles or the
+   Tailwind utilities directly.
+   Prefix --cp-* / .cpds-* avoids the legacy .cp-* sidebar classes above.
    ============================================ */
 :root {
     /* Surfaces */
-    --cp-canvas: #FAF9F6;
-    --cp-raised: #FFFFFF;
-    --cp-sunken: #F1EFE9;
-    --cp-inverse: #0E0F0C;
+    --cp-canvas: var(--ds-canvas);
+    --cp-raised: var(--ds-surface);
+    --cp-sunken: var(--ds-surface-3);
+    --cp-inverse: var(--ds-ink);
 
     /* Ink */
-    --cp-ink: #0E0F0C;
-    --cp-ink-2: #4A4B46;
-    --cp-ink-3: #8A8A83;
-    --cp-on-inverse: #FAF9F6;
+    --cp-ink: var(--ds-ink);
+    --cp-ink-2: var(--ds-ink-2);
+    --cp-ink-3: var(--ds-ink-3);
+    --cp-on-inverse: var(--ds-canvas);
 
     /* Borders */
-    --cp-border: #E8E6DF;
-    --cp-border-strong: #D5D2C9;
+    --cp-border: var(--ds-line);
+    --cp-border-strong: var(--ds-line-strong);
 
-    /* Accent (deep green) */
-    --cp-green: #2B5F3E;
-    --cp-green-hover: #224A31;
-    --cp-green-soft: #E7EFE9;
+    /* Primary (historic name: green) */
+    --cp-green: var(--ds-primary);
+    --cp-green-hover: var(--ds-primary-active);
+    --cp-green-soft: var(--brand-primary-50);
 
     /* Signals */
-    --cp-success: #2B5F3E;
-    --cp-success-soft: #E7EFE9;
-    --cp-warn: #B8541A;
-    --cp-warn-soft: #F5E6DA;
-    --cp-danger: #9A2A2A;
-    --cp-danger-soft: #F3DFDF;
-    --cp-info: #3A5280;
-    --cp-info-soft: #E4E9F2;
-    --cp-neutral-soft: #ECEAE3;
+    --cp-success: var(--ds-success);
+    --cp-success-soft: var(--ds-success-soft);
+    --cp-warn: var(--ds-warning-ink);
+    --cp-warn-soft: var(--ds-warning-soft);
+    --cp-danger: var(--ds-danger-ink);
+    --cp-danger-soft: var(--ds-danger-soft);
+    --cp-info: var(--ds-info-ink);
+    --cp-info-soft: var(--ds-info-soft);
+    --cp-neutral-soft: var(--ds-surface-3);
 
     /* Shape / motion */
     --cp-r-lg: 16px;
@@ -4836,7 +5036,7 @@ textarea::placeholder {
     --cp-dur-base: 200ms;
     --cp-dur-slow: 320ms;
     --cp-ease: cubic-bezier(.2, .7, .2, 1);
-    --cp-focus-ring: 0 0 0 3px rgba(43, 95, 62, 0.22);
+    --cp-focus-ring: 0 0 0 3px color-mix(in oklab, var(--brand-primary) 22%, transparent);
 
     /* Typography */
     --cp-font: var(--font-dm-sans), 'DM Sans', 'Inter', system-ui, sans-serif;
@@ -4905,27 +5105,26 @@ textarea::placeholder {
 
 /* ============================================
    ASSISTANT PROJET (components/assistant-projet/*)
-   Self-contained: every token is scoped to .ap-root so the panel can sit on any
-   page without inheriting that page theme. Accent is the Captain Prospect rose
-   — change the three --ap-accent tokens to rebrand the whole panel.
+   Scoped to .ap-root so the panel can sit on any page. Every token is
+   derived from the design-system roles, so the panel follows the brand.
    ============================================ */
 
 .ap-root {
-    --ap-ink: #1B2647;
-    --ap-ink-soft: #4A5470;
-    --ap-muted: #7C849B;
-    --ap-faint: #AEB5C6;
-    --ap-line: #E7E9F0;
-    --ap-line-soft: #F1F2F7;
-    --ap-surface: #FFFFFF;
-    --ap-surface-2: #F8F9FC;
-    --ap-accent: #C64B8B;
-    --ap-accent-soft: #FAEDF4;
-    --ap-accent-deep: #A63A73;
-    --ap-ok: #17795E;
-    --ap-warn: #B26A00;
-    --ap-warn-soft: #FDF4E6;
-    --ap-danger: #B42318;
+    --ap-ink: var(--brand-primary-900);
+    --ap-ink-soft: var(--ds-ink-2);
+    --ap-muted: var(--ds-ink-3);
+    --ap-faint: var(--ds-ink-4);
+    --ap-line: var(--ds-line);
+    --ap-line-soft: var(--ds-line-subtle);
+    --ap-surface: var(--ds-surface);
+    --ap-surface-2: var(--ds-surface-2);
+    --ap-accent: var(--brand-accent);
+    --ap-accent-soft: var(--brand-accent-50);
+    --ap-accent-deep: var(--brand-accent-700);
+    --ap-ok: var(--ds-success-ink);
+    --ap-warn: var(--ds-warning-ink);
+    --ap-warn-soft: var(--ds-warning-soft);
+    --ap-danger: var(--ds-danger-ink);
 
     display: flex;
     flex-direction: column;
@@ -4961,7 +5160,7 @@ textarea::placeholder {
     gap: 10px;
     padding: 11px 12px 11px 14px;
     border-bottom: 1px solid var(--ap-line);
-    background: linear-gradient(180deg, #FFFFFF 0%, var(--ap-surface-2) 100%);
+    background: #FFFFFF;
     flex-shrink: 0;
 }
 
@@ -4971,10 +5170,9 @@ textarea::placeholder {
     width: 32px;
     height: 32px;
     border-radius: 11px;
-    background: linear-gradient(135deg, var(--ap-accent) 0%, #D96FA5 100%);
+    background: var(--ap-accent);
     color: #fff;
     flex-shrink: 0;
-    box-shadow: 0 3px 10px rgba(198, 75, 139, .3);
 }
 
 .ap-titles { display: flex; flex-direction: column; min-width: 0; flex: 1; }
@@ -5079,7 +5277,6 @@ textarea::placeholder {
     line-height: 1.5;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    box-shadow: 0 2px 8px rgba(198, 75, 139, .22);
 }
 
 .ap-answer { font-size: 13.5px; line-height: 1.62; overflow-wrap: anywhere; }
@@ -5137,7 +5334,7 @@ textarea::placeholder {
     width: 8px;
     height: 8px;
     border-radius: 999px;
-    background: linear-gradient(135deg, var(--ap-accent), #D96FA5);
+    background: var(--ap-accent);
     animation: apOrb 1.3s ease-in-out infinite;
 }
 .ap-thinking-time { font-weight: 500; color: var(--ap-muted); font-variant-numeric: tabular-nums; }
@@ -5146,7 +5343,7 @@ textarea::placeholder {
 .ap-skeleton span {
     height: 9px;
     border-radius: 999px;
-    background: linear-gradient(90deg, #EFF2F7 0%, #E2E8F2 50%, #EFF2F7 100%);
+    background: linear-gradient(90deg, var(--ds-surface-3) 0%, #E2E8F2 50%, var(--ds-surface-3) 100%);
     background-size: 220% 100%;
     animation: apShimmer 1.4s linear infinite;
 }
@@ -5293,8 +5490,6 @@ textarea::placeholder {
 .ap-prompt:hover {
     border-color: rgba(198, 75, 139, .45);
     color: var(--ap-ink);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(27, 38, 71, .07);
 }
 .ap-prompt span { flex: 1; }
 
@@ -5349,7 +5544,7 @@ textarea::placeholder {
     color: var(--ap-ink-soft);
     white-space: nowrap;
 }
-.ap-model-dot { width: 5px; height: 5px; border-radius: 999px; background: linear-gradient(135deg, #FF8205, #FFC14D); }
+.ap-model-dot { width: 5px; height: 5px; border-radius: 999px; background: #FF8205; }
 .ap-hint { flex: 1; font-size: 10.5px; color: var(--ap-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ap-hint kbd {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

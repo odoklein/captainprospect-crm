@@ -15,6 +15,7 @@ import { decrypt } from "@/lib/encryption";
 import { sendTransactionalEmail } from "@/lib/email/transactional";
 import { recordVaultAudit } from "./service";
 import { portalLoginUrl } from "./portalAccounts";
+import { brand } from "@/lib/brand";
 
 function escapeHtml(value: string): string {
     return value
@@ -94,7 +95,7 @@ export function buildOnboardingEmailHtml(input: TemplateInput): string {
           <tr>
             <td style="padding:24px 28px;background:#C64B8B;color:#ffffff;">
               <h1 style="margin:0;font-size:20px;">Ton acces a la plateforme</h1>
-              <p style="margin:6px 0 0;font-size:13px;opacity:.9;">${escapeHtml(input.clientName)} &times; Captain Prospect</p>
+              <p style="margin:6px 0 0;font-size:13px;opacity:.9;">${escapeHtml(input.clientName)} &times; ${escapeHtml(brand.name)}</p>
             </td>
           </tr>
           <tr>
@@ -136,7 +137,7 @@ export function buildOnboardingEmailHtml(input: TemplateInput): string {
           </tr>
           <tr>
             <td style="padding:16px 28px;background:#f9fafb;font-size:12px;color:#6b7280;">
-              Envoye par ${escapeHtml(input.senderName)} &mdash; Captain Prospect
+              Envoye par ${escapeHtml(input.senderName)} &mdash; ${escapeHtml(brand.name)}
             </td>
           </tr>
         </table>
@@ -186,7 +187,7 @@ async function sendOne(
 
     const sent = await sendTransactionalEmail({
         to: recipient.email,
-        subject: "Ton acces a la plateforme Captain Prospect",
+        subject: `Ton accès à la plateforme ${brand.name}`,
         html,
         text: [
             `Bonjour ${recipient.name},`,

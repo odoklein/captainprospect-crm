@@ -398,13 +398,13 @@ export function NewThreadModal({
                                 <button
                                     key={opt.type}
                                     onClick={() => handleSelectType(opt.type)}
-                                    className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all text-left group"
+                                    className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-primary-50/50 transition-all text-left group"
                                 >
                                     <div className={cn(
                                         "w-12 h-12 rounded-xl flex items-center justify-center transition-colors",
-                                        "bg-slate-100 group-hover:bg-indigo-100"
+                                        "bg-slate-100 group-hover:bg-primary-100"
                                     )}>
-                                        <opt.icon className="w-6 h-6 text-slate-600 group-hover:text-indigo-600" />
+                                        <opt.icon className="w-6 h-6 text-slate-600 group-hover:text-primary-600" />
                                     </div>
                                     <div className="flex-1">
                                         <p className="font-semibold text-slate-900">{label}</p>
@@ -474,7 +474,7 @@ export function NewThreadModal({
                                             onClick={() => handleSelectRecipient(item)}
                                             className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors text-left group"
                                         >
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-sm font-semibold text-slate-600 group-hover:from-indigo-100 group-hover:to-indigo-200 group-hover:text-indigo-600 transition-colors">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-sm font-semibold text-slate-600 group-hover:bg-primary-100 group-hover:text-primary-600 transition-colors">
                                                 {item.name.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -500,7 +500,7 @@ export function NewThreadModal({
                     <div className="space-y-4">
                         {/* Recipient indicator */}
                         <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center text-sm font-semibold text-indigo-600">
+                            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center text-sm font-semibold text-primary-600">
                                 {(selectedUser?.name || anchorName || "?").charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -521,14 +521,14 @@ export function NewThreadModal({
                                 placeholder="Écrivez votre message..."
                                 rows={5}
                                 autoFocus
-                                className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
+                                className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-500 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 resize-none"
                             />
                         </div>
 
                         {/* Note for mission threads */}
                         {channelType === "MISSION" && (
                             <p className="text-xs text-slate-500 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg">
-                                💡 Tous les SDR et managers assignes a cette mission verront cette discussion.
+                                Tous les SDR et managers assignés à cette mission verront cette discussion.
                             </p>
                         )}
 

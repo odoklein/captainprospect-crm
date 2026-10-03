@@ -18,7 +18,6 @@ const prefix = (item: NavItem): NavItem => ({
     badge: item.href === '/manager/emails' ? '4' : item.badge,
 });
 const NAV: NavSection[] = MANAGER_NAV.map((s) => ({ ...s, items: s.items.map(prefix) }));
-
 function Shell() {
     const { isCollapsed } = useSidebar();
     return (
@@ -29,7 +28,7 @@ function Shell() {
                     <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
                         <SectionTabs navigation={NAV} fallback={{ root: 'Manager', current: 'Page' }} />
                     </div>
-                    <div className="h-8 w-8 rounded-lg border border-[#E8EBF0]" />
+                    <div className="h-8 w-8 rounded-lg border border-line" />
                 </header>
                 <div className="cp-content"><div className="h-96 rounded-2xl border border-dashed border-slate-200" /></div>
             </main>

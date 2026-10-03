@@ -89,7 +89,7 @@ const RESULT_BADGE_COLORS: Record<string, string> = {
     BAD_CONTACT: "bg-red-50 text-red-700 border-red-200",
     INTERESTED: "bg-emerald-50 text-emerald-700 border-emerald-200",
     CALLBACK_REQUESTED: "bg-amber-50 text-amber-700 border-amber-200",
-    MEETING_BOOKED: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    MEETING_BOOKED: "bg-primary-50 text-primary-700 border-primary-200",
     MEETING_CANCELLED: "bg-red-50 text-red-600 border-red-200",
     DISQUALIFIED: "bg-slate-50 text-slate-600 border-slate-200",
     ENVOIE_MAIL: "bg-blue-50 text-blue-700 border-blue-200",
@@ -234,7 +234,7 @@ export default function SDRHistoryPage() {
                         <div
                             className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border",
-                                row.contactId ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-slate-50 border-slate-200 text-slate-500"
+                                row.contactId ? "bg-primary-50 border-primary-100 text-primary-600" : "bg-slate-50 border-slate-200 text-slate-500"
                             )}
                         >
                             {row.contactId ? <User className="w-4.5 h-4.5" /> : <Building2 className="w-4.5 h-4.5" />}
@@ -345,7 +345,7 @@ export default function SDRHistoryPage() {
                             openDrawer(row);
                         }}
                         title="Voir la fiche"
-                        className="w-9 h-9 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
+                        className="w-9 h-9 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-all duration-200"
                     >
                         <Eye className="w-4 h-4" />
                     </button>
@@ -365,11 +365,10 @@ export default function SDRHistoryPage() {
 
     return (
         <div className="space-y-6 animate-fade-in p-2">
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 rounded-2xl p-6 shadow-xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-transparent to-slate-500/10" />
+            <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 shadow-xl">
                 <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                        <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
                             <History className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -389,7 +388,7 @@ export default function SDRHistoryPage() {
                             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                             Actualiser
                         </Button>
-                        <div className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm">
+                        <div className="px-3 py-2 rounded-xl bg-white/10 border border-white/10">
                             <span className="text-sm font-semibold text-white">{actions.length}</span>
                             <span className="text-xs text-white/60 ml-1">actions</span>
                         </div>
@@ -397,11 +396,11 @@ export default function SDRHistoryPage() {
                 </div>
             </div>
 
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-sm">
-                <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
                     <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
                                 <Filter className="w-4 h-4 text-white" />
                             </div>
                             <div>
@@ -418,9 +417,9 @@ export default function SDRHistoryPage() {
                             <button
                                 type="button"
                                 onClick={() => setDateFilterOpen((o) => !o)}
-                                className="flex items-center gap-2 w-full h-10 px-3 text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-xl hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400"
+                                className="flex items-center gap-2 w-full h-10 px-3 text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-xl hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400"
                             >
-                                <Calendar className="w-4 h-4 text-indigo-500" />
+                                <Calendar className="w-4 h-4 text-primary-500" />
                                 <span className="truncate">{dateRange.preset ? PRESET_LABELS[dateRange.preset] : "Plage de dates"}</span>
                                 <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 ml-auto shrink-0", dateFilterOpen && "rotate-180")} />
                             </button>
@@ -443,7 +442,7 @@ export default function SDRHistoryPage() {
                             <select
                                 value={selectedMissionId}
                                 onChange={(e) => setSelectedMissionId(e.target.value)}
-                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 cursor-pointer"
+                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400 cursor-pointer"
                             >
                                 <option value="">Toutes</option>
                                 {missions.map((m) => (
@@ -458,7 +457,7 @@ export default function SDRHistoryPage() {
                             <select
                                 value={selectedResult}
                                 onChange={(e) => setSelectedResult(e.target.value)}
-                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 cursor-pointer"
+                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400 cursor-pointer"
                             >
                                 <option value="">Tous</option>
                                 {(Object.entries(ACTION_RESULT_LABELS) as [ActionResult, string][]).map(([value, label]) => (
@@ -473,7 +472,7 @@ export default function SDRHistoryPage() {
                             <select
                                 value={selectedChannel}
                                 onChange={(e) => setSelectedChannel(e.target.value)}
-                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 cursor-pointer"
+                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400 cursor-pointer"
                             >
                                 <option value="">Tous</option>
                                 {(Object.entries(CHANNEL_LABELS) as [Channel, string][]).map(([value, label]) => (
@@ -502,7 +501,7 @@ export default function SDRHistoryPage() {
             ) : actions.length === 0 ? (
                 <Card className="text-center py-16 border-dashed border-2 bg-slate-50/50">
                     <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-100">
-                        <History className="w-10 h-10 text-indigo-500" />
+                        <History className="w-10 h-10 text-primary-500" />
                     </div>
                     <h3 className="text-xl font-bold text-slate-900">Aucune action</h3>
                     <p className="text-slate-500 mt-2 max-w-sm mx-auto">
@@ -522,7 +521,7 @@ export default function SDRHistoryPage() {
                         pageSize={20}
                         emptyMessage="Aucune action avec ces filtres."
                         onRowClick={(row) => row.companyId && openDrawer(row)}
-                        getRowClassName={() => "cursor-pointer hover:bg-indigo-50/50"}
+                        getRowClassName={() => "cursor-pointer hover:bg-primary-50/50"}
                     />
                 </div>
             )}

@@ -1,39 +1,29 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, DM_Sans, DM_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "@/components/providers/Providers";
-import { Analytics } from "@vercel/analytics/next"
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-});
-
-const dmMono = DM_Mono({
-  variable: "--font-dm-mono",
-  subsets: ["latin"],
-  weight: ["300", "400", "500"],
-});
+import { Analytics } from "@vercel/analytics/next";
+import { brand } from "@/lib/brand";
+import { brandFontVariables } from "@/brand/fonts";
+import { BrandStyle } from "@/components/brand/BrandStyle";
 
 export const metadata: Metadata = {
-  title: "CaptainProspect CRM",
-  description: "Plateforme d'exécution commerciale - CaptainProspect CRM",
-icons: {
-      icon: [
-        { url: "/suzalink_logo.png", type: "image/png" },
-        { url: "/favicon.ico", sizes: "any" },
-      ],
-    apple: "/suzalink_logo.png",
-    },
+  title: {
+    default: brand.productName,
+    template: `%s | ${brand.name}`,
+  },
+  description: `${brand.tagline} — ${brand.productName}`,
+  applicationName: brand.productName,
+  icons: {
+    icon: [
+      { url: brand.logos.favicon, type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/brand/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: brand.palette.primarySeed,
 };
 
 export default function RootLayout({
@@ -42,11 +32,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} ${dmSans.variable} ${dmMono.variable} antialiased bg-neutral-950 text-neutral-50`}
-        suppressHydrationWarning
-      >
+    <html lang={brand.locale.lang} className={brandFontVariables} suppressHydrationWarning>
+      <head>
+        <BrandStyle />
+      </head>
+      <body className="antialiased bg-canvas text-ink" suppressHydrationWarning>
         <Providers>{children}</Providers>
         {process.env.VERCEL === "1" && <Analytics />}
       </body>

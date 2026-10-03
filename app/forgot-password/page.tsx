@@ -12,6 +12,7 @@ import {
     Shield,
     KeyRound
 } from "lucide-react";
+import { brand } from "@/lib/brand";
 
 export default function ForgotPasswordPage() {
     const router = useRouter();
@@ -56,33 +57,21 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="min-h-screen w-full flex flex-col justify-between bg-[#080c14] text-slate-100 font-sans selection:bg-indigo-500/30 relative overflow-hidden">
-            {/* Structural background */}
-            <div className="fixed inset-0 pointer-events-none">
-                <div
-                    className="absolute inset-0 opacity-[0.03]"
-                    style={{
-                        backgroundImage: `linear-gradient(to right, #94a3b8 1px, transparent 1px), linear-gradient(to bottom, #94a3b8 1px, transparent 1px)`,
-                        backgroundSize: "32px 32px",
-                    }}
-                />
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-950/20 blur-[130px] rounded-full" />
-            </div>
-
+        <div className="min-h-screen w-full flex flex-col justify-between bg-inverse text-slate-100 font-sans selection:bg-primary-500/30 relative overflow-hidden">
             {/* Top Security Header */}
-            <header className="relative z-10 w-full border-b border-slate-800/70 bg-[#090e18]/80 backdrop-blur-md px-6 py-3.5">
+            <header className="relative z-10 w-full border-b border-inverse-line bg-inverse-raised px-6 py-3.5">
                 <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2.5">
-                        <div className="w-6 h-6 rounded-md bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center">
-                            <Shield className="w-3.5 h-3.5 text-indigo-400" />
+                        <div className="w-6 h-6 rounded-md bg-primary-600/20 border border-primary-500/40 flex items-center justify-center">
+                            <Shield className="w-3.5 h-3.5 text-primary-400" />
                         </div>
                         <span className="font-semibold tracking-wider uppercase text-slate-300 text-[11px]">
-                            Captain Prospect <span className="text-slate-500 font-normal">| Récupération d&apos;Accès</span>
+                            {brand.name} <span className="text-slate-500 font-normal">| Récupération d&apos;Accès</span>
                         </span>
                     </div>
 
                     <div className="hidden sm:flex items-center gap-2 text-slate-400 text-[11px]">
-                        <span>Procédure de sécurité certifiée</span>
+                        <span>Lien valable 1 heure</span>
                     </div>
                 </div>
             </header>
@@ -94,20 +83,20 @@ export default function ForgotPasswordPage() {
                         mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
                     }`}
                 >
-                    <div className="bg-[#0e1422]/95 border border-slate-800/90 rounded-xl shadow-2xl shadow-black/80 overflow-hidden relative backdrop-blur-xl">
-                        <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-80" />
+                    <div className="bg-inverse-raised border border-inverse-line rounded-xl shadow-2xl shadow-black/60 overflow-hidden relative">
+                        <div className="h-[2px] w-full bg-primary-500 opacity-80" />
 
                         <div className="p-7 sm:p-8">
                             {/* Brand Header */}
                             <div className="flex flex-col items-center text-center mb-6">
-                                <div className="w-10 h-10 rounded-lg bg-indigo-950/70 border border-indigo-700/60 flex items-center justify-center mb-3">
-                                    <KeyRound className="w-5 h-5 text-indigo-400" />
+                                <div className="w-10 h-10 rounded-lg bg-primary-950/70 border border-primary-700/60 flex items-center justify-center mb-3">
+                                    <KeyRound className="w-5 h-5 text-primary-400" />
                                 </div>
                                 <h1 className="text-lg font-semibold tracking-tight text-white">
                                     Réinitialisation du mot de passe
                                 </h1>
                                 <p className="text-xs text-slate-400 mt-1 max-w-[290px]">
-                                    Saisissez votre adresse professionnelle pour recevoir les instructions sécurisées.
+                                    Saisissez votre adresse e-mail pour recevoir un lien de réinitialisation.
                                 </p>
                             </div>
 
@@ -163,7 +152,7 @@ export default function ForgotPasswordPage() {
                                                 autoComplete="email"
                                                 autoFocus
                                                 required
-                                                className="w-full h-10 pl-9 pr-3 bg-slate-950/90 border border-slate-700/80 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                                                className="w-full h-10 pl-9 pr-3 bg-slate-950/90 border border-slate-700/80 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all font-mono"
                                             />
                                         </div>
                                     </div>
@@ -171,16 +160,16 @@ export default function ForgotPasswordPage() {
                                     <button
                                         type="submit"
                                         disabled={isLoading}
-                                        className="w-full h-10 rounded-lg font-medium text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-950/50 hover:shadow-indigo-900/40 active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                        className="w-full h-10 rounded-lg font-medium text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-500 text-white shadow-sm active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                     >
                                         {isLoading ? (
                                             <>
                                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                                <span>Transmission de la demande...</span>
+                                                <span>Envoi…</span>
                                             </>
                                         ) : (
                                             <>
-                                                <span>Transmettre le lien de réinitialisation</span>
+                                                <span>Envoyer le lien</span>
                                                 <ArrowRight className="w-4 h-4" />
                                             </>
                                         )}
@@ -193,7 +182,7 @@ export default function ForgotPasswordPage() {
                                             className="text-xs text-slate-400 hover:text-slate-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
                                         >
                                             <ArrowLeft className="w-3.5 h-3.5" />
-                                            <span>Retour à l&apos;authentification</span>
+                                            <span>Retour à la connexion</span>
                                         </button>
                                     </div>
                                 </form>
@@ -204,10 +193,9 @@ export default function ForgotPasswordPage() {
             </main>
 
             {/* Bottom Footer */}
-            <footer className="relative z-10 w-full border-t border-slate-800/70 bg-[#090e18]/80 backdrop-blur-md px-6 py-3">
+            <footer className="relative z-10 w-full border-t border-inverse-line bg-inverse-raised px-6 py-3">
                 <div className="max-w-7xl mx-auto flex items-center justify-between text-xs text-slate-500">
-                    <p>© {new Date().getFullYear()} Captain Prospect CRM. Espace sécurisé.</p>
-                    <span className="text-[11px]">Assistance IT d&apos;urgence disponible</span>
+                    <p>© {new Date().getFullYear()} {brand.productName}</p>
                 </div>
             </footer>
         </div>

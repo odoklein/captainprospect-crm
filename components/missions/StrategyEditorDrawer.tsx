@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Drawer, useToast } from "@/components/ui";
-import { Loader2, Save, CheckCircle2, AlertCircle, Target, Users, FileText, Sparkles } from "lucide-react";
+import { Loader2, Save, CheckCircle2, AlertCircle, Target, Users, FileText, MessageSquare } from "lucide-react";
 import { PitchBlockEditor, ScriptBlockEditor } from "@/components/strategy";
 
 interface ListSummary {
@@ -31,17 +31,19 @@ interface CampaignDetail {
     isActive: boolean;
 }
 
+// Neutrals/brand from design tokens, status hues literal. Translucent variants
+// go through color-mix (never hex-alpha concatenation).
 const C = {
-    text: "#0F172A",
-    textMuted: "#64748B",
-    textSubtle: "#94A3B8",
-    border: "#E2E8F0",
-    borderFocus: "#4F46E5",
-    bg: "#FFFFFF",
-    bgSubtle: "#F8FAFC",
-    indigo: "#4F46E5",
-    indigoDark: "#3730A3",
-    indigoBg: "#EEF2FF",
+    text: "var(--ds-ink)",
+    textMuted: "var(--ds-ink-3)",
+    textSubtle: "var(--ds-ink-4)",
+    border: "var(--ds-line)",
+    borderFocus: "var(--brand-primary-600)",
+    bg: "var(--ds-surface)",
+    bgSubtle: "var(--ds-surface-2)",
+    indigo: "var(--brand-primary-600)",
+    indigoDark: "var(--brand-primary-800)",
+    indigoBg: "var(--brand-primary-50)",
     emerald: "#059669",
     emeraldBg: "#ECFDF5",
     amber: "#D97706",
@@ -291,12 +293,12 @@ export function StrategyEditorDrawer({
                                 fontWeight: 600,
                                 color: "#FFFFFF",
                                 background: saving || loading
-                                    ? "#A5B4FC"
-                                    : `linear-gradient(135deg, ${C.indigo}, ${C.indigoDark})`,
+                                    ? "var(--brand-primary-300)"
+                                    : C.indigo,
                                 border: "none",
                                 borderRadius: 10,
                                 cursor: saving || loading ? "not-allowed" : "pointer",
-                                boxShadow: "0 4px 12px rgba(79, 70, 229, 0.25)",
+                                boxShadow: "0 1px 2px rgba(15, 23, 42, 0.05)",
                             }}
                         >
                             {saving ? <Loader2 className="animate-spin" style={{ width: 16, height: 16 }} /> : <Save style={{ width: 16, height: 16 }} />}
@@ -357,7 +359,7 @@ export function StrategyEditorDrawer({
                                                 fontSize: 14,
                                                 color: C.text,
                                                 background: checked ? C.indigoBg : C.bg,
-                                                border: `1px solid ${checked ? C.indigo + "40" : C.border}`,
+                                                border: `1px solid ${checked ? `color-mix(in oklab, ${C.indigo} 25%, transparent)` : C.border}`,
                                                 borderRadius: 8,
                                                 cursor: "pointer",
                                             }}
@@ -414,7 +416,7 @@ export function StrategyEditorDrawer({
                     </Step>
 
                     {/* Step 4: Pitch */}
-                    <Step number={4} icon={<Sparkles style={{ width: 18, height: 18, color: C.indigo }} />} title="Pitch — message à porter">
+                    <Step number={4} icon={<MessageSquare style={{ width: 18, height: 18, color: C.indigo }} />} title="Pitch — message à porter">
                         <PitchBlockEditor
                             value={pitch}
                             onChange={setPitch}

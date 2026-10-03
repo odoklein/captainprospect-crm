@@ -89,13 +89,12 @@ export function SdrPaceProvider({ children }: { children: React.ReactNode }) {
 
         const transition =
             notification.kind === "CHANGE" && notification.from
-                ? `${PACE_STATUS_COPY[notification.from].badge} ${PACE_STATUS_COPY[notification.from].label} → ` +
-                  `${PACE_STATUS_COPY[status].badge} ${PACE_STATUS_COPY[status].label} — `
+                ? `${PACE_STATUS_COPY[notification.from].label} → ${PACE_STATUS_COPY[status].label} — `
                 : "";
 
         toastRef.current.addToast({
             type: TOAST_TYPE[status],
-            title: `${headline.emoji} ${headline.text}`,
+            title: headline.text,
             message: `${transition}${summary}`,
             duration: TOAST_DURATION_MS,
         });

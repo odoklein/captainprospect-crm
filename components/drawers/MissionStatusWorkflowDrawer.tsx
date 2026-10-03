@@ -290,7 +290,7 @@ export function MissionStatusWorkflowDrawer({
                                 <span className="font-medium">{statuses.length}</span>
                                 <span>statuts</span>
                                 <span className="text-slate-400">·</span>
-                                <span className={source === "MISSION" ? "text-indigo-600 font-medium" : "text-slate-500"}>
+                                <span className={source === "MISSION" ? "text-primary-600 font-medium" : "text-slate-500"}>
                                     {source === "MISSION" ? "Personnalisés (mission)" : "Défaut global"}
                                 </span>
                             </div>
@@ -344,7 +344,7 @@ export function MissionStatusWorkflowDrawer({
                                         className={cn(
                                             "rounded-xl border transition-all",
                                             isExpanded
-                                                ? "border-indigo-200 bg-indigo-50/30 shadow-sm"
+                                                ? "border-primary-200 bg-primary-50/30 shadow-sm"
                                                 : "border-slate-200 bg-white hover:border-slate-300"
                                         )}
                                     >
@@ -352,7 +352,7 @@ export function MissionStatusWorkflowDrawer({
                                         <div className="flex items-center gap-4 p-4">
                                             <div
                                                 className="w-5 h-5 rounded-full shrink-0 border border-slate-200"
-                                                style={{ backgroundColor: item.color || "#e2e8f0" }}
+                                                style={{ backgroundColor: item.color || "var(--ds-line)" }}
                                             />
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium text-slate-900 truncate">
@@ -364,7 +364,7 @@ export function MissionStatusWorkflowDrawer({
                                                 {PRIORITY_OPTIONS.find((o) => o.value === item.priorityLabel)?.label ?? item.priorityLabel}
                                             </span>
                                             {item.resultCategoryCode && categories.length > 0 && (
-                                                <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 shrink-0">
+                                                <span className="text-[10px] px-2 py-0.5 rounded-md bg-primary-50 text-primary-700 shrink-0">
                                                     {categories.find((c) => c.code === item.resultCategoryCode)?.label ?? item.resultCategoryCode}
                                                 </span>
                                             )}
@@ -391,7 +391,7 @@ export function MissionStatusWorkflowDrawer({
                                                 <button
                                                     type="button"
                                                     onClick={applyEdit}
-                                                    className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg"
+                                                    className="p-1.5 text-primary-600 hover:bg-primary-100 rounded-lg"
                                                     aria-label="Appliquer"
                                                 >
                                                     <Save className="w-4 h-4" />
@@ -432,7 +432,7 @@ export function MissionStatusWorkflowDrawer({
                                                                         key={c}
                                                                         type="button"
                                                                         onClick={() => updateDraft({ color: c })}
-                                                                        className="w-6 h-6 rounded-full border-2 border-slate-200 hover:border-indigo-400 transition-colors"
+                                                                        className="w-6 h-6 rounded-full border-2 border-slate-200 hover:border-primary-400 transition-colors"
                                                                         style={{ backgroundColor: c }}
                                                                         title={c}
                                                                     />
@@ -447,7 +447,7 @@ export function MissionStatusWorkflowDrawer({
                                                             type="checkbox"
                                                             checked={draft.requiresNote}
                                                             onChange={(e) => updateDraft({ requiresNote: e.target.checked })}
-                                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                                         />
                                                         <span className="text-sm text-slate-700">Note obligatoire</span>
                                                     </label>

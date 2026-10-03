@@ -74,7 +74,7 @@ export function ProjectAnalytics({ taskStats, className }: ProjectAnalyticsProps
             {/* KPI Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <KpiCard
-                    icon={<TrendingUp className="w-5 h-5 text-indigo-600" />}
+                    icon={<TrendingUp className="w-5 h-5 text-primary-600" />}
                     label="Progression"
                     value={`${taskStats.completionPercent}%`}
                     detail={`${taskStats.completed}/${taskStats.total} tâches`}

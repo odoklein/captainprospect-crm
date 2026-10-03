@@ -89,7 +89,7 @@ function StatusBadge({ status }: { status: string }) {
         DELIVERED: { label: "Délivré", className: "bg-blue-50 text-blue-700 border-blue-200" },
         OPENED: { label: "Ouvert", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
         CLICKED: { label: "Cliqué", className: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-        REPLIED: { label: "Répondu", className: "bg-violet-50 text-violet-700 border-violet-200" },
+        REPLIED: { label: "Répondu", className: "bg-accent-50 text-accent-700 border-accent-200" },
         BOUNCED: { label: "Rebond", className: "bg-amber-50 text-amber-700 border-amber-200" },
         FAILED: { label: "Échoué", className: "bg-red-50 text-red-700 border-red-200" },
     };
@@ -113,20 +113,20 @@ function StatCard({ label, value, subValue, icon: Icon, color }: {
     color: string;
 }) {
     const colorMap: Record<string, { bg: string; icon: string; value: string; border: string }> = {
-        violet: { bg: "bg-violet-50", icon: "bg-violet-100 text-violet-600", value: "text-violet-700", border: "border-violet-100" },
+        violet: { bg: "bg-accent-50", icon: "bg-accent-100 text-accent-600", value: "text-accent-700", border: "border-accent-100" },
         emerald: { bg: "bg-emerald-50", icon: "bg-emerald-100 text-emerald-600", value: "text-emerald-700", border: "border-emerald-100" },
         blue: { bg: "bg-blue-50", icon: "bg-blue-100 text-blue-600", value: "text-blue-700", border: "border-blue-100" },
-        purple: { bg: "bg-purple-50", icon: "bg-purple-100 text-purple-600", value: "text-purple-700", border: "border-purple-100" },
+        purple: { bg: "bg-accent-50", icon: "bg-accent-100 text-accent-600", value: "text-accent-700", border: "border-accent-100" },
     };
     const c = colorMap[color] || colorMap.violet;
     return (
-        <div className={cn("relative overflow-hidden rounded-2xl border p-5 bg-white transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5", c.border)}>
+        <div className={cn("relative overflow-hidden rounded-2xl border p-5 bg-white transition-shadow duration-200 hover:shadow-md", c.border)}>
             <div className="flex items-start justify-between">
                 <div className="space-y-1.5">
-                    <p className="text-[12px] font-medium text-[#6B7194] tracking-wide">{label}</p>
+                    <p className="text-[12px] font-medium text-ink-3 tracking-wide">{label}</p>
                     <div className="flex items-baseline gap-2">
                         <p className={cn("text-2xl font-extrabold tracking-tight", c.value)}>{value}</p>
-                        {subValue && <span className="text-sm font-medium text-[#A0A3BD]">{subValue}</span>}
+                        {subValue && <span className="text-sm font-medium text-ink-4">{subValue}</span>}
                     </div>
                 </div>
                 <div className={cn("rounded-xl p-2.5", c.icon)}>
@@ -251,7 +251,7 @@ export default function ClientPortalEmailPage() {
     const SortHeader = ({ col, label }: { col: string; label: string }) => (
         <button
             onClick={() => handleSort(col)}
-            className={cn("inline-flex items-center gap-1 text-left font-semibold text-[11px] uppercase tracking-wider", sortBy === col ? "text-[#7C5CFC]" : "text-[#6B7194] hover:text-[#12122A]")}
+            className={cn("inline-flex items-center gap-1 text-left font-semibold text-[11px] uppercase tracking-wider", sortBy === col ? "text-primary-600" : "text-ink-3 hover:text-ink")}
         >
             {label}
             <ArrowUpDown className="w-3 h-3" />
@@ -259,27 +259,27 @@ export default function ClientPortalEmailPage() {
     );
 
     return (
-        <div className="min-h-full bg-[#FAF9F6] p-4 md:p-6 space-y-6" style={{ fontFamily: "var(--cp-font, 'DM Sans', 'Inter', system-ui, sans-serif)" }}>
+        <div className="min-h-full bg-surface-2 p-4 md:p-6 space-y-6" style={{ fontFamily: "var(--cp-font, 'DM Sans', 'Inter', system-ui, sans-serif)" }}>
 
             {/* Header */}
             <div className="flex items-start justify-between gap-4" style={{ animation: "dashFadeUp 0.4s ease both" }}>
                 <div>
-                    <h1 className="text-2xl md:text-[28px] font-bold text-[#12122A] tracking-tight leading-tight">
-                        Mes <span className="gradient-text">emails envoyés</span>
+                    <h1 className="text-2xl md:text-[28px] font-bold text-ink tracking-tight leading-tight">
+                        Mes emails envoyés
                     </h1>
-                    <p className="text-sm text-[#6B7194] mt-1.5 max-w-xl">
-                        Retrouvez ici les emails envoyés en votre nom par l&apos;équipe, avec les statistiques d&apos;ouverture et de clics.
+                    <p className="text-sm text-ink-3 mt-1.5 max-w-xl">
+                        Emails envoyés en votre nom par l&apos;équipe, avec leurs ouvertures et clics.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleExport}
-                        className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-[#6B7194] bg-white border border-[#E8EBF0] rounded-xl hover:bg-[#F4F6F9] transition-all"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-ink-3 bg-white border border-line rounded-xl hover:bg-surface-3 transition-all"
                     >
                         <Download className="w-4 h-4" />
                         Exporter
                     </button>
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#7C5CFC] to-[#A78BFA] flex items-center justify-center shadow-lg shadow-[#7C5CFC]/25 shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center shrink-0">
                         <Mail className="w-6 h-6 text-white" />
                     </div>
                 </div>
@@ -304,13 +304,13 @@ export default function ClientPortalEmailPage() {
             <div className="premium-card p-4 space-y-3" style={{ animation: "dashFadeUp 0.4s ease both", animationDelay: "80ms" }}>
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="relative flex-1 min-w-[200px] max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0A3BD]" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-4" />
                         <input
                             type="text"
                             placeholder="Rechercher par sujet, destinataire..."
                             value={debouncedSearch}
                             onChange={(e) => setDebouncedSearch(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 text-sm bg-[#F8F9FC] border border-[#E8EBF0] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/20 focus:border-[#7C5CFC] placeholder:text-[#A0A3BD] transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 text-sm bg-surface-2 border border-line rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 placeholder:text-ink-4 transition-all"
                         />
                     </div>
 
@@ -319,22 +319,22 @@ export default function ClientPortalEmailPage() {
                             <select
                                 value={missionFilter}
                                 onChange={(e) => { setMissionFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }}
-                                className="appearance-none pl-4 pr-10 py-2.5 border border-[#E8EBF0] rounded-xl text-sm bg-[#F8F9FC] focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/20 min-w-[180px]"
+                                className="appearance-none pl-4 pr-10 py-2.5 border border-line rounded-xl text-sm bg-surface-2 focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-w-[180px]"
                             >
                                 <option value="">Toutes les missions</option>
                                 {missions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                             </select>
-                            <Target className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0A3BD] pointer-events-none" />
+                            <Target className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-4 pointer-events-none" />
                         </div>
                     )}
 
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={cn("inline-flex items-center gap-2 px-3.5 py-2.5 text-sm font-medium rounded-xl border transition-all", showFilters ? "bg-[#7C5CFC]/10 text-[#7C5CFC] border-[#7C5CFC]/30" : "bg-[#F8F9FC] text-[#6B7194] border-[#E8EBF0] hover:bg-[#F4F6F9]")}
+                        className={cn("inline-flex items-center gap-2 px-3.5 py-2.5 text-sm font-medium rounded-xl border transition-all", showFilters ? "bg-primary/10 text-primary-600 border-primary-500/30" : "bg-surface-2 text-ink-3 border-line hover:bg-surface-3")}
                     >
                         <Filter className="w-4 h-4" />
                         Filtres
-                        {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-[#7C5CFC]" />}
+                        {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-primary" />}
                     </button>
 
                     {hasActiveFilters && (
@@ -345,10 +345,10 @@ export default function ClientPortalEmailPage() {
                 </div>
 
                 {showFilters && (
-                    <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-[#E8EBF0]">
+                    <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-line">
                         <div>
-                            <label className="block text-[11px] font-medium text-[#A0A3BD] uppercase tracking-wider mb-1">Statut</label>
-                            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="appearance-none px-3 py-2 border border-[#E8EBF0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/20 min-w-[140px]">
+                            <label className="block text-[11px] font-medium text-ink-4 uppercase tracking-wider mb-1">Statut</label>
+                            <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="appearance-none px-3 py-2 border border-line rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-w-[140px]">
                                 <option value="">Tous</option>
                                 <option value="SENT">Envoyé</option>
                                 <option value="OPENED">Ouvert</option>
@@ -358,20 +358,20 @@ export default function ClientPortalEmailPage() {
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[11px] font-medium text-[#A0A3BD] uppercase tracking-wider mb-1">Ouverture</label>
-                            <select value={hasOpenedFilter} onChange={(e) => { setHasOpenedFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="appearance-none px-3 py-2 border border-[#E8EBF0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/20 min-w-[130px]">
+                            <label className="block text-[11px] font-medium text-ink-4 uppercase tracking-wider mb-1">Ouverture</label>
+                            <select value={hasOpenedFilter} onChange={(e) => { setHasOpenedFilter(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="appearance-none px-3 py-2 border border-line rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 min-w-[130px]">
                                 <option value="">Tous</option>
                                 <option value="true">Ouverts</option>
                                 <option value="false">Non ouverts</option>
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[11px] font-medium text-[#A0A3BD] uppercase tracking-wider mb-1">Du</label>
-                            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="px-3 py-2 border border-[#E8EBF0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/20" />
+                            <label className="block text-[11px] font-medium text-ink-4 uppercase tracking-wider mb-1">Du</label>
+                            <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="px-3 py-2 border border-line rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
                         </div>
                         <div>
-                            <label className="block text-[11px] font-medium text-[#A0A3BD] uppercase tracking-wider mb-1">Au</label>
-                            <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="px-3 py-2 border border-[#E8EBF0] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/20" />
+                            <label className="block text-[11px] font-medium text-ink-4 uppercase tracking-wider mb-1">Au</label>
+                            <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPagination((p) => ({ ...p, page: 1 })); }} className="px-3 py-2 border border-line rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20" />
                         </div>
                     </div>
                 )}
@@ -379,47 +379,47 @@ export default function ClientPortalEmailPage() {
 
             {/* Table */}
             <div className="premium-card overflow-hidden" style={{ animation: "dashFadeUp 0.4s ease both", animationDelay: "120ms" }}>
-                <div className="flex items-center gap-2.5 px-6 pt-5 pb-4 border-b border-[#E8EBF0]">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#7C5CFC] to-[#A78BFA] flex items-center justify-center shadow-sm shadow-[#7C5CFC]/20">
-                        <Send className="w-4 h-4 text-white" />
+                <div className="flex items-center gap-2.5 px-6 pt-5 pb-4 border-b border-line">
+                    <div className="w-8 h-8 rounded-lg bg-accent-50 ring-1 ring-inset ring-accent-100 flex items-center justify-center">
+                        <Send className="w-4 h-4 text-primary-600" />
                     </div>
                     <div>
-                        <h2 className="text-sm font-semibold text-[#12122A] uppercase tracking-wider">Emails envoyés</h2>
-                        <p className="text-[11px] text-[#6B7194] mt-0.5">{pagination.total} email{pagination.total > 1 ? "s" : ""} au total</p>
+                        <h2 className="text-sm font-semibold text-ink uppercase tracking-wider">Emails envoyés</h2>
+                        <p className="text-[11px] text-ink-3 mt-0.5">{pagination.total} email{pagination.total > 1 ? "s" : ""} au total</p>
                     </div>
                 </div>
 
                 <div className="p-6">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-3">
-                            <Loader2 className="w-8 h-8 text-[#7C5CFC] animate-spin" />
-                            <p className="text-xs text-[#6B7194]">Chargement des emails…</p>
+                            <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+                            <p className="text-xs text-ink-3">Chargement des emails…</p>
                         </div>
                     ) : emails.length === 0 ? (
                         <div className="text-center py-14">
-                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#F4F6F9] to-[#E8EBF0] flex items-center justify-center mx-auto mb-4">
-                                <Send className="w-7 h-7 text-[#A0A3BD]" />
+                            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                                <Send className="w-7 h-7 text-ink-4" />
                             </div>
-                            <p className="text-sm font-semibold text-[#12122A]">
+                            <p className="text-sm font-semibold text-ink">
                                 {hasActiveFilters ? "Aucun résultat" : "Aucun email envoyé"}
                             </p>
-                            <p className="text-xs text-[#6B7194] mt-1 max-w-[280px] mx-auto">
+                            <p className="text-xs text-ink-3 mt-1 max-w-[280px] mx-auto">
                                 {hasActiveFilters ? "Modifiez vos filtres." : "Les emails envoyés par l'équipe apparaîtront ici."}
                             </p>
                             {hasActiveFilters && (
-                                <button onClick={clearFilters} className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#7C5CFC] bg-[#7C5CFC]/10 rounded-xl hover:bg-[#7C5CFC]/20 transition-all">
+                                <button onClick={clearFilters} className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 bg-primary/10 rounded-xl hover:bg-primary/20 transition-all">
                                     <RotateCcw className="w-4 h-4" /> Réinitialiser
                                 </button>
                             )}
                         </div>
                     ) : (
                         <>
-                            <div className="overflow-x-auto -mx-2 sm:mx-0 rounded-xl border border-[#E8EBF0] overflow-hidden">
+                            <div className="overflow-x-auto -mx-2 sm:mx-0 rounded-xl border border-line overflow-hidden">
                                 <table className="w-full">
                                     <thead>
-                                        <tr className="bg-gradient-to-r from-[#F8F9FC] to-[#F4F6F9]">
+                                        <tr className="bg-slate-50">
                                             <th className="text-left py-3.5 px-4"><SortHeader col="subject" label="Destinataire / Objet" /></th>
-                                            <th className="text-left py-3.5 px-4"><span className="text-[11px] font-semibold text-[#6B7194] uppercase tracking-wider">Mission</span></th>
+                                            <th className="text-left py-3.5 px-4"><span className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider">Mission</span></th>
                                             <th className="text-left py-3.5 px-4"><SortHeader col="status" label="Statut" /></th>
                                             <th className="text-left py-3.5 px-4"><SortHeader col="sentAt" label="Date" /></th>
                                             <th className="text-center py-3.5 px-4"><SortHeader col="openCount" label="Ouv." /></th>
@@ -431,63 +431,63 @@ export default function ClientPortalEmailPage() {
                                             <>
                                                 <tr
                                                     key={e.id}
-                                                    className={cn("border-b border-[#F0F1F5] last:border-0 transition-colors duration-150 cursor-pointer", idx % 2 === 0 ? "bg-white" : "bg-[#FAFBFC]/50", "hover:bg-[#7C5CFC]/5")}
+                                                    className={cn("border-b border-line-subtle last:border-0 transition-colors duration-150 cursor-pointer", idx % 2 === 0 ? "bg-white" : "bg-surface-2/50", "hover:bg-primary/5")}
                                                     onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
                                                 >
                                                     <td className="py-3.5 px-4">
                                                         <div>
-                                                            <p className="text-sm font-semibold text-[#12122A] truncate max-w-[220px]">
+                                                            <p className="text-sm font-semibold text-ink truncate max-w-[220px]">
                                                                 {e.contact ? [e.contact.firstName, e.contact.lastName].filter(Boolean).join(" ") || e.contact.email || e.toAddresses[0] : e.toAddresses[0] || "—"}
                                                             </p>
                                                             {e.contact?.company && (
-                                                                <p className="text-xs text-[#A0A3BD] truncate">{e.contact.company.name}</p>
+                                                                <p className="text-xs text-ink-4 truncate">{e.contact.company.name}</p>
                                                             )}
-                                                            <p className="text-xs text-[#6B7194] truncate max-w-[240px] mt-0.5">{e.subject || "—"}</p>
+                                                            <p className="text-xs text-ink-3 truncate max-w-[240px] mt-0.5">{e.subject || "—"}</p>
                                                         </div>
                                                     </td>
                                                     <td className="py-3.5 px-4">
                                                         {e.mission ? (
-                                                            <span className="inline-flex items-center gap-1.5 text-xs text-[#6B7194] bg-[#F4F6F9] px-2.5 py-1 rounded-lg border border-[#E8EBF0]">
-                                                                <Target className="w-3 h-3 text-[#A0A3BD]" />
+                                                            <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 px-2.5 py-1 rounded-lg border border-line">
+                                                                <Target className="w-3 h-3 text-ink-4" />
                                                                 <span className="truncate max-w-[120px]">{e.mission.name}</span>
                                                             </span>
-                                                        ) : <span className="text-xs text-[#A0A3BD]">—</span>}
+                                                        ) : <span className="text-xs text-ink-4">—</span>}
                                                     </td>
                                                     <td className="py-3.5 px-4">
                                                         <StatusBadge status={e.status} />
                                                     </td>
                                                     <td className="py-3.5 px-4 whitespace-nowrap">
-                                                        <span className="text-xs text-[#8B8DAF] font-medium">{formatDate(e.sentAt)}</span>
+                                                        <span className="text-xs text-ink-3 font-medium">{formatDate(e.sentAt)}</span>
                                                     </td>
                                                     <td className="py-3.5 px-4 text-center">
                                                         {e.openCount > 0 ? (
                                                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title={e.firstOpenedAt ? `Premier: ${formatDate(e.firstOpenedAt)}` : undefined}>
                                                                 <Eye className="w-3 h-3" />{e.openCount}
                                                             </span>
-                                                        ) : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F4F6F9] text-[#A0A3BD] border border-[#E8EBF0]">—</span>}
+                                                        ) : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-surface-3 text-ink-4 border border-line">—</span>}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-center">
                                                         {e.clickCount > 0 ? (
                                                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                                                                 <MousePointer className="w-3 h-3" />{e.clickCount}
                                                             </span>
-                                                        ) : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-[#F4F6F9] text-[#A0A3BD] border border-[#E8EBF0]">—</span>}
+                                                        ) : <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-surface-3 text-ink-4 border border-line">—</span>}
                                                     </td>
                                                 </tr>
                                                 {expandedId === e.id && (
-                                                    <tr key={`${e.id}-expanded`} className="bg-[#F8F9FC]">
+                                                    <tr key={`${e.id}-expanded`} className="bg-surface-2">
                                                         <td colSpan={6} className="px-8 py-4">
-                                                            <div className="bg-white border border-[#E8EBF0] rounded-xl p-4 max-w-2xl">
+                                                            <div className="bg-white border border-line rounded-xl p-4 max-w-2xl">
                                                                 <div className="flex items-center gap-2 mb-3">
-                                                                    <Send className="w-4 h-4 text-[#7C5CFC]" />
-                                                                    <span className="text-sm font-semibold text-[#12122A]">Détails de l&apos;email</span>
+                                                                    <Send className="w-4 h-4 text-primary-600" />
+                                                                    <span className="text-sm font-semibold text-ink">Détails de l&apos;email</span>
                                                                     {e.template && (
-                                                                        <span className="ml-2 text-xs text-[#7C5CFC] bg-[#7C5CFC]/10 px-2 py-0.5 rounded-full border border-[#7C5CFC]/20">
+                                                                        <span className="ml-2 text-xs text-primary-600 bg-primary/10 px-2 py-0.5 rounded-full border border-primary-500/20">
                                                                             {e.template.name}
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <div className="grid grid-cols-2 gap-3 text-xs text-[#6B7194]">
+                                                                <div className="grid grid-cols-2 gap-3 text-xs text-ink-3">
                                                                     <div><strong>Objet :</strong> {e.subject || "Sans sujet"}</div>
                                                                     <div><strong>Envoyé le :</strong> {formatDate(e.sentAt)}</div>
                                                                     {e.sentBy && <div><strong>Envoyé par :</strong> {e.sentBy.name || "—"}</div>}
@@ -511,13 +511,13 @@ export default function ClientPortalEmailPage() {
                             {/* Pagination */}
                             <div className="flex items-center justify-between mt-4">
                                 <div className="flex items-center gap-3">
-                                    <span className="text-xs text-[#6B7194]">
+                                    <span className="text-xs text-ink-3">
                                         {((pagination.page - 1) * pagination.limit) + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} sur {pagination.total}
                                     </span>
                                     <select
                                         value={pagination.limit}
                                         onChange={(e) => setPagination((p) => ({ ...p, limit: parseInt(e.target.value), page: 1 }))}
-                                        className="text-xs border border-[#E8EBF0] rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/20"
+                                        className="text-xs border border-line rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                                     >
                                         <option value="10">10 / page</option>
                                         <option value="25">25 / page</option>
@@ -526,7 +526,7 @@ export default function ClientPortalEmailPage() {
                                     </select>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                    <button onClick={() => setPagination((p) => ({ ...p, page: Math.max(1, p.page - 1) }))} disabled={pagination.page <= 1} className="p-2 rounded-lg text-[#6B7194] hover:bg-[#F4F6F9] hover:text-[#12122A] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                                    <button onClick={() => setPagination((p) => ({ ...p, page: Math.max(1, p.page - 1) }))} disabled={pagination.page <= 1} className="p-2 rounded-lg text-ink-3 hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                                         <ChevronLeft className="w-4 h-4" />
                                     </button>
                                     {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
@@ -534,12 +534,12 @@ export default function ClientPortalEmailPage() {
                                         const pageNum = start + i;
                                         if (pageNum > pagination.totalPages) return null;
                                         return (
-                                            <button key={pageNum} onClick={() => setPagination((p) => ({ ...p, page: pageNum }))} className={cn("w-9 h-9 rounded-lg text-xs font-medium transition-all", pageNum === pagination.page ? "bg-[#7C5CFC] text-white shadow-sm shadow-[#7C5CFC]/30" : "text-[#6B7194] hover:bg-[#F4F6F9]")}>
+                                            <button key={pageNum} onClick={() => setPagination((p) => ({ ...p, page: pageNum }))} className={cn("w-9 h-9 rounded-lg text-xs font-medium transition-all", pageNum === pagination.page ? "bg-primary text-white shadow-sm" : "text-ink-3 hover:bg-surface-3")}>
                                                 {pageNum}
                                             </button>
                                         );
                                     })}
-                                    <button onClick={() => setPagination((p) => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))} disabled={pagination.page >= pagination.totalPages} className="p-2 rounded-lg text-[#6B7194] hover:bg-[#F4F6F9] hover:text-[#12122A] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                                    <button onClick={() => setPagination((p) => ({ ...p, page: Math.min(p.totalPages, p.page + 1) }))} disabled={pagination.page >= pagination.totalPages} className="p-2 rounded-lg text-ink-3 hover:bg-surface-3 hover:text-ink disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                                         <ChevronRight className="w-4 h-4" />
                                     </button>
                                 </div>

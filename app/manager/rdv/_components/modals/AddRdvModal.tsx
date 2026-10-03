@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Calendar } from "lucide-react";
+import { Loader2, Calendar, CalendarDays } from "lucide-react";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 import { DateTimePicker } from "@/components/ui";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
@@ -610,8 +610,9 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
               background: "var(--accentLight)",
               border: "1px solid rgba(79,70,229,0.15)",
             }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", marginBottom: 10 }}>
-                📅 Calendrier client disponible
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                <CalendarDays size={13} />
+                Calendrier client disponible
               </p>
               {clientInterlocuteurs.filter(i => i.isActive && i.bookingLinks?.length > 0).length > 1 && (
                 <div style={{ marginBottom: 10 }}>
@@ -758,7 +759,7 @@ export function AddRdvModal({ isOpen, onClose, onSuccess }: AddRdvModalProps) {
           <button
             disabled={!canSubmit || saving}
             onClick={handleSubmit}
-            className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50 inline-flex items-center gap-2"
             style={{ minWidth: 160 }}
           >
             {saving && <Loader2 size={18} className="animate-spin" style={{ flexShrink: 0 }} />}

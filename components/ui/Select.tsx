@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useLayoutEffect, useCallback } from "react
 import { createPortal } from "react-dom";
 import { ChevronDown, Check, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FieldMessage } from "./Field";
 
 // ============================================
 // SELECT COMPONENT
@@ -157,7 +158,7 @@ export function Select({
     return (
         <div className={cn("relative", className)} ref={containerRef}>
             {label && (
-                <label className="block text-sm font-medium text-slate-500 mb-2">
+                <label className="mb-1.5 block text-[13px] font-medium text-ink-2">
                     {label}
                 </label>
             )}
@@ -170,26 +171,29 @@ export function Select({
                 onKeyDown={handleKeyDown}
                 disabled={disabled}
                 title={selectedOption?.title}
+                aria-haspopup="listbox"
+                aria-expanded={isOpen}
+                aria-invalid={Boolean(error) || undefined}
                 className={cn(
-                    "w-full flex items-center justify-between gap-2 px-4 py-3 min-h-[40px]",
-                    "border rounded-xl text-left transition-colors",
+                    "w-full flex items-center justify-between gap-2 h-10 px-3.5 text-sm",
+                    "border rounded-control text-left transition-[border-color,box-shadow,background-color] duration-150",
                     variant === "header-dark"
-                        ? "bg-white/10 border-white/20 text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/30"
-                        : "bg-white border-slate-200 hover:border-slate-300",
+                        ? "bg-white/10 border-white/20 text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+                        : "bg-surface shadow-2xs focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-500/12",
                     variant === "default" && (error
-                        ? "border-red-500"
+                        ? "border-danger"
                         : isOpen
-                            ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                            : "border-slate-200 hover:border-slate-300"),
+                            ? "border-primary-400 ring-4 ring-primary-500/12"
+                            : "border-line hover:border-line-strong"),
                     disabled && "opacity-50 cursor-not-allowed",
-                    variant === "default" && disabled && "bg-slate-50"
+                    variant === "default" && disabled && "bg-surface-2"
                 )}
             >
                 <span className={cn(
                     "flex items-center gap-2 truncate",
                     variant === "header-dark"
                         ? selectedOption ? "text-white" : "text-white/70"
-                        : selectedOption ? "text-slate-900" : "text-slate-500"
+                        : selectedOption ? "text-ink" : "text-ink-4"
                 )}>
                     {selectedOption?.icon}
                     {selectedOption?.label || placeholder}
@@ -197,16 +201,14 @@ export function Select({
                 <ChevronDown
                     className={cn(
                         "w-4 h-4 transition-transform flex-shrink-0",
-                        variant === "header-dark" ? "text-white/80" : "text-slate-400",
+                        variant === "header-dark" ? "text-white/80" : "text-ink-4",
                         isOpen && "rotate-180"
                     )}
                 />
             </button>
 
             {/* Error Message */}
-            {error && (
-                <p className="text-sm text-red-500 mt-1">{error}</p>
-            )}
+            <FieldMessage error={error} />
 
             {/* Dropdown - use portal when header-dark so it isn't clipped by overflow-hidden */}
             {isOpen && (() => {
@@ -214,9 +216,9 @@ export function Select({
                     <>
                         {/* Search Input */}
                         {searchable && (
-                            <div className="p-2 border-b border-slate-100">
+                            <div className="p-1.5 pb-2 border-b border-line-subtle">
                                 <div className="relative">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-4" />
                                     <input
                                         ref={inputRef}
                                         type="text"
@@ -226,17 +228,17 @@ export function Select({
                                             setHighlightedIndex(0);
                                         }}
                                         onKeyDown={handleKeyDown}
-                                        placeholder="Rechercher..."
-                                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                                        placeholder="Rechercher…"
+                                        className="w-full h-9 pl-9 pr-3 bg-surface-2 border border-line rounded-[10px] text-sm text-ink placeholder:text-ink-4 focus:outline-none focus:border-primary-400 focus:bg-surface"
                                     />
                                 </div>
                             </div>
                         )}
 
                         {/* Options */}
-                        <div className="overflow-y-auto" style={{ maxHeight }}>
+                        <div role="listbox" className="overflow-y-auto p-1" style={{ maxHeight }}>
                             {filteredOptions.length === 0 ? (
-                                <div className="px-4 py-3 text-sm text-slate-500 text-center">
+                                <div className="px-3 py-3 text-sm text-ink-3 text-center">
                                     Aucun résultat
                                 </div>
                             ) : (
@@ -244,6 +246,8 @@ export function Select({
                                     <button
                                         key={option.value}
                                         type="button"
+                                        role="option"
+                                        aria-selected={option.value === value}
                                         title={option.title}
                                         onClick={() => {
                                             if (!option.disabled) {
@@ -255,20 +259,20 @@ export function Select({
                                         onMouseEnter={() => setHighlightedIndex(index)}
                                         disabled={option.disabled}
                                         className={cn(
-                                            "w-full flex items-center justify-between gap-2 px-4 py-3 text-left transition-colors",
-                                            index === highlightedIndex && "bg-indigo-50",
+                                            "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors",
+                                            index === highlightedIndex && "bg-surface-3",
                                             option.disabled && "opacity-50 cursor-not-allowed"
                                         )}
                                     >
                                         <span className={cn(
                                             "flex items-center gap-2 truncate",
-                                            option.value === value ? "text-indigo-600 font-medium" : "text-slate-900"
+                                            option.value === value ? "text-primary-700 font-semibold" : "text-ink"
                                         )}>
                                             {option.icon}
                                             {option.label}
                                         </span>
                                         {option.value === value && (
-                                            <Check className="w-4 h-4 text-indigo-600" />
+                                            <Check className="w-4 h-4 text-primary-600" />
                                         )}
                                     </button>
                                 ))
@@ -281,7 +285,7 @@ export function Select({
                     return createPortal(
                         <div
                             data-select-dropdown
-                            className="bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-scale-in origin-top"
+                            className="bg-surface border border-line rounded-panel shadow-overlay overflow-hidden animate-ds-pop origin-top"
                             style={{
                                 position: "fixed",
                                 top: dropdownRect.top,
@@ -298,7 +302,7 @@ export function Select({
                 }
 
                 return (
-                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-scale-in origin-top">
+                    <div className="absolute z-50 w-full mt-1.5 bg-surface border border-line rounded-panel shadow-overlay overflow-hidden animate-ds-pop origin-top">
                         {dropdownContent}
                     </div>
                 );
@@ -372,7 +376,7 @@ export function MultiSelect({
     return (
         <div className={cn("relative", className)} ref={containerRef}>
             {label && (
-                <label className="block text-sm font-medium text-slate-500 mb-2">
+                <label className="mb-1.5 block text-[13px] font-medium text-ink-2">
                     {label}
                 </label>
             )}
@@ -383,31 +387,32 @@ export function MultiSelect({
                 onClick={() => !disabled && setIsOpen(!isOpen)}
                 disabled={disabled}
                 className={cn(
-                    "w-full flex items-center justify-between gap-2 px-4 py-3",
-                    "bg-white border rounded-xl text-left min-h-[48px]",
-                    "transition-colors",
+                    "w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-sm",
+                    "bg-surface border rounded-control text-left min-h-10 shadow-2xs",
+                    "transition-[border-color,box-shadow] duration-150 focus:outline-none focus-visible:ring-4 focus-visible:ring-primary-500/12",
                     error
-                        ? "border-red-500"
+                        ? "border-danger"
                         : isOpen
-                            ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                            : "border-slate-200 hover:border-slate-300",
-                    disabled && "opacity-50 cursor-not-allowed bg-slate-50"
+                            ? "border-primary-400 ring-4 ring-primary-500/12"
+                            : "border-line hover:border-line-strong",
+                    disabled && "opacity-50 cursor-not-allowed bg-surface-2"
                 )}
             >
                 <div className="flex-1 flex flex-wrap gap-1">
                     {selectedOptions.length === 0 ? (
-                        <span className="text-slate-400">{placeholder}</span>
+                        <span className="px-1 text-ink-4">{placeholder}</span>
                     ) : (
                         selectedOptions.map((opt) => (
                             <span
                                 key={opt.value}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-md text-sm"
+                                className="inline-flex h-6 items-center gap-1 pl-2 pr-1 bg-primary-50 text-primary-700 border border-primary-100 rounded-md text-xs font-medium"
                             >
                                 {opt.label}
                                 <button
                                     type="button"
                                     onClick={(e) => removeOption(opt.value, e)}
-                                    className="hover:text-indigo-900"
+                                    aria-label={`Retirer ${opt.label}`}
+                                    className="inline-flex size-4 items-center justify-center rounded hover:bg-primary-100 hover:text-primary-900"
                                 >
                                     <X className="w-3 h-3" />
                                 </button>
@@ -417,32 +422,32 @@ export function MultiSelect({
                 </div>
                 <ChevronDown
                     className={cn(
-                        "w-4 h-4 text-slate-400 transition-transform flex-shrink-0",
+                        "w-4 h-4 text-ink-4 transition-transform flex-shrink-0",
                         isOpen && "rotate-180"
                     )}
                 />
             </button>
 
-            {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
+            <FieldMessage error={error} />
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-scale-in origin-top">
+                <div className="absolute z-50 w-full mt-1.5 bg-surface border border-line rounded-panel shadow-overlay overflow-hidden animate-ds-pop origin-top">
                     {/* Search */}
-                    <div className="p-2 border-b border-slate-100">
+                    <div className="p-1.5 pb-2 border-b border-line-subtle">
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Rechercher..."
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                            placeholder="Rechercher…"
+                            className="w-full h-9 px-3 bg-surface-2 border border-line rounded-[10px] text-sm text-ink placeholder:text-ink-4 focus:outline-none focus:border-primary-400 focus:bg-surface"
                         />
                     </div>
 
                     {/* Options */}
-                    <div className="max-h-60 overflow-y-auto">
+                    <div role="listbox" aria-multiselectable className="max-h-60 overflow-y-auto p-1">
                         {filteredOptions.length === 0 ? (
-                            <div className="px-4 py-3 text-sm text-slate-500 text-center">
+                            <div className="px-3 py-3 text-sm text-ink-3 text-center">
                                 Aucun résultat
                             </div>
                         ) : (
@@ -458,7 +463,7 @@ export function MultiSelect({
                                             !value.includes(option.value))
                                     }
                                     className={cn(
-                                        "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-slate-50",
+                                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left transition-colors hover:bg-surface-3",
                                         (option.disabled ||
                                             (!!maxSelections &&
                                                 value.length >= maxSelections &&
@@ -468,17 +473,17 @@ export function MultiSelect({
                                 >
                                     <div
                                         className={cn(
-                                            "w-4 h-4 rounded border flex items-center justify-center",
+                                            "size-4 shrink-0 rounded-[5px] border flex items-center justify-center transition-colors",
                                             value.includes(option.value)
-                                                ? "bg-indigo-500 border-indigo-500"
-                                                : "border-slate-300"
+                                                ? "bg-primary border-primary"
+                                                : "border-line-strong bg-surface"
                                         )}
                                     >
                                         {value.includes(option.value) && (
-                                            <Check className="w-3 h-3 text-white" />
+                                            <Check className="w-3 h-3 text-primary-fg" strokeWidth={3} />
                                         )}
                                     </div>
-                                    <span className="truncate text-slate-900">{option.label}</span>
+                                    <span className="truncate text-ink">{option.label}</span>
                                 </button>
                             ))
                         )}

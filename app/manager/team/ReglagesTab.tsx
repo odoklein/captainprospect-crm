@@ -57,10 +57,10 @@ interface Permission {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-    MANAGER: "bg-indigo-100 text-indigo-700",
+    MANAGER: "bg-primary-100 text-primary-700",
     SDR: "bg-blue-100 text-blue-700",
     BUSINESS_DEVELOPER: "bg-emerald-100 text-emerald-700",
-    DEVELOPER: "bg-purple-100 text-purple-700",
+    DEVELOPER: "bg-accent-100 text-accent-700",
     CLIENT: "bg-slate-100 text-slate-700",
 };
 
@@ -501,7 +501,7 @@ export function ReglagesTab() {
                 actions={
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-sm shadow-indigo-600/20 transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-medium shadow-sm transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         Nouvel utilisateur
@@ -537,13 +537,13 @@ export function ReglagesTab() {
                         placeholder="Rechercher par nom ou email..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                     />
                 </div>
                 <select
                     value={roleFilter}
                     onChange={(e) => setRoleFilter(e.target.value)}
-                    className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500"
                 >
                     <option value="">Tous les rôles</option>
                     <option value="MANAGER">Manager</option>
@@ -555,7 +555,7 @@ export function ReglagesTab() {
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500"
+                    className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500"
                 >
                     <option value="all">Tous les statuts</option>
                     <option value="active">Actifs</option>
@@ -586,7 +586,7 @@ export function ReglagesTab() {
                                 <tr>
                                     <td colSpan={10} className="px-6 py-12 text-center">
                                         <div className="flex items-center justify-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                            <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                                             <span className="text-slate-500">Chargement...</span>
                                         </div>
                                     </td>
@@ -600,10 +600,10 @@ export function ReglagesTab() {
                                 </tr>
                             ) : (
                                 users.map((user) => (
-                                    <tr key={user.id} className="hover:bg-indigo-50/40 transition-colors">
+                                    <tr key={user.id} className="hover:bg-primary-50/40 transition-colors">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white font-semibold shadow-sm shadow-indigo-500/30">
+                                                <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
                                                     {user.name.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
@@ -701,7 +701,7 @@ export function ReglagesTab() {
                                                 )}
                                                 <button
                                                     onClick={() => openPermissionsModal(user)}
-                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                    className="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                                                     title="Gérer les permissions"
                                                 >
                                                     <Key className="w-4 h-4" />
@@ -769,7 +769,7 @@ export function ReglagesTab() {
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             placeholder="Jean Dupont"
                         />
                         {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
@@ -780,7 +780,7 @@ export function ReglagesTab() {
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             placeholder="jean@example.com"
                         />
                         {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
@@ -793,7 +793,7 @@ export function ReglagesTab() {
                             type="text"
                             value={formData.alloPhoneNumber}
                             onChange={(e) => setFormData({ ...formData, alloPhoneNumber: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             placeholder="+33612345678"
                         />
                     </div>
@@ -805,7 +805,7 @@ export function ReglagesTab() {
                             type="password"
                             value={formData.password}
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             placeholder="Laissez vide pour générer automatiquement"
                         />
                     </div>
@@ -814,7 +814,7 @@ export function ReglagesTab() {
                         <select
                             value={formData.role}
                             onChange={(e) => setFormData({ ...formData, role: e.target.value, clientId: e.target.value === "CLIENT" ? formData.clientId : "" })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         >
                             <option value="SDR">SDR</option>
                             <option value="BUSINESS_DEVELOPER">Business Developer</option>
@@ -829,7 +829,7 @@ export function ReglagesTab() {
                             <select
                                 value={formData.clientId}
                                 onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             >
                                 <option value="">Sélectionner un client</option>
                                 {clients.map((c) => (
@@ -853,7 +853,7 @@ export function ReglagesTab() {
                     <button
                         onClick={handleCreate}
                         disabled={formLoading}
-                        className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {formLoading ? "Création..." : "Créer"}
                     </button>
@@ -871,7 +871,7 @@ export function ReglagesTab() {
             >
                 {permissionsLoading ? (
                     <div className="flex items-center justify-center py-8">
-                        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : (
                     <div className="space-y-5">
@@ -907,7 +907,7 @@ export function ReglagesTab() {
                                         key={item.code}
                                         className={cn(
                                             "rounded-xl border p-3 transition-colors",
-                                            isEnabled ? "border-indigo-300 bg-indigo-50/70" : "border-slate-200 bg-white"
+                                            isEnabled ? "border-primary-300 bg-primary-50/70" : "border-slate-200 bg-white"
                                         )}
                                     >
                                         <div className="flex items-start justify-between gap-3">
@@ -915,7 +915,7 @@ export function ReglagesTab() {
                                                 <span
                                                     className={cn(
                                                         "mt-0.5 p-2 rounded-lg",
-                                                        isEnabled ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-600"
+                                                        isEnabled ? "bg-primary-100 text-primary-700" : "bg-slate-100 text-slate-600"
                                                     )}
                                                 >
                                                     <Icon className="w-4 h-4" />
@@ -929,7 +929,7 @@ export function ReglagesTab() {
                                                 onClick={() => handlePermissionToggle(item.code)}
                                                 className={cn(
                                                     "relative w-11 h-6 rounded-full transition-colors",
-                                                    isEnabled ? "bg-indigo-600" : "bg-slate-300"
+                                                    isEnabled ? "bg-primary-600" : "bg-slate-300"
                                                 )}
                                             >
                                                 <span
@@ -952,7 +952,7 @@ export function ReglagesTab() {
                             setShowSdrAccessModal(false);
                             setSelectedUser(null);
                         }}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
                     >
                         Fermer
                     </button>
@@ -980,7 +980,7 @@ export function ReglagesTab() {
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
                     <div className="space-y-1.5">
@@ -989,7 +989,7 @@ export function ReglagesTab() {
                             type="email"
                             value={formData.email}
                             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
                     <div className="space-y-1.5">
@@ -1000,7 +1000,7 @@ export function ReglagesTab() {
                             type="text"
                             value={formData.alloPhoneNumber}
                             onChange={(e) => setFormData({ ...formData, alloPhoneNumber: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             placeholder="+33612345678"
                         />
                     </div>
@@ -1012,7 +1012,7 @@ export function ReglagesTab() {
                             type="password"
                             value={formData.password}
                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             placeholder="Laisser vide pour conserver le mot de passe actuel"
                         />
                     </div>
@@ -1021,7 +1021,7 @@ export function ReglagesTab() {
                         <select
                             value={formData.role}
                             onChange={(e) => setFormData({ ...formData, role: e.target.value, clientId: e.target.value === "CLIENT" ? formData.clientId : "" })}
-                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         >
                             <option value="SDR">SDR</option>
                             <option value="BUSINESS_DEVELOPER">Business Developer</option>
@@ -1036,7 +1036,7 @@ export function ReglagesTab() {
                             <select
                                 value={formData.clientId}
                                 onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             >
                                 <option value="">Aucun client</option>
                                 {clients.map((c) => (
@@ -1063,7 +1063,7 @@ export function ReglagesTab() {
                                                 sdrFeedbackPromptTime: e.target.value || "15:45",
                                             })
                                         }
-                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                                     />
                                 </div>
                                 <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 mt-7">
@@ -1076,7 +1076,7 @@ export function ReglagesTab() {
                                                 sdrFeedbackRequiredDaily: e.target.checked,
                                             })
                                         }
-                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                     />
                                     Feedback obligatoire chaque jour
                                 </label>
@@ -1097,7 +1097,7 @@ export function ReglagesTab() {
                     <button
                         onClick={handleUpdate}
                         disabled={formLoading}
-                        className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {formLoading ? "Enregistrement..." : "Enregistrer"}
                     </button>
@@ -1115,7 +1115,7 @@ export function ReglagesTab() {
             >
                 {permissionsLoading ? (
                     <div className="flex items-center justify-center py-8">
-                        <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : (
                     <div className="space-y-6 max-h-[60vh] overflow-y-auto">
@@ -1146,7 +1146,7 @@ export function ReglagesTab() {
                                                     onClick={() => handlePermissionToggle(perm.code)}
                                                     className={cn(
                                                         "relative w-11 h-6 rounded-full transition-colors",
-                                                        isEnabled ? "bg-indigo-600" : "bg-slate-300"
+                                                        isEnabled ? "bg-primary-600" : "bg-slate-300"
                                                     )}
                                                 >
                                                     <span
@@ -1188,7 +1188,7 @@ export function ReglagesTab() {
                             }
                         }}
                         disabled={permissionsLoading}
-                        className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors disabled:opacity-50"
                     >
                         Réinitialiser aux valeurs par défaut
                     </button>
@@ -1197,7 +1197,7 @@ export function ReglagesTab() {
                             setShowPermissionsModal(false);
                             setSelectedUser(null);
                         }}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors"
                     >
                         Fermer
                     </button>

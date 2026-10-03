@@ -178,7 +178,7 @@ export function ContextPanel({ threadId }: ContextPanelProps) {
                     className={cn(
                         "flex-1 px-4 py-3 text-sm font-medium transition-colors",
                         activeTab === "context"
-                            ? "text-indigo-600 border-b-2 border-indigo-600"
+                            ? "text-primary-600 border-b-2 border-primary-600"
                             : "text-slate-500 hover:text-slate-700"
                     )}
                 >
@@ -189,7 +189,7 @@ export function ContextPanel({ threadId }: ContextPanelProps) {
                     className={cn(
                         "flex-1 px-4 py-3 text-sm font-medium transition-colors relative",
                         activeTab === "comments"
-                            ? "text-indigo-600 border-b-2 border-indigo-600"
+                            ? "text-primary-600 border-b-2 border-primary-600"
                             : "text-slate-500 hover:text-slate-700"
                     )}
                 >
@@ -271,7 +271,7 @@ function ContextContent({
             {context.contact && (
                 <div className="p-3 bg-white border border-slate-200 rounded-xl">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white font-semibold">
+                        <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
                             {(context.contact.firstName?.[0] || context.contact.email?.[0] || "?").toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -360,21 +360,21 @@ function ContextContent({
 
             {/* Mission Link */}
             {context.mission ? (
-                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                <div className="p-3 bg-primary-50 border border-primary-200 rounded-xl">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                            <Target className="w-4 h-4 text-indigo-600" />
-                            <span className="text-sm font-medium text-indigo-800">Mission</span>
+                            <Target className="w-4 h-4 text-primary-600" />
+                            <span className="text-sm font-medium text-primary-800">Mission</span>
                         </div>
                         <button
                             onClick={() => onUpdate({ mission: null })}
-                            className="p-1 text-indigo-600 hover:bg-indigo-100 rounded"
+                            className="p-1 text-primary-600 hover:bg-primary-100 rounded"
                         >
                             <Unlink className="w-3 h-3" />
                         </button>
                     </div>
-                    <p className="text-sm font-semibold text-indigo-900">{context.mission.name}</p>
-                    <p className="text-xs text-indigo-600">{context.mission.client.name}</p>
+                    <p className="text-sm font-semibold text-primary-900">{context.mission.name}</p>
+                    <p className="text-xs text-primary-600">{context.mission.client.name}</p>
                 </div>
             ) : isEditingMission ? (
                 <div className="p-3 border border-slate-200 rounded-xl bg-slate-50">
@@ -390,16 +390,16 @@ function ContextContent({
                                 if (e.key === 'Escape') setIsEditingMission(false);
                             }}
                             placeholder="Nom de la mission..."
-                            className="flex-1 px-2 py-1 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500"
+                            className="flex-1 px-2 py-1 text-sm border border-slate-300 rounded-lg outline-none focus:border-primary-500"
                         />
-                        <button onClick={handleLinkMission} className="px-2 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700">OK</button>
+                        <button onClick={handleLinkMission} className="px-2 py-1 bg-primary-600 text-white text-xs rounded-lg hover:bg-primary-700">OK</button>
                         <button onClick={() => setIsEditingMission(false)} className="px-2 py-1 text-slate-500 hover:bg-slate-200 rounded-lg"><X className="w-3 h-3" /></button>
                     </div>
                 </div>
             ) : (
                 <button
                     onClick={() => setIsEditingMission(true)}
-                    className="w-full p-3 border-2 border-dashed border-slate-200 rounded-xl text-sm text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+                    className="w-full p-3 border-2 border-dashed border-slate-200 rounded-xl text-sm text-slate-500 hover:border-primary-300 hover:text-primary-600 transition-colors flex items-center justify-center gap-2"
                 >
                     <Link2 className="w-4 h-4" />
                     Lier à une mission
@@ -501,12 +501,12 @@ function CommentsContent({
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Ajouter une note..."
-                        className="flex-1 px-3 py-2.5 text-sm text-slate-900 bg-white border border-slate-200 rounded-xl placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        className="flex-1 px-3 py-2.5 text-sm text-slate-900 bg-white border border-slate-200 rounded-xl placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                     />
                     <button
                         type="submit"
                         disabled={!newComment.trim() || isSubmitting}
-                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         {isSubmitting ? (
                             <Loader2 className="w-4 h-4 animate-spin" />

@@ -137,7 +137,7 @@ export function HrCalculationDetailModal({
       >
         {isLoading && !data ? (
           <div className="flex flex-col items-center justify-center gap-3 py-12">
-            <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
+            <RefreshCw className="h-6 w-6 animate-spin text-primary-600" />
             <p className="text-xs text-slate-500">Calcul en cours…</p>
           </div>
         ) : !data ? (
@@ -191,7 +191,7 @@ export function HrCalculationDetailModal({
                     type="button"
                     onClick={handleSaveCalculation}
                     disabled={isSaving}
-                    className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="shrink-0 rounded-lg bg-primary-600 px-3 py-1.5 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
                   >
                     {isSaving ? "Enregistrement…" : "Enregistrer ce calcul"}
                   </button>
@@ -213,7 +213,7 @@ export function HrCalculationDetailModal({
                     type="button"
                     onClick={handleSaveCalculation}
                     disabled={isSaving}
-                    className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="shrink-0 rounded-lg bg-primary-600 px-3 py-1.5 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
                   >
                     {isSaving ? "Mise à jour…" : "Mettre à jour"}
                   </button>
@@ -247,19 +247,19 @@ export function HrCalculationDetailModal({
                 label="Ajustement"
                 tip="Une prime ou une retenue ajoutée à la main depuis « Statut », avec sa justification."
                 value={formatEuros(data.adjustmentCents)}
-                valueClass="text-indigo-700"
+                valueClass="text-primary-700"
                 hint={data.adjustmentNote || "Aucun ajustement"}
               />
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3.5">
-                <span className="mb-1 block text-[11px] font-medium text-indigo-700">Total à payer</span>
-                <p className="text-xl font-black tabular-nums text-indigo-900">{formatEuros(data.totalAmountCents)}</p>
-                <span className="mt-0.5 block text-[10px] text-indigo-600">{REMUNERATION_LABELS[data.remunerationMode]}</span>
+              <div className="rounded-xl border border-primary-200 bg-primary-50 p-3.5">
+                <span className="mb-1 block text-[11px] font-medium text-primary-700">Total à payer</span>
+                <p className="text-xl font-black tabular-nums text-primary-900">{formatEuros(data.totalAmountCents)}</p>
+                <span className="mt-0.5 block text-[10px] text-primary-600">{REMUNERATION_LABELS[data.remunerationMode]}</span>
               </div>
             </div>
 
             {/* Formulas */}
             <div data-hr-tour="detail-formulas" className="space-y-3 rounded-xl bg-slate-900 p-4 text-xs text-slate-100">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-indigo-300">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary-300">
                 <Calculator className="h-4 w-4" />
                 Le calcul, étape par étape
               </div>
@@ -283,7 +283,7 @@ export function HrCalculationDetailModal({
                       type="checkbox"
                       checked={filterDays}
                       onChange={(e) => setOnlyToHandle(e.target.checked)}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                     />
                     Seulement les jours sous l’objectif ({data.daysUnderQuotaCount})
                   </label>
@@ -342,7 +342,7 @@ export function HrCalculationDetailModal({
                                     type="button"
                                     onClick={() => setSelectedDay(d)}
                                     {...(firstDecidable ? { "data-hr-tour": "detail-decide" } : {})}
-                                    className="rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100"
+                                    className="rounded-md bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700 hover:bg-primary-100"
                                   >
                                     {d.decision ? "Modifier" : "Statuer"}
                                   </button>
@@ -361,7 +361,7 @@ export function HrCalculationDetailModal({
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-              <button type="button" onClick={guide.start} className="text-xs font-medium text-indigo-700 hover:underline">
+              <button type="button" onClick={guide.start} className="text-xs font-medium text-primary-700 hover:underline">
                 Comment lire ce calcul ?
               </button>
               <button
@@ -409,7 +409,7 @@ function Banner({
     rose: "border-rose-200 bg-rose-50 text-rose-800",
     amber: "border-amber-200 bg-amber-50 text-amber-900",
     sky: "border-sky-200 bg-sky-50 text-sky-900",
-    indigo: "border-indigo-200 bg-indigo-50 text-indigo-900",
+    indigo: "border-primary-200 bg-primary-50 text-primary-900",
     emerald: "border-emerald-200 bg-emerald-50 text-emerald-800",
   }[tone];
   return (
@@ -463,7 +463,7 @@ function FormulaLine({ label, value, highlight }: { label: string; value: string
 
 function DayType({ d }: { d: DayActivityDetail }) {
   if (d.isHoliday) {
-    return <span className="rounded bg-purple-50 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">{d.holidayLabel || "Férié"}</span>;
+    return <span className="rounded bg-accent-50 px-1.5 py-0.5 text-[10px] font-medium text-accent-700">{d.holidayLabel || "Férié"}</span>;
   }
   if (!d.isWorkingDay) return <span className="text-[10px] text-slate-400">Week-end</span>;
   if (d.isAbsence) {

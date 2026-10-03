@@ -232,7 +232,7 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
     // Selected client display (with optional "Edit legal info" for invoice page)
     if (selectedClient && !hasLegalForm && !showManualForm) {
         return (
-            <div className="relative group rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50/50 to-violet-50/30 p-5 transition-all duration-200">
+            <div className="relative group rounded-xl border border-primary-200 bg-primary-50/50 p-5 transition-all duration-200">
                 <div className="absolute top-3 right-3">
                     <button
                         onClick={() => onSelect(null as any)}
@@ -242,8 +242,8 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
                     </button>
                 </div>
                 <div className="flex items-start gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                        <UserCheck className="w-5 h-5 text-indigo-600" />
+                    <div className="w-11 h-11 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
+                        <UserCheck className="w-5 h-5 text-primary-600" />
                     </div>
                     <div className="min-w-0 flex-1">
                         <h4 className="font-semibold text-slate-900 text-base">{selectedClient.legalName}</h4>
@@ -408,7 +408,7 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
                     onClick={() => setSearchSource("our")}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                         searchSource === "our"
-                            ? "bg-white text-indigo-600 shadow-sm"
+                            ? "bg-white text-primary-600 shadow-sm"
                             : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
@@ -420,7 +420,7 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
                     onClick={() => setSearchSource("pappers")}
                     className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                         searchSource === "pappers"
-                            ? "bg-white text-indigo-600 shadow-sm"
+                            ? "bg-white text-primary-600 shadow-sm"
                             : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
@@ -444,16 +444,16 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
                     onFocus={() => {
                         if (hasResults) setShowResults(true);
                     }}
-                    className="w-full pl-11 pr-10 py-3 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all duration-200"
+                    className="w-full pl-11 pr-10 py-3 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all duration-200"
                 />
                 {isSearching && (
-                    <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 text-indigo-400 w-4 h-4 animate-spin" />
+                    <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 text-primary-400 w-4 h-4 animate-spin" />
                 )}
             </div>
 
             {/* Results dropdown */}
             {showResults && searchSource === "our" && crmResults.length > 0 && (
-                <div className="absolute z-50 w-full mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl shadow-slate-200/40 max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="px-3 py-2 border-b border-slate-100">
                         <p className="text-xs font-medium text-slate-400">
                             {crmResults.length} client{crmResults.length > 1 ? "s" : ""} (complétez les infos légales après sélection)
@@ -463,11 +463,11 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
                         <button
                             key={crm.id}
                             onClick={() => handleSelectCrmClient(crm)}
-                            className="w-full text-left px-4 py-3 hover:bg-indigo-50/50 transition-colors duration-100 border-b border-slate-50 last:border-b-0 group"
+                            className="w-full text-left px-4 py-3 hover:bg-primary-50/50 transition-colors duration-100 border-b border-slate-50 last:border-b-0 group"
                         >
                             <div className="flex items-start gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                                    <Users className="w-4 h-4 text-indigo-600" />
+                                <div className="w-9 h-9 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                                    <Users className="w-4 h-4 text-primary-600" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="font-medium text-slate-900 text-sm truncate">
@@ -486,7 +486,7 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
             )}
 
             {showResults && searchSource === "pappers" && pappersResults.length > 0 && (
-                <div className="absolute z-50 w-full mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl shadow-slate-200/40 max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="px-3 py-2 border-b border-slate-100">
                         <p className="text-xs font-medium text-slate-400">{pappersResults.length} résultat(s)</p>
                     </div>
@@ -494,14 +494,14 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
                         <button
                             key={client.id ?? idx}
                             onClick={() => handleSelectBillingClient(client)}
-                            className="w-full text-left px-4 py-3 hover:bg-indigo-50/50 transition-colors duration-100 border-b border-slate-50 last:border-b-0 group"
+                            className="w-full text-left px-4 py-3 hover:bg-primary-50/50 transition-colors duration-100 border-b border-slate-50 last:border-b-0 group"
                         >
                             <div className="flex items-start gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-slate-100 group-hover:bg-indigo-100 flex items-center justify-center flex-shrink-0 transition-colors duration-150">
-                                    <Building2 className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors duration-150" />
+                                <div className="w-9 h-9 rounded-lg bg-slate-100 group-hover:bg-primary-100 flex items-center justify-center flex-shrink-0 transition-colors duration-150">
+                                    <Building2 className="w-4 h-4 text-slate-400 group-hover:text-primary-500 transition-colors duration-150" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-slate-900 text-sm truncate group-hover:text-indigo-700 transition-colors duration-150">
+                                    <div className="font-medium text-slate-900 text-sm truncate group-hover:text-primary-700 transition-colors duration-150">
                                         {client.legalName}
                                     </div>
                                     <div className="text-xs text-slate-500 truncate mt-0.5">
@@ -525,7 +525,7 @@ export function ClientSearch({ onSelect, selectedClient, allowManualEntry = true
             {allowManualEntry && !showManualForm && (
                 <button
                     onClick={() => setShowManualForm(true)}
-                    className="mt-3 flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
+                    className="mt-3 flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     Saisie manuelle

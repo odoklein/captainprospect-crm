@@ -2,24 +2,45 @@ import { cn } from "@/lib/utils";
 import { HTMLAttributes, forwardRef } from "react";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-    variant?: "default" | "glass" | "elevated";
+    /**
+     * default — white card, hairline border, soft brand-tinted shadow
+     * glass — kept as an alias of default (no blur anywhere)
+     * elevated — raised card (popovers inside pages, highlighted blocks)
+     * interactive — whole card is clickable: border and shadow respond to hover
+     * inset — quiet grey tile, for blocks nested inside a card
+     * inverse — brand surface (hero blocks)
+     */
+    variant?: "default" | "glass" | "elevated" | "interactive" | "inset" | "inverse";
+    /** Inner padding; defaults to md (24px). */
+    padding?: "none" | "sm" | "md" | "lg";
 }
 
-const CARD_VARIANTS: Record<string, string> = {
-    default: "bg-white border border-slate-200",
-    glass: "bg-white/80 backdrop-blur-xl border border-slate-200/50",
-    elevated:
-        "bg-white border border-slate-200 shadow-xl shadow-slate-200/50",
+const CARD_VARIANTS: Record<NonNullable<CardProps["variant"]>, string> = {
+    default: "bg-surface border border-line shadow-card",
+    glass: "bg-surface border border-line shadow-card",
+    elevated: "bg-surface border border-line shadow-raised",
+    interactive:
+        "bg-surface border border-line shadow-card cursor-pointer hover:border-line-strong hover:shadow-raised focus-within:border-line-strong",
+    inset: "bg-surface-2 border border-line-subtle shadow-none",
+    inverse: "bg-inverse text-inverse-ink border border-inverse-line shadow-raised",
+};
+
+const CARD_PADDING: Record<NonNullable<CardProps["padding"]>, string> = {
+    none: "p-0",
+    sm: "p-4",
+    md: "p-6",
+    lg: "p-8",
 };
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
-    ({ className, variant = "default", children, ...props }, ref) => {
+    ({ className, variant = "default", padding = "md", children, ...props }, ref) => {
         return (
             <div
                 ref={ref}
                 className={cn(
-                    "rounded-2xl p-6 transition-all duration-200",
+                    "rounded-2xl transition-[border-color,box-shadow] duration-200 ease-snappy",
                     CARD_VARIANTS[variant],
+                    CARD_PADDING[padding],
                     className
                 )}
                 {...props}
@@ -36,7 +57,7 @@ interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> { }
 
 const CardHeader = forwardRef<HTMLDivElement, CardHeaderProps>(
     ({ className, ...props }, ref) => (
-        <div ref={ref} className={cn("mb-4", className)} {...props} />
+        <div ref={ref} className={cn("mb-4 flex flex-col gap-1", className)} {...props} />
     )
 );
 
@@ -48,13 +69,23 @@ const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(
     ({ className, ...props }, ref) => (
         <h3
             ref={ref}
-            className={cn("text-lg font-semibold text-slate-900", className)}
+            className={cn("text-base font-semibold tracking-tight text-ink", className)}
             {...props}
         />
     )
 );
 
 CardTitle.displayName = "CardTitle";
+
+interface CardDescriptionProps extends HTMLAttributes<HTMLParagraphElement> { }
+
+const CardDescription = forwardRef<HTMLParagraphElement, CardDescriptionProps>(
+    ({ className, ...props }, ref) => (
+        <p ref={ref} className={cn("text-sm leading-relaxed text-ink-3", className)} {...props} />
+    )
+);
+
+CardDescription.displayName = "CardDescription";
 
 interface CardContentProps extends HTMLAttributes<HTMLDivElement> { }
 
@@ -66,4 +97,14 @@ const CardContent = forwardRef<HTMLDivElement, CardContentProps>(
 
 CardContent.displayName = "CardContent";
 
-export { Card, CardHeader, CardTitle, CardContent };
+interface CardFooterProps extends HTMLAttributes<HTMLDivElement> { }
+
+const CardFooter = forwardRef<HTMLDivElement, CardFooterProps>(
+    ({ className, ...props }, ref) => (
+        <div ref={ref} className={cn("mt-5 flex items-center justify-end gap-2 border-t border-line-subtle pt-4", className)} {...props} />
+    )
+);
+
+CardFooter.displayName = "CardFooter";
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter };

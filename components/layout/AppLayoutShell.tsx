@@ -134,7 +134,7 @@ function InnerLayout({
 
     if (status === "loading" || !session) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#fafbfc]">
+            <div className="min-h-screen flex items-center justify-center bg-surface-2">
                 <div className="flex flex-col items-center gap-3">
                     <div className="cp-spinner" />
                     <p className="text-sm text-slate-400 font-medium">Chargement...</p>
@@ -145,7 +145,7 @@ function InnerLayout({
 
     if (userRole && !allowedRoles.includes(userRole)) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[#fafbfc]">
+            <div className="min-h-screen flex items-center justify-center bg-surface-2">
                 <div className="cp-spinner" />
             </div>
         );
@@ -159,7 +159,7 @@ function InnerLayout({
         pathname === "/sdr/email" || pathname === "/manager/email";
     if (isLegacyEmailPage) {
         return (
-            <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#fafbfc]">
+            <div className="h-screen w-screen overflow-hidden flex flex-col bg-surface-2">
                 {children}
             </div>
         );
@@ -238,7 +238,7 @@ function InnerLayout({
                                         ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/80"
                                         : dailyReport.mustFill
                                           ? "border-amber-300/80 bg-amber-50 text-amber-950 shadow-sm hover:bg-amber-100/90"
-                                          : "border-[#E8EBF0] bg-white text-[#5A5A7A] hover:text-[#12122A] hover:border-[#C5C8D4] hover:bg-[#F9FAFB]",
+                                          : "border-line bg-white text-ink-2 hover:text-ink hover:border-line-strong hover:bg-surface-2",
                                 )}
                                 title={
                                     dailyReport.submitted
@@ -257,7 +257,7 @@ function InnerLayout({
                         <button
                             type="button"
                             onClick={() => router.refresh()}
-                            className="w-8 h-8 rounded-lg border border-[#E8EBF0] flex items-center justify-center text-[#8B8BA7] hover:text-[#12122A] hover:border-[#C5C8D4] transition-colors duration-150"
+                            className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-ink-3 hover:text-ink hover:border-line-strong transition-colors duration-150"
                             title="Rafraîchir"
                         >
                             <RefreshCw className="w-3.5 h-3.5" />

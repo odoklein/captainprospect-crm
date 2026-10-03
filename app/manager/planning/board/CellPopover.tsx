@@ -90,7 +90,7 @@ function MissionList({
     return (
         <div>
             {missions.length > 7 && (
-                <label className="mb-2 flex items-center gap-2 rounded-xl border border-slate-200 px-2.5 focus-within:border-indigo-300 focus-within:ring-2 focus-within:ring-indigo-100">
+                <label className="mb-2 flex items-center gap-2 rounded-xl border border-slate-200 px-2.5 focus-within:border-primary-300 focus-within:ring-2 focus-within:ring-primary-100">
                     <Search className="h-3.5 w-3.5 text-slate-400" />
                     <input
                         autoFocus

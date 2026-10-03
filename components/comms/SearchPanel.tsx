@@ -310,7 +310,7 @@ export function SearchPanel({
                             className={cn(
                                 "p-2 rounded-lg transition-colors",
                                 showFilters
-                                    ? "bg-indigo-100 text-indigo-600"
+                                    ? "bg-primary-100 text-primary-600"
                                     : "hover:bg-slate-100 text-slate-500"
                             )}
                         >
@@ -407,7 +407,7 @@ export function SearchPanel({
                                 {query && (
                                     <button
                                         onClick={() => setShowSaveDialog(true)}
-                                        className="text-indigo-600 hover:text-indigo-700"
+                                        className="text-primary-600 hover:text-primary-700"
                                     >
                                         + Sauvegarder
                                     </button>
@@ -463,7 +463,7 @@ export function SearchPanel({
                                         <button
                                             onClick={handleSaveSearch}
                                             disabled={!saveName.trim()}
-                                            className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50"
+                                            className="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded disabled:opacity-50"
                                         >
                                             Sauvegarder
                                         </button>
@@ -505,7 +505,7 @@ export function SearchPanel({
                                                 className={cn(
                                                     "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
                                                     result.type === "thread"
-                                                        ? "bg-indigo-100 text-indigo-600"
+                                                        ? "bg-primary-100 text-primary-600"
                                                         : "bg-slate-100 text-slate-600"
                                                 )}
                                             >
@@ -549,7 +549,7 @@ export function SearchPanel({
                                     <button
                                         onClick={handleLoadMore}
                                         disabled={isLoading}
-                                        className="px-4 py-2 text-sm text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+                                        className="px-4 py-2 text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
                                     >
                                         {isLoading ? (
                                             <Loader2 className="w-4 h-4 animate-spin inline mr-2" />

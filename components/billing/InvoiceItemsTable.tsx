@@ -97,7 +97,7 @@ export function InvoiceItemsTable({ items, onChange, readOnly = false }: Invoice
             <div className="overflow-x-auto rounded-xl border border-slate-200/80">
                 <table className="w-full">
                     <thead>
-                        <tr className="bg-gradient-to-r from-slate-50 to-slate-100/50">
+                        <tr className="bg-slate-50">
                             {!readOnly && <th className="w-8" />}
                             <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                 Description
@@ -121,7 +121,7 @@ export function InvoiceItemsTable({ items, onChange, readOnly = false }: Invoice
                         {items.map((item, index) => (
                             <tr
                                 key={index}
-                                className="group transition-colors duration-150 hover:bg-indigo-50/30"
+                                className="group transition-colors duration-150 hover:bg-primary-50/30"
                             >
                                 {!readOnly && (
                                     <td className="px-2 py-3">
@@ -219,10 +219,10 @@ export function InvoiceItemsTable({ items, onChange, readOnly = false }: Invoice
                         <span>TVA</span>
                         <span className="tabular-nums font-medium text-slate-700">{formatCurrency(totals.totalVat)}</span>
                     </div>
-                    <div className="h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
+                    <div className="h-px bg-slate-200" />
                     <div className="flex justify-between items-center px-2 py-1">
                         <span className="text-base font-bold text-slate-900">Total TTC</span>
-                        <span className="text-lg font-bold text-indigo-600 tabular-nums">{formatCurrency(totals.totalTtc)}</span>
+                        <span className="text-lg font-bold text-primary-600 tabular-nums">{formatCurrency(totals.totalTtc)}</span>
                     </div>
                 </div>
             </div>
@@ -231,7 +231,7 @@ export function InvoiceItemsTable({ items, onChange, readOnly = false }: Invoice
             {!readOnly && (
                 <button
                     onClick={addItem}
-                    className="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-medium text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/30 transition-all duration-200 flex items-center justify-center gap-2"
+                    className="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-medium text-slate-400 hover:border-primary-300 hover:text-primary-500 hover:bg-primary-50/30 transition-all duration-200 flex items-center justify-center gap-2"
                 >
                     <Plus className="w-4 h-4" />
                     Ajouter un article

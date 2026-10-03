@@ -148,7 +148,7 @@ export default function EngagementDetailPage() {
     return (
         <div className="space-y-6 max-w-4xl">
             <div className="flex items-center gap-2 text-sm text-slate-500">
-                <Link href="/manager/billing/engagements" className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                <Link href="/manager/billing/engagements" className="text-primary-600 hover:text-primary-700 flex items-center gap-1">
                     <ArrowLeft className="w-4 h-4" />
                     Retour aux engagements
                 </Link>
@@ -157,7 +157,7 @@ export default function EngagementDetailPage() {
             <Card className="p-6">
                 <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg">
+                        <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-lg">
                             {engagement.client.name.slice(0, 2).toUpperCase()}
                         </div>
                         <div>
@@ -256,7 +256,7 @@ export default function EngagementDetailPage() {
                     </div>
                     <div className="flex justify-between pt-3 border-t border-slate-200">
                         <span className="font-bold text-slate-900">Total estimé</span>
-                        <span className="text-lg font-bold text-indigo-600">{estimatedTotal} €</span>
+                        <span className="text-lg font-bold text-primary-600">{estimatedTotal} €</span>
                     </div>
                 </div>
                 {rdvCount && rdvCount.byMission.length > 0 && (

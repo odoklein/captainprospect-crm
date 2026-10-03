@@ -48,13 +48,13 @@ interface DossierData {
 const STATUS_STYLES: Record<HrMonthStatus, string> = {
   DRAFT: "bg-slate-100 text-slate-700",
   TO_VERIFY: "bg-amber-50 text-amber-800",
-  VALIDATED: "bg-indigo-50 text-indigo-700",
+  VALIDATED: "bg-primary-50 text-primary-700",
   PAID: "bg-emerald-50 text-emerald-700",
 };
 
 const TONE_DOT: Record<AuditTone, string> = {
   slate: "bg-slate-300",
-  indigo: "bg-indigo-500",
+  indigo: "bg-primary-500",
   emerald: "bg-emerald-500",
   amber: "bg-amber-500",
   rose: "bg-rose-500",
@@ -117,7 +117,7 @@ export default function UserHrPage() {
   if (isLoading && !data) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20">
-        <RefreshCw className="h-6 w-6 animate-spin text-indigo-600" />
+        <RefreshCw className="h-6 w-6 animate-spin text-primary-600" />
         <p className="text-xs text-slate-500">Chargement du dossier…</p>
       </div>
     );
@@ -151,7 +151,7 @@ export default function UserHrPage() {
         <button
           type="button"
           onClick={() => setIsEditOpen(true)}
-          className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-indigo-700"
+          className="rounded-xl bg-primary-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-primary-700"
         >
           {configured ? "Modifier les règles de paie" : "Configurer les règles de paie"}
         </button>
@@ -160,7 +160,7 @@ export default function UserHrPage() {
       {/* Identity */}
       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-lg font-bold text-indigo-700" aria-hidden>
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-lg font-bold text-primary-700" aria-hidden>
             {user.name
               .split(" ")
               .map((p) => p[0])
@@ -173,7 +173,7 @@ export default function UserHrPage() {
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
               <span className="truncate">{user.email}</span>
               <span aria-hidden>·</span>
-              <span className="font-semibold text-indigo-600">{user.role === "MANAGER" ? "Manager" : user.role}</span>
+              <span className="font-semibold text-primary-600">{user.role === "MANAGER" ? "Manager" : user.role}</span>
             </p>
           </div>
         </div>
@@ -191,7 +191,7 @@ export default function UserHrPage() {
 
       {/* Rules */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <InfoCard icon={<Briefcase className="h-4 w-4 text-indigo-500" />} label="Contrat">
+        <InfoCard icon={<Briefcase className="h-4 w-4 text-primary-500" />} label="Contrat">
           <p className="text-sm font-bold text-slate-900">{profile.contractType === ContractType.SALARIE ? "Salarié (CDI / CDD)" : "Indépendant"}</p>
           <span className="block text-xs text-slate-500">{REMUNERATION_LABELS[profile.remunerationMode]}</span>
         </InfoCard>
@@ -203,7 +203,7 @@ export default function UserHrPage() {
             {profile.remunerationMode === RemunerationMode.FIXE ? "Pas de prime par rendez-vous" : `+ ${formatEuros(profile.variablePerRdvCents)} par rendez-vous pris`}
           </span>
         </InfoCard>
-        <InfoCard icon={<Calendar className="h-4 w-4 text-purple-500" />} label="Objectif">
+        <InfoCard icon={<Calendar className="h-4 w-4 text-accent-500" />} label="Objectif">
           <p className="text-sm font-bold text-slate-900">{profile.dailyQuota > 0 ? `${profile.dailyQuota} appels / jour` : "Pas d’objectif d’appels"}</p>
           <span className="block text-xs text-slate-500">
             {configured
@@ -217,7 +217,7 @@ export default function UserHrPage() {
       <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs" aria-labelledby="pay-history">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <h2 id="pay-history" className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <Wallet className="h-4 w-4 text-indigo-600" />
+            <Wallet className="h-4 w-4 text-primary-600" />
             Historique de paie
           </h2>
           {months.length > 0 && (
@@ -242,7 +242,7 @@ export default function UserHrPage() {
                 >
                   <div
                     className={`w-full rounded-t-md transition-opacity group-hover:opacity-80 ${
-                      m.status === HrMonthStatus.PAID ? "bg-emerald-500" : m.status === HrMonthStatus.VALIDATED ? "bg-indigo-500" : "bg-slate-300"
+                      m.status === HrMonthStatus.PAID ? "bg-emerald-500" : m.status === HrMonthStatus.VALIDATED ? "bg-primary-500" : "bg-slate-300"
                     }`}
                     style={{ height: `${Math.max(4, (m.totalAmountCents / maxTotal) * 100)}%` }}
                   />
@@ -280,7 +280,7 @@ export default function UserHrPage() {
                       </td>
                       <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{formatEuros(m.totalAmountCents)}</td>
                       <td className="px-3 py-2 text-right">
-                        <Link href={`/manager/rh?month=${m.month}`} aria-label={`Ouvrir ${formatMonthLabel(m.month)}`} className="inline-flex rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-indigo-700">
+                        <Link href={`/manager/rh?month=${m.month}`} aria-label={`Ouvrir ${formatMonthLabel(m.month)}`} className="inline-flex rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-primary-700">
                           <ChevronRight className="h-4 w-4" />
                         </Link>
                       </td>
@@ -297,7 +297,7 @@ export default function UserHrPage() {
         {/* Rule changes */}
         <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs" aria-labelledby="rule-history">
           <h2 id="rule-history" className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <History className="h-4 w-4 text-indigo-600" />
+            <History className="h-4 w-4 text-primary-600" />
             Anciennes règles
           </h2>
           {profile.snapshots.length > 0 ? (
@@ -324,7 +324,7 @@ export default function UserHrPage() {
         {/* Activity log */}
         <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs" aria-labelledby="activity-log">
           <h2 id="activity-log" className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <ListChecks className="h-4 w-4 text-indigo-600" />
+            <ListChecks className="h-4 w-4 text-primary-600" />
             Qui a fait quoi
           </h2>
           {audit.length === 0 && !auditLoading ? (

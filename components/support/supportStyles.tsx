@@ -3,9 +3,9 @@
 /**
  * Support surface visual tokens + keyframes.
  *
- * Aligned to `designsystemfinalfolder` (Captain Prospect DS): DM Sans /
- * DM Mono typography, ivory paper `#FAF9F6`, indigo brand `#7C5CFC`,
- * stone neutrals, generous corner radii (24 / 20 / 16 / 12), soft shadows.
+ * Built on the design-system tokens (app/globals.css → brand/brand.config.ts):
+ * brand primary for actions, brand neutrals for paper and ink, generous
+ * corner radii (24 / 20 / 16 / 12), soft shadows.
  *
  * We expose two token sets:
  *  - `SUP_LIGHT`  → client portal panel (lives on an ivory/warm background)
@@ -18,19 +18,19 @@ export function SupportStyles() {
     return (
         <style>{`
             .cp-support-root {
-                font-family: 'DM Sans', 'Inter', system-ui, -apple-system, sans-serif;
+                font-family: var(--font-body-face), system-ui, -apple-system, sans-serif;
                 font-feature-settings: 'ss01' on, 'cv11' on;
             }
             .cp-support-root *, .cp-support-root *::before, .cp-support-root *::after { box-sizing: border-box; }
-            .cp-support-root-mono { font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+            .cp-support-root-mono { font-family: var(--font-code-face), ui-monospace, SFMono-Regular, Menlo, monospace; }
 
             @keyframes cpSupBubbleIn { from { opacity:0; transform:scale(0.92) translateY(4px); } to { opacity:1; transform:scale(1) translateY(0); } }
             @keyframes cpSupPanelIn { from { opacity:0; transform:translateY(22px) scale(0.96); } to { opacity:1; transform:translateY(0) scale(1); } }
             @keyframes cpSupSlideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
             @keyframes cpSupSlideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
             @keyframes cpSupFabPulse {
-                0%, 100% { box-shadow: 0 12px 32px rgba(124,92,252,0.32), 0 0 0 0 rgba(124,92,252,0.35); }
-                50%      { box-shadow: 0 12px 32px rgba(124,92,252,0.32), 0 0 0 14px rgba(124,92,252,0); }
+                0%, 100% { box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-neutral-950) 18%, transparent), 0 0 0 0 color-mix(in oklab, var(--brand-accent) 30%, transparent); }
+                50%      { box-shadow: 0 8px 20px color-mix(in oklab, var(--brand-neutral-950) 18%, transparent), 0 0 0 10px color-mix(in oklab, var(--brand-accent) 0%, transparent); }
             }
             @keyframes cpSupStatusPing {
                 0%, 100% { transform: scale(1); opacity: 0.55; }
@@ -44,8 +44,8 @@ export function SupportStyles() {
             @keyframes cpSupBadgePop { from { transform: scale(0); } to { transform: scale(1); } }
             @keyframes cpSupPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
             @keyframes cpSupResolvedWash {
-                from { background-color: rgba(124,92,252,0); }
-                to   { background-color: rgba(124,92,252,0.06); }
+                from { background-color: color-mix(in oklab, var(--brand-primary) 0%, transparent); }
+                to   { background-color: color-mix(in oklab, var(--brand-primary) 6%, transparent); }
             }
 
             @keyframes cpSupFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -61,9 +61,9 @@ export function SupportStyles() {
                 border-radius: 8px;
                 background: linear-gradient(
                     90deg,
-                    rgba(43,58,43,0.06) 0%,
-                    rgba(43,58,43,0.12) 50%,
-                    rgba(43,58,43,0.06) 100%
+                    var(--ds-surface-3) 0%,
+                    var(--ds-line) 50%,
+                    var(--ds-surface-3) 100%
                 );
                 background-size: 200% 100%;
                 animation: cpSupShimmer 1.4s ease-in-out infinite;
@@ -77,7 +77,7 @@ export function SupportStyles() {
 
             .cp-support-scroll {
                 scrollbar-width: thin;
-                scrollbar-color: rgba(124,92,252,0.25) transparent;
+                scrollbar-color: var(--ds-line-strong) transparent;
             }
             .cp-support-scroll::-webkit-scrollbar {
                 width: 5px;
@@ -86,23 +86,23 @@ export function SupportStyles() {
                 background: transparent;
             }
             .cp-support-scroll::-webkit-scrollbar-thumb {
-                background: rgba(124,92,252,0.22);
+                background: var(--ds-line-strong);
                 border-radius: 999px;
             }
             .cp-support-scroll::-webkit-scrollbar-thumb:hover {
-                background: rgba(124,92,252,0.45);
+                background: var(--ds-ink-4);
             }
 
             .cp-support-root .cp-sup-composer-input { outline: none; }
-            .cp-support-root .cp-sup-composer-input::placeholder { color: rgba(43,58,43,0.45); }
+            .cp-support-root .cp-sup-composer-input::placeholder { color: var(--ds-ink-4); }
             .cp-support-root-dark .cp-sup-composer-input::placeholder { color: rgba(216,222,207,0.45); }
 
             .cp-support-card-hover {
-                transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms ease, border-color 160ms ease;
+                transition: box-shadow 160ms ease, border-color 160ms ease;
             }
             .cp-support-card-hover:hover {
-                transform: translateY(-1.5px);
-                box-shadow: 0 8px 24px -4px rgba(31,43,31,0.08), 0 2px 6px -1px rgba(31,43,31,0.04);
+                border-color: var(--ds-line-strong);
+                box-shadow: 0 8px 24px -6px color-mix(in oklab, var(--brand-neutral-950) 10%, transparent);
             }
 
             @media (max-width: 640px) {
@@ -125,23 +125,24 @@ export function SupportStyles() {
     );
 }
 
-/** Client portal panel tokens — warm ivory paper, forest accent. */
+/** Client portal panel tokens — brand neutrals, brand primary actions. */
 export const SUP_LIGHT = {
-    paper: "#FAF9F6",
-    paperRaised: "#FFFFFF",
-    paperSunken: "#F4F3EE",
-    line: "rgba(43,58,43,0.10)",
-    lineSoft: "rgba(43,58,43,0.06)",
-    ink: "#1F2A1F",
-    ink2: "#2B3A2B",
-    ink3: "#615F55",
-    ink4: "#A8A69A",
-    brand: "#7C5CFC",
-    brandStrong: "#6366F1",
-    brandSoft: "#ECE8FF",
-    brandSofter: "#F4F2FF",
-    brandGradient: "linear-gradient(135deg, #7C5CFC 0%, #6366F1 100%)",
-    brandGradientHover: "linear-gradient(135deg, #6D4BF5 0%, #4F46E5 100%)",
+    paper: "var(--ds-surface-2)",
+    paperRaised: "var(--ds-surface)",
+    paperSunken: "var(--ds-surface-3)",
+    line: "var(--ds-line)",
+    lineSoft: "var(--ds-line-subtle)",
+    ink: "var(--ds-ink)",
+    ink2: "var(--ds-ink-2)",
+    ink3: "var(--ds-ink-3)",
+    ink4: "var(--ds-ink-4)",
+    brand: "var(--ds-primary)",
+    brandStrong: "var(--ds-primary-hover)",
+    brandSoft: "var(--brand-primary-100)",
+    brandSofter: "var(--brand-primary-50)",
+    // Flat on purpose (no gradients); names kept for existing consumers.
+    brandGradient: "var(--ds-primary)",
+    brandGradientHover: "var(--ds-primary-hover)",
     accentAmber: "#C97B2A",
     accentAmberSoft: "#FBEAD1",
     success: "#10B981",
@@ -156,23 +157,23 @@ export const SUP_LIGHT = {
     radiusXS: 10,
     shadowPanel:
         "0 32px 80px rgba(31,43,31,0.18), 0 2px 8px rgba(31,43,31,0.06), inset 0 1px 0 rgba(255,255,255,0.6)",
-    shadowFab: "0 12px 28px rgba(124,92,252,0.32)",
+    shadowFab: "0 8px 20px color-mix(in oklab, var(--brand-neutral-950) 18%, transparent)",
 };
 
-/** Manager workspace tokens — sits above the dark sidebar, keeps the forest accent. */
+/** Manager workspace tokens — the brand surface (same as the sidebar). */
 export const SUP_DARK = {
-    surface: "#0F1812",
-    surfaceRaised: "#152118",
-    surfaceSunken: "#0B130E",
+    surface: "var(--ds-inverse)",
+    surfaceRaised: "var(--ds-inverse-raised)",
+    surfaceSunken: "var(--brand-primary-950)",
     line: "rgba(255,255,255,0.08)",
     lineSoft: "rgba(255,255,255,0.05)",
-    ink: "#F5F3EC",
-    ink2: "#D8DECF",
-    ink3: "#9AA694",
-    ink4: "#6B7566",
-    brand: "#A996FF",
-    brandStrong: "#8E7DFF",
-    brandSoft: "rgba(124,92,252,0.2)",
+    ink: "var(--ds-inverse-ink)",
+    ink2: "var(--ds-inverse-ink-2)",
+    ink3: "var(--ds-inverse-ink-3)",
+    ink4: "color-mix(in oklab, var(--ds-inverse-ink-3) 70%, transparent)",
+    brand: "var(--brand-accent-300)",
+    brandStrong: "var(--brand-accent-200)",
+    brandSoft: "color-mix(in oklab, var(--brand-accent) 20%, transparent)",
     accentAmber: "#F4B560",
     accentAmberSoft: "rgba(244,181,96,0.15)",
     success: "#34D399",

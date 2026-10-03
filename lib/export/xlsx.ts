@@ -14,6 +14,7 @@
 
 import { deflateRawSync } from "node:zlib";
 import { DateTime } from "luxon";
+import { brand } from "@/lib/brand";
 
 // ============================================
 // PUBLIC TYPES
@@ -106,6 +107,13 @@ const STYLE_INDEX: Record<XlsxStyle, number> = {
     totalPercent: 20,
 };
 
+// Brand-coloured fills (brand/brand.config.ts): the agency's tracking columns
+// use the accent, section titles the primary.
+const argb = (hex: string) => `FF${hex.replace("#", "").toUpperCase()}`;
+const BRAND_TITLE = argb(brand.palette.primary[700]);
+const BRAND_HEAD = argb(brand.palette.accent[600]);
+const BRAND_SOFT = argb(brand.palette.accent[50]);
+
 const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy hh:mm"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy"/></numFmts>
@@ -115,16 +123,16 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <font><b/><sz val="10"/><color rgb="FF0F172A"/><name val="Calibri"/><family val="2"/></font>
 <font><b/><sz val="16"/><color rgb="FF0F172A"/><name val="Calibri"/><family val="2"/></font>
 <font><i/><sz val="10"/><color rgb="FF64748B"/><name val="Calibri"/><family val="2"/></font>
-<font><b/><sz val="12"/><color rgb="FF3730A3"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="12"/><color rgb="${BRAND_TITLE}"/><name val="Calibri"/><family val="2"/></font>
 <font><sz val="10"/><color rgb="FF64748B"/><name val="Calibri"/><family val="2"/></font>
 </fonts>
 <fills count="7">
 <fill><patternFill patternType="none"/></fill>
 <fill><patternFill patternType="gray125"/></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FF334155"/><bgColor indexed="64"/></patternFill></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FF4F46E5"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="${BRAND_HEAD}"/><bgColor indexed="64"/></patternFill></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FFF1F5F9"/><bgColor indexed="64"/></patternFill></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FFEEF2FF"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="${BRAND_SOFT}"/><bgColor indexed="64"/></patternFill></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/><bgColor indexed="64"/></patternFill></fill>
 </fills>
 <borders count="2">

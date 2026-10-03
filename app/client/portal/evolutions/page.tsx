@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { CheckCircle2, MessageSquarePlus, Sparkles } from "lucide-react";
+import { CheckCircle2, MessageSquarePlus } from "lucide-react";
 import type { ClientEvolutions, RoadmapItem } from "@/lib/tickets/public";
 import s from "./evolutions.module.css";
 
@@ -120,7 +120,7 @@ export default function ClientPortalEvolutionsPage() {
                     <div className={s.eyebrow}>Évolutions</div>
                     <h1 className={s.title}>Ce que nous construisons pour vous</h1>
                     <p className={s.subtitle}>
-                        Votre espace s&apos;améliore en continu. Voici ce qui arrive, et tout ce qui a déjà été livré.
+                        Améliorations en cours, à venir et déjà livrées sur votre espace.
                     </p>
                     {data && (comingCount > 0 || deliveredCount > 0) && (
                         <div className={s.summary}>
@@ -132,7 +132,7 @@ export default function ClientPortalEvolutionsPage() {
                             )}
                             {deliveredCount > 0 && (
                                 <span className={s.summaryChip}>
-                                    <CheckCircle2 size={13} color="#2b5f3e" />
+                                    <CheckCircle2 size={13} style={{ color: "var(--ds-primary)" }} />
                                     <strong>{deliveredCount}</strong> livrée{deliveredCount > 1 ? "s" : ""}
                                 </span>
                             )}
@@ -168,7 +168,7 @@ export default function ClientPortalEvolutionsPage() {
                                 <div className={s.body}>
                                     <div className={s.soonGrid}>
                                         <ComingColumn title="En cours" items={data.inProgress} color="#3b6fe0" live />
-                                        <ComingColumn title="À venir" items={data.upcoming} color="#8b929b" live={false} />
+                                        <ComingColumn title="À venir" items={data.upcoming} color="var(--ds-ink-4)" live={false} />
                                     </div>
                                 </div>
                             </article>
@@ -193,7 +193,7 @@ export default function ClientPortalEvolutionsPage() {
                                         {isLatest && (
                                             <div className={s.feature}>
                                                 <span className={s.featureLabel}>
-                                                    <Sparkles size={13} /> Dernière livraison · {dayFmt.format(new Date(featured.completedAt!))}
+                                                    <CheckCircle2 size={13} /> Dernière livraison · {dayFmt.format(new Date(featured.completedAt!))}
                                                 </span>
                                                 <h2 className={s.featureTitle}>{featured.title}</h2>
                                                 {featured.description && <p className={s.featureText}>{featured.description}</p>}

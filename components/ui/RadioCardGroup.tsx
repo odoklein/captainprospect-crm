@@ -81,14 +81,14 @@ export function RadioCardGroup<T extends string = string>({
                             }
                         }}
                         className={cn(
-                            "relative text-left rounded-xl border-2 p-4 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400",
+                            "relative text-left rounded-xl border-2 p-4 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400",
                             option.disabled
-                                ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+                                ? "opacity-50 cursor-not-allowed border-line bg-surface-2"
                                 : "cursor-pointer",
                             !option.disabled && selected
-                                ? "border-indigo-500 bg-indigo-50/60 shadow-sm"
+                                ? "border-primary-500 bg-primary-50/60 shadow-sm"
                                 : !option.disabled
-                                ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                ? "border-line bg-surface hover:border-line-strong hover:bg-surface-2"
                                 : ""
                         )}
                     >
@@ -97,7 +97,7 @@ export function RadioCardGroup<T extends string = string>({
                                 <div
                                     className={cn(
                                         "w-9 h-9 shrink-0 rounded-lg flex items-center justify-center",
-                                        selected ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"
+                                        selected ? "bg-primary-100 text-primary-600" : "bg-surface-3 text-ink-3"
                                     )}
                                 >
                                     <Icon className="w-5 h-5" />
@@ -105,7 +105,7 @@ export function RadioCardGroup<T extends string = string>({
                             )}
                             <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={cn("font-semibold text-sm", selected ? "text-indigo-900" : "text-slate-800")}>
+                                    <span className={cn("font-semibold text-sm", selected ? "text-primary-900" : "text-ink")}>
                                         {option.title}
                                     </span>
                                     {option.badge && (
@@ -114,19 +114,19 @@ export function RadioCardGroup<T extends string = string>({
                                         </Badge>
                                     )}
                                 </div>
-                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{option.description}</p>
+                                <p className="text-xs text-ink-3 mt-1 leading-relaxed">{option.description}</p>
                             </div>
                             <div
                                 className={cn(
                                     "w-4 h-4 shrink-0 rounded-full border-2 mt-0.5 flex items-center justify-center",
-                                    selected ? "border-indigo-500" : "border-slate-300"
+                                    selected ? "border-primary-500" : "border-line-strong"
                                 )}
                             >
-                                {selected && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />}
+                                {selected && <div className="w-1.5 h-1.5 rounded-full bg-primary-500" />}
                             </div>
                         </div>
                         {selected && renderExtra && (
-                            <div className="mt-3 pt-3 border-t border-indigo-100" onClick={(e) => e.stopPropagation()}>
+                            <div className="mt-3 pt-3 border-t border-primary-100" onClick={(e) => e.stopPropagation()}>
                                 {renderExtra(option)}
                             </div>
                         )}

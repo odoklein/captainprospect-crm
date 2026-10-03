@@ -99,7 +99,7 @@ const REQUESTER_ROLE_TONE: Record<string, string> = {
     BUSINESS_DEVELOPER: "bg-teal-100 text-teal-700",
     BOOKER: "bg-cyan-100 text-cyan-700",
     MANAGER: "bg-slate-200 text-slate-700",
-    DEVELOPER: "bg-violet-100 text-violet-700",
+    DEVELOPER: "bg-accent-100 text-accent-700",
 };
 
 /** Ages a ticket so a three-week-old NEW stops looking like this morning's. */
@@ -485,8 +485,8 @@ export function TicketWorkspace({
                         aria-label={`Filtrer : ${label} (${value})`}
                         className={cn(
                             "inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 transition-colors",
-                            "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40",
-                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
+                            "border-slate-200 hover:border-primary-300 hover:bg-primary-50/40",
+                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
                             value === 0 && "opacity-60",
                         )}
                     >
@@ -557,7 +557,7 @@ export function TicketWorkspace({
                 <select
                     value={requesterFilter}
                     onChange={(e) => setRequesterFilter(e.target.value)}
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-indigo-500 focus:outline-none"
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-primary-500 focus:outline-none"
                     aria-label="Filtrer par demandeur"
                 >
                     {REQUESTER_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
@@ -565,7 +565,7 @@ export function TicketWorkspace({
                 <select
                     value={priorityFilter}
                     onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-indigo-500 focus:outline-none"
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-primary-500 focus:outline-none"
                     aria-label="Filtrer par priorité"
                 >
                     {PRIORITY_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
@@ -573,7 +573,7 @@ export function TicketWorkspace({
                 <select
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
-                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-indigo-500 focus:outline-none"
+                    className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium text-slate-600 focus:border-primary-500 focus:outline-none"
                     aria-label="Filtrer par catégorie"
                 >
                     {CATEGORY_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
@@ -583,7 +583,7 @@ export function TicketWorkspace({
                         type="checkbox"
                         checked={onlyMine}
                         onChange={(event) => setOnlyMine(event.target.checked)}
-                        className="rounded border-slate-300 accent-indigo-600"
+                        className="rounded border-slate-300 accent-primary-600"
                     />
                     <span>Mes tickets</span>
                 </label>
@@ -764,7 +764,7 @@ export function TicketWorkspace({
                                     type="checkbox"
                                     checked={onlyMine}
                                     onChange={(event) => setOnlyMine(event.target.checked)}
-                                    className="rounded border-slate-300 accent-indigo-600 focus:ring-indigo-500"
+                                    className="rounded border-slate-300 accent-primary-600 focus:ring-primary-500"
                                 />
                                 <span>Mes tickets</span>
                             </label>
@@ -772,7 +772,7 @@ export function TicketWorkspace({
                                 <select
                                     value={priorityFilter}
                                     onChange={(e) => setPriorityFilter(e.target.value as PriorityFilter)}
-                                    className="text-xs font-medium py-1.5 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                    className="text-xs font-medium py-1.5 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                                     aria-label="Filtrer par priorité"
                                 >
                                     {PRIORITY_FILTERS.map((f) => (
@@ -782,7 +782,7 @@ export function TicketWorkspace({
                                 <select
                                     value={categoryFilter}
                                     onChange={(e) => setCategoryFilter(e.target.value as CategoryFilter)}
-                                    className="text-xs font-medium py-1.5 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                    className="text-xs font-medium py-1.5 px-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                                     aria-label="Filtrer par catégorie"
                                 >
                                     {CATEGORY_FILTERS.map((f) => (
@@ -831,7 +831,7 @@ export function TicketWorkspace({
                                             className={cn(
                                                 "w-full text-left px-4 py-3 transition-colors",
                                                 PRIORITY_ACCENT[ticket.priority],
-                                                selectedId === ticket.id ? "bg-indigo-50/70" : "hover:bg-slate-50",
+                                                selectedId === ticket.id ? "bg-primary-50/70" : "hover:bg-slate-50",
                                             )}
                                         >
                                             <div className="flex items-center justify-between gap-2">
@@ -917,7 +917,7 @@ export function TicketWorkspace({
                                         >
                                             <span>Détails</span>
                                             {detail.releaseChecks?.some((c) => !c.checked) && (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" aria-hidden />
+                                                <span className="w-1.5 h-1.5 rounded-full bg-primary-600" aria-hidden />
                                             )}
                                         </button>
                                     </div>

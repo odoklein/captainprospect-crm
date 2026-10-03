@@ -9,7 +9,7 @@ import {
     Target,
     FileText,
     Calendar,
-    Sparkles,
+    Info,
     ChevronRight,
     ChevronLeft,
     Check,
@@ -522,7 +522,7 @@ export default function BDClientOnboardingPage() {
                     <div className="space-y-6">
                         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
                             <p className="text-sm text-emerald-700">
-                                <Sparkles className="w-4 h-4 inline mr-1" />
+                                <Info className="w-4 h-4 inline mr-1" />
                                 Le script sera utilisé par les SDRs lors des appels. Utilisez une version unique non divisée.
                             </p>
                         </div>

@@ -11,7 +11,7 @@ export function NoteTab({ note, onChange }: NoteTabProps) {
                 value={note}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder="Ajouter une note interne..."
-                className="w-full min-h-[160px] bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 resize-y"
+                className="w-full min-h-[160px] bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-y"
                 rows={6}
             />
         </div>

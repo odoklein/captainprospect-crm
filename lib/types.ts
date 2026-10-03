@@ -1,4 +1,5 @@
 // User roles in the system
+import { brand } from "@/lib/brand";
 export type UserRole =
     | "SDR"
     | "BOOKER"
@@ -97,7 +98,7 @@ export const URGENCY_LABELS: Record<Urgency, string> = {
 };
 
 export const LIST_TYPE_LABELS: Record<ListType, string> = {
-    SUZALI: "Liste Suzali",
+    SUZALI: `Liste ${brand.companyShortName}`,
     CLIENT: "Liste Client",
     MIXED: "Liste mixte",
 };

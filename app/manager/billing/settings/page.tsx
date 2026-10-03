@@ -155,7 +155,7 @@ export default function BillingSettingsPage() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+                <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
             </div>
         );
     }
@@ -201,7 +201,7 @@ export default function BillingSettingsPage() {
                     <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-700 ${
-                                completeness === 100 ? "bg-emerald-500" : completeness >= 70 ? "bg-indigo-500" : "bg-amber-500"
+                                completeness === 100 ? "bg-emerald-500" : completeness >= 70 ? "bg-primary-500" : "bg-amber-500"
                             }`}
                             style={{ width: `${completeness}%` }}
                         />
@@ -210,7 +210,7 @@ export default function BillingSettingsPage() {
             </div>
 
             {!isConfigured && (
-                <div className="rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 flex items-center gap-3">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
                     <div>
                         <p className="text-sm font-medium text-amber-900">Configuration requise</p>
@@ -224,8 +224,8 @@ export default function BillingSettingsPage() {
             {/* Company Identity */}
             <SectionCard
                 icon={Receipt}
-                iconBg="bg-gradient-to-br from-indigo-100 to-violet-100"
-                iconColor="text-indigo-600"
+                iconBg="bg-primary-50 ring-1 ring-inset ring-primary-100"
+                iconColor="text-primary-600"
                 title="Identité de l'entreprise"
                 description="Informations qui apparaîtront sur vos factures"
                 badge={isConfigured ? <Badge variant="success">Configuré</Badge> : undefined}
@@ -264,7 +264,7 @@ export default function BillingSettingsPage() {
             {/* Fiscal Information */}
             <SectionCard
                 icon={Scale}
-                iconBg="bg-gradient-to-br from-emerald-100 to-green-100"
+                iconBg="bg-emerald-50 ring-1 ring-inset ring-emerald-100"
                 iconColor="text-emerald-600"
                 title="Informations fiscales"
                 description="Mentions légales obligatoires"
@@ -290,8 +290,8 @@ export default function BillingSettingsPage() {
             {/* Bank Details */}
             <SectionCard
                 icon={CreditCard}
-                iconBg="bg-gradient-to-br from-violet-100 to-purple-100"
-                iconColor="text-violet-600"
+                iconBg="bg-accent-50 ring-1 ring-inset ring-accent-100"
+                iconColor="text-accent-600"
                 title="Coordonnées bancaires"
                 description="Pour le paiement par virement"
             >
@@ -308,7 +308,7 @@ export default function BillingSettingsPage() {
             {/* Default Invoice Settings */}
             <SectionCard
                 icon={Landmark}
-                iconBg="bg-gradient-to-br from-amber-100 to-orange-100"
+                iconBg="bg-amber-50 ring-1 ring-inset ring-amber-100"
                 iconColor="text-amber-600"
                 title="Paramètres par défaut"
                 description="Pénalités, escompte, délais"
@@ -343,7 +343,7 @@ export default function BillingSettingsPage() {
             {/* Contact */}
             <SectionCard
                 icon={Building2}
-                iconBg="bg-gradient-to-br from-slate-100 to-gray-100"
+                iconBg="bg-slate-100"
                 iconColor="text-slate-600"
                 title="Contact"
                 description="Coordonnées de l'entreprise"
@@ -378,7 +378,7 @@ export default function BillingSettingsPage() {
             {/* Integrations */}
             <SectionCard
                 icon={Plug}
-                iconBg="bg-gradient-to-br from-cyan-100 to-blue-100"
+                iconBg="bg-cyan-50 ring-1 ring-inset ring-cyan-100"
                 iconColor="text-cyan-600"
                 title="Intégrations"
                 description="Services connectés"

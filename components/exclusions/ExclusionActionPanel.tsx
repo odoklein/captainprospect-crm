@@ -132,7 +132,7 @@ export function ExclusionActionPanel({
                                 "w-full rounded-lg border px-3 py-2 text-sm bg-white outline-none transition-all",
                                 state.reason.trim().length < 3
                                     ? "border-red-300 focus:border-red-400"
-                                    : "border-slate-200 focus:border-indigo-400"
+                                    : "border-slate-200 focus:border-primary-400"
                             )}
                         />
                     </div>
@@ -147,7 +147,7 @@ export function ExclusionActionPanel({
                                 className={cn(
                                     "rounded-lg border px-2.5 py-1 text-xs transition-all",
                                     state.duration === option.value
-                                        ? "border-indigo-400 bg-white text-indigo-700 font-medium"
+                                        ? "border-primary-400 bg-white text-primary-700 font-medium"
                                         : "border-slate-200 bg-white text-slate-500 hover:border-slate-300"
                                 )}
                             >

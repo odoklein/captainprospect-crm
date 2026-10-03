@@ -157,7 +157,7 @@ export default function BDProjectsPage() {
                         return (
                             <Card key={project.id} className="group hover:border-emerald-300 transition-all">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
                                         <FolderKanban className="w-6 h-6 text-emerald-600" />
                                     </div>
                                     <div className="flex-1 min-w-0">

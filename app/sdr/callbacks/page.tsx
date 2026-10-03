@@ -20,7 +20,7 @@ import {
     Filter,
     Calendar,
     Mail,
-    Sparkles,
+    ThumbsUp,
     XCircle,
     AlertTriangle,
     PhoneCall,
@@ -111,10 +111,10 @@ function getUrgencyLevel(cb: Callback): { level: "overdue" | "due_now" | "upcomi
 
     if (diffMs < 0) {
         const overdueHours = Math.abs(diffHours);
-        if (overdueHours > 24) return { level: "overdue", label: `En retard (${Math.floor(overdueHours / 24)}j)`, color: "bg-red-100 text-red-800 border-red-300 animate-pulse", sortPriority: 0 };
+        if (overdueHours > 24) return { level: "overdue", label: `En retard (${Math.floor(overdueHours / 24)}j)`, color: "bg-red-100 text-red-800 border-red-300", sortPriority: 0 };
         return { level: "overdue", label: `En retard (${Math.floor(overdueHours)}h)`, color: "bg-red-100 text-red-700 border-red-300", sortPriority: 0 };
     }
-    if (diffMins <= 30) return { level: "due_now", label: "Maintenant !", color: "bg-amber-100 text-amber-800 border-amber-300", sortPriority: 1 };
+    if (diffMins <= 30) return { level: "due_now", label: "Maintenant", color: "bg-amber-100 text-amber-800 border-amber-300", sortPriority: 1 };
     if (diffHours <= 2) return { level: "due_now", label: `Dans ${Math.floor(diffMins)}min`, color: "bg-amber-50 text-amber-700 border-amber-200", sortPriority: 1 };
     if (diffHours <= 24) return { level: "upcoming", label: `Aujourd'hui`, color: "bg-blue-50 text-blue-700 border-blue-200", sortPriority: 2 };
     return { level: "future", label: `${Math.floor(diffHours / 24)}j`, color: "bg-slate-50 text-slate-600 border-slate-200", sortPriority: 3 };
@@ -578,7 +578,7 @@ export default function SDRCallbacksPage() {
                     <div className="flex items-center gap-3">
                         <div className={cn(
                             "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border",
-                            cb.contact ? "bg-indigo-50 border-indigo-100 text-indigo-600" : "bg-slate-50 border-slate-200 text-slate-500"
+                            cb.contact ? "bg-primary-50 border-primary-100 text-primary-600" : "bg-slate-50 border-slate-200 text-slate-500"
                         )}>
                             {cb.contact ? <User className="w-4.5 h-4.5" /> : <Building2 className="w-4.5 h-4.5" />}
                         </div>
@@ -608,10 +608,10 @@ export default function SDRCallbacksPage() {
                     <a
                         href={`tel:${phone}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 rounded-lg transition-all hover:shadow-sm group"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/60 rounded-lg transition-all hover:shadow-sm group"
                         title="Cliquer pour appeler"
                     >
-                        <PhoneCall className="w-3.5 h-3.5 group-hover:animate-pulse" />
+                        <PhoneCall className="w-3.5 h-3.5" />
                         <span className="font-mono">{phone}</span>
                     </a>
                 );
@@ -644,13 +644,13 @@ export default function SDRCallbacksPage() {
                 const submitting = submittingId === cb.id;
                 return (
                     <div className="flex items-center gap-1">
-                        {submitting && <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />}
+                        {submitting && <Loader2 className="w-4 h-4 animate-spin text-primary-500" />}
                         <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); openOutcome(cb, "MEETING_BOOKED"); }}
                             disabled={submitting}
                             title="RDV pris"
-                            className="w-9 h-9 rounded-xl border-2 border-slate-200 flex items-center justify-center text-slate-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
+                            className="w-9 h-9 rounded-xl border-2 border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-all duration-200"
                         >
                             <Calendar className="w-4 h-4" />
                         </button>
@@ -661,7 +661,7 @@ export default function SDRCallbacksPage() {
                             title="Intéressé"
                             className="w-9 h-9 rounded-xl border-2 border-slate-200 flex items-center justify-center text-slate-400 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 transition-all duration-200"
                         >
-                            <Sparkles className="w-4 h-4" />
+                            <ThumbsUp className="w-4 h-4" />
                         </button>
                         <button
                             type="button"
@@ -685,7 +685,7 @@ export default function SDRCallbacksPage() {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); openDrawerForCallback(cb); }}
                             title="Voir la fiche"
-                            className="w-9 h-9 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200"
+                            className="w-9 h-9 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-all duration-200"
                         >
                             <Eye className="w-4 h-4" />
                         </button>
@@ -716,25 +716,23 @@ export default function SDRCallbacksPage() {
     return (
         <div className="space-y-6 animate-fade-in p-2">
             {/* Modern Header */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-amber-900 rounded-2xl p-6 shadow-xl">
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-orange-500/10" />
-                <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl" />
+            <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 shadow-xl">
 
                 <div className="relative">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                            <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
                                 <BellRing className="w-6 h-6 text-white" />
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold text-white">Rappels</h1>
-                                <p className="text-sm text-white/60">Gérez vos demandes de rappel et optimisez vos conversions</p>
+                                <p className="text-sm text-white/60">Rappels planifiés, en retard et à venir</p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3 flex-wrap">
                             {/* View Toggle */}
-                            <div className="flex rounded-xl border border-white/10 p-1 bg-white/5 backdrop-blur-sm">
+                            <div className="flex rounded-xl border border-white/10 p-1 bg-white/5">
                                 <button
                                     type="button"
                                     onClick={() => setViewMode("card")}
@@ -766,7 +764,7 @@ export default function SDRCallbacksPage() {
                             <Button
                                 type="button"
                                 onClick={() => setShowStatsModal(true)}
-                                className="rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm gap-2 px-4 py-2 h-auto font-medium"
+                                className="rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white gap-2 px-4 py-2 h-auto font-medium"
                             >
                                 <BarChart2 className="w-4 h-4" />
                                 Stats
@@ -774,7 +772,7 @@ export default function SDRCallbacksPage() {
 
                             {/* Stats */}
                             <div className="flex items-center gap-3">
-                                <div className="px-3 py-2 rounded-xl bg-white/10 border border-white/10 backdrop-blur-sm">
+                                <div className="px-3 py-2 rounded-xl bg-white/10 border border-white/10">
                                     <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4 text-amber-400" />
                                         <span className="text-sm font-semibold text-white">{callbacks.length}</span>
@@ -782,7 +780,7 @@ export default function SDRCallbacksPage() {
                                     </div>
                                 </div>
                                 {overdueCount > 0 && (
-                                    <div className="px-3 py-2 rounded-xl bg-red-500/20 border border-red-400/30 backdrop-blur-sm animate-pulse">
+                                    <div className="px-3 py-2 rounded-xl bg-red-500/20 border border-red-400/30">
                                         <div className="flex items-center gap-2">
                                             <AlertTriangle className="w-4 h-4 text-red-400" />
                                             <span className="text-sm font-bold text-red-100">{overdueCount}</span>
@@ -791,7 +789,7 @@ export default function SDRCallbacksPage() {
                                     </div>
                                 )}
                                 {dueNowCount > 0 && (
-                                    <div className="px-3 py-2 rounded-xl bg-amber-500/20 border border-amber-400/30 backdrop-blur-sm">
+                                    <div className="px-3 py-2 rounded-xl bg-amber-500/20 border border-amber-400/30">
                                         <div className="flex items-center gap-2">
                                             <BellRing className="w-4 h-4 text-amber-400" />
                                             <span className="text-sm font-bold text-amber-100">{dueNowCount}</span>
@@ -806,11 +804,11 @@ export default function SDRCallbacksPage() {
             </div>
 
             {/* Filters & Sort - no overflow-hidden so Select dropdowns can extend outside */}
-            <div className="relative z-20 bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200/60 shadow-sm">
-                <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+            <div className="relative z-20 bg-white rounded-2xl border border-slate-200/60 shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
                                 <Filter className="w-4 h-4 text-white" />
                             </div>
                             <div>
@@ -951,12 +949,12 @@ export default function SDRCallbacksPage() {
                     <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] ring-1 ring-slate-100">
                         <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900">Tout est à jour !</h3>
+                    <h3 className="text-xl font-bold text-slate-900">Aucun rappel en attente</h3>
                     <p className="text-slate-500 mt-2 max-w-sm mx-auto">
-                        Aucun rappel en attente. C&apos;est le moment idéal pour lancer une nouvelle session de prospection.
+                        Les rappels planifiés depuis un appel apparaissent ici.
                     </p>
                     <Link href="/sdr/action" className="inline-block mt-8">
-                        <Button className="bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white shadow-lg shadow-indigo-200 transaction-all hover:-translate-y-0.5">
+                        <Button className="bg-primary-600 hover:bg-primary-700 text-white shadow-sm transition-colors">
                             Démarrer une session
                         </Button>
                     </Link>
@@ -989,24 +987,24 @@ export default function SDRCallbacksPage() {
                     {sortedCallbacks.map((callback) => {
                         const urgency = getUrgencyLevel(callback);
                         const borderColor = urgency.level === "overdue"
-                            ? "from-red-500 to-red-400"
+                            ? "bg-red-500"
                             : urgency.level === "due_now"
-                                ? "from-amber-500 to-orange-400"
-                                : "from-amber-400 to-orange-400";
+                                ? "bg-amber-500"
+                                : "bg-amber-400";
 
                         return (
                             <div
                                 key={callback.id}
                                 className={cn(
-                                    "group relative bg-white rounded-2xl p-5 border shadow-[0_2px_8px_rgb(0,0,0,0.04)] hover:shadow-[0_12px_24px_rgb(0,0,0,0.08)] hover:border-indigo-200/60 transition-all duration-300 hover:-translate-y-0.5",
+                                    "group relative bg-white rounded-2xl p-5 border shadow-[0_2px_8px_rgb(0,0,0,0.04)] hover:shadow-[0_12px_24px_rgb(0,0,0,0.08)] hover:border-primary-200/60 transition-all duration-300",
                                     urgency.level === "overdue"
-                                        ? "border-red-200/80 bg-gradient-to-r from-red-50/20 to-white"
+                                        ? "border-red-200/80"
                                         : urgency.level === "due_now"
-                                            ? "border-amber-200/80 bg-gradient-to-r from-amber-50/20 to-white"
+                                            ? "border-amber-200/80"
                                             : "border-slate-200/60"
                                 )}
                             >
-                                <div className={cn("absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b rounded-l-2xl group-hover:w-2 transition-all duration-300", borderColor)} />
+                                <div className={cn("absolute top-0 left-0 w-1.5 h-full rounded-l-2xl", borderColor)} />
 
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pl-4">
                                     <div
@@ -1017,12 +1015,12 @@ export default function SDRCallbacksPage() {
                                         onKeyDown={(e) => e.key === "Enter" && openDrawerForCallback(callback)}
                                     >
                                         <div className={cn(
-                                            "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border shadow-inner group-hover:scale-110 transition-transform duration-300",
+                                            "w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 border shadow-inner",
                                             urgency.level === "overdue"
-                                                ? "bg-gradient-to-br from-red-50 to-red-100 border-red-200"
+                                                ? "bg-red-50 border-red-200"
                                                 : urgency.level === "due_now"
-                                                    ? "bg-gradient-to-br from-amber-50 to-orange-100 border-amber-200"
-                                                    : "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100"
+                                                    ? "bg-amber-50 border-amber-200"
+                                                    : "bg-amber-50 border-amber-100"
                                         )}>
                                             {urgency.level === "overdue" ? (
                                                 <AlertTriangle className="w-7 h-7 text-red-600" />
@@ -1035,7 +1033,7 @@ export default function SDRCallbacksPage() {
 
                                         <div className="space-y-1.5 min-w-0 flex-1">
                                             <div className="flex items-center gap-3 flex-wrap">
-                                                <h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-900 transition-colors">
+                                                <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary-900 transition-colors">
                                                     {callback.contact
                                                         ? `${callback.contact.firstName || ''} ${callback.contact.lastName || ''}`.trim() || 'Contact inconnu'
                                                         : callback.company?.name || 'Société inconnue'
@@ -1069,7 +1067,7 @@ export default function SDRCallbacksPage() {
                                                     <a
                                                         href={`tel:${callback.contact?.phone || callback.company?.phone}`}
                                                         onClick={(e) => e.stopPropagation()}
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/60 rounded-md transition-all"
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/60 rounded-md transition-all"
                                                     >
                                                         <PhoneCall className="w-3 h-3" />
                                                         {callback.contact?.phone || callback.company?.phone}
@@ -1086,7 +1084,7 @@ export default function SDRCallbacksPage() {
                                                         </Badge>
                                                     )}
                                                     {callback.mission?.client && (
-                                                        <Badge variant="outline" className="bg-indigo-50/50 text-indigo-700 border-indigo-100">
+                                                        <Badge variant="outline" className="bg-primary-50/50 text-primary-700 border-primary-100">
                                                             {callback.mission.name}
                                                         </Badge>
                                                     )}
@@ -1106,7 +1104,7 @@ export default function SDRCallbacksPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="gap-1.5 border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                                className="gap-1.5 border border-primary-200 text-primary-700 hover:bg-primary-50"
                                                 onClick={(e) => openOutcome(callback, "MEETING_BOOKED", e)}
                                             >
                                                 <Calendar className="w-3.5 h-3.5" />
@@ -1118,7 +1116,7 @@ export default function SDRCallbacksPage() {
                                                 className="gap-1.5 border border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                                                 onClick={(e) => openOutcome(callback, "INTERESTED", e)}
                                             >
-                                                <Sparkles className="w-3.5 h-3.5" />
+                                                <ThumbsUp className="w-3.5 h-3.5" />
                                                 Intéressé
                                             </Button>
                                             <Button
@@ -1162,7 +1160,7 @@ export default function SDRCallbacksPage() {
                                             </Button>
                                             <Button
                                                 size="sm"
-                                                className="bg-slate-900 hover:bg-indigo-600 text-white shadow-md hover:shadow-indigo-200 transition-all duration-300 gap-2"
+                                                className="bg-slate-900 hover:bg-primary-600 text-white shadow-sm transition-colors gap-2"
                                                 onClick={(e) => openDrawerForCallback(callback, e)}
                                             >
                                                 <Eye className="w-4 h-4" />
@@ -1236,7 +1234,7 @@ export default function SDRCallbacksPage() {
                                 placeholder="Ex: RDV confirmé jeudi 14h, Intéressé par la démo..."
                                 rows={3}
                                 maxLength={500}
-                                className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                                className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
                             />
                             <p className="text-xs text-slate-400 mt-1 text-right">{outcomeNote.length}/500</p>
                         </div>

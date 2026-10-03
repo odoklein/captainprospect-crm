@@ -7,14 +7,14 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-    Sparkles,
     ChevronDown,
     ChevronUp,
     Loader2,
     CheckCircle,
     Users,
-    Zap,
+    List,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 
 interface ThreadSummaryData {
     summary: string;
@@ -80,7 +80,7 @@ export function ThreadSummary({ threadId, className }: ThreadSummaryProps) {
                 className="w-full px-4 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors"
             >
                 <div className="flex items-center gap-2 text-sm">
-                    <Sparkles className="w-4 h-4 text-indigo-500" />
+                    <AiMark className="w-4 h-4 text-primary-500" />
                     <span className="font-medium text-slate-700">Résumé IA</span>
                 </div>
                 {isLoading ? (
@@ -101,7 +101,7 @@ export function ThreadSummary({ threadId, className }: ThreadSummaryProps) {
             {isExpanded && summary && (
                 <div className="px-4 pb-4 space-y-4 animate-in slide-in-from-top-2">
                     {/* Summary */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-3">
+                    <div className="bg-primary-50 rounded-lg p-3">
                         <p className="text-sm text-slate-700">{summary.summary}</p>
                     </div>
 
@@ -130,14 +130,14 @@ export function ThreadSummary({ threadId, className }: ThreadSummaryProps) {
                     {summary.keyPoints.length > 0 && (
                         <div>
                             <h4 className="text-xs font-medium text-slate-500 mb-2 flex items-center gap-1">
-                                <Zap className="w-3 h-3" />
+                                <List className="w-3 h-3" />
                                 Points clés
                             </h4>
                             <ul className="space-y-1">
                                 {summary.keyPoints.map((point, i) => (
                                     <li
                                         key={i}
-                                        className="text-xs text-slate-600 pl-3 border-l-2 border-indigo-200"
+                                        className="text-xs text-slate-600 pl-3 border-l-2 border-primary-200"
                                     >
                                         {point}
                                     </li>

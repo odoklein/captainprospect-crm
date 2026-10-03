@@ -104,7 +104,7 @@ export async function alertClientsLiveSupportMessage(data: {
     const intentLabel = intent ? INTENT_LABELS[intent] ?? intent : null;
 
     const headline = `${emoji} Nouveau message support — ${data.clientName}`;
-    const preview = truncate(data.messagePreview || "📷 Pièce jointe", 300);
+    const preview = truncate(data.messagePreview || "Pièce jointe", 300);
 
     const context: string[] = [];
     if (intentLabel) context.push(`*${esc(intentLabel)}*`);
@@ -112,7 +112,7 @@ export async function alertClientsLiveSupportMessage(data: {
     if (data.pageLabel) context.push(`depuis « ${esc(data.pageLabel)} »`);
     if (data.attachmentCount) {
         const plural = data.attachmentCount > 1 ? "s" : "";
-        context.push(`📎 ${data.attachmentCount} pièce${plural} jointe${plural}`);
+        context.push(`${data.attachmentCount} pièce${plural} jointe${plural}`);
     }
 
     const link = absoluteUrl("/manager/dashboard?support=1");

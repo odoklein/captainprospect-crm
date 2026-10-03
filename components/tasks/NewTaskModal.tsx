@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Loader2, Sparkles, Plus, X } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
 import { Modal, ModalFooter } from "@/components/ui/Modal";
 
@@ -195,20 +196,20 @@ export function NewTaskModal({
                             type="text"
                             value={form.title}
                             onChange={(e) => setForm({ ...form, title: e.target.value })}
-                            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-400"
                             placeholder="Titre de la tâche"
                             autoFocus
                         />
                         <button
                             onClick={handleAiEnhance}
                             disabled={!form.title.trim() || aiLoading}
-                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors whitespace-nowrap"
+                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 disabled:opacity-50 transition-colors whitespace-nowrap"
                             title="Améliorer avec IA"
                         >
                             {aiLoading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                                <Sparkles className="w-4 h-4" />
+                                <AiMark className="w-4 h-4" />
                             )}
                             IA
                         </button>
@@ -222,7 +223,7 @@ export function NewTaskModal({
                         <select
                             value={form.projectId}
                             onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 bg-white"
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
                         >
                             <option value="">Sélectionner un projet</option>
                             {projects.map((p) => (
@@ -238,7 +239,7 @@ export function NewTaskModal({
                     <select
                         value={form.assigneeId}
                         onChange={(e) => setForm({ ...form, assigneeId: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 bg-white"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
                     >
                         <option value="">Non assigné</option>
                         {members.map((m) => (
@@ -273,7 +274,7 @@ export function NewTaskModal({
                         type="date"
                         value={form.dueDate}
                         onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400"
                     />
                 </div>
 
@@ -284,7 +285,7 @@ export function NewTaskModal({
                         value={form.description}
                         onChange={(e) => setForm({ ...form, description: e.target.value })}
                         rows={3}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 resize-none"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 resize-none"
                         placeholder="Description détaillée..."
                     />
                 </div>
@@ -292,7 +293,7 @@ export function NewTaskModal({
                 {/* Toggle advanced */}
                 <button
                     onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                 >
                     {showAdvanced ? "Masquer les options avancées" : "Options avancées"}
                 </button>
@@ -307,7 +308,7 @@ export function NewTaskModal({
                                 type="date"
                                 value={form.startDate}
                                 onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 bg-white"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
                             />
                         </div>
 
@@ -320,7 +321,7 @@ export function NewTaskModal({
                                 min="0"
                                 value={form.estimatedHours}
                                 onChange={(e) => setForm({ ...form, estimatedHours: e.target.value })}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 bg-white"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
                                 placeholder="Ex: 4"
                             />
                         </div>
@@ -330,7 +331,7 @@ export function NewTaskModal({
                             <label className="block text-sm font-medium text-slate-700 mb-1">Labels</label>
                             <div className="flex flex-wrap gap-1 mb-2">
                                 {form.labels.map((l) => (
-                                    <span key={l} className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md">
+                                    <span key={l} className="flex items-center gap-1 text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-md">
                                         {l}
                                         <button onClick={() => removeLabel(l)}>
                                             <X className="w-3 h-3" />
@@ -344,12 +345,12 @@ export function NewTaskModal({
                                     value={labelInput}
                                     onChange={(e) => setLabelInput(e.target.value)}
                                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addLabel())}
-                                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 bg-white"
+                                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
                                     placeholder="Ajouter un label..."
                                 />
                                 <button
                                     onClick={addLabel}
-                                    className="px-2 py-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                    className="px-2 py-1.5 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                                 >
                                     <Plus className="w-4 h-4" />
                                 </button>
@@ -369,7 +370,7 @@ export function NewTaskModal({
                 <button
                     onClick={handleSubmit}
                     disabled={!form.title.trim() || !form.projectId || isLoading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 flex items-center gap-2 transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-50 flex items-center gap-2 transition-colors"
                 >
                     {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
                     Créer

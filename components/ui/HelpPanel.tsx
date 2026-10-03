@@ -105,7 +105,7 @@ export function HelpPanel({
       <div
         ref={panelRef}
         className={cn(
-          "fixed top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50",
+          "fixed top-0 bottom-0 w-full max-w-md bg-surface shadow-2xl z-50",
           "flex flex-col",
           position === "right" ? "right-0" : "left-0",
           "animate-slide-in-right",
@@ -113,30 +113,30 @@ export function HelpPanel({
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-200">
+        <div className="flex items-center justify-between p-4 border-b border-line">
           <div className="flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Aide & Documentation</h2>
+            <HelpCircle className="w-5 h-5 text-primary-600" />
+            <h2 className="text-lg font-semibold text-ink">Aide & Documentation</h2>
           </div>
           <button
             onClick={() => setIsOpen()}
-            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-1 hover:bg-surface-3 rounded-lg transition-colors"
             aria-label="Fermer"
           >
-            <X className="w-5 h-5 text-slate-500" />
+            <X className="w-5 h-5 text-ink-3" />
           </button>
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-slate-200">
+        <div className="p-4 border-b border-line">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-ink-4" />
             <input
               type="text"
               placeholder="Rechercher dans l'aide..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-line-strong rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
         </div>
@@ -145,29 +145,29 @@ export function HelpPanel({
         <div className="flex-1 overflow-y-auto p-4">
           {filteredSections.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-500">Aucun résultat trouvé</p>
+              <p className="text-ink-3">Aucun résultat trouvé</p>
             </div>
           ) : (
             <div className="space-y-4">
               {filteredSections.map((section) => (
-                <div key={section.id} className="border border-slate-200 rounded-lg">
+                <div key={section.id} className="border border-line rounded-lg">
                   <button
                     onClick={() => toggleSection(section.id)}
-                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+                    className="w-full flex items-center justify-between p-4 hover:bg-surface-2 transition-colors"
                   >
                     <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4 text-slate-400" />
-                      <h3 className="font-medium text-slate-900">{section.title}</h3>
+                      <BookOpen className="w-4 h-4 text-ink-4" />
+                      <h3 className="font-medium text-ink">{section.title}</h3>
                     </div>
                     <ChevronRight
                       className={cn(
-                        "w-4 h-4 text-slate-400 transition-transform",
+                        "w-4 h-4 text-ink-4 transition-transform",
                         expandedSections.has(section.id) && "transform rotate-90"
                       )}
                     />
                   </button>
                   {expandedSections.has(section.id) && (
-                    <div className="px-4 pb-4 text-sm text-slate-600">
+                    <div className="px-4 pb-4 text-sm text-ink-2">
                       {typeof section.content === "string" ? (
                         <p className="whitespace-pre-wrap">{section.content}</p>
                       ) : (
@@ -176,11 +176,11 @@ export function HelpPanel({
                       {section.subsections && section.subsections.length > 0 && (
                         <div className="mt-3 space-y-2">
                           {section.subsections.map((subsection) => (
-                            <div key={subsection.id} className="pl-4 border-l-2 border-slate-200">
-                              <h4 className="font-medium text-slate-900 mb-1">
+                            <div key={subsection.id} className="pl-4 border-l-2 border-line">
+                              <h4 className="font-medium text-ink mb-1">
                                 {subsection.title}
                               </h4>
-                              <p className="text-slate-600 text-xs">
+                              <p className="text-ink-2 text-xs">
                                 {typeof subsection.content === "string"
                                   ? subsection.content
                                   : "Voir détails"}
@@ -198,7 +198,7 @@ export function HelpPanel({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50">
+        <div className="p-4 border-t border-line bg-surface-2">
           <Button
             variant="secondary"
             size="sm"
@@ -232,7 +232,7 @@ export function HelpPanelTrigger({ topic, sections, className }: HelpPanelTrigge
         onClick={() => setIsOpen(true)}
         className={cn(
           "inline-flex items-center justify-center w-8 h-8 rounded-lg",
-          "text-slate-400 hover:text-slate-600 hover:bg-slate-100",
+          "text-ink-4 hover:text-ink-2 hover:bg-surface-3",
           "transition-colors focus:outline-none",
           className
         )}

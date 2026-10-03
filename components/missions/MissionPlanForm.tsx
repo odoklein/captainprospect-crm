@@ -294,7 +294,7 @@ export function MissionPlanForm({
     if (isLoadingPlan) {
         return (
             <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
             </div>
         );
     }
@@ -306,7 +306,7 @@ export function MissionPlanForm({
                 <select
                     value={frequency}
                     onChange={(e) => setFrequency(Number(e.target.value))}
-                    className="w-full max-w-xs h-10 px-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full max-w-xs h-10 px-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 >
                     {FREQUENCY_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -341,8 +341,8 @@ export function MissionPlanForm({
                             className={cn(
                                 "px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors",
                                 timePreference === opt.value
-                                    ? "bg-indigo-500 text-white border-indigo-500"
-                                    : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+                                    ? "bg-primary-500 text-white border-primary-500"
+                                    : "bg-white text-slate-700 border-slate-200 hover:border-primary-300"
                             )}
                         >
                             {opt.label}
@@ -414,7 +414,7 @@ export function MissionPlanForm({
                             key={sdr.id}
                             className="inline-flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-lg bg-slate-100 text-slate-800"
                         >
-                            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
+                            <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold">
                                 {sdr.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                             </span>
                             <span className="text-sm">{sdr.name}</span>
@@ -436,7 +436,7 @@ export function MissionPlanForm({
                                 key={sdr.id}
                                 type="button"
                                 onClick={() => addSdr(sdr.id)}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-dashed border-slate-300 rounded-lg text-slate-600 hover:border-indigo-400 hover:text-indigo-600"
+                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm border border-dashed border-slate-300 rounded-lg text-slate-600 hover:border-primary-400 hover:text-primary-600"
                             >
                                 <UserPlus className="w-4 h-4" />
                                 {sdr.name}

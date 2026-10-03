@@ -34,7 +34,7 @@ export type CellFocus =
     | { kind: 'block'; blockId: string }
     | { kind: 'absence'; absence: BoardAbsence };
 
-export const HATCH = 'repeating-linear-gradient(135deg, #F1F5F9 0 6px, #E2E8F0 6px 12px)';
+export const HATCH = 'repeating-linear-gradient(135deg, var(--ds-surface-3) 0 6px, var(--ds-line) 6px 12px)';
 
 export function shortName(name: string): string {
     const words = name.trim().split(/\s+/);
@@ -278,7 +278,7 @@ export function BoardGrid({
                     'relative flex min-w-0 flex-1 items-center truncate font-medium transition-[opacity,transform,box-shadow] duration-150',
                     compact ? 'justify-center rounded-md' : 'rounded-full',
                     !compact && (isHalf && m.col < 150 ? 'justify-center' : 'justify-start'),
-                    !painting && 'cursor-grab hover:-translate-y-px hover:shadow-sm active:cursor-grabbing',
+                    !painting && 'cursor-grab hover:shadow-sm active:cursor-grabbing',
                     painting && 'pointer-events-none',
                     past && !lit && 'opacity-70',
                     dimmed && 'opacity-20',
@@ -313,7 +313,7 @@ export function BoardGrid({
                 }}
                 aria-label="Ajouter une mission"
                 className={cn(
-                    'flex flex-1 items-center justify-center border border-dashed border-indigo-200 bg-white/70 text-indigo-400 transition-colors hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-600',
+                    'flex flex-1 items-center justify-center border border-dashed border-primary-200 bg-white/70 text-primary-400 transition-colors hover:border-primary-300 hover:bg-primary-50/60 hover:text-primary-600',
                     compact ? 'rounded-md' : 'rounded-full',
                 )}
                 style={{ height: m.pill }}
@@ -423,22 +423,22 @@ export function BoardGrid({
                 className={cn(
                     'relative flex items-center gap-1.5 border-l border-dashed border-slate-200/80 transition-colors duration-100',
                     weekStart && 'border-solid border-slate-300/70',
-                    isToday && 'bg-indigo-50/40',
+                    isToday && 'bg-primary-50/40',
                     painting && 'cursor-crosshair',
-                    drop?.key === key && 'bg-indigo-50 ring-2 ring-inset ring-indigo-300',
-                    activeCellKey === key && 'bg-indigo-50/70',
+                    drop?.key === key && 'bg-primary-50 ring-2 ring-inset ring-primary-300',
+                    activeCellKey === key && 'bg-primary-50/70',
                     inPreview && brush?.kind === 'eraser' && hadContent && 'bg-rose-50/40',
                 )}
                 style={{
                     height: m.row,
                     paddingInline: m.cellPad,
                     ...(previewTint && brushColor ? { backgroundColor: `${brushColor.bg}99`, boxShadow: `inset 0 0 0 1.5px ${brushColor.solid}55` } : {}),
-                    ...(previewTint && brush?.kind === 'absence' ? { boxShadow: 'inset 0 0 0 1.5px #94A3B8' } : {}),
+                    ...(previewTint && brush?.kind === 'absence' ? { boxShadow: 'inset 0 0 0 1.5px var(--brand-neutral-400)' } : {}),
                 }}
             >
                 {content}
                 {drop?.key === key && (
-                    <span className="pointer-events-none absolute right-1 top-1 rounded-full bg-indigo-600 px-1.5 text-[10px] font-semibold text-white">
+                    <span className="pointer-events-none absolute right-1 top-1 rounded-full bg-primary-600 px-1.5 text-[10px] font-semibold text-white">
                         {drop.copy ? 'Copier' : 'Déplacer'}
                     </span>
                 )}
@@ -462,7 +462,7 @@ export function BoardGrid({
         >
             <div className="grid min-w-fit" style={{ gridTemplateColumns, paddingBottom: DOCK_RESERVE }} role="grid">
                 {/* Header */}
-                <div className="sticky left-0 top-0 z-20 bg-[#FAFAFB]" style={{ height: m.header }} />
+                <div className="sticky left-0 top-0 z-20 bg-surface-2" style={{ height: m.header }} />
                 {days.map((day) => {
                     const { weekday, day: num } = formatDayHeader(day);
                     const isToday = day === state.today;
@@ -472,7 +472,7 @@ export function BoardGrid({
                         <div
                             key={day}
                             className={cn(
-                                'sticky top-0 z-10 flex items-center border-l border-dashed border-slate-200/80 bg-[#FAFAFB]',
+                                'sticky top-0 z-10 flex items-center border-l border-dashed border-slate-200/80 bg-surface-2',
                                 compact ? 'justify-center' : '',
                                 weekStart && 'border-solid border-slate-300/70',
                             )}
@@ -481,12 +481,12 @@ export function BoardGrid({
                             {compact ? (
                                 <div className={cn('flex flex-col items-center leading-tight', past ? 'text-slate-400' : 'text-slate-700')}>
                                     <span className="text-[10px] font-medium uppercase">{weekday.slice(0, 1)}</span>
-                                    <span className={cn('mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-semibold', isToday && 'bg-indigo-600 text-white')}>{num}</span>
+                                    <span className={cn('mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-semibold', isToday && 'bg-primary-600 text-white')}>{num}</span>
                                 </div>
                             ) : (
-                                <div className={cn('flex items-center gap-2 font-semibold', m.col >= 110 ? 'text-[15px]' : 'text-[13px]', past ? 'text-slate-400' : 'text-slate-800', isToday && 'text-indigo-600')}>
+                                <div className={cn('flex items-center gap-2 font-semibold', m.col >= 110 ? 'text-[15px]' : 'text-[13px]', past ? 'text-slate-400' : 'text-slate-800', isToday && 'text-primary-600')}>
                                     <span>{weekday} {num}</span>
-                                    {isToday && view === 'week' && <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white">Aujourd&apos;hui</span>}
+                                    {isToday && view === 'week' && <span className="rounded-full bg-primary-600 px-2 py-0.5 text-[10px] font-semibold text-white">Aujourd&apos;hui</span>}
                                 </div>
                             )}
                         </div>
@@ -504,9 +504,9 @@ export function BoardGrid({
                                 onClick={() => painting && paintRow(sdr.id)}
                                 onPointerEnter={() => setHover({ row: rowIndex, col: -1 })}
                                 className={cn(
-                                    'sticky left-0 z-[5] flex items-center gap-3 bg-[#FAFAFB] pr-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-indigo-300',
+                                    'sticky left-0 z-[5] flex items-center gap-3 bg-surface-2 pr-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary-300',
                                     compact ? 'pl-1' : 'pl-2',
-                                    painting ? 'cursor-pointer hover:bg-indigo-50/60' : 'cursor-default',
+                                    painting ? 'cursor-pointer hover:bg-primary-50/60' : 'cursor-default',
                                 )}
                                 style={{ height: m.row }}
                                 title={painting ? `Remplir toute la ligne de ${sdr.name}` : undefined}
@@ -526,7 +526,7 @@ export function BoardGrid({
                                         <span className="mt-1 flex items-center gap-2">
                                             <span className="h-1 w-full max-w-[64px] overflow-hidden rounded-full bg-slate-200/80">
                                                 <span
-                                                    className={cn('block h-full rounded-full transition-[width] duration-300', ratio >= 1 ? 'bg-emerald-500' : ratio > 0 ? 'bg-indigo-400' : 'bg-transparent')}
+                                                    className={cn('block h-full rounded-full transition-[width] duration-300', ratio >= 1 ? 'bg-emerald-500' : ratio > 0 ? 'bg-primary-400' : 'bg-transparent')}
                                                     style={{ width: `${ratio * 100}%` }}
                                                 />
                                             </span>

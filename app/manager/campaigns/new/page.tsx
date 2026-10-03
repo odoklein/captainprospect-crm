@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Button, Modal, ModalFooter, Select, Tabs, useToast } from "@/components/ui";
-import { ArrowLeft, Target, Loader2, MessageSquare, Sparkles, Plus, Wand2 } from "lucide-react";
+import { ArrowLeft, Target, Loader2, MessageSquare, Plus } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import Link from "next/link";
 import { PitchBlockEditor } from "@/components/strategy";
 
@@ -371,7 +372,7 @@ export default function NewCampaignPage() {
                 {/* Basic Info */}
                 <Card className="shadow-sm">
                     <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                        <Target className="w-5 h-5 text-indigo-500" />
+                        <Target className="w-5 h-5 text-primary-500" />
                         Configuration de base
                     </h2>
 
@@ -401,7 +402,7 @@ export default function NewCampaignPage() {
                                 value={formData.name}
                                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                 placeholder="Ex: Prospection Q1 2026"
-                                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all ${errors.name ? "border-red-500" : "border-slate-200"
+                                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all ${errors.name ? "border-red-500" : "border-slate-200"
                                     }`}
                             />
                             {errors.name && (
@@ -420,7 +421,7 @@ export default function NewCampaignPage() {
                                 onChange={(e) => setFormData(prev => ({ ...prev, icp: e.target.value }))}
                                 placeholder="Ex: CEOs de startups B2B SaaS entre 10 et 50 employés en France."
                                 rows={3}
-                                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none ${errors.icp ? "border-red-500" : "border-slate-200"}`}
+                                className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none ${errors.icp ? "border-red-500" : "border-slate-200"}`}
                             />
                             {errors.icp && (
                                 <p className="text-xs text-red-500 mt-1 font-medium">{errors.icp}</p>
@@ -448,7 +449,7 @@ export default function NewCampaignPage() {
                 <Card className="shadow-sm">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                            <MessageSquare className="w-5 h-5 text-indigo-500" />
+                            <MessageSquare className="w-5 h-5 text-primary-500" />
                             Construction du script
                         </h2>
                         <div className="flex items-center gap-3">
@@ -469,12 +470,12 @@ export default function NewCampaignPage() {
                                 variant="secondary"
                                 onClick={() => generateWithMistral('all')}
                                 disabled={isGenerating || !formData.missionId || !formData.icp || !formData.pitch}
-                                className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-indigo-200 text-indigo-700 hover:from-purple-100 hover:to-indigo-100"
+                                className="gap-2 bg-primary-50 border-primary-200 text-primary-700 hover:bg-primary-100"
                             >
                                 {isGenerating && generatingSection === 'all' ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                    <Wand2 className="w-4 h-4" />
+                                    <AiMark className="w-4 h-4" />
                                 )}
                                 Générer avec IA
                             </Button>
@@ -493,12 +494,12 @@ export default function NewCampaignPage() {
                                         type="button"
                                         onClick={() => generateWithMistral('intro')}
                                         disabled={isGenerating || !formData.missionId || !formData.icp || !formData.pitch}
-                                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                     >
                                         {isGenerating && generatingSection === 'intro' ? (
                                             <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                            <Wand2 className="w-3 h-3" />
+                                            <AiMark className="w-3 h-3" />
                                         )}
                                         Générer
                                     </button>
@@ -510,7 +511,7 @@ export default function NewCampaignPage() {
                                 onChange={(e) => setFormData(prev => ({ ...prev, scriptIntro: e.target.value }))}
                                 placeholder="Comment vous présentez-vous et captez l'attention ?"
                                 rows={3}
-                                className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none ${errors.scriptIntro ? "border-red-500" : "border-slate-200"
+                                className={`w-full px-4 py-3 bg-slate-50 border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none ${errors.scriptIntro ? "border-red-500" : "border-slate-200"
                                     }`}
                             />
                             {errors.scriptIntro && (
@@ -530,12 +531,12 @@ export default function NewCampaignPage() {
                                             type="button"
                                             onClick={() => generateWithMistral('discovery')}
                                             disabled={isGenerating || !formData.missionId || !formData.icp || !formData.pitch}
-                                            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                         >
                                             {isGenerating && generatingSection === 'discovery' ? (
                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                             ) : (
-                                                <Wand2 className="w-3 h-3" />
+                                                <AiMark className="w-3 h-3" />
                                             )}
                                             Générer
                                         </button>
@@ -547,7 +548,7 @@ export default function NewCampaignPage() {
                                     onChange={(e) => setFormData(prev => ({ ...prev, scriptDiscovery: e.target.value }))}
                                     placeholder="Quelles questions pour qualifier le besoin ?"
                                     rows={4}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none"
                                 />
                             </div>
 
@@ -562,12 +563,12 @@ export default function NewCampaignPage() {
                                             type="button"
                                             onClick={() => generateWithMistral('objection')}
                                             disabled={isGenerating || !formData.missionId || !formData.icp || !formData.pitch}
-                                            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                            className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                         >
                                             {isGenerating && generatingSection === 'objection' ? (
                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                             ) : (
-                                                <Wand2 className="w-3 h-3" />
+                                                <AiMark className="w-3 h-3" />
                                             )}
                                             Générer
                                         </button>
@@ -579,7 +580,7 @@ export default function NewCampaignPage() {
                                     onChange={(e) => setFormData(prev => ({ ...prev, scriptObjection: e.target.value }))}
                                     placeholder="Arguments face aux refus classiques..."
                                     rows={4}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none"
                                 />
                             </div>
                         </div>
@@ -595,12 +596,12 @@ export default function NewCampaignPage() {
                                         type="button"
                                         onClick={() => generateWithMistral('closing')}
                                         disabled={isGenerating || !formData.missionId || !formData.icp || !formData.pitch}
-                                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                     >
                                         {isGenerating && generatingSection === 'closing' ? (
                                             <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                            <Wand2 className="w-3 h-3" />
+                                            <AiMark className="w-3 h-3" />
                                         )}
                                         Générer
                                     </button>
@@ -612,7 +613,7 @@ export default function NewCampaignPage() {
                                 onChange={(e) => setFormData(prev => ({ ...prev, scriptClosing: e.target.value }))}
                                 placeholder="Comment proposez-vous le rendez-vous ?"
                                 rows={2}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none"
                             />
                         </div>
                     </div>
@@ -659,7 +660,7 @@ export default function NewCampaignPage() {
                                                 className={[
                                                     "w-full text-left rounded-xl border p-4 transition-all",
                                                     selected
-                                                        ? "border-indigo-300 bg-indigo-50"
+                                                        ? "border-primary-300 bg-primary-50"
                                                         : "border-slate-200 bg-white hover:bg-slate-50",
                                                 ].join(" ")}
                                             >
@@ -671,7 +672,7 @@ export default function NewCampaignPage() {
                                                         className={[
                                                             "text-[11px] font-bold px-2 py-1 rounded-full",
                                                             selected
-                                                                ? "bg-indigo-600 text-white"
+                                                                ? "bg-primary-600 text-white"
                                                                 : "bg-slate-100 text-slate-600",
                                                         ].join(" ")}
                                                     >

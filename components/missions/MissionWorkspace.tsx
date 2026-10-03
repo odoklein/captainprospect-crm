@@ -17,7 +17,6 @@ import {
     PauseCircle,
     ListIcon,
     ChevronRight,
-    Sparkles,
     FileText,
     Plus,
     X,
@@ -26,14 +25,13 @@ import {
     Activity,
     TrendingUp,
     Save,
-    Wand2,
     Copy,
     CheckCircle2,
     BarChart3,
     GripVertical,
     Pencil,
     MessageSquare,
-    Rocket,
+    Play,
     Clock3,
     EyeOff,
     ShieldCheck,
@@ -44,6 +42,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ui/AiMark";
 import { EditMissionDialog } from "./EditMissionDialog";
 import { ReadinessPanel } from "./ReadinessPanel";
 import { StrategyByListTab } from "./StrategyByListTab";
@@ -293,7 +292,8 @@ function Sparkline({
         })
         .join(" ");
     const area = `${line} L${(W - PAD).toFixed(1)},${H - PAD} L${PAD.toFixed(1)},${H - PAD} Z`;
-    const gradientId = `spark-${color.replace("#", "")}`;
+    // Colour may be a hex or a CSS var(): strip anything that can't live in an id.
+    const gradientId = `spark-${color.replace(/[^a-zA-Z0-9-]/g, "")}`;
 
     const handleMove = (e: React.MouseEvent<SVGSVGElement>) => {
         const rect = svgRef.current?.getBoundingClientRect();
@@ -515,7 +515,7 @@ function InlineTitle({ value, onSave }: { value: string; onSave: (next: string) 
                     setEditing(false);
                 }
             }}
-            className="w-full max-w-sm rounded-md border border-indigo-300 px-1.5 py-0.5 text-base font-bold text-slate-900 outline-none ring-2 ring-indigo-500/20"
+            className="w-full max-w-sm rounded-md border border-primary-300 px-1.5 py-0.5 text-base font-bold text-slate-900 outline-none ring-2 ring-primary-500/20"
         />
     );
 }
@@ -554,7 +554,7 @@ function PropertyField({
                         defaultValue={value}
                         onBlur={(e) => commit(e.target.value)}
                         onChange={(e) => commit(e.target.value)}
-                        className="rounded-md border border-indigo-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 outline-none ring-2 ring-indigo-500/20"
+                        className="rounded-md border border-primary-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 outline-none ring-2 ring-primary-500/20"
                     >
                         {options?.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -572,7 +572,7 @@ function PropertyField({
                             if (e.key === "Enter") commit((e.target as HTMLInputElement).value);
                             if (e.key === "Escape") setEditing(false);
                         }}
-                        className="rounded-md border border-indigo-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 outline-none ring-2 ring-indigo-500/20"
+                        className="rounded-md border border-primary-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 outline-none ring-2 ring-primary-500/20"
                     />
                 )
             ) : (
@@ -1832,7 +1832,7 @@ export function MissionWorkspace({
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                     <p className="text-sm text-slate-500">Chargement de la mission...</p>
                 </div>
             </div>
@@ -1929,7 +1929,7 @@ export function MissionWorkspace({
                                 isPortalLaunching ? "bg-amber-500 hover:bg-amber-400" : "bg-emerald-600 hover:bg-emerald-500"
                             )}
                         >
-                            {isPortalLaunching ? <Clock3 className="h-4 w-4" /> : <Rocket className="h-4 w-4" />}
+                            {isPortalLaunching ? <Clock3 className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                             {isPortalLaunching ? "Démarrage en cours" : "Démarrer"}
                         </button>
                         <div className="relative">
@@ -2132,8 +2132,8 @@ export function MissionWorkspace({
                                 icon={Activity}
                                 label="Actions réalisées"
                                 value={mission.stats?.totalActions ?? 0}
-                                accent="#4F46E5"
-                                tintClass="bg-indigo-50"
+                                accent="var(--brand-primary-600)"
+                                tintClass="bg-primary-50"
                                 series={insights?.series.map((d) => d.actions)}
                                 seriesDates={insights?.series.map((d) => d.date)}
                                 windowTotal={insights?.current.actions}
@@ -2158,8 +2158,8 @@ export function MissionWorkspace({
                                 icon={BarChart3}
                                 label="Opportunités créées"
                                 value={mission.stats?.opportunities ?? 0}
-                                accent="#7C3AED"
-                                tintClass="bg-violet-50"
+                                accent="var(--brand-accent-600)"
+                                tintClass="bg-accent-50"
                                 windowTotal={insights?.current.opportunities}
                                 previousTotal={insights?.previous.opportunities}
                                 windowDays={insights?.windowDays ?? 30}
@@ -2240,7 +2240,7 @@ export function MissionWorkspace({
                                             ) : mailboxes.length === 0 ? (
                                                 <span className="text-slate-400 text-xs">
                                                     Aucune boîte mail disponible. Configurez-les dans{" "}
-                                                    <a href="/manager/email/mailboxes" className="text-indigo-600 hover:underline">
+                                                    <a href="/manager/email/mailboxes" className="text-primary-600 hover:underline">
                                                         Boîtes mail
                                                     </a>.
                                                 </span>
@@ -2292,7 +2292,7 @@ export function MissionWorkspace({
                                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="flex items-center gap-2">
-                                            <Mail className="w-4 h-4 text-indigo-500" />
+                                            <Mail className="w-4 h-4 text-primary-500" />
                                             <div>
                                                 <h3 className="text-sm font-semibold text-slate-900">Comptes email</h3>
                                                 <p className="text-xs text-slate-500">
@@ -2305,7 +2305,7 @@ export function MissionWorkspace({
                                         <button
                                             type="button"
                                             onClick={() => setShowMailboxManager(true)}
-                                            className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                                            className="flex items-center gap-1.5 h-8 px-3 text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
                                         >
                                             Gérer
                                             <ChevronRight className="w-3.5 h-3.5" />
@@ -2321,7 +2321,7 @@ export function MissionWorkspace({
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowMailboxManager(true)}
-                                                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                                                    className="text-xs font-semibold text-primary-600 hover:text-primary-700"
                                                 >
                                                     Connecter
                                                 </button>
@@ -2342,7 +2342,7 @@ export function MissionWorkspace({
                                                 <button
                                                     type="button"
                                                     onClick={() => setShowMailboxModal(true)}
-                                                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                                                    className="text-xs font-semibold text-primary-600 hover:text-primary-700"
                                                 >
                                                     Configurer
                                                 </button>
@@ -2446,8 +2446,8 @@ export function MissionWorkspace({
                                         {/* Script — creation mode */}
                                         <div className="bg-white border border-emerald-200 rounded-2xl p-6 shadow-sm">
                                             <div className="flex items-center gap-3 mb-5">
-                                                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                                    <Sparkles className="w-5 h-5 text-indigo-600" />
+                                                <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                                    <FileText className="w-5 h-5 text-primary-600" />
                                                 </div>
                                                 <div>
                                                     <h2 className="text-lg font-semibold text-slate-900">Script d&apos;appel</h2>
@@ -2459,7 +2459,7 @@ export function MissionWorkspace({
                                                 onChange={(e) => setBaseScript(e.target.value)}
                                                 rows={8}
                                                 placeholder="Ajoutez un script de base unique..."
-                                                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono text-sm"
+                                                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none font-mono text-sm"
                                             />
                                         </div>
                                     </>
@@ -2548,8 +2548,8 @@ export function MissionWorkspace({
                                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                                     <div className="flex items-center justify-between mb-5">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                                <Sparkles className="w-5 h-5 text-indigo-600" />
+                                            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                                <FileText className="w-5 h-5 text-primary-600" />
                                             </div>
                                             <div>
                                                 <h2 className="text-lg font-semibold text-slate-900">Script d'appel</h2>
@@ -2568,7 +2568,7 @@ export function MissionWorkspace({
                                                     <button
                                                         onClick={handleSaveStrategy}
                                                         disabled={isSavingStrategy}
-                                                        className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg transition-colors"
+                                                        className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-lg transition-colors"
                                                     >
                                                         {isSavingStrategy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                                         Enregistrer
@@ -2582,7 +2582,7 @@ export function MissionWorkspace({
                                                     </button>
                                                     <button
                                                         onClick={() => setIsStrategyEditing(true)}
-                                                        className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                                                        className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
                                                     >
                                                         <Edit className="w-4 h-4" />
                                                         Modifier
@@ -2636,8 +2636,8 @@ export function MissionWorkspace({
                                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                                     <div className="flex items-center justify-between mb-5">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-                                                <FileText className="w-5 h-5 text-violet-600" />
+                                            <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
+                                                <FileText className="w-5 h-5 text-accent-600" />
                                             </div>
                                             <div>
                                                 <h2 className="text-lg font-semibold text-slate-900">Script additionel</h2>
@@ -2646,9 +2646,9 @@ export function MissionWorkspace({
                                         </div>
                                     </div>
                                     {additionalScriptShared && !isStrategyEditing && (
-                                        <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
-                                            <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-1">Version partagée</p>
-                                            <p className="text-sm text-indigo-900 whitespace-pre-wrap">{additionalScriptShared}</p>
+                                        <div className="mb-4 rounded-xl border border-primary-200 bg-primary-50 p-3">
+                                            <p className="text-xs font-semibold text-primary-700 uppercase tracking-wide mb-1">Version partagée</p>
+                                            <p className="text-sm text-primary-900 whitespace-pre-wrap">{additionalScriptShared}</p>
                                         </div>
                                     )}
                                     {isStrategyEditing ? (
@@ -2658,13 +2658,13 @@ export function MissionWorkspace({
                                                 onChange={(e) => setAdditionalScriptDraft(e.target.value)}
                                                 rows={9}
                                                 placeholder="Ajoutez un script additionel partagé avec l'équipe..."
-                                                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm"
+                                                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent resize-none text-sm"
                                             />
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={handleSaveAdditionalScript}
                                                     disabled={isSavingAdditionalScript || isSharingAdditionalScript}
-                                                    className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 disabled:opacity-50 rounded-lg transition-colors"
+                                                    className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-accent-700 bg-accent-50 hover:bg-accent-100 disabled:opacity-50 rounded-lg transition-colors"
                                                 >
                                                     {isSavingAdditionalScript ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                                                     Sauvegarder brouillon
@@ -2672,7 +2672,7 @@ export function MissionWorkspace({
                                                 <button
                                                     onClick={handleShareAdditionalScript}
                                                     disabled={isSavingAdditionalScript || isSharingAdditionalScript || !additionalScriptDraft.trim()}
-                                                    className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 rounded-lg transition-colors"
+                                                    className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-white bg-accent-600 hover:bg-accent-700 disabled:opacity-50 rounded-lg transition-colors"
                                                 >
                                                     {isSharingAdditionalScript ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
                                                     Partager avec l'équipe
@@ -2694,7 +2694,7 @@ export function MissionWorkspace({
                                     <div className="flex items-center justify-between mb-5">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                                <Sparkles className="w-5 h-5 text-emerald-600" />
+                                                <AiMark className="w-5 h-5 text-emerald-600" />
                                             </div>
                                             <div>
                                                 <h2 className="text-lg font-semibold text-slate-900">Script amélioré par IA</h2>
@@ -2707,7 +2707,7 @@ export function MissionWorkspace({
                                                 disabled={isRefreshingAiEnhancedScript}
                                                 className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 rounded-lg transition-colors"
                                             >
-                                                {isRefreshingAiEnhancedScript ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                                                {isRefreshingAiEnhancedScript ? <Loader2 className="w-4 h-4 animate-spin" /> : <AiMark className="w-4 h-4" />}
                                                 Régénérer via commentaires d'appels
                                             </button>
                                         )}
@@ -2765,11 +2765,11 @@ export function MissionWorkspace({
                         )}
 
                         {/* Email Templates */}
-                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm border-l-4 border-l-indigo-500">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm border-l-4 border-l-primary-500">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
-                                        <Mail className="w-5 h-5 text-indigo-600" />
+                                    <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                        <Mail className="w-5 h-5 text-primary-600" />
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-semibold text-slate-900">Email Templates</h2>
@@ -2795,7 +2795,7 @@ export function MissionWorkspace({
                                             fetchAvailableTemplates();
                                             setShowAddTemplateModal(true);
                                         }}
-                                        className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                                        className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors"
                                     >
                                         <FileText className="w-4 h-4" />
                                         Existant
@@ -2804,7 +2804,7 @@ export function MissionWorkspace({
                             </div>
                             {isLoadingTemplates ? (
                                 <div className="flex items-center justify-center py-8">
-                                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                                    <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                                 </div>
                             ) : missionTemplates.length === 0 ? (
                                 <p className="text-sm text-slate-500 mb-3">Aucun template.</p>
@@ -2817,13 +2817,13 @@ export function MissionWorkspace({
                                             onDragStart={() => handleDragStart(index)}
                                             onDragOver={(e) => handleDragOver(e, index)}
                                             onDragEnd={handleDragEnd}
-                                            className={`group flex items-center gap-4 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-grab active:cursor-grabbing ${draggedTemplateIndex === index ? "opacity-50 border-indigo-400 bg-indigo-50" : ""}`}
+                                            className={`group flex items-center gap-4 p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-grab active:cursor-grabbing ${draggedTemplateIndex === index ? "opacity-50 border-primary-400 bg-primary-50" : ""}`}
                                         >
                                             <div className="text-slate-300 hover:text-slate-500 flex-shrink-0 cursor-grab">
                                                 <GripVertical className="w-4 h-4" />
                                             </div>
-                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center flex-shrink-0">
-                                                <Sparkles className="w-5 h-5 text-white" />
+                                            <div className="w-10 h-10 rounded-xl bg-primary-50 text-primary-600 ring-1 ring-inset ring-primary-100 flex items-center justify-center flex-shrink-0">
+                                                <Mail className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium text-slate-900 truncate text-sm">{mt.template.name}</p>
@@ -2832,7 +2832,7 @@ export function MissionWorkspace({
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => { setPreviewTemplate(mt.template); setShowPreviewModal(true); }}
-                                                    className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                                    className="p-1.5 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                                                     title="Prévisualiser"
                                                 >
                                                     <Eye className="w-4 h-4" />
@@ -2854,7 +2854,7 @@ export function MissionWorkspace({
                                                 <button
                                                     onClick={() => handleDuplicateTemplate(mt.template.id)}
                                                     disabled={duplicatingTemplateId === mt.template.id}
-                                                    className="p-1.5 text-slate-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg disabled:opacity-50"
+                                                    className="p-1.5 text-slate-500 hover:text-accent-600 hover:bg-accent-50 rounded-lg disabled:opacity-50"
                                                     title="Dupliquer"
                                                 >
                                                     {duplicatingTemplateId === mt.template.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
@@ -2881,7 +2881,7 @@ export function MissionWorkspace({
                                         setTemplateAiSuggestions([]);
                                         setShowCreateTemplateModal(true);
                                     }}
-                                    className="inline-flex items-center gap-2 mt-2 text-sm font-medium text-indigo-600 hover:underline"
+                                    className="inline-flex items-center gap-2 mt-2 text-sm font-medium text-primary-600 hover:underline"
                                 >
                                     <Plus className="w-4 h-4" />
                                     Créer votre premier template
@@ -2963,11 +2963,11 @@ export function MissionWorkspace({
                                                     href={`/manager/lists/${list.id}`}
                                                     className="flex items-center gap-4 flex-1 min-w-0"
                                                 >
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${isListActive ? "bg-amber-100" : "bg-slate-200"}`}>
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isListActive ? "bg-amber-100" : "bg-slate-200"}`}>
                                                         <ListIcon className={`w-5 h-5 ${isListActive ? "text-amber-600" : "text-slate-500"}`} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className={`font-medium truncate transition-colors ${isListActive ? "text-slate-900 group-hover:text-indigo-600" : "text-slate-500"}`}>
+                                                        <p className={`font-medium truncate transition-colors ${isListActive ? "text-slate-900 group-hover:text-primary-600" : "text-slate-500"}`}>
                                                             {list.name}
                                                         </p>
                                                         <p className="text-sm text-slate-500">
@@ -3041,7 +3041,7 @@ export function MissionWorkspace({
                                                     type="button"
                                                     disabled={togglingContactsListId === list.id}
                                                     onClick={() => handleToggleListContactsView(list)}
-                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${list.contactsViewEnabled ? "text-indigo-700 border-indigo-300 bg-indigo-50 hover:bg-indigo-100" : "text-slate-500 border-slate-200 bg-white hover:bg-slate-50"}`}
+                                                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${list.contactsViewEnabled ? "text-primary-700 border-primary-300 bg-primary-50 hover:bg-primary-100" : "text-slate-500 border-slate-200 bg-white hover:bg-slate-50"}`}
                                                     title={
                                                         list.commercialInterlocuteur
                                                             ? `Accès contacts pour ${list.commercialInterlocuteur.firstName || list.commercialInterlocuteur.lastName} : ${list.contactsViewEnabled ? "Activé" : "Désactivé"}`
@@ -3051,7 +3051,7 @@ export function MissionWorkspace({
                                                     {togglingContactsListId === list.id ? (
                                                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                                     ) : list.contactsViewEnabled ? (
-                                                        <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                                                        <Eye className="w-3.5 h-3.5 text-primary-600" />
                                                     ) : (
                                                         <EyeOff className="w-3.5 h-3.5 text-slate-400" />
                                                     )}
@@ -3093,7 +3093,7 @@ export function MissionWorkspace({
                                                         }
                                                     }}
                                                 />
-                                                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                                                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-primary-500 group-hover:translate-x-1 transition-all" />
                                             </div>
                                         </div>
                                         );
@@ -3137,7 +3137,7 @@ export function MissionWorkspace({
                                     <button
                                         type="button"
                                         onClick={() => void fetchMissionFeedback()}
-                                        className="h-9 px-3 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition-colors"
+                                        className="h-9 px-3 rounded-lg bg-primary-600 text-white text-xs font-semibold hover:bg-primary-700 transition-colors"
                                     >
                                         Actualiser
                                     </button>
@@ -3146,7 +3146,7 @@ export function MissionWorkspace({
 
                             {feedbackLoading ? (
                                 <div className="py-16 flex items-center justify-center">
-                                    <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                                    <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
                                 </div>
                             ) : feedbackItems.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
@@ -3237,7 +3237,7 @@ export function MissionWorkspace({
                                             "Référent mission",
                                         )
                                     }
-                                    className="h-9 min-w-[220px] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                                    className="h-9 min-w-[220px] rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                                 >
                                     <option value="">Aucun référent</option>
                                     {mission.sdrAssignments.map((a) => (
@@ -3270,7 +3270,7 @@ export function MissionWorkspace({
                                             setAssignPickerOpen((v) => !v);
                                             if (assignableUsers.length === 0) void fetchAssignableUsers();
                                         }}
-                                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
+                                        className="inline-flex h-9 items-center gap-2 rounded-lg bg-primary-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
                                     >
                                         <Plus className="h-4 w-4" /> Assigner un SDR
                                     </button>
@@ -3288,7 +3288,7 @@ export function MissionWorkspace({
                                                         value={assignSearch}
                                                         onChange={(e) => setAssignSearch(e.target.value)}
                                                         placeholder="Rechercher un SDR…"
-                                                        className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                                                        className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                                                     />
                                                 </div>
                                                 <div className="max-h-72 overflow-y-auto py-1">
@@ -3350,7 +3350,7 @@ export function MissionWorkspace({
                                         const isLead = mission.teamLeadSdrId === a.sdr.id;
                                         return (
                                             <div key={a.id} className="flex flex-wrap items-center gap-4 px-5 py-3.5">
-                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-bold text-indigo-600">
+                                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-600">
                                                     {a.sdr.name.slice(0, 2).toUpperCase()}
                                                 </span>
                                                 <div className="min-w-0 flex-1">
@@ -3580,7 +3580,7 @@ export function MissionWorkspace({
                     <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowCreateTemplateModal(false)} />
                     <div className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-600 to-teal-600 flex-shrink-0">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-emerald-600 flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                                     <Plus className="w-5 h-5 text-white" />
@@ -3598,13 +3598,15 @@ export function MissionWorkspace({
                         {/* Tab bar */}
                         <div className="flex gap-1 px-6 pt-3 pb-0 border-b border-slate-200 bg-white flex-shrink-0">
                             {(["write", "preview", "ai"] as const).map((tab) => {
-                                const labels = { write: "✏️ Éditeur", preview: "👁 Prévisualisation", ai: "✨ IA Mistral" };
+                                const labels = { write: "Éditeur", preview: "Prévisualisation", ai: "IA Mistral" };
+                                const TabIcon = { write: Pencil, preview: Eye, ai: AiMark }[tab];
                                 return (
                                     <button
                                         key={tab}
                                         onClick={() => setTemplateModalTab(tab)}
-                                        className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-all ${templateModalTab === tab ? "text-emerald-700 border-emerald-600 bg-emerald-50/60" : "text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50"}`}
+                                        className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-all ${templateModalTab === tab ? "text-emerald-700 border-emerald-600 bg-emerald-50/60" : "text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50"}`}
                                     >
+                                        <TabIcon className="h-3.5 w-3.5 shrink-0" />
                                         {labels[tab]}
                                     </button>
                                 );
@@ -3642,13 +3644,13 @@ export function MissionWorkspace({
                                             <div className="flex items-center gap-2">
                                                 <span className="text-xs text-slate-400">Variables : </span>
                                                 {["{{firstName}}", "{{company}}", "{{fullName}}"].map(v => (
-                                                    <button key={v} onClick={() => setTemplateForm(f => ({ ...f, bodyHtml: f.bodyHtml + v }))} className="text-xs text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 font-mono transition-colors">
+                                                    <button key={v} onClick={() => setTemplateForm(f => ({ ...f, bodyHtml: f.bodyHtml + v }))} className="text-xs text-primary-600 bg-primary-50 hover:bg-primary-100 px-2 py-0.5 rounded border border-primary-200 font-mono transition-colors">
                                                         {v}
                                                     </button>
                                                 ))}
                                                 <button
                                                     onClick={() => setTemplateModalTab("preview")}
-                                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-0.5 rounded border border-slate-200 transition-colors"
+                                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-primary-600 hover:bg-primary-50 px-2 py-0.5 rounded border border-slate-200 transition-colors"
                                                 >
                                                     <Eye className="w-3.5 h-3.5" /> Prévisualiser
                                                 </button>
@@ -3681,7 +3683,7 @@ export function MissionWorkspace({
                                     )}
                                     {templateForm.bodyHtml ? (
                                         <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                            <div className="bg-gradient-to-r from-slate-100 to-slate-50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
+                                            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
                                                 <div className="w-3 h-3 rounded-full bg-red-400" />
                                                 <div className="w-3 h-3 rounded-full bg-amber-400" />
                                                 <div className="w-3 h-3 rounded-full bg-emerald-400" />
@@ -3699,7 +3701,7 @@ export function MissionWorkspace({
                                         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl">
                                             <Eye className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                                             <p className="text-sm text-slate-500">Rédigez le contenu HTML dans l&apos;onglet <strong>Éditeur</strong> pour voir l&apos;aperçu</p>
-                                            <button onClick={() => setTemplateModalTab("write")} className="mt-3 text-xs text-indigo-600 hover:underline">Aller à l&apos;éditeur →</button>
+                                            <button onClick={() => setTemplateModalTab("write")} className="mt-3 text-xs text-primary-600 hover:underline">Aller à l&apos;éditeur →</button>
                                         </div>
                                     )}
                                 </div>
@@ -3710,12 +3712,12 @@ export function MissionWorkspace({
                                 <div className="p-6 space-y-5">
                                     {/* AI context summary */}
                                     {(mission?.name || campaignData?.icp) && (
-                                        <div className="flex flex-wrap gap-2 p-3 bg-violet-50 border border-violet-200 rounded-xl">
-                                            <span className="text-xs font-medium text-violet-700">Contexte automatique :</span>
-                                            {mission?.name && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">Mission : {mission.name}</span>}
-                                            {mission?.client?.name && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">Client : {mission.client.name}</span>}
-                                            {campaignData?.icp && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">ICP défini</span>}
-                                            {campaignData?.pitch && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">Pitch défini</span>}
+                                        <div className="flex flex-wrap gap-2 p-3 bg-accent-50 border border-accent-200 rounded-xl">
+                                            <span className="text-xs font-medium text-accent-700">Contexte automatique :</span>
+                                            {mission?.name && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">Mission : {mission.name}</span>}
+                                            {mission?.client?.name && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">Client : {mission.client.name}</span>}
+                                            {campaignData?.icp && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">ICP défini</span>}
+                                            {campaignData?.pitch && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">Pitch défini</span>}
                                         </div>
                                     )}
 
@@ -3733,7 +3735,7 @@ export function MissionWorkspace({
                                                 <button
                                                     key={p}
                                                     onClick={() => setTemplateAiPrompt(p)}
-                                                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${templateAiPrompt === p ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:border-violet-400 hover:text-violet-600"}`}
+                                                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${templateAiPrompt === p ? "bg-accent-600 text-white border-accent-600" : "bg-white text-slate-600 border-slate-200 hover:border-accent-400 hover:text-accent-600"}`}
                                                 >
                                                     {p.length > 55 ? p.slice(0, 55) + "…" : p}
                                                 </button>
@@ -3750,18 +3752,18 @@ export function MissionWorkspace({
                                                 onChange={(e) => setTemplateAiPrompt(e.target.value)}
                                                 rows={3}
                                                 placeholder="Ex: Rédige un email de prospection B2B court et percutant pour présenter notre solution à des directeurs commerciaux..."
-                                                className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                                                className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 resize-none"
                                                 onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleGenerateTemplateAi(); }}
                                             />
                                             <button
                                                 onClick={handleGenerateTemplateAi}
                                                 disabled={!templateAiPrompt.trim() || isGeneratingTemplateAi}
-                                                className="flex flex-col items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-br from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 rounded-xl disabled:opacity-50 transition-all min-w-[80px]"
+                                                className="flex flex-col items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-accent-600 hover:bg-accent-500 rounded-xl disabled:opacity-50 transition-all min-w-[80px]"
                                             >
                                                 {isGeneratingTemplateAi ? (
                                                     <><Loader2 className="w-4 h-4 animate-spin" /><span className="text-[11px]">Génère…</span></>
                                                 ) : (
-                                                    <><Sparkles className="w-4 h-4" /><span className="text-[11px]">Générer</span></>
+                                                    <><AiMark className="w-4 h-4" /><span className="text-[11px]">Générer</span></>
                                                 )}
                                             </button>
                                         </div>
@@ -3789,7 +3791,7 @@ export function MissionWorkspace({
                                                             </button>
                                                             <button
                                                                 onClick={() => setTemplateModalTab("preview")}
-                                                                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-50 border border-slate-200 transition-colors"
+                                                                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-primary-600 px-2 py-1 rounded-lg hover:bg-primary-50 border border-slate-200 transition-colors"
                                                                 title="Prévisualiser dans l'onglet preview"
                                                             >
                                                                 <Eye className="w-3 h-3" />
@@ -3807,10 +3809,10 @@ export function MissionWorkspace({
                                     )}
 
                                     {templateAiSuggestions.length === 0 && !isGeneratingTemplateAi && (
-                                        <div className="text-center py-10 border-2 border-dashed border-violet-200 rounded-xl bg-violet-50/30">
-                                            <Sparkles className="w-10 h-10 text-violet-300 mx-auto mb-3" />
-                                            <p className="text-sm font-medium text-slate-600">L&apos;IA va générer un email HTML professionnel</p>
-                                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Elle utilise automatiquement le contexte de la mission, du client, de l&apos;ICP et du pitch définis</p>
+                                        <div className="text-center py-10 border-2 border-dashed border-accent-200 rounded-xl bg-accent-50/30">
+                                            <AiMark className="w-10 h-10 text-accent-300 mx-auto mb-3" />
+                                            <p className="text-sm font-medium text-slate-600">Aucune version générée pour le moment</p>
+                                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Saisissez une instruction. Le contexte de la mission, du client, de l&apos;ICP et du pitch est inclus.</p>
                                         </div>
                                     )}
                                 </div>
@@ -3821,7 +3823,7 @@ export function MissionWorkspace({
                         <div className="flex justify-between items-center gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
                             <div className="text-xs text-slate-400">
                                 {templateModalTab === "write" && templateForm.bodyHtml && (
-                                    <button onClick={() => setTemplateModalTab("preview")} className="text-indigo-500 hover:underline flex items-center gap-1">
+                                    <button onClick={() => setTemplateModalTab("preview")} className="text-primary-500 hover:underline flex items-center gap-1">
                                         <Eye className="w-3 h-3" /> Voir l&apos;aperçu
                                     </button>
                                 )}
@@ -3833,7 +3835,7 @@ export function MissionWorkspace({
                                 <button
                                     onClick={handleCreateTemplate}
                                     disabled={!templateForm.name || !templateForm.subject || !templateForm.bodyHtml || isSavingTemplate}
-                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-lg disabled:opacity-50 transition-all shadow-sm"
+                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg disabled:opacity-50 transition-all shadow-sm"
                                 >
                                     {isSavingTemplate ? <><Loader2 className="w-4 h-4 animate-spin" />Création...</> : <><Plus className="w-4 h-4" />Créer et assigner</>}
                                 </button>
@@ -3849,7 +3851,7 @@ export function MissionWorkspace({
                     <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowEditTemplateModal(false)} />
                     <div className="relative w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
                         {/* Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 flex-shrink-0">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-blue-600 flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                                     <Pencil className="w-5 h-5 text-white" />
@@ -3867,13 +3869,15 @@ export function MissionWorkspace({
                         {/* Tab bar */}
                         <div className="flex gap-1 px-6 pt-3 pb-0 border-b border-slate-200 bg-white flex-shrink-0">
                             {(["write", "preview", "ai"] as const).map((tab) => {
-                                const labels = { write: "✏️ Éditeur", preview: "👁 Prévisualisation", ai: "✨ IA Mistral" };
+                                const labels = { write: "Éditeur", preview: "Prévisualisation", ai: "IA Mistral" };
+                                const TabIcon = { write: Pencil, preview: Eye, ai: AiMark }[tab];
                                 return (
                                     <button
                                         key={tab}
                                         onClick={() => setTemplateModalTab(tab)}
-                                        className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-all ${templateModalTab === tab ? "text-blue-700 border-blue-600 bg-blue-50/60" : "text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50"}`}
+                                        className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-all ${templateModalTab === tab ? "text-blue-700 border-blue-600 bg-blue-50/60" : "text-slate-500 border-transparent hover:text-slate-700 hover:bg-slate-50"}`}
                                     >
+                                        <TabIcon className="h-3.5 w-3.5 shrink-0" />
                                         {labels[tab]}
                                     </button>
                                 );
@@ -3911,13 +3915,13 @@ export function MissionWorkspace({
                                             <div className="flex items-center gap-2">
                                                 <span className="text-xs text-slate-400">Variables : </span>
                                                 {["{{firstName}}", "{{company}}", "{{fullName}}"].map(v => (
-                                                    <button key={v} onClick={() => setTemplateForm(f => ({ ...f, bodyHtml: f.bodyHtml + v }))} className="text-xs text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 font-mono transition-colors">
+                                                    <button key={v} onClick={() => setTemplateForm(f => ({ ...f, bodyHtml: f.bodyHtml + v }))} className="text-xs text-primary-600 bg-primary-50 hover:bg-primary-100 px-2 py-0.5 rounded border border-primary-200 font-mono transition-colors">
                                                         {v}
                                                     </button>
                                                 ))}
                                                 <button
                                                     onClick={() => setTemplateModalTab("preview")}
-                                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-0.5 rounded border border-slate-200 transition-colors"
+                                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-primary-600 hover:bg-primary-50 px-2 py-0.5 rounded border border-slate-200 transition-colors"
                                                 >
                                                     <Eye className="w-3.5 h-3.5" /> Prévisualiser
                                                 </button>
@@ -3949,7 +3953,7 @@ export function MissionWorkspace({
                                     )}
                                     {templateForm.bodyHtml ? (
                                         <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                                            <div className="bg-gradient-to-r from-slate-100 to-slate-50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
+                                            <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center gap-2">
                                                 <div className="w-3 h-3 rounded-full bg-red-400" />
                                                 <div className="w-3 h-3 rounded-full bg-amber-400" />
                                                 <div className="w-3 h-3 rounded-full bg-emerald-400" />
@@ -3967,7 +3971,7 @@ export function MissionWorkspace({
                                         <div className="text-center py-16 border-2 border-dashed border-slate-200 rounded-xl">
                                             <Eye className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                                             <p className="text-sm text-slate-500">Rédigez le contenu HTML dans l&apos;onglet <strong>Éditeur</strong> pour voir l&apos;aperçu</p>
-                                            <button onClick={() => setTemplateModalTab("write")} className="mt-3 text-xs text-indigo-600 hover:underline">Aller à l&apos;éditeur →</button>
+                                            <button onClick={() => setTemplateModalTab("write")} className="mt-3 text-xs text-primary-600 hover:underline">Aller à l&apos;éditeur →</button>
                                         </div>
                                     )}
                                 </div>
@@ -3978,12 +3982,12 @@ export function MissionWorkspace({
                                 <div className="p-6 space-y-5">
                                     {/* AI context summary */}
                                     {(mission?.name || campaignData?.icp) && (
-                                        <div className="flex flex-wrap gap-2 p-3 bg-violet-50 border border-violet-200 rounded-xl">
-                                            <span className="text-xs font-medium text-violet-700">Contexte automatique :</span>
-                                            {mission?.name && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">Mission : {mission.name}</span>}
-                                            {mission?.client?.name && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">Client : {mission.client.name}</span>}
-                                            {campaignData?.icp && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">ICP défini</span>}
-                                            {campaignData?.pitch && <span className="text-xs bg-white text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full">Pitch défini</span>}
+                                        <div className="flex flex-wrap gap-2 p-3 bg-accent-50 border border-accent-200 rounded-xl">
+                                            <span className="text-xs font-medium text-accent-700">Contexte automatique :</span>
+                                            {mission?.name && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">Mission : {mission.name}</span>}
+                                            {mission?.client?.name && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">Client : {mission.client.name}</span>}
+                                            {campaignData?.icp && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">ICP défini</span>}
+                                            {campaignData?.pitch && <span className="text-xs bg-white text-accent-700 border border-accent-200 px-2 py-0.5 rounded-full">Pitch défini</span>}
                                         </div>
                                     )}
 
@@ -4001,7 +4005,7 @@ export function MissionWorkspace({
                                                 <button
                                                     key={p}
                                                     onClick={() => setTemplateAiPrompt(p)}
-                                                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${templateAiPrompt === p ? "bg-violet-600 text-white border-violet-600" : "bg-white text-slate-600 border-slate-200 hover:border-violet-400 hover:text-violet-600"}`}
+                                                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${templateAiPrompt === p ? "bg-accent-600 text-white border-accent-600" : "bg-white text-slate-600 border-slate-200 hover:border-accent-400 hover:text-accent-600"}`}
                                                 >
                                                     {p.length > 55 ? p.slice(0, 55) + "…" : p}
                                                 </button>
@@ -4018,18 +4022,18 @@ export function MissionWorkspace({
                                                 onChange={(e) => setTemplateAiPrompt(e.target.value)}
                                                 rows={3}
                                                 placeholder="Ex: Améliore cet email en le rendant plus percutant et en ajoutant un CTA clair..."
-                                                className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+                                                className="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 resize-none"
                                                 onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleGenerateTemplateAi(); }}
                                             />
                                             <button
                                                 onClick={handleGenerateTemplateAi}
                                                 disabled={!templateAiPrompt.trim() || isGeneratingTemplateAi}
-                                                className="flex flex-col items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-br from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 rounded-xl disabled:opacity-50 transition-all min-w-[80px]"
+                                                className="flex flex-col items-center justify-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-accent-600 hover:bg-accent-500 rounded-xl disabled:opacity-50 transition-all min-w-[80px]"
                                             >
                                                 {isGeneratingTemplateAi ? (
                                                     <><Loader2 className="w-4 h-4 animate-spin" /><span className="text-[11px]">Génère…</span></>
                                                 ) : (
-                                                    <><Sparkles className="w-4 h-4" /><span className="text-[11px]">Générer</span></>
+                                                    <><AiMark className="w-4 h-4" /><span className="text-[11px]">Générer</span></>
                                                 )}
                                             </button>
                                         </div>
@@ -4060,7 +4064,7 @@ export function MissionWorkspace({
                                                                     setTemplateForm(f => ({ ...f, bodyHtml: html }));
                                                                     setTemplateModalTab("preview");
                                                                 }}
-                                                                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-50 border border-slate-200 transition-colors"
+                                                                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-primary-600 px-2 py-1 rounded-lg hover:bg-primary-50 border border-slate-200 transition-colors"
                                                             >
                                                                 <Eye className="w-3 h-3" /> Aperçu
                                                             </button>
@@ -4077,10 +4081,10 @@ export function MissionWorkspace({
                                     )}
 
                                     {templateAiSuggestions.length === 0 && !isGeneratingTemplateAi && (
-                                        <div className="text-center py-10 border-2 border-dashed border-violet-200 rounded-xl bg-violet-50/30">
-                                            <Sparkles className="w-10 h-10 text-violet-300 mx-auto mb-3" />
-                                            <p className="text-sm font-medium text-slate-600">L&apos;IA va améliorer ou réécrire votre email</p>
-                                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Elle utilise le contenu actuel de l&apos;email + le contexte de la mission comme base de travail</p>
+                                        <div className="text-center py-10 border-2 border-dashed border-accent-200 rounded-xl bg-accent-50/30">
+                                            <AiMark className="w-10 h-10 text-accent-300 mx-auto mb-3" />
+                                            <p className="text-sm font-medium text-slate-600">Aucune version générée pour le moment</p>
+                                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">Saisissez une instruction. L&apos;email actuel et le contexte de la mission servent de base.</p>
                                         </div>
                                     )}
                                 </div>
@@ -4091,7 +4095,7 @@ export function MissionWorkspace({
                         <div className="flex justify-between items-center gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
                             <div className="text-xs text-slate-400">
                                 {templateModalTab === "write" && templateForm.bodyHtml && (
-                                    <button onClick={() => setTemplateModalTab("preview")} className="text-indigo-500 hover:underline flex items-center gap-1">
+                                    <button onClick={() => setTemplateModalTab("preview")} className="text-primary-500 hover:underline flex items-center gap-1">
                                         <Eye className="w-3 h-3" /> Voir l&apos;aperçu
                                     </button>
                                 )}
@@ -4103,7 +4107,7 @@ export function MissionWorkspace({
                                 <button
                                     onClick={handleEditTemplate}
                                     disabled={!templateForm.name || !templateForm.subject || !templateForm.bodyHtml || isSavingTemplate}
-                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 rounded-lg disabled:opacity-50 transition-all shadow-sm"
+                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 rounded-lg disabled:opacity-50 transition-all shadow-sm"
                                 >
                                     {isSavingTemplate ? <><Loader2 className="w-4 h-4 animate-spin" />Sauvegarde...</> : <><Save className="w-4 h-4" />Enregistrer</>}
                                 </button>
@@ -4118,7 +4122,7 @@ export function MissionWorkspace({
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowAddTemplateModal(false)} />
                     <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-600 to-violet-600">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-primary-600">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                                     <FileText className="w-5 h-5 text-white" />
@@ -4144,7 +4148,7 @@ export function MissionWorkspace({
                                         href="/manager/email/templates"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
                                     >
                                         <Plus className="w-4 h-4" />
                                         Créer un template
@@ -4158,15 +4162,15 @@ export function MissionWorkspace({
                                             key={template.id}
                                             onClick={() => setSelectedTemplateToAdd(template.id)}
                                             className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${selectedTemplateToAdd === template.id
-                                                ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20"
-                                                : "border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
+                                                ? "border-primary-500 bg-primary-50 ring-2 ring-primary-500/20"
+                                                : "border-slate-200 hover:border-primary-300 hover:bg-slate-50"
                                                 }`}
                                         >
                                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${selectedTemplateToAdd === template.id
-                                                ? "bg-indigo-500 text-white"
+                                                ? "bg-primary-500 text-white"
                                                 : "bg-slate-100 text-slate-500"
                                                 }`}>
-                                                <Sparkles className="w-5 h-5" />
+                                                <Mail className="w-5 h-5" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="font-medium text-slate-900 truncate">{template.name}</p>
@@ -4190,7 +4194,7 @@ export function MissionWorkspace({
                             <button
                                 onClick={handleAddTemplate}
                                 disabled={!selectedTemplateToAdd || isAddingTemplate}
-                                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-lg disabled:opacity-50 transition-all"
+                                className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-500 rounded-lg disabled:opacity-50 transition-all"
                             >
                                 {isAddingTemplate ? (
                                     <>
@@ -4214,7 +4218,7 @@ export function MissionWorkspace({
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowPreviewModal(false)} />
                     <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-600 to-violet-600 flex-shrink-0">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-primary-600 flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                                     <Eye className="w-5 h-5 text-white" />
@@ -4241,7 +4245,7 @@ export function MissionWorkspace({
                                     <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Variables</label>
                                     <div className="mt-2 flex flex-wrap gap-2">
                                         {previewTemplate.variables.map((v) => (
-                                            <span key={v} className="px-2 py-1 text-xs font-medium text-indigo-700 bg-indigo-100 rounded-md">
+                                            <span key={v} className="px-2 py-1 text-xs font-medium text-primary-700 bg-primary-100 rounded-md">
                                                 {`{{${v}}}`}
                                             </span>
                                         ))}
@@ -4290,14 +4294,14 @@ export function MissionWorkspace({
                                     type="button"
                                     onClick={() => setAiSelectedIndex(idx)}
                                     className={`w-full text-left rounded-xl border p-4 transition-all ${selected
-                                        ? "border-indigo-300 bg-indigo-50"
+                                        ? "border-primary-300 bg-primary-50"
                                         : "border-slate-200 bg-white hover:bg-slate-50"}`}
                                 >
                                     <div className="flex items-center justify-between gap-3 mb-2">
                                         <div className="text-xs font-bold tracking-wide uppercase text-slate-500">
                                             Suggestion {idx + 1}
                                         </div>
-                                        <div className={`text-[11px] font-bold px-2 py-1 rounded-full ${selected ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                                        <div className={`text-[11px] font-bold px-2 py-1 rounded-full ${selected ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-600"}`}>
                                             {selected ? "Sélectionnée" : "Choisir"}
                                         </div>
                                     </div>
@@ -4317,7 +4321,7 @@ export function MissionWorkspace({
                     </button>
                     <button
                         onClick={applySelectedSuggestion}
-                        className="h-9 px-4 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                        className="h-9 px-4 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
                     >
                         Appliquer
                     </button>
@@ -4345,7 +4349,7 @@ export function MissionWorkspace({
                                 setShowMailboxModal(false);
                                 setShowMailboxManager(true);
                             }}
-                            className="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                            className="inline-flex items-center gap-2 h-9 px-4 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
                         >
                             <Mail className="w-4 h-4" />
                             Connecter une boîte mail
@@ -4414,7 +4418,7 @@ export function MissionWorkspace({
                                     showError("Erreur", "Impossible de mettre à jour la boîte mail");
                                 }
                                 }}
-                                className="h-9 px-4 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                                className="h-9 px-4 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
                             >
                                 Enregistrer
                             </button>
@@ -4533,7 +4537,7 @@ export function MissionWorkspace({
                                 disabled={isUpdatingPortalLaunch}
                                 className="inline-flex h-10 items-center gap-2 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                             >
-                                {isUpdatingPortalLaunch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                                {isUpdatingPortalLaunch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                                 Démarrer pour {portalLaunchDays} jours
                             </button>
                         </ModalFooter>

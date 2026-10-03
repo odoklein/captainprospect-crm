@@ -12,7 +12,7 @@ import {
     ArrowRight,
     TrendingUp,
     Clock,
-    Sparkles,
+    LayoutDashboard,
     AlertCircle,
     Send,
 } from "lucide-react";
@@ -102,9 +102,9 @@ export default function DeveloperDashboard() {
             subtitle: "Boîte de réception",
             icon: Inbox,
             href: "/developer/mailbox",
-            gradient: "from-violet-500 to-violet-600",
-            iconBg: "bg-violet-100",
-            iconColor: "text-violet-600",
+            gradient: "from-accent-500 to-accent-600",
+            iconBg: "bg-accent-100",
+            iconColor: "text-accent-600",
             description: `${stats.emailAccounts} compte${stats.emailAccounts > 1 ? 's' : ''} lié${stats.emailAccounts > 1 ? 's' : ''}`,
         },
     ];
@@ -120,18 +120,18 @@ export default function DeveloperDashboard() {
     return (
         <div className="space-y-8">
             {/* Premium Welcome Header */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 text-white">
+            <div className="relative overflow-hidden bg-inverse rounded-2xl p-8 text-white">
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjwvc3ZnPg==')] opacity-50" />
                 <div className="relative z-10">
-                    <div className="flex items-center gap-2 text-blue-400 text-sm font-medium mb-2">
-                        <Sparkles className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-inverse-ink-2 text-sm font-medium mb-2">
+                        <LayoutDashboard className="w-4 h-4" />
                         <span>Tableau de bord développeur</span>
                     </div>
                     <h1 className="text-3xl font-bold mb-2">
-                        {getGreeting()}, {session?.user?.name?.split(" ")[0]} 👋
+                        {getGreeting()}, {session?.user?.name?.split(" ")[0]}
                     </h1>
-                    <p className="text-slate-400 max-w-xl">
-                        Bienvenue sur votre espace de travail. Voici un aperçu de vos projets et tâches en cours.
+                    <p className="text-inverse-ink-3 max-w-xl">
+                        Vos projets, tâches et tickets en cours.
                     </p>
                 </div>
                 <div className="absolute right-8 top-1/2 -translate-y-1/2 opacity-10">
@@ -152,7 +152,7 @@ export default function DeveloperDashboard() {
                             <div className={`dev-stat-icon ${card.iconBg}`}>
                                 <card.icon className={`w-6 h-6 ${card.iconColor}`} />
                             </div>
-                            <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-300" />
+                            <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                         </div>
                         <div>
                             <p className="text-sm font-medium text-slate-500 mb-1">{card.title}</p>
@@ -185,20 +185,20 @@ export default function DeveloperDashboard() {
                         <Link
                             key={action.label}
                             href={action.href}
-                            className="group flex items-start gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all duration-200"
+                            className="group flex items-start gap-4 p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:bg-surface-2 transition-all duration-200"
                         >
-                            <div className="w-11 h-11 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors duration-200 flex-shrink-0">
-                                <action.icon className="w-5 h-5 text-slate-500 group-hover:text-blue-600 transition-colors duration-200" />
+                            <div className="w-11 h-11 rounded-xl bg-slate-100 group-hover:bg-primary-50 flex items-center justify-center transition-colors duration-200 flex-shrink-0">
+                                <action.icon className="w-5 h-5 text-slate-500 group-hover:text-primary transition-colors duration-200" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-slate-900 group-hover:text-blue-600 transition-colors duration-200">
+                                <p className="text-sm font-semibold text-slate-900 group-hover:text-primary transition-colors duration-200">
                                     {action.label}
                                 </p>
                                 <p className="text-xs text-slate-500 mt-0.5 truncate">
                                     {action.desc}
                                 </p>
                             </div>
-                            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
+                            <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all duration-200 flex-shrink-0 mt-1" />
                         </Link>
                     ))}
                 </div>
@@ -230,7 +230,7 @@ export default function DeveloperDashboard() {
                                     <CheckSquare className="w-4 h-4 text-emerald-600" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-emerald-800">Tout est à jour !</p>
+                                    <p className="text-sm font-medium text-emerald-800">Tout est à jour</p>
                                     <p className="text-xs text-emerald-600 mt-0.5">
                                         Aucune tâche en attente
                                     </p>
@@ -244,14 +244,14 @@ export default function DeveloperDashboard() {
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <h2 className="text-lg font-semibold text-slate-900 mb-4">Vue d'ensemble</h2>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-100">
-                            <div className="flex items-center gap-2 text-blue-600 mb-2">
+                        <div className="p-4 rounded-xl bg-primary-50 border border-primary-100">
+                            <div className="flex items-center gap-2 text-primary-700 mb-2">
                                 <TrendingUp className="w-4 h-4" />
                                 <span className="text-xs font-medium">Projets</span>
                             </div>
                             <p className="text-2xl font-bold text-slate-900">{stats.projects}</p>
                         </div>
-                        <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-100">
+                        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
                             <div className="flex items-center gap-2 text-emerald-600 mb-2">
                                 <CheckSquare className="w-4 h-4" />
                                 <span className="text-xs font-medium">Tâches totales</span>

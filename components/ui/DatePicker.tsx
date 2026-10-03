@@ -124,7 +124,7 @@ export function DatePicker({
     return (
         <div className={cn("relative", className)} ref={containerRef}>
             {label && (
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-ink-2 mb-2">
                     {label}
                 </label>
             )}
@@ -136,22 +136,22 @@ export function DatePicker({
                 disabled={disabled}
                 className={cn(
                     "w-full flex items-center justify-between gap-2 px-4 py-3",
-                    "bg-white border rounded-xl text-left",
+                    "bg-surface border rounded-xl text-left",
                     "transition-all duration-200",
                     error
                         ? "border-red-500"
                         : isOpen
-                            ? "border-indigo-500 ring-2 ring-indigo-500/20"
-                            : "border-slate-200 hover:border-slate-300",
-                    disabled && "opacity-50 cursor-not-allowed bg-slate-50"
+                            ? "border-primary-500 ring-2 ring-primary-500/20"
+                            : "border-line hover:border-line-strong",
+                    disabled && "opacity-50 cursor-not-allowed bg-surface-2"
                 )}
             >
                 <span className={cn(
-                    selectedDate ? "text-slate-900" : "text-slate-400"
+                    selectedDate ? "text-ink" : "text-ink-4"
                 )}>
                     {selectedDate ? formatDisplayDate(selectedDate) : placeholder}
                 </span>
-                <Calendar className="w-4 h-4 text-slate-400" />
+                <Calendar className="w-4 h-4 text-ink-4" />
             </button>
 
             {error && (
@@ -160,32 +160,32 @@ export function DatePicker({
 
             {/* Calendar Dropdown */}
             {isOpen && (
-                <div className="absolute z-50 w-[300px] mt-2 bg-white border border-slate-200 rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-scale-in origin-top">
+                <div className="absolute z-50 w-[300px] mt-2 bg-surface border border-line rounded-xl shadow-xl shadow-slate-200/50 overflow-hidden animate-scale-in origin-top">
                     {/* Header */}
-                    <div className="flex items-center justify-between p-3 border-b border-slate-100">
+                    <div className="flex items-center justify-between p-3 border-b border-line-subtle">
                         <button
                             type="button"
                             onClick={goToPrevMonth}
-                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-1.5 text-ink-4 hover:text-ink-2 hover:bg-surface-3 rounded-lg transition-colors"
                         >
                             <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <span className="font-medium text-slate-900">
+                        <span className="font-medium text-ink">
                             {MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}
                         </span>
                         <button
                             type="button"
                             onClick={goToNextMonth}
-                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-1.5 text-ink-4 hover:text-ink-2 hover:bg-surface-3 rounded-lg transition-colors"
                         >
                             <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>
 
                     {/* Days Header */}
-                    <div className="grid grid-cols-7 gap-1 p-2 border-b border-slate-100">
+                    <div className="grid grid-cols-7 gap-1 p-2 border-b border-line-subtle">
                         {DAYS.map(day => (
-                            <div key={day} className="text-center text-xs text-slate-400 py-1">
+                            <div key={day} className="text-center text-xs text-ink-4 py-1">
                                 {day}
                             </div>
                         ))}
@@ -203,10 +203,10 @@ export function DatePicker({
                                         className={cn(
                                             "w-full h-full flex items-center justify-center rounded-lg text-sm transition-colors",
                                             isSameDay(day, selectedDate)
-                                                ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/25"
+                                                ? "bg-primary-500 text-white shadow-sm"
                                                 : isToday(day)
-                                                    ? "bg-indigo-50 text-indigo-600"
-                                                    : "text-slate-700 hover:bg-slate-100",
+                                                    ? "bg-primary-50 text-primary-600"
+                                                    : "text-ink-2 hover:bg-surface-3",
                                             isDateDisabled(day) && "opacity-30 cursor-not-allowed"
                                         )}
                                     >
@@ -218,7 +218,7 @@ export function DatePicker({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between p-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between p-2 border-t border-line-subtle">
                         <button
                             type="button"
                             onClick={() => {
@@ -227,7 +227,7 @@ export function DatePicker({
                                 onChange(today.toISOString().split("T")[0]);
                                 setIsOpen(false);
                             }}
-                            className="text-xs text-indigo-500 hover:text-indigo-600 px-2 py-1 font-medium"
+                            className="text-xs text-primary-500 hover:text-primary-600 px-2 py-1 font-medium"
                         >
                             Aujourd&apos;hui
                         </button>
@@ -238,7 +238,7 @@ export function DatePicker({
                                     onChange("");
                                     setIsOpen(false);
                                 }}
-                                className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+                                className="text-xs text-ink-3 hover:text-ink-2 px-2 py-1"
                             >
                                 Effacer
                             </button>

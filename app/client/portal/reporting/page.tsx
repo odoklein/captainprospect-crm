@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { DateTime } from "luxon";
 import { useToast } from "@/components/ui";
 import {
-    BarChart3, Check, ChevronDown, Copy, Download, Eye, FileText, Link2, Loader2, Mic, Printer,
-    Sparkles, Target, TrendingDown, TrendingUp, Trophy, Users,
+    BarChart3, Check, ChevronDown, Copy, Download, Eye, FileText, Lightbulb, Link2, Loader2, Mic, Printer,
+    Target, TrendingDown, TrendingUp, Trophy, Users,
 } from "lucide-react";
 import type { ReportData, ReportingOverview } from "@/lib/reporting/types";
 import s from "./reporting.module.css";
+import { brand } from "@/lib/brand";
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & HELPERS
@@ -36,7 +37,7 @@ const SESSION_COLORS: Record<SessionType, string> = {
     Onboarding: "#1f9d55",
     Validation: "#c2367a",
     Reporting: "#d4870a",
-    Suivi: "#737b85",
+    Suivi: "var(--ds-ink-3)",
     Autre: "#7c5cc4",
 };
 
@@ -101,7 +102,7 @@ function summaryText(d: ReportData, compare: boolean): string {
     };
     const [contacts, qualified, meetings, conversion] = d.deltas ?? [null, null, null, null];
     return [
-        `Rapport Captain Prospect — ${d.missionLabel}`,
+        `Rapport ${brand.name} — ${d.missionLabel}`,
         `Période : ${d.periodLabel}`,
         "",
         `• RDV obtenus : ${d.meetingsBooked}${delta(meetings)}`,
@@ -422,7 +423,7 @@ export default function ClientPortalReportingPage() {
             <header className={s.header}>
                 <div>
                     <div className={s.eyebrow}>Rapports</div>
-                    <h1 className={s.title}>Vos résultats, prêts à partager</h1>
+                    <h1 className={s.title}>Vos résultats de prospection</h1>
                     <p className={s.subtitle}>Composez un rapport sur la période de votre choix, puis téléchargez-le, partagez-le ou collez-en le résumé.</p>
                 </div>
                 <div className={s.tabs} role="group" aria-label="Section">
@@ -443,7 +444,7 @@ export default function ClientPortalReportingPage() {
                             <span className={s.cardTitleIcon}><Mic size={14} /></span>
                             Sessions et comptes rendus
                         </span>
-                        <span className={s.cardHint}>Les points faits avec votre équipe Captain Prospect</span>
+                        <span className={s.cardHint}>Les points faits avec votre équipe {brand.name}</span>
                     </div>
                     {sessions === null ? (
                         <div style={{ padding: 20, display: "grid", gap: 10 }}>
@@ -550,7 +551,7 @@ export default function ClientPortalReportingPage() {
                                     <Kpi label="Leads qualifiés" value={data.qualifiedLeads.toLocaleString("fr-FR")} delta={dQualified}
                                         icon={Target} color="#c98a0b" footnote="intérêt, rappel ou RDV" compare={compare} />
                                     <Kpi label="Opportunités" value={data.opportunities.toLocaleString("fr-FR")}
-                                        icon={Sparkles} color="#0f8f86" footnote="détectées sur la période" compare={compare} />
+                                        icon={Lightbulb} color="#0f8f86" footnote="détectées sur la période" compare={compare} />
                                 </div>
                                 {data.meetingsByPeriod.length > 1 ? (
                                     <MeetingsChart points={data.meetingsByPeriod} />

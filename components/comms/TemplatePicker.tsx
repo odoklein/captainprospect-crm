@@ -142,7 +142,7 @@ export function TemplatePicker({ onSelect, className }: TemplatePickerProps) {
                 className={cn(
                     "p-2 rounded-lg transition-colors",
                     isOpen
-                        ? "bg-indigo-100 text-indigo-600"
+                        ? "bg-primary-100 text-primary-600"
                         : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                 )}
                 title="Modèles de messages"
@@ -157,7 +157,7 @@ export function TemplatePicker({ onSelect, className }: TemplatePickerProps) {
                         <span className="text-sm font-medium text-slate-700">Modèles</span>
                         <button
                             onClick={() => setShowCreateForm(!showCreateForm)}
-                            className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                            className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
                         >
                             <Plus className="w-3 h-3" />
                             Nouveau
@@ -213,7 +213,7 @@ export function TemplatePicker({ onSelect, className }: TemplatePickerProps) {
                                         !newTemplate.name.trim() ||
                                         !newTemplate.content.trim()
                                     }
-                                    className="flex-1 px-3 py-1.5 text-sm bg-indigo-600 text-white rounded disabled:opacity-50"
+                                    className="flex-1 px-3 py-1.5 text-sm bg-primary-600 text-white rounded disabled:opacity-50"
                                 >
                                     {isCreating ? (
                                         <Loader2 className="w-4 h-4 animate-spin mx-auto" />
@@ -234,7 +234,7 @@ export function TemplatePicker({ onSelect, className }: TemplatePickerProps) {
                                 className={cn(
                                     "px-2 py-1 text-xs rounded-full whitespace-nowrap transition-colors",
                                     selectedCategory === cat.value
-                                        ? "bg-indigo-100 text-indigo-700"
+                                        ? "bg-primary-100 text-primary-700"
                                         : "text-slate-500 hover:bg-slate-100"
                                 )}
                             >

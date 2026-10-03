@@ -1,41 +1,60 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { InputHTMLAttributes, forwardRef } from "react";
+import { InputHTMLAttributes, forwardRef, useId } from "react";
+import { FIELD_BASE, FIELD_ERROR } from "./recipes";
+import { FieldMessage } from "./Field";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
     label?: string;
     error?: string;
+    /** Helper line under the field (hidden while an error shows). */
+    hint?: string;
     icon?: React.ReactNode;
     endIcon?: React.ReactNode;
+    size?: "sm" | "md" | "lg";
 }
 
+const SIZES = {
+    sm: "h-9 px-3 text-[13px]",
+    md: "h-10 px-3.5 text-sm",
+    lg: "h-11 px-4 text-sm",
+};
+
 const Input = forwardRef<HTMLInputElement, InputProps>(
-    ({ className, label, error, icon, endIcon, id, ...props }, ref) => {
+    ({ className, label, error, hint, icon, endIcon, id: idProp, size = "md", required, ...props }, ref) => {
+        const autoId = useId();
+        const id = idProp ?? autoId;
+        const messageId = error || hint ? `${id}-msg` : undefined;
         return (
             <div className="w-full">
                 {label && (
-                    <label
-                        htmlFor={id}
-                        className="block text-sm font-medium text-slate-700 mb-1.5"
-                    >
+                    <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-ink-2">
                         {label}
+                        {required && (
+                            <span className="ml-0.5 text-accent" aria-hidden>
+                                *
+                            </span>
+                        )}
                     </label>
                 )}
                 <div className="relative">
                     {icon && (
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <div className="pointer-events-none absolute left-3 top-1/2 flex -translate-y-1/2 items-center text-ink-4">
                             {icon}
                         </div>
                     )}
                     <input
                         ref={ref}
                         id={id}
+                        required={required}
+                        aria-invalid={Boolean(error) || undefined}
+                        aria-describedby={messageId}
                         className={cn(
-                            "w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm transition-all duration-200",
-                            "!text-slate-900 placeholder:!text-slate-500",
-                            "focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20",
-                            error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
+                            FIELD_BASE,
+                            SIZES[size],
+                            "text-ink! placeholder:text-ink-4!",
+                            error && FIELD_ERROR,
                             icon && "pl-10",
                             endIcon && "pr-11",
                             className
@@ -43,12 +62,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                         {...props}
                     />
                     {endIcon && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center text-ink-3">
                             {endIcon}
                         </div>
                     )}
                 </div>
-                {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
+                <FieldMessage id={messageId} error={error} hint={hint} />
             </div>
         );
     }
@@ -56,4 +75,5 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 
 Input.displayName = "Input";
 
+export { Input };
 export default Input;

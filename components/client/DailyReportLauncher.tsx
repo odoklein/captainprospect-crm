@@ -196,7 +196,6 @@ export function DailyReportLauncher() {
     return (
         <>
             <style>{`
-                @keyframes cpDrFloat { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
                 @keyframes cpDrPanelIn { from { opacity: 0; transform: translateY(18px) scale(.96) } to { opacity: 1; transform: none } }
                 @keyframes cpDrPanelOut { from { opacity: 1; transform: none } to { opacity: 0; transform: translateY(12px) scale(.97) } }
                 @keyframes cpDrFadeIn { from { opacity: 0 } to { opacity: 1 } }
@@ -217,10 +216,10 @@ export function DailyReportLauncher() {
                 <div className="fixed right-6 bottom-[96px] z-[90] flex items-center gap-2">
                     {hintVisible && (
                         <div
-                            className="cp-dr-anim hidden sm:flex items-center gap-1 rounded-full bg-white py-1 pl-3 pr-1 shadow-lg ring-1 ring-[#E4E6EF]"
+                            className="cp-dr-anim hidden sm:flex items-center gap-1 rounded-full bg-white py-1 pl-3 pr-1 shadow-lg ring-1 ring-line"
                             style={{ animation: "cpDrHint .45s .2s ease-out both" }}
                         >
-                            <button type="button" onClick={open} className="text-[12.5px] font-medium text-[#27355F]">
+                            <button type="button" onClick={open} className="text-[12.5px] font-medium text-primary">
                                 {hintText}
                             </button>
                             <button
@@ -230,7 +229,7 @@ export function DailyReportLauncher() {
                                     writeStore(localStorage, HINT_DISMISSED_KEY, today);
                                 }}
                                 aria-label="Masquer ce message pour aujourd'hui"
-                                className="rounded-full p-1 text-[#A3A8BD] hover:bg-[#F1F2F8] hover:text-[#4A5070]"
+                                className="rounded-full p-1 text-ink-4 hover:bg-surface-3 hover:text-ink-2"
                             >
                                 <X className="h-3 w-3" />
                             </button>
@@ -242,14 +241,12 @@ export function DailyReportLauncher() {
                         onClick={open}
                         aria-label="Ouvrir le rapport de la veille"
                         title="Rapport de la veille"
-                        className="cp-dr-anim group relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#27355F] text-white shadow-[0_10px_30px_-8px_rgba(39,53,95,0.6)] transition-transform hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#27355F]/25"
-                        style={{ animation: "cpDrFloat 3.4s ease-in-out infinite" }}
+                        className="group relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-primary text-white shadow-lg transition-colors hover:bg-primary-active active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25"
                     >
-                        <FileBarChart2 className="h-5 w-5 transition-transform group-hover:rotate-[-6deg]" />
+                        <FileBarChart2 className="h-5 w-5" />
                         {unseen && (
                             <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5">
-                                <span className="cp-dr-anim absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C44E8A] opacity-60" />
-                                <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-[#C44E8A] ring-2 ring-white" />
+                                <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-accent ring-2 ring-white" />
                             </span>
                         )}
                     </button>
@@ -261,7 +258,7 @@ export function DailyReportLauncher() {
                     <div
                         aria-hidden="true"
                         onClick={close}
-                        className="cp-dr-anim absolute inset-0 bg-[#1A1D2E]/25 backdrop-blur-[2px]"
+                        className="cp-dr-anim absolute inset-0 bg-inverse/25 backdrop-blur-[2px]"
                         style={{ animation: `${phase === "closing" ? "cpDrFadeOut" : "cpDrFadeIn"} .22s ease-out both` }}
                     />
                     <div
@@ -277,9 +274,7 @@ export function DailyReportLauncher() {
                         }}
                     >
                         {/* Header */}
-                        <div className="relative shrink-0 overflow-hidden bg-[#27355F] px-5 pb-4 pt-5 text-white">
-                            <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full bg-[#C44E8A]/35 blur-2xl" />
-                            <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 left-10 h-40 w-40 rounded-full bg-[#5A6FB8]/30 blur-2xl" />
+                        <div className="relative shrink-0 overflow-hidden bg-primary px-5 pb-4 pt-5 text-white">
                             <button
                                 type="button"
                                 onClick={close}
@@ -290,7 +285,7 @@ export function DailyReportLauncher() {
                             </button>
                             <p className="relative text-[11px] font-medium uppercase tracking-[0.08em] text-white/60">Rapport quotidien</p>
                             <h2 id="daily-report-title" className="relative mt-1 text-[19px] font-semibold">
-                                Bonjour{firstName ? ` ${firstName}` : ""} 👋
+                                Bonjour{firstName ? ` ${firstName}` : ""}
                             </h2>
                             <div className="relative mt-3 flex items-center justify-between gap-2 rounded-xl bg-white/10 px-1.5 py-1">
                                 <button
@@ -330,11 +325,11 @@ export function DailyReportLauncher() {
                                 </div>
                             ) : current?.status === "error" ? (
                                 <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-                                    <p className="text-[13px] text-[#4A5070]">Impossible de charger ce rapport.</p>
+                                    <p className="text-[13px] text-ink-2">Impossible de charger ce rapport.</p>
                                     <button
                                         type="button"
                                         onClick={() => void loadReport(day)}
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E6EF] px-3 py-1.5 text-[12.5px] font-medium text-[#1A1D2E] hover:bg-[#F6F7FB]"
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-[12.5px] font-medium text-ink hover:bg-surface-2"
                                     >
                                         <RefreshCw className="h-3.5 w-3.5" /> Réessayer
                                     </button>
@@ -353,14 +348,14 @@ export function DailyReportLauncher() {
                         </div>
 
                         {/* Footer */}
-                        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-[#EEF0F6] px-5 py-3">
-                            <Link href="/client/portal/meetings" onClick={close} className="text-[12.5px] font-medium text-[#5B6180] hover:text-[#1A1D2E]">
+                        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-line-subtle px-5 py-3">
+                            <Link href="/client/portal/meetings" onClick={close} className="text-[12.5px] font-medium text-ink-2 hover:text-ink">
                                 Tous les rendez-vous
                             </Link>
                             <Link
                                 href="/client/portal/reporting"
                                 onClick={close}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#27355F] px-3 py-1.5 text-[12.5px] font-medium text-white transition hover:bg-[#1E2A4D]"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-[12.5px] font-medium text-white transition hover:bg-primary-active"
                             >
                                 Rapport complet <ArrowRight className="h-3.5 w-3.5" />
                             </Link>

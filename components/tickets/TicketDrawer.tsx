@@ -181,14 +181,14 @@ export function TicketDrawer({
                                     className={cn(
                                         "-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
                                         tab === t.id
-                                            ? "border-indigo-600 text-indigo-700"
+                                            ? "border-primary-600 text-primary-700"
                                             : "border-transparent text-slate-500 hover:text-slate-800",
                                     )}
                                 >
                                     <t.icon className="h-3.5 w-3.5" />
                                     {t.label}
                                     {t.id === "details" && ticket.releaseChecks?.some((c) => !c.checked) && (
-                                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" aria-hidden />
+                                        <span className="h-1.5 w-1.5 rounded-full bg-primary-600" aria-hidden />
                                     )}
                                 </button>
                             ))}

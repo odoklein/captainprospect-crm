@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Video, MapPin, Phone, Calendar, ThumbsUp, ThumbsDown, Minus, UserX } from "lucide-react";
 import type { Meeting, ConfirmationFilter, MeetingFilters } from "../_types";
+import { brandIcsProdId } from "@/lib/brand";
 
 export function hashColor(str: string): string {
   let h = 0;
@@ -203,7 +204,7 @@ export function generateICS(meeting: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//CaptainProspect//RDV//FR",
+    brandIcsProdId(),
     "BEGIN:VEVENT",
     `DTSTART:${fmtDate(start)}`,
     `DTEND:${fmtDate(end)}`,

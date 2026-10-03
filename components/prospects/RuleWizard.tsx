@@ -12,7 +12,7 @@ import {
     AlertCircle,
     Plus,
     X,
-    Sparkles,
+    Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProspectPipelineStep } from "@prisma/client";
@@ -24,7 +24,7 @@ import { ProspectPipelineStep } from "@prisma/client";
 const STEPS = [
     { id: "scope", label: "Portée", icon: AlertCircle },
     { id: "condition", label: "Condition", icon: Check },
-    { id: "action", label: "Action", icon: Sparkles },
+    { id: "action", label: "Action", icon: Play },
     { id: "test", label: "Test", icon: TestTube },
 ];
 
@@ -311,7 +311,7 @@ export function RuleWizard({ isOpen, onClose, onSuccess }: RuleWizardProps) {
                                 value={formData.description}
                                 onChange={(e) => updateField("description", e.target.value)}
                                 placeholder="Description de la règle..."
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                 rows={3}
                             />
                         </div>
@@ -501,7 +501,7 @@ export function RuleWizard({ isOpen, onClose, onSuccess }: RuleWizardProps) {
                                         value={formData.action.reason || ""}
                                         onChange={(e) => updateAction("reason", e.target.value)}
                                         placeholder="Ex: Fournisseur d'email gratuit détecté"
-                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                         rows={3}
                                     />
                                     <p className="text-xs text-slate-500 mt-1">
@@ -598,7 +598,7 @@ export function RuleWizard({ isOpen, onClose, onSuccess }: RuleWizardProps) {
                                     className={cn(
                                         "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
                                         index <= currentStep
-                                            ? "bg-indigo-600 border-indigo-600 text-white"
+                                            ? "bg-primary-600 border-primary-600 text-white"
                                             : "bg-white border-slate-300 text-slate-400"
                                     )}
                                 >
@@ -614,7 +614,7 @@ export function RuleWizard({ isOpen, onClose, onSuccess }: RuleWizardProps) {
                                 <div
                                     className={cn(
                                         "h-0.5 flex-1 mx-2",
-                                        index < currentStep ? "bg-indigo-600" : "bg-slate-300"
+                                        index < currentStep ? "bg-primary-600" : "bg-slate-300"
                                     )}
                                 />
                             )}

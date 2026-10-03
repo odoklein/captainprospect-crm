@@ -38,7 +38,7 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
     return (
         <div
             className={cn(
-                "group overflow-hidden rounded-[22px] border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
+                "group overflow-hidden rounded-[22px] border shadow-sm transition-all hover:shadow-md cursor-pointer",
                 openNoShow
                     ? "border-red-300 bg-red-50/30 ring-1 ring-red-100 hover:border-red-400"
                     : "border-slate-200 bg-white hover:border-slate-300"
@@ -54,7 +54,7 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                                 <div className="text-[28px] font-extrabold leading-none tracking-tight text-slate-900">{d.getDate()}</div>
                                 <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">{formatCardMonth(d)}</div>
                             </div>
-                            <div className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">
+                            <div className="rounded-full bg-primary-50 px-2.5 py-1 text-[11px] font-bold text-primary-700">
                                 {formatCardTime(d)}
                             </div>
                         </>
@@ -85,7 +85,7 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                             <span className={cn(
                                 "inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full border",
                                 openNoShow
-                                    ? "bg-red-50 text-red-700 border-red-200 animate-pulse"
+                                    ? "bg-red-50 text-red-700 border-red-200"
                                     : "bg-slate-50 text-slate-600 border-slate-200",
                             )}>
                                 {openNoShow ? <XCircle className="w-2.5 h-2.5" /> : feedback.outOfScopeAt ? <Ban className="w-2.5 h-2.5" /> : <PauseCircle className="w-2.5 h-2.5" />}
@@ -107,13 +107,13 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                         )}
                         {meeting.meetingType && (
                             <span className="text-xs font-semibold text-slate-700 bg-slate-50 px-2 py-1 rounded border border-slate-200 flex items-center gap-1">
-                                {meeting.meetingType === "VISIO" && "📹 Visio"}
-                                {meeting.meetingType === "PHYSIQUE" && "📍 Physique"}
-                                {meeting.meetingType === "TELEPHONIQUE" && "📞 Téléphonique"}
+                                {meeting.meetingType === "VISIO" && <><Video className="w-3.5 h-3.5 shrink-0" />Visio</>}
+                                {meeting.meetingType === "PHYSIQUE" && <><MapPin className="w-3.5 h-3.5 shrink-0" />Physique</>}
+                                {meeting.meetingType === "TELEPHONIQUE" && <><Phone className="w-3.5 h-3.5 shrink-0" />Téléphonique</>}
                             </span>
                         )}
                         {meeting.mission && (
-                            <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-1 rounded">
+                            <span className="text-xs font-semibold text-primary-700 bg-primary-50 px-2 py-1 rounded">
                                 {meeting.mission.name}
                             </span>
                         )}
@@ -135,17 +135,17 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                                 <div className="text-xs text-slate-500">{meeting.contact.title ?? ""}</div>
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                     {meeting.contact.email && (
-                                        <a href={`mailto:${meeting.contact.email}`} className="text-xs text-indigo-600 hover:underline bg-indigo-50 px-2 py-0.5 rounded inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                        <a href={`mailto:${meeting.contact.email}`} className="text-xs text-primary-600 hover:underline bg-primary-50 px-2 py-0.5 rounded inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                             <Mail className="w-3 h-3" />{meeting.contact.email}
                                         </a>
                                     )}
                                     {meeting.contact.phone && (
-                                        <a href={`tel:${meeting.contact.phone}`} className="text-xs text-indigo-600 hover:underline bg-indigo-50 px-2 py-0.5 rounded inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                        <a href={`tel:${meeting.contact.phone}`} className="text-xs text-primary-600 hover:underline bg-primary-50 px-2 py-0.5 rounded inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                             <Phone className="w-3 h-3" />{meeting.contact.phone}
                                         </a>
                                     )}
                                     {meeting.contact.linkedin && (
-                                        <a href={meeting.contact.linkedin} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:underline bg-indigo-50 px-2 py-0.5 rounded inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                        <a href={meeting.contact.linkedin} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline bg-primary-50 px-2 py-0.5 rounded inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                             <Linkedin className="w-3 h-3" />LinkedIn
                                         </a>
                                     )}
@@ -159,7 +159,7 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                                 {meeting.contact.company.country && <span className="inline-flex items-center gap-1"><Circle className="w-1 h-1 fill-current shrink-0" />{meeting.contact.company.country}</span>}
                                 {meeting.contact.company.size && <span className="inline-flex items-center gap-1"><Circle className="w-1 h-1 fill-current shrink-0" />{meeting.contact.company.size}</span>}
                                 {meeting.contact.company.website && (
-                                    <a href={meeting.contact.company.website} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                                    <a href={meeting.contact.company.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline" onClick={(e) => e.stopPropagation()}>
                                         {meeting.contact.company.website.replace(/^https?:\/\//, "")}
                                     </a>
                                 )}
@@ -169,17 +169,17 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
 
                     <div className="flex flex-wrap gap-2">
                         {meeting.meetingType === "VISIO" && meeting.meetingJoinUrl && (
-                            <a href={meeting.meetingJoinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:underline bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100" onClick={(e) => e.stopPropagation()}>
+                            <a href={meeting.meetingJoinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:underline bg-primary-50 px-2.5 py-1.5 rounded-lg border border-primary-100" onClick={(e) => e.stopPropagation()}>
                                 <Video className="w-3.5 h-3.5" /> Rejoindre
                             </a>
                         )}
                         {meeting.meetingType === "PHYSIQUE" && meeting.meetingAddress && (
-                            <a href={`https://maps.google.com/?q=${encodeURIComponent(meeting.meetingAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:underline bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100" onClick={(e) => e.stopPropagation()}>
+                            <a href={`https://maps.google.com/?q=${encodeURIComponent(meeting.meetingAddress)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:underline bg-primary-50 px-2.5 py-1.5 rounded-lg border border-primary-100" onClick={(e) => e.stopPropagation()}>
                                 <MapPin className="w-3.5 h-3.5" /> Itinéraire
                             </a>
                         )}
                         {meeting.meetingType === "TELEPHONIQUE" && (meeting.meetingPhone || meeting.contact.phone) && (
-                            <a href={`tel:${meeting.meetingPhone || meeting.contact.phone}`} className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:underline bg-indigo-50 px-2.5 py-1.5 rounded-lg border border-indigo-100" onClick={(e) => e.stopPropagation()}>
+                            <a href={`tel:${meeting.meetingPhone || meeting.contact.phone}`} className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:underline bg-primary-50 px-2.5 py-1.5 rounded-lg border border-primary-100" onClick={(e) => e.stopPropagation()}>
                                 <Phone className="w-3.5 h-3.5" /> Appeler
                             </a>
                         )}
@@ -233,7 +233,7 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="w-full justify-center gap-1.5 text-xs rounded-xl border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                                className="w-full justify-center gap-1.5 text-xs rounded-xl border-primary-200 bg-white text-primary-700 hover:bg-primary-50"
                                 onClick={(e) => { e.stopPropagation(); onReschedule(meeting); }}
                             >
                                 <CalendarClock className="w-3.5 h-3.5" />

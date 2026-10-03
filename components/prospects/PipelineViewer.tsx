@@ -69,7 +69,7 @@ export function PipelineViewer({
             case "completed":
                 return <CheckCircle className="w-5 h-5 text-emerald-600" />;
             case "current":
-                return <Clock className="w-5 h-5 text-indigo-600 animate-pulse" />;
+                return <Clock className="w-5 h-5 text-primary-600" />;
             case "skipped":
                 return <XCircle className="w-5 h-5 text-slate-400" />;
             default:
@@ -85,7 +85,7 @@ export function PipelineViewer({
         <Card className={cn("p-6", className)}>
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-slate-900">Pipeline de traitement</h3>
-                <Badge className="bg-indigo-100 text-indigo-700 text-xs">
+                <Badge className="bg-primary-100 text-primary-700 text-xs">
                     Étape actuelle: {PIPELINE_STAGES.find((s) => s.id === currentStep)?.label || currentStep}
                 </Badge>
             </div>
@@ -115,7 +115,7 @@ export function PipelineViewer({
                                     <h4
                                         className={cn(
                                             "font-medium",
-                                            stageStatus === "current" && "text-indigo-600",
+                                            stageStatus === "current" && "text-primary-600",
                                             stageStatus === "completed" && "text-emerald-600",
                                             stageStatus === "pending" && "text-slate-400",
                                             stageStatus === "skipped" && "text-slate-400"
@@ -124,7 +124,7 @@ export function PipelineViewer({
                                         {stage.label}
                                     </h4>
                                     {stageStatus === "current" && (
-                                        <Badge className="bg-indigo-100 text-indigo-700">En cours</Badge>
+                                        <Badge className="bg-primary-100 text-primary-700">En cours</Badge>
                                     )}
                                 </div>
                                 <p className="text-sm text-slate-600">{stage.description}</p>

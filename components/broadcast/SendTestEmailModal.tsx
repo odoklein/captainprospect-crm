@@ -77,10 +77,10 @@ export function SendTestEmailModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-white">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-primary-50/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <Mail className="w-4 h-4 text-indigo-600" />
+            <div className="w-8 h-8 rounded-xl bg-primary-100 flex items-center justify-center">
+              <Mail className="w-4 h-4 text-primary-600" />
             </div>
             <div>
               <h3 className="font-semibold text-slate-800 text-sm">
@@ -116,7 +116,7 @@ export function SendTestEmailModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="votre.email@domaine.com"
-              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 text-slate-800"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 text-slate-800"
             />
           </div>
 
@@ -148,7 +148,7 @@ export function SendTestEmailModal({
             <button
               type="submit"
               disabled={sending || !email}
-              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-xl shadow-xs transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-xl shadow-xs transition-colors"
             >
               {sending ? (
                 <>

@@ -5,7 +5,6 @@ import { Card, Button, Input, useToast } from "@/components/ui";
 import { PipelineViewer } from "@/components/prospects/PipelineViewer";
 import {
     TestTube,
-    Sparkles,
     Play,
     RefreshCw,
     CheckCircle,
@@ -209,7 +208,7 @@ export default function SandboxPage() {
                 {/* Test Lead Generator */}
                 <Card className="p-6">
                     <div className="flex items-center gap-2 mb-4">
-                        <TestTube className="w-5 h-5 text-indigo-600" />
+                        <TestTube className="w-5 h-5 text-primary-600" />
                         <h2 className="text-lg font-semibold text-slate-900">Générateur de Lead de Test</h2>
                     </div>
 
@@ -224,7 +223,7 @@ export default function SandboxPage() {
                                     key={template.id}
                                     type="button"
                                     onClick={() => handleTemplateSelect(template)}
-                                    className="p-3 border border-slate-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50 transition-colors text-left"
+                                    className="p-3 border border-slate-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left"
                                 >
                                     <div className="text-sm font-medium text-slate-900">{template.name}</div>
                                 </button>

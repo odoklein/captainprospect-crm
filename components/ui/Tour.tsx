@@ -148,35 +148,35 @@ export function Tour({
       {/* Tooltip */}
       {tooltipPosition && (
         <div
-          className="fixed z-50 bg-white rounded-xl shadow-2xl max-w-sm"
+          className="fixed z-50 bg-surface rounded-xl shadow-2xl max-w-sm"
           style={{
             top: `${tooltipPosition.top}px`,
             left: `${tooltipPosition.left}px`,
           }}
         >
           {/* Header */}
-          <div className="flex items-start justify-between p-4 border-b border-slate-200">
+          <div className="flex items-start justify-between p-4 border-b border-line">
             <div className="flex-1">
-              <h3 className="font-semibold text-slate-900">{step.title}</h3>
+              <h3 className="font-semibold text-ink">{step.title}</h3>
               {showProgress && (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-ink-3 mt-1">
                   Étape {currentStep + 1} sur {steps.length}
                 </p>
               )}
             </div>
             <button
               onClick={handleComplete}
-              className="p-1 hover:bg-slate-100 rounded-lg transition-colors ml-2"
+              className="p-1 hover:bg-surface-3 rounded-lg transition-colors ml-2"
               aria-label="Fermer"
             >
-              <X className="w-4 h-4 text-slate-500" />
+              <X className="w-4 h-4 text-ink-3" />
             </button>
           </div>
 
           {/* Content */}
           <div className="p-4">
             {typeof step.content === "string" ? (
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">{step.content}</p>
+              <p className="text-sm text-ink-2 whitespace-pre-wrap">{step.content}</p>
             ) : (
               step.content
             )}
@@ -187,7 +187,7 @@ export function Tour({
             <div className="px-4 pb-2">
               <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-indigo-600 transition-all duration-300"
+                  className="h-full bg-primary-600 transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -195,7 +195,7 @@ export function Tour({
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between p-4 border-t border-slate-200">
+          <div className="flex items-center justify-between p-4 border-t border-line">
             <div className="flex gap-2">
               {allowSkip && (
                 <Button variant="ghost" size="sm" onClick={handleSkip}>

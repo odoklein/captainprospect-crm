@@ -149,7 +149,7 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
                         onChange={(event) => setDescription(event.target.value)}
                         rows={5}
                         placeholder="Contexte, étapes de reproduction, comportement attendu…"
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     />
                 </div>
 

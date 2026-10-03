@@ -120,7 +120,7 @@ export function PlanWeekDialog({ transport, initialMonday, sdrIds, onCopy, onPla
 
                 <section className="mt-5 rounded-2xl border border-slate-200 p-4">
                     <div className="flex items-center gap-2">
-                        <Copy className="h-4 w-4 text-indigo-500" />
+                        <Copy className="h-4 w-4 text-primary-500" />
                         <h3 className="text-[14px] font-semibold text-slate-900">Reprendre la semaine précédente</h3>
                     </div>
                     <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
@@ -153,7 +153,7 @@ export function PlanWeekDialog({ transport, initialMonday, sdrIds, onCopy, onPla
                             if (!preview) return;
                             onCopy(preview.resolution.ops, `${preview.resolution.touched} jours copiés depuis la semaine précédente`, monday);
                         }}
-                        className="mt-3 w-full rounded-xl bg-indigo-600 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                        className="mt-3 w-full rounded-xl bg-primary-600 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
                     >
                         {preview && preview.resolution.touched > 0 ? `Copier ${preview.resolution.touched} jours` : 'Copier'}
                     </button>
@@ -161,7 +161,7 @@ export function PlanWeekDialog({ transport, initialMonday, sdrIds, onCopy, onPla
 
                 <section className="mt-3 rounded-2xl border border-slate-200 p-4">
                     <div className="flex items-center gap-2">
-                        <Brush className="h-4 w-4 text-indigo-500" />
+                        <Brush className="h-4 w-4 text-primary-500" />
                         <h3 className="text-[14px] font-semibold text-slate-900">Planifier à la main</h3>
                     </div>
                     <p className="mt-1 text-[12px] leading-relaxed text-slate-500">

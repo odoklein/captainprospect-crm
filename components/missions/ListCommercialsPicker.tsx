@@ -168,7 +168,7 @@ export function ListCommercialsPicker({ interlocuteurs, value, emptyLabel, onSav
 
                     <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-slate-100">
                         <p className="text-[11px] text-slate-500 leading-tight">
-                            {draft.length === 0 ? emptyLabel : draft.length > 1 ? "★ = calendrier affiché en premier" : "1 commercial"}
+                            {draft.length === 0 ? emptyLabel : draft.length > 1 ? <span className="inline-flex items-center gap-1"><Star className="h-3 w-3 shrink-0" fill="currentColor" /> = calendrier affiché en premier</span> : "1 commercial"}
                         </p>
                         <button
                             type="button"

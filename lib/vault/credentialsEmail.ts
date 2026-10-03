@@ -13,6 +13,7 @@ import { NotFoundError, ValidationError } from "@/lib/api-utils";
 import { decrypt } from "@/lib/encryption";
 import { sendTransactionalEmail } from "@/lib/email/transactional";
 import { recordVaultAudit } from "./service";
+import { brand } from "@/lib/brand";
 
 /** Keeps interpolated values from breaking out of the HTML body. */
 function escapeHtml(value: string): string {
@@ -98,7 +99,7 @@ function buildHtml(params: {
           </tr>
           <tr>
             <td style="padding:16px 28px;background:#f9fafb;font-size:12px;color:#6b7280;">
-              Envoye par ${escapeHtml(params.senderName)} &mdash; Captain Prospect
+              Envoye par ${escapeHtml(params.senderName)} &mdash; ${escapeHtml(brand.name)}
             </td>
           </tr>
         </table>
@@ -183,7 +184,7 @@ export async function sendCredentialsEmail(params: {
             login: credential.login,
             password,
             url: credential.url,
-            senderName: actor?.name || "Captain Prospect",
+            senderName: actor?.name || brand.name,
             note: params.note?.trim() || null,
         }),
         text: [

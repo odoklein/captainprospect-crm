@@ -4,50 +4,52 @@
 // ACCUEIL UI — the visual vocabulary of the SDR "Accueil" page (app/sdr/page.tsx),
 // shared so every role's home reads the same way (manager dashboard, client portal).
 //
+// Built on the design-system tokens (app/globals.css, brand/brand.config.ts),
+// so the whole vocabulary follows the agency brand.
+//
 // Colour is semantic, never decorative:
 //   emerald = done / RDV / on track     amber  = to handle / callbacks
-//   rose    = overdue / late            indigo = qualified & hot leads, info
-//   teal    = rates / rhythm            violet = analysis / help
-//   zinc-950 = the page's one primary action;  #0B3524 forest = the hero card.
+//   rose    = overdue / late            indigo = qualified & hot leads, info (→ brand primary)
+//   teal    = rates / rhythm            violet = analysis / AI / help (→ brand accent)
+//   brand primary (bg-primary) = the page's one primary action and the hero card (bg-inverse).
 //
 // Geometry: radii are concentric — a child inset by p from a parent of radius R
 // gets R − p (min 6px). Card 24px → inner blocks 16px → their chips 8–12px;
-// a p-1 track of 12px → 8px segments. Borders are 1px hairlines (slate-200 on
-// cards, slate-100 for dividers); depth comes from soft shadows, never 2px strokes.
+// a p-1 track of 12px → 8px segments. Borders are 1px hairlines (border-line on
+// cards, border-line-subtle for dividers); depth comes from soft shadows, never 2px strokes.
 // ============================================
 
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, CheckCircle2, ChevronDown, Minus, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FOCUS_RING, FOCUS_RING_INVERSE } from "@/components/ui/recipes";
 
 export type AccueilTone = "emerald" | "amber" | "rose" | "indigo" | "teal" | "violet" | "slate";
 
 /** Keyboard focus, identical on every control. */
-export const FOCUS =
-    "outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-white";
-const FOCUS_DARK =
-    "outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B3524]";
+export const FOCUS = FOCUS_RING;
+const FOCUS_DARK = FOCUS_RING_INVERSE;
 
 // Literal class strings so Tailwind's scanner sees every one of them.
 const TILE: Record<AccueilTone, string> = {
     emerald: "bg-emerald-500 text-white",
     amber: "bg-amber-500 text-white",
     rose: "bg-rose-600 text-white",
-    indigo: "bg-indigo-600 text-white",
+    indigo: "bg-primary-600 text-white",
     teal: "bg-teal-500 text-white",
-    violet: "bg-violet-600 text-white",
+    violet: "bg-accent-600 text-white",
     slate: "bg-zinc-900 text-white",
 };
 
 const TILE_GLOW: Record<AccueilTone, string> = {
-    emerald: "shadow-[0_4px_14px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.18)]",
-    amber: "shadow-[0_4px_14px_rgba(245,158,11,0.35),inset_0_1px_0_rgba(255,255,255,0.20)]",
-    rose: "shadow-[0_4px_14px_rgba(225,29,72,0.30),inset_0_1px_0_rgba(255,255,255,0.16)]",
-    indigo: "shadow-[0_4px_14px_rgba(79,70,229,0.35),inset_0_1px_0_rgba(255,255,255,0.16)]",
-    teal: "shadow-[0_4px_14px_rgba(20,184,166,0.35),inset_0_1px_0_rgba(255,255,255,0.18)]",
-    violet: "shadow-[0_4px_14px_rgba(124,58,237,0.35),inset_0_1px_0_rgba(255,255,255,0.16)]",
-    slate: "shadow-[0_4px_14px_rgba(24,24,27,0.25),inset_0_1px_0_rgba(255,255,255,0.12)]",
+    emerald: "shadow-[0_1px_2px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.16)]",
+    amber: "shadow-[0_1px_2px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.16)]",
+    rose: "shadow-[0_1px_2px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.16)]",
+    indigo: "shadow-[0_1px_2px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.16)]",
+    teal: "shadow-[0_1px_2px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.16)]",
+    violet: "shadow-[0_1px_2px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.16)]",
+    slate: "shadow-[0_1px_2px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.12)]",
 };
 
 /** Small filled badge next to a number ("Validés", "3 urgent(s)"). */
@@ -55,10 +57,10 @@ export const BADGE: Record<AccueilTone, string> = {
     emerald: "text-emerald-800 bg-emerald-100",
     amber: "text-amber-900 bg-amber-100",
     rose: "text-rose-800 bg-rose-100",
-    indigo: "text-indigo-800 bg-indigo-100",
+    indigo: "text-primary-800 bg-primary-100",
     teal: "text-teal-800 bg-teal-100",
-    violet: "text-violet-800 bg-violet-100",
-    slate: "text-zinc-700 bg-slate-100",
+    violet: "text-accent-800 bg-accent-100",
+    slate: "text-ink-2 bg-surface-3",
 };
 
 /** Outlined pill (header statuses, row tags). */
@@ -66,29 +68,29 @@ export const PILL: Record<AccueilTone, string> = {
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
     amber: "bg-amber-50 text-amber-800 border-amber-200/80",
     rose: "bg-rose-50 text-rose-700 border-rose-200/80",
-    indigo: "bg-indigo-50 text-indigo-700 border-indigo-200/80",
+    indigo: "bg-primary-50 text-primary-700 border-primary-200/80",
     teal: "bg-teal-50 text-teal-700 border-teal-200/80",
-    violet: "bg-violet-50 text-violet-700 border-violet-200/80",
-    slate: "bg-slate-50 text-zinc-600 border-slate-200",
+    violet: "bg-accent-50 text-accent-700 border-accent-200/80",
+    slate: "bg-surface-2 text-ink-2 border-line",
 };
 
 export const TEXT: Record<AccueilTone, string> = {
     emerald: "text-emerald-600",
     amber: "text-amber-700",
     rose: "text-rose-600",
-    indigo: "text-indigo-600",
+    indigo: "text-primary-600",
     teal: "text-teal-600",
-    violet: "text-violet-600",
-    slate: "text-zinc-500",
+    violet: "text-accent-600",
+    slate: "text-ink-3",
 };
 
 export const BAR: Record<AccueilTone, string> = {
     emerald: "bg-emerald-500",
     amber: "bg-amber-500",
     rose: "bg-rose-500",
-    indigo: "bg-indigo-500",
+    indigo: "bg-primary-500",
     teal: "bg-teal-500",
-    violet: "bg-violet-500",
+    violet: "bg-accent-500",
     slate: "bg-slate-300",
 };
 
@@ -96,45 +98,45 @@ export const BAR: Record<AccueilTone, string> = {
 export const ROW: Record<AccueilTone, string> = {
     emerald: "bg-emerald-50/60 border-emerald-200/80 hover:border-emerald-300",
     amber: "bg-amber-50/70 border-amber-200/80 hover:border-amber-300",
-    rose: "bg-[#FEF2F2] border-rose-200 hover:border-rose-300",
-    indigo: "bg-indigo-50/60 border-indigo-200/80 hover:border-indigo-300",
+    rose: "bg-danger-soft border-rose-200 hover:border-rose-300",
+    indigo: "bg-primary-50/60 border-primary-200/80 hover:border-primary-300",
     teal: "bg-teal-50/60 border-teal-200/80 hover:border-teal-300",
-    violet: "bg-violet-50/60 border-violet-200/80 hover:border-violet-300",
-    slate: "bg-white border-slate-200 hover:border-slate-300",
+    violet: "bg-accent-50/60 border-accent-200/80 hover:border-accent-300",
+    slate: "bg-surface border-line hover:border-line-strong",
 };
 
 export const RING_HEX: Record<AccueilTone, string> = {
     emerald: "#10B981",
     amber: "#F59E0B",
     rose: "#F43F5E",
-    indigo: "#4F46E5",
+    indigo: "var(--brand-primary-600)",
     teal: "#14B8A6",
-    violet: "#7C3AED",
-    slate: "#94A3B8",
+    violet: "var(--brand-accent-500)",
+    slate: "var(--brand-neutral-400)",
 };
 
 // ── Surfaces ────────────────────────────────────────────────────────────────
 
-export const CARD = "bg-white rounded-3xl border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)]";
+export const CARD = "bg-surface rounded-3xl border border-line shadow-card";
 /** Hover for a whole card that is a link: edge darkens, shadow lifts, nothing moves. */
-export const CARD_HOVER = "transition-[border-color,box-shadow] duration-200 hover:border-slate-300 hover:shadow-[0_6px_20px_rgba(15,23,42,0.06)]";
+export const CARD_HOVER = "transition-[border-color,box-shadow] duration-200 hover:border-line-strong hover:shadow-raised";
 
 export function AccueilCard({ className, children }: { className?: string; children: ReactNode }) {
     return <section className={cn(CARD, "p-6", className)}>{children}</section>;
 }
 
-/** The forest-green hero card of the SDR page (active mission card). */
+/** The brand hero card of the SDR page (active mission card), on bg-inverse. */
 export function HeroCard({ className, children }: { className?: string; children: ReactNode }) {
     return (
         <section
             className={cn(
-                "relative isolate overflow-hidden rounded-3xl bg-[#0B3524] text-white p-6 sm:p-7 border border-emerald-900/60",
-                "shadow-[0_4px_16px_rgba(11,53,36,0.22),inset_0_1px_0_rgba(255,255,255,0.06)]",
+                "relative isolate overflow-hidden rounded-3xl bg-inverse text-inverse-ink p-6 sm:p-7 border border-inverse-line",
+                "shadow-[0_4px_16px_color-mix(in_oklab,var(--brand-primary)_28%,transparent),inset_0_1px_0_rgba(255,255,255,0.06)]",
                 className,
             )}
         >
             {/* One soft light source, top-right: depth without decoration. */}
-            <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_100%_0%,rgba(52,211,153,0.12),transparent_55%)]" />
+            <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_100%_0%,color-mix(in_oklab,var(--brand-accent)_9%,transparent),transparent_55%)]" />
             {children}
         </section>
     );
@@ -143,8 +145,8 @@ export function HeroCard({ className, children }: { className?: string; children
 /** Inner tile of the hero card. 16px radius inside the 24px hero. */
 export function HeroTile({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
     return (
-        <div className={cn("p-3 sm:p-3.5 rounded-2xl bg-emerald-950/70 border border-emerald-800/60 min-w-0", className)}>
-            <span className="text-[11px] text-emerald-300 font-bold block truncate">{label}</span>
+        <div className={cn("p-3 sm:p-3.5 rounded-2xl bg-inverse-raised border border-inverse-line min-w-0", className)}>
+            <span className="text-[11px] text-inverse-ink-3 font-bold block truncate">{label}</span>
             <div className="text-base sm:text-lg font-black text-white mt-0.5 leading-tight truncate">{children}</div>
         </div>
     );
@@ -152,8 +154,8 @@ export function HeroTile({ label, children, className }: { label: string; childr
 
 export function HeroPill({ icon: Icon, children }: { icon?: LucideIcon; children: ReactNode }) {
     return (
-        <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-bold bg-emerald-800/90 text-emerald-200 border border-emerald-700/60 shadow-2xs whitespace-nowrap">
-            {Icon && <Icon className="w-3.5 h-3.5 text-emerald-300" aria-hidden />}
+        <span className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-bold bg-white/10 text-inverse-ink-2 border border-inverse-line whitespace-nowrap">
+            {Icon && <Icon className="w-3.5 h-3.5 text-accent-300" aria-hidden />}
             {children}
         </span>
     );
@@ -174,7 +176,7 @@ export function IconTile({ icon: Icon, tone, size = "sm" }: { icon: LucideIcon; 
 }
 
 export function CountChip({ children }: { children: ReactNode }) {
-    return <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-slate-100 text-zinc-800 tabular-nums">{children}</span>;
+    return <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-surface-3 text-ink tabular-nums">{children}</span>;
 }
 
 /**
@@ -199,17 +201,17 @@ export function SectionHeader({
     size?: "md" | "sm";
 }) {
     return (
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3 border-b border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pb-3 border-b border-line-subtle">
             <div className="flex items-center gap-2.5 min-w-0">
                 <IconTile icon={icon} tone={tone} />
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                        <h2 className={cn("text-zinc-900 tracking-tight truncate", size === "md" ? "text-base font-extrabold" : "text-sm font-black")}>
+                        <h2 className={cn("text-ink tracking-tight truncate", size === "md" ? "text-base font-extrabold" : "text-sm font-black")}>
                             {title}
                         </h2>
                         {count !== undefined && <CountChip>{count}</CountChip>}
                     </div>
-                    {subtitle && <p className="text-[11px] text-zinc-500 font-semibold mt-0.5 truncate">{subtitle}</p>}
+                    {subtitle && <p className="text-[11px] text-ink-3 font-semibold mt-0.5 truncate">{subtitle}</p>}
                 </div>
             </div>
             {right}
@@ -246,7 +248,7 @@ export function SegmentedControl<T extends string>({
         <div
             role="radiogroup"
             aria-label={ariaLabel}
-            className={cn("inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold flex-shrink-0", className)}
+            className={cn("inline-flex items-center gap-1 p-1 bg-surface-3 rounded-xl border border-line text-xs font-bold flex-shrink-0", className)}
         >
             {options.map((o) => {
                 const active = o.value === value;
@@ -265,7 +267,7 @@ export function SegmentedControl<T extends string>({
                             "focus-visible:ring-offset-slate-100",
                             o.alert
                                 ? active ? "bg-rose-600 text-white shadow-sm" : "text-rose-600 hover:text-rose-700"
-                                : active ? "bg-white text-zinc-900 shadow-[0_1px_2px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.04)]" : "text-zinc-600 hover:text-zinc-900",
+                                : active ? "bg-surface text-ink shadow-[0_1px_2px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.04)]" : "text-ink-2 hover:text-ink",
                         )}
                     >
                         {o.label}
@@ -289,7 +291,7 @@ export function HeroSegmented<T extends string>({
     ariaLabel: string;
 }) {
     return (
-        <div role="radiogroup" aria-label={ariaLabel} className="inline-flex items-center gap-1 p-1 rounded-xl bg-emerald-950/90 border border-emerald-700/80 text-xs font-bold">
+        <div role="radiogroup" aria-label={ariaLabel} className="inline-flex items-center gap-1 p-1 rounded-xl bg-inverse-raised border border-inverse-line text-xs font-bold">
             {options.map((o) => {
                 const active = o.value === value;
                 return (
@@ -304,7 +306,7 @@ export function HeroSegmented<T extends string>({
                         className={cn(
                             "h-7 min-w-7 px-2.5 rounded-lg inline-flex items-center justify-center transition-colors duration-150 whitespace-nowrap disabled:opacity-35 disabled:pointer-events-none",
                             FOCUS_DARK,
-                            active ? "bg-white text-emerald-950 shadow-sm" : "text-emerald-200 hover:text-white hover:bg-emerald-900/80",
+                            active ? "bg-surface text-primary shadow-sm" : "text-inverse-ink-2 hover:text-inverse-ink hover:bg-white/10",
                         )}
                     >
                         {o.label}
@@ -317,25 +319,24 @@ export function HeroSegmented<T extends string>({
 
 const BUTTON_BASE = "inline-flex items-center justify-center gap-2 font-bold whitespace-nowrap select-none transition-[background-color,border-color,box-shadow,color,transform] duration-150 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
 
-/** The page's one primary action — dark, like "Démarrer les appels". 44px tall, 16px radius. */
+/** The page's one primary action — brand primary, like "Démarrer les appels". 44px tall, 16px radius. */
 export const PRIMARY_BUTTON = cn(
     BUTTON_BASE,
     FOCUS,
-    "h-11 px-5 rounded-2xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-black tracking-tight",
-    "shadow-[0_4px_12px_rgba(9,9,11,0.18),inset_0_1px_0_rgba(255,255,255,0.10)] hover:shadow-[0_6px_18px_rgba(9,9,11,0.22),inset_0_1px_0_rgba(255,255,255,0.10)]",
+    "h-11 px-5 rounded-2xl bg-primary hover:bg-primary-hover active:bg-primary-active text-primary-fg text-xs font-black tracking-tight shadow-primary",
 );
 
 /** Quiet white control (filters). 36px tall, 12px radius. */
 export const SECONDARY_BUTTON = cn(
     BUTTON_BASE,
     FOCUS,
-    "h-9 px-3.5 rounded-xl bg-white border border-slate-200 text-xs text-zinc-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50",
+    "h-9 px-3.5 rounded-xl bg-surface border border-line text-xs text-ink-2 shadow-2xs hover:border-line-strong hover:bg-surface-2 hover:text-ink",
 );
 
 export const ICON_BUTTON = cn(
     BUTTON_BASE,
     FOCUS,
-    "h-9 w-9 rounded-xl bg-white border border-slate-200 text-zinc-500 shadow-2xs hover:text-zinc-900 hover:border-slate-300 hover:bg-slate-50",
+    "h-9 w-9 rounded-xl bg-surface border border-line text-ink-3 shadow-2xs hover:text-ink hover:border-line-strong hover:bg-surface-2",
 );
 
 /** Inline text link in a card header ("Voir tout"). */
@@ -344,12 +345,12 @@ export function TextLink({ href, children }: { href: string; children: ReactNode
         <Link
             href={href}
             className={cn(
-                "group inline-flex items-center gap-1 h-7 px-2 -mr-2 rounded-lg text-xs font-bold text-zinc-600 hover:text-zinc-950 hover:bg-slate-50 transition-colors",
+                "group inline-flex items-center gap-1 h-7 px-2 -mr-2 rounded-lg text-xs font-bold text-ink-2 hover:text-ink hover:bg-surface-2 transition-colors",
                 FOCUS,
             )}
         >
             {children}
-            <ArrowUpRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700 transition-colors" aria-hidden />
+            <ArrowUpRight className="w-3.5 h-3.5 text-ink-4 group-hover:text-ink-2 transition-colors" aria-hidden />
         </Link>
     );
 }
@@ -374,14 +375,14 @@ export function SelectField({
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 className={cn(
-                    "h-9 w-full appearance-none pl-3.5 pr-8 rounded-xl bg-white border border-slate-200 text-xs font-bold text-zinc-700 shadow-2xs cursor-pointer",
-                    "hover:border-slate-300 transition-colors truncate",
+                    "h-9 w-full appearance-none pl-3.5 pr-8 rounded-xl bg-surface border border-line text-xs font-bold text-ink-2 shadow-2xs cursor-pointer",
+                    "hover:border-line-strong transition-colors truncate",
                     FOCUS,
                 )}
             >
                 {children}
             </select>
-            <ChevronDown className="w-3.5 h-3.5 text-zinc-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden />
+            <ChevronDown className="w-3.5 h-3.5 text-ink-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden />
         </div>
     );
 }
@@ -409,7 +410,7 @@ export function StatusPill({ tone, icon: Icon, pulse, children, title }: {
     );
 }
 
-export function CircularProgress({ percent, tone = "emerald", size = 52, strokeWidth = 4.5, track = "#E2E8F0", labelClassName }: {
+export function CircularProgress({ percent, tone = "emerald", size = 52, strokeWidth = 4.5, track = "var(--ds-line)", labelClassName }: {
     percent: number;
     tone?: AccueilTone;
     size?: number;
@@ -443,7 +444,7 @@ export function CircularProgress({ percent, tone = "emerald", size = 52, strokeW
                     className="motion-safe:transition-[stroke-dashoffset] motion-safe:duration-1000 ease-out"
                 />
             </svg>
-            <span className={cn("absolute text-[11px] font-black text-zinc-800", labelClassName)}>{Math.round(percent)}%</span>
+            <span className={cn("absolute text-[11px] font-black text-ink", labelClassName)}>{Math.round(percent)}%</span>
         </div>
     );
 }
@@ -455,7 +456,7 @@ export function CircularProgress({ percent, tone = "emerald", size = 52, strokeW
 export function Delta({ value, unit = "%", suffix, onDark }: { value: number | null; unit?: "%" | "pt"; suffix?: string; onDark?: boolean }) {
     if (value === null) {
         return (
-            <span className={cn("inline-flex items-center gap-1 text-[11px] font-bold", onDark ? "text-emerald-300/70" : "text-zinc-400")}>
+            <span className={cn("inline-flex items-center gap-1 text-[11px] font-bold", onDark ? "text-inverse-ink-3" : "text-ink-4")}>
                 <Minus className="w-3 h-3" aria-hidden />
                 {suffix ? `Pas de base ${suffix}` : "—"}
             </span>
@@ -466,7 +467,7 @@ export function Delta({ value, unit = "%", suffix, onDark }: { value: number | n
     const Icon = flat ? Minus : up ? ArrowUpRight : ArrowDownRight;
     const n = Math.abs(value).toLocaleString("fr-FR", { maximumFractionDigits: 1 });
     const tone = flat
-        ? onDark ? "text-emerald-200/80" : "text-zinc-500"
+        ? onDark ? "text-inverse-ink-2" : "text-ink-3"
         : up
             ? onDark ? "text-emerald-300" : "text-emerald-600"
             : onDark ? "text-rose-300" : "text-rose-600";
@@ -474,7 +475,7 @@ export function Delta({ value, unit = "%", suffix, onDark }: { value: number | n
         <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-bold tabular-nums", tone)}>
             <Icon className="w-3.5 h-3.5" aria-hidden />
             {flat ? "0" : `${up ? "+" : "−"}${n}`}{unit === "pt" ? " pt" : " %"}
-            {suffix && <span className={cn("font-semibold ml-1", onDark ? "text-emerald-200/70" : "text-zinc-400")}>{suffix}</span>}
+            {suffix && <span className={cn("font-semibold ml-1", onDark ? "text-inverse-ink-3" : "text-ink-4")}>{suffix}</span>}
         </span>
     );
 }
@@ -505,17 +506,17 @@ export function KpiCard({
     const body = (
         <>
             <div className="space-y-1 min-w-0">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block truncate">{label}</span>
+                <span className="text-xs font-bold text-ink-4 uppercase tracking-wider block truncate">{label}</span>
                 <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-3xl font-black text-zinc-900 tracking-tight leading-none">{value}</span>
-                    {target !== undefined && <span className="text-xs font-bold text-zinc-400">/ {target}</span>}
+                    <span className="text-3xl font-black text-ink tracking-tight leading-none">{value}</span>
+                    {target !== undefined && <span className="text-xs font-bold text-ink-4">/ {target}</span>}
                     {badge && (
                         <span className={cn("text-[10px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap self-center", BADGE[badge.tone])}>
                             {badge.text}
                         </span>
                     )}
                 </div>
-                {sub && <div className="text-[11px] font-semibold text-zinc-500 truncate pt-0.5">{sub}</div>}
+                {sub && <div className="text-[11px] font-semibold text-ink-3 truncate pt-0.5">{sub}</div>}
             </div>
             {visual}
         </>
@@ -524,16 +525,16 @@ export function KpiCard({
     return href ? (
         <Link href={href} className={cn(cls, CARD_HOVER, FOCUS)}>{body}</Link>
     ) : (
-        <div className={cn(cls, "transition-[border-color] duration-200 hover:border-slate-300")}>{body}</div>
+        <div className={cn(cls, "transition-[border-color] duration-200 hover:border-line-strong")}>{body}</div>
     );
 }
 
 /** Inner stat tile (slate-50, 16px radius inside a 24px card). */
 export function StatTile({ label, children, className }: { label: ReactNode; children: ReactNode; className?: string }) {
     return (
-        <div className={cn("p-3 rounded-2xl bg-slate-50 border border-slate-200 min-w-0", className)}>
-            <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1 uppercase tracking-wider truncate">{label}</span>
-            <div className="text-lg font-black text-zinc-900 mt-0.5 leading-tight">{children}</div>
+        <div className={cn("p-3 rounded-2xl bg-surface-2 border border-line min-w-0", className)}>
+            <span className="text-[10px] text-ink-4 font-bold flex items-center gap-1 uppercase tracking-wider truncate">{label}</span>
+            <div className="text-lg font-black text-ink mt-0.5 leading-tight">{children}</div>
         </div>
     );
 }
@@ -548,7 +549,7 @@ export function ProgressBar({ percent, tone = "emerald", className, label, fillC
     const clamped = Math.min(100, Math.max(0, percent));
     return (
         <div
-            className={cn("h-2 w-full bg-slate-100 rounded-full overflow-hidden", className)}
+            className={cn("h-2 w-full bg-surface-3 rounded-full overflow-hidden", className)}
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -571,12 +572,12 @@ export function EmptyBlock({ title, hint, icon: Icon = CheckCircle2, tone = "eme
     compact?: boolean;
 }) {
     return (
-        <div className={cn("px-6 text-center space-y-2 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200", compact ? "py-7" : "py-10")}>
+        <div className={cn("px-6 text-center space-y-2 bg-surface-2/60 rounded-2xl border border-dashed border-line", compact ? "py-7" : "py-10")}>
             <div className={cn("w-11 h-11 rounded-2xl flex items-center justify-center mx-auto shadow-2xs", BADGE[tone])}>
                 <Icon className="w-6 h-6" aria-hidden />
             </div>
-            <p className="text-sm font-bold text-zinc-800">{title}</p>
-            {hint && <p className="text-xs text-zinc-500 max-w-xs mx-auto leading-relaxed">{hint}</p>}
+            <p className="text-sm font-bold text-ink">{title}</p>
+            {hint && <p className="text-xs text-ink-3 max-w-xs mx-auto leading-relaxed">{hint}</p>}
         </div>
     );
 }
@@ -590,8 +591,8 @@ export function Initials({ name, strong, size = "md" }: { name: string; strong?:
                 "flex items-center justify-center font-black flex-shrink-0",
                 size === "md" ? "w-9 h-9 rounded-xl text-[11px]" : "w-7 h-7 rounded-lg text-[10px]",
                 strong
-                    ? "bg-zinc-950 text-white shadow-[0_2px_6px_rgba(9,9,11,0.20),inset_0_1px_0_rgba(255,255,255,0.10)]"
-                    : "bg-white border border-slate-200 text-zinc-700 shadow-2xs",
+                    ? "bg-primary text-primary-fg shadow-[0_2px_6px_color-mix(in_oklab,var(--brand-primary)_25%,transparent),inset_0_1px_0_rgba(255,255,255,0.10)]"
+                    : "bg-surface border border-line text-ink-2 shadow-2xs",
             )}
         >
             {initials}
@@ -613,17 +614,17 @@ export function ChartTooltip({ active, payload, label, unit }: {
 }) {
     if (!active || !payload?.length) return null;
     return (
-        <div className="rounded-xl bg-white border border-slate-200 shadow-[0_8px_24px_rgba(15,23,42,0.10)] px-3 py-2 text-xs min-w-[136px]">
+        <div className="rounded-xl bg-surface border border-line shadow-[0_8px_24px_rgba(15,23,42,0.10)] px-3 py-2 text-xs min-w-[136px]">
             {label !== undefined && label !== "" && (
-                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1 capitalize">{label}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-ink-4 mb-1 capitalize">{label}</p>
             )}
             {payload.map((p, i) => (
                 <div key={i} className="flex items-center justify-between gap-3 py-0.5">
-                    <span className="flex items-center gap-1.5 text-zinc-600 font-semibold">
+                    <span className="flex items-center gap-1.5 text-ink-2 font-semibold">
                         <span className="w-2 h-2 rounded-full" style={{ background: p.color }} aria-hidden />
                         {p.name}
                     </span>
-                    <span className="font-black text-zinc-900 tabular-nums">
+                    <span className="font-black text-ink tabular-nums">
                         {typeof p.value === "number" ? p.value.toLocaleString("fr-FR") : String(p.value ?? "")}
                         {unit ? ` ${unit}` : ""}
                     </span>

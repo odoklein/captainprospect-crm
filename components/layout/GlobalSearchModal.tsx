@@ -384,7 +384,7 @@ export function GlobalSearchModal({ open, onClose, navigation }: GlobalSearchMod
                                                         className={cn(
                                                             "flex flex-col gap-0.5 px-4 py-2.5 text-sm transition-colors",
                                                             isSelected
-                                                                ? "bg-indigo-50 text-indigo-800"
+                                                                ? "bg-primary-50 text-primary-800"
                                                                 : "text-slate-700 hover:bg-slate-50"
                                                         )}
                                                     >
@@ -396,7 +396,7 @@ export function GlobalSearchModal({ open, onClose, navigation }: GlobalSearchMod
                                                                 className={cn(
                                                                     "text-xs truncate",
                                                                     isSelected
-                                                                        ? "text-indigo-600/80"
+                                                                        ? "text-primary-600/80"
                                                                         : "text-slate-500"
                                                                 )}
                                                             >

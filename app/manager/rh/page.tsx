@@ -71,14 +71,14 @@ const STATUS_FLOW: HrMonthStatus[] = [
 const STATUS_STYLES: Record<HrMonthStatus, string> = {
   DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
   TO_VERIFY: "bg-amber-50 text-amber-800 border-amber-200",
-  VALIDATED: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  VALIDATED: "bg-primary-50 text-primary-700 border-primary-200",
   PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
 
 const STATUS_BAR: Record<HrMonthStatus, string> = {
   DRAFT: "bg-slate-300",
   TO_VERIFY: "bg-amber-400",
-  VALIDATED: "bg-indigo-500",
+  VALIDATED: "bg-primary-500",
   PAID: "bg-emerald-500",
 };
 
@@ -440,7 +440,7 @@ function HrPageContent() {
             onClick={guide.start}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            <HelpCircle className="h-3.5 w-3.5 text-indigo-600" />
+            <HelpCircle className="h-3.5 w-3.5 text-primary-600" />
             Comment ça marche ?
           </button>
 
@@ -462,7 +462,7 @@ function HrPageContent() {
               <ChevronRight className="h-4 w-4" />
             </button>
             {month !== thisMonth && (
-              <button type="button" onClick={() => goToMonth(thisMonth)} className="ml-1 rounded-lg px-2 py-1 text-[11px] font-medium text-indigo-700 hover:bg-white">
+              <button type="button" onClick={() => goToMonth(thisMonth)} className="ml-1 rounded-lg px-2 py-1 text-[11px] font-medium text-primary-700 hover:bg-white">
                 Ce mois-ci
               </button>
             )}
@@ -484,7 +484,7 @@ function HrPageContent() {
             data-hr-tour="recalculate"
             onClick={handleBulkRecalculate}
             disabled={isBulkCalculating || isFetching}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-indigo-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary-700 disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isBulkCalculating ? "animate-spin" : ""}`} />
             {isBulkCalculating ? "Calcul en cours…" : "Recalculer le mois"}
@@ -535,7 +535,7 @@ function HrPageContent() {
 
       {/* Summary */}
       <div data-hr-tour="summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <SummaryCard icon={<Users className="h-4 w-4 text-indigo-500" />} label="Personnes affichées" value={String(summary.count)} hint={`sur ${roleRows.length} au total`} />
+        <SummaryCard icon={<Users className="h-4 w-4 text-primary-500" />} label="Personnes affichées" value={String(summary.count)} hint={`sur ${roleRows.length} au total`} />
         <SummaryCard
           icon={<CreditCard className="h-4 w-4 text-emerald-500" />}
           label={
@@ -617,7 +617,7 @@ function HrPageContent() {
                   aria-pressed={active}
                   onClick={() => setFilter("status", active ? "ALL" : s)}
                   className={`rounded-lg border px-3 py-2 text-left transition-colors ${
-                    active ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500/30" : "border-slate-200 hover:bg-slate-50"
+                    active ? "border-primary-500 bg-primary-50 ring-1 ring-primary-500/30" : "border-slate-200 hover:bg-slate-50"
                   }`}
                 >
                   <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
@@ -647,7 +647,7 @@ function HrPageContent() {
             value={filters.search}
             onChange={(e) => setFilter("search", e.target.value)}
             placeholder="Rechercher un nom ou un email…"
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-10 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-10 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <kbd className="pointer-events-none absolute right-3 top-2 hidden rounded border border-slate-200 bg-white px-1.5 text-[10px] text-slate-400 sm:block">/</kbd>
         </label>
@@ -688,7 +688,7 @@ function HrPageContent() {
           <button
             type="button"
             onClick={() => setFilters((f) => ({ ...DEFAULT_FILTERS, role: f.role }))}
-            className="rounded-lg px-2.5 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50"
+            className="rounded-lg px-2.5 py-2 text-xs font-medium text-primary-700 hover:bg-primary-50"
           >
             Réinitialiser
           </button>
@@ -698,8 +698,8 @@ function HrPageContent() {
       {/* List */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
         {isFetching && !initialLoading && (
-          <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-indigo-100" aria-hidden>
-            <div className="h-full w-1/3 animate-pulse bg-indigo-500" />
+          <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-primary-100" aria-hidden>
+            <div className="h-full w-1/3 animate-pulse bg-primary-500" />
           </div>
         )}
 
@@ -713,7 +713,7 @@ function HrPageContent() {
               <>
                 <p>Personne ne correspond à ces filtres.</p>
                 {filtersActive && (
-                  <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)} className="font-semibold text-indigo-700 hover:underline">
+                  <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)} className="font-semibold text-primary-700 hover:underline">
                     Réinitialiser les filtres
                   </button>
                 )}
@@ -727,18 +727,18 @@ function HrPageContent() {
               {visibleRows.map((row, i) => {
                 const tour = (key: string) => (i === 0 ? { "data-hr-tour": key } : {});
                 return (
-                  <li key={row.userId} className={`space-y-2.5 p-4 ${selected.has(row.userId) ? "bg-indigo-50/40" : ""}`}>
+                  <li key={row.userId} className={`space-y-2.5 p-4 ${selected.has(row.userId) ? "bg-primary-50/40" : ""}`}>
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
                         checked={selected.has(row.userId)}
                         onChange={() => toggleRow(row.userId)}
                         aria-label={`Sélectionner ${row.userName}`}
-                        className="mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="mt-1 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                         {...tour("row-select")}
                       />
                       <div className="min-w-0 flex-1" {...tour("row-person")}>
-                        <Link href={`/manager/rh/${row.userId}`} className="font-semibold text-slate-900 hover:text-indigo-700">
+                        <Link href={`/manager/rh/${row.userId}`} className="font-semibold text-slate-900 hover:text-primary-700">
                           {row.userName}
                         </Link>
                         <p className="text-[11px] text-slate-500">
@@ -819,25 +819,25 @@ function HrPageContent() {
                   {visibleRows.map((row, i) => {
                     const tour = (key: string) => (i === 0 ? { "data-hr-tour": key } : {});
                     const isSelected = selected.has(row.userId);
-                    const rowBg = isSelected ? "bg-indigo-50" : "bg-white group-hover:bg-slate-50";
+                    const rowBg = isSelected ? "bg-primary-50" : "bg-white group-hover:bg-slate-50";
                     return (
-                      <tr key={row.userId} className={`group transition-colors ${isSelected ? "bg-indigo-50" : "hover:bg-slate-50"}`}>
+                      <tr key={row.userId} className={`group transition-colors ${isSelected ? "bg-primary-50" : "hover:bg-slate-50"}`}>
                         <td className="px-4 py-3">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleRow(row.userId)}
                             aria-label={`Sélectionner ${row.userName}`}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             {...tour("row-select")}
                           />
                         </td>
                         <td className="px-4 py-3" {...tour("row-person")}>
-                          <Link href={`/manager/rh/${row.userId}`} className="font-semibold text-slate-900 hover:text-indigo-700 hover:underline">
+                          <Link href={`/manager/rh/${row.userId}`} className="font-semibold text-slate-900 hover:text-primary-700 hover:underline">
                             {row.userName}
                           </Link>
                           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
-                            <span className={`rounded px-1.5 py-px text-[10px] font-semibold ${row.userRole === "MANAGER" ? "bg-purple-50 text-purple-700" : "bg-indigo-50 text-indigo-700"}`}>
+                            <span className={`rounded px-1.5 py-px text-[10px] font-semibold ${row.userRole === "MANAGER" ? "bg-accent-50 text-accent-700" : "bg-primary-50 text-primary-700"}`}>
                               {row.userRole === "MANAGER" ? "Manager" : row.userRole}
                             </span>
                             <span>{row.contractType === ContractType.SALARIE ? "Salarié" : "Indépendant"}</span>
@@ -878,7 +878,7 @@ function HrPageContent() {
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums" {...tour("row-total")}>
                           <span className="text-sm font-bold text-slate-900">{formatEuros(row.totalAmountCents)}</span>
                           {row.adjustmentCents !== 0 && (
-                            <span className="block text-[10px] text-indigo-600" title={row.adjustmentNote ?? undefined}>
+                            <span className="block text-[10px] text-primary-600" title={row.adjustmentNote ?? undefined}>
                               dont {row.adjustmentCents > 0 ? "+" : "−"}
                               {formatEuros(Math.abs(row.adjustmentCents))} d’ajustement
                             </span>
@@ -936,7 +936,7 @@ function HrPageContent() {
                 onClick={() => startBulk(a)}
                 disabled={Boolean(bulkProgress)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
-                  a.status === HrMonthStatus.PAID ? "bg-emerald-600 text-white hover:bg-emerald-700" : a.status === HrMonthStatus.VALIDATED ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+                  a.status === HrMonthStatus.PAID ? "bg-emerald-600 text-white hover:bg-emerald-700" : a.status === HrMonthStatus.VALIDATED ? "bg-primary-600 text-white hover:bg-primary-700" : "bg-slate-100 text-slate-800 hover:bg-slate-200"
                 }`}
               >
                 {a.label}
@@ -991,7 +991,7 @@ function HrPageContent() {
                 type="button"
                 onClick={() => executeBulk(bulkPlan.status, plan)}
                 disabled={plan.eligible.length === 0 || Boolean(bulkProgress)}
-                className="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="rounded-lg bg-primary-600 px-4 py-2 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {bulkProgress ? `En cours… ${bulkProgress.done}/${bulkProgress.total}` : `Confirmer (${plan.eligible.length})`}
               </button>
@@ -1103,10 +1103,10 @@ function SortHeader({
         <button
           type="button"
           onClick={() => onSort(sortKey)}
-          className={`inline-flex items-center gap-1 rounded hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${active ? "text-slate-900" : ""}`}
+          className={`inline-flex items-center gap-1 rounded hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${active ? "text-slate-900" : ""}`}
         >
           {label}
-          <Icon className={`h-3 w-3 ${active ? "text-indigo-600" : "text-slate-300"}`} />
+          <Icon className={`h-3 w-3 ${active ? "text-primary-600" : "text-slate-300"}`} />
         </button>
         {tip}
       </span>
@@ -1126,7 +1126,7 @@ function HeaderCheckbox({ checked, indeterminate, onChange }: { checked: boolean
       checked={checked}
       onChange={onChange}
       aria-label="Tout sélectionner"
-      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
     />
   );
 }
@@ -1175,7 +1175,7 @@ function FilterSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
       >
         {children}
       </select>
@@ -1217,7 +1217,7 @@ function RowButton({
       type="button"
       {...props}
       className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        primary ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+        primary ? "bg-primary-50 text-primary-700 hover:bg-primary-100" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
       }`}
     >
       {children}

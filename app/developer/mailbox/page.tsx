@@ -6,7 +6,7 @@
 import { InboxLayout } from "@/components/email/inbox";
 
 export const metadata = {
-    title: "Mailbox | Suzalink Dev",
+    title: "Mailbox",
     description: "Boîte de réception et gestion des emails développeur",
 };
 

@@ -133,7 +133,7 @@ export default function SecurityEmailSettingsPage() {
     <div className="max-w-5xl mx-auto px-6 py-10 space-y-6">
       <Link
         href="/manager/settings"
-        className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-indigo-700"
+        className="inline-flex items-center gap-2 text-sm text-slate-600 hover:text-primary-700"
       >
         <ArrowLeft className="w-4 h-4" />
         Retour aux parametres
@@ -141,7 +141,7 @@ export default function SecurityEmailSettingsPage() {
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="flex items-center gap-2 mb-2">
-          <Shield className="w-4 h-4 text-indigo-600" />
+          <Shield className="w-4 h-4 text-primary-600" />
           <h1 className="text-xl font-semibold text-slate-900">
             Templates emails securite
           </h1>
@@ -213,7 +213,7 @@ export default function SecurityEmailSettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 text-white text-sm font-semibold disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {saving ? "Sauvegarde..." : "Sauvegarder"}
@@ -227,7 +227,7 @@ export default function SecurityEmailSettingsPage() {
             Restaurer defaut
           </button>
           {template?.isCustomized && (
-            <span className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full px-2 py-1">
+            <span className="text-xs text-primary-700 bg-primary-50 border border-primary-200 rounded-full px-2 py-1">
               Personnalise
             </span>
           )}

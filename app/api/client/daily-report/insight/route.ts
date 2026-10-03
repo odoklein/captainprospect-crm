@@ -8,6 +8,7 @@ import {
 } from '@/lib/client/daily-report';
 import type { DailyInsight, DailyReport } from '@/lib/client/daily-report-types';
 import { mistralChat } from '@/lib/ai/mistral';
+import { brand } from "@/lib/brand";
 
 // ============================================
 // GET /api/client/daily-report/insight?day=&today=&tz=
@@ -37,7 +38,7 @@ function aggregatesFor(r: DailyReport) {
     };
 }
 
-const SYSTEM_PROMPT = `Tu es l'analyste de Captain Prospect, agence de prospection B2B. Tu rédiges le résumé matinal
+const SYSTEM_PROMPT = `Tu es l'analyste de ${brand.name}, ${brand.description}. Tu rédiges le résumé matinal
 de l'activité de la veille pour le client (l'entreprise pour qui l'équipe prospecte).
 Règles strictes :
 - Français, ton professionnel, clair et chaleureux, vouvoiement.

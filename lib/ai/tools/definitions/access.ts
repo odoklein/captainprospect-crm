@@ -33,6 +33,7 @@ import {
     NO_PARAMS,
     params,
 } from "../helpers";
+import { brand } from "@/lib/brand";
 
 const credentialType = z.enum([
     "PORTAL",
@@ -278,7 +279,7 @@ export const createPortalAccount = defineConfirmTool({
     name: "create_portal_account",
     label: "Création d'un compte portail",
     description:
-        "Crée le compte portail Captain Prospect d'un commercial du client et enregistre ses identifiants dans le coffre. Le mot de passe est généré automatiquement.",
+        `Crée le compte portail ${brand.name} d'un commercial du client et enregistre ses identifiants dans le coffre. Le mot de passe est généré automatiquement.`,
     parameters: params(
         {
             interlocuteurId: { type: "string", description: "Id obtenu via get_project_overview" },
@@ -336,7 +337,7 @@ export const createPortalAccount = defineConfirmTool({
             secret:
                 result.created && result.password
                     ? {
-                        label: result.credential?.label ?? "Portail Captain Prospect",
+                        label: result.credential?.label ?? `Portail ${brand.name}`,
                         login: result.user.email,
                         password: result.password,
                     }
@@ -466,7 +467,7 @@ export const rotatePassword = defineConfirmTool({
     name: "rotate_password",
     label: "Régénération d'un mot de passe",
     description:
-        "Génère un nouveau mot de passe pour un accès du projet. Si c'est un compte portail Captain Prospect, le compte est mis à jour dans la foulée.",
+        `Génère un nouveau mot de passe pour un accès du projet. Si c'est un compte portail ${brand.name}, le compte est mis à jour dans la foulée.`,
     parameters: params({ credentialId: { type: "string" } }, ["credentialId"]),
     schema: z.object({ credentialId: z.string().min(1) }),
     describe: async (args, ctx) => {

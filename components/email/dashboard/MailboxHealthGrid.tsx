@@ -95,8 +95,8 @@ export function MailboxHealthGrid({ data, isLoading, onMailboxClick }: MailboxHe
             {/* Header */}
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-[#D9E5DD] flex items-center justify-center">
-                        <Inbox className="w-3.5 h-3.5 text-[#2B5F3E]" />
+                    <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center">
+                        <Inbox className="w-3.5 h-3.5 text-primary-700" />
                     </div>
                     <h3 className="text-sm font-semibold text-slate-900">Boîtes mail</h3>
                 </div>

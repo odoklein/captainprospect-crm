@@ -60,7 +60,7 @@ export function ThreadAnalytics({ threadId, className }: ThreadAnalyticsProps) {
                 icon={Clock}
                 label="Tps réponse moy."
                 value={stats.responseTime ? `${stats.responseTime} min` : "N/A"}
-                color="text-indigo-600 bg-indigo-50"
+                color="text-primary-600 bg-primary-50"
             />
             <StatCard
                 icon={BarChart3}

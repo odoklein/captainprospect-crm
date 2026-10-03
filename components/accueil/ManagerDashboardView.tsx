@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import Link from "next/link";
 import {
     Activity, ArrowUpRight, Bell, Calendar, CalendarCheck, ChevronDown, Flame, Loader2, Phone,
-    Plus, RefreshCw, Star, Target, TrendingUp, Trophy, Users, Zap,
+    Plus, RefreshCw, Star, Target, TrendingUp, Trophy, Users,
 } from "lucide-react";
 import {
     Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -193,7 +193,7 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
                         </StatusPill>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
-                        Bonjour, {firstName} ! 👋
+                        Bonjour, {firstName}
                     </h1>
                     <p className="text-xs sm:text-sm text-zinc-500 font-medium">
                         Tableau de bord de l&apos;équipe : RDV, résultats d&apos;appels et missions.
@@ -331,11 +331,11 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                     <HeroPill icon={Trophy}>RDV décrochés</HeroPill>
-                    <span className="inline-flex items-center h-7 px-2.5 rounded-full text-[11px] font-bold bg-emerald-400/15 text-emerald-300 border border-emerald-400/20 tabular-nums">
+                    <span className="inline-flex items-center h-7 px-2.5 rounded-full text-[11px] font-bold bg-accent/15 text-inverse-ink-2 border border-emerald-400/20 tabular-nums">
                         {pct1(Math.round(conversion * 10) / 10)} conv.
                     </span>
                 </div>
-                <span className="text-xs text-emerald-400 font-semibold">{periodLabel}</span>
+                <span className="text-xs text-accent-300 font-semibold">{periodLabel}</span>
             </div>
 
             <div className="flex items-end justify-between gap-6">
@@ -344,11 +344,11 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
                         <span className="text-[56px] sm:text-[64px] font-black leading-[0.9] tracking-tighter text-white">
                             {formatInt(count)}
                         </span>
-                        <span className="text-lg font-black text-emerald-300/80">RDV</span>
+                        <span className="text-lg font-black text-inverse-ink-3">RDV</span>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Delta value={delta} onDark suffix="vs période préc." />
-                        <span className="text-xs text-emerald-200/70 font-medium">
+                        <span className="text-xs text-inverse-ink-2 font-medium">
                             sur un objectif de {formatInt(goal)} ({RDV_WEEKLY_GOAL} / semaine)
                         </span>
                     </div>
@@ -370,12 +370,12 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
                                 </BarChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="h-full rounded-xl bg-emerald-950/50 motion-safe:animate-pulse" />
+                            <div className="h-full rounded-xl bg-inverse-raised motion-safe:animate-pulse" />
                         )}
                     </div>
-                    <div className="h-px bg-emerald-800/70" />
+                    <div className="h-px bg-white/10" />
                     {series.length > 0 && (
-                        <div className="mt-1 flex justify-between text-[10px] font-semibold text-emerald-300/70">
+                        <div className="mt-1 flex justify-between text-[10px] font-semibold text-inverse-ink-3">
                             <span className="capitalize">{series[0].label}</span>
                             <span>RDV / {unit}</span>
                             <span className="capitalize">{series[series.length - 1].label}</span>
@@ -387,20 +387,20 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
             <div className="grid grid-cols-3 gap-3">
                 <HeroTile label="Objectif">{formatInt(goal)}</HeroTile>
                 <HeroTile label="Atteint">
-                    <span className="text-emerald-400">{Math.round(goalPct)} %</span>
+                    <span className="text-accent-300">{Math.round(goalPct)} %</span>
                 </HeroTile>
                 <HeroTile label={remaining > 0 ? "Restant" : "Statut"}>
-                    {remaining > 0 ? `${formatInt(remaining)} RDV` : "Atteint 🎉"}
+                    {remaining > 0 ? `${formatInt(remaining)} RDV` : "Atteint"}
                 </HeroTile>
             </div>
 
             <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-[11px] font-semibold">
-                    <span className="text-emerald-200/80">Objectif de la période</span>
-                    <span className="text-emerald-300 tabular-nums">{formatInt(meetings)} / {formatInt(goal)}</span>
+                    <span className="text-inverse-ink-2">Objectif de la période</span>
+                    <span className="text-inverse-ink-2 tabular-nums">{formatInt(meetings)} / {formatInt(goal)}</span>
                 </div>
                 <div
-                    className="h-2 w-full bg-emerald-950/80 rounded-full overflow-hidden"
+                    className="h-2 w-full bg-inverse-raised rounded-full overflow-hidden"
                     role="progressbar"
                     aria-valuemin={0}
                     aria-valuemax={100}
@@ -408,7 +408,7 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
                     aria-label="Objectif de la période"
                 >
                     <div
-                        className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full motion-safe:transition-[width] motion-safe:duration-700"
+                        className="h-full bg-accent rounded-full motion-safe:transition-[width] motion-safe:duration-700"
                         style={{ width: `${goalPct}%` }}
                     />
                 </div>
@@ -540,10 +540,7 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
                                     <div className="flex items-center justify-between gap-3 mb-2">
                                         <div className="flex items-center gap-2 min-w-0">
                                             {pct >= 80 && (
-                                                <span className="relative flex w-2 h-2 flex-shrink-0" aria-hidden>
-                                                    <span className="absolute inset-0 rounded-full bg-emerald-400 opacity-60 motion-safe:animate-ping" />
-                                                    <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
-                                                </span>
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" aria-hidden />
                                             )}
                                             <span className="text-sm font-extrabold text-zinc-900 truncate group-hover:text-emerald-700 transition-colors">{m.name}</span>
                                             <span className="hidden sm:inline text-xs font-semibold text-zinc-400 truncate">· {m.client.name}</span>
@@ -569,15 +566,16 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
 
 // ─── Leaderboard RDV ────────────────────────────────────────────────────────
 
-const MEDALS = ["🥇", "🥈", "🥉"];
+// Top-3 rank colours (gold, silver, bronze) — flat text, no medal emoji.
+const RANK_TEXT = ["text-amber-600", "text-slate-500", "text-orange-700"];
 
 function LeaderboardCard({ stats, goalPct }: { stats: ManagerDashboardStats | null; goalPct: number }) {
     const rows = stats?.rdvLeaderboard ?? [];
     const max = rows[0]?.rdv || 1;
     const status: { text: string; tone: AccueilTone } = goalPct >= 100
-        ? { text: "Objectif atteint 🎉", tone: "emerald" }
+        ? { text: "Objectif atteint", tone: "emerald" }
         : goalPct >= 80
-            ? { text: "En avance 🔥", tone: "emerald" }
+            ? { text: "En avance", tone: "emerald" }
             : { text: `${Math.round(100 - goalPct)} % restant`, tone: "amber" };
 
     return (
@@ -590,7 +588,7 @@ function LeaderboardCard({ stats, goalPct }: { stats: ManagerDashboardStats | nu
                 subtitle="Sur la période"
                 right={
                     <span className={cn("inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-1 rounded-full whitespace-nowrap", BADGE[status.tone])}>
-                        <Zap className="w-3 h-3" aria-hidden />
+                        <Target className="w-3 h-3" aria-hidden />
                         {status.text}
                     </span>
                 }
@@ -610,8 +608,8 @@ function LeaderboardCard({ stats, goalPct }: { stats: ManagerDashboardStats | nu
                                     first ? "bg-emerald-50/70 border-emerald-200/80" : "border-transparent hover:bg-slate-50 hover:border-slate-200",
                                 )}
                             >
-                                <span className="w-6 text-center text-sm font-black text-zinc-400 flex-shrink-0 tabular-nums" aria-label={`Rang ${i + 1}`}>
-                                    {MEDALS[i] ?? i + 1}
+                                <span className={cn("w-6 text-center text-sm font-black flex-shrink-0 tabular-nums", RANK_TEXT[i] ?? "text-zinc-400")} aria-label={`Rang ${i + 1}`}>
+                                    {i + 1}
                                 </span>
                                 <Initials name={person.name} strong={first} />
                                 <div className="flex-1 min-w-0">
@@ -630,7 +628,7 @@ function LeaderboardCard({ stats, goalPct }: { stats: ManagerDashboardStats | nu
                                     <ProgressBar
                                         className="h-1.5 mt-2 bg-white/80"
                                         percent={(person.rdv / max) * 100}
-                                        fillClassName={first ? "bg-gradient-to-r from-emerald-500 to-teal-400" : "bg-slate-300"}
+                                        fillClassName={first ? "bg-emerald-500" : "bg-slate-300"}
                                         label={`${person.name} : ${person.rdv} RDV`}
                                     />
                                 </div>
@@ -687,10 +685,10 @@ function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod
                     <div className="h-[184px] -ml-2" role="img" aria-label="Cumul des RDV face à l'objectif">
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
-                                <CartesianGrid vertical={false} stroke="#F1F5F9" />
+                                <CartesianGrid vertical={false} stroke="var(--ds-line-subtle)" />
                                 <XAxis
                                     dataKey="label"
-                                    tick={{ fontSize: 10, fill: "#A1A1AA", fontWeight: 600 }}
+                                    tick={{ fontSize: 10, fill: "var(--ds-ink-4)", fontWeight: 600 }}
                                     axisLine={false}
                                     tickLine={false}
                                     interval="preserveStartEnd"
@@ -699,16 +697,16 @@ function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod
                                 <YAxis
                                     width={32}
                                     allowDecimals={false}
-                                    tick={{ fontSize: 10, fill: "#A1A1AA", fontWeight: 600 }}
+                                    tick={{ fontSize: 10, fill: "var(--ds-ink-4)", fontWeight: 600 }}
                                     axisLine={false}
                                     tickLine={false}
                                     tickCount={4}
                                 />
                                 <Tooltip
-                                    cursor={{ stroke: "#E2E8F0", strokeWidth: 1 }}
+                                    cursor={{ stroke: "var(--ds-line)", strokeWidth: 1 }}
                                     content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} />}
                                 />
-                                <Line type="monotone" dataKey="objectif" name="Objectif" stroke="#CBD5E1" strokeWidth={1.5} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
+                                <Line type="monotone" dataKey="objectif" name="Objectif" stroke="var(--ds-line-strong)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
                                 <Line
                                     type="monotone"
                                     dataKey="cumul"
@@ -765,7 +763,7 @@ function RecentRdvCard({ period, className }: { period: ManagerHomePeriod | null
             ) : items.length === 0 ? (
                 <EmptyBlock compact icon={CalendarCheck} tone="slate" title="Aucun RDV sur cette période" />
             ) : (
-                <ul className="space-y-1 max-h-[300px] overflow-y-auto overscroll-contain pr-1 -mr-1 [scrollbar-width:thin] [scrollbar-color:#E2E8F0_transparent]">
+                <ul className="space-y-1 max-h-[300px] overflow-y-auto overscroll-contain pr-1 -mr-1 [scrollbar-width:thin] [scrollbar-color:var(--ds-line)_transparent]">
                     {items.map((item) => {
                         const status = SAS_STATUS[item.confirmationStatus] ?? SAS_STATUS.PENDING;
                         const who = item.contactName ?? item.companyName;
@@ -818,7 +816,7 @@ export function ManagerDashboardSkeleton() {
                 </div>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-                <div className="xl:col-span-8 h-[300px] rounded-3xl bg-[#0B3524]/90 motion-safe:animate-pulse" />
+                <div className="xl:col-span-8 h-[300px] rounded-3xl bg-inverse/90 motion-safe:animate-pulse" />
                 <div className="xl:col-span-4 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
                     {[0, 1, 2].map((i) => <Shimmer key={i} className="h-[92px] rounded-3xl" />)}
                 </div>

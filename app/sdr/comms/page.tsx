@@ -487,7 +487,7 @@ export default function SDRCommsPage() {
                         </button>
                         <Button
                             onClick={() => setShowNewThreadModal(true)}
-                            className="h-9 px-4 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-sm font-medium shadow-lg shadow-indigo-500/25"
+                            className="h-9 px-4 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium shadow-sm"
                         >
                             <Plus className="w-4 h-4 mr-1.5" />
                             Nouveau message
@@ -519,7 +519,7 @@ export default function SDRCommsPage() {
                                         <div className="flex items-center gap-2">
                                             <h2 className="font-semibold text-slate-900">Messages</h2>
                                             {totalUnread > 0 && (
-                                                <span className="px-2 py-0.5 text-xs font-medium text-white bg-indigo-500 rounded-full">
+                                                <span className="px-2 py-0.5 text-xs font-medium text-white bg-primary-500 rounded-full">
                                                     {totalUnread}
                                                 </span>
                                             )}
@@ -553,14 +553,14 @@ export default function SDRCommsPage() {
                                                 className={cn(
                                                     "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all",
                                                     (filters.type === opt.type || (opt.type === "all" && !filters.type))
-                                                        ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                                                        ? "bg-primary-100 text-primary-700 shadow-sm"
                                                         : "text-slate-600 hover:bg-slate-100"
                                                 )}
                                             >
                                                 <opt.icon className="w-3.5 h-3.5" />
                                                 {opt.label}
                                                 {stats && opt.type !== "all" && stats.unreadByType[opt.type as CommsChannelType] > 0 && (
-                                                    <span className="px-1.5 py-0.5 text-[10px] bg-indigo-500 text-white rounded-full">
+                                                    <span className="px-1.5 py-0.5 text-[10px] bg-primary-500 text-white rounded-full">
                                                         {stats.unreadByType[opt.type as CommsChannelType]}
                                                     </span>
                                                 )}
@@ -579,7 +579,7 @@ export default function SDRCommsPage() {
                                                     setFilters({});
                                                     setSearchQuery("");
                                                 }}
-                                                className="text-xs text-indigo-600 hover:text-indigo-700"
+                                                className="text-xs text-primary-600 hover:text-primary-700"
                                             >
                                                 Effacer les filtres
                                             </button>
@@ -596,7 +596,7 @@ export default function SDRCommsPage() {
                                         <PanelLeft className="w-5 h-5" />
                                     </button>
                                     {totalUnread > 0 && (
-                                        <span className="px-2 py-0.5 text-xs font-medium text-white bg-indigo-500 rounded-full">
+                                        <span className="px-2 py-0.5 text-xs font-medium text-white bg-primary-500 rounded-full">
                                             {totalUnread}
                                         </span>
                                     )}
@@ -654,7 +654,7 @@ export default function SDRCommsPage() {
                         {isLoadingThread ? (
                             <div className="flex items-center justify-center h-full">
                                 <div className="flex flex-col items-center gap-3">
-                                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                                     <p className="text-sm text-slate-500">Chargement...</p>
                                 </div>
                             </div>
@@ -675,8 +675,8 @@ export default function SDRCommsPage() {
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center h-full">
                                 <div className="text-center">
-                                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center mx-auto mb-5">
-                                        <Mail className="w-10 h-10 text-indigo-500" />
+                                    <div className="w-20 h-20 rounded-2xl bg-primary-50 flex items-center justify-center mx-auto mb-5">
+                                        <Mail className="w-10 h-10 text-primary-500" />
                                     </div>
                                     <h3 className="text-xl font-semibold text-slate-900 mb-2">
                                         Sélectionnez une discussion

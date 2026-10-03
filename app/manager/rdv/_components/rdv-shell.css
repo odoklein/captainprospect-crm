@@ -1,19 +1,19 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
-  --bg: #f8fafc;
+  --bg: var(--brand-neutral-50);
   --surface: #ffffff;
-  --surface2: #f1f5f9;
-  --surface3: #e2e8f0;
-  --border: rgba(15, 23, 42, 0.07);
-  --border2: rgba(15, 23, 42, 0.12);
-  --ink: #0f172a;
-  --ink2: #334155;
-  --ink3: #64748b;
-  --ink4: #94a3b8;
-  --accent: #4f46e5;
-  --accentLight: rgba(79, 70, 229, 0.08);
-  --accentHover: #4338ca;
+  --surface2: var(--brand-neutral-100);
+  --surface3: var(--brand-neutral-200);
+  --border: color-mix(in oklab, var(--brand-neutral-900) 7%, transparent);
+  --border2: color-mix(in oklab, var(--brand-neutral-900) 12%, transparent);
+  --ink: var(--brand-neutral-900);
+  --ink2: var(--brand-neutral-700);
+  --ink3: var(--brand-neutral-500);
+  --ink4: var(--brand-neutral-400);
+  --accent: var(--brand-primary-600);
+  --accentLight: color-mix(in oklab, var(--brand-primary-600) 8%, transparent);
+  --accentHover: var(--brand-primary-700);
   --green: #059669;
   --greenLight: rgba(5, 150, 105, 0.09);
   --emerald: #059669;
@@ -62,26 +62,6 @@
   }
   to {
     transform: rotate(360deg);
-  }
-}
-
-@keyframes pulseGlowDot {
-  0%, 100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.4);
-    opacity: 0.6;
-  }
-}
-
-@keyframes pulseBorder {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.35);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgba(217, 119, 6, 0);
   }
 }
 
@@ -159,11 +139,11 @@
 }
 
 .rdv-row:hover {
-  background: #f8fafc !important;
+  background: var(--brand-neutral-50) !important;
 }
 
 .rdv-row.selected {
-  background: rgba(79, 70, 229, 0.04) !important;
+  background: color-mix(in oklab, var(--brand-primary-600) 4%, transparent) !important;
   border-left: 3px solid var(--accent);
 }
 
@@ -286,7 +266,6 @@
 
 .rdv-btn-primary:hover {
   background: var(--accentHover);
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
 }
 
 .rdv-btn-ghost {
@@ -332,7 +311,7 @@
 }
 
 .status-badge-pending-pulse::before {
-  animation: pulseGlowDot 1.6s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.18);
 }
 
 /* ─── Compact Intelligence Strip Cards ─── */
@@ -358,11 +337,11 @@
 
 .rdv-metric-card.active {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1.5px var(--accentLight), 0 2px 6px rgba(79, 70, 229, 0.08);
+  box-shadow: 0 0 0 1.5px var(--accentLight);
 }
 
 .rdv-metric-card.pulse-urgent {
-  animation: pulseBorder 2s infinite;
+  border-color: rgba(217, 119, 6, 0.45);
 }
 
 /* ─── Drawer (DetailPanel Overlay) ─── */
@@ -370,7 +349,7 @@
   position: fixed;
   top: 56px;
   inset: 0;
-  background: rgba(15, 23, 42, 0.35);
+  background: color-mix(in oklab, var(--brand-neutral-900) 35%, transparent);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   z-index: 40;
@@ -397,7 +376,7 @@
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.16);
+  box-shadow: -12px 0 40px color-mix(in oklab, var(--brand-neutral-900) 16%, transparent);
   overflow: hidden;
 }
 
@@ -483,7 +462,7 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border2);
-  box-shadow: 0 12px 36px -8px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 12px 36px -8px color-mix(in oklab, var(--brand-neutral-900) 20%, transparent);
   border-radius: 14px;
   z-index: 35;
 }

@@ -132,13 +132,13 @@ export function ThreadList({
                         className={cn(
                             "w-full text-left flex items-start gap-3 p-4 border-b border-slate-100 dark:border-slate-800",
                             "hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer relative group transition-colors",
-                            isSelected && "bg-indigo-500/5 dark:bg-indigo-500/10",
+                            isSelected && "bg-primary-500/5 dark:bg-indigo-500/10",
                             !isSelected && hasUnread && "bg-slate-50/50 dark:bg-slate-800/30"
                         )}
                     >
                         {/* Active indicator - left accent bar */}
                         {isSelected && (
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 rounded-r" />
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-500 rounded-r" />
                         )}
 
                         {/* Avatar - circular like inspo */}
@@ -146,7 +146,7 @@ export function ThreadList({
                             className={cn(
                                 "size-10 rounded-full flex items-center justify-center shrink-0 mt-0.5 flex-shrink-0",
                                 thread.channelType === "DIRECT"
-                                    ? "bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900/50 dark:to-indigo-800/50 text-indigo-600 dark:text-indigo-400 font-semibold text-sm"
+                                    ? "bg-primary-100 dark:bg-indigo-900/50 text-primary-600 dark:text-indigo-400 font-semibold text-sm"
                                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                             )}
                         >
@@ -177,7 +177,7 @@ export function ThreadList({
                                         className={cn(
                                             "text-xs shrink-0",
                                             isSelected
-                                                ? "text-indigo-600 dark:text-indigo-400 font-medium"
+                                                ? "text-primary-600 dark:text-indigo-400 font-medium"
                                                 : "text-slate-400 font-normal"
                                         )}
                                     >
@@ -212,7 +212,7 @@ export function ThreadList({
                                     </span>
                                 )}
                                 {thread.status === "OPEN" && thread.unreadCount > 0 && (
-                                    <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded px-1.5 py-0.5 font-medium">
+                                    <span className="text-[10px] bg-primary-100 dark:bg-indigo-900/30 text-primary-600 dark:text-indigo-400 rounded px-1.5 py-0.5 font-medium">
                                         Non lu
                                     </span>
                                 )}
@@ -221,7 +221,7 @@ export function ThreadList({
 
                         {/* Unread count badge */}
                         {hasUnread && (
-                            <span className="flex-shrink-0 min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold bg-indigo-500 text-white mt-1">
+                            <span className="flex-shrink-0 min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold bg-primary-500 text-white mt-1">
                                 {thread.unreadCount > 99 ? "99+" : thread.unreadCount}
                             </span>
                         )}

@@ -13,7 +13,6 @@ import {
     CheckCircle2,
     AlertCircle,
     Users,
-    Sparkles,
     ChevronRight,
     Eye,
     EyeOff,
@@ -76,17 +75,18 @@ interface StrategyByListTabProps {
     onChange: () => void;
 }
 
-// Explicit color palette — does not rely on global CSS variables
+// Colour palette — neutrals/brand from design tokens, status hues literal.
+// Translucent variants go through color-mix (never hex-alpha concatenation).
 const COLORS = {
-    text: "#0F172A",
-    textMuted: "#64748B",
-    textSubtle: "#94A3B8",
-    border: "#E2E8F0",
-    bg: "#FFFFFF",
-    bgSubtle: "#F8FAFC",
-    indigo: "#4F46E5",
-    indigoDark: "#3730A3",
-    indigoBg: "#EEF2FF",
+    text: "var(--ds-ink)",
+    textMuted: "var(--ds-ink-3)",
+    textSubtle: "var(--ds-ink-4)",
+    border: "var(--ds-line)",
+    bg: "var(--ds-surface)",
+    bgSubtle: "var(--ds-surface-2)",
+    indigo: "var(--brand-primary-600)",
+    indigoDark: "var(--brand-primary-800)",
+    indigoBg: "var(--brand-primary-50)",
     emerald: "#059669",
     emeraldBg: "#ECFDF5",
     amber: "#D97706",
@@ -285,7 +285,7 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
             {/* Header / explainer */}
             <div
                 style={{
-                    background: `linear-gradient(135deg, ${COLORS.indigoBg} 0%, #FFFFFF 60%)`,
+                    background: COLORS.bg,
                     border: `1px solid ${COLORS.border}`,
                     borderRadius: 20,
                     padding: 24,
@@ -300,20 +300,19 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                         width: 48,
                         height: 48,
                         borderRadius: 14,
-                        background: `linear-gradient(135deg, ${COLORS.indigo}, ${COLORS.indigoDark})`,
+                        background: COLORS.indigo,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         flexShrink: 0,
-                        boxShadow: "0 8px 24px rgba(79, 70, 229, 0.25)",
                     }}
                 >
-                    <Sparkles style={{ width: 24, height: 24, color: "#FFFFFF" }} />
+                    <Target style={{ width: 24, height: 24, color: "#FFFFFF" }} />
                 </div>
                 <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
                         <h2 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, margin: 0 }}>
-                            Une stratégie par liste (avec fallback automatique)
+                            Stratégie par liste
                         </h2>
                         {defaultCampaign && (
                             <button
@@ -329,11 +328,11 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                     background: COLORS.indigoBg,
                                     padding: "6px 12px",
                                     borderRadius: 999,
-                                    border: `1px solid ${COLORS.indigo}33`,
+                                    border: `1px solid color-mix(in oklab, ${COLORS.indigo} 20%, transparent)`,
                                     cursor: "pointer",
                                     transition: "background 120ms ease",
                                 }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "#E0E7FF")}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--brand-primary-100)")}
                                 onMouseLeave={(e) => (e.currentTarget.style.background = COLORS.indigoBg)}
                             >
                                 <Target style={{ width: 14, height: 14, color: COLORS.indigo }} />
@@ -483,8 +482,8 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                                 padding: "6px 12px",
                                                 borderRadius: 10,
                                                 border: !inactive
-                                                    ? `1px solid ${COLORS.emerald}33`
-                                                    : `1px solid ${COLORS.rose}33`,
+                                                    ? `1px solid color-mix(in oklab, ${COLORS.emerald} 20%, transparent)`
+                                                    : `1px solid color-mix(in oklab, ${COLORS.rose} 20%, transparent)`,
                                                 background: !inactive
                                                     ? COLORS.emeraldBg
                                                     : COLORS.roseBg,
@@ -523,7 +522,7 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                                 padding: "6px 12px",
                                                 borderRadius: 10,
                                                 border: list.contactsViewEnabled
-                                                    ? `1px solid ${COLORS.indigo}44`
+                                                    ? `1px solid color-mix(in oklab, ${COLORS.indigo} 27%, transparent)`
                                                     : `1px solid ${COLORS.border}`,
                                                 background: list.contactsViewEnabled
                                                     ? COLORS.indigoBg
@@ -560,7 +559,7 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                                         opacity: 0.85,
                                                         marginLeft: 2,
                                                         paddingLeft: 6,
-                                                        borderLeft: `1px solid ${list.contactsViewEnabled ? COLORS.indigo + "33" : COLORS.border}`,
+                                                        borderLeft: `1px solid ${list.contactsViewEnabled ? `color-mix(in oklab, ${COLORS.indigo} 20%, transparent)` : COLORS.border}`,
                                                     }}
                                                 >
                                                     {[list.commercialInterlocuteur.firstName, list.commercialInterlocuteur.lastName].filter(Boolean).join(" ")}
@@ -581,7 +580,7 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                                 background: statusBg,
                                                 padding: "6px 14px",
                                                 borderRadius: 999,
-                                                border: `1px solid ${statusColor}33`,
+                                                border: `1px solid color-mix(in oklab, ${statusColor} 20%, transparent)`,
                                                 flexShrink: 0,
                                             }}
                                         >
@@ -636,7 +635,7 @@ export function StrategyByListTab({ missionId, lists, campaigns, onChange }: Str
                                                     marginBottom: 8,
                                                 }}
                                             >
-                                                <Sparkles style={{ width: 18, height: 18, color: COLORS.indigo }} />
+                                                <Target style={{ width: 18, height: 18, color: COLORS.indigo }} />
                                                 <span style={{ fontSize: 14, color: COLORS.textMuted }}>
                                                     Stratégie appliquée :
                                                 </span>
@@ -921,7 +920,7 @@ function ReadinessPill({ label, ok }: { label: string; ok: boolean }) {
                 background: bg,
                 padding: "6px 12px",
                 borderRadius: 8,
-                border: `1px solid ${color}33`,
+                border: `1px solid color-mix(in oklab, ${color} 20%, transparent)`,
             }}
         >
             {ok ? <CheckCircle2 style={{ width: 14, height: 14 }} /> : <AlertCircle style={{ width: 14, height: 14 }} />}
@@ -954,22 +953,20 @@ function PrimaryButton({
                 fontSize: 14,
                 fontWeight: 600,
                 color: "#FFFFFF",
-                background: `linear-gradient(135deg, ${COLORS.indigo}, ${COLORS.indigoDark})`,
+                background: COLORS.indigo,
                 border: "none",
                 borderRadius: 10,
                 cursor: disabled ? "not-allowed" : "pointer",
                 opacity: disabled ? 0.6 : 1,
-                boxShadow: "0 4px 12px rgba(79, 70, 229, 0.25)",
-                transition: "transform 120ms ease, box-shadow 120ms ease",
+                boxShadow: "0 1px 2px rgba(15, 23, 42, 0.05)",
+                transition: "background 120ms ease",
             }}
             onMouseEnter={(e) => {
                 if (disabled) return;
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow = "0 6px 18px rgba(79, 70, 229, 0.35)";
+                e.currentTarget.style.background = COLORS.indigoDark;
             }}
             onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(79, 70, 229, 0.25)";
+                e.currentTarget.style.background = COLORS.indigo;
             }}
         >
             {icon}

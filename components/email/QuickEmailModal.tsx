@@ -16,9 +16,9 @@ import {
     Edit3,
     CheckCircle2,
     AlertCircle,
-    Sparkles,
     Inbox,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { AiEmailDraftDialog } from "@/components/email/AiEmailDraftDialog";
 
 // ============================================
@@ -398,7 +398,7 @@ export function QuickEmailModal({
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-600 to-violet-600">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-primary-600">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                             <Send className="w-5 h-5 text-white" />
@@ -421,10 +421,10 @@ export function QuickEmailModal({
                 {/* Success State */}
                 {sentSuccess ? (
                     <div className="flex-1 flex flex-col items-center justify-center py-16 px-6">
-                        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4 animate-bounce">
+                        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
                             <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                         </div>
-                        <h3 className="text-xl font-semibold text-slate-900 mb-2">Email envoyé !</h3>
+                        <h3 className="text-xl font-semibold text-slate-900 mb-2">Email envoyé</h3>
                         <p className="text-slate-500">Votre email a été envoyé avec succès</p>
                     </div>
                 ) : fetchMailboxError ? (
@@ -438,7 +438,7 @@ export function QuickEmailModal({
                         </p>
                         <button
                             onClick={() => doFetchMailboxes()}
-                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-500 transition-colors"
+                            className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-500 transition-colors"
                         >
                             Réessayer
                         </button>
@@ -454,7 +454,7 @@ export function QuickEmailModal({
                         </p>
                         <a
                             href="/manager/email"
-                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-500 transition-colors"
+                            className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-500 transition-colors"
                         >
                             Connecter une boîte mail
                         </a>
@@ -474,11 +474,11 @@ export function QuickEmailModal({
                             {/* Recipient Info */}
                             {(contact || company) && (
                                 <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
+                                    <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
                                         {contact ? (
-                                            <User className="w-6 h-6 text-indigo-600" />
+                                            <User className="w-6 h-6 text-primary-600" />
                                         ) : (
-                                            <Building2 className="w-6 h-6 text-indigo-600" />
+                                            <Building2 className="w-6 h-6 text-primary-600" />
                                         )}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -509,7 +509,7 @@ export function QuickEmailModal({
                                             value={selectedMailboxId}
                                             onChange={(e) => setSelectedMailboxId(e.target.value)}
                                             className={cn(
-                                                "w-full h-11 px-4 bg-white border rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all",
+                                                "w-full h-11 px-4 bg-white border rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all",
                                                 !selectedMailboxId && error
                                                     ? "border-red-300 focus:ring-red-500"
                                                     : "border-slate-200"
@@ -537,9 +537,9 @@ export function QuickEmailModal({
                                     <User className="w-4 h-4" />
                                     Destinataire
                                 </label>
-                                <div className="flex flex-wrap items-center gap-2 min-h-11 px-3 py-2 bg-white border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all">
+                                <div className="flex flex-wrap items-center gap-2 min-h-11 px-3 py-2 bg-white border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-transparent transition-all">
                                     {recipientEmail && (
-                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm font-medium">
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-600 text-white text-sm font-medium">
                                             {recipientEmail}
                                             <button
                                                 type="button"
@@ -584,7 +584,7 @@ export function QuickEmailModal({
                                                 key={email}
                                                 type="button"
                                                 onMouseDown={() => handleSelectSuggestion(email)}
-                                                className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                                                className="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
                                             >
                                                 {email}
                                             </button>
@@ -626,17 +626,17 @@ export function QuickEmailModal({
                                                 className={cn(
                                                     "flex items-center gap-3 p-3 rounded-xl border text-left transition-all",
                                                     selectedTemplateId === mt.template.id
-                                                        ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20"
-                                                        : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/50"
+                                                        ? "border-primary-500 bg-primary-50 ring-2 ring-primary-500/20"
+                                                        : "border-slate-200 bg-white hover:border-primary-300 hover:bg-primary-50/50"
                                                 )}
                                             >
                                                 <div className={cn(
                                                     "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
                                                     selectedTemplateId === mt.template.id
-                                                        ? "bg-indigo-500 text-white"
+                                                        ? "bg-primary-500 text-white"
                                                         : "bg-slate-100 text-slate-500"
                                                 )}>
-                                                    <Sparkles className="w-5 h-5" />
+                                                    <FileText className="w-5 h-5" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="font-medium text-slate-900 truncate">
@@ -647,7 +647,7 @@ export function QuickEmailModal({
                                                     </p>
                                                 </div>
                                                 {selectedTemplateId === mt.template.id && (
-                                                    <CheckCircle2 className="w-5 h-5 text-indigo-600 flex-shrink-0" />
+                                                    <CheckCircle2 className="w-5 h-5 text-primary-600 flex-shrink-0" />
                                                 )}
                                             </button>
                                         ))}
@@ -665,7 +665,7 @@ export function QuickEmailModal({
                                         {!isEditing && (
                                             <button
                                                 onClick={() => setIsEditing(true)}
-                                                className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700"
+                                                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
                                             >
                                                 <Edit3 className="w-3 h-3" />
                                                 Modifier
@@ -680,7 +680,7 @@ export function QuickEmailModal({
                                         className={cn(
                                             "w-full h-11 px-4 border rounded-xl text-slate-900 text-sm transition-all",
                                             isEditing
-                                                ? "bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                                ? "bg-white border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                                 : "bg-slate-50 border-slate-200 cursor-default"
                                         )}
                                     />
@@ -697,11 +697,11 @@ export function QuickEmailModal({
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={() => setShowAiDraftDialog(true)}
-                                                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium text-primary-600 hover:bg-primary-50 transition-colors"
                                                 title="Rédaction assistée par IA"
                                             >
-                                                <Sparkles className="w-4 h-4" />
-                                                AI
+                                                <AiMark className="w-4 h-4" />
+                                                IA
                                             </button>
                                             <button
                                                 onClick={() => setShowPreview(!showPreview)}
@@ -724,7 +724,7 @@ export function QuickEmailModal({
                                     {showPreview && (
                                         <div className={cn(
                                             "border rounded-xl overflow-hidden transition-all",
-                                            isEditing ? "border-indigo-300" : "border-slate-200"
+                                            isEditing ? "border-primary-300" : "border-slate-200"
                                         )}>
                                             <div
                                                 ref={editorRef}
@@ -766,9 +766,9 @@ export function QuickEmailModal({
                                 disabled={isSending || !selectedMailboxId || !effectiveRecipient || (!selectedTemplateId && !subject)}
                                 className={cn(
                                     "flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl transition-all",
-                                    "bg-gradient-to-r from-indigo-600 to-violet-600 text-white",
-                                    "hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg hover:shadow-indigo-500/25",
-                                    "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                                    "bg-primary-600 text-white",
+                                    "hover:bg-primary-500",
+                                    "disabled:opacity-50 disabled:cursor-not-allowed"
                                 )}
                             >
                                 {isSending ? (

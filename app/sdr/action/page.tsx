@@ -12,7 +12,6 @@ import {
     Globe,
     Clock,
     Calendar,
-    Sparkles,
     ChevronRight,
     CheckCircle2,
     XCircle,
@@ -37,6 +36,9 @@ import {
     Trash2,
     Send,
     AlertTriangle,
+    ThumbsUp,
+    Briefcase,
+    FileText,
 } from "lucide-react";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
@@ -259,7 +261,7 @@ function resolveCompanyPhone(
 const RESULT_OPTIONS_FALLBACK: { value: ActionResult; label: string; icon: React.ReactNode; key: string; color: string }[] = [
     { value: "NO_RESPONSE", label: "Pas de réponse", icon: <XCircle className="w-4 h-4" />, key: "1", color: "slate" },
     { value: "BAD_CONTACT", label: "Mauvais contact", icon: <Ban className="w-4 h-4" />, key: "2", color: "red" },
-    { value: "INTERESTED", label: "Intéressé", icon: <Sparkles className="w-4 h-4" />, key: "3", color: "emerald" },
+    { value: "INTERESTED", label: "Intéressé", icon: <ThumbsUp className="w-4 h-4" />, key: "3", color: "emerald" },
     { value: "CALLBACK_REQUESTED", label: "Rappel demandé", icon: <Clock className="w-4 h-4" />, key: "4", color: "amber" },
     { value: "MEETING_BOOKED", label: "RDV pris", icon: <Calendar className="w-4 h-4" />, key: "5", color: "indigo" },
     { value: "DISQUALIFIED", label: "Disqualifié", icon: <XCircle className="w-4 h-4" />, key: "6", color: "slate" },
@@ -270,7 +272,7 @@ const RESULT_OPTIONS_FALLBACK: { value: ActionResult; label: string; icon: React
 const RESULT_ICON_MAP: Record<string, React.ReactNode> = {
     NO_RESPONSE: <XCircle className="w-4 h-4" />,
     BAD_CONTACT: <Ban className="w-4 h-4" />,
-    INTERESTED: <Sparkles className="w-4 h-4" />,
+    INTERESTED: <ThumbsUp className="w-4 h-4" />,
     CALLBACK_REQUESTED: <Clock className="w-4 h-4" />,
     MEETING_BOOKED: <Calendar className="w-4 h-4" />,
     MEETING_CANCELLED: <XCircle className="w-4 h-4" />,
@@ -287,7 +289,7 @@ const RESULT_ICON_MAP: Record<string, React.ReactNode> = {
     REFUS_CATEGORIQUE: <XCircle className="w-4 h-4" />,
     RELANCE: <RotateCcw className="w-4 h-4" />,
     RAPPEL: <Clock className="w-4 h-4" />,
-    PROJET_A_SUIVRE: <Sparkles className="w-4 h-4" />,
+    PROJET_A_SUIVRE: <Briefcase className="w-4 h-4" />,
     MAUVAIS_INTERLOCUTEUR: <Ban className="w-4 h-4" />,
     MAIL_UNIQUEMENT: <Mail className="w-4 h-4" />,
     MAIL_DOC: <Mail className="w-4 h-4" />,
@@ -308,13 +310,13 @@ const RESULT_SEMANTIC: Record<string, {
     CALLBACK_REQUESTED: { iconCls: "bg-amber-100 text-amber-600",   selectedCls: "bg-amber-50 border-amber-400",      hoverCls: "hover:border-amber-200 hover:bg-amber-50/60",  activeBorder: "border-l-amber-400" },
     RELANCE:            { iconCls: "bg-amber-100 text-amber-600",   selectedCls: "bg-amber-50 border-amber-400",      hoverCls: "hover:border-amber-200 hover:bg-amber-50/60",  activeBorder: "border-l-amber-400" },
     RAPPEL:             { iconCls: "bg-amber-100 text-amber-600",   selectedCls: "bg-amber-50 border-amber-400",      hoverCls: "hover:border-amber-200 hover:bg-amber-50/60",  activeBorder: "border-l-amber-400" },
-    MEETING_BOOKED:     { iconCls: "bg-violet-100 text-violet-600", selectedCls: "bg-violet-50 border-violet-400",    hoverCls: "hover:border-violet-200 hover:bg-violet-50/60", activeBorder: "border-l-violet-500" },
+    MEETING_BOOKED:     { iconCls: "bg-accent-100 text-accent-600", selectedCls: "bg-accent-50 border-accent-400",    hoverCls: "hover:border-accent-200 hover:bg-accent-50/60", activeBorder: "border-l-accent-500" },
     MEETING_CANCELLED:  { iconCls: "bg-slate-100 text-slate-500",   selectedCls: "bg-slate-50 border-slate-400",      hoverCls: "hover:border-slate-300 hover:bg-slate-50",     activeBorder: "border-l-slate-400" },
     DISQUALIFIED:       { iconCls: "bg-slate-100 text-slate-500",   selectedCls: "bg-slate-100 border-slate-400",     hoverCls: "hover:border-slate-300 hover:bg-slate-100/60", activeBorder: "border-l-slate-400" },
     ENVOIE_MAIL:        { iconCls: "bg-blue-100 text-blue-600",     selectedCls: "bg-blue-50 border-blue-400",        hoverCls: "hover:border-blue-200 hover:bg-blue-50/60",    activeBorder: "border-l-blue-400" },
     MAIL_ENVOYE:        { iconCls: "bg-emerald-100 text-emerald-600", selectedCls: "bg-emerald-50 border-emerald-400", hoverCls: "hover:border-emerald-200 hover:bg-emerald-50/60", activeBorder: "border-l-emerald-500" },
 };
-const DEFAULT_SEMANTIC = { iconCls: "bg-violet-100 text-violet-600", selectedCls: "bg-violet-50 border-violet-400", hoverCls: "hover:border-violet-200 hover:bg-violet-50/60", activeBorder: "border-l-violet-400" };
+const DEFAULT_SEMANTIC = { iconCls: "bg-accent-100 text-accent-600", selectedCls: "bg-accent-50 border-accent-400", hoverCls: "hover:border-accent-200 hover:bg-accent-50/60", activeBorder: "border-l-accent-400" };
 
 const getInitials = (firstName?: string | null, lastName?: string | null, fallback?: string | null): string => {
     const f = firstName?.trim() || "";
@@ -327,7 +329,7 @@ const TABLE_QUEUE_LIMIT = 120;
 const STATS_QUEUE_LIMIT = 250;
 
 const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
-    ABSENT_RDV: { label: "⚠ RDV Absent", color: "bg-red-100 text-red-800 border-red-300 font-bold animate-pulse" },
+    ABSENT_RDV: { label: "RDV Absent", color: "bg-red-100 text-red-800 border-red-300 font-bold" },
     CALLBACK: { label: "Rappel", color: "bg-amber-50 text-amber-700 border-amber-200" },
     FOLLOW_UP: { label: "Suivi", color: "bg-blue-50 text-blue-700 border-blue-200" },
     NEW: { label: "Nouveau", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -398,7 +400,7 @@ function ActionStatsModalBody({
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
             </div>
         );
     }
@@ -453,7 +455,7 @@ function ActionStatsModalBody({
                                                 "border-b last:border-0 cursor-pointer transition-colors",
                                                 isAbsent
                                                     ? "bg-red-50 border-red-100 hover:bg-red-100/80"
-                                                    : "border-slate-100 hover:bg-indigo-50/80"
+                                                    : "border-slate-100 hover:bg-primary-50/80"
                                             )}
                                         >
                                             <td className="py-2.5 px-3">
@@ -1958,7 +1960,7 @@ export default function SDRActionPage() {
             title="Synchroniser les résumés et transcriptions d'appels Allo (24 dernières heures)"
             className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all h-auto",
-                "border-white/20 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm",
+                "border-white/20 bg-white/10 hover:bg-white/20 text-white",
                 isSyncingCalls && "opacity-70 cursor-not-allowed"
             )}
         >
@@ -1994,7 +1996,7 @@ export default function SDRActionPage() {
                             <div className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border transition-colors",
                                 row.contactId
-                                    ? "bg-indigo-50 border-indigo-100 text-indigo-600"
+                                    ? "bg-primary-50 border-primary-100 text-primary-600"
                                     : "bg-slate-50 border-slate-200 text-slate-500"
                             )}>
                                 {row.contactId ? (
@@ -2064,7 +2066,7 @@ export default function SDRActionPage() {
                                 type="button"
                                 onClick={() => copyToClipboard(phone, callContext)}
                                 title="Copier le numéro"
-                                className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors"
+                                className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-accent-600 hover:bg-accent-50 transition-colors"
                             >
                                 <Copy className="w-3.5 h-3.5" />
                             </button>
@@ -2077,7 +2079,7 @@ export default function SDRActionPage() {
                 header: "Canal",
                 render: (v) => {
                     const channelConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-                        CALL: { icon: <Phone className="w-3.5 h-3.5" />, color: "bg-indigo-50 text-indigo-700 border-indigo-200", label: "Appel" },
+                        CALL: { icon: <Phone className="w-3.5 h-3.5" />, color: "bg-primary-50 text-primary-700 border-primary-200", label: "Appel" },
                         EMAIL: { icon: <MailOpen className="w-3.5 h-3.5" />, color: "bg-blue-50 text-blue-700 border-blue-200", label: "Email" },
                         LINKEDIN: { icon: <Linkedin className="w-3.5 h-3.5" />, color: "bg-sky-50 text-sky-700 border-sky-200", label: "LinkedIn" },
                     };
@@ -2109,7 +2111,7 @@ export default function SDRActionPage() {
                         CALLBACK_REQUESTED: { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
                         RELANCE: { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
                         RAPPEL: { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
-                        MEETING_BOOKED: { badge: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-400" },
+                        MEETING_BOOKED: { badge: "bg-primary-50 text-primary-700 border-primary-200", dot: "bg-primary-400" },
                         DISQUALIFIED: { badge: "bg-slate-100 text-slate-500 border-slate-200", dot: "bg-slate-400" },
                         ENVOIE_MAIL: { badge: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-400" },
                         MAIL_ENVOYE: { badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
@@ -2146,7 +2148,7 @@ export default function SDRActionPage() {
                     if (row.priority === "ABSENT_RDV") {
                         return (
                             <div className="space-y-1">
-                                <Badge className="text-xs font-bold border bg-red-100 text-red-800 border-red-300 animate-pulse gap-1">
+                                <Badge className="text-xs font-bold border bg-red-100 text-red-800 border-red-300 gap-1">
                                     <AlertCircle className="w-3 h-3" />
                                     RDV ABSENT
                                 </Badge>
@@ -2178,7 +2180,7 @@ export default function SDRActionPage() {
                         : isCritical
                             ? "bg-amber-50 text-amber-700 border-amber-200"
                             : isSoon
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                ? "bg-primary-50 text-primary-700 border-primary-200"
                                 : "bg-emerald-50 text-emerald-700 border-emerald-200";
 
                     return (
@@ -2210,22 +2212,22 @@ export default function SDRActionPage() {
                     return (
                         <div className="flex items-center gap-1">
                             {submitting && (
-                                <span className="flex items-center justify-center w-8 h-8 text-indigo-500">
+                                <span className="flex items-center justify-center w-8 h-8 text-primary-500">
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                 </span>
                             )}
                             {primaryActions.map((opt) => {
                                 const actionColors: Record<string, string> = {
                                     NO_RESPONSE: "hover:border-slate-400 hover:bg-slate-50 hover:text-slate-700 hover:shadow-sm",
-                                    BAD_CONTACT: "hover:border-red-300 hover:bg-red-50 hover:text-red-600 hover:shadow-sm hover:shadow-red-100",
-                                    INTERESTED: "hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 hover:shadow-sm hover:shadow-emerald-100",
-                                    CALLBACK_REQUESTED: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 hover:shadow-sm hover:shadow-amber-100",
-                                    RELANCE: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 hover:shadow-sm hover:shadow-amber-100",
-                                    RAPPEL: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600 hover:shadow-sm hover:shadow-amber-100",
-                                    MEETING_BOOKED: "hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 hover:shadow-sm hover:shadow-indigo-100",
+                                    BAD_CONTACT: "hover:border-red-300 hover:bg-red-50 hover:text-red-600",
+                                    INTERESTED: "hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600",
+                                    CALLBACK_REQUESTED: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600",
+                                    RELANCE: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600",
+                                    RAPPEL: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600",
+                                    MEETING_BOOKED: "hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600",
                                     DISQUALIFIED: "hover:border-slate-400 hover:bg-slate-100 hover:text-slate-600 hover:shadow-sm",
-                                    ENVOIE_MAIL: "hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 hover:shadow-sm hover:shadow-blue-100",
-                                    MAIL_ENVOYE: "hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600 hover:shadow-sm hover:shadow-emerald-100",
+                                    ENVOIE_MAIL: "hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600",
+                                    MAIL_ENVOYE: "hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600",
                                 };
                                 return (
                                     <button
@@ -2240,7 +2242,7 @@ export default function SDRActionPage() {
                                         className={cn(
                                             "w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-150",
                                             "border-slate-200 text-slate-400 bg-white",
-                                            actionColors[opt.value] || "hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600",
+                                            actionColors[opt.value] || "hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600",
                                             submitting && "opacity-40 pointer-events-none",
                                             "active:scale-95"
                                         )}
@@ -2257,7 +2259,7 @@ export default function SDRActionPage() {
                                     openDrawerForRow(row);
                                 }}
                                 title="Voir la fiche complète"
-                                className="w-8 h-8 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-150 active:scale-95"
+                                className="w-8 h-8 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-all duration-150 active:scale-95"
                             >
                                 <Eye className="w-4 h-4" />
                             </button>
@@ -2270,14 +2272,12 @@ export default function SDRActionPage() {
         return (
             <div className="space-y-4">
                 {/* Header — Table View */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-[#0E0F0C] via-[#12211A] to-[#1C3F2A] rounded-2xl p-5 shadow-xl">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#4E8B66]/25 via-transparent to-transparent" />
-                    <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#4E8B66]/10 rounded-full blur-2xl" />
+                <div className="relative overflow-hidden bg-inverse rounded-2xl p-5 shadow-xl">
 
                     <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center border border-violet-400/20">
-                                <Phone className="w-5 h-5 text-[#CFE0D5]" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-500/20 flex items-center justify-center border border-accent-400/20">
+                                <Phone className="w-5 h-5 text-inverse-ink-2" />
                             </div>
                             <div>
                                 <h1 className="text-[22px] font-medium text-white leading-tight">Actions</h1>
@@ -2295,7 +2295,7 @@ export default function SDRActionPage() {
                                 </button>
                             </div>
 
-                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white backdrop-blur-sm gap-1.5 px-3 py-1.5 h-auto text-[13px] font-medium">
+                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white gap-1.5 px-3 py-1.5 h-auto text-[13px] font-medium">
                                 <BarChart2 className="w-3.5 h-3.5" /> Stats
                             </Button>
 
@@ -2315,13 +2315,13 @@ export default function SDRActionPage() {
                     <div className="px-5 py-3.5 border-b border-neutral-200 bg-neutral-100/50">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-sm shadow-[#2B5F3E]/20">
+                                <div className="w-8 h-8 rounded-lg bg-primary-hover flex items-center justify-center">
                                     <Filter className="w-3.5 h-3.5 text-white" />
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-medium text-neutral-900">Filtres</h3>
                                     {hasTableFiltersActive && (
-                                        <p className="text-xs text-violet-600 font-medium">
+                                        <p className="text-xs text-accent-600 font-medium">
                                             {[tableFilterResult, tableFilterPriority, tableFilterChannel, tableFilterType].filter(Boolean).length} actif{[tableFilterResult, tableFilterPriority, tableFilterChannel, tableFilterType].filter(Boolean).length > 1 ? "s" : ""}
                                         </p>
                                     )}
@@ -2341,14 +2341,14 @@ export default function SDRActionPage() {
                             {/* Mission */}
                             <div className="space-y-1 xl:col-span-2">
                                 <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Mission</label>
-                                <select value={selectedMissionId || ""} onChange={handleMissionChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <select value={selectedMissionId || ""} onChange={handleMissionChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
                                     {selectableMissions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
                                 </select>
                             </div>
                             {/* Liste */}
                             <div className="space-y-1">
                                 <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Liste</label>
-                                <select value={selectedListId || "all"} onChange={handleListChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <select value={selectedListId || "all"} onChange={handleListChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
                                     <option value="all">Toutes</option>
                                     {filteredLists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
                                 </select>
@@ -2356,12 +2356,12 @@ export default function SDRActionPage() {
                             {/* Search */}
                             <div className="space-y-1 sm:col-span-2 xl:col-span-2">
                                 <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Rechercher</label>
-                                <input type="text" value={tableSearchInput} onChange={(e) => setTableSearchInput(e.target.value)} placeholder="Contact, société ou numéro…" className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow" />
+                                <input type="text" value={tableSearchInput} onChange={(e) => setTableSearchInput(e.target.value)} placeholder="Contact, société ou numéro…" className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow" />
                             </div>
                             {/* Statut */}
                             <div className="space-y-1">
                                 <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Statut</label>
-                                <select value={tableFilterResult} onChange={(e) => setTableFilterResult(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <select value={tableFilterResult} onChange={(e) => setTableFilterResult(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
                                     <option value="">Tous</option>
                                     <option value="NONE">Jamais contacté</option>
                                     {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -2370,7 +2370,7 @@ export default function SDRActionPage() {
                             {/* Priorité */}
                             <div className="space-y-1">
                                 <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Priorité</label>
-                                <select value={tableFilterPriority} onChange={(e) => setTableFilterPriority(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <select value={tableFilterPriority} onChange={(e) => setTableFilterPriority(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
                                     <option value="">Toutes</option>
                                     {Object.entries(PRIORITY_LABELS).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}
                                 </select>
@@ -2378,7 +2378,7 @@ export default function SDRActionPage() {
                             {/* Canal */}
                             <div className="space-y-1">
                                 <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Canal</label>
-                                <select value={tableFilterChannel} onChange={(e) => setTableFilterChannel(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <select value={tableFilterChannel} onChange={(e) => setTableFilterChannel(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
                                     <option value="">Tous</option>
                                     {(Object.entries(CHANNEL_LABELS) as [Channel, string][]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                                 </select>
@@ -2386,7 +2386,7 @@ export default function SDRActionPage() {
                             {/* Type */}
                             <div className="space-y-1">
                                 <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Type</label>
-                                <select value={tableFilterType} onChange={(e) => setTableFilterType(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-shadow cursor-pointer">
+                                <select value={tableFilterType} onChange={(e) => setTableFilterType(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
                                     <option value="">Tous</option>
                                     <option value="contact">Contact</option>
                                     <option value="company">Société</option>
@@ -2398,14 +2398,14 @@ export default function SDRActionPage() {
                         <div className="mt-3 pt-3 border-t border-neutral-200 flex items-center justify-between">
                             <span className="text-xs text-slate-500">
                                 {tableSearchApi ? (
-                                    <><span className="font-medium text-violet-600">{queueItems.length}</span> résultat{queueItems.length !== 1 ? "s" : ""} pour «&nbsp;{tableSearchApi}&nbsp;»</>
+                                    <><span className="font-medium text-accent-600">{queueItems.length}</span> résultat{queueItems.length !== 1 ? "s" : ""} pour «&nbsp;{tableSearchApi}&nbsp;»</>
                                 ) : hasTableFiltersActive ? (
-                                    <><span className="font-medium text-violet-600">{filteredQueueItems.length}</span> sur {queueItems.length}</>
+                                    <><span className="font-medium text-accent-600">{filteredQueueItems.length}</span> sur {queueItems.length}</>
                                 ) : (
                                     <><span className="font-medium text-neutral-900">{queueItems.length}</span> dans la file</>
                                 )}
                             </span>
-                            <Button variant="ghost" size="sm" onClick={() => refreshQueue()} className="text-slate-400 hover:text-violet-600 gap-1.5 text-xs h-7">
+                            <Button variant="ghost" size="sm" onClick={() => refreshQueue()} className="text-slate-400 hover:text-accent-600 gap-1.5 text-xs h-7">
                                 <RefreshCw className="w-3 h-3" />
                                 Actualiser
                             </Button>
@@ -2415,8 +2415,8 @@ export default function SDRActionPage() {
 
                 {/* Bulk delete bar */}
                 {tableSelectedIds.size > 0 && (
-                    <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-indigo-50 border border-indigo-200 mb-4">
-                        <span className="text-sm font-medium text-indigo-800">
+                    <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-primary-50 border border-primary-200 mb-4">
+                        <span className="text-sm font-medium text-primary-800">
                             {tableSelectedIds.size} élément(s) sélectionné(s)
                         </span>
                         <div className="flex items-center gap-2">
@@ -2447,7 +2447,7 @@ export default function SDRActionPage() {
                 )}
 
                 {/* Data Table */}
-                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-lg shadow-slate-200/50 overflow-hidden">
+                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
                     {queueInitialLoading ? (
                         <TableSkeleton columns={6} rows={12} className="rounded-2xl" />
                     ) : queueFetchError ? (
@@ -2616,7 +2616,7 @@ export default function SDRActionPage() {
                                 placeholder="Ex: Mail à envoyer après validation du devis..."
                                 rows={3}
                                 maxLength={500}
-                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
                         <div className="flex flex-wrap gap-2 justify-end pt-2">
@@ -2702,17 +2702,15 @@ export default function SDRActionPage() {
         return (
             <div className="space-y-4">
                 {/* Header — Empty Queue */}
-                <div className="relative overflow-hidden bg-gradient-to-br from-[#0E0F0C] via-[#12211A] to-[#1C3F2A] rounded-2xl p-5 shadow-xl">
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#4E8B66]/25 via-transparent to-transparent" />
-                    <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#4E8B66]/10 rounded-full blur-2xl" />
+                <div className="relative overflow-hidden bg-inverse rounded-2xl p-5 shadow-xl">
                     <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center border border-violet-400/20">
-                                <Phone className="w-5 h-5 text-[#CFE0D5]" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-500/20 flex items-center justify-center border border-accent-400/20">
+                                <Phone className="w-5 h-5 text-inverse-ink-2" />
                             </div>
                             <div>
                                 <h1 className="text-[22px] font-medium text-white leading-tight">Actions</h1>
-                                <p className="text-[13px] text-white/50">Gérez vos actions commerciales</p>
+                                <p className="text-[13px] text-white/50">File d'actions</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -2773,21 +2771,18 @@ export default function SDRActionPage() {
             )}
 
             {/* Header */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-[#0E0F0C] via-[#12211A] to-[#1C3F2A] rounded-2xl p-5 shadow-xl">
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#4E8B66]/25 via-transparent to-transparent" />
-                <div className="absolute -top-16 -right-16 w-48 h-48 bg-[#4E8B66]/10 rounded-full blur-2xl" />
-                <div className="absolute bottom-0 left-1/4 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl" />
+            <div className="relative overflow-hidden bg-inverse rounded-2xl p-5 shadow-xl">
 
                 <div className="relative">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                         {/* Left: Title & mission context */}
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#4E8B66]/25 backdrop-blur-sm flex items-center justify-center border border-[#7FB394]/25 ring-1 ring-white/5">
-                                <Phone className="w-5 h-5 text-[#CFE0D5]" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-500/20 flex items-center justify-center border border-accent-400/20">
+                                <Phone className="w-5 h-5 text-inverse-ink-2" />
                             </div>
                             <div>
                                 <h1 className="text-[22px] font-medium text-white leading-tight tracking-tight">Actions</h1>
-                                <p className="text-[13px] text-white/50 mt-0.5 truncate max-w-[280px]">{currentAction.missionName || "Gérez vos actions commerciales"}</p>
+                                <p className="text-[13px] text-white/50 mt-0.5 truncate max-w-[280px]">{currentAction.missionName || "File d'actions"}</p>
                             </div>
                             {currentAction.priority && PRIORITY_LABELS[currentAction.priority] && (
                                 <Badge className={cn("text-[11px] font-medium uppercase tracking-wide", PRIORITY_LABELS[currentAction.priority].color)}>
@@ -2811,7 +2806,7 @@ export default function SDRActionPage() {
                             <Select variant="header-dark" value={selectedMissionId || ""} onChange={(id) => { setSelectedMissionId(id); localStorage.setItem("sdr_selected_mission", id); const firstList = lists.find((l) => l.mission.id === id); setSelectedListId(firstList?.id ?? null); }} options={selectableMissions.map((m) => ({ value: m.id, label: m.name }))} placeholder="Mission" className="min-w-[160px]" />
                             <Select variant="header-dark" value={selectedListId || "all"} onChange={(id) => setSelectedListId(id === "all" ? null : id)} options={[{ value: "all", label: "Toutes les listes" }, ...filteredLists.map((l) => ({ value: l.id, label: l.name }))]} placeholder="Liste" className="min-w-[140px]" />
 
-                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white backdrop-blur-sm gap-1.5 px-3 py-1.5 h-auto text-[13px] font-medium">
+                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white gap-1.5 px-3 py-1.5 h-auto text-[13px] font-medium">
                                 <BarChart2 className="w-3.5 h-3.5" /> Stats
                             </Button>
 
@@ -2848,7 +2843,7 @@ export default function SDRActionPage() {
                         <div className="p-4">
                             <div className="flex items-start gap-3">
                                 {/* Company initials avatar */}
-                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-800 to-slate-700 flex items-center justify-center flex-shrink-0 shadow-md shadow-slate-800/20">
+                                <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
                                     <span className="text-[15px] font-medium text-white tracking-wide">
                                         {getInitials(null, null, currentAction.company?.name)}
                                     </span>
@@ -2858,7 +2853,7 @@ export default function SDRActionPage() {
                                         <div>
                                             <h2
                                                 onClick={() => setCompanyBlockedModalOpen(true)}
-                                                className="text-[18px] font-medium text-neutral-900 truncate leading-tight hover:text-[#2B5F3E] cursor-pointer transition-colors"
+                                                className="text-[18px] font-medium text-neutral-900 truncate leading-tight hover:text-primary-700 cursor-pointer transition-colors"
                                                 title="Fiche entreprise"
                                             >
                                                 {currentAction.company?.name}
@@ -2877,13 +2872,13 @@ export default function SDRActionPage() {
                                             </div>
                                         </div>
                                         {currentAction.company?.id && (
-                                            <Button variant="ghost" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
+                                            <Button variant="ghost" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-primary-700 hover:bg-primary-50 rounded-lg" title="Modifier l'entreprise">
                                                 <PenLine className="w-3.5 h-3.5" />
                                             </Button>
                                         )}
                                     </div>
                                     {currentAction.company?.website && (
-                                        <a href={`https://${currentAction.company.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-xs text-[#2B5F3E] hover:text-[#224A31] font-normal transition-colors">
+                                        <a href={`https://${currentAction.company.website}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-2 text-xs text-primary-700 hover:text-primary-800 font-normal transition-colors">
                                             <Globe className="w-3 h-3" />
                                             {currentAction.company.website}
                                             <ExternalLink className="w-2.5 h-2.5 opacity-60" />
@@ -2901,14 +2896,14 @@ export default function SDRActionPage() {
                                 <div className="flex items-start gap-3 mb-4">
                                     {/* Contact initials avatar */}
                                     <div className="relative flex-shrink-0">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
+                                        <div className="w-12 h-12 rounded-full bg-primary-hover flex items-center justify-center">
                                             <span className="text-[16px] font-medium text-white tracking-wide">
                                                 {getInitials(currentAction.contact.firstName, currentAction.contact.lastName)}
                                             </span>
                                         </div>
                                         {/* Channel indicator dot */}
                                         <div className={cn("absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center border-2 border-white",
-                                            currentAction.channel === 'CALL' ? "bg-[#2B5F3E]" :
+                                            currentAction.channel === 'CALL' ? "bg-primary" :
                                             currentAction.channel === 'EMAIL' ? "bg-blue-500" : "bg-sky-500"
                                         )}>
                                             {currentAction.channel === 'CALL' ? <Phone className="w-2 h-2 text-white" /> :
@@ -2925,7 +2920,7 @@ export default function SDRActionPage() {
                                         )}
                                     </div>
                                     {currentAction.contact.id && (
-                                        <Button variant="ghost" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier le contact">
+                                        <Button variant="ghost" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-primary-700 hover:bg-primary-50 rounded-lg" title="Modifier le contact">
                                             <PenLine className="w-3.5 h-3.5" />
                                         </Button>
                                     )}
@@ -2967,7 +2962,7 @@ export default function SDRActionPage() {
                                                     <a
                                                         href={`tel:${phone}`}
                                                         onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
-                                                        className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
+                                                        className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                     >
                                                         <Phone className="w-4 h-4" />
                                                         <span className="font-mono tracking-wide">{phone}</span>
@@ -2976,7 +2971,7 @@ export default function SDRActionPage() {
                                                         type="button"
                                                         onClick={() => copyToClipboard(phone, callContext)}
                                                         title="Copier le numéro"
-                                                        className="w-12 h-12 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                                        className="w-12 h-12 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-accent-600 hover:border-accent-200 hover:bg-accent-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
                                                     >
                                                         <Copy className="w-4 h-4" />
                                                     </button>
@@ -2991,7 +2986,7 @@ export default function SDRActionPage() {
                                         return isValidEmail ? (
                                             <a
                                                 href={`mailto:${email}`}
-                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-normal text-slate-600 bg-neutral-100 border border-neutral-200 hover:bg-[#ebebeb] hover:border-slate-300 rounded-xl transition-colors"
+                                                className="flex items-center justify-center gap-2 h-10 w-full text-[13px] font-normal text-slate-600 bg-neutral-100 border border-neutral-200 hover:bg-surface-3 hover:border-slate-300 rounded-xl transition-colors"
                                             >
                                                 <Mail className="w-3.5 h-3.5 text-slate-500" />
                                                 <span className="truncate max-w-[200px]">{email}</span>
@@ -3047,7 +3042,7 @@ export default function SDRActionPage() {
                                                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                                                         Aucun numéro de téléphone valide
                                                     </div>
-                                                    <Button variant="outline" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
+                                                    <Button variant="outline" size="sm" onClick={() => setDrawerContactId(currentAction.contact!.id)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-primary-200 hover:text-primary-700">
                                                         <PenLine className="w-3.5 h-3.5" />
                                                         Ajouter un numéro
                                                     </Button>
@@ -3077,7 +3072,7 @@ export default function SDRActionPage() {
                                                     onChange={setRdvDate}
                                                     placeholder="Choisir date et heure du RDV…"
                                                     min={new Date().toISOString().slice(0, 16)}
-                                                    triggerClassName="border-indigo-200 focus:ring-indigo-400/40 focus:border-indigo-400"
+                                                    triggerClassName="border-primary-200 focus:ring-primary-400/40 focus:border-primary-400"
                                                 />
                                             </div>
                                             <Button
@@ -3096,20 +3091,20 @@ export default function SDRActionPage() {
                         ) : currentAction.company ? (
                             <>
                                 <div className="flex items-start gap-3 mb-4">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center flex-shrink-0 shadow-md">
+                                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0">
                                         <span className="text-[15px] font-medium text-white">{getInitials(null, null, currentAction.company.name)}</span>
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p
                                             onClick={() => setCompanyBlockedModalOpen(true)}
-                                            className="text-[18px] font-medium text-neutral-900 leading-tight hover:text-[#2B5F3E] cursor-pointer transition-colors"
+                                            className="text-[18px] font-medium text-neutral-900 leading-tight hover:text-primary-700 cursor-pointer transition-colors"
                                         >
                                             {currentAction.company.name}
                                         </p>
                                         <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500 bg-neutral-100 border border-neutral-200 px-2 py-0.5 rounded-md mt-1 inline-block">Entreprise</span>
                                     </div>
                                     {currentAction.company.id && (
-                                        <Button variant="ghost" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-[#2B5F3E] hover:bg-[#E7EFE9] rounded-lg" title="Modifier l'entreprise">
+                                        <Button variant="ghost" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="shrink-0 h-7 w-7 p-0 text-slate-400 hover:text-primary-700 hover:bg-primary-50 rounded-lg" title="Modifier l'entreprise">
                                             <PenLine className="w-3.5 h-3.5" />
                                         </Button>
                                     )}
@@ -3147,7 +3142,7 @@ export default function SDRActionPage() {
                                                         <a
                                                             href={`tel:${currentAction.company.phone}`}
                                                             onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
-                                                            className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] rounded-xl transition-all shadow-md shadow-[#2B5F3E]/25 active:scale-[0.98]"
+                                                            className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                         >
                                                             <Phone className="w-4 h-4" />
                                                             {currentAction.company.phone}
@@ -3156,7 +3151,7 @@ export default function SDRActionPage() {
                                                             type="button"
                                                             onClick={() => copyToClipboard(currentAction.company!.phone!, callContext)}
                                                             title="Copier le numéro"
-                                                            className="w-11 h-11 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-violet-600 hover:border-violet-200 hover:bg-violet-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
+                                                            className="w-11 h-11 rounded-xl border border-neutral-200 bg-white text-slate-400 hover:text-accent-600 hover:border-accent-200 hover:bg-accent-50 flex items-center justify-center transition-colors active:scale-[0.97] flex-shrink-0"
                                                         >
                                                             <Copy className="w-4 h-4" />
                                                         </button>
@@ -3165,7 +3160,7 @@ export default function SDRActionPage() {
                                             );
                                         })()
                                     ) : (
-                                        <Button variant="outline" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-[#C4D6CB] hover:text-[#2B5F3E]">
+                                        <Button variant="outline" size="sm" onClick={() => setCompanyBlockedModalOpen(true)} className="w-full gap-2 border-neutral-200 text-slate-600 hover:border-primary-200 hover:text-primary-700">
                                             <PenLine className="w-3.5 h-3.5" />
                                             Ajouter un numéro
                                         </Button>
@@ -3214,11 +3209,11 @@ export default function SDRActionPage() {
                 {!showBookingDrawer && (
                 <div className="lg:col-span-3">
                     <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm h-full overflow-hidden">
-                        <div className="px-5 py-4 border-b border-neutral-200 bg-gradient-to-r from-[#f5f5f5] to-white">
+                        <div className="px-5 py-4 border-b border-neutral-200 bg-neutral-50">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
-                                        <Sparkles className="w-4 h-4 text-white" />
+                                    <div className="w-9 h-9 rounded-xl bg-primary-hover flex items-center justify-center">
+                                        <FileText className="w-4 h-4 text-white" />
                                     </div>
                                     <div>
                                         <h3 className="text-[16px] font-medium text-neutral-900">Script d'appel</h3>
@@ -3226,7 +3221,7 @@ export default function SDRActionPage() {
                                     </div>
                                 </div>
                                 {currentAction?.scriptDefaultTab && (
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-[#2B5F3E] bg-[#E7EFE9] border border-[#C4D6CB] px-2 py-1 rounded-lg">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-primary-700 bg-primary-50 border border-primary-200 px-2 py-1 rounded-lg">
                                         {SCRIPT_TABS.find((t) => t.id === currentAction.scriptDefaultTab)?.label ?? "Script"}
                                     </span>
                                 )}
@@ -3237,7 +3232,7 @@ export default function SDRActionPage() {
                                         <span className="inline-flex items-center gap-1.5">
                                             Stratégie : <span className="font-medium text-slate-700">{currentAction.strategyName}</span>
                                             {currentAction.isInheritedStrategy && (
-                                                <span className="text-[10px] font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                                                <span className="text-[10px] font-medium text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded border border-primary-200">
                                                     Par défaut
                                                 </span>
                                             )}
@@ -3271,7 +3266,7 @@ export default function SDRActionPage() {
                             ) : (
                                 <div className="text-center py-12">
                                     <div className="w-12 h-12 rounded-2xl bg-neutral-100 border border-neutral-200 flex items-center justify-center mx-auto mb-3">
-                                        <Sparkles className="w-5 h-5 text-slate-300" />
+                                        <FileText className="w-5 h-5 text-slate-300" />
                                     </div>
                                     <p className="text-sm text-slate-400">Aucun script configuré</p>
                                 </div>
@@ -3284,10 +3279,10 @@ export default function SDRActionPage() {
 
             {/* Action Results */}
             <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2B5F3E] to-[#224A31] flex items-center justify-center shadow-md shadow-[#2B5F3E]/25">
+                            <div className="w-9 h-9 rounded-xl bg-primary-hover flex items-center justify-center">
                                 <CheckCircle2 className="w-4.5 h-4.5 text-white" />
                             </div>
                             <div>
@@ -3320,8 +3315,8 @@ export default function SDRActionPage() {
                                         "relative flex items-center gap-2.5 p-3.5 rounded-xl border-2 transition-all duration-150 text-left group",
                                         "border-l-[3px]",
                                         isSelected
-                                            ? cn(sem.selectedCls, "shadow-md scale-[1.02]", sem.activeBorder)
-                                            : cn("bg-white border-neutral-200", sem.hoverCls, "hover:shadow-sm hover:scale-[1.01]", "border-l-transparent")
+                                            ? cn(sem.selectedCls, "shadow-md", sem.activeBorder)
+                                            : cn("bg-white border-neutral-200", sem.hoverCls, "hover:shadow-sm", "border-l-transparent")
                                     )}
                                 >
                                     <span className={cn(
@@ -3372,11 +3367,11 @@ export default function SDRActionPage() {
                                         "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
                                         linkedAlloCall
                                             ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                            : "bg-[#E7EFE9] text-[#2B5F3E] border-[#C4D6CB] hover:bg-[#D9E5DD]"
+                                            : "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100"
                                     )}
                                 >
-                                    <PhoneCall className="w-3 h-3" />
-                                    {linkedAlloCall ? "Appel validé ✓" : "Valider appel (Allo)"}
+                                    {linkedAlloCall ? <CheckCircle2 className="w-3 h-3" /> : <PhoneCall className="w-3 h-3" />}
+                                    {linkedAlloCall ? "Appel validé" : "Valider appel (Allo)"}
                                 </button>
                             )}
                         </div>
@@ -3390,7 +3385,7 @@ export default function SDRActionPage() {
                         placeholder="Note sur l'échange...  (Ctrl+Entrée pour valider)"
                         rows={3}
                         maxLength={500}
-                        className="w-full px-3 py-2.5 text-sm border border-neutral-200 rounded-xl bg-neutral-100/30 text-neutral-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2B5F3E]/25 focus:border-[#2B5F3E] focus:bg-white resize-none transition-colors leading-relaxed"
+                        className="w-full px-3 py-2.5 text-sm border border-neutral-200 rounded-xl bg-neutral-100/30 text-neutral-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-400 focus:bg-white resize-none transition-colors leading-relaxed"
                     />
                     {/* Linked call preview */}
                     {linkedAlloCall && (
@@ -3490,8 +3485,8 @@ export default function SDRActionPage() {
 
             {/* Meeting category (Exploratoire / Besoin) — only for MEETING_BOOKED */}
             {selectedResult === "MEETING_BOOKED" && (
-                <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50/60 to-blue-50/40 shadow-sm overflow-hidden">
-                    <div className="px-5 py-3 border-b border-indigo-100">
+                <div className="rounded-2xl border border-primary-200 bg-primary-50/50 shadow-sm overflow-hidden">
+                    <div className="px-5 py-3 border-b border-primary-100">
                         <h3 className="text-sm font-bold text-slate-900">Catégorie du RDV</h3>
                         <p className="text-xs text-slate-500 mt-0.5">Optionnel — sinon détecté automatiquement depuis la note</p>
                     </div>
@@ -3526,7 +3521,7 @@ export default function SDRActionPage() {
             )}
 
             {/* Sticky Submit Bar */}
-            <div className="sticky bottom-0 z-20 -mx-4 px-4 pb-4 pt-3 bg-gradient-to-t from-[#f5f5f5] via-[#f5f5f5]/95 to-transparent backdrop-blur-sm">
+            <div className="sticky bottom-0 z-20 -mx-4 px-4 pb-4 pt-3 bg-gradient-to-t from-canvas via-canvas/95 to-transparent backdrop-blur-sm">
                 <div className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-neutral-200 shadow-lg shadow-slate-200/60 px-4 py-3">
                     {/* Skip button + session timer */}
                     <div className="flex items-center gap-3">
@@ -3608,7 +3603,7 @@ export default function SDRActionPage() {
                             onClick={handleSubmit}
                             disabled={!selectedResult || isSubmitting || (getRequiresNote(selectedResult) && !note.trim())}
                             isLoading={isSubmitting}
-                            className="gap-2 px-6 h-9 text-sm font-medium shadow-md shadow-[#2B5F3E]/20 bg-gradient-to-r from-[#2B5F3E] to-[#224A31] hover:from-[#356F4A] hover:to-[#2B5F3E] border-0"
+                            className="gap-2 px-6 h-9 text-sm font-medium shadow-sm bg-primary-hover hover:bg-primary border-0"
                         >
                             {isSubmitting ? "Enregistrement…" : selectedResult === "ENVOIE_MAIL" ? "Enregistrer" : "Valider & Suivant"}
                             {!isSubmitting && <ChevronRight className="w-4 h-4" />}
@@ -3765,7 +3760,7 @@ export default function SDRActionPage() {
                             <X className="w-4 h-4" />
                         </button>
                         <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
-                            <Sparkles className="w-6 h-6 text-amber-500 fill-amber-100" />
+                            <Clock className="w-6 h-6 text-amber-500" />
                         </div>
                         <div className="space-y-1.5">
                             <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 uppercase tracking-wider">

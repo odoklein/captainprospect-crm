@@ -19,6 +19,7 @@ import {
 } from "./rows";
 import type { ExportAction, ExportList, ExportRow, TreatmentFilter } from "./types";
 import { UNTREATED_LABEL } from "./types";
+import { brand } from "@/lib/brand";
 
 // ============================================
 // ROW SETS PER LIST
@@ -61,7 +62,7 @@ export function distinctActions(rows: ExportRow[]): ExportAction[] {
 }
 
 // ============================================
-// TRACKING COLUMNS ("Suivi Captain Prospect")
+// TRACKING COLUMNS ("Suivi <brand.name>")
 // ============================================
 
 interface TrackingColumn {
@@ -445,7 +446,7 @@ function summarySheet(sets: ListRowSet[], data: ProspectionExportData, exportedA
     pushMergedLine("À propos du format", "subtitle", 20);
     pushMergedLine(
         "Chaque liste a sa feuille, avec les colonnes du fichier d'origine dans le même ordre (en-têtes gris), " +
-        "suivies des colonnes de suivi Captain Prospect (en-têtes violets). Les valeurs sont les données à jour : " +
+        `suivies des colonnes de suivi ${brand.name} (en-têtes de couleur). Les valeurs sont les données à jour : ` +
         "les corrections faites pendant la prospection y figurent.",
         "muted",
         44

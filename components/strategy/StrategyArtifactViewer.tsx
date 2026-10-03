@@ -4,12 +4,12 @@ import React, { useState } from "react";
 import { 
     Copy, 
     Check, 
-    Sparkles, 
+    Lightbulb, 
     Target, 
     AlertCircle, 
     CheckCircle2, 
     BarChart3, 
-    Rocket, 
+    ArrowUpRight, 
     HelpCircle, 
     FileText,
     Layers,
@@ -42,12 +42,12 @@ const COLOR_MAP: Record<string, {
     iconColor: string;
 }> = {
     indigo: {
-        border: "border-indigo-100",
-        borderLeft: "border-l-indigo-500",
-        badgeBg: "bg-indigo-50",
-        badgeText: "text-indigo-700",
-        cardBg: "bg-indigo-50/20",
-        iconColor: "text-indigo-600",
+        border: "border-primary-100",
+        borderLeft: "border-l-primary-500",
+        badgeBg: "bg-primary-50",
+        badgeText: "text-primary-700",
+        cardBg: "bg-primary-50/20",
+        iconColor: "text-primary-600",
     },
     amber: {
         border: "border-amber-100",
@@ -74,12 +74,12 @@ const COLOR_MAP: Record<string, {
         iconColor: "text-sky-600",
     },
     violet: {
-        border: "border-violet-100",
-        borderLeft: "border-l-violet-500",
-        badgeBg: "bg-violet-50",
-        badgeText: "text-violet-700",
-        cardBg: "bg-violet-50/20",
-        iconColor: "text-violet-600",
+        border: "border-accent-100",
+        borderLeft: "border-l-accent-500",
+        badgeBg: "bg-accent-50",
+        badgeText: "text-accent-700",
+        cardBg: "bg-accent-50/20",
+        iconColor: "text-accent-600",
     },
     rose: {
         border: "border-rose-100",
@@ -109,13 +109,13 @@ function renderIcon(iconName?: string) {
             return <AlertCircle className="w-4 h-4" />;
         case "solution":
         case "sparkles":
-            return <Sparkles className="w-4 h-4" />;
+            return <Lightbulb className="w-4 h-4" />;
         case "proof":
         case "chart":
             return <BarChart3 className="w-4 h-4" />;
         case "cta":
         case "rocket":
-            return <Rocket className="w-4 h-4" />;
+            return <ArrowUpRight className="w-4 h-4" />;
         case "intro":
             return <Target className="w-4 h-4" />;
         case "discovery":
@@ -318,20 +318,20 @@ export function StrategyArtifactViewer({
             {/* Header toolbar */}
             <div className="flex items-center justify-between gap-2 px-1">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-                    <Layers className="w-3.5 h-3.5 text-indigo-500" />
+                    <Layers className="w-3.5 h-3.5 text-primary-500" />
                     <span>{sections.length > 1 ? `${sections.length} blocs structurés` : (type === "pitch" ? "Pitch commercial" : "Script de prospection")}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
                         type="button"
                         onClick={handleCopyAll}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors px-2 py-1 rounded-md hover:bg-slate-100"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-primary-600 transition-colors px-2 py-1 rounded-md hover:bg-slate-100"
                         title="Copier tout le contenu"
                     >
                         {copiedIndex === "all" ? (
                             <>
                                 <Check className="w-3 h-3 text-emerald-600" />
-                                <span className="text-emerald-600 font-semibold">Copié !</span>
+                                <span className="text-emerald-600 font-semibold">Copié</span>
                             </>
                         ) : (
                             <>

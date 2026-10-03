@@ -25,6 +25,7 @@ import type {
 } from "./types";
 import { SUPPORT_ATTACHMENT_MAX_COUNT, supportAttachmentUrl } from "./types";
 import { canClientSideUserAccess, clientSideConversationWhere } from "./access";
+import { brand } from "@/lib/brand";
 
 const MESSAGE_PAGE_SIZE = 200;
 
@@ -891,11 +892,11 @@ export async function notifyClientByEmailIfEnabled(
 
     await sendTransactionalEmail({
         to: clientUser.email,
-        subject: `Nouvelle réponse de l'équipe support — Captain Prospect`,
+        subject: `Nouvelle réponse de l'équipe support — ${brand.name}`,
         html: `
 <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#1f2b1f">
   <p style="font-size:15px">Bonjour ${clientUser.name ?? ""},</p>
-  <p style="font-size:15px">L'équipe support Captain Prospect vous a répondu :</p>
+  <p style="font-size:15px">L'équipe support ${brand.name} vous a répondu :</p>
   <blockquote style="border-left:3px solid #6366f1;margin:16px 0;padding:10px 16px;background:#f5f4ff;border-radius:4px;font-size:14px;color:#2b3a2b">
     ${preview.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}
   </blockquote>
@@ -903,7 +904,7 @@ export async function notifyClientByEmailIfEnabled(
     Connectez-vous à votre espace client pour répondre ou consulter la conversation complète.
   </p>
 </div>`,
-        text: `Bonjour ${clientUser.name ?? ""},\n\nL'équipe support Captain Prospect vous a répondu :\n\n${preview}\n\nConnectez-vous à votre espace client pour répondre.`,
+        text: `Bonjour ${clientUser.name ?? ""},\n\nL'équipe support ${brand.name} vous a répondu :\n\n${preview}\n\nConnectez-vous à votre espace client pour répondre.`,
     });
 }
 

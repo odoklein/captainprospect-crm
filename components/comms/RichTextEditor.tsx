@@ -318,14 +318,14 @@ export function RichTextEditor({
                                 className={cn(
                                     "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors",
                                     i === mentionIndex
-                                        ? "bg-indigo-50 text-indigo-900"
+                                        ? "bg-primary-50 text-primary-900"
                                         : "text-slate-700 hover:bg-slate-50"
                                 )}
                             >
                                 <span className={cn(
                                     "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-semibold",
                                     i === mentionIndex
-                                        ? "bg-indigo-500 text-white"
+                                        ? "bg-primary-500 text-white"
                                         : "bg-slate-100 text-slate-600"
                                 )}>
                                     {u.name.charAt(0).toUpperCase()}

@@ -19,15 +19,15 @@ interface ReadinessPanelProps {
 }
 
 const C = {
-    text: "#0F172A",
-    textMuted: "#64748B",
+    text: "var(--ds-ink)",
+    textMuted: "var(--ds-ink-3)",
     emerald: "#059669",
     emeraldBg: "#ECFDF5",
     emeraldBorder: "#A7F3D0",
     amber: "#D97706",
     amberBg: "#FFFBEB",
     amberBorder: "#FCD34D",
-    indigo: "#4F46E5",
+    indigo: "var(--brand-primary-600)",
 };
 
 interface GapItem {
@@ -150,7 +150,7 @@ export function ReadinessPanel({ readiness, onFix }: ReadinessPanelProps) {
                                     alignItems: "center",
                                     gap: 10,
                                     padding: "9px 12px",
-                                    background: "#FFFFFF",
+                                    background: "var(--ds-surface)",
                                     border: `1px solid ${accentBorder}`,
                                     borderRadius: 10,
                                     cursor: onFix ? "pointer" : "default",

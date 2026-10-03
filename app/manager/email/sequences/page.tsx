@@ -118,7 +118,7 @@ export default function SequencesPage() {
             case "ACTIVE":
                 return (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         Active
                     </span>
                 );
@@ -157,11 +157,11 @@ export default function SequencesPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Séquences Email</h1>
-                    <p className="text-sm text-slate-500">Automatisez vos suivis email</p>
+                    <p className="text-sm text-slate-500">Suivis email automatisés en plusieurs étapes</p>
                 </div>
                 <a
                     href="/manager/email/sequences/new"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-500 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     Nouvelle séquence
@@ -199,7 +199,7 @@ export default function SequencesPage() {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Rechercher..."
-                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         />
                     </div>
                 </div>
@@ -224,7 +224,7 @@ export default function SequencesPage() {
                         </p>
                         <a
                             href="/manager/email/sequences/new"
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-500 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-500 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Créer une séquence
@@ -238,7 +238,7 @@ export default function SequencesPage() {
                             <CardContent className="p-4">
                                 <div className="flex items-center gap-4">
                                     {/* Icon */}
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-white flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-xl bg-primary-50 ring-1 ring-inset ring-primary-100 flex items-center justify-center text-primary-600 flex-shrink-0">
                                         <Zap className="w-6 h-6" />
                                     </div>
 
@@ -247,7 +247,7 @@ export default function SequencesPage() {
                                         <div className="flex items-center gap-2 mb-1">
                                             <a
                                                 href={`/manager/email/sequences/${sequence.id}`}
-                                                className="text-base font-semibold text-slate-900 hover:text-indigo-600 truncate"
+                                                className="text-base font-semibold text-slate-900 hover:text-primary-600 truncate"
                                             >
                                                 {sequence.name}
                                             </a>

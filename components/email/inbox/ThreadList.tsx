@@ -82,16 +82,16 @@ function formatSmartDate(dateStr: string): string {
 
 function getAvatarColor(name: string): string {
     const colors = [
-        "from-violet-400 to-violet-600",
-        "from-blue-400 to-blue-600",
-        "from-emerald-400 to-emerald-600",
-        "from-amber-400 to-amber-600",
-        "from-rose-400 to-rose-600",
-        "from-teal-400 to-teal-600",
-        "from-indigo-400 to-indigo-600",
-        "from-pink-400 to-pink-600",
-        "from-cyan-400 to-cyan-600",
-        "from-orange-400 to-orange-600",
+        "bg-accent-500",
+        "bg-blue-500",
+        "bg-emerald-500",
+        "bg-amber-500",
+        "bg-rose-500",
+        "bg-teal-500",
+        "bg-primary-500",
+        "bg-pink-500",
+        "bg-cyan-500",
+        "bg-orange-500",
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -320,7 +320,7 @@ export function ThreadList({
                             setPage(1);
                             fetchThreads(1, false);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
                     >
                         <RefreshCw className="w-4 h-4" />
                         Réessayer
@@ -342,7 +342,7 @@ export function ThreadList({
                     searchRef={searchRef}
                 />
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center mb-5">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
                         <Inbox className="w-8 h-8 text-slate-400" />
                     </div>
                     <h3 className="text-[15px] font-semibold text-slate-800 mb-1.5">
@@ -356,7 +356,7 @@ export function ThreadList({
                     {searchInput && (
                         <button
                             onClick={() => setSearchInput("")}
-                            className="mt-4 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                            className="mt-4 px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
                         >
                             Effacer la recherche
                         </button>
@@ -412,7 +412,7 @@ export function ThreadList({
                 {/* Load more indicator */}
                 {isLoadingMore && (
                     <div className="flex items-center justify-center py-4">
-                        <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
+                        <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
                     </div>
                 )}
             </div>
@@ -442,12 +442,12 @@ function SearchBar({
             <div className={cn(
                 "relative rounded-xl transition-all duration-200",
                 isSearchFocused
-                    ? "ring-2 ring-indigo-500/20 shadow-sm"
+                    ? "ring-2 ring-primary-500/20 shadow-sm"
                     : ""
             )}>
                 <Search className={cn(
                     "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors",
-                    isSearchFocused ? "text-indigo-500" : "text-slate-400"
+                    isSearchFocused ? "text-primary-500" : "text-slate-400"
                 )} />
                 <input
                     ref={searchRef}
@@ -457,7 +457,7 @@ function SearchBar({
                     onChange={(e) => setSearchInput(e.target.value)}
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setIsSearchFocused(false)}
-                    className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:bg-white transition-all"
                 />
                 {searchInput && (
                     <button
@@ -505,29 +505,29 @@ function ThreadListItem({
             className={cn(
                 "group relative px-5 py-4 cursor-pointer transition-all duration-150 border-b border-slate-100/80",
                 isSelected
-                    ? "bg-indigo-50/60"
+                    ? "bg-primary-50/60"
                     : "hover:bg-slate-50/80",
                 !thread.isRead && !isSelected && "bg-white"
             )}
         >
             {/* Selected indicator */}
             {isSelected && (
-                <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-indigo-500 rounded-r-full" />
+                <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-primary-500 rounded-r-full" />
             )}
 
             <div className="flex items-start gap-3.5">
                 {/* Avatar */}
                 <div className="relative flex-shrink-0 mt-[1px]">
                     <div className={cn(
-                        "w-11 h-11 rounded-full flex items-center justify-center text-[13px] font-semibold bg-gradient-to-br text-white shadow-sm",
+                        "w-11 h-11 rounded-full flex items-center justify-center text-[13px] font-semibold text-white shadow-sm",
                         thread.clientId
-                            ? "from-emerald-400 to-emerald-600"
+                            ? "bg-emerald-500"
                             : avatarColor
                     )}>
                         {initials}
                     </div>
                     {!thread.isRead && (
-                        <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-indigo-500 rounded-full ring-2 ring-white" />
+                        <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-primary-500 rounded-full ring-2 ring-white" />
                     )}
                 </div>
 
@@ -550,7 +550,7 @@ function ThreadListItem({
                         </div>
                         <span className={cn(
                             "text-[11px] flex-shrink-0 tabular-nums pr-1",
-                            thread.isRead ? "text-slate-400" : "text-indigo-600 font-semibold"
+                            thread.isRead ? "text-slate-400" : "text-primary-600 font-semibold"
                         )}>
                             {smartDate}
                         </span>
@@ -594,7 +594,7 @@ function ThreadListItem({
             </div>
 
             {/* Hover actions */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5 bg-white/95 backdrop-blur-sm shadow-lg border border-slate-200 rounded-xl px-1.5 py-1 z-10">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5 bg-white shadow-lg border border-slate-200 rounded-xl px-1.5 py-1 z-10">
                 <button
                     onClick={onStar}
                     className={cn(

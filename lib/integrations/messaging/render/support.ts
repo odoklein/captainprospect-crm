@@ -29,25 +29,20 @@ export function renderSupportConversationCreated(data: {
   const getUrl = () => deepLink("manager/dashboard?support=1");
 
   let intentLabel = "Autre";
-  let intentEmoji = "💬";
 
   switch (intent?.toUpperCase()) {
     case "RDV":
       intentLabel = "Question RDV";
-      intentEmoji = "📅";
       break;
     case "RAPPORT":
       intentLabel = "Rapport";
-      intentEmoji = "📊";
       break;
     case "PROBLEME":
       intentLabel = "Problème";
-      intentEmoji = "🔴";
       break;
     case "AUTRE":
     default:
       intentLabel = "Autre";
-      intentEmoji = "💬";
       break;
   }
 
@@ -55,7 +50,7 @@ export function renderSupportConversationCreated(data: {
   const truncatedPreview = truncate(esc(messagePreview), 300);
 
   const contextParts = [
-    `${intentEmoji} ${intentLabel}`,
+    intentLabel,
   ];
 
   if (authorName) {
@@ -65,7 +60,7 @@ export function renderSupportConversationCreated(data: {
     contextParts.push(`Depuis ${esc(pageLabel)}`);
   }
   if (attachmentCount && attachmentCount > 0) {
-    contextParts.push(`📎 ${attachmentCount} PJ`);
+    contextParts.push(`${attachmentCount} PJ`);
   }
 
   return {

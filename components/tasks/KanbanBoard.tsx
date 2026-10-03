@@ -158,7 +158,7 @@ export function KanbanBoard({
                         className={cn(
                             "flex-shrink-0 w-72 flex flex-col rounded-xl border-t-4 bg-slate-50/70 border border-slate-200",
                             column.color,
-                            isDragTarget && "bg-indigo-50/50 border-indigo-200"
+                            isDragTarget && "bg-primary-50/50 border-primary-200"
                         )}
                         onDragEnter={(e) => handleDragEnter(e, column.id)}
                         onDragLeave={(e) => handleDragLeave(e, column.id)}
@@ -187,7 +187,7 @@ export function KanbanBoard({
                             {onAddTask && (
                                 <button
                                     onClick={() => onAddTask(column.id)}
-                                    className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                                    className="p-1 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
                                 >
                                     <Plus className="w-4 h-4" />
                                 </button>

@@ -26,7 +26,7 @@ export function ReviewLaunch({ data, clientName }: ReviewLaunchProps) {
             {/* Mission Details */}
             <Card className="p-6">
                 <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-indigo-600" />
+                    <Target className="w-5 h-5 text-primary-600" />
                     Détails de la mission
                 </h3>
                 <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-6 text-sm">
@@ -80,7 +80,7 @@ export function ReviewLaunch({ data, clientName }: ReviewLaunchProps) {
             {hasScript && (
                 <Card className="p-6">
                     <h3 className="font-medium text-slate-900 mb-4 flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5 text-violet-600" />
+                        <MessageSquare className="w-5 h-5 text-accent-600" />
                         Script de prospection
                     </h3>
                     <StrategyArtifactViewer

@@ -163,8 +163,8 @@ export default function EditListPage({ params }: { params: Promise<{ id: string 
                             <ArrowLeft className="w-4 h-4" />
                         </Button>
                     </Link>
-                    <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center">
-                        <List className="w-6 h-6 text-indigo-600" />
+                    <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center">
+                        <List className="w-6 h-6 text-primary-600" />
                     </div>
                     <div>
                         <h1 className="text-3xl font-extrabold text-slate-900">Modifier la liste</h1>
@@ -185,7 +185,7 @@ export default function EditListPage({ params }: { params: Promise<{ id: string 
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="Ex: Prospects Tech Q1"
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
 
@@ -219,7 +219,7 @@ export default function EditListPage({ params }: { params: Promise<{ id: string 
                             value={source}
                             onChange={(e) => setSource(e.target.value)}
                             placeholder="Ex: Apollo, Clay, CSV..."
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
                 </div>

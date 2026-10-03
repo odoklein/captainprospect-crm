@@ -92,10 +92,10 @@ function statusText(call: IncomingCall, now: number): string {
 }
 
 const HEADER = {
-    RINGING: { bg: "from-[#7C5CFC] to-[#5B3FD9]", label: "Appel entrant", Icon: PhoneIncoming },
-    ANSWERED: { bg: "from-emerald-500 to-emerald-600", label: "En communication", Icon: PhoneCall },
-    COMPLETED: { bg: "from-slate-700 to-slate-800", label: "Appel terminé", Icon: PhoneOff },
-    MISSED: { bg: "from-rose-500 to-rose-600", label: "Appel manqué", Icon: PhoneMissed },
+    RINGING: { bg: "bg-primary", label: "Appel entrant", Icon: PhoneIncoming },
+    ANSWERED: { bg: "bg-emerald-600", label: "En communication", Icon: PhoneCall },
+    COMPLETED: { bg: "bg-slate-800", label: "Appel terminé", Icon: PhoneOff },
+    MISSED: { bg: "bg-rose-600", label: "Appel manqué", Icon: PhoneMissed },
 } as const;
 
 // ============================================
@@ -232,7 +232,7 @@ function desktopAlert(call: IncomingCall) {
     if (typeof window === "undefined" || !document.hidden) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     try {
-        const n = new Notification(call.status === "RINGING" ? "📞 Appel entrant" : "📞 En communication", {
+        const n = new Notification(call.status === "RINGING" ? "Appel entrant" : "En communication", {
             body: [callerLabel(call), call.callerName ? call.companyName : null].filter(Boolean).join(" · "),
             tag: `incoming-call-${call.id}`,
             requireInteraction: true,
@@ -256,7 +256,7 @@ function useRingingTitle(calls: IncomingCall[]) {
         let flip = false;
         const t = setInterval(() => {
             flip = !flip;
-            document.title = document.hidden && flip ? `📞 ${label} vous appelle` : original;
+            document.title = document.hidden && flip ? `${label} vous appelle` : original;
         }, 1000);
         return () => {
             clearInterval(t);
@@ -388,14 +388,14 @@ function IncomingCallDialog({
 
     return (
         <div
-            className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-[#12122A]/50 backdrop-blur-sm animate-in fade-in duration-150"
+            className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-inverse/50 backdrop-blur-sm animate-in fade-in duration-150"
             role="dialog"
             aria-modal="true"
             aria-labelledby="incoming-call-title"
         >
             <div className="w-full max-w-[760px] max-h-[92vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className={cn("relative px-6 py-4 text-white bg-gradient-to-r", header.bg)}>
+                <div className={cn("relative px-6 py-4 text-white", header.bg)}>
                     <div className="flex items-center gap-4">
                         <div className="relative w-12 h-12 shrink-0">
                             {call.status === "RINGING" && !call.stale && (
@@ -455,17 +455,17 @@ function IncomingCallDialog({
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-3.5 border-t border-[#E8EBF0] bg-[#FAFAFC] flex flex-wrap items-center gap-2">
+                <div className="px-6 py-3.5 border-t border-line bg-surface-2 flex flex-wrap items-center gap-2">
                     {notifPermission === "default" ? (
                         <button
                             type="button"
                             onClick={() => Notification.requestPermission().then(setNotifPermission)}
-                            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#7C5CFC] hover:underline"
+                            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-primary-600 hover:underline"
                         >
                             <BellRing className="w-3.5 h-3.5" /> Être alerté même hors de l&apos;onglet
                         </button>
                     ) : (
-                        <span className="text-[11px] text-[#8B8BA7] hidden sm:inline">
+                        <span className="text-[11px] text-ink-3 hidden sm:inline">
                             Entrée : ouvrir la fiche · Échap : réduire
                         </span>
                     )}
@@ -473,7 +473,7 @@ function IncomingCallDialog({
                         {call.status === "MISSED" && (
                             <a
                                 href={`tel:${call.fromNumber}`}
-                                className="h-9 px-3.5 rounded-lg border border-[#E8EBF0] bg-white text-[13px] font-semibold text-[#12122A] hover:bg-slate-50 inline-flex items-center gap-1.5"
+                                className="h-9 px-3.5 rounded-lg border border-line bg-white text-[13px] font-semibold text-ink hover:bg-slate-50 inline-flex items-center gap-1.5"
                             >
                                 <Phone className="w-4 h-4" /> Rappeler
                             </a>
@@ -481,7 +481,7 @@ function IncomingCallDialog({
                         <button
                             type="button"
                             onClick={onMinimize}
-                            className="h-9 px-3.5 rounded-lg border border-[#E8EBF0] bg-white text-[13px] font-semibold text-[#5A5A7A] hover:text-[#12122A] hover:bg-slate-50"
+                            className="h-9 px-3.5 rounded-lg border border-line bg-white text-[13px] font-semibold text-ink-2 hover:text-ink hover:bg-slate-50"
                         >
                             Réduire
                         </button>
@@ -490,7 +490,7 @@ function IncomingCallDialog({
                             type="button"
                             onClick={open}
                             disabled={!canOpen}
-                            className="h-9 px-4 rounded-lg bg-[#7C5CFC] text-white text-[13px] font-semibold hover:bg-[#6B4BEB] disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                            className="h-9 px-4 rounded-lg bg-primary text-white text-[13px] font-semibold hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
                             title={canOpen ? "Ouvrir la fiche dans le panneau d'action" : "Aucune fiche CRM pour ce numéro"}
                         >
                             <ExternalLink className="w-4 h-4" />
@@ -525,21 +525,21 @@ function IncomingCallDock({
     return (
         <div className="fixed bottom-20 left-6 z-[90] flex flex-col items-start gap-2 max-w-[340px]">
             {expanded && pending.length > 0 && (
-                <div className="w-[320px] rounded-2xl border border-[#E8EBF0] bg-white shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    <div className="px-4 py-2.5 border-b border-[#E8EBF0] flex items-center justify-between">
-                        <p className="text-[12px] font-bold text-[#12122A]">Appels à traiter</p>
+                <div className="w-[320px] rounded-2xl border border-line bg-white shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <div className="px-4 py-2.5 border-b border-line flex items-center justify-between">
+                        <p className="text-[12px] font-bold text-ink">Appels à traiter</p>
                         <button
                             type="button"
                             onClick={() => {
                                 setExpanded(false);
                                 onClearHandled();
                             }}
-                            className="text-[11px] font-semibold text-[#7C5CFC] hover:underline"
+                            className="text-[11px] font-semibold text-primary-600 hover:underline"
                         >
                             Tout marquer traité
                         </button>
                     </div>
-                    <ul className="max-h-72 overflow-y-auto divide-y divide-[#F1F2F6]">
+                    <ul className="max-h-72 overflow-y-auto divide-y divide-line-subtle">
                         {pending.map((c) => (
                             <li key={c.id}>
                                 <button
@@ -556,8 +556,8 @@ function IncomingCallDock({
                                         <PhoneOff className="w-4 h-4 text-slate-400 shrink-0" />
                                     )}
                                     <span className="min-w-0">
-                                        <span className="block text-[12px] font-semibold text-[#12122A] truncate">{callerLabel(c)}</span>
-                                        <span className="block text-[11px] text-[#8B8BA7] truncate">{statusText(c, now)}</span>
+                                        <span className="block text-[12px] font-semibold text-ink truncate">{callerLabel(c)}</span>
+                                        <span className="block text-[11px] text-ink-3 truncate">{statusText(c, now)}</span>
                                     </span>
                                 </button>
                             </li>
@@ -573,7 +573,7 @@ function IncomingCallDock({
                         onClick={() => onShow(live.id)}
                         className={cn(
                             "flex items-center gap-2.5 pl-2 pr-3.5 py-2 rounded-full text-white shadow-lg hover:shadow-xl transition-shadow",
-                            live.status === "RINGING" ? "bg-[#7C5CFC]" : "bg-emerald-600",
+                            live.status === "RINGING" ? "bg-primary" : "bg-emerald-600",
                         )}
                         title="Afficher l'appel"
                     >

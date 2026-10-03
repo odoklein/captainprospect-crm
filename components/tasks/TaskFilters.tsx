@@ -86,7 +86,7 @@ export function TaskFilters({
                         placeholder="Rechercher des tâches..."
                         value={filters.search}
                         onChange={(e) => updateFilters({ search: e.target.value })}
-                        className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-400"
                     />
                     {filters.search && (
                         <button
@@ -102,14 +102,14 @@ export function TaskFilters({
                     className={cn(
                         "flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors",
                         showFilters || activeCount > 0
-                            ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                            ? "bg-primary-50 border-primary-200 text-primary-700"
                             : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                     )}
                 >
                     <Filter className="w-4 h-4" />
                     Filtres
                     {activeCount > 0 && (
-                        <span className="ml-1 w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                        <span className="ml-1 w-5 h-5 rounded-full bg-primary-600 text-white text-xs flex items-center justify-center">
                             {activeCount}
                         </span>
                     )}
@@ -146,7 +146,7 @@ export function TaskFilters({
                                     className={cn(
                                         "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors",
                                         filters.statuses.includes(opt.value)
-                                            ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                            ? "bg-primary-50 border-primary-200 text-primary-700"
                                             : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                                     )}
                                 >
@@ -170,7 +170,7 @@ export function TaskFilters({
                                     className={cn(
                                         "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border transition-colors",
                                         filters.priorities.includes(opt.value)
-                                            ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                            ? "bg-primary-50 border-primary-200 text-primary-700"
                                             : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                                     )}
                                 >
@@ -193,7 +193,7 @@ export function TaskFilters({
                                     className={cn(
                                         "px-2.5 py-1 text-xs font-medium rounded-md border transition-colors",
                                         filters.assigneeIds.includes("unassigned")
-                                            ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                            ? "bg-primary-50 border-primary-200 text-primary-700"
                                             : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                                     )}
                                 >
@@ -206,7 +206,7 @@ export function TaskFilters({
                                         className={cn(
                                             "px-2.5 py-1 text-xs font-medium rounded-md border transition-colors",
                                             filters.assigneeIds.includes(m.id)
-                                                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                                ? "bg-primary-50 border-primary-200 text-primary-700"
                                                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                                         )}
                                     >

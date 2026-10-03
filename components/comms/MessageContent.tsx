@@ -39,7 +39,7 @@ export function MessageContent({
                             rel="noopener noreferrer"
                             className={cn(
                                 "underline",
-                                isOwn ? "text-indigo-200 hover:text-white" : "text-indigo-600 hover:text-indigo-800"
+                                isOwn ? "text-primary-200 hover:text-white" : "text-primary-600 hover:text-primary-800"
                             )}
                         >
                             {children}

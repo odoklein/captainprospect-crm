@@ -122,7 +122,7 @@ export function HrDayDecisionModal({
             rows={3}
             maxLength={1000}
             placeholder="Ex : panne de la téléphonie le matin, formation interne l’après-midi…"
-            className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full rounded-lg border border-slate-200 bg-white p-3 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
           <p className="text-[11px] text-slate-400">Visible dans l’historique du dossier.</p>
         </div>
@@ -140,7 +140,7 @@ export function HrDayDecisionModal({
           <button
             type="submit"
             disabled={!canSubmit}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
           >
             {isSubmitting ? "Enregistrement…" : "Enregistrer la décision"}
           </button>

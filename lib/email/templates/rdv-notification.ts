@@ -1,3 +1,10 @@
+import { brand } from "@/lib/brand";
+// Brand colours for inline email styles (brand/brand.config.ts).
+const EMAIL_BRAND = {
+  primary: brand.palette.primarySeed,
+  onPrimaryMuted: brand.palette.primary[200],
+};
+
 export interface RdvNotificationData {
   contactFirstName?: string | null;
   contactLastName?: string | null;
@@ -61,13 +68,6 @@ function meetingTypeBadgeColor(type?: string | null): {
   return { bg: "#f3f4f6", text: "#374151" };
 }
 
-function meetingTypeIcon(type?: string | null): string {
-  if (type === "VISIO") return "📹";
-  if (type === "PHYSIQUE") return "📍";
-  if (type === "TELEPHONIQUE") return "📞";
-  return "📅";
-}
-
 function meetingChannelLabel(channel?: string | null): string {
   if (channel === "CALL") return "Appel";
   if (channel === "EMAIL") return "Email";
@@ -84,7 +84,7 @@ function connectionBlock(data: RdvNotificationData): string {
             <tr>
               <td style="padding: 16px 20px;">
                 <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 600; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.05em;">
-                  📹 Lien de connexion
+                  Lien de connexion
                 </p>
                 <a href="${data.meetingJoinUrl}" style="color: #1d4ed8; font-size: 14px; word-break: break-all; text-decoration: none; font-weight: 500;">
                   ${data.meetingJoinUrl}
@@ -108,7 +108,7 @@ function connectionBlock(data: RdvNotificationData): string {
             <tr>
               <td style="padding: 16px 20px;">
                 <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 600; color: #15803d; text-transform: uppercase; letter-spacing: 0.05em;">
-                  📍 Adresse
+                  Adresse
                 </p>
                 <p style="margin: 0; font-size: 14px; color: #166534; font-weight: 500; line-height: 1.5;">
                   ${data.meetingAddress}
@@ -128,7 +128,7 @@ function connectionBlock(data: RdvNotificationData): string {
             <tr>
               <td style="padding: 16px 20px;">
                 <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.05em;">
-                  📞 Numéro de téléphone
+                  Numéro de téléphone
                 </p>
                 <p style="margin: 0; font-size: 16px; color: #78350f; font-weight: 700; letter-spacing: 0.05em;">
                   ${data.meetingPhone}
@@ -150,11 +150,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
   subject: string;
   html: string;
 } {
-  const appUrl =
-    data.appUrl ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    "https://app.captainprospect.fr";
+  const appUrl = data.appUrl || brand.appUrl;
   const portalPath = data.portalPath || "/client/portal/meetings";
 
   const contactName = [data.contactFirstName, data.contactLastName]
@@ -167,7 +163,6 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
 
   const badgeColor = meetingTypeBadgeColor(data.meetingType);
   const typeLabel = meetingTypeLabel(data.meetingType);
-  const typeIcon = meetingTypeIcon(data.meetingType);
   const channelLabel = meetingChannelLabel(data.meetingChannel);
 
   const isRescheduled = data.variant === "rescheduled";
@@ -180,10 +175,10 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
       : `Nouveau RDV confirmé — ${contactName} (${company})`;
 
   const tone = isCancelled
-    ? { bg: "#fef2f2", border: "#fca5a5", text: "#b91c1c", badge: "❌ RDV annulé", title: "Un rendez-vous a été annulé" }
+    ? { bg: "#fef2f2", border: "#fca5a5", text: "#b91c1c", badge: "RDV annulé", title: "Un rendez-vous a été annulé" }
     : isRescheduled
-      ? { bg: "#fffbeb", border: "#fcd34d", text: "#b45309", badge: "🕓 RDV déplacé", title: "Votre rendez-vous a été déplacé" }
-      : { bg: "#f0fdf4", border: "#86efac", text: "#15803d", badge: "✅ Nouveau RDV confirmé", title: "Bonne nouvelle !" };
+      ? { bg: "#fffbeb", border: "#fcd34d", text: "#b45309", badge: "RDV déplacé", title: "Votre rendez-vous a été déplacé" }
+      : { bg: "#f0fdf4", border: "#86efac", text: "#15803d", badge: "Nouveau RDV confirmé", title: "Un rendez-vous a été réservé" };
 
   const intro = isCancelled
     ? `Le rendez-vous avec <strong style="color: #0f172a;">${contactName}</strong> (${company}) sur votre mission <strong style="color: #0f172a;">${mission}</strong> a été annulé. Il n'aura pas lieu au créneau indiqué ci-dessous.`
@@ -195,7 +190,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
     ? `<table cellpadding="0" cellspacing="0" width="100%" style="background-color: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; margin-bottom: 24px;">
         <tr>
           <td style="padding: 14px 18px; font-size: 14px; color: #92400e; line-height: 1.5;">
-            📆 <strong>Pensez à supprimer ce rendez-vous de votre agenda</strong> (Google Agenda, Outlook…) pour qu'il ne reste pas planifié.
+            <strong>Pensez à supprimer ce rendez-vous de votre agenda</strong> (Google Agenda, Outlook…) pour qu'il ne reste pas planifié.
           </td>
         </tr>
       </table>`
@@ -207,7 +202,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
           <table cellpadding="0" cellspacing="0" width="100%">
             <tr>
-              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">🕓 Ancien créneau</td>
+              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Ancien créneau</td>
               <td style="font-size: 13px; color: #9ca3af; font-weight: 500; text-decoration: line-through;">${capitalize(formatDate(data.previousScheduledAt))} à ${formatTime(data.previousScheduledAt)}</td>
             </tr>
           </table>
@@ -220,7 +215,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
           <table cellpadding="0" cellspacing="0" width="100%">
             <tr>
-              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">📅 Date</td>
+              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Date</td>
               <td style="font-size: 13px; color: #111827; font-weight: 600;">${capitalize(formatDate(data.scheduledAt))}</td>
             </tr>
           </table>
@@ -230,7 +225,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
           <table cellpadding="0" cellspacing="0" width="100%">
             <tr>
-              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">⏰ Heure</td>
+              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Heure</td>
               <td style="font-size: 13px; color: #111827; font-weight: 600;">${formatTime(data.scheduledAt)} (Paris)</td>
             </tr>
           </table>
@@ -255,11 +250,9 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
 
           <!-- HEADER -->
           <tr>
-            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); border-radius: 12px 12px 0 0; padding: 28px 36px; text-align: center;">
-              <p style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">
-                ⚓ Captain Prospect
-              </p>
-              <p style="margin: 6px 0 0; font-size: 13px; color: #94a3b8; letter-spacing: 0.04em; text-transform: uppercase;">
+            <td style="background-color: ${EMAIL_BRAND.primary}; border-radius: 12px 12px 0 0; padding: 28px 36px; text-align: center;">
+              <img src="${appUrl}${brand.logos.fullInverse}" alt="${brand.name}" height="30" style="height: 30px; width: auto; border: 0; display: inline-block;" />
+              <p style="margin: 10px 0 0; font-size: 13px; color: ${EMAIL_BRAND.onPrimaryMuted}; letter-spacing: 0.04em; text-transform: uppercase;">
                 Notification · Rendez-vous
               </p>
             </td>
@@ -307,7 +300,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
                         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
                           <table cellpadding="0" cellspacing="0" width="100%">
                             <tr>
-                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">👤 Contact</td>
+                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Contact</td>
                               <td style="font-size: 13px; color: #111827; font-weight: 600;">${contactName}</td>
                             </tr>
                           </table>
@@ -317,7 +310,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
                         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
                           <table cellpadding="0" cellspacing="0" width="100%">
                             <tr>
-                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">🏢 Entreprise</td>
+                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Entreprise</td>
                               <td style="font-size: 13px; color: #111827; font-weight: 600;">${company}</td>
                             </tr>
                           </table>
@@ -327,7 +320,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
                         <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
                           <table cellpadding="0" cellspacing="0" width="100%">
                             <tr>
-                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">📡 Canal</td>
+                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Canal</td>
                               <td style="font-size: 13px; color: #111827; font-weight: 600;">${channelLabel}</td>
                             </tr>
                           </table>
@@ -337,7 +330,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
                         <td style="padding: 8px 0;">
                           <table cellpadding="0" cellspacing="0" width="100%">
                             <tr>
-                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">${typeIcon} Format</td>
+                              <td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Format</td>
                               <td>
                                 <span style="display: inline-block; padding: 2px 10px; background-color: ${badgeColor.bg}; color: ${badgeColor.text}; font-size: 12px; font-weight: 700; border-radius: 12px;">
                                   ${typeLabel}
@@ -362,7 +355,7 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
                 <tr>
                   <td align="center" style="padding: 8px 0 0;">
                     <a href="${appUrl}${portalPath}"
-                       style="display: inline-block; padding: 13px 32px; background-color: #0f172a; color: #ffffff; font-size: 14px; font-weight: 700; border-radius: 8px; text-decoration: none; letter-spacing: 0.01em;">
+                       style="display: inline-block; padding: 13px 32px; background-color: ${EMAIL_BRAND.primary}; color: #ffffff; font-size: 14px; font-weight: 700; border-radius: 8px; text-decoration: none; letter-spacing: 0.01em;">
                       Voir tous mes RDVs →
                     </a>
                   </td>
@@ -376,10 +369,10 @@ export function buildRdvNotificationEmail(data: RdvNotificationData): {
           <tr>
             <td style="background-color: #f8fafc; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none; padding: 20px 36px; text-align: center;">
               <p style="margin: 0 0 4px; font-size: 12px; color: #94a3b8;">
-                <strong style="color: #64748b;">Captain Prospect</strong> · Plateforme de prospection B2B
+                <strong style="color: #64748b;">${brand.name}</strong> · ${brand.tagline}
               </p>
               <p style="margin: 0; font-size: 11px; color: #cbd5e1; line-height: 1.5;">
-                Vous recevez cet email car vous êtes client sur la plateforme Captain Prospect.<br/>
+                Vous recevez cet email car vous êtes client sur la plateforme ${brand.name}.<br/>
                 Pour toute question, contactez votre chargé de compte.
               </p>
             </td>
@@ -420,11 +413,7 @@ export function substituteTemplateVariables(
   template: string,
   data: RdvNotificationData
 ): string {
-  const appUrl =
-    data.appUrl ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    "https://app.captainprospect.fr";
+  const appUrl = data.appUrl || brand.appUrl;
   const portalPath = data.portalPath || "/client/portal/meetings";
 
   const contactName = [data.contactFirstName, data.contactLastName]
@@ -493,9 +482,9 @@ export const DEFAULT_RDV_TEMPLATE_HTML = `<!DOCTYPE html>
 
           <!-- HEADER -->
           <tr>
-            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); border-radius: 12px 12px 0 0; padding: 28px 36px; text-align: center;">
-              <p style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">⚓ Captain Prospect</p>
-              <p style="margin: 6px 0 0; font-size: 13px; color: #94a3b8; letter-spacing: 0.04em; text-transform: uppercase;">Notification · Rendez-vous</p>
+            <td style="background-color: ${EMAIL_BRAND.primary}; border-radius: 12px 12px 0 0; padding: 28px 36px; text-align: center;">
+              <p style="margin: 0; font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: -0.02em;">${brand.name}</p>
+              <p style="margin: 6px 0 0; font-size: 13px; color: ${EMAIL_BRAND.onPrimaryMuted}; letter-spacing: 0.04em; text-transform: uppercase;">Notification · Rendez-vous</p>
             </td>
           </tr>
 
@@ -506,12 +495,12 @@ export const DEFAULT_RDV_TEMPLATE_HTML = `<!DOCTYPE html>
               <table cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 20px; padding: 5px 14px;">
-                    <span style="font-size: 12px; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.06em;">✅ Nouveau RDV confirmé</span>
+                    <span style="font-size: 12px; font-weight: 700; color: #15803d; text-transform: uppercase; letter-spacing: 0.06em;">Nouveau RDV confirmé</span>
                   </td>
                 </tr>
               </table>
 
-              <h1 style="margin: 18px 0 8px; font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.3;">Bonne nouvelle !</h1>
+              <h1 style="margin: 18px 0 8px; font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.3;">Un rendez-vous a été réservé</h1>
               <p style="margin: 0 0 24px; font-size: 15px; color: #475569; line-height: 1.6;">
                 Un nouveau rendez-vous a été réservé sur votre mission <strong style="color: #0f172a;">{{missionName}}</strong>.
               </p>
@@ -522,12 +511,12 @@ export const DEFAULT_RDV_TEMPLATE_HTML = `<!DOCTYPE html>
                 <tr>
                   <td style="padding: 0 20px 16px;">
                     <table cellpadding="0" cellspacing="0" width="100%">
-                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">📅 Date</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingDate}}</td></tr></table></td></tr>
-                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">⏰ Heure</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingTime}}</td></tr></table></td></tr>
-                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">👤 Contact</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{contactName}}</td></tr></table></td></tr>
-                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">🏢 Entreprise</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{companyName}}</td></tr></table></td></tr>
-                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">📋 Format</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingTypeLabel}}</td></tr></table></td></tr>
-                      <tr><td style="padding: 8px 0;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">📡 Canal</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingChannelLabel}}</td></tr></table></td></tr>
+                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Date</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingDate}}</td></tr></table></td></tr>
+                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Heure</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingTime}}</td></tr></table></td></tr>
+                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Contact</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{contactName}}</td></tr></table></td></tr>
+                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Entreprise</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{companyName}}</td></tr></table></td></tr>
+                      <tr><td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Format</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingTypeLabel}}</td></tr></table></td></tr>
+                      <tr><td style="padding: 8px 0;"><table cellpadding="0" cellspacing="0" width="100%"><tr><td width="40%" style="font-size: 13px; color: #6b7280; font-weight: 500;">Canal</td><td style="font-size: 13px; color: #111827; font-weight: 600;">{{meetingChannelLabel}}</td></tr></table></td></tr>
                     </table>
                   </td>
                 </tr>
@@ -537,7 +526,7 @@ export const DEFAULT_RDV_TEMPLATE_HTML = `<!DOCTYPE html>
               <table cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td align="center" style="padding: 8px 0 0;">
-                    <a href="{{portalUrl}}" style="display: inline-block; padding: 13px 32px; background-color: #0f172a; color: #ffffff; font-size: 14px; font-weight: 700; border-radius: 8px; text-decoration: none; letter-spacing: 0.01em;">Voir tous mes RDVs →</a>
+                    <a href="{{portalUrl}}" style="display: inline-block; padding: 13px 32px; background-color: ${EMAIL_BRAND.primary}; color: #ffffff; font-size: 14px; font-weight: 700; border-radius: 8px; text-decoration: none; letter-spacing: 0.01em;">Voir tous mes RDVs →</a>
                   </td>
                 </tr>
               </table>
@@ -548,8 +537,8 @@ export const DEFAULT_RDV_TEMPLATE_HTML = `<!DOCTYPE html>
           <!-- FOOTER -->
           <tr>
             <td style="background-color: #f8fafc; border-radius: 0 0 12px 12px; border: 1px solid #e2e8f0; border-top: none; padding: 20px 36px; text-align: center;">
-              <p style="margin: 0 0 4px; font-size: 12px; color: #94a3b8;"><strong style="color: #64748b;">Captain Prospect</strong> · Plateforme de prospection B2B</p>
-              <p style="margin: 0; font-size: 11px; color: #cbd5e1; line-height: 1.5;">Vous recevez cet email car vous êtes client sur la plateforme Captain Prospect.<br/>Pour toute question, contactez votre chargé de compte.</p>
+              <p style="margin: 0 0 4px; font-size: 12px; color: #94a3b8;"><strong style="color: #64748b;">${brand.name}</strong> · ${brand.tagline}</p>
+              <p style="margin: 0; font-size: 11px; color: #cbd5e1; line-height: 1.5;">Vous recevez cet email car vous êtes client sur la plateforme ${brand.name}.<br/>Pour toute question, contactez votre chargé de compte.</p>
             </td>
           </tr>
 

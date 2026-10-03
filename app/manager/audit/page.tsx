@@ -96,7 +96,7 @@ function actionTone(action: string): string {
             return "bg-amber-50 text-amber-700 border-amber-200";
         case "ROLE_CHANGE":
         case "PERMISSION_CHANGE":
-            return "bg-violet-50 text-violet-700 border-violet-200";
+            return "bg-accent-50 text-accent-700 border-accent-200";
         case "STATUS_CHANGE":
         case "FORCE_LOGOUT":
         case "SESSION_REVOKE":
@@ -200,7 +200,7 @@ export default function AuditPage() {
     ];
 
     const dateClass =
-        "px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20";
+        "px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20";
 
     return (
         <div className="space-y-6">
@@ -237,7 +237,7 @@ export default function AuditPage() {
                 {hasFilters && (
                     <button
                         onClick={() => { setOffset(0); setFilters(EMPTY_FILTERS); }}
-                        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700"
                     >
                         <X className="w-3.5 h-3.5" /> Réinitialiser les filtres
                     </button>
@@ -249,7 +249,7 @@ export default function AuditPage() {
                 {error ? (
                     <div className="p-10 text-center text-sm text-rose-600">{error}</div>
                 ) : loading && rows.length === 0 ? (
-                    <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /></div>
+                    <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>
                 ) : rows.length === 0 ? (
                     <div className="p-14 text-center">
                         <ScrollText className="w-10 h-10 text-slate-300 mx-auto mb-3" />

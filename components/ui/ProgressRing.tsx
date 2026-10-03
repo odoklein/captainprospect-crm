@@ -10,7 +10,10 @@ interface ProgressRingProps {
     strokeWidth?: number;
     className?: string;
     showValue?: boolean;
+    /** Kept for compatibility; both variants render the same flat brand ring. */
     variant?: "default" | "glow";
+    /** Ring colour: brand primary by default, accent on the brand surface. */
+    tone?: "primary" | "accent" | "success";
 }
 
 export function ProgressRing({
@@ -20,7 +23,7 @@ export function ProgressRing({
     strokeWidth = 10,
     className,
     showValue = false,
-    variant = "glow",
+    tone = "primary",
 }: ProgressRingProps) {
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
@@ -32,8 +35,7 @@ export function ProgressRing({
     const circumference = 2 * Math.PI * radius;
     const pct = max > 0 ? Math.min(value / max, 1) : 0;
     const offset = circumference * (1 - (mounted ? pct : 0));
-    const gradientId = `progressGradient-${size}`;
-    const glowId = `progressGlow-${size}`;
+    const stroke = tone === "accent" ? "var(--ds-accent)" : tone === "success" ? "var(--ds-success)" : "var(--ds-primary)";
 
     return (
         <div className={cn("relative inline-flex items-center justify-center", className)}>
@@ -44,49 +46,31 @@ export function ProgressRing({
                 aria-label={`${value} sur ${max}`}
                 role="img"
             >
-                <defs>
-                    <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#6C3AFF" />
-                        <stop offset="50%" stopColor="#7C5CFC" />
-                        <stop offset="100%" stopColor="#B794F6" />
-                    </linearGradient>
-                    {variant === "glow" && (
-                        <filter id={glowId}>
-                            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                            <feMerge>
-                                <feMergeNode in="coloredBlur" />
-                                <feMergeNode in="SourceGraphic" />
-                            </feMerge>
-                        </filter>
-                    )}
-                </defs>
                 <circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    stroke="#E8EBF0"
+                    stroke="var(--ds-surface-3)"
                     strokeWidth={strokeWidth}
-                    opacity={0.6}
                 />
                 <circle
                     cx={size / 2}
                     cy={size / 2}
                     r={radius}
                     fill="none"
-                    stroke={`url(#${gradientId})`}
+                    stroke={stroke}
                     strokeWidth={strokeWidth}
                     strokeLinecap="round"
                     strokeDasharray={circumference}
                     strokeDashoffset={offset}
-                    filter={variant === "glow" ? `url(#${glowId})` : undefined}
                     style={{ transition: "stroke-dashoffset 900ms cubic-bezier(0.4, 0, 0.2, 1)" }}
                 />
             </svg>
             {showValue && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-black text-[#12122A] tabular-nums">{value}</span>
-                    <span className="text-[10px] text-[#6B7194] -mt-0.5">sur {max}</span>
+                    <span className="font-display text-2xl font-bold text-ink tabular-nums">{value}</span>
+                    <span className="text-[10px] text-ink-3 -mt-0.5">sur {max}</span>
                 </div>
             )}
         </div>

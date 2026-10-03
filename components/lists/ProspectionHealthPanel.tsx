@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-    TrendingUp, Users, Zap,
+    TrendingUp, Users, Gauge,
     Calendar, Target, AlertTriangle, CheckCircle2, Info,
     ChevronDown, ChevronUp, Loader2, HelpCircle,
 } from "lucide-react";
@@ -359,7 +359,7 @@ export function ProspectionHealthPanel({
                     <div className="bg-white border border-slate-100 rounded-xl p-4 space-y-3">
                         <div className="flex items-center justify-between">
                             <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                                <Zap className="w-3.5 h-3.5" />
+                                <Gauge className="w-3.5 h-3.5" />
                                 Cadence
                             </h4>
                             <VelocityTrendBadge

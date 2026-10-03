@@ -1,3 +1,5 @@
+import { brandUrl } from "@/lib/brand";
+import { brand } from "@/lib/brand";
 // ============================================
 // BROADCAST UNIFIED TYPES & VARIABLE REGISTRY
 // ============================================
@@ -138,7 +140,7 @@ export const BROADCAST_VARIABLES_REGISTRY: Record<string, BroadcastVariable[]> =
       token: "{{portalUrl}}",
       label: "Lien de l'espace client",
       category: "Général",
-      sampleValue: "https://app.captainprospect.fr/client/portal/meetings",
+      sampleValue: brandUrl("/client/portal/meetings"),
       description: "Lien direct vers la fiche RDV sur le portail client",
     },
   ],
@@ -157,7 +159,7 @@ export const BROADCAST_VARIABLES_REGISTRY: Record<string, BroadcastVariable[]> =
       token: "{{resetUrl}}",
       label: "Lien de réinitialisation",
       category: "Sécurité",
-      sampleValue: "https://app.captainprospect.fr/reset-password?token=example_token",
+      sampleValue: brandUrl("/reset-password?token=example_token"),
       description: "Lien sécurisé à usage unique pour choisir un nouveau mot de passe",
     },
     {
@@ -219,7 +221,7 @@ export const BROADCAST_VARIABLES_REGISTRY: Record<string, BroadcastVariable[]> =
       token: "{{appUrl}}",
       label: "Lien de la plateforme",
       category: "Général",
-      sampleValue: "https://app.captainprospect.fr",
+      sampleValue: brandUrl("/"),
       description: "Lien d'accès principal au CRM",
     },
   ],
@@ -253,7 +255,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
     channels: ["EMAIL", "IN_APP_BANNER"],
     isSystemLocked: true,
     isActive: true,
-    defaultSubject: "✅ Nouveau RDV confirmé - {{contactFirstName}} {{contactLastName}} ({{companyName}})",
+    defaultSubject: "Nouveau RDV confirmé - {{contactFirstName}} {{contactLastName}} ({{companyName}})",
     defaultBlocks: [
       {
         id: "b_head",
@@ -266,7 +268,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
       {
         id: "b_badge",
         type: "callout",
-        content: "✅ Nouveau rendez-vous confirmé",
+        content: "Nouveau rendez-vous confirmé",
         props: {
           styleVariant: "success",
           badgeText: "CONFIRMÉ",
@@ -275,7 +277,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
       {
         id: "b_heading",
         type: "heading",
-        content: "Bonne nouvelle ! Un nouveau rendez-vous a été planifié.",
+        content: "Un nouveau rendez-vous a été planifié.",
         props: { align: "left" },
       },
       {
@@ -289,10 +291,10 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
         type: "key_value",
         props: {
           items: [
-            { icon: "📅", label: "Date", value: "{{scheduledDate}}" },
-            { icon: "⏰", label: "Heure", value: "{{scheduledTime}} (Paris)" },
-            { icon: "🎯", label: "Type", value: "{{meetingType}}" },
-            { icon: "🏢", label: "Société", value: "{{companyName}}" },
+            { label: "Date", value: "{{scheduledDate}}" },
+            { label: "Heure", value: "{{scheduledTime}} (Paris)" },
+            { label: "Type", value: "{{meetingType}}" },
+            { label: "Société", value: "{{companyName}}" },
           ],
         },
       },
@@ -310,7 +312,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
         id: "b_foot",
         type: "footer",
         content:
-          "Cet email automatique a été généré par Captain Prospect pour le suivi de votre prospection commerciale.",
+          `Cet email automatique a été généré par ${brand.name} pour le suivi de votre prospection commerciale.`,
       },
     ],
     defaultHtml: "",
@@ -325,7 +327,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
     channels: ["EMAIL"],
     isSystemLocked: true,
     isActive: true,
-    defaultSubject: "Réinitialisation de votre mot de passe - Captain Prospect",
+    defaultSubject: `Réinitialisation de votre mot de passe - ${brand.name}`,
     defaultBlocks: [
       {
         id: "sec_head",
@@ -345,7 +347,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
         id: "sec_intro",
         type: "paragraph",
         content:
-          "Bonjour **{{userName}}**,\n\nNous avons reçu une demande de réinitialisation de mot de passe pour votre compte Captain Prospect. Cliquez sur le bouton ci-dessous pour choisir votre nouveau mot de passe.",
+          "Bonjour **{{userName}}**,\n\nNous avons reçu une demande de réinitialisation de mot de passe pour votre compte " + brand.name + ". Cliquez sur le bouton ci-dessous pour choisir votre nouveau mot de passe.",
       },
       {
         id: "sec_cta",
@@ -361,7 +363,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
         id: "sec_notice",
         type: "callout",
         content:
-          "⚠️ Ce lien expire automatiquement dans **{{expiryMinutes}} minutes** pour des raisons de sécurité.",
+          "Ce lien expire automatiquement dans **{{expiryMinutes}} minutes** pour des raisons de sécurité.",
         props: { styleVariant: "warning" },
       },
       {
@@ -383,7 +385,7 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
     channels: ["EMAIL"],
     isSystemLocked: true,
     isActive: true,
-    defaultSubject: "Votre code de validation de sécurité - Captain Prospect",
+    defaultSubject: `Votre code de validation de sécurité - ${brand.name}`,
     defaultBlocks: [
       {
         id: "otp_head",
@@ -418,13 +420,13 @@ export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
       {
         id: "otp_warn",
         type: "callout",
-        content: "⏱️ Ce code expire dans **{{expiryMinutes}} minutes**. Ne le partagez avec personne.",
+        content: "Ce code expire dans **{{expiryMinutes}} minutes**. Ne le partagez avec personne.",
         props: { styleVariant: "neutral", align: "center" },
       },
       {
         id: "otp_foot",
         type: "footer",
-        content: "Captain Prospect Protection System · Si vous n'êtes pas l'auteur de cette demande, contactez immédiatement l'administrateur.",
+        content: `${brand.name} · Si vous n'êtes pas l'auteur de cette demande, contactez immédiatement l'administrateur.`,
       },
     ],
     defaultHtml: "",

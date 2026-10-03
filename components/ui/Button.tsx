@@ -1,35 +1,63 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { ButtonHTMLAttributes, forwardRef, type ReactNode } from "react";
+import { FOCUS_RING, FOCUS_RING_INVERSE } from "./recipes";
+import { Spinner } from "./Spinner";
+
+export type ButtonVariant =
+    | "primary"
+    | "accent"
+    | "secondary"
+    | "outline"
+    | "soft"
+    | "ghost"
+    | "link"
+    | "success"
+    | "danger"
+    | "inverse";
+export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: "primary" | "secondary" | "outline" | "success" | "danger" | "ghost";
-    size?: "sm" | "md" | "lg";
+    /**
+     * primary — the one main action of a view (brand primary)
+     * accent — brand highlight: AI, "start", a promoted action
+     * secondary / outline — white bordered control
+     * soft — tinted, for frequent secondary actions
+     * ghost — no chrome (toolbars, cancel)
+     * link — inline text action ("Voir tout")
+     * success / danger — confirm or destroy
+     * inverse — on the brand surface (hero, sidebar)
+     */
+    variant?: ButtonVariant;
+    size?: ButtonSize;
     isLoading?: boolean;
+    leftIcon?: ReactNode;
+    rightIcon?: ReactNode;
+    fullWidth?: boolean;
 }
 
 const BUTTON_BASE_STYLES =
-    "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-200 cursor-pointer border-none disabled:opacity-50 disabled:cursor-not-allowed";
+    "relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-semibold tracking-[-0.005em] select-none cursor-pointer transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-snappy active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 [&_svg]:shrink-0";
 
-const BUTTON_VARIANTS: Record<string, string> = {
-    primary:
-        "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white hover:from-indigo-400 hover:to-indigo-500 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/30",
-    secondary:
-        "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400",
-    outline:
-        "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-slate-400",
-    success:
-        "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white hover:-translate-y-0.5 hover:shadow-lg hover:shadow-emerald-500/30",
-    danger:
-        "bg-gradient-to-br from-red-500 to-red-600 text-white hover:-translate-y-0.5 hover:shadow-lg hover:shadow-red-500/30",
-    ghost: "bg-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100",
+const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
+    primary: "bg-primary text-primary-fg shadow-primary hover:bg-primary-hover active:bg-primary-active",
+    accent: "bg-accent text-accent-fg shadow-xs hover:bg-accent-hover",
+    secondary: "bg-surface text-ink-2 border border-line shadow-2xs hover:bg-surface-2 hover:border-line-strong hover:text-ink",
+    outline: "bg-surface text-ink-2 border border-line shadow-2xs hover:bg-surface-2 hover:border-line-strong hover:text-ink",
+    soft: "bg-primary-50 text-primary-700 hover:bg-primary-100",
+    ghost: "bg-transparent text-ink-3 hover:text-ink hover:bg-surface-3",
+    link: "bg-transparent text-link hover:text-primary-800 underline-offset-4 hover:underline active:scale-100 px-0! h-auto!",
+    success: "bg-success text-white shadow-xs hover:bg-success-ink",
+    danger: "bg-danger text-white shadow-xs hover:bg-danger-ink",
+    inverse: "bg-white/10 text-inverse-ink border border-inverse-line hover:bg-white/15",
 };
 
-const BUTTON_SIZES: Record<string, string> = {
-    sm: "px-3 py-2 text-sm",
-    md: "px-4 py-2.5 text-sm",
-    lg: "px-6 py-3 text-base",
+const BUTTON_SIZES: Record<ButtonSize, string> = {
+    xs: "h-7 px-2.5 text-xs rounded-lg gap-1.5",
+    sm: "h-9 px-3.5 text-[13px] rounded-[10px] gap-1.5",
+    md: "h-10 px-4 text-sm rounded-control",
+    lg: "h-11 px-5 text-sm rounded-control",
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -39,6 +67,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             variant = "primary",
             size = "md",
             isLoading = false,
+            leftIcon,
+            rightIcon,
+            fullWidth,
             disabled,
             children,
             ...props
@@ -48,33 +79,21 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         return (
             <button
                 ref={ref}
-                className={cn(BUTTON_BASE_STYLES, BUTTON_VARIANTS[variant], BUTTON_SIZES[size], className)}
+                aria-busy={isLoading || undefined}
+                className={cn(
+                    BUTTON_BASE_STYLES,
+                    variant === "inverse" ? FOCUS_RING_INVERSE : FOCUS_RING,
+                    BUTTON_SIZES[size],
+                    BUTTON_VARIANTS[variant],
+                    fullWidth && "w-full",
+                    className
+                )}
                 disabled={disabled || isLoading}
                 {...props}
             >
-                {isLoading && (
-                    <svg
-                        className="animate-spin h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                    >
-                        <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                        />
-                        <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                        />
-                    </svg>
-                )}
+                {isLoading ? <Spinner /> : leftIcon}
                 {children}
+                {!isLoading && rightIcon}
             </button>
         );
     }
@@ -82,4 +101,5 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
 Button.displayName = "Button";
 
+export { Button };
 export default Button;

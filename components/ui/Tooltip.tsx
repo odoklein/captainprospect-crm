@@ -190,7 +190,7 @@ export function TooltipTrigger({ content, position = "top", className }: Tooltip
     <Tooltip content={content} position={position} className={className}>
       <button
         type="button"
-        className="inline-flex items-center justify-center w-4 h-4 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+        className="inline-flex items-center justify-center w-4 h-4 text-ink-4 hover:text-ink-2 transition-colors focus:outline-none"
         aria-label="Information"
       >
         <svg

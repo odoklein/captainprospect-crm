@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { X, Sparkles, Loader2, AlertCircle, Copy, Check, RefreshCw } from "lucide-react";
+import { X, Loader2, AlertCircle, Copy, Check, RefreshCw } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 
 // Basic HTML sanitization for preview
 function sanitizeHtml(html: string): string {
@@ -31,11 +32,11 @@ export interface AiEmailDraftDialogProps {
 // ============================================
 
 const TONES = [
-    { id: "professional", label: "Professionnel", emoji: "💼" },
-    { id: "friendly", label: "Amical", emoji: "😊" },
-    { id: "formal", label: "Formel", emoji: "🎩" },
-    { id: "concise", label: "Concis", emoji: "⚡" },
-    { id: "persuasive", label: "Persuasif", emoji: "🎯" },
+    { id: "professional", label: "Professionnel" },
+    { id: "friendly", label: "Amical" },
+    { id: "formal", label: "Formel" },
+    { id: "concise", label: "Concis" },
+    { id: "persuasive", label: "Persuasif" },
 ] as const;
 
 type ToneId = (typeof TONES)[number]["id"];
@@ -144,10 +145,10 @@ export function AiEmailDraftDialog({
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-600 to-violet-600">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-primary-600">
                     <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                            <Sparkles className="w-4.5 h-4.5 text-white" />
+                            <AiMark className="w-4.5 h-4.5 text-white" />
                         </div>
                         <div>
                             <h2 className="text-[15px] font-semibold text-white">Rédaction assistée par IA</h2>
@@ -173,7 +174,7 @@ export function AiEmailDraftDialog({
                             value={instruction}
                             onChange={(e) => setInstruction(e.target.value)}
                             placeholder="Ex. : proposer un rendez-vous la semaine prochaine pour présenter notre offre de services..."
-                            className="w-full h-24 px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none transition-all"
+                            className="w-full h-24 px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 resize-none transition-all"
                             disabled={isLoading}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -198,12 +199,11 @@ export function AiEmailDraftDialog({
                                     className={cn(
                                         "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-150",
                                         selectedTone === tone.id
-                                            ? "bg-indigo-50 border-indigo-300 text-indigo-700 shadow-sm"
+                                            ? "bg-primary-50 border-primary-300 text-primary-700 shadow-sm"
                                             : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300",
                                         isLoading && "opacity-50 cursor-not-allowed"
                                     )}
                                 >
-                                    <span className="text-sm">{tone.emoji}</span>
                                     {tone.label}
                                 </button>
                             ))}
@@ -239,7 +239,7 @@ export function AiEmailDraftDialog({
                                     "flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200",
                                     isLoading || !instruction.trim()
                                         ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                                        : "bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-[1px] active:translate-y-0"
+                                        : "bg-primary-600 text-white hover:bg-primary-500"
                                 )}
                             >
                                 {isLoading ? (
@@ -249,7 +249,7 @@ export function AiEmailDraftDialog({
                                     </>
                                 ) : (
                                     <>
-                                        <Sparkles className="w-4 h-4" />
+                                        <AiMark className="w-4 h-4" />
                                         Générer
                                     </>
                                 )}
@@ -306,7 +306,7 @@ export function AiEmailDraftDialog({
                                 </button>
                                 <button
                                     onClick={handleInsert}
-                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 rounded-xl transition-all hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-[1px] active:translate-y-0"
+                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-primary-600 text-white hover:bg-primary-500 rounded-xl transition-colors"
                                 >
                                     <Check className="w-4 h-4" />
                                     Insérer dans l&apos;email

@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { ReportData } from "@/lib/reporting/types";
 import { cn } from "@/lib/utils";
+import { brand } from "@/lib/brand";
 
 function formatDelta(d: number): string {
     const sign = d >= 0 ? "+" : "";
@@ -39,32 +40,31 @@ export function ReportLayout({ data: d, printMode, className }: ReportLayoutProp
     return (
         <article
             className={cn(
-                "bg-white text-[#12122A] antialiased",
-                !printMode && "max-w-3xl mx-auto rounded-2xl border border-[#E8EBF0] shadow-sm overflow-hidden",
+                "bg-white text-ink antialiased",
+                !printMode && "max-w-3xl mx-auto rounded-2xl border border-line shadow-sm overflow-hidden",
                 className
             )}
         >
             <div className={cn("px-10", printMode ? "py-8" : "py-12")}>
                 {/* Hero */}
                 <section className={cn(printMode ? "mb-10" : "mb-14")}>
-                    <p className="text-xs font-medium tracking-widest text-[#8B8BA7] uppercase mb-2">
+                    <p className="text-xs font-medium tracking-widest text-ink-3 uppercase mb-2">
                         {d.periodLabel.toUpperCase()}
                     </p>
-                    <h1 className="text-2xl md:text-3xl font-bold text-[#12122A] tracking-tight mb-1">
+                    <h1 className="text-2xl md:text-3xl font-bold text-ink tracking-tight mb-1">
                         {d.missionLabel}
                     </h1>
-                    <p className="text-sm text-[#8B8BA7] mb-8">
+                    <p className="text-sm text-ink-3 mb-8">
                         {d.clientName} · Généré le {d.generatedDate}
                     </p>
-                    <div className="relative rounded-2xl bg-gradient-to-br from-[#1A1040] to-[#12122A] px-8 py-10">
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-[#7C5CFC]/10 rounded-full blur-3xl" />
+                    <div className="relative rounded-2xl bg-inverse px-8 py-10">
                         <div className="relative text-center">
                             <p className="text-5xl md:text-6xl font-bold text-white tabular-nums">
                                 {d.meetingsBooked}
                             </p>
                             <p className="text-lg font-medium text-white/80 mt-1">RDV planifiés</p>
                             {d.meetingsDelta != null && (
-                                <p className="text-sm mt-2 text-[#10B981] font-medium">
+                                <p className="text-sm mt-2 text-success font-medium">
                                     {formatDelta(d.meetingsDelta)} vs période précédente
                                 </p>
                             )}
@@ -74,7 +74,7 @@ export function ReportLayout({ data: d, printMode, className }: ReportLayoutProp
 
                 {/* KPI Grid */}
                 <section className={cn(printMode ? "mb-10" : "mb-14")}>
-                    <h2 className="text-xs font-semibold tracking-widest text-[#8B8BA7] uppercase mb-6">
+                    <h2 className="text-xs font-semibold tracking-widest text-ink-3 uppercase mb-6">
                         Performance
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -90,17 +90,17 @@ export function ReportLayout({ data: d, printMode, className }: ReportLayoutProp
                         ].map(({ label, value, delta }) => (
                             <div
                                 key={label}
-                                className="rounded-xl border border-[#E8EBF0] bg-white p-5 shadow-sm"
+                                className="rounded-xl border border-line bg-white p-5 shadow-sm"
                             >
-                                <p className="text-2xl font-bold text-[#12122A] tabular-nums">
+                                <p className="text-2xl font-bold text-ink tabular-nums">
                                     {value}
                                 </p>
-                                <p className="text-xs text-[#8B8BA7] mt-1">{label}</p>
+                                <p className="text-xs text-ink-3 mt-1">{label}</p>
                                 {delta != null && (
                                     <p
                                         className={cn(
                                             "text-xs mt-2 font-medium",
-                                            delta >= 0 ? "text-[#10B981]" : "text-[#8B8BA7]"
+                                            delta >= 0 ? "text-success" : "text-ink-3"
                                         )}
                                     >
                                         {formatDelta(delta)}
@@ -113,48 +113,48 @@ export function ReportLayout({ data: d, printMode, className }: ReportLayoutProp
 
                 {/* Funnel */}
                 <section className={cn(printMode ? "mb-10" : "mb-14")}>
-                    <h2 className="text-xs font-semibold tracking-widest text-[#8B8BA7] uppercase mb-6">
+                    <h2 className="text-xs font-semibold tracking-widest text-ink-3 uppercase mb-6">
                         Parcours
                     </h2>
                     <div className="flex flex-wrap items-center gap-2">
-                        <div className="rounded-lg bg-[#F4F6F9] px-4 py-2">
-                            <span className="font-semibold text-[#12122A] tabular-nums">
+                        <div className="rounded-lg bg-surface-3 px-4 py-2">
+                            <span className="font-semibold text-ink tabular-nums">
                                 {d.contactsReached}
                             </span>{" "}
-                            <span className="text-[#8B8BA7] text-sm">Contacts</span>
+                            <span className="text-ink-3 text-sm">Contacts</span>
                         </div>
-                        <span className="text-[#C5C8D4]">→</span>
-                        <div className="rounded-lg bg-[#F4F6F9] px-4 py-2">
-                            <span className="font-semibold text-[#12122A] tabular-nums">
+                        <span className="text-ink-4">→</span>
+                        <div className="rounded-lg bg-surface-3 px-4 py-2">
+                            <span className="font-semibold text-ink tabular-nums">
                                 {d.qualifiedLeads}
                             </span>{" "}
-                            <span className="text-[#8B8BA7] text-sm">Qualifiés</span>
+                            <span className="text-ink-3 text-sm">Qualifiés</span>
                         </div>
-                        <span className="text-[#C5C8D4]">→</span>
-                        <div className="rounded-lg bg-[#F4F6F9] px-4 py-2">
-                            <span className="font-semibold text-[#12122A] tabular-nums">
+                        <span className="text-ink-4">→</span>
+                        <div className="rounded-lg bg-surface-3 px-4 py-2">
+                            <span className="font-semibold text-ink tabular-nums">
                                 {d.meetingsBooked}
                             </span>{" "}
-                            <span className="text-[#8B8BA7] text-sm">RDV</span>
+                            <span className="text-ink-3 text-sm">RDV</span>
                         </div>
-                        <span className="text-[#C5C8D4]">→</span>
-                        <div className="rounded-lg bg-[#F4F6F9] px-4 py-2">
-                            <span className="font-semibold text-[#12122A] tabular-nums">
+                        <span className="text-ink-4">→</span>
+                        <div className="rounded-lg bg-surface-3 px-4 py-2">
+                            <span className="font-semibold text-ink tabular-nums">
                                 {d.opportunities}
                             </span>{" "}
-                            <span className="text-[#8B8BA7] text-sm">Opportunités</span>
+                            <span className="text-ink-3 text-sm">Opportunités</span>
                         </div>
                     </div>
                 </section>
 
                 {/* Trend */}
                 <section className={cn(printMode ? "mb-10" : "mb-14")}>
-                    <h2 className="text-xs font-semibold tracking-widest text-[#8B8BA7] uppercase mb-6">
+                    <h2 className="text-xs font-semibold tracking-widest text-ink-3 uppercase mb-6">
                         Tendance des RDV
                     </h2>
-                    <div className="rounded-xl border border-[#E8EBF0] bg-white p-6 shadow-sm">
+                    <div className="rounded-xl border border-line bg-white p-6 shadow-sm">
                         {chartData.length === 0 ? (
-                            <p className="text-sm text-[#8B8BA7]">Aucun RDV sur la période.</p>
+                            <p className="text-sm text-ink-3">Aucun RDV sur la période.</p>
                         ) : (
                             <>
                                 <div className="h-[200px] w-full">
@@ -205,31 +205,31 @@ export function ReportLayout({ data: d, printMode, className }: ReportLayoutProp
 
                 {/* Missions */}
                 <section className={cn(printMode ? "mb-8" : "mb-12")}>
-                    <h2 className="text-xs font-semibold tracking-widest text-[#8B8BA7] uppercase mb-6">
+                    <h2 className="text-xs font-semibold tracking-widest text-ink-3 uppercase mb-6">
                         Missions
                     </h2>
                     <div className="space-y-3">
                         {d.missions.map((m) => (
                             <div
                                 key={m.id}
-                                className="rounded-xl border border-[#E8EBF0] bg-[#F4F6F9]/50 px-5 py-4"
+                                className="rounded-xl border border-line bg-surface-3/50 px-5 py-4"
                             >
                                 <div className="flex items-center justify-between">
-                                    <p className="font-medium text-[#12122A]">{m.name}</p>
+                                    <p className="font-medium text-ink">{m.name}</p>
                                     <span
                                         className={cn(
                                             "text-xs font-medium",
-                                            m.isActive ? "text-[#10B981]" : "text-[#8B8BA7]"
+                                            m.isActive ? "text-success" : "text-ink-3"
                                         )}
                                     >
                                         {m.isActive ? "Actif" : "Inactif"}
                                     </span>
                                 </div>
-                                <p className="text-xs text-[#8B8BA7] mt-1">
+                                <p className="text-xs text-ink-3 mt-1">
                                     {m.sdrCount} SDR · {m.startDate} – {m.endDate}
                                 </p>
                                 {m.objective && (
-                                    <p className="text-xs text-[#8B8BA7] mt-2 line-clamp-2">
+                                    <p className="text-xs text-ink-3 mt-2 line-clamp-2">
                                         {m.objective.slice(0, 120)}
                                         {m.objective.length > 120 ? "…" : ""}
                                     </p>
@@ -240,8 +240,8 @@ export function ReportLayout({ data: d, printMode, className }: ReportLayoutProp
                 </section>
 
                 {/* Footer */}
-                <footer className="pt-8 border-t border-[#E8EBF0]">
-                    <p className="text-xs text-[#8B8BA7]">Suzalink · Rapport d'activité</p>
+                <footer className="pt-8 border-t border-line">
+                    <p className="text-xs text-ink-3">{brand.name} · Rapport d&apos;activité</p>
                 </footer>
             </div>
         </article>

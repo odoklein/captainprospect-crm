@@ -141,39 +141,39 @@ export default function ManagerSdrFeedbackPage() {
     };
 
     return (
-        <div className="min-h-full bg-[#F4F6F9] p-4 md:p-6">
+        <div className="min-h-full bg-surface-3 p-4 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                 <div>
-                    <h1 className="text-[22px] font-bold text-[#12122A] tracking-tight">
+                    <h1 className="text-[22px] font-bold text-ink tracking-tight">
                         Avis SDR
                     </h1>
-                    <p className="text-[13px] text-[#8B8BA7] mt-0.5">
+                    <p className="text-[13px] text-ink-3 mt-0.5">
                         Retour de fin de journée de chaque SDR : joignabilité, retours prospects, discours et principal frein.
                     </p>
                 </div>
                 <div className="flex items-end gap-2">
                     <div>
-                        <label className="block text-[11px] text-[#8B8BA7] mb-1">Du</label>
+                        <label className="block text-[11px] text-ink-3 mb-1">Du</label>
                         <input
                             type="date"
                             value={from}
                             onChange={(e) => setFrom(e.target.value)}
-                            className="h-9 px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                            className="h-9 px-2.5 rounded-lg border border-line text-[12px] bg-white"
                         />
                     </div>
                     <div>
-                        <label className="block text-[11px] text-[#8B8BA7] mb-1">Au</label>
+                        <label className="block text-[11px] text-ink-3 mb-1">Au</label>
                         <input
                             type="date"
                             value={to}
                             onChange={(e) => setTo(e.target.value)}
-                            className="h-9 px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                            className="h-9 px-2.5 rounded-lg border border-line text-[12px] bg-white"
                         />
                     </div>
                     <button
                         type="button"
                         onClick={() => void load()}
-                        className="h-9 px-3 rounded-lg bg-[#7C5CFC] text-white text-[12px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-1.5"
+                        className="h-9 px-3 rounded-lg bg-primary text-white text-[12px] font-semibold hover:opacity-90 transition-opacity flex items-center gap-1.5"
                     >
                         <RefreshCw className="w-3.5 h-3.5" />
                         Actualiser
@@ -186,7 +186,7 @@ export default function ManagerSdrFeedbackPage() {
                         key={days}
                         type="button"
                         onClick={() => setLastDays(days)}
-                        className="h-8 px-3 rounded-lg border border-[#E8EBF0] bg-white text-[12px] text-[#5A5A7A] hover:bg-[#F9FAFB]"
+                        className="h-8 px-3 rounded-lg border border-line bg-white text-[12px] text-ink-2 hover:bg-surface-2"
                     >
                         {days === 1 ? "Aujourd'hui" : `${days} derniers jours`}
                     </button>
@@ -194,55 +194,55 @@ export default function ManagerSdrFeedbackPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
-                <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Total retours</p>
-                    <p className="text-[24px] font-bold text-[#12122A]">{stats.total}</p>
+                <div className="rounded-xl border border-line bg-white p-4">
+                    <p className="text-[11px] text-ink-3">Total retours</p>
+                    <p className="text-[24px] font-bold text-ink">{stats.total}</p>
                 </div>
-                <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Frein principal n°1</p>
+                <div className="rounded-xl border border-line bg-white p-4">
+                    <p className="text-[11px] text-ink-3">Frein principal n°1</p>
                     {stats.topBlocker ? (
-                        <p className="text-[18px] font-bold text-[#12122A] leading-tight mt-1">
+                        <p className="text-[18px] font-bold text-ink leading-tight mt-1">
                             {labelOf(MAIN_BLOCKER_LABELS, stats.topBlocker.code)}
-                            <span className="ml-1.5 text-[12px] font-medium text-[#8B8BA7]">
+                            <span className="ml-1.5 text-[12px] font-medium text-ink-3">
                                 {stats.topBlocker.count}/{stats.total}
                             </span>
                         </p>
                     ) : (
-                        <p className="text-[24px] font-bold text-[#C5C8D4]">—</p>
+                        <p className="text-[24px] font-bold text-ink-4">—</p>
                     )}
                 </div>
-                <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Joignabilité difficile</p>
-                    <p className="text-[24px] font-bold text-[#12122A]">
+                <div className="rounded-xl border border-line bg-white p-4">
+                    <p className="text-[11px] text-ink-3">Joignabilité difficile</p>
+                    <p className="text-[24px] font-bold text-ink">
                         {stats.reachabilityShare === null ? "—" : `${stats.reachabilityShare} %`}
                     </p>
                 </div>
-                <div className="rounded-xl border border-[#E8EBF0] bg-white p-4">
-                    <p className="text-[11px] text-[#8B8BA7]">Avec commentaire terrain</p>
-                    <p className="text-[24px] font-bold text-[#12122A]">{stats.comments}</p>
+                <div className="rounded-xl border border-line bg-white p-4">
+                    <p className="text-[11px] text-ink-3">Avec commentaire terrain</p>
+                    <p className="text-[24px] font-bold text-ink">{stats.comments}</p>
                 </div>
             </div>
 
-            <div className="rounded-xl border border-[#E8EBF0] bg-white overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#E8EBF0] flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-[#7C5CFC]" />
-                    <h2 className="text-[14px] font-semibold text-[#12122A]">Derniers retours</h2>
+            <div className="rounded-xl border border-line bg-white overflow-hidden">
+                <div className="px-4 py-3 border-b border-line flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-primary-600" />
+                    <h2 className="text-[14px] font-semibold text-ink">Derniers retours</h2>
                 </div>
-                <div className="px-4 py-3 border-b border-[#E8EBF0] bg-[#FCFCFF] space-y-3">
+                <div className="px-4 py-3 border-b border-line bg-surface-2 space-y-3">
                     <div className="flex flex-wrap gap-2">
                         <div className="relative min-w-[220px] flex-1">
-                            <Search className="w-3.5 h-3.5 text-[#8B8BA7] absolute left-2.5 top-1/2 -translate-y-1/2" />
+                            <Search className="w-3.5 h-3.5 text-ink-3 absolute left-2.5 top-1/2 -translate-y-1/2" />
                             <input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Rechercher (commentaire, mission, SDR)..."
-                                className="w-full h-9 pl-8 pr-3 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                                className="w-full h-9 pl-8 pr-3 rounded-lg border border-line text-[12px] bg-white"
                             />
                         </div>
                         <select
                             value={selectedSdrId}
                             onChange={(e) => setSelectedSdrId(e.target.value)}
-                            className="h-9 min-w-[170px] px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                            className="h-9 min-w-[170px] px-2.5 rounded-lg border border-line text-[12px] bg-white"
                         >
                             <option value="all">Tous les SDR</option>
                             {sdrOptions.map((sdr) => (
@@ -254,7 +254,7 @@ export default function ManagerSdrFeedbackPage() {
                         <select
                             value={selectedBlocker}
                             onChange={(e) => setSelectedBlocker(e.target.value)}
-                            className="h-9 min-w-[190px] px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                            className="h-9 min-w-[190px] px-2.5 rounded-lg border border-line text-[12px] bg-white"
                         >
                             <option value="all">Tous les freins</option>
                             {MAIN_BLOCKER_VALUES.map((code) => (
@@ -266,7 +266,7 @@ export default function ManagerSdrFeedbackPage() {
                         <select
                             value={commentFilter}
                             onChange={(e) => setCommentFilter(e.target.value)}
-                            className="h-9 min-w-[185px] px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                            className="h-9 min-w-[185px] px-2.5 rounded-lg border border-line text-[12px] bg-white"
                         >
                             <option value="all">Commentaire: tous</option>
                             <option value="true">Avec commentaire</option>
@@ -274,14 +274,14 @@ export default function ManagerSdrFeedbackPage() {
                         </select>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-1 text-[11px] text-[#8B8BA7]">
+                        <span className="inline-flex items-center gap-1 text-[11px] text-ink-3">
                             <SlidersHorizontal className="w-3.5 h-3.5" />
                             Tri
                         </span>
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value as "submittedAt" | "sdr")}
-                            className="h-8 px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                            className="h-8 px-2.5 rounded-lg border border-line text-[12px] bg-white"
                         >
                             <option value="submittedAt">Date</option>
                             <option value="sdr">SDR</option>
@@ -289,12 +289,12 @@ export default function ManagerSdrFeedbackPage() {
                         <button
                             type="button"
                             onClick={() => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"))}
-                            className="h-8 px-2.5 rounded-lg border border-[#E8EBF0] text-[12px] bg-white inline-flex items-center gap-1 hover:bg-[#F9FAFB]"
+                            className="h-8 px-2.5 rounded-lg border border-line text-[12px] bg-white inline-flex items-center gap-1 hover:bg-surface-2"
                         >
                             <ArrowUpDown className="w-3.5 h-3.5" />
                             {sortOrder === "asc" ? "Croissant" : "Décroissant"}
                         </button>
-                        <span className="ml-auto text-[11px] text-[#8B8BA7]">
+                        <span className="ml-auto text-[11px] text-ink-3">
                             {items.length} ligne(s) chargée(s)
                         </span>
                     </div>
@@ -302,19 +302,19 @@ export default function ManagerSdrFeedbackPage() {
 
                 {loading ? (
                     <div className="py-16 flex items-center justify-center">
-                        <Loader2 className="w-6 h-6 animate-spin text-[#7C5CFC]" />
+                        <Loader2 className="w-6 h-6 animate-spin text-primary-600" />
                     </div>
                 ) : error ? (
                     <div className="px-4 py-8 text-[13px] text-red-600">{error}</div>
                 ) : items.length === 0 ? (
-                    <div className="px-4 py-10 text-[13px] text-[#8B8BA7]">
+                    <div className="px-4 py-10 text-[13px] text-ink-3">
                         Aucun retour sur cette période.
                     </div>
                 ) : (
                     <div className="overflow-auto">
                         <table className="w-full min-w-[1180px] text-left">
-                            <thead className="bg-[#FAFBFE] border-b border-[#EEF1F6] sticky top-0 z-10">
-                                <tr className="text-[11px] uppercase tracking-wide text-[#8B8BA7]">
+                            <thead className="bg-surface-2 border-b border-line-subtle sticky top-0 z-10">
+                                <tr className="text-[11px] uppercase tracking-wide text-ink-3">
                                     <th className="px-4 py-2.5 font-semibold">Date</th>
                                     <th className="px-4 py-2.5 font-semibold">SDR</th>
                                     <th className="px-4 py-2.5 font-semibold">Missions</th>
@@ -327,15 +327,15 @@ export default function ManagerSdrFeedbackPage() {
                             </thead>
                             <tbody>
                                 {paginatedItems.map((item) => (
-                                    <tr key={item.id} className="border-b border-[#EEF1F6] align-top">
-                                        <td className="px-4 py-3 text-[12px] text-[#5A5A7A] whitespace-nowrap">
+                                    <tr key={item.id} className="border-b border-line-subtle align-top">
+                                        <td className="px-4 py-3 text-[12px] text-ink-2 whitespace-nowrap">
                                             {new Date(item.submittedAt).toLocaleString("fr-FR")}
                                         </td>
                                         <td className="px-4 py-3 text-[12px]">
-                                            <p className="font-semibold text-[#12122A]">{item.sdr.name}</p>
-                                            <p className="text-[#8B8BA7]">{item.sdr.email}</p>
+                                            <p className="font-semibold text-ink">{item.sdr.name}</p>
+                                            <p className="text-ink-3">{item.sdr.email}</p>
                                         </td>
-                                        <td className="px-4 py-3 text-[12px] text-[#5A5A7A]">
+                                        <td className="px-4 py-3 text-[12px] text-ink-2">
                                             {item.missions?.length
                                                 ? item.missions.map((m) => m.mission.name).join(", ")
                                                 : item.mission?.name ?? "Aucune"}
@@ -352,7 +352,7 @@ export default function ManagerSdrFeedbackPage() {
                                         <td className="px-4 py-3 text-[12px]">
                                             <BlockerChip code={item.mainBlocker} />
                                         </td>
-                                        <td className="px-4 py-3 text-[12px] text-[#5A5A7A] whitespace-pre-wrap max-w-[280px]">
+                                        <td className="px-4 py-3 text-[12px] text-ink-2 whitespace-pre-wrap max-w-[280px]">
                                             {item.fieldComment ? (
                                                 item.fieldComment
                                             ) : item.review ? (
@@ -363,7 +363,7 @@ export default function ManagerSdrFeedbackPage() {
                                                             Ancien format · {item.score}/5
                                                         </span>
                                                     ) : null}
-                                                    <span className="text-[#12122A]">{item.review}</span>
+                                                    <span className="text-ink">{item.review}</span>
                                                     {item.objections ? (
                                                         <span className="block mt-1">Objections : {item.objections}</span>
                                                     ) : null}
@@ -382,16 +382,16 @@ export default function ManagerSdrFeedbackPage() {
                     </div>
                 )}
                 {!loading && !error && items.length > 0 ? (
-                    <div className="px-4 py-3 border-t border-[#E8EBF0] bg-white flex flex-wrap items-center gap-2">
+                    <div className="px-4 py-3 border-t border-line bg-white flex flex-wrap items-center gap-2">
                         <div className="flex items-center gap-2">
-                            <label className="text-[12px] text-[#8B8BA7]">Lignes / page</label>
+                            <label className="text-[12px] text-ink-3">Lignes / page</label>
                             <select
                                 value={pageSize}
                                 onChange={(e) => {
                                     setPageSize(Number(e.target.value));
                                     setPage(1);
                                 }}
-                                className="h-8 px-2 rounded-lg border border-[#E8EBF0] text-[12px] bg-white"
+                                className="h-8 px-2 rounded-lg border border-line text-[12px] bg-white"
                             >
                                 {[25, 50, 100].map((size) => (
                                     <option key={size} value={size}>
@@ -405,18 +405,18 @@ export default function ManagerSdrFeedbackPage() {
                                 type="button"
                                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                                 disabled={page === 1}
-                                className="h-8 px-3 rounded-lg border border-[#E8EBF0] text-[12px] disabled:opacity-40"
+                                className="h-8 px-3 rounded-lg border border-line text-[12px] disabled:opacity-40"
                             >
                                 Precedent
                             </button>
-                            <span className="text-[12px] text-[#5A5A7A]">
+                            <span className="text-[12px] text-ink-2">
                                 Page {page} / {totalPages}
                             </span>
                             <button
                                 type="button"
                                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                                 disabled={page === totalPages}
-                                className="h-8 px-3 rounded-lg border border-[#E8EBF0] text-[12px] disabled:opacity-40"
+                                className="h-8 px-3 rounded-lg border border-line text-[12px] disabled:opacity-40"
                             >
                                 Suivant
                             </button>

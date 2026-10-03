@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { BarChart3, Phone, CalendarCheck, TrendingUp, Sparkles, Building2, Users, Briefcase, type LucideIcon } from "lucide-react";
+import { BarChart3, Phone, CalendarCheck, TrendingUp, Building2, Users, Briefcase, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     BADGE, CARD, EmptyBlock, FOCUS, IconTile, ROW, SectionHeader, SegmentedControl, Shimmer, StatTile, formatInt,
@@ -248,7 +248,7 @@ export function BreakdownChartsView({
             {/* ── Best segment insight ── */}
             {!isLoading && bestSegment && (
                 <div className={cn("rounded-2xl border px-4 py-3.5 flex items-start gap-3", ROW.emerald)}>
-                    <IconTile icon={Sparkles} tone="emerald" />
+                    <IconTile icon={TrendingUp} tone="emerald" />
                     <div className="min-w-0">
                         <p className="text-sm font-extrabold text-emerald-900">
                             Meilleur segment : {bestSegment.label}

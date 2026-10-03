@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Monitor, Smartphone, Sparkles, X, RefreshCw } from "lucide-react";
+import { Monitor, Smartphone, Braces, X, RefreshCw } from "lucide-react";
 import { EmailBlock } from "@/lib/broadcast/types";
+import { brand } from "@/lib/brand";
 
 interface LivePreviewModalProps {
   open: boolean;
@@ -87,11 +88,11 @@ export function LivePreviewModal({
               onClick={() => setUseSampleData((p) => !p)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                 useSampleData
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                  ? "bg-primary-50 border-primary-200 text-primary-700"
                   : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <Braces className="w-3.5 h-3.5 text-primary-600" />
               {useSampleData ? "Données d'exemple actives" : "Tags bruts ({{...}})"}
             </button>
 
@@ -143,7 +144,7 @@ export function LivePreviewModal({
             </span>
           </div>
           <span className="text-[11px] text-slate-400 shrink-0">
-            De : Captain Prospect &lt;notifications@captainprospect.fr&gt;
+            De : {brand.email.senderName} &lt;{brand.email.notificationsAddress}&gt;
           </span>
         </div>
 
@@ -151,7 +152,7 @@ export function LivePreviewModal({
         <div className="flex-1 bg-slate-100 p-6 overflow-y-auto flex items-center justify-center">
           {loading ? (
             <div className="flex flex-col items-center justify-center gap-3 text-slate-500">
-              <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
+              <RefreshCw className="w-6 h-6 animate-spin text-primary-500" />
               <span className="text-xs font-medium">Génération de l&apos;aperçu…</span>
             </div>
           ) : device === "desktop" ? (

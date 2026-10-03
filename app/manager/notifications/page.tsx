@@ -56,16 +56,16 @@ function StatCard({
     color: "indigo" | "emerald" | "amber" | "rose" | "blue" | "purple";
 }) {
     const colors = {
-        indigo: "from-indigo-500 to-indigo-600",
-        emerald: "from-emerald-500 to-emerald-600",
-        amber: "from-amber-500 to-amber-600",
-        rose: "from-rose-500 to-rose-600",
-        blue: "from-blue-500 to-blue-600",
-        purple: "from-purple-500 to-purple-600",
+        indigo: "bg-primary-50 text-primary-600 ring-primary-100",
+        emerald: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+        amber: "bg-amber-50 text-amber-600 ring-amber-100",
+        rose: "bg-rose-50 text-rose-600 ring-rose-100",
+        blue: "bg-blue-50 text-blue-600 ring-blue-100",
+        purple: "bg-accent-50 text-accent-600 ring-accent-100",
     };
 
     return (
-        <div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-5 group hover:shadow-lg hover:shadow-slate-200/50 transition-all duration-300">
+        <div className="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-5 group hover:shadow-sm transition-shadow duration-200">
             <div className="flex items-start justify-between">
                 <div>
                     <p className="text-sm font-medium text-slate-500 mb-1">{label}</p>
@@ -75,16 +75,12 @@ function StatCard({
                     )}
                 </div>
                 <div className={cn(
-                    "w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg",
+                    "w-12 h-12 rounded-xl flex items-center justify-center ring-1 ring-inset",
                     colors[color]
                 )}>
-                    <Icon className="w-6 h-6 text-white" />
+                    <Icon className="w-6 h-6" />
                 </div>
             </div>
-            <div className={cn(
-                "absolute -right-4 -bottom-4 w-24 h-24 rounded-full opacity-10 bg-gradient-to-br",
-                colors[color]
-            )} />
         </div>
     );
 }
@@ -136,14 +132,14 @@ function NotificationCard({
     return (
         <div className={cn(
             "group relative bg-white rounded-xl border transition-all duration-200 hover:shadow-md",
-            isSelected ? "border-indigo-500 ring-2 ring-indigo-100" : notification.isRead ? "border-slate-200" : "border-slate-300 bg-gradient-to-r from-indigo-50/50 to-white"
+            isSelected ? "border-primary-500 ring-2 ring-primary-100" : notification.isRead ? "border-slate-200" : "border-slate-300 bg-primary-50/50"
         )}>
             <div className="flex items-start gap-4 p-4">
                 <button
                     onClick={() => onSelect(notification.id)}
                     className={cn(
                         "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors",
-                        isSelected ? "bg-indigo-500 border-indigo-500 text-white" : "border-slate-300 hover:border-indigo-400"
+                        isSelected ? "bg-primary-500 border-primary-500 text-white" : "border-slate-300 hover:border-primary-400"
                     )}
                 >
                     {isSelected && <Check className="w-3 h-3" />}
@@ -166,7 +162,7 @@ function NotificationCard({
                                     {formatDate(notification.createdAt)}
                                 </span>
                                 {!notification.isRead && (
-                                    <span className="px-2 py-0.5 text-[10px] font-medium bg-indigo-100 text-indigo-700 rounded-full">Nouveau</span>
+                                    <span className="px-2 py-0.5 text-[10px] font-medium bg-primary-100 text-primary-700 rounded-full">Nouveau</span>
                                 )}
                             </div>
                         </div>
@@ -178,7 +174,7 @@ function NotificationCard({
                                 </button>
                             )}
                             {notification.link && (
-                                <button onClick={() => onNavigate(notification.link!)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Voir détails">
+                                <button onClick={() => onNavigate(notification.link!)} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Voir détails">
                                     <ChevronRight className="w-4 h-4" />
                                 </button>
                             )}
@@ -189,7 +185,7 @@ function NotificationCard({
                     </div>
                 </div>
 
-                {!notification.isRead && <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0 mt-1" />}
+                {!notification.isRead && <div className="w-2.5 h-2.5 rounded-full bg-primary-500 flex-shrink-0 mt-1" />}
             </div>
         </div>
     );
@@ -290,16 +286,16 @@ export default function ManagerNotificationsPage() {
         <div className="space-y-6 pb-10">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                    <div className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center">
                         <Bell className="w-6 h-6 text-white" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
-                        <p className="text-sm text-slate-500">Gérez vos alertes et notifications</p>
+                        <p className="text-sm text-slate-500">Alertes et notifications reçues</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={() => loadNotifications(true)} className={cn("p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors", isRefreshing && "animate-pulse")} title="Actualiser">
+                    <button onClick={() => loadNotifications(true)} className="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors" title="Actualiser">
                         <RefreshCw className={cn("w-4 h-4 text-slate-500", isRefreshing && "animate-spin")} />
                     </button>
                     {stats.unread > 0 && <Button onClick={markAllAsRead} variant="secondary" className="gap-2"><CheckCheck className="w-4 h-4" />Tout marquer comme lu</Button>}
@@ -323,7 +319,7 @@ export default function ManagerNotificationsPage() {
                             </div>
                             <div className="flex items-center gap-1">
                                 {FILTER_OPTIONS.map((opt) => (
-                                    <button key={opt.value} onClick={() => setFilter(opt.value)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all", filter === opt.value ? "bg-indigo-100 text-indigo-700 shadow-sm" : "text-slate-600 hover:bg-slate-100")}>
+                                    <button key={opt.value} onClick={() => setFilter(opt.value)} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all", filter === opt.value ? "bg-primary-100 text-primary-700 shadow-sm" : "text-slate-600 hover:bg-slate-100")}>
                                         <opt.icon className="w-3.5 h-3.5" />{opt.label}
                                     </button>
                                 ))}
@@ -340,9 +336,9 @@ export default function ManagerNotificationsPage() {
                     </div>
                     {filteredNotifications.length > 0 && (
                         <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
-                            <button onClick={selectAll} className={cn("w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors", selectedIds.size === filteredNotifications.length ? "bg-indigo-500 border-indigo-500 text-white" : selectedIds.size > 0 ? "bg-indigo-100 border-indigo-400" : "border-slate-300 hover:border-indigo-400")}>
+                            <button onClick={selectAll} className={cn("w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors", selectedIds.size === filteredNotifications.length ? "bg-primary-500 border-primary-500 text-white" : selectedIds.size > 0 ? "bg-primary-100 border-primary-400" : "border-slate-300 hover:border-primary-400")}>
                                 {selectedIds.size === filteredNotifications.length && <Check className="w-3 h-3" />}
-                                {selectedIds.size > 0 && selectedIds.size < filteredNotifications.length && <div className="w-2 h-2 bg-indigo-500 rounded-sm" />}
+                                {selectedIds.size > 0 && selectedIds.size < filteredNotifications.length && <div className="w-2 h-2 bg-primary-500 rounded-sm" />}
                             </button>
                             <span className="text-sm text-slate-500">{selectedIds.size === filteredNotifications.length ? "Tout désélectionner" : "Tout sélectionner"}</span>
                         </div>
@@ -352,7 +348,7 @@ export default function ManagerNotificationsPage() {
                 <div className="p-4">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center py-16">
-                            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
+                            <Loader2 className="w-8 h-8 text-primary-500 animate-spin mb-3" />
                             <p className="text-sm text-slate-500">Chargement des notifications...</p>
                         </div>
                     ) : filteredNotifications.length === 0 ? (

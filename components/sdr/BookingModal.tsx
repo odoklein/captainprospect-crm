@@ -155,7 +155,7 @@ export function BookingModal({
                 {isProcessing && (
                     <div className="absolute inset-0 bg-white/90 z-10 flex items-center justify-center rounded-lg">
                         <div className="text-center">
-                            <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-2" />
+                            <Loader2 className="w-8 h-8 text-primary-600 animate-spin mx-auto mb-2" />
                             <p className="text-sm text-slate-600">Enregistrement du rendez-vous...</p>
                         </div>
                     </div>
@@ -163,7 +163,7 @@ export function BookingModal({
 
                 <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 mb-4">
                     <div className="flex items-start gap-2">
-                        <Calendar className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                        <Calendar className="w-4 h-4 text-primary-600 mt-0.5 flex-shrink-0" />
                         <div className="text-xs text-slate-600">
                             <p className="font-medium text-slate-900 mb-1">
                                 Le rendez-vous sera automatiquement enregistré

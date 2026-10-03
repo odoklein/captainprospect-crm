@@ -139,7 +139,7 @@ export function DateTimePicker({
     return (
         <div className={cn("relative", className)} ref={containerRef}>
             {label && (
-                <label className="block text-sm font-semibold text-slate-800 mb-2">
+                <label className="block text-sm font-semibold text-ink mb-2">
                     {label}
                 </label>
             )}
@@ -156,22 +156,22 @@ export function DateTimePicker({
                 }}
                 disabled={disabled}
                 className={cn(
-                    "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border rounded-lg bg-white text-left transition-all",
-                    "focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400",
-                    "border-slate-200 hover:border-slate-300",
-                    open && "ring-2 ring-indigo-400/20 border-indigo-400",
-                    disabled && "opacity-50 cursor-not-allowed bg-slate-50",
+                    "w-full flex items-center justify-between gap-2 px-3 py-2 text-sm border rounded-lg bg-surface text-left transition-all",
+                    "focus:outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400",
+                    "border-line hover:border-line-strong",
+                    open && "ring-2 ring-primary-400/20 border-primary-400",
+                    disabled && "opacity-50 cursor-not-allowed bg-surface-2",
                     triggerClassName
                 )}
             >
                 <span
                     className={cn(
-                        selectedDate ? "text-slate-900" : "text-slate-400"
+                        selectedDate ? "text-ink" : "text-ink-4"
                     )}
                 >
                     {displayLabel}
                 </span>
-                <CalendarIcon className="w-4 h-4 text-slate-400 shrink-0" />
+                <CalendarIcon className="w-4 h-4 text-ink-4 shrink-0" />
             </button>
 
             {open &&
@@ -179,7 +179,7 @@ export function DateTimePicker({
                 createPortal(
                     <div
                         ref={dropdownRef}
-                        className="fixed w-[260px] max-h-[min(340px,80vh)] overflow-y-auto p-2.5 bg-white border border-slate-200 rounded-xl shadow-xl ring-1 ring-black/5 animate-scale-in origin-top-left"
+                        className="fixed w-[260px] max-h-[min(340px,80vh)] overflow-y-auto p-2.5 bg-surface border border-line rounded-xl shadow-xl ring-1 ring-black/5 animate-scale-in origin-top-left"
                         style={{
                             top: position.top,
                             left: position.left,
@@ -187,7 +187,7 @@ export function DateTimePicker({
                         }}
                         onMouseDown={(e) => e.stopPropagation()}
                     >
-                        <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-3">
                             Date et heure
                         </div>
                         <Calendar
@@ -202,35 +202,35 @@ export function DateTimePicker({
                                 months: "flex flex-col gap-0",
                                 month: "flex flex-col gap-0",
                                 month_caption: "flex justify-center items-center h-7",
-                                caption_label: "text-xs font-medium text-slate-900",
+                                caption_label: "text-xs font-medium text-ink",
                                 nav: "flex items-center gap-0.5",
-                                button_previous: "inline-flex items-center justify-center rounded border border-slate-200 bg-white h-7 w-7 text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs",
-                                button_next: "inline-flex items-center justify-center rounded border border-slate-200 bg-white h-7 w-7 text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs",
+                                button_previous: "inline-flex items-center justify-center rounded border border-line bg-surface h-7 w-7 text-ink-2 hover:bg-surface-2 disabled:opacity-50 text-xs",
+                                button_next: "inline-flex items-center justify-center rounded border border-line bg-surface h-7 w-7 text-ink-2 hover:bg-surface-2 disabled:opacity-50 text-xs",
                                 weekdays: "flex",
-                                weekday: "text-slate-500 rounded w-7 font-normal text-[10px]",
+                                weekday: "text-ink-3 rounded w-7 font-normal text-[10px]",
                                 week: "flex w-full mt-0.5",
                                 day: "relative p-0 text-center text-xs",
                                 day_button: cn(
                                     "inline-flex items-center justify-center rounded h-7 w-7 font-normal text-xs",
-                                    "hover:bg-slate-100 focus:bg-slate-100 focus:outline-none",
-                                    "aria-selected:bg-indigo-500 aria-selected:text-white aria-selected:opacity-100",
-                                    "text-slate-900"
+                                    "hover:bg-surface-3 focus:bg-surface-3 focus:outline-none",
+                                    "aria-selected:bg-primary-500 aria-selected:text-white aria-selected:opacity-100",
+                                    "text-ink"
                                 ),
-                                selected: "bg-indigo-500 text-white rounded hover:bg-indigo-600 focus:bg-indigo-500",
-                                today: "bg-indigo-50 text-indigo-600 font-medium",
-                                outside: "text-slate-400 opacity-75",
-                                disabled: "text-slate-300 line-through",
+                                selected: "bg-primary-500 text-white rounded hover:bg-primary-600 focus:bg-primary-500",
+                                today: "bg-primary-50 text-primary-600 font-medium",
+                                outside: "text-ink-4 opacity-75",
+                                disabled: "text-ink-4 line-through",
                                 hidden: "invisible",
                             }}
                         />
-                        <div className="mt-2 pt-2 border-t border-slate-100">
-                            <label className="block text-[10px] font-medium text-slate-600 mb-1">
+                        <div className="mt-2 pt-2 border-t border-line-subtle">
+                            <label className="block text-[10px] font-medium text-ink-2 mb-1">
                                 Heure
                             </label>
                             <select
                                 value={timeOnly}
                                 onChange={handleTimeChange}
-                                className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:border-indigo-400"
+                                className="w-full px-2 py-1.5 text-xs border border-line rounded-lg bg-surface text-ink focus:outline-none focus:ring-2 focus:ring-primary-400/40 focus:border-primary-400"
                             >
                                 {TIME_OPTIONS.map((t) => (
                                     <option key={t} value={t}>
@@ -253,7 +253,7 @@ export function DateTimePicker({
                                     );
                                     setOpen(false);
                                 }}
-                                className="text-[10px] text-indigo-600 hover:text-indigo-700 font-medium"
+                                className="text-[10px] text-primary-600 hover:text-primary-700 font-medium"
                             >
                                 Maintenant
                             </button>
@@ -264,7 +264,7 @@ export function DateTimePicker({
                                         onChange("");
                                         setOpen(false);
                                     }}
-                                    className="text-[10px] text-slate-500 hover:text-slate-700"
+                                    className="text-[10px] text-ink-3 hover:text-ink-2"
                                 >
                                     Effacer
                                 </button>

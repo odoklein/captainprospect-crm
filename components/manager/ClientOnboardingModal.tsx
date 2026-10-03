@@ -8,7 +8,6 @@ import {
     Target,
     FileText,
     Calendar,
-    Sparkles,
     ChevronRight,
     ChevronLeft,
     Check,
@@ -28,6 +27,7 @@ import {
     Edit3,
 } from "lucide-react";
 import { Button, Badge, Modal } from "@/components/ui";
+import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
 import type { Playbook, PlaybookSignal } from "@/lib/playbook/leexi-types";
 
@@ -522,8 +522,8 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
 
     const renderModeSelector = () => (
         <div className="flex flex-col items-center py-6">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mb-5">
-                <Sparkles className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 rounded-2xl bg-primary-600 flex items-center justify-center mb-5">
+                <Building2 className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Comment créer ce client ?</h2>
             <p className="text-sm text-slate-500 mb-8 text-center max-w-md">
@@ -533,10 +533,10 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                 {/* Mode A: Import from Leexi */}
                 <button
                     onClick={() => handleModeSelect("leexi")}
-                    className="group p-5 rounded-2xl border-2 border-slate-200 hover:border-violet-400 hover:bg-violet-50/50 transition-all text-left"
+                    className="group p-5 rounded-2xl border-2 border-slate-200 hover:border-accent-400 hover:bg-accent-50/50 transition-all text-left"
                 >
-                    <div className="w-11 h-11 rounded-xl bg-violet-100 flex items-center justify-center mb-3 group-hover:bg-violet-200 transition-colors">
-                        <Link2 className="w-5 h-5 text-violet-600" />
+                    <div className="w-11 h-11 rounded-xl bg-accent-100 flex items-center justify-center mb-3 group-hover:bg-accent-200 transition-colors">
+                        <Link2 className="w-5 h-5 text-accent-600" />
                     </div>
                     <h3 className="text-sm font-bold text-slate-900 mb-1">Importer depuis Leexi</h3>
                     <p className="text-xs text-slate-500 leading-relaxed">
@@ -547,10 +547,10 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                 {/* Mode B: Paste recap */}
                 <button
                     onClick={() => handleModeSelect("paste")}
-                    className="group p-5 rounded-2xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 transition-all text-left"
+                    className="group p-5 rounded-2xl border-2 border-slate-200 hover:border-primary-400 hover:bg-primary-50/50 transition-all text-left"
                 >
-                    <div className="w-11 h-11 rounded-xl bg-indigo-100 flex items-center justify-center mb-3 group-hover:bg-indigo-200 transition-colors">
-                        <ClipboardPaste className="w-5 h-5 text-indigo-600" />
+                    <div className="w-11 h-11 rounded-xl bg-primary-100 flex items-center justify-center mb-3 group-hover:bg-primary-200 transition-colors">
+                        <ClipboardPaste className="w-5 h-5 text-primary-600" />
                     </div>
                     <h3 className="text-sm font-bold text-slate-900 mb-1">Coller un récapitulatif</h3>
                     <p className="text-xs text-slate-500 leading-relaxed">
@@ -592,11 +592,11 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                             onChange={(e) => setLeexiSearchQuery(e.target.value)}
                             onKeyDown={(e) => e.key === "Enter" && searchLeexiCalls(leexiSearchQuery)}
                             placeholder="Rechercher par nom d'entreprise, contact, date..."
-                            className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm"
+                            className="w-full h-10 pl-10 pr-4 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500 text-sm"
                         />
                         <button
                             onClick={() => searchLeexiCalls(leexiSearchQuery)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs font-medium text-violet-600 hover:bg-violet-50 rounded"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 text-xs font-medium text-accent-600 hover:bg-accent-50 rounded"
                         >
                             Rechercher
                         </button>
@@ -605,7 +605,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                     {/* Results */}
                     {isSearchingCalls ? (
                         <div className="flex items-center justify-center py-8">
-                            <Loader2 className="w-5 h-5 text-violet-500 animate-spin" />
+                            <Loader2 className="w-5 h-5 text-accent-500 animate-spin" />
                             <span className="ml-2 text-sm text-slate-500">Recherche en cours...</span>
                         </div>
                     ) : leexiCalls.length === 0 ? (
@@ -625,13 +625,13 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     className={cn(
                                         "w-full p-3 rounded-xl border text-left transition-all",
                                         selectedCall?.id === call.id
-                                            ? "border-violet-400 bg-violet-50 ring-1 ring-violet-200"
-                                            : "border-slate-200 hover:border-violet-300 hover:bg-violet-50/30"
+                                            ? "border-accent-400 bg-accent-50 ring-1 ring-accent-200"
+                                            : "border-slate-200 hover:border-accent-300 hover:bg-accent-50/30"
                                     )}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
-                                            <Mic className="w-4 h-4 text-violet-600" />
+                                        <div className="w-9 h-9 rounded-lg bg-accent-100 flex items-center justify-center flex-shrink-0">
+                                            <Mic className="w-4 h-4 text-accent-600" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
@@ -659,7 +659,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                             </div>
                                         </div>
                                         {selectedCall?.id === call.id && (
-                                            <Check className="w-5 h-5 text-violet-600 flex-shrink-0" />
+                                            <Check className="w-5 h-5 text-accent-600 flex-shrink-0" />
                                         )}
                                     </div>
                                 </button>
@@ -668,9 +668,9 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                     )}
 
                     {isFetchingCall && (
-                        <div className="flex items-center gap-2 p-3 bg-violet-50 border border-violet-200 rounded-lg">
-                            <Loader2 className="w-4 h-4 text-violet-600 animate-spin" />
-                            <span className="text-sm text-violet-700">Chargement du récapitulatif...</span>
+                        <div className="flex items-center gap-2 p-3 bg-accent-50 border border-accent-200 rounded-lg">
+                            <Loader2 className="w-4 h-4 text-accent-600 animate-spin" />
+                            <span className="text-sm text-accent-700">Chargement du récapitulatif...</span>
                         </div>
                     )}
 
@@ -692,21 +692,21 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
         // Mode B: Paste
         return (
             <div className="space-y-4">
-                <div className="p-4 bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200 rounded-xl">
+                <div className="p-4 bg-primary-50 border border-primary-200 rounded-xl">
                     <div className="flex items-center gap-2 mb-3">
-                        <ClipboardPaste className="w-4 h-4 text-indigo-600" />
-                        <h4 className="text-sm font-semibold text-indigo-900">Coller le récapitulatif</h4>
+                        <ClipboardPaste className="w-4 h-4 text-primary-600" />
+                        <h4 className="text-sm font-semibold text-primary-900">Coller le récapitulatif</h4>
                     </div>
-                    <p className="text-xs text-indigo-700 mb-3">
+                    <p className="text-xs text-primary-700 mb-3">
                         Collez un récap Leexi, des notes d'appel, un thread email ou même une transcription vocale.
-                        L'IA extraira automatiquement toutes les informations pertinentes.
+                        L'IA en extrait la fiche client et le playbook.
                     </p>
                     <textarea
                         value={recapText}
                         onChange={(e) => setRecapText(e.target.value)}
                         placeholder="Collez ici le récapitulatif de meeting..."
                         rows={10}
-                        className="w-full px-3 py-2 border border-indigo-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                        className="w-full px-3 py-2 border border-primary-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
                         autoFocus
                     />
                     <div className="flex items-center justify-between mt-2">
@@ -727,14 +727,14 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
         if (!generatedPlaybook) {
             return (
                 <div className="flex flex-col items-center justify-center py-12">
-                    <div className="w-16 h-16 bg-violet-100 rounded-2xl flex items-center justify-center mb-4">
-                        <Brain className="w-8 h-8 text-violet-600 animate-pulse" />
+                    <div className="w-16 h-16 bg-accent-100 rounded-2xl flex items-center justify-center mb-4">
+                        <Brain className="w-8 h-8 text-accent-600" />
                     </div>
                     <h3 className="text-lg font-semibold text-slate-900 mb-2">Extraction en cours...</h3>
                     <p className="text-sm text-slate-500 text-center max-w-md">
                         L'IA analyse le récapitulatif pour extraire les données commerciales.
                     </p>
-                    <Loader2 className="w-6 h-6 text-violet-600 animate-spin mt-6" />
+                    <Loader2 className="w-6 h-6 text-accent-600 animate-spin mt-6" />
                 </div>
             );
         }
@@ -766,9 +766,9 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
 
                     {/* RIGHT: Extracted data */}
                     <div className="border border-slate-200 rounded-xl overflow-hidden flex flex-col">
-                        <div className="px-4 py-2.5 bg-indigo-50 border-b border-indigo-200 flex items-center gap-2">
-                            <Sparkles className="w-4 h-4 text-indigo-600" />
-                            <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wide">Données extraites</span>
+                        <div className="px-4 py-2.5 bg-primary-50 border-b border-primary-200 flex items-center gap-2">
+                            <AiMark className="w-4 h-4 text-primary-600" />
+                            <span className="text-xs font-semibold text-primary-700 uppercase tracking-wide">Données extraites</span>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-3">
                             {/* Company info */}
@@ -813,7 +813,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                             <Users className="w-3 h-3 text-slate-400" />
                                             <span className="font-medium">{contact.name}</span>
                                             {contact.role && <span className="text-slate-400">— {contact.role}</span>}
-                                            {contact.email && <span className="text-indigo-500">{contact.email}</span>}
+                                            {contact.email && <span className="text-primary-500">{contact.email}</span>}
                                         </div>
                                     ))}
                                 </div>
@@ -894,7 +894,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     value={formData.name}
                                     onChange={(e) => updateField("name", e.target.value)}
                                     placeholder="Ex: Acme Corp"
-                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                     autoFocus
                                 />
                             </div>
@@ -903,7 +903,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                 <select
                                     value={formData.industry}
                                     onChange={(e) => updateField("industry", e.target.value)}
-                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                 >
                                     <option value="">Sélectionner...</option>
                                     {INDUSTRY_OPTIONS.map(opt => (
@@ -918,7 +918,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     value={formData.website}
                                     onChange={(e) => updateField("website", e.target.value)}
                                     placeholder="www.acme.com"
-                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                 />
                             </div>
                             <div>
@@ -928,7 +928,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     value={formData.email}
                                     onChange={(e) => updateField("email", e.target.value)}
                                     placeholder="contact@acme.com"
-                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                 />
                             </div>
                             <div>
@@ -938,7 +938,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     value={formData.phone}
                                     onChange={(e) => updateField("phone", e.target.value)}
                                     placeholder="+33 1 23 45 67 89"
-                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                    className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                 />
                             </div>
                         </div>
@@ -953,7 +953,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                         {/* Cibles & ICP */}
                         <div className="border border-slate-200 rounded-xl p-4 space-y-4">
                             <h5 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                <Target className="w-4 h-4 text-indigo-600" />
+                                <Target className="w-4 h-4 text-primary-600" />
                                 Cibles & ICP
                             </h5>
                             <div>
@@ -963,7 +963,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     onChange={(e) => updateField("icp", e.target.value)}
                                     placeholder="Entreprises SaaS B2B, 50-200 employés..."
                                     rows={2}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
                                 />
                             </div>
                             <div>
@@ -1001,7 +1001,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                 <select
                                     value={formData.targetCompanySize}
                                     onChange={(e) => updateField("targetCompanySize", e.target.value)}
-                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 >
                                     <option value="">Sélectionner...</option>
                                     {COMPANY_SIZE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -1012,7 +1012,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                         {/* Base de données */}
                         <div className="border border-slate-200 rounded-xl p-4 space-y-4">
                             <h5 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                <Users className="w-4 h-4 text-indigo-600" />
+                                <Users className="w-4 h-4 text-primary-600" />
                                 Base de données
                             </h5>
                             <div>
@@ -1032,7 +1032,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     value={formData.estimatedContacts}
                                     onChange={(e) => updateField("estimatedContacts", e.target.value)}
                                     placeholder="800-1200 contacts"
-                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full h-9 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 />
                             </div>
                         </div>
@@ -1040,7 +1040,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                         {/* Scripts */}
                         <div className="border border-slate-200 rounded-xl p-4 space-y-4">
                             <h5 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                <FileText className="w-4 h-4 text-indigo-600" />
+                                <FileText className="w-4 h-4 text-primary-600" />
                                 Scripts
                             </h5>
                             <div>
@@ -1050,7 +1050,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     onChange={(e) => updateField("introScript", e.target.value)}
                                     placeholder="Bonjour, je suis [Prénom] de [Entreprise]..."
                                     rows={2}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
                                 />
                             </div>
                             <div>
@@ -1060,7 +1060,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     onChange={(e) => updateField("objectionScript", e.target.value)}
                                     placeholder="Objections courantes et réponses..."
                                     rows={2}
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm resize-none"
                                 />
                             </div>
                         </div>
@@ -1076,7 +1076,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                 type="date"
                                 value={formData.targetLaunchDate}
                                 onChange={(e) => updateField("targetLaunchDate", e.target.value)}
-                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                             />
                         </div>
 
@@ -1087,7 +1087,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                 onChange={(e) => updateField("notes", e.target.value)}
                                 placeholder="Informations complémentaires..."
                                 rows={3}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none text-sm"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none text-sm"
                             />
                         </div>
 
@@ -1098,7 +1098,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     id="createMission"
                                     checked={formData.createMission}
                                     onChange={(e) => updateField("createMission", e.target.checked)}
-                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                    className="w-4 h-4 text-primary-600 border-slate-300 rounded focus:ring-primary-500"
                                 />
                                 <label htmlFor="createMission" className="text-sm font-medium text-slate-700">
                                     Créer une mission initiale
@@ -1114,7 +1114,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                             value={formData.missionName}
                                             onChange={(e) => updateField("missionName", e.target.value)}
                                             placeholder={`Mission ${formData.name || "Client"}`}
-                                            className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                            className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                         />
                                     </div>
                                     <div className="grid grid-cols-3 gap-3">
@@ -1123,7 +1123,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                             <select
                                                 value={formData.missionChannel}
                                                 onChange={(e) => updateField("missionChannel", e.target.value as "CALL" | "EMAIL" | "LINKEDIN")}
-                                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                             >
                                                 <option value="CALL">Appel</option>
                                                 <option value="EMAIL">Email</option>
@@ -1138,7 +1138,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                                 max={24}
                                                 value={formData.missionDurationMonths}
                                                 onChange={(e) => updateField("missionDurationMonths", parseInt(e.target.value) || 3)}
-                                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                             />
                                         </div>
                                         <div>
@@ -1148,7 +1148,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                                 min={0}
                                                 value={formData.missionRdvTarget}
                                                 onChange={(e) => updateField("missionRdvTarget", parseInt(e.target.value) || 0)}
-                                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                                className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                             />
                                         </div>
                                     </div>
@@ -1159,7 +1159,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                             value={formData.missionObjective}
                                             onChange={(e) => updateField("missionObjective", e.target.value)}
                                             placeholder="Ex: Générer des RDV qualifiés"
-                                            className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+                                            className="w-full h-10 px-3 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                                         />
                                     </div>
                                 </div>
@@ -1167,7 +1167,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                         </div>
 
                         {/* Summary of what will be created */}
-                        <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl">
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
                             <h4 className="text-sm font-semibold text-emerald-900 mb-2 flex items-center gap-2">
                                 <Shield className="w-4 h-4" />
                                 Récapitulatif de la création
@@ -1246,8 +1246,8 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                     <>
                         {/* Header */}
                         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center">
-                                <Sparkles className="w-5 h-5 text-white" />
+                            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
+                                <Building2 className="w-5 h-5 text-white" />
                             </div>
                             <div className="flex-1">
                                 <h2 className="text-lg font-semibold text-slate-900">Onboarding Client</h2>
@@ -1259,7 +1259,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                             </div>
                             <button
                                 onClick={handleBackToModeSelect}
-                                className="text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                                className="text-xs text-slate-400 hover:text-primary-600 transition-colors"
                             >
                                 Changer de mode
                             </button>
@@ -1275,22 +1275,22 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                         }}
                                         className={cn(
                                             "flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors",
-                                            index === currentStep && "bg-indigo-50",
-                                            index < currentStep && "text-indigo-600",
+                                            index === currentStep && "bg-primary-50",
+                                            index < currentStep && "text-primary-600",
                                             index > currentStep && "opacity-50 cursor-not-allowed"
                                         )}
                                     >
                                         <div className={cn(
                                             "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold",
-                                            index === currentStep && "bg-indigo-500 text-white",
-                                            index < currentStep && "bg-indigo-500 text-white",
+                                            index === currentStep && "bg-primary-500 text-white",
+                                            index < currentStep && "bg-primary-500 text-white",
                                             index > currentStep && "bg-slate-200 text-slate-500"
                                         )}>
                                             {index < currentStep ? <Check className="w-3 h-3" /> : index + 1}
                                         </div>
                                         <span className={cn(
                                             "text-[11px] font-medium hidden lg:block",
-                                            index === currentStep ? "text-indigo-600" : "text-slate-500"
+                                            index === currentStep ? "text-primary-600" : "text-slate-500"
                                         )}>
                                             {step.label}
                                         </span>
@@ -1298,7 +1298,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     {index < steps.length - 1 && (
                                         <div className={cn(
                                             "flex-1 h-0.5 mx-1",
-                                            index < currentStep ? "bg-indigo-500" : "bg-slate-200"
+                                            index < currentStep ? "bg-primary-500" : "bg-slate-200"
                                         )} />
                                     )}
                                 </div>
@@ -1308,10 +1308,10 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                         {/* Step Content */}
                         <div className="flex-1 overflow-y-auto pr-2">
                             <div className="flex items-center gap-3 mb-4">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
                                     {(() => {
                                         const StepIcon = steps[currentStep].icon;
-                                        return <StepIcon className="w-4 h-4 text-indigo-600" />;
+                                        return <StepIcon className="w-4 h-4 text-primary-600" />;
                                     })()}
                                 </div>
                                 <div>
@@ -1354,7 +1354,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, initialRecap
                                     className="gap-2"
                                 >
                                     {isGeneratingPlaybook ? "Extraction IA..." : "Analyser et extraire"}
-                                    <Sparkles className="w-4 h-4" />
+                                    <AiMark className="w-4 h-4" />
                                 </Button>
                             ) : (
                                 <Button
@@ -1392,7 +1392,7 @@ function ReviewField({ label, value, onChange }: { label: string; value: string;
                     onBlur={() => setEditing(false)}
                     onKeyDown={(e) => e.key === "Enter" && setEditing(false)}
                     autoFocus
-                    className="w-full h-7 px-2 border border-indigo-300 rounded bg-white text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    className="w-full h-7 px-2 border border-primary-300 rounded bg-white text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary-400"
                 />
             ) : (
                 <div
@@ -1402,7 +1402,7 @@ function ReviewField({ label, value, onChange }: { label: string; value: string;
                     <span className={cn("text-sm", value ? "text-slate-800" : "text-slate-400 italic")}>
                         {value || "Non détecté"}
                     </span>
-                    <Edit3 className="w-3 h-3 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                    <Edit3 className="w-3 h-3 text-slate-300 group-hover:text-primary-500 transition-colors" />
                 </div>
             )}
         </div>
@@ -1421,12 +1421,12 @@ function ReviewNumberField({ label, value, onChange }: { label: string; value: n
                     onChange={(e) => onChange(parseInt(e.target.value) || 0)}
                     onBlur={() => setEditing(false)}
                     autoFocus
-                    className="w-full h-7 px-2 border border-indigo-300 rounded bg-white text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                    className="w-full h-7 px-2 border border-primary-300 rounded bg-white text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary-400"
                 />
             ) : (
                 <div onClick={() => setEditing(true)} className="flex items-center gap-1 cursor-pointer group">
                     <span className="text-sm font-medium text-slate-800">{value || "—"}</span>
-                    <Edit3 className="w-3 h-3 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                    <Edit3 className="w-3 h-3 text-slate-300 group-hover:text-primary-500 transition-colors" />
                 </div>
             )}
         </div>
@@ -1449,7 +1449,7 @@ function ReviewTagField({
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{label}</span>
             <div className="flex flex-wrap gap-1 mt-0.5">
                 {tags.map((tag) => (
-                    <span key={tag} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[11px]">
+                    <span key={tag} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary-50 text-primary-700 text-[11px]">
                         {tag}
                         <button onClick={() => onRemove(tag)} className="hover:text-red-600"><X className="w-2.5 h-2.5" /></button>
                     </span>
@@ -1466,12 +1466,12 @@ function ReviewTagField({
                         onBlur={() => setAdding(false)}
                         autoFocus
                         placeholder="Ajouter..."
-                        className="h-6 w-20 px-1.5 border border-indigo-300 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                        className="h-6 w-20 px-1.5 border border-primary-300 rounded text-[11px] focus:outline-none focus:ring-1 focus:ring-primary-400"
                     />
                 ) : (
                     <button
                         onClick={() => setAdding(true)}
-                        className="text-[10px] px-1.5 py-0.5 border border-dashed border-slate-300 rounded text-slate-400 hover:border-indigo-400 hover:text-indigo-600"
+                        className="text-[10px] px-1.5 py-0.5 border border-dashed border-slate-300 rounded text-slate-400 hover:border-primary-400 hover:text-primary-600"
                     >
                         +
                     </button>

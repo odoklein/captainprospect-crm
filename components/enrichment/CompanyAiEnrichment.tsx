@@ -12,10 +12,10 @@ import {
     MapPin,
     Phone,
     RotateCcw,
-    Sparkles,
     X,
     type LucideIcon,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { Modal, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import {
@@ -62,7 +62,7 @@ async function callApi<T>(url: string, init?: RequestInit): Promise<T> {
 
 function ValueLine({ suggestion }: { suggestion: EnrichmentSuggestion }) {
     const { field, value } = suggestion;
-    const linkClass = "truncate font-semibold text-slate-900 hover:text-indigo-700 hover:underline";
+    const linkClass = "truncate font-semibold text-slate-900 hover:text-primary-700 hover:underline";
     if (field === "phone") return <a href={`tel:${value}`} className={linkClass}>{value}</a>;
     if (field === "linkedin" || field === "website") {
         return (
@@ -88,7 +88,7 @@ function SuggestionRow({
 
     return (
         <li className="flex items-center gap-2.5 px-3 py-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
             <div className="min-w-0 flex-1">
@@ -111,7 +111,7 @@ function SuggestionRow({
                             target="_blank"
                             rel="noopener noreferrer"
                             title={suggestion.evidence ?? "Ouvrir la source"}
-                            className="inline-flex items-center gap-1 truncate text-[11px] text-slate-500 hover:text-indigo-600"
+                            className="inline-flex items-center gap-1 truncate text-[11px] text-slate-500 hover:text-primary-600"
                         >
                             <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
                             <span className="truncate">{suggestion.sourceLabel ?? "source"}</span>
@@ -150,7 +150,7 @@ function Shell({ children, tone = "idle" }: { children: ReactNode; tone?: "idle"
         <div
             className={cn(
                 "overflow-hidden rounded-xl border",
-                tone === "result" && "border-indigo-200 bg-white shadow-sm shadow-indigo-100/60",
+                tone === "result" && "border-primary-200 bg-white shadow-sm",
                 tone === "idle" && "border-dashed border-slate-300 bg-slate-50/70",
                 tone === "error" && "border-red-200 bg-red-50",
             )}
@@ -239,11 +239,11 @@ export function CompanyAiEnrichment({
         return (
             <Shell>
                 <div className="flex items-center gap-3 px-3.5 py-3" aria-live="polite">
-                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-indigo-600" />
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary-600" />
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-slate-800">{PROGRESS_STEPS[step]}</p>
                         <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-200">
-                            <div className="h-full w-1/3 animate-pulse rounded-full bg-indigo-500" />
+                            <div className="h-full w-1/3 animate-pulse rounded-full bg-primary-500" />
                         </div>
                     </div>
                 </div>
@@ -274,9 +274,9 @@ export function CompanyAiEnrichment({
         const busy = review.isPending;
         return (
             <Shell tone="result">
-                <div className="flex items-center justify-between gap-2 border-b border-indigo-100 bg-indigo-50/60 px-3 py-2">
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-800">
-                        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                <div className="flex items-center justify-between gap-2 border-b border-primary-100 bg-primary-50/60 px-3 py-2">
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-primary-800">
+                        <AiMark className="h-3.5 w-3.5" aria-hidden="true" />
                         {pending.length} information{pending.length > 1 ? "s" : ""} trouvée{pending.length > 1 ? "s" : ""} par l&apos;IA
                     </span>
                     {pending.length > 1 && (
@@ -284,7 +284,7 @@ export function CompanyAiEnrichment({
                             type="button"
                             onClick={() => review.mutate(pending.map((s) => ({ field: s.field, action: "APPLY" as const })))}
                             disabled={busy}
-                            className="rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+                            className="rounded-lg bg-primary-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary-700 active:scale-95 disabled:opacity-50"
                         >
                             Tout appliquer
                         </button>
@@ -328,11 +328,11 @@ export function CompanyAiEnrichment({
                         search.mutate(searchedWithoutLuck);
                     }}
                     disabled={lookup.isLoading}
-                    className="group flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-indigo-50/50 active:scale-[0.995] disabled:opacity-60"
+                    className="group flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-primary-50/50 active:scale-[0.995] disabled:opacity-60"
                 >
                     <span className="flex min-w-0 items-center gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-indigo-600">
-                            <Sparkles className="h-4 w-4" aria-hidden="true" />
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-primary-600">
+                            <AiMark className="h-4 w-4" aria-hidden="true" />
                         </span>
                         <span className="min-w-0">
                             <span className="block text-sm font-semibold text-slate-800">
@@ -345,15 +345,15 @@ export function CompanyAiEnrichment({
                             </span>
                         </span>
                     </span>
-                    <span className="shrink-0 text-xs font-semibold text-indigo-600 transition-transform group-hover:translate-x-0.5">
+                    <span className="shrink-0 text-xs font-semibold text-primary-600 transition-transform group-hover:translate-x-0.5">
                         {searchedWithoutLuck ? "Relancer" : "Compléter avec l'IA"}
                     </span>
                 </button>
             </Shell>
             <Modal isOpen={comingSoonOpen} onClose={() => setComingSoonOpen(false)} title="Bientôt disponible" size="sm">
                 <div className="flex items-start gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                        <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600">
+                        <AiMark className="h-4 w-4" aria-hidden="true" />
                     </span>
                     <p className="text-sm leading-6 text-slate-600">
                         {COMPANY_AI_COMING_SOON_MESSAGE} D&apos;ici là, vous pouvez compléter la fiche manuellement.
@@ -363,7 +363,7 @@ export function CompanyAiEnrichment({
                     <button
                         type="button"
                         onClick={() => setComingSoonOpen(false)}
-                        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 active:scale-95"
+                        className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-700 active:scale-95"
                     >
                         Compris
                     </button>

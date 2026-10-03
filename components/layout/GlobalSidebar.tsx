@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import Image from "next/image";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -21,7 +20,7 @@ import { NavSection, NavItem } from "@/lib/navigation/config";
 import { findActiveNav, readLastTab, type ActiveNav } from "@/lib/navigation/active";
 import { UserRole } from "@prisma/client";
 import { formatCallbackDate } from "@/lib/utils/parseDateFromNote";
-import logoCaptain from "../../logocaptainroseblanc.png";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 import { ManagerSupportSidebarEntry } from "@/components/support/ManagerSupportSidebarEntry";
 
 interface GlobalSidebarProps {
@@ -454,15 +453,11 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                         )}
                     >
                         <div className="flex items-center">
-                            <Image
-                                src={logoCaptain}
-                                alt="Captain Prospect"
-                                priority
-                                className={cn(
-                                    "h-7 w-auto",
-                                    !isExpanded && "h-8"
-                                )}
-                            />
+                            {isExpanded ? (
+                                <BrandLogo tone="inverse" height={28} priority />
+                            ) : (
+                                <BrandLogo variant="mark" tone="inverse" height={30} priority />
+                            )}
                         </div>
                     </Link>
 
@@ -470,7 +465,7 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                         <button
                             onClick={toggleCollapsed}
                             className="cp-collapse-btn"
-                            aria-label="Reduire la barre laterale"
+                            aria-label="Réduire la barre latérale"
                         >
                             <ChevronsLeft className="w-4 h-4" />
                         </button>
@@ -492,8 +487,8 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                         className="cp-search-trigger"
                         onClick={openSearch}
                     >
-                        <Search className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="cp-search-text">Rechercher...</span>
+                        <Search className="w-3.5 h-3.5 text-inverse-ink-3" />
+                        <span className="cp-search-text">Rechercher…</span>
                         <kbd className="cp-kbd">
                             <Command className="w-2.5 h-2.5" />K
                         </kbd>
@@ -562,7 +557,7 @@ export function MobileMenuButton() {
     return (
         <button
             onClick={toggleMobile}
-            className="lg:hidden p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            className="lg:hidden p-2 text-ink-3 hover:text-ink hover:bg-surface-3 rounded-lg transition-colors"
             aria-label="Menu"
         >
             <Menu className="w-5 h-5" />

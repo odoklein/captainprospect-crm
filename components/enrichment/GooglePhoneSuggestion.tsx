@@ -139,10 +139,10 @@ export function GooglePhoneSuggestion({
             <button
                 type="button"
                 onClick={search}
-                className="group flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-3.5 py-3 text-left transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 active:scale-[0.99]"
+                className="group flex w-full items-center justify-between gap-3 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 px-3.5 py-3 text-left transition-colors hover:border-primary-300 hover:bg-primary-50/50 active:scale-[0.99]"
             >
                 <span className="flex min-w-0 items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-indigo-600">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-primary-600">
                         <Search className="h-4.5 w-4.5" />
                     </span>
                     <span className="min-w-0">
@@ -154,7 +154,7 @@ export function GooglePhoneSuggestion({
                         </span>
                     </span>
                 </span>
-                <span className="shrink-0 text-xs font-semibold text-indigo-600 transition-transform group-hover:translate-x-0.5">
+                <span className="shrink-0 text-xs font-semibold text-primary-600 transition-transform group-hover:translate-x-0.5">
                     Rechercher
                 </span>
             </button>
@@ -251,10 +251,10 @@ export function GooglePhoneSuggestion({
     const confidence = confidenceMeta(suggestion.confidence);
 
     return (
-        <div className="overflow-hidden rounded-xl border border-indigo-200 bg-white shadow-sm shadow-indigo-100/60">
-            <div className="border-b border-indigo-100 bg-indigo-50/60 px-4 py-2.5">
+        <div className="overflow-hidden rounded-xl border border-primary-200 bg-white shadow-sm">
+            <div className="border-b border-primary-100 bg-primary-50/60 px-4 py-2.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-indigo-800">
+                    <span className="text-xs font-semibold text-primary-800">
                         Suggestion {suggestion.source}
                     </span>
                     <span
@@ -272,7 +272,7 @@ export function GooglePhoneSuggestion({
                 <div>
                     <a
                         href={`tel:${suggestion.phone}`}
-                        className="text-lg font-bold tracking-tight text-slate-900 hover:text-indigo-700"
+                        className="text-lg font-bold tracking-tight text-slate-900 hover:text-primary-700"
                     >
                         {suggestion.phone}
                     </a>
@@ -327,7 +327,7 @@ export function GooglePhoneSuggestion({
                         href={suggestion.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-50"
+                        className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-50"
                     >
                         <ExternalLink className="h-3.5 w-3.5" />
                         Ouvrir la source

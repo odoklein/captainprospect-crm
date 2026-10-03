@@ -304,11 +304,11 @@
 }
 
 .chartBarCurrent {
-    background: repeating-linear-gradient(135deg, var(--brand) 0 6px, #3b7a52 6px 12px);
+    background: repeating-linear-gradient(135deg, var(--brand) 0 6px, var(--brand-primary-700) 6px 12px);
 }
 
 .chartCol:hover .chartBar { background: #aab2bc; }
-.chartCol:hover .chartBarCurrent { background: #1f4a2f; }
+.chartCol:hover .chartBarCurrent { background: var(--ds-primary-active); }
 
 .chartMeeting {
     font-size: 9.5px;
@@ -707,7 +707,7 @@ mark.hl { background: rgba(250, 204, 21, 0.35); color: inherit; border-radius: 3
 
 .drawerAccent {
     height: 4px;
-    background: linear-gradient(90deg, var(--c), color-mix(in srgb, var(--c) 30%, transparent));
+    background: var(--c);
 }
 
 .drawerHeader {

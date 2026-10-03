@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
     Plus, FolderKanban, LayoutGrid, LayoutList, Search,
     MoreHorizontal, Copy, Archive, Trash2, Users, Calendar,
-    CheckCircle2, Clock, AlertTriangle, Loader2, Sparkles,
+    CheckCircle2, Clock, AlertTriangle, Loader2, Activity,
     X, TrendingUp, ArrowUpRight, Briefcase, ListTodo,
-    BarChart3, Target, Zap, Filter,
+    BarChart3, Target, Filter,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -194,7 +194,7 @@ export default function ManagerProjectsPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+                    <div className="w-12 h-12 rounded-2xl bg-primary-600 flex items-center justify-center">
                         <FolderKanban className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -206,8 +206,7 @@ export default function ManagerProjectsPage() {
                 </div>
                 <button
                     onClick={() => setShowCreate(true)}
-                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-xl transition-all shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 hover:scale-[1.02]"
-                    style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" }}
+                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     Nouveau projet
@@ -217,10 +216,10 @@ export default function ManagerProjectsPage() {
             {/* KPI Strip */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
                 <KpiCard icon={FolderKanban} label="Total" value={projects.length} iconColor="text-slate-600" iconBg="bg-slate-100" />
-                <KpiCard icon={Zap} label="Actifs" value={totalActive} iconColor="text-emerald-600" iconBg="bg-emerald-50" />
+                <KpiCard icon={Activity} label="Actifs" value={totalActive} iconColor="text-emerald-600" iconBg="bg-emerald-50" />
                 <KpiCard icon={CheckCircle2} label="Terminés" value={totalCompleted} iconColor="text-blue-600" iconBg="bg-blue-50" />
-                <KpiCard icon={ListTodo} label="Tâches" value={totalTasks} subtitle={`${totalDone} terminées`} iconColor="text-violet-600" iconBg="bg-violet-50" />
-                <KpiCard icon={TrendingUp} label="Progression" value={`${avgCompletion}%`} iconColor="text-indigo-600" iconBg="bg-indigo-50" />
+                <KpiCard icon={ListTodo} label="Tâches" value={totalTasks} subtitle={`${totalDone} terminées`} iconColor="text-accent-600" iconBg="bg-accent-50" />
+                <KpiCard icon={TrendingUp} label="Progression" value={`${avgCompletion}%`} iconColor="text-primary-600" iconBg="bg-primary-50" />
                 <KpiCard icon={AlertTriangle} label="En retard" value={totalOverdue} iconColor={totalOverdue > 0 ? "text-red-600" : "text-slate-400"} iconBg={totalOverdue > 0 ? "bg-red-50" : "bg-slate-50"} accent={totalOverdue > 0} />
             </div>
 
@@ -233,7 +232,7 @@ export default function ManagerProjectsPage() {
                         placeholder="Rechercher un projet..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                        className="w-full pl-9 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
                     />
                 </div>
 
@@ -251,7 +250,7 @@ export default function ManagerProjectsPage() {
                             className={cn(
                                 "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all",
                                 statusFilter === f.value
-                                    ? "bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm"
+                                    ? "bg-primary-50 text-primary-700 border-primary-200 shadow-sm"
                                     : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                             )}
                         >
@@ -265,7 +264,7 @@ export default function ManagerProjectsPage() {
                     <select
                         value={clientFilter}
                         onChange={(e) => setClientFilter(e.target.value)}
-                        className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 appearance-none min-w-[150px]"
+                        className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 appearance-none min-w-[150px]"
                     >
                         <option value="">Tous les clients</option>
                         {clients.filter(c => projects.some(p => p.client?.id === c.id)).map((c) => (
@@ -278,13 +277,13 @@ export default function ManagerProjectsPage() {
                 <div className="flex bg-slate-100 border border-slate-200 rounded-xl p-0.5 ml-auto">
                     <button
                         onClick={() => setView("grid")}
-                        className={cn("p-2 rounded-lg transition-all", view === "grid" ? "bg-white shadow-sm text-indigo-600" : "text-slate-400 hover:text-slate-600")}
+                        className={cn("p-2 rounded-lg transition-all", view === "grid" ? "bg-white shadow-sm text-primary-600" : "text-slate-400 hover:text-slate-600")}
                     >
                         <LayoutGrid className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => setView("list")}
-                        className={cn("p-2 rounded-lg transition-all", view === "list" ? "bg-white shadow-sm text-indigo-600" : "text-slate-400 hover:text-slate-600")}
+                        className={cn("p-2 rounded-lg transition-all", view === "list" ? "bg-white shadow-sm text-primary-600" : "text-slate-400 hover:text-slate-600")}
                     >
                         <LayoutList className="w-4 h-4" />
                     </button>
@@ -295,7 +294,7 @@ export default function ManagerProjectsPage() {
             {loading ? (
                 <div className="flex items-center justify-center py-32">
                     <div className="flex flex-col items-center gap-3">
-                        <Loader2 className="w-10 h-10 animate-spin text-indigo-400" />
+                        <Loader2 className="w-10 h-10 animate-spin text-primary-400" />
                         <p className="text-sm text-slate-500">Chargement des projets...</p>
                     </div>
                 </div>
@@ -310,7 +309,7 @@ export default function ManagerProjectsPage() {
                     </p>
                     <button
                         onClick={() => setShowCreate(true)}
-                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-200 transition-all"
+                        className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl shadow-sm transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         Créer un projet
@@ -358,7 +357,7 @@ export default function ManagerProjectsPage() {
                             type="text"
                             value={createForm.name}
                             onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
                             placeholder="Ex: Onboarding UpikaJob, Sprint Q1..."
                             autoFocus
                         />
@@ -369,7 +368,7 @@ export default function ManagerProjectsPage() {
                             value={createForm.description}
                             onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
                             rows={3}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all resize-none"
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all resize-none"
                             placeholder="Décrivez l'objectif du projet..."
                         />
                     </div>
@@ -379,7 +378,7 @@ export default function ManagerProjectsPage() {
                             <select
                                 value={createForm.clientId}
                                 onChange={(e) => setCreateForm({ ...createForm, clientId: e.target.value })}
-                                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 bg-white transition-all"
+                                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 bg-white transition-all"
                             >
                                 <option value="">Aucun client</option>
                                 {clients.map((c) => (
@@ -396,7 +395,7 @@ export default function ManagerProjectsPage() {
                                         onClick={() => setCreateForm({ ...createForm, color: c })}
                                         className={cn(
                                             "w-7 h-7 rounded-lg transition-all",
-                                            createForm.color === c ? "ring-2 ring-offset-2 ring-indigo-500 scale-110" : "hover:scale-110"
+                                            createForm.color === c ? "ring-2 ring-offset-2 ring-primary-500" : "hover:ring-2 hover:ring-offset-2 hover:ring-slate-200"
                                         )}
                                         style={{ backgroundColor: c }}
                                     />
@@ -415,7 +414,7 @@ export default function ManagerProjectsPage() {
                                 }
                                 e.target.value = "";
                             }}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 bg-white transition-all"
+                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 bg-white transition-all"
                         >
                             <option value="">Ajouter un membre...</option>
                             {users.filter((u) => !createForm.memberIds.includes(u.id)).map((u) => (
@@ -427,9 +426,9 @@ export default function ManagerProjectsPage() {
                                 {createForm.memberIds.map((id) => {
                                     const u = users.find((x) => x.id === id);
                                     return (
-                                        <span key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-medium border border-indigo-100">
+                                        <span key={id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary-50 text-primary-700 text-xs font-medium border border-primary-100">
                                             {u?.name ?? id}
-                                            <button type="button" onClick={() => setCreateForm({ ...createForm, memberIds: createForm.memberIds.filter((x) => x !== id) })} className="p-0.5 hover:bg-indigo-200 rounded-full transition-colors">
+                                            <button type="button" onClick={() => setCreateForm({ ...createForm, memberIds: createForm.memberIds.filter((x) => x !== id) })} className="p-0.5 hover:bg-primary-200 rounded-full transition-colors">
                                                 <X className="w-3 h-3" />
                                             </button>
                                         </span>
@@ -441,11 +440,11 @@ export default function ManagerProjectsPage() {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Date début</label>
-                            <input type="date" value={createForm.startDate} onChange={(e) => setCreateForm({ ...createForm, startDate: e.target.value })} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all" />
+                            <input type="date" value={createForm.startDate} onChange={(e) => setCreateForm({ ...createForm, startDate: e.target.value })} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all" />
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Date fin</label>
-                            <input type="date" value={createForm.endDate} onChange={(e) => setCreateForm({ ...createForm, endDate: e.target.value })} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all" />
+                            <input type="date" value={createForm.endDate} onChange={(e) => setCreateForm({ ...createForm, endDate: e.target.value })} className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all" />
                         </div>
                     </div>
                 </div>
@@ -456,8 +455,7 @@ export default function ManagerProjectsPage() {
                     <button
                         onClick={handleCreate}
                         disabled={!createForm.name.trim() || creating}
-                        className="px-5 py-2.5 text-sm font-semibold text-white rounded-xl disabled:opacity-50 flex items-center gap-2 transition-all shadow-lg shadow-indigo-200"
-                        style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)" }}
+                        className="px-5 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl disabled:opacity-50 flex items-center gap-2 transition-colors shadow-sm"
                     >
                         {creating && <Loader2 className="w-4 h-4 animate-spin" />}
                         Créer le projet
@@ -515,7 +513,7 @@ function ProjectCard({ project, onDuplicate, onArchive, onDelete }: {
     return (
         <Link
             href={`/manager/projects/${project.id}`}
-            className="block bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-100/50 transition-all duration-200 group relative"
+            className="block bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-primary-300 hover:shadow-md transition-all duration-200 group relative"
         >
             {/* Color accent bar */}
             <div className="h-1" style={{ backgroundColor: project.color || "#6366f1" }} />
@@ -524,7 +522,7 @@ function ProjectCard({ project, onDuplicate, onArchive, onDelete }: {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-indigo-700 transition-colors">
+                        <h3 className="text-sm font-bold text-slate-900 truncate group-hover:text-primary-700 transition-colors">
                             {project.name}
                         </h3>
                         {project.client && (
@@ -619,7 +617,7 @@ function ProjectCard({ project, onDuplicate, onArchive, onDelete }: {
                                 {stats.overdue} en retard
                             </span>
                         )}
-                        <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                        <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-primary-500 transition-colors" />
                     </div>
                 </div>
             </div>
@@ -637,12 +635,12 @@ function ProjectRow({ project, onDuplicate, onArchive, onDelete }: {
     return (
         <Link
             href={`/manager/projects/${project.id}`}
-            className="grid grid-cols-[1fr,100px,120px,100px,60px] gap-4 items-center px-5 py-3.5 border-b border-slate-100 last:border-b-0 hover:bg-indigo-50/30 transition-colors group"
+            className="grid grid-cols-[1fr,100px,120px,100px,60px] gap-4 items-center px-5 py-3.5 border-b border-slate-100 last:border-b-0 hover:bg-primary-50/30 transition-colors group"
         >
             <div className="flex items-center gap-3 min-w-0">
                 <div className="w-3 h-8 rounded-full shrink-0" style={{ backgroundColor: project.color || "#6366f1" }} />
                 <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-indigo-700 transition-colors">{project.name}</p>
+                    <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-primary-700 transition-colors">{project.name}</p>
                     <p className="text-xs text-slate-500 truncate">
                         {project.client ? project.client.name : "Pas de client"} · {project.owner.name}
                     </p>
@@ -655,7 +653,7 @@ function ProjectRow({ project, onDuplicate, onArchive, onDelete }: {
             <div>
                 <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
+                        <div className="h-full bg-primary-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
                     </div>
                     <span className="text-xs font-bold text-slate-700 w-8 text-right">{progress}%</span>
                 </div>
@@ -663,7 +661,7 @@ function ProjectRow({ project, onDuplicate, onArchive, onDelete }: {
             </div>
             <div className="flex -space-x-1.5">
                 {project.members.slice(0, 3).map((m) => (
-                    <div key={m.user.id} className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold border-2 border-white">
+                    <div key={m.user.id} className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[9px] font-bold border-2 border-white">
                         {m.user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                     </div>
                 ))}

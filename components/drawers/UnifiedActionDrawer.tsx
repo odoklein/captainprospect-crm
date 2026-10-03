@@ -25,7 +25,6 @@ import {
     MessageSquare,
     History,
     ChevronRight,
-    Sparkles,
     Pencil,
     Save,
     X,
@@ -48,6 +47,7 @@ import {
     UserX,
     XCircle,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { ContactDrawer } from "./ContactDrawer";
@@ -198,8 +198,8 @@ const STATUS_CONFIG = {
     },
 };
 
-const RELANCE_HOVER_HINT = "👉 Rappel demandé\n➡️ Le prospect attend ton appel\n➡️ Il y a un signal d’intérêt";
-const RAPPEL_HOVER_HINT = "👉 Rappel à faire\n➡️ Le prospect n’a pas encore été joint\n➡️ C’est un rappel logistique, pas commercial";
+const RELANCE_HOVER_HINT = "Rappel demandé.\n\nLe prospect attend ton appel\nIl y a un signal d’intérêt";
+const RAPPEL_HOVER_HINT = "Rappel à faire.\n\nLe prospect n’a pas encore été joint\nC’est un rappel logistique, pas commercial";
 const HORS_CIBLE_HOVER_HINT = "Prospect hors des critères de ciblage.\n\nSecteur non pertinent\nTaille / structure incompatible\nPas dans les critères de qualification";
 const MIN_NOTE_LENGTH_FOR_AI_RESUME = 5;
 
@@ -284,13 +284,13 @@ const RESULT_CHIP_CONFIG: Record<
     MEETING_BOOKED: {
         label: "RDV planifié",
         icon: Calendar,
-        bg: "bg-indigo-50",
-        text: "text-indigo-700",
-        border: "border-indigo-200",
-        dot: "bg-indigo-400",
-        selectedBg: "bg-indigo-100",
-        selectedText: "text-indigo-800",
-        selectedBorder: "border-indigo-500",
+        bg: "bg-primary-50",
+        text: "text-primary-700",
+        border: "border-primary-200",
+        dot: "bg-primary-400",
+        selectedBg: "bg-primary-100",
+        selectedText: "text-primary-800",
+        selectedBorder: "border-primary-500",
     },
     MEETING_CANCELLED: {
         label: "RDV annulé",
@@ -1666,7 +1666,7 @@ export function UnifiedActionDrawer({
             ) : (companyId && !company) || (contactId && !contact) ? (
                 /* ── Error state ── */
                 <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 flex items-center justify-center mb-5 shadow-sm">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mb-5 shadow-sm">
                         <AlertCircle className="w-8 h-8 text-amber-500" />
                     </div>
                     <p className="text-slate-800 font-bold text-base mb-1">Données inaccessibles</p>
@@ -1723,9 +1723,9 @@ export function UnifiedActionDrawer({
                         className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
                         style={{ animation: "uadSectionIn 250ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                     >
-                        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+                        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
                             <div
-                                className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center shadow-sm"
+                                className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center shadow-sm"
                                 aria-hidden="true"
                             >
                                 <History className="w-3.5 h-3.5 text-white" />
@@ -1739,7 +1739,7 @@ export function UnifiedActionDrawer({
                             )}
                             {actions.length > 0 && (
                                 <span
-                                    className="ml-auto text-xs font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2.5 py-0.5 tabular-nums"
+                                    className="ml-auto text-xs font-bold text-primary-600 bg-primary-50 border border-primary-100 rounded-full px-2.5 py-0.5 tabular-nums"
                                     aria-label={`${actions.length} action${actions.length > 1 ? "s" : ""}`}
                                 >
                                     {actions.length}
@@ -1748,7 +1748,7 @@ export function UnifiedActionDrawer({
                         </div>
 
                         {hasPriorCall && (
-                            <div className="mx-4 mt-4 px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-50 to-emerald-50/60 border border-emerald-200">
+                            <div className="mx-4 mt-4 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200">
                                 <div className="flex items-center gap-2">
                                     <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold">
                                         <PhoneCall className="w-3 h-3" aria-hidden="true" />
@@ -1798,7 +1798,7 @@ export function UnifiedActionDrawer({
                                 </div>
                             ) : actions.length === 0 ? (
                                 <div className="flex flex-col items-center py-10 text-slate-400">
-                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 border border-slate-200 flex items-center justify-center mb-3 shadow-sm">
+                                    <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center mb-3 shadow-sm">
                                         <History className="w-6 h-6 text-slate-300" aria-hidden="true" />
                                     </div>
                                     <p className="text-sm font-medium text-slate-500">Aucune action enregistrée</p>
@@ -1811,7 +1811,7 @@ export function UnifiedActionDrawer({
                                     <ol className="space-y-2 pl-5 relative" aria-label="Liste des actions">
                                         {/* Vertical timeline line */}
                                         <div
-                                            className="absolute top-3 bottom-3 left-[9px] w-[2px] bg-gradient-to-b from-slate-200 via-slate-150 to-slate-100 rounded-full"
+                                            className="absolute top-3 bottom-3 left-[9px] w-[2px] bg-slate-200 rounded-full"
                                             aria-hidden="true"
                                         />
 
@@ -1848,7 +1848,7 @@ export function UnifiedActionDrawer({
                                                         className={cn(
                                                             "rounded-2xl border transition-all duration-200",
                                                             cfg.border,
-                                                            "bg-white/95 hover:shadow-lg hover:-translate-y-[1px]"
+                                                            "bg-white/95 hover:shadow-sm"
                                                         )}
                                                     >
                                                         {/* Header row — clickable if has content */}
@@ -1857,7 +1857,7 @@ export function UnifiedActionDrawer({
                                                             className={cn(
                                                                 "w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left rounded-2xl transition-colors",
                                                                 hasContent
-                                                                    ? "cursor-pointer hover:bg-slate-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-300"
+                                                                    ? "cursor-pointer hover:bg-slate-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-300"
                                                                     : "cursor-default"
                                                             )}
                                                             onClick={() => hasContent && toggleNoteExpand(a.id)}
@@ -1900,7 +1900,7 @@ export function UnifiedActionDrawer({
                                                                         </span>
                                                                     )}
                                                                     {a.sdr?.name && (
-                                                                        <span className="text-[10px] text-indigo-600 font-medium bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                                                                        <span className="text-[10px] text-primary-600 font-medium bg-primary-50 px-1.5 py-0.5 rounded-md">
                                                                             {a.sdr.name}
                                                                         </span>
                                                                     )}
@@ -1914,7 +1914,7 @@ export function UnifiedActionDrawer({
                                                                     <div className="flex flex-col">
                                                                         <time
                                                                             dateTime={a.callbackDate}
-                                                                            className="text-[11px] text-indigo-500 font-semibold"
+                                                                            className="text-[11px] text-primary-500 font-semibold"
                                                                         >
                                                                             {a.result === "MEETING_BOOKED" ? "RDV " : "Rappel "}
                                                                             {new Date(a.callbackDate).toLocaleDateString("fr-FR", {
@@ -2001,7 +2001,7 @@ export function UnifiedActionDrawer({
                                                                     onChange={(e) => setEditActionNote(e.target.value)}
                                                                     placeholder="Note (optionnel)"
                                                                     rows={2}
-                                                                    className="w-full min-h-[56px] px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                                                    className="w-full min-h-[56px] px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
                                                                 />
                                                                 <div className="flex items-center justify-end gap-2 pt-0.5">
                                                                     <Button variant="ghost" size="sm" onClick={cancelEditAction} disabled={updateActionMutation.isPending}>
@@ -2031,7 +2031,7 @@ export function UnifiedActionDrawer({
                                                                     type="button"
                                                                     onClick={() => startEditAction(a)}
                                                                     aria-label={`Modifier le statut « ${statusLabels[a.result] ?? a.result} »`}
-                                                                    className="flex items-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                                    className="flex items-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                                                                 >
                                                                     <Pencil className="w-3 h-3" aria-hidden="true" />
                                                                     Modifier
@@ -2060,7 +2060,7 @@ export function UnifiedActionDrawer({
                                         <button
                                             type="button"
                                             onClick={() => setHistoryExpanded((v) => !v)}
-                                            className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 py-2.5 rounded-xl bg-indigo-50/40 hover:bg-indigo-50 border border-indigo-100 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 hover:border-indigo-200 active:scale-[0.99]"
+                                            className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 py-2.5 rounded-xl bg-primary-50/40 hover:bg-primary-50 border border-primary-100 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 hover:border-primary-200 active:scale-[0.99]"
                                         >
                                             {historyExpanded ? (
                                                 <>
@@ -2083,7 +2083,7 @@ export function UnifiedActionDrawer({
                     {/* ── Quick Action Bar ── */}
                     <section
                         aria-label="Actions rapides"
-                        className="flex flex-wrap gap-2 p-3 rounded-2xl bg-gradient-to-r from-slate-50 via-white to-slate-50 border border-slate-200/60"
+                        className="flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60"
                         style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     >
                         {primaryPhone && (
@@ -2093,7 +2093,7 @@ export function UnifiedActionDrawer({
                                 onClick={() => {
                                     window.open(`tel:${primaryPhone.number}`, "_self");
                                 }}
-                                className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:from-emerald-700 active:to-emerald-800 text-white rounded-xl font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                                className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
                             >
                                 <PhoneCall className="w-4 h-4" aria-hidden="true" />
                                 <span>Appeler</span>
@@ -2109,7 +2109,7 @@ export function UnifiedActionDrawer({
                             <a
                                 href={`mailto:${primaryEmail}`}
                                 aria-label={`Envoyer un email à ${primaryEmail}`}
-                                className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 active:from-indigo-700 active:to-indigo-800 text-white rounded-xl font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                                className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:scale-[0.98]"
                             >
                                 <Send className="w-4 h-4" aria-hidden="true" />
                                 Email
@@ -2166,9 +2166,9 @@ export function UnifiedActionDrawer({
                                 tabIndex={activeTab === "contact" ? 0 : -1}
                                 onClick={() => setActiveTab("contact")}
                                 className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1",
+                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
                                     activeTab === "contact"
-                                        ? "bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100"
+                                        ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
                                         : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
                                 )}
                             >
@@ -2183,9 +2183,9 @@ export function UnifiedActionDrawer({
                                 tabIndex={activeTab === "company" ? 0 : -1}
                                 onClick={() => setActiveTab("company")}
                                 className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1",
+                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
                                     activeTab === "company"
-                                        ? "bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100"
+                                        ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
                                         : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
                                 )}
                             >
@@ -2202,13 +2202,13 @@ export function UnifiedActionDrawer({
                             role="tabpanel"
                             aria-labelledby="tab-contact"
                             tabIndex={0}
-                            className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-1"
+                            className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1"
                             style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                         >
                             {/* Contact header */}
-                            <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50/40 to-transparent">
+                            <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-primary-50/30">
                                 <div
-                                    className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center text-base font-bold text-white shadow-md ring-2 ring-white shrink-0"
+                                    className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center text-base font-bold text-white shadow-sm ring-2 ring-white shrink-0"
                                     aria-hidden="true"
                                 >
                                     {(contact.firstName?.[0] || contact.lastName?.[0] || "?").toUpperCase()}
@@ -2226,7 +2226,7 @@ export function UnifiedActionDrawer({
                                                     }
                                                     placeholder="Prénom"
                                                     aria-label="Prénom"
-                                                    className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                                    className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
                                                 />
                                                 <input
                                                     type="text"
@@ -2236,7 +2236,7 @@ export function UnifiedActionDrawer({
                                                     }
                                                     placeholder="Nom"
                                                     aria-label="Nom de famille"
-                                                    className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                                    className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
                                                 />
                                             </div>
                                             <input
@@ -2247,7 +2247,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="Titre / Poste"
                                                 aria-label="Titre ou poste"
-                                                className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                                className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
                                             />
                                         </div>
                                     ) : (
@@ -2285,7 +2285,7 @@ export function UnifiedActionDrawer({
                                                 onClick={handleSaveContact}
                                                 disabled={saveContactMutation.isPending}
                                                 aria-label="Sauvegarder le contact"
-                                                className="w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                                className="w-8 h-8 flex items-center justify-center bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                                             >
                                                 {saveContactMutation.isPending ? (
                                                     <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -2321,7 +2321,7 @@ export function UnifiedActionDrawer({
                                                     setIsEditingContact(true);
                                                 }}
                                                 aria-label="Modifier le contact"
-                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                                             >
                                                 <Pencil className="w-4 h-4" aria-hidden="true" />
                                             </button>
@@ -2354,7 +2354,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="Numéro de téléphone"
                                                 aria-label="Téléphone principal"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
                                             />
                                         ) : (
                                             <a
@@ -2385,8 +2385,8 @@ export function UnifiedActionDrawer({
                                 {(contact.email || isEditingContact) && (
                                     <InfoRow
                                         icon={Mail}
-                                        iconColor="text-indigo-600"
-                                        iconBg="bg-indigo-50"
+                                        iconColor="text-primary-600"
+                                        iconBg="bg-primary-50"
                                         label="Email"
                                         editing={isEditingContact}
                                         action={
@@ -2404,12 +2404,12 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="Adresse email"
                                                 aria-label="Email principal"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400"
+                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
                                             />
                                         ) : (
                                             <a
                                                 href={`mailto:${contact.email}`}
-                                                className="text-sm font-medium text-indigo-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded"
+                                                className="text-sm font-medium text-primary-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
                                             >
                                                 {contact.email}
                                             </a>
@@ -2441,7 +2441,7 @@ export function UnifiedActionDrawer({
                                                                     setEditContactData({ ...editContactData, additionalPhones: next });
                                                                 }}
                                                                 placeholder="Numéro"
-                                                                className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+                                                                className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
                                                             />
                                                             <button
                                                                 type="button"
@@ -2466,7 +2466,7 @@ export function UnifiedActionDrawer({
                                                                 additionalPhones: [...(editContactData.additionalPhones ?? []), ""],
                                                             })
                                                         }
-                                                        className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded"
+                                                        className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
                                                     >
                                                         <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                                                         Ajouter un numéro
@@ -2502,7 +2502,7 @@ export function UnifiedActionDrawer({
                                                     additionalPhones: [""],
                                                 })
                                             }
-                                            className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded"
+                                            className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
                                         >
                                             <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                                             Ajouter un numéro
@@ -2517,7 +2517,7 @@ export function UnifiedActionDrawer({
                                     contact.additionalEmails.filter(Boolean).length > 0) && (
                                         <div className="px-4 py-3 border-b border-slate-100">
                                             <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-                                                <Mail className="w-3 h-3 text-indigo-500" aria-hidden="true" />
+                                                <Mail className="w-3 h-3 text-primary-500" aria-hidden="true" />
                                                 Autres emails
                                             </p>
                                             {isEditingContact ? (
@@ -2534,7 +2534,7 @@ export function UnifiedActionDrawer({
                                                                     setEditContactData({ ...editContactData, additionalEmails: next });
                                                                 }}
                                                                 placeholder="Email"
-                                                                className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+                                                                className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
                                                             />
                                                             <button
                                                                 type="button"
@@ -2559,7 +2559,7 @@ export function UnifiedActionDrawer({
                                                                 additionalEmails: [...(editContactData.additionalEmails ?? []), ""],
                                                             })
                                                         }
-                                                        className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded"
+                                                        className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
                                                     >
                                                         <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                                                         Ajouter un email
@@ -2570,11 +2570,11 @@ export function UnifiedActionDrawer({
                                                     {(contact.additionalEmails ?? []).filter(Boolean).map((em, idx) => (
                                                         <div
                                                             key={idx}
-                                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-xs"
+                                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 border border-primary-100 text-xs"
                                                         >
                                                             <a
                                                                 href={`mailto:${em}`}
-                                                                className="text-indigo-700 hover:underline truncate max-w-[160px]"
+                                                                className="text-primary-700 hover:underline truncate max-w-[160px]"
                                                             >
                                                                 {em}
                                                             </a>
@@ -2598,7 +2598,7 @@ export function UnifiedActionDrawer({
                                                     additionalEmails: [""],
                                                 })
                                             }
-                                            className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded"
+                                            className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
                                         >
                                             <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                                             Ajouter un email
@@ -2640,7 +2640,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="URL LinkedIn"
                                                 aria-label="Profil LinkedIn"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
                                             />
                                         ) : (
                                             <a
@@ -2712,15 +2712,15 @@ export function UnifiedActionDrawer({
                             role="tabpanel"
                             aria-labelledby="tab-company"
                             tabIndex={0}
-                            className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-1"
+                            className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1"
                             style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                         >
                             {/* No contact prompt */}
                             {!contact && (
-                                <div className="mx-4 mt-4 rounded-xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <div className="mx-4 mt-4 rounded-xl border-2 border-dashed border-primary-200 bg-primary-50/50 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
-                                            <User className="w-4 h-4 text-indigo-600" aria-hidden="true" />
+                                        <div className="w-9 h-9 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
+                                            <User className="w-4 h-4 text-primary-600" aria-hidden="true" />
                                         </div>
                                         <div>
                                             <p className="font-semibold text-slate-900 text-sm">
@@ -2744,9 +2744,9 @@ export function UnifiedActionDrawer({
                             )}
 
                             {/* Company header */}
-                            <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-gradient-to-r from-violet-50/40 to-transparent">
+                            <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-accent-50/30">
                                 <div
-                                    className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-400 to-violet-600 flex items-center justify-center shrink-0 shadow-md ring-2 ring-white"
+                                    className="w-12 h-12 rounded-xl bg-accent-600 flex items-center justify-center shrink-0 shadow-sm ring-2 ring-white"
                                     aria-hidden="true"
                                 >
                                     <Building2 className="w-5 h-5 text-white" />
@@ -2762,7 +2762,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="Nom de la société"
                                                 aria-label="Nom de la société"
-                                                className="w-full px-2.5 py-1.5 text-sm font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400/30"
+                                                className="w-full px-2.5 py-1.5 text-sm font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                             />
                                             <input
                                                 type="text"
@@ -2772,7 +2772,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="Secteur d'activité"
                                                 aria-label="Secteur d'activité"
-                                                className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400/30"
+                                                className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                             />
                                         </div>
                                     ) : (
@@ -2806,7 +2806,7 @@ export function UnifiedActionDrawer({
                                                 onClick={handleSaveCompany}
                                                 disabled={saveCompanyMutation.isPending}
                                                 aria-label="Sauvegarder la société"
-                                                className="w-8 h-8 flex items-center justify-center bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+                                                className="w-8 h-8 flex items-center justify-center bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
                                             >
                                                 {saveCompanyMutation.isPending ? (
                                                     <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -2830,7 +2830,7 @@ export function UnifiedActionDrawer({
                                                 setIsEditingCompany(true);
                                             }}
                                             aria-label="Modifier la société"
-                                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+                                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-accent-600 hover:bg-accent-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
                                         >
                                             <Pencil className="w-4 h-4" aria-hidden="true" />
                                         </button>
@@ -2871,7 +2871,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="Numéro de téléphone"
                                                 aria-label="Téléphone de la société"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400/30"
+                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                             />
                                         ) : (
                                             <a
@@ -2900,8 +2900,8 @@ export function UnifiedActionDrawer({
                                 {(company.website || isEditingCompany) && (
                                     <InfoRow
                                         icon={Globe}
-                                        iconColor="text-indigo-600"
-                                        iconBg="bg-indigo-50"
+                                        iconColor="text-primary-600"
+                                        iconBg="bg-primary-50"
                                         label="Site web"
                                         editing={isEditingCompany}
                                         action={
@@ -2931,7 +2931,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 placeholder="Site web"
                                                 aria-label="Site web de la société"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-400/30"
+                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                             />
                                         ) : (
                                             <a
@@ -2942,7 +2942,7 @@ export function UnifiedActionDrawer({
                                                 }
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="text-sm font-medium text-indigo-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded"
+                                                className="text-sm font-medium text-primary-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
                                             >
                                                 {company.website}
                                             </a>
@@ -2965,7 +2965,7 @@ export function UnifiedActionDrawer({
                                                     }
                                                     placeholder="Pays"
                                                     aria-label="Pays"
-                                                    className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-400/30"
+                                                    className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                                 />
                                             ) : (
                                                 <p className="text-sm font-medium text-slate-700">{company.country || "—"}</p>
@@ -2985,7 +2985,7 @@ export function UnifiedActionDrawer({
                                                     }
                                                     placeholder="Taille"
                                                     aria-label="Taille de l'effectif"
-                                                    className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-400/30"
+                                                    className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                                 />
                                             ) : (
                                                 <p className="text-sm font-medium text-slate-700">{company.size || "—"}</p>
@@ -3091,7 +3091,7 @@ export function UnifiedActionDrawer({
                                                                 )}
                                                                 {c.email && (
                                                                     <p className="flex items-center gap-1.5">
-                                                                        <Mail className="w-3 h-3 text-indigo-500" />
+                                                                        <Mail className="w-3 h-3 text-primary-500" />
                                                                         {c.email}
                                                                     </p>
                                                                 )}
@@ -3113,7 +3113,7 @@ export function UnifiedActionDrawer({
                                                                     <a
                                                                         href={`mailto:${c.email}`}
                                                                         aria-label={`Envoyer un email à ${c.firstName || c.lastName || "contact"}`}
-                                                                        className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                                        className="p-1.5 text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
                                                                     >
                                                                         <Mail className="w-3.5 h-3.5" aria-hidden="true" />
                                                                     </a>
@@ -3139,7 +3139,7 @@ export function UnifiedActionDrawer({
                                         <button
                                             type="button"
                                             onClick={() => setShowAddContact(true)}
-                                            className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-sm font-medium transition-colors"
+                                            className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-primary-200 text-primary-600 hover:bg-primary-50 text-sm font-medium transition-colors"
                                         >
                                             <Plus className="w-4 h-4" aria-hidden="true" />
                                             Ajouter un nouveau contact
@@ -3153,19 +3153,19 @@ export function UnifiedActionDrawer({
                     {/* ── Record Action Section ── */}
                     <section
                         aria-label="Enregistrer une action"
-                        className="rounded-2xl border border-indigo-100 bg-white shadow-sm overflow-hidden ring-1 ring-indigo-50"
+                        className="rounded-2xl border border-primary-100 bg-white shadow-sm overflow-hidden ring-1 ring-primary-50"
                         style={{ animation: "uadSectionIn 250ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     >
-                        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-indigo-50/40 to-white">
+                        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-primary-100 bg-primary-50/50">
                             <div
-                                className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-sm"
+                                className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center shadow-sm"
                                 aria-hidden="true"
                             >
                                 <MessageSquare className="w-3.5 h-3.5 text-white" />
                             </div>
                             <h2 className="text-sm font-bold text-slate-900" id="record-action-heading">Enregistrer une action</h2>
                             {newActionResult && (
-                                <span className="ml-auto text-[10px] font-semibold text-indigo-500 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+                                <span className="ml-auto text-[10px] font-semibold text-primary-500 bg-primary-50 border border-primary-100 px-2 py-0.5 rounded-full">
                                     {statusLabels[newActionResult] ?? newActionResult}
                                 </span>
                             )}
@@ -3318,7 +3318,7 @@ export function UnifiedActionDrawer({
                                                             const catColors: Record<string, string> = {
                                                                 OUTREACH: "bg-blue-100 text-blue-700",
                                                                 FOLLOW_UP: "bg-amber-100 text-amber-700",
-                                                                NURTURE: "bg-violet-100 text-violet-700",
+                                                                NURTURE: "bg-accent-100 text-accent-700",
                                                                 CLOSING: "bg-emerald-100 text-emerald-700",
                                                                 OTHER: "bg-slate-100 text-slate-600",
                                                             };
@@ -3386,7 +3386,7 @@ export function UnifiedActionDrawer({
                                                     type="button"
                                                     onClick={() => handleSendEmailAndRecord(false)}
                                                     disabled={sendEmailMutation.isPending || !contact?.email || !emailSelectedMailboxId || !getChosenTemplateId()}
-                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all"
+                                                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all"
                                                 >
                                                     {sendEmailMutation.isPending ? (
                                                         <><Loader2 className="w-4 h-4 animate-spin" /> Envoi...</>
@@ -3432,11 +3432,11 @@ export function UnifiedActionDrawer({
 
                                     {/* Contextual: meeting booking — always shown for MEETING_BOOKED */}
                                     {newActionResult === "MEETING_BOOKED" && (
-                                        <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-3">
+                                        <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-3.5 space-y-3">
                                             {/* Calendar button — only when a booking URL or at least one interlocuteur calendar exists */}
                                             {canOpenClientCalendar && (
                                                 <>
-                                                    <p className="text-xs text-indigo-700">
+                                                    <p className="text-xs text-primary-700">
                                                         Réservez le créneau dans le calendrier : le RDV est enregistré à la confirmation.
                                                     </p>
                                                     <Button
@@ -3553,7 +3553,7 @@ export function UnifiedActionDrawer({
                                                 maxLength={500}
                                                 aria-required={textFieldRequiredForResult}
                                                 aria-describedby="note-char-count"
-                                                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400 resize-none transition-all"
+                                                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 resize-none transition-all"
                                             />
                                         </div>
                                         {linkedAlloCall && (
@@ -3601,12 +3601,12 @@ export function UnifiedActionDrawer({
                                                 }
                                                 aria-label="Résumer avec l'IA"
                                                 title="Générer un résumé factuel et concis avec Mistral IA"
-                                                className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400 rounded-lg px-2 py-1 hover:bg-indigo-50 border border-transparent hover:border-indigo-100"
+                                                className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded-lg px-2 py-1 hover:bg-primary-50 border border-transparent hover:border-primary-100"
                                             >
                                                 {summarizeNoteMutation.isPending ? (
                                                     <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
                                                 ) : (
-                                                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                                                    <AiMark className="w-3.5 h-3.5" aria-hidden="true" />
                                                 )}
                                                 {summarizeNoteMutation.isPending ? "Résumé en cours…" : "Résumer avec l'IA"}
                                             </button>
@@ -3618,11 +3618,15 @@ export function UnifiedActionDrawer({
                                                         "flex items-center gap-1.5 text-xs font-semibold rounded-lg px-2.5 py-1 border transition-all",
                                                         linkedAlloCall
                                                             ? "text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
-                                                            : "text-indigo-600 bg-indigo-50 border-indigo-100 hover:bg-indigo-100"
+                                                            : "text-primary-600 bg-primary-50 border-primary-100 hover:bg-primary-100"
                                                     )}
                                                 >
-                                                    <PhoneCall className="w-3.5 h-3.5" aria-hidden="true" />
-                                                    {linkedAlloCall ? "Appel validé ✓" : "Valider l'appel (Allo)"}
+                                                    {linkedAlloCall ? (
+                                                        <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                                                    ) : (
+                                                        <PhoneCall className="w-3.5 h-3.5" aria-hidden="true" />
+                                                    )}
+                                                    {linkedAlloCall ? "Appel validé" : "Valider l'appel (Allo)"}
                                                 </button>
                                             )}
                                             <p
@@ -3658,7 +3662,7 @@ export function UnifiedActionDrawer({
 
                                     {/* Submit — hidden when ENVOIE_MAIL (email panel has its own send) */}
                                     {newActionResult !== "ENVOIE_MAIL" && (
-                                    <div className="flex flex-col sm:flex-row gap-2 pt-3 mt-1 border-t border-indigo-100">
+                                    <div className="flex flex-col sm:flex-row gap-2 pt-3 mt-1 border-t border-primary-100">
                                         <Button
                                             type="button"
                                             variant="primary"
@@ -3667,7 +3671,7 @@ export function UnifiedActionDrawer({
                                             isLoading={addActionMutation.isPending}
                                             className={cn(
                                                 "gap-2 shadow-sm transition-all duration-200",
-                                                canSubmit && "hover:shadow-md hover:scale-[1.01]",
+                                                canSubmit && "hover:shadow-md",
                                                 onValidateAndNext ? "flex-1" : "w-full"
                                             )}
                                         >

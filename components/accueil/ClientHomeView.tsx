@@ -89,7 +89,7 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                         <StatusPill tone="slate" icon={Calendar}>{monthLabel}</StatusPill>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
-                        {greeting}, {userName} ! 👋
+                        {greeting}, {userName}
                     </h1>
                     <p className="text-xs sm:text-sm text-zinc-500 font-medium">
                         Vos rendez-vous obtenus et l&apos;activité de prospection menée pour vous.
@@ -116,20 +116,20 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                         value={meetingsBooked}
                         className="text-[72px] md:text-[84px] font-black text-white leading-[0.85] tracking-tighter"
                     />
-                    <span className="text-2xl font-black text-emerald-300/80">RDV</span>
+                    <span className="text-2xl font-black text-inverse-ink-3">RDV</span>
                 </div>
 
-                <div className="pt-5 border-t border-emerald-800/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="pt-5 border-t border-inverse-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-[11px] font-bold text-emerald-300 uppercase tracking-wider">Appels passés</span>
+                        <span className="text-[11px] font-bold text-inverse-ink-2 uppercase tracking-wider">Appels passés</span>
                         {/* Month stepper — track 12px / p-1 → buttons 8px */}
-                        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-emerald-950/90 border border-emerald-700/80">
+                        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-inverse-raised border border-inverse-line">
                             <button
                                 type="button"
                                 onClick={onPrevMonth}
                                 className={cn(
-                                    "w-7 h-7 rounded-lg flex items-center justify-center text-emerald-200 hover:text-white hover:bg-emerald-900/80 transition-colors",
-                                    "outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60",
+                                    "w-7 h-7 rounded-lg flex items-center justify-center text-inverse-ink-2 hover:text-white hover:bg-white/10 transition-colors",
+                                    "outline-none focus-visible:ring-2 focus-visible:ring-accent-300",
                                 )}
                                 aria-label="Mois précédent"
                             >
@@ -143,8 +143,8 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                                 onClick={onNextMonth}
                                 disabled={!canGoNextMonth}
                                 className={cn(
-                                    "w-7 h-7 rounded-lg flex items-center justify-center text-emerald-200 hover:text-white hover:bg-emerald-900/80 transition-colors",
-                                    "disabled:opacity-35 disabled:pointer-events-none outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60",
+                                    "w-7 h-7 rounded-lg flex items-center justify-center text-inverse-ink-2 hover:text-white hover:bg-white/10 transition-colors",
+                                    "disabled:opacity-35 disabled:pointer-events-none outline-none focus-visible:ring-2 focus-visible:ring-accent-300",
                                 )}
                                 aria-label="Mois suivant"
                             >
@@ -153,13 +153,13 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 p-3.5 pr-5 rounded-2xl bg-emerald-950/70 border border-emerald-800/60">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-800/80 border border-emerald-700/60 flex items-center justify-center flex-shrink-0">
-                            <PhoneCall className="w-[18px] h-[18px] text-emerald-300" aria-hidden />
+                    <div className="flex items-center gap-3 p-3.5 pr-5 rounded-2xl bg-inverse-raised border border-inverse-line">
+                        <div className="w-10 h-10 rounded-xl bg-white/10 border border-inverse-line flex items-center justify-center flex-shrink-0">
+                            <PhoneCall className="w-[18px] h-[18px] text-inverse-ink-2" aria-hidden />
                         </div>
                         <div>
                             <AnimatedNumber value={callsCount} className="text-xl font-black text-white leading-none" />
-                            <p className="text-[11px] text-emerald-300/80 mt-1 font-semibold">appels en {callsMonthLabel.toLowerCase()}</p>
+                            <p className="text-[11px] text-inverse-ink-3 mt-1 font-semibold">appels en {callsMonthLabel.toLowerCase()}</p>
                         </div>
                     </div>
                 </div>
@@ -317,7 +317,7 @@ export function ClientHomeSkeleton() {
                 </div>
                 <Shimmer className="h-11 w-11 rounded-2xl" />
             </div>
-            <div className="h-[300px] rounded-3xl bg-[#0B3524]/90 motion-safe:animate-pulse" />
+            <div className="h-[300px] rounded-3xl bg-inverse/90 motion-safe:animate-pulse" />
             <Shimmer className="h-[420px] rounded-3xl" />
             <Shimmer className="h-[260px] rounded-3xl" />
         </div>

@@ -3,9 +3,9 @@ import React from "react";
 export const SDRIllustration = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 200 200" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="100" cy="100" r="90" fill="url(#sdr-gradient)" fillOpacity="0.1" />
-        <path d="M60 100C60 77.9086 77.9086 60 100 60C122.091 60 140 77.9086 140 100" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-indigo-500" />
-        <path d="M140 100V110C140 126.569 126.569 140 110 140H100" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-indigo-500" />
-        <circle cx="140" cy="100" r="12" fill="currentColor" className="text-indigo-600" />
+        <path d="M60 100C60 77.9086 77.9086 60 100 60C122.091 60 140 77.9086 140 100" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-primary-500" />
+        <path d="M140 100V110C140 126.569 126.569 140 110 140H100" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-primary-500" />
+        <circle cx="140" cy="100" r="12" fill="currentColor" className="text-primary-600" />
         <path d="M85 95L95 105L115 85" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500" transform="translate(-5, 10)" />
         <rect x="70" y="70" width="60" height="60" rx="12" stroke="currentColor" strokeWidth="4" className="text-slate-400/50" />
         <defs>
@@ -21,9 +21,9 @@ export const ManagerIllustration = ({ className }: { className?: string }) => (
     <svg viewBox="0 0 200 200" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="40" y="40" width="120" height="120" rx="16" fill="url(#manager-gradient)" fillOpacity="0.1" />
         <path d="M60 140V110" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-blue-400" />
-        <path d="M90 140V90" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-indigo-500" />
-        <path d="M120 140V70" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-violet-500" />
-        <path d="M150 140V100" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-purple-500" />
+        <path d="M90 140V90" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-primary-500" />
+        <path d="M120 140V70" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-accent-500" />
+        <path d="M150 140V100" stroke="currentColor" strokeWidth="8" strokeLinecap="round" className="text-accent-500" />
         <path d="M50 140H150" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="text-slate-300" />
         <circle cx="160" cy="40" r="20" fill="currentColor" fillOpacity="0.2" className="text-yellow-400" />
         <defs>

@@ -78,7 +78,7 @@ export function HrHelpTip({ title, children, label = "Explication" }: HrHelpTipP
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center justify-center w-4 h-4 align-middle rounded-full text-slate-400 hover:text-indigo-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        className="inline-flex items-center justify-center w-4 h-4 align-middle rounded-full text-slate-400 hover:text-primary-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
       >
         <HelpCircle className="w-3.5 h-3.5" />
       </button>

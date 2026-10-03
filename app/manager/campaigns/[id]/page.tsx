@@ -16,15 +16,14 @@ import {
     Phone,
     MessageSquare,
     AlertCircle,
-    Sparkles,
     ChevronRight,
     Copy,
     CheckCircle2,
-    Wand2,
 } from "lucide-react";
 import Link from "next/link";
 import { Card, Button, Badge, Modal, ModalFooter, LoadingState, EmptyState, Tabs } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ui/AiMark";
 import { PitchBlockEditor, StrategyArtifactViewer } from "@/components/strategy";
 
 // ============================================
@@ -375,8 +374,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return (
         <div className="space-y-6">
             {/* Hero Header */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 text-white">
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjwvc3ZnPg==')] opacity-50" />
+            <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-8 text-white">
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-6">
                         <button
@@ -385,7 +383,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                         >
                             <ArrowLeft className="w-4 h-4" />
                         </button>
-                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-400 to-indigo-600 flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-xl bg-primary-600 flex items-center justify-center">
                             <FileText className="w-7 h-7" />
                         </div>
                         <div className="flex-1">
@@ -466,8 +464,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <div className="grid grid-cols-3 gap-5">
                 <Card className="!p-5">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                            <Target className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                            <Target className="w-6 h-6 text-primary-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{campaign._count.actions}</p>
@@ -507,8 +505,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     {/* ICP & Pitch */}
                     <Card>
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                <Target className="w-5 h-5 text-indigo-600" />
+                            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                <Target className="w-5 h-5 text-primary-600" />
                             </div>
                             <h2 className="text-lg font-semibold text-slate-900">Cible & Message</h2>
                         </div>
@@ -521,7 +519,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                 value={formData.icp}
                                 onChange={(e) => setFormData(prev => ({ ...prev, icp: e.target.value }))}
                                 rows={3}
-                                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
                             />
                                 ) : (
                                     <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">{campaign.icp}</p>
@@ -551,7 +549,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                    <Sparkles className="w-5 h-5 text-emerald-600" />
+                                    <Phone className="w-5 h-5 text-emerald-600" />
                                 </div>
                                 <h2 className="text-lg font-semibold text-slate-900">Script d'appel</h2>
                             </div>
@@ -562,12 +560,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                         size="sm"
                                         onClick={() => generateWithMistral('all')}
                                         disabled={isGenerating || !formData.icp || !formData.pitch}
-                                        className="gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-indigo-200 text-indigo-700 hover:from-purple-100 hover:to-indigo-100"
+                                        className="gap-2 bg-primary-50 border-primary-200 text-primary-700 hover:bg-primary-100"
                                     >
                                         {isGenerating && generatingSection === 'all' ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                         ) : (
-                                            <Wand2 className="w-4 h-4" />
+                                            <AiMark className="w-4 h-4" />
                                         )}
                                         Générer avec IA
                                     </Button>
@@ -595,12 +593,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                         type="button"
                                         onClick={() => generateWithMistral(activeScriptTab as 'intro' | 'discovery' | 'objection' | 'closing')}
                                         disabled={isGenerating || !formData.icp || !formData.pitch}
-                                        className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                        className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                     >
                                         {isGenerating && generatingSection === activeScriptTab ? (
                                             <Loader2 className="w-3 h-3 animate-spin" />
                                         ) : (
-                                            <Wand2 className="w-3 h-3" />
+                                            <AiMark className="w-3 h-3" />
                                         )}
                                         Générer cette section
                                     </button>
@@ -613,7 +611,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                     }))}
                                     rows={10}
                                     placeholder={`Écrivez votre script de ${SCRIPT_TABS.find(t => t.id === activeScriptTab)?.label.toLowerCase()}...`}
-                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none font-mono text-sm"
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none font-mono text-sm"
                                 />
                             </div>
                         ) : (
@@ -624,7 +622,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                     </p>
                                 ) : (
                                     <div className="text-center py-8 text-sm text-slate-400">
-                                        <Sparkles className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                                        <FileText className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                                         Aucun script pour cette section
                                     </div>
                                 )}
@@ -653,14 +651,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                     </Card>
 
                     {/* Quick Tips */}
-                    <Card className="bg-gradient-to-br from-indigo-50 to-white border-indigo-100">
+                    <Card className="bg-primary-50 border-primary-100">
                         <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                                <AlertCircle className="w-5 h-5 text-indigo-600" />
+                            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
+                                <AlertCircle className="w-5 h-5 text-primary-600" />
                             </div>
                             <div>
-                                <h3 className="font-medium text-indigo-900 mb-1">Conseils</h3>
-                                <ul className="text-sm text-indigo-700 space-y-1">
+                                <h3 className="font-medium text-primary-900 mb-1">Conseils</h3>
+                                <ul className="text-sm text-primary-700 space-y-1">
                                     <li>• Structurez le script en sections claires</li>
                                     <li>• Incluez des questions de découverte</li>
                                     <li>• Préparez des réponses aux objections</li>
@@ -734,7 +732,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                             className={cn(
                                                 "w-full text-left rounded-xl border p-4 transition-all",
                                                 selected
-                                                    ? "border-indigo-300 bg-indigo-50"
+                                                    ? "border-primary-300 bg-primary-50"
                                                     : "border-slate-200 bg-white hover:bg-slate-50"
                                             )}
                                         >
@@ -746,7 +744,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                                                     className={cn(
                                                         "text-[11px] font-bold px-2 py-1 rounded-full",
                                                         selected
-                                                            ? "bg-indigo-600 text-white"
+                                                            ? "bg-primary-600 text-white"
                                                             : "bg-slate-100 text-slate-600"
                                                     )}
                                                 >

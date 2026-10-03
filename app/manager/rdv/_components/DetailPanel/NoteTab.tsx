@@ -2,6 +2,7 @@
 
 import type { Meeting } from "../../_types";
 import type { UseNoteAutosaveReturn } from "../../_hooks/useNoteAutosave";
+import { Check } from "lucide-react";
 
 interface NoteTabProps {
   meeting: Meeting;
@@ -20,7 +21,7 @@ export function NoteTab({ meeting, noteState, updateMeeting }: NoteTabProps) {
           <span style={{ fontSize: 12, color: "var(--amber)", fontWeight: 500 }}>Enregistrement…</span>
         )}
         {noteStatus === "saved" && (
-          <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 500 }}>Sauvegardé ✓</span>
+          <span style={{ fontSize: 12, color: "var(--green)", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={12} />Sauvegardé</span>
         )}
         {noteStatus === "error" && (
           <span style={{ fontSize: 12, color: "var(--red)", fontWeight: 500 }}>Erreur de sauvegarde</span>

@@ -64,15 +64,9 @@ const ROLE_LABELS: Record<string, string> = {
     DEVELOPER: "Développeur", CLIENT: "Client", BOOKER: "Booker", COMMERCIAL: "Commercial",
 };
 
-const ROLE_GRADIENTS: Record<string, string> = {
-    MANAGER: "from-indigo-500 to-indigo-700", SDR: "from-blue-500 to-blue-700",
-    BUSINESS_DEVELOPER: "from-emerald-500 to-emerald-700", DEVELOPER: "from-purple-500 to-purple-700",
-    CLIENT: "from-sky-500 to-sky-700", BOOKER: "from-blue-400 to-blue-600", COMMERCIAL: "from-teal-500 to-teal-700",
-};
-
 const ROLE_STRIPE: Record<string, string> = {
-    MANAGER: "bg-indigo-600", SDR: "bg-blue-600", BUSINESS_DEVELOPER: "bg-emerald-600",
-    DEVELOPER: "bg-purple-600", CLIENT: "bg-sky-600", BOOKER: "bg-blue-500", COMMERCIAL: "bg-teal-600",
+    MANAGER: "bg-primary-600", SDR: "bg-blue-600", BUSINESS_DEVELOPER: "bg-emerald-600",
+    DEVELOPER: "bg-accent-600", CLIENT: "bg-sky-600", BOOKER: "bg-blue-500", COMMERCIAL: "bg-teal-600",
 };
 
 const OUTCOME_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
@@ -86,13 +80,13 @@ const OUTCOME_CONFIG: Record<string, { label: string; cls: string; dot: string }
 const AUTH_EVENT_TAG_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
     PASSWORD_RECOVERY_REQUEST: {
         label: "Demande de recuperation du mot de passe",
-        cls: "bg-indigo-50 border-indigo-200",
-        dot: "bg-indigo-500",
+        cls: "bg-primary-50 border-primary-200",
+        dot: "bg-primary-500",
     },
     PASSWORD_RECOVERY_SUCCESS: {
         label: "Mot de passe reinitialise",
-        cls: "bg-violet-50 border-violet-200",
-        dot: "bg-violet-500",
+        cls: "bg-accent-50 border-accent-200",
+        dot: "bg-accent-500",
     },
 };
 
@@ -175,7 +169,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
             role="switch"
             aria-checked={checked}
             onClick={() => onChange(!checked)}
-            className={cn("relative w-11 h-6 rounded-full transition-colors", checked ? "bg-indigo-600" : "bg-slate-300")}
+            className={cn("relative w-11 h-6 rounded-full transition-colors", checked ? "bg-primary-600" : "bg-slate-300")}
         >
             <span className={cn("absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform", checked && "translate-x-5")} />
         </button>
@@ -225,7 +219,7 @@ function ApercuTab({ user, stats }: { user: UserDetail; stats: any }) {
                             </div>
                             <div className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center",
-                                kpi.color === "indigo" ? "bg-indigo-100 text-indigo-600" :
+                                kpi.color === "indigo" ? "bg-primary-100 text-primary-600" :
                                 kpi.color === "emerald" ? "bg-emerald-100 text-emerald-600" :
                                 kpi.color === "blue" ? "bg-blue-100 text-blue-600" :
                                 "bg-amber-100 text-amber-600"
@@ -241,8 +235,8 @@ function ApercuTab({ user, stats }: { user: UserDetail; stats: any }) {
                 {/* Session card */}
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                            <LogIn className="w-4 h-4 text-indigo-600" />
+                        <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                            <LogIn className="w-4 h-4 text-primary-600" />
                         </div>
                         <p className="font-semibold text-slate-900">Session actuelle</p>
                     </div>
@@ -350,7 +344,7 @@ function ActiviteTab({ userId }: { userId: string }) {
             .finally(() => setLoading(false));
     }, [userId]);
 
-    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /></div>;
+    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>;
 
     const callsW = stats?.callsThisWeek ?? 0;
     const meetingsW = stats?.meetingsThisWeek ?? 0;
@@ -452,7 +446,7 @@ function PlanningTab({ userId }: { userId: string }) {
     }, [userId, weekDates]);
 
     const STATUS_COLORS: Record<string, string> = {
-        SCHEDULED: "bg-indigo-100 text-indigo-700 border-indigo-200",
+        SCHEDULED: "bg-primary-100 text-primary-700 border-primary-200",
         IN_PROGRESS: "bg-amber-100 text-amber-700 border-amber-200",
         COMPLETED: "bg-emerald-100 text-emerald-700 border-emerald-200",
         CANCELLED: "bg-slate-100 text-slate-500 border-slate-200",
@@ -483,7 +477,7 @@ function PlanningTab({ userId }: { userId: string }) {
 
             {loading ? (
                 <div className="flex items-center justify-center py-16">
-                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
@@ -492,12 +486,12 @@ function PlanningTab({ userId }: { userId: string }) {
                         const dayBlocks = blocks.filter(b => b.date.split("T")[0] === ds);
                         const isToday = formatDate(new Date()) === ds;
                         return (
-                            <div key={ds} className={cn("rounded-2xl border bg-white p-3 space-y-2", isToday && "border-indigo-300 ring-1 ring-indigo-200/50")}>
+                            <div key={ds} className={cn("rounded-2xl border bg-white p-3 space-y-2", isToday && "border-primary-300 ring-1 ring-primary-200/50")}>
                                 <div className="text-center">
-                                    <p className={cn("text-xs font-semibold uppercase tracking-wide", isToday ? "text-indigo-600" : "text-slate-400")}>
+                                    <p className={cn("text-xs font-semibold uppercase tracking-wide", isToday ? "text-primary-600" : "text-slate-400")}>
                                         {d.toLocaleDateString("fr-FR", { weekday: "short" })}
                                     </p>
-                                    <p className={cn("text-lg font-bold", isToday ? "text-indigo-700" : "text-slate-800")}>
+                                    <p className={cn("text-lg font-bold", isToday ? "text-primary-700" : "text-slate-800")}>
                                         {d.getDate()}
                                     </p>
                                 </div>
@@ -537,7 +531,7 @@ function HistoriqueTab({ userId }: { userId: string }) {
             .finally(() => setLoading(false));
     }, [userId]);
 
-    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /></div>;
+    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>;
 
     if (actions.length === 0) return (
         <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
@@ -647,7 +641,7 @@ function SessionsSection({ userId }: { userId: string }) {
             </div>
 
             {loading ? (
-                <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 text-indigo-500 animate-spin" /></div>
+                <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
             ) : active.length === 0 ? (
                 <p className="text-sm text-slate-400 py-4 text-center">Aucune session active.</p>
             ) : (
@@ -708,7 +702,7 @@ function SecuriteTab({ userId }: { userId: string }) {
             .finally(() => setLoading(false));
     }, [userId]);
 
-    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-indigo-500 animate-spin" /></div>;
+    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>;
 
     // Group events by day
     const grouped: { label: string; events: AuthEvent[] }[] = [];
@@ -766,8 +760,9 @@ function SecuriteTab({ userId }: { userId: string }) {
                                                 <div className="flex items-start justify-between gap-2">
                                                     <div>
                                                         <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className={cn("text-sm font-semibold", isSuccess ? "text-emerald-800" : "text-rose-800")}>
-                                                                {isSuccess ? "✓" : "✗"} {cfg.label}
+                                                            <span className={cn("inline-flex items-center gap-1 text-sm font-semibold", isSuccess ? "text-emerald-800" : "text-rose-800")}>
+                                                                {isSuccess ? <Check className="w-3.5 h-3.5 shrink-0" /> : <X className="w-3.5 h-3.5 shrink-0" />}
+                                                                {cfg.label}
                                                             </span>
                                                             {e.usedMasterPassword && (
                                                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
@@ -914,7 +909,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
         return acc;
     }, {});
 
-    const fieldClass = "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-900";
+    const fieldClass = "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-slate-900";
     const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
 
     return (
@@ -975,7 +970,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
                                 <input type="time" className={fieldClass} value={formData.sdrFeedbackPromptTime} onChange={(e) => patch({ sdrFeedbackPromptTime: e.target.value })} />
                             </div>
                             <label className="flex items-center gap-2 text-sm text-slate-700 pb-2.5 cursor-pointer">
-                                <input type="checkbox" checked={formData.sdrFeedbackRequiredDaily} onChange={(e) => patch({ sdrFeedbackRequiredDaily: e.target.checked })} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                <input type="checkbox" checked={formData.sdrFeedbackRequiredDaily} onChange={(e) => patch({ sdrFeedbackRequiredDaily: e.target.checked })} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                                 Feedback obligatoire
                             </label>
                         </div>
@@ -999,7 +994,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
                         <button
                             onClick={saveProfile}
                             disabled={saving || !formDirty}
-                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
+                            className="px-4 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
                         >
                             {saving ? "Sauvegarde…" : "Sauvegarder"}
                         </button>
@@ -1011,14 +1006,14 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
             <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
                 <div className="flex items-center justify-between">
                     <p className="font-semibold text-slate-900 text-sm">Permissions</p>
-                    <button onClick={resetPerms} disabled={permsLoading} className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:opacity-40">
+                    <button onClick={resetPerms} disabled={permsLoading} className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40">
                         <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser aux défauts du rôle
                     </button>
                 </div>
                 <p className="text-xs text-slate-400">Les modifications sont enregistrées automatiquement.</p>
 
                 {permsLoading ? (
-                    <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-indigo-500 animate-spin" /></div>
+                    <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
                 ) : (
                     <div className="space-y-5">
                         {Object.entries(groupedPerms).map(([category, perms]) => (
@@ -1030,7 +1025,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
                                     {perms.map((perm) => {
                                         const enabled = userPerms.has(perm.code);
                                         return (
-                                            <div key={perm.id} className={cn("flex items-center justify-between p-3 rounded-xl transition-colors", enabled ? "bg-indigo-50 border border-indigo-100" : "bg-slate-50 border border-transparent hover:border-slate-200")}>
+                                            <div key={perm.id} className={cn("flex items-center justify-between p-3 rounded-xl transition-colors", enabled ? "bg-primary-50 border border-primary-100" : "bg-slate-50 border border-transparent hover:border-slate-200")}>
                                                 <div className="min-w-0 mr-4">
                                                     <p className="text-sm font-medium text-slate-900 truncate">{perm.name}</p>
                                                     {perm.description && <p className="text-xs text-slate-400 truncate">{perm.description}</p>}
@@ -1174,7 +1169,7 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
     // Load on mount
     useEffect(() => { load(); }, [load]);
 
-    const fieldCls = "px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-900";
+    const fieldCls = "px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-slate-900";
 
     return (
         <div className="space-y-5">
@@ -1192,7 +1187,7 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
                 <button
                     onClick={load}
                     disabled={loading}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
                 >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileBarChart2 className="w-4 h-4" />}
                     Générer le rapport
@@ -1214,7 +1209,7 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
 
             {loading && !data && (
                 <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                 </div>
             )}
 
@@ -1236,7 +1231,7 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
                                     </div>
                                     <div className={cn(
                                         "w-10 h-10 rounded-xl flex items-center justify-center",
-                                        kpi.color === "indigo" ? "bg-indigo-100 text-indigo-600" :
+                                        kpi.color === "indigo" ? "bg-primary-100 text-primary-600" :
                                         kpi.color === "emerald" ? "bg-emerald-100 text-emerald-600" :
                                         kpi.color === "blue" ? "bg-blue-100 text-blue-600" :
                                         "bg-amber-100 text-amber-600"
@@ -1265,7 +1260,7 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
                     {/* Per-mission table */}
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-                            <Target className="w-4 h-4 text-indigo-500" />
+                            <Target className="w-4 h-4 text-primary-500" />
                             <p className="font-semibold text-slate-900">Appels par mission</p>
                             <span className="ml-auto text-xs text-slate-400">{data.byMission.length} mission(s)</span>
                         </div>
@@ -1315,7 +1310,7 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
                         {/* Top keywords */}
                         <div className="bg-white rounded-2xl border border-slate-200 p-5">
                             <div className="flex items-center gap-2 mb-4">
-                                <Hash className="w-4 h-4 text-indigo-500" />
+                                <Hash className="w-4 h-4 text-primary-500" />
                                 <p className="font-semibold text-slate-900">Mots-clés fréquents</p>
                                 <span className="ml-auto text-xs text-slate-400">{data.comments.total} commentaires</span>
                             </div>
@@ -1333,7 +1328,7 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
                                                     <span className="text-xs text-slate-400">{kw.count}×</span>
                                                 </div>
                                                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-indigo-400 rounded-full" style={{ width: `${pct}%` }} />
+                                                    <div className="h-full bg-primary-400 rounded-full" style={{ width: `${pct}%` }} />
                                                 </div>
                                             </div>
                                         );
@@ -1452,31 +1447,30 @@ export default function UtilisateurDetailPage() {
 
     if (loading) return (
         <div className="flex items-center justify-center min-h-[60vh]">
-            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+            <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
         </div>
     );
 
     if (!user) return (
         <div className="p-8 text-center">
             <p className="text-slate-500">Utilisateur introuvable.</p>
-            <button onClick={() => router.push("/manager/utilisateurs")} className="mt-4 text-indigo-600 hover:underline text-sm">
+            <button onClick={() => router.push("/manager/utilisateurs")} className="mt-4 text-primary-600 hover:underline text-sm">
                 ← Retour aux utilisateurs
             </button>
         </div>
     );
 
-    const grad = ROLE_GRADIENTS[user.role] ?? "from-slate-400 to-slate-600";
     const stripe = ROLE_STRIPE[user.role] ?? "bg-slate-500";
     const online = isOnline(user);
 
     return (
-        <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100/50">
+        <div className="min-h-full bg-slate-50">
 
             {/* ── Back button ── */}
             <div className="px-6 pt-5">
                 <button
                     onClick={() => router.push("/manager/utilisateurs")}
-                    className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition-colors"
+                    className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-primary-600 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4" /> Utilisateurs
                 </button>
@@ -1491,7 +1485,7 @@ export default function UtilisateurDetailPage() {
                     <div className="flex-1 p-5 flex items-center gap-5">
                         {/* Avatar */}
                         <div className="relative shrink-0">
-                            <div className={cn("w-16 h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-xl shadow-lg", grad)}>
+                            <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl", stripe)}>
                                 {getInitials(user.name)}
                             </div>
                             <span className={cn(
@@ -1535,7 +1529,7 @@ export default function UtilisateurDetailPage() {
                             </button>
                             <button
                                 onClick={() => setActiveTab("securite")}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl text-xs font-semibold transition-colors"
                             >
                                 <Shield className="w-3.5 h-3.5" /> Sécurité
                             </button>
@@ -1553,7 +1547,7 @@ export default function UtilisateurDetailPage() {
                         className={cn(
                             "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all whitespace-nowrap",
                             activeTab === tab.id
-                                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/20"
+                                ? "bg-primary-600 text-white shadow-sm"
                                 : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
                         )}
                     >

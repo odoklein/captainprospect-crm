@@ -142,11 +142,11 @@ export default function CommercialSettingsPage() {
 
     if (isLoading) {
         return (
-            <div className="min-h-full bg-gradient-to-br from-[#F8F9FC] via-[#F4F6F9] to-[#ECEEF4] p-4 md:p-6">
+            <div className="min-h-full bg-surface-2 p-4 md:p-6">
                 <div className="animate-pulse space-y-6">
                     <div className="h-8 w-48 bg-gray-200 rounded-lg" />
-                    <div className="h-40 bg-white rounded-2xl border border-[#E8EBF0]" />
-                    <div className="h-64 bg-white rounded-2xl border border-[#E8EBF0]" />
+                    <div className="h-40 bg-white rounded-2xl border border-line" />
+                    <div className="h-64 bg-white rounded-2xl border border-line" />
                 </div>
             </div>
         );
@@ -155,12 +155,12 @@ export default function CommercialSettingsPage() {
     if (!profile) return null;
 
     return (
-        <div className="min-h-full bg-gradient-to-br from-[#F8F9FC] via-[#F4F6F9] to-[#ECEEF4] p-4 md:p-6 space-y-6">
+        <div className="min-h-full bg-surface-2 p-4 md:p-6 space-y-6">
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-[22px] font-bold text-[#12122A] tracking-tight">Paramètres</h1>
-                    <p className="text-sm text-[#6B7194] mt-0.5">Gérez votre profil et vos liens de réservation</p>
+                    <h1 className="text-[22px] font-bold text-ink tracking-tight">Paramètres</h1>
+                    <p className="text-sm text-ink-3 mt-0.5">Gérez votre profil et vos liens de réservation</p>
                 </div>
                 {isDirty && (
                     <button
@@ -176,30 +176,30 @@ export default function CommercialSettingsPage() {
 
             {/* Identity Card (read-only) */}
             <div className="premium-card p-6">
-                <h2 className="text-sm font-semibold text-[#12122A] uppercase tracking-wider mb-4 flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-ink uppercase tracking-wider mb-4 flex items-center gap-2">
                     <User className="w-4 h-4 text-emerald-600" /> Informations de profil
                 </h2>
 
                 <div className="flex items-center gap-4 mb-5">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white font-bold text-lg shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-lg shrink-0">
                         {profile.firstName.charAt(0)}{profile.lastName.charAt(0)}
                     </div>
                     <div>
-                        <p className="text-[17px] font-bold text-[#12122A]">
+                        <p className="text-[17px] font-bold text-ink">
                             {profile.firstName} {profile.lastName}
                         </p>
-                        <p className="text-sm text-[#6B7194]">{extractPrimaryValue(profile.emails)}</p>
+                        <p className="text-sm text-ink-3">{extractPrimaryValue(profile.emails)}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 mb-5 text-sm text-[#6B7194]">
+                <div className="flex items-center gap-2 mb-5 text-sm text-ink-3">
                     <Building2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    <span className="font-medium text-[#3D3F6B]">{profile.client.name}</span>
+                    <span className="font-medium text-ink-2">{profile.client.name}</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-[11px] font-semibold text-[#6B7194] uppercase tracking-wider mb-1.5">
+                        <label className="block text-[11px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">
                             <Briefcase className="w-3 h-3 inline mr-1" />Titre / Poste
                         </label>
                         <input
@@ -207,11 +207,11 @@ export default function CommercialSettingsPage() {
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder="ex: Directeur commercial"
-                            className="w-full text-sm text-[#12122A] bg-[#F8F9FC] border border-[#E8EBF0] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
+                            className="w-full text-sm text-ink bg-surface-2 border border-line rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                         />
                     </div>
                     <div>
-                        <label className="block text-[11px] font-semibold text-[#6B7194] uppercase tracking-wider mb-1.5">
+                        <label className="block text-[11px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">
                             Département
                         </label>
                         <input
@@ -219,11 +219,11 @@ export default function CommercialSettingsPage() {
                             value={department}
                             onChange={(e) => setDepartment(e.target.value)}
                             placeholder="ex: Sales, Marketing..."
-                            className="w-full text-sm text-[#12122A] bg-[#F8F9FC] border border-[#E8EBF0] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
+                            className="w-full text-sm text-ink bg-surface-2 border border-line rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                         />
                     </div>
                     <div>
-                        <label className="block text-[11px] font-semibold text-[#6B7194] uppercase tracking-wider mb-1.5">
+                        <label className="block text-[11px] font-semibold text-ink-3 uppercase tracking-wider mb-1.5">
                             <MapPin className="w-3 h-3 inline mr-1" />Territoire / Zone
                         </label>
                         <input
@@ -231,7 +231,7 @@ export default function CommercialSettingsPage() {
                             value={territory}
                             onChange={(e) => setTerritory(e.target.value)}
                             placeholder="ex: Île-de-France, France..."
-                            className="w-full text-sm text-[#12122A] bg-[#F8F9FC] border border-[#E8EBF0] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
+                            className="w-full text-sm text-ink bg-surface-2 border border-line rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                         />
                     </div>
                 </div>
@@ -240,7 +240,7 @@ export default function CommercialSettingsPage() {
             {/* Booking Links */}
             <div className="premium-card p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-[#12122A] uppercase tracking-wider flex items-center gap-2">
+                    <h2 className="text-sm font-semibold text-ink uppercase tracking-wider flex items-center gap-2">
                         <Link2 className="w-4 h-4 text-emerald-600" /> Liens de réservation
                     </h2>
                     <button
@@ -251,26 +251,26 @@ export default function CommercialSettingsPage() {
                     </button>
                 </div>
 
-                <p className="text-[12px] text-[#8B8DAF] mb-4">
+                <p className="text-[12px] text-ink-3 mb-4">
                     Ces liens sont utilisés par l&apos;équipe SDR pour réserver des rendez-vous dans votre agenda (Calendly, Cal.com, etc.)
                 </p>
 
                 {bookingLinks.length === 0 ? (
-                    <div className="text-center py-8 border-2 border-dashed border-[#E8EBF0] rounded-xl">
-                        <Link2 className="w-8 h-8 text-[#C0C2D8] mx-auto mb-2" />
-                        <p className="text-sm font-medium text-[#8B8DAF]">Aucun lien de réservation</p>
-                        <p className="text-xs text-[#A0A3BD] mt-0.5">Ajoutez vos liens Calendly, Cal.com, etc.</p>
+                    <div className="text-center py-8 border-2 border-dashed border-line rounded-xl">
+                        <Link2 className="w-8 h-8 text-ink-4 mx-auto mb-2" />
+                        <p className="text-sm font-medium text-ink-3">Aucun lien de réservation</p>
+                        <p className="text-xs text-ink-4 mt-0.5">Ajoutez vos liens Calendly, Cal.com, etc.</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
                         {bookingLinks.map((link, idx) => (
                             <div
                                 key={idx}
-                                className="flex items-start gap-3 p-4 bg-[#F8F9FC] border border-[#E8EBF0] rounded-xl"
+                                className="flex items-start gap-3 p-4 bg-surface-2 border border-line rounded-xl"
                             >
                                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div>
-                                        <label className="block text-[10.5px] font-semibold text-[#8B8DAF] uppercase tracking-wider mb-1">
+                                        <label className="block text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-1">
                                             Titre
                                         </label>
                                         <input
@@ -278,11 +278,11 @@ export default function CommercialSettingsPage() {
                                             value={link.label}
                                             onChange={(e) => updateBookingLink(idx, "label", e.target.value)}
                                             placeholder="ex: RDV 30 min"
-                                            className="w-full text-sm text-[#12122A] bg-white border border-[#E8EBF0] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
+                                            className="w-full text-sm text-ink bg-white border border-line rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                                         />
                                     </div>
                                     <div className="sm:col-span-1">
-                                        <label className="block text-[10.5px] font-semibold text-[#8B8DAF] uppercase tracking-wider mb-1">
+                                        <label className="block text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-1">
                                             URL
                                         </label>
                                         <input
@@ -290,11 +290,11 @@ export default function CommercialSettingsPage() {
                                             value={link.url}
                                             onChange={(e) => updateBookingLink(idx, "url", e.target.value)}
                                             placeholder="https://calendly.com/..."
-                                            className="w-full text-sm text-[#12122A] bg-white border border-[#E8EBF0] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
+                                            className="w-full text-sm text-ink bg-white border border-line rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10.5px] font-semibold text-[#8B8DAF] uppercase tracking-wider mb-1">
+                                        <label className="block text-[10.5px] font-semibold text-ink-3 uppercase tracking-wider mb-1">
                                             Durée (min)
                                         </label>
                                         <input
@@ -304,13 +304,13 @@ export default function CommercialSettingsPage() {
                                             placeholder="30"
                                             min={5}
                                             max={480}
-                                            className="w-full text-sm text-[#12122A] bg-white border border-[#E8EBF0] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
+                                            className="w-full text-sm text-ink bg-white border border-line rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                                         />
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => removeBookingLink(idx)}
-                                    className="mt-6 p-1.5 text-[#A0A3BD] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="mt-6 p-1.5 text-ink-4 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                     title="Supprimer"
                                 >
                                     <Trash2 className="w-4 h-4" />

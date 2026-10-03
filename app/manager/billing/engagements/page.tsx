@@ -277,7 +277,7 @@ export default function EngagementsPage() {
             )}
 
             <div className="flex items-center gap-2 text-sm text-slate-500">
-                <Link href="/manager/billing" className="text-indigo-600 hover:text-indigo-700">
+                <Link href="/manager/billing" className="text-primary-600 hover:text-primary-700">
                     Retour Facturation
                 </Link>
             </div>
@@ -298,7 +298,7 @@ export default function EngagementsPage() {
                                 <select
                                     value={form.clientId}
                                     onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
-                                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white"
+                                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white"
                                     required
                                 >
                                     <option value="">Sélectionner un client</option>
@@ -312,7 +312,7 @@ export default function EngagementsPage() {
                                 <select
                                     value={form.offreTarifId}
                                     onChange={(e) => setForm((f) => ({ ...f, offreTarifId: e.target.value }))}
-                                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white"
+                                    className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white"
                                     required
                                 >
                                     <option value="">Sélectionner une offre</option>
@@ -371,7 +371,7 @@ export default function EngagementsPage() {
                                     <select
                                         value={form.dureeMois}
                                         onChange={(e) => setForm((f) => ({ ...f, dureeMois: e.target.value }))}
-                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white"
+                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 bg-white"
                                     >
                                         <option value="3">3 mois</option>
                                         <option value="6">6 mois</option>

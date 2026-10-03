@@ -183,7 +183,7 @@ export default function BDCampaignsPage() {
                         <Card key={campaign.id} className="group hover:border-emerald-300 transition-all">
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                    <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
                                         <FileText className="w-6 h-6 text-emerald-600" />
                                     </div>
                                     <div>

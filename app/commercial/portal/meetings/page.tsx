@@ -6,7 +6,7 @@ import {
   Calendar, Search, X, ThumbsUp, Minus, ThumbsDown, XCircle,
   Mail, Phone, Linkedin, Download, Check, Loader2, Eye,
   MessageSquare, Edit3, Clock, FileSpreadsheet,
-  Building2, MapPin, Video, Send,
+  Building2, MapPin, Video, Send, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -15,26 +15,29 @@ import {
 } from "@/lib/meetings/noShowWindow";
 import { getMeetingCancellationLabel } from "@/lib/constants/meetingCancellationReasons";
 import { MeetingsSkeleton } from "@/components/client/skeletons";
+import { brand } from "@/lib/brand";
+import { brandIcsProdId } from "@/lib/brand";
 
 /* ═══════════════════════════════════════════════════════════════
    DESIGN TOKENS  — single source of truth
 ═══════════════════════════════════════════════════════════════ */
 const tk = {
-  bg:           "#F2F3F7",
-  surface:      "#FFFFFF",
-  surfaceRaised:"#FAFAFA",
-  border:       "rgba(0,0,0,0.07)",
-  borderStrong: "rgba(0,0,0,0.12)",
+  // Brand-driven (design-system tokens, app/globals.css).
+  bg:           "var(--ds-canvas)",
+  surface:      "var(--ds-surface)",
+  surfaceRaised:"var(--ds-surface-2)",
+  border:       "var(--ds-line-subtle)",
+  borderStrong: "var(--ds-line)",
 
-  ink:  "#0A0A0B",
-  ink2: "#2D2D35",
-  ink3: "#6B6B7B",
-  ink4: "#A0A0B0",
+  ink:  "var(--ds-ink)",
+  ink2: "var(--ds-ink-2)",
+  ink3: "var(--ds-ink-3)",
+  ink4: "var(--ds-ink-4)",
 
-  accent:      "#5B4FE8",
-  accentMid:   "#7B72EF",
-  accentLight: "#EEEDFB",
-  accentText:  "#4238D0",
+  accent:      "var(--ds-primary)",
+  accentMid:   "var(--brand-primary-500)",
+  accentLight: "var(--brand-primary-50)",
+  accentText:  "var(--brand-primary-700)",
 
   green:      "#12A05C",
   greenLight: "#E8F8EF",
@@ -88,8 +91,8 @@ const GLOBAL_CSS = `
   border-color: ${tk.borderStrong};
 }
 .cp-card-upcoming:hover {
-  box-shadow: 0 8px 32px -8px rgba(91,79,232,0.16);
-  border-color: rgba(91,79,232,0.18);
+  box-shadow: 0 8px 32px -8px rgba(0,0,0,0.11);
+  border-color: color-mix(in oklab, ${tk.accent} 18%, transparent);
 }
 
 /* ── Stat button ── */
@@ -107,8 +110,8 @@ const GLOBAL_CSS = `
   transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
   outline: none;
 }
-.cp-stat:hover { transform: translateY(-2px); box-shadow: 0 6px 20px -6px rgba(0,0,0,0.1); }
-.cp-stat:focus-visible { box-shadow: 0 0 0 3px rgba(91,79,232,0.3); }
+.cp-stat:hover { box-shadow: 0 6px 20px -6px rgba(0,0,0,0.1); }
+.cp-stat:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, ${tk.accent} 30%, transparent); }
 
 /* ── Pill ── */
 .cp-pill {
@@ -167,18 +170,16 @@ const GLOBAL_CSS = `
   white-space: nowrap; user-select: none; font-family: inherit;
   outline: none;
 }
-.cp-btn:focus-visible { box-shadow: 0 0 0 3px rgba(91,79,232,0.3); }
+.cp-btn:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, ${tk.accent} 30%, transparent); }
 .cp-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .cp-btn:active:not(:disabled) { transform: scale(0.97); }
 .cp-btn-primary {
   background: ${tk.accent}; color: white;
   padding: 0 18px; height: 36px;
-  box-shadow: 0 2px 10px rgba(91,79,232,0.28);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
 .cp-btn-primary:hover:not(:disabled) {
   background: ${tk.accentText};
-  box-shadow: 0 4px 18px rgba(91,79,232,0.38);
-  transform: translateY(-1px);
 }
 .cp-btn-secondary {
   background: ${tk.surface}; color: ${tk.ink2};
@@ -201,7 +202,7 @@ const GLOBAL_CSS = `
   border-radius: 10px; padding: 0 12px; height: 38px; outline: none;
   transition: border-color 0.16s, box-shadow 0.16s;
 }
-.cp-input:focus { border-color: ${tk.accent}; box-shadow: 0 0 0 3px rgba(91,79,232,0.11); }
+.cp-input:focus { border-color: ${tk.accent}; box-shadow: 0 0 0 3px color-mix(in oklab, ${tk.accent} 11%, transparent); }
 .cp-input::placeholder { color: ${tk.ink4}; }
 .cp-textarea {
   width: 100%; font-family: inherit; font-size: 13px; color: ${tk.ink};
@@ -209,7 +210,7 @@ const GLOBAL_CSS = `
   border-radius: 10px; padding: 10px 14px; outline: none;
   resize: vertical; transition: border-color 0.16s, box-shadow 0.16s; line-height: 1.6;
 }
-.cp-textarea:focus { border-color: ${tk.accent}; box-shadow: 0 0 0 3px rgba(91,79,232,0.11); }
+.cp-textarea:focus { border-color: ${tk.accent}; box-shadow: 0 0 0 3px color-mix(in oklab, ${tk.accent} 11%, transparent); }
 .cp-textarea::placeholder { color: ${tk.ink4}; }
 
 /* ── Modal ── */
@@ -233,7 +234,7 @@ const GLOBAL_CSS = `
   border-bottom: 1px solid ${tk.border};
   display: flex; align-items: flex-start; justify-content: space-between;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #FAFBFF 0%, ${tk.surface} 100%);
+  background: ${tk.surfaceRaised};
 }
 .cp-modal-title {
   font-family: 'Instrument Serif', Georgia, serif;
@@ -248,7 +249,7 @@ const GLOBAL_CSS = `
   cursor: pointer; transition: all 0.14s ease; flex-shrink: 0; margin-left: 12px;
   outline: none;
 }
-.cp-modal-close:hover { background: #EFEFF5; color: ${tk.ink}; border-color: ${tk.borderStrong}; }
+.cp-modal-close:hover { background: var(--ds-surface-3); color: ${tk.ink}; border-color: ${tk.borderStrong}; }
 .cp-modal-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
 .cp-modal-body::-webkit-scrollbar { width: 5px; }
 .cp-modal-body::-webkit-scrollbar-track { background: transparent; }
@@ -298,9 +299,9 @@ const GLOBAL_CSS = `
 .cp-action:active { transform: scale(0.97); }
 .cp-action.prim {
   background: ${tk.accent}; color: white; border-color: transparent;
-  box-shadow: 0 2px 8px rgba(91,79,232,0.25);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
 }
-.cp-action.prim:hover { background: ${tk.accentText}; box-shadow: 0 4px 14px rgba(91,79,232,0.35); transform: translateY(-1px); }
+.cp-action.prim:hover { background: ${tk.accentText}; }
 
 /* ── Contact link ── */
 .cp-link {
@@ -346,8 +347,7 @@ const GLOBAL_CSS = `
   color: ${tk.ink3}; transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
   user-select: none; outline: none;
 }
-.cp-outcome:hover { transform: translateY(-2px); border-color: ${tk.borderStrong}; color: ${tk.ink2}; }
-.cp-outcome.sel { transform: translateY(-2px); }
+.cp-outcome:hover { border-color: ${tk.borderStrong}; color: ${tk.ink2}; }
 .cp-outcome-ico {
   width: 40px; height: 40px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -362,7 +362,7 @@ const GLOBAL_CSS = `
   cursor: pointer; transition: all 0.16s ease; outline: none;
 }
 .cp-recontact:hover { border-color: ${tk.borderStrong}; color: ${tk.ink2}; }
-.cp-recontact.sel { border-color: ${tk.accent}; background: ${tk.accentLight}; color: ${tk.accentText}; box-shadow: 0 2px 8px rgba(91,79,232,0.12); }
+.cp-recontact.sel { border-color: ${tk.accent}; background: ${tk.accentLight}; color: ${tk.accentText}; }
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
@@ -470,7 +470,7 @@ const getInitials = (m: Meeting) => {
 };
 
 const AVT = [
-  { bg: "#EEEDFB", fg: "#4238D0" }, { bg: "#E8F8EF", fg: "#0A6E3D" },
+  { bg: "var(--brand-primary-50)", fg: "var(--brand-primary-700)" }, { bg: "#E8F8EF", fg: "#0A6E3D" },
   { bg: "#FEF6E4", fg: "#8A4A00" }, { bg: "#EDF6FF", fg: "#0A4F8B" },
   { bg: "#FDF0FB", fg: "#7A1F72" }, { bg: "#FDE8E7", fg: "#8B1A14" },
 ];
@@ -504,7 +504,7 @@ const S: Record<RdvStatus, {
   stripe: string;
 }> = {
   upcoming:   { label:"À venir",  dot:tk.green,  pill:{color:tk.greenText, bg:tk.greenLight, border:"#BBF7D0"}, stripe:tk.green  },
-  past:       { label:"Passé",    dot:tk.ink4,   pill:{color:tk.ink3,      bg:"#F3F4F6",     border:"#E5E7EB"}, stripe:"#CBD5E1" },
+  past:       { label:"Passé",    dot:tk.ink4,   pill:{color:tk.ink3,      bg:"var(--ds-surface-3)", border:"var(--ds-line)"}, stripe:"var(--ds-line-strong)" },
   cancelled:  { label:"Annulé",   dot:tk.red,    pill:{color:tk.redText,   bg:tk.redLight,   border:"#FECACA"}, stripe:tk.red    },
 };
 
@@ -512,7 +512,7 @@ const OM: Record<string, { label:string; color:string; bg:string; iconBg:string 
   POSITIVE: { label:"Positif",  color:tk.greenText,  bg:tk.greenLight, iconBg:tk.greenMid  },
   NEUTRAL:  { label:"Neutre",   color:tk.accentText, bg:tk.accentLight,iconBg:tk.accentMid },
   NEGATIVE: { label:"Négatif",  color:tk.redText,    bg:tk.redLight,   iconBg:tk.red       },
-  NO_SHOW:  { label:"Absent",   color:tk.ink3,       bg:"#F3F4F6",     iconBg:tk.ink4      },
+  NO_SHOW:  { label:"Absent",   color:tk.ink3,       bg:"var(--ds-surface-3)",     iconBg:tk.ink4      },
 };
 
 const OUTCOME_OPTS = [
@@ -528,10 +528,10 @@ const RECONTACT_OPTS = [
   { value:"NO",    label:"Non" },
 ] as const;
 
-const MTY: Record<string, { label:string; emoji:string }> = {
-  VISIO:        { label:"Visioconférence",       emoji:"📹" },
-  PHYSIQUE:     { label:"Rendez-vous physique",  emoji:"📍" },
-  TELEPHONIQUE: { label:"Appel téléphonique",    emoji:"📞" },
+const MTY: Record<string, { label:string; Icon:LucideIcon }> = {
+  VISIO:        { label:"Visioconférence",       Icon:Video  },
+  PHYSIQUE:     { label:"Rendez-vous physique",  Icon:MapPin },
+  TELEPHONIQUE: { label:"Appel téléphonique",    Icon:Phone  },
 };
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -556,7 +556,7 @@ function genICS(m: Meeting) {
   const f  = (d: Date)   => `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
   const end = new Date(dt.getTime()+30*60000);
   const companyName = m.contact?.company?.name ?? m.company?.name ?? "Client";
-  const txt = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//CaptainProspect//RDV//FR",
+  const txt = ["BEGIN:VCALENDAR","VERSION:2.0",brandIcsProdId(),
     "BEGIN:VEVENT",`DTSTART:${f(dt)}`,`DTEND:${f(end)}`,
     `SUMMARY:RDV - ${name} (${companyName})`,
     `DESCRIPTION:${(m.note||"").replace(/\n/g,"\\n").slice(0,200)}`,
@@ -597,12 +597,25 @@ function genCSV(meetings: Meeting[]) {
 /* ═══════════════════════════════════════════════════════════════
    PRIMITIVES
 ═══════════════════════════════════════════════════════════════ */
-function Pill({ label, color, bg, border, dot }: {
-  label:string; color:string; bg:string; border?:string; dot?:string;
+function Pill({ label, color, bg, border, dot, Icon }: {
+  label:string; color:string; bg:string; border?:string; dot?:string; Icon?:LucideIcon;
 }) {
   return (
     <span className="cp-pill" style={{color, background:bg, borderColor:border??bg}}>
       {dot && <span style={{width:5,height:5,borderRadius:"50%",background:dot,display:"inline-block"}} />}
+      {Icon && <Icon style={{width:12,height:12,flexShrink:0}} />}
+      {label}
+    </span>
+  );
+}
+
+function MeetingTypeTag({ type }: { type: string }) {
+  const t = MTY[type];
+  if (!t) return null;
+  const { label, Icon } = t;
+  return (
+    <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,color:tk.ink3}}>
+      <Icon style={{width:13,height:13,flexShrink:0}} />
       {label}
     </span>
   );
@@ -806,7 +819,7 @@ export default function CommercialPortalMeetingsPage() {
 
   const STAT_CFG=[
     {key:"upcoming"   as const, label:"À venir",  stripe:tk.green  },
-    {key:"past"       as const, label:"Passés",   stripe:"#CBD5E1" },
+    {key:"past"       as const, label:"Passés",   stripe:"var(--ds-line-strong)" },
     {key:"cancelled"  as const, label:"Annulés",  stripe:tk.red    },
   ];
 
@@ -833,7 +846,7 @@ export default function CommercialPortalMeetingsPage() {
         <div className="flex items-center gap-2.5">
           <div className="cp-search relative w-[260px]">
             <Search className="cp-search-ico absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input className="cp-input w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500" type="search" placeholder="Contact, entreprise…" value={q} onChange={e=>setQ(e.target.value)} aria-label="Rechercher" />
+            <input className="cp-input w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-500" type="search" placeholder="Contact, entreprise…" value={q} onChange={e=>setQ(e.target.value)} aria-label="Rechercher" />
             {q && <button className="cp-search-clr absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600" onClick={()=>setQ("")} aria-label="Effacer"><X className="w-3.5 h-3.5" /></button>}
           </div>
           <button className="cp-btn cp-btn-secondary inline-flex items-center gap-2 px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold bg-white text-slate-700 hover:bg-slate-50 transition-colors" onClick={()=>genCSV(filtered)}>
@@ -850,9 +863,9 @@ export default function CommercialPortalMeetingsPage() {
             <button key={key} type="button" onClick={()=>setTab(key)} aria-pressed={active}
               className="cp-stat"
               style={{
-                border:`1px solid ${active?stripe+"30":tk.border}`,
-                background: active?`linear-gradient(135deg,${stripe}08,${stripe}04)`:tk.surface,
-                boxShadow: active?`0 4px 20px -6px ${stripe}35`:"none",
+                border:`1px solid ${active?`color-mix(in oklab, ${stripe} 19%, transparent)`:tk.border}`,
+                background: active?`color-mix(in oklab, ${stripe} 2.5%, transparent)`:tk.surface,
+                boxShadow: active?"0 4px 20px -6px rgba(0,0,0,0.12)":"none",
               }}>
               <div style={{width:3,height:38,borderRadius:2,background:stripe,opacity:active?1:0.3,flexShrink:0,transition:"opacity 0.2s ease"}} />
               <div>
@@ -971,14 +984,14 @@ function Card({
           <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:5}}>
             <Pill label={sm.label} color={sm.pill.color} bg={sm.pill.bg} border={sm.pill.border} dot={sm.dot} />
             {getChannelLabel(m.channel) && (
-              <Pill label={`Canal: ${getChannelLabel(m.channel)}`} color={tk.ink3} bg="#F3F4F6" border="rgba(0,0,0,0.07)" />
+              <Pill label={`Canal: ${getChannelLabel(m.channel)}`} color={tk.ink3} bg="var(--ds-surface-3)" border="rgba(0,0,0,0.07)" />
             )}
             {m.meetingType && MTY[m.meetingType] && (
-              <Pill label={`${MTY[m.meetingType].emoji} ${MTY[m.meetingType].label}`} color={tk.ink3} bg="#F3F4F6" border="rgba(0,0,0,0.07)" />
+              <Pill label={MTY[m.meetingType].label} Icon={MTY[m.meetingType].Icon} color={tk.ink3} bg="var(--ds-surface-3)" border="rgba(0,0,0,0.07)" />
             )}
-            <Pill label={m.campaign.mission.name} color={tk.accentText} bg={tk.accentLight} border="rgba(91,79,232,0.18)" />
+            <Pill label={m.campaign.mission.name} color={tk.accentText} bg={tk.accentLight} border={`color-mix(in oklab, ${tk.accent} 18%, transparent)`} />
             {m.rdvFiche && (
-              <Pill label="Fiche RDV" color={tk.ink3} bg="#F3F4F6" border="rgba(0,0,0,0.07)" />
+              <Pill label="Fiche RDV" color={tk.ink3} bg="var(--ds-surface-3)" border="rgba(0,0,0,0.07)" />
             )}
           </div>
 
@@ -1032,7 +1045,7 @@ function Card({
           {fb && (
             <div style={{display:"flex",alignItems:"center",gap:7}}>
               <span style={{fontSize:11.5,color:tk.ink4}}>Votre feedback :</span>
-              <Pill label={OM[fb.outcome]?.label??fb.outcome} color={OM[fb.outcome]?.color??tk.ink3} bg={OM[fb.outcome]?.bg??"#F3F4F6"} />
+              <Pill label={OM[fb.outcome]?.label??fb.outcome} color={OM[fb.outcome]?.color??tk.ink3} bg={OM[fb.outcome]?.bg??"var(--ds-surface-3)"} />
             </div>
           )}
         </div>
@@ -1090,9 +1103,9 @@ function DetailModal({ m, onClose, onFeedback }: {
             <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:6,marginTop:4}}>
               <Pill label={sm.label} color={sm.pill.color} bg={sm.pill.bg} border={sm.pill.border} dot={sm.dot} />
               {getChannelLabel(m.channel) && (
-                <Pill label={`Canal: ${getChannelLabel(m.channel)}`} color={tk.ink3} bg="#F3F4F6" border="rgba(0,0,0,0.07)" />
+                <Pill label={`Canal: ${getChannelLabel(m.channel)}`} color={tk.ink3} bg="var(--ds-surface-3)" border="rgba(0,0,0,0.07)" />
               )}
-              {m.meetingType && MTY[m.meetingType] && <span style={{fontSize:12,color:tk.ink3}}>{MTY[m.meetingType].emoji} {MTY[m.meetingType].label}</span>}
+              {m.meetingType && MTY[m.meetingType] && <MeetingTypeTag type={m.meetingType} />}
             </div>
           </div>
         </div>
@@ -1170,7 +1183,7 @@ function DetailModal({ m, onClose, onFeedback }: {
             <div className="cp-section-label" style={{marginBottom:8}}>Données complémentaires</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
               {Object.entries(m.contact.customData as Record<string,unknown>).map(([k,v])=>v?(
-                <span key={k} style={{display:"inline-flex",gap:4,padding:"3px 9px",borderRadius:8,background:"#F3F4F6",border:`1px solid ${tk.border}`,fontSize:12,color:tk.ink2}}>
+                <span key={k} style={{display:"inline-flex",gap:4,padding:"3px 9px",borderRadius:8,background:"var(--ds-surface-3)",border:`1px solid ${tk.border}`,fontSize:12,color:tk.ink2}}>
                   <span style={{color:tk.ink4}}>{fmtCustomKey(k)}:</span>
                   <span style={{fontWeight:600}}>{String(v)}</span>
                 </span>
@@ -1214,9 +1227,9 @@ function DetailModal({ m, onClose, onFeedback }: {
         <Sec label="Votre feedback" last>
           <div style={{padding:16,borderRadius:12,background:tk.greenLight,border:"1px solid rgba(18,160,92,0.2)"}}>
             <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:fb.clientNote?10:0}}>
-              <Pill label={OM[fb.outcome]?.label??fb.outcome} color={OM[fb.outcome]?.color??tk.ink3} bg={OM[fb.outcome]?.bg??"#F3F4F6"} />
+              <Pill label={OM[fb.outcome]?.label??fb.outcome} color={OM[fb.outcome]?.color??tk.ink3} bg={OM[fb.outcome]?.bg??"var(--ds-surface-3)"} />
               {fb.recontactRequested && (
-                <Pill label={`Recontact : ${fb.recontactRequested==="YES"?"Oui":fb.recontactRequested==="NO"?"Non":"Peut-être"}`} color={tk.ink3} bg="#F3F4F6" />
+                <Pill label={`Recontact : ${fb.recontactRequested==="YES"?"Oui":fb.recontactRequested==="NO"?"Non":"Peut-être"}`} color={tk.ink3} bg="var(--ds-surface-3)" />
               )}
             </div>
             {fb.clientNote && <p style={{fontSize:13,fontStyle:"italic",color:tk.greenText,margin:0,lineHeight:1.6}}>&ldquo;{fb.clientNote}&rdquo;</p>}
@@ -1279,8 +1292,8 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
                 disabled={locked}
                 title={locked?`Délai de ${NO_SHOW_REPORT_WINDOW_HOURS}h dépassé`:undefined}
                 className={cn("cp-outcome",sel&&"sel")}
-                style={{borderColor:sel?meta.color:tk.border,background:sel?meta.bg:tk.surface,color:sel?meta.color:tk.ink3,boxShadow:sel?`0 6px 20px -4px ${meta.color}40`:"none",opacity:locked?0.45:1,cursor:locked?"not-allowed":"pointer"}}>
-                <div className="cp-outcome-ico" style={{background:sel?meta.iconBg:"#F3F4F6",color:sel?"#fff":tk.ink4}}>
+                style={{borderColor:sel?meta.color:tk.border,background:sel?meta.bg:tk.surface,color:sel?meta.color:tk.ink3,opacity:locked?0.45:1,cursor:locked?"not-allowed":"pointer"}}>
+                <div className="cp-outcome-ico" style={{background:sel?meta.iconBg:"var(--ds-surface-3)",color:sel?"#fff":tk.ink4}}>
                   <Icon style={{width:17,height:17}} />
                 </div>
                 {label}
@@ -1311,7 +1324,7 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
         <textarea className="cp-textarea" value={note} onChange={e=>onNote(e.target.value)} rows={4}
           placeholder="Points clés abordés, impressions, prochaines étapes…"
           style={{minHeight:100}} />
-        <p style={{fontSize:11,color:tk.ink4,marginTop:8}}>Visible par votre équipe CaptainProspect.</p>
+        <p style={{fontSize:11,color:tk.ink4,marginTop:8}}>Visible par votre équipe {brand.name}.</p>
       </Sec>
     </Modal>
   );

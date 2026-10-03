@@ -51,9 +51,9 @@ export function ProspectsOnboarding({ tourId = "complete", autoStart = false }: 
       {!hasCompletedTour && !isTourOpen && (
         <div className="fixed bottom-4 right-4 z-50">
           <Card className="p-4 shadow-lg max-w-sm">
-            <h3 className="font-semibold text-slate-900 mb-2">Bienvenue dans Prospects !</h3>
+            <h3 className="font-semibold text-slate-900 mb-2">Visite guidée de Prospects</h3>
             <p className="text-sm text-slate-600 mb-3">
-              Découvrez comment utiliser le système d'orchestration des prospects avec notre visite guidée.
+              Sources, règles et pipeline des prospects entrants, étape par étape.
             </p>
             <Button onClick={handleStartTour} size="sm" className="w-full">
               <PlayCircle className="w-4 h-4 mr-2" />

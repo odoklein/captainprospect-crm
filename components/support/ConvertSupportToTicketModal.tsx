@@ -132,19 +132,19 @@ ${messages
         >
             <div className="bg-white rounded-2xl shadow-2xl border border-slate-200/80 w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
                 {/* Header */}
-                <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 text-white flex items-center justify-between shrink-0 shadow-sm">
+                <div className="px-6 py-4 bg-gradient-to-r from-primary-600 via-primary-700 to-primary-800 text-white flex items-center justify-between shrink-0 shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white/15 rounded-xl border border-white/20 backdrop-blur-sm shadow-inner">
-                            <Ticket className="w-5 h-5 text-indigo-100" />
+                            <Ticket className="w-5 h-5 text-primary-100" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
                                 <h3 className="text-base font-bold leading-tight">Convertir en Ticket Développeur</h3>
-                                <span className="px-2 py-0.5 text-[10px] font-bold bg-white/20 rounded-full text-indigo-100 uppercase tracking-wider">
+                                <span className="px-2 py-0.5 text-[10px] font-bold bg-white/20 rounded-full text-primary-100 uppercase tracking-wider">
                                     Triage
                                 </span>
                             </div>
-                            <p className="text-xs text-indigo-200 mt-0.5">
+                            <p className="text-xs text-primary-200 mt-0.5">
                                 Escalade directe depuis le support vers le backlog technique
                             </p>
                         </div>
@@ -185,14 +185,14 @@ ${messages
 
                         <div>
                             <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                                <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                                <FileText className="w-3.5 h-3.5 text-primary-600" />
                                 <span>Titre du ticket *</span>
                             </label>
                             <input
                                 type="text"
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-medium"
                                 placeholder="Ex: [Support - ACME] Problème synchronisation..."
                                 required
                             />
@@ -201,13 +201,13 @@ ${messages
                         <div className="grid grid-cols-2 gap-3.5">
                             <div>
                                 <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                                    <Tag className="w-3.5 h-3.5 text-indigo-600" />
+                                    <Tag className="w-3.5 h-3.5 text-primary-600" />
                                     <span>Catégorie</span>
                                 </label>
                                 <select
                                     value={category}
                                     onChange={(e) => setCategory(e.target.value as any)}
-                                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-medium"
                                 >
                                     <option value="BUG">Bug technique</option>
                                     <option value="TECHNICAL_SUPPORT">Support technique</option>
@@ -224,7 +224,7 @@ ${messages
                                 <select
                                     value={priority}
                                     onChange={(e) => setPriority(e.target.value as any)}
-                                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+                                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all font-medium"
                                 >
                                     <option value="LOW">Basse</option>
                                     <option value="MEDIUM">Moyenne</option>
@@ -237,7 +237,7 @@ ${messages
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
                                 <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-600">
-                                    <Wrench className="w-3.5 h-3.5 text-indigo-600" />
+                                    <Wrench className="w-3.5 h-3.5 text-primary-600" />
                                     <span>Description & Contexte extrait</span>
                                 </label>
                                 <span className="text-[10px] text-slate-400 font-medium">Pré-rempli automatiquement</span>
@@ -246,7 +246,7 @@ ${messages
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 rows={6}
-                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none font-mono leading-relaxed"
+                                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none font-mono leading-relaxed"
                                 required
                             />
                         </div>
@@ -263,7 +263,7 @@ ${messages
                             <button
                                 type="submit"
                                 disabled={submitting || !title.trim()}
-                                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 flex items-center gap-2 transition-all"
+                                className="px-5 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md shadow-primary-600/20 hover:shadow-primary-600/30 flex items-center gap-2 transition-all"
                             >
                                 {submitting ? (
                                     <>

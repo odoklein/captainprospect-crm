@@ -1,7 +1,7 @@
 // UI Components
 export { default as Button } from "./Button";
 export { default as Input } from "./Input";
-export { Card, CardHeader, CardTitle, CardContent } from "./Card";
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "./Card";
 export { default as Badge } from "./Badge";
 export { RadioCardGroup } from "./RadioCardGroup";
 export type { RadioCardOption } from "./RadioCardGroup";
@@ -38,3 +38,23 @@ export { Tooltip, TooltipTrigger } from "./Tooltip";
 export { HelpPanel, HelpPanelTrigger } from "./HelpPanel";
 export { Tour, TourProvider, useTour } from "./Tour";
 export type { TourStep } from "./Tour";
+export { AiMark } from "./AiMark";
+
+// Design system primitives (tokens: app/globals.css, recipes: ./recipes.ts)
+export { Spinner } from "./Spinner";
+export { IconButton } from "./IconButton";
+export { SegmentedControl } from "./SegmentedControl";
+export type { SegmentedOption } from "./SegmentedControl";
+export { Switch } from "./Switch";
+export { Checkbox } from "./Checkbox";
+export { Textarea } from "./Textarea";
+export { Field, FieldMessage } from "./Field";
+export { Avatar, AvatarGroup } from "./Avatar";
+export { Callout } from "./Callout";
+export { Chip } from "./Chip";
+export { Kbd } from "./Kbd";
+export { StatusDot, StatusText } from "./StatusDot";
+export { KpiCard, Delta } from "./KpiCard";
+export { Section, SectionHeader } from "./Section";
+export type { ButtonVariant, ButtonSize } from "./Button";
+export * as recipes from "./recipes";

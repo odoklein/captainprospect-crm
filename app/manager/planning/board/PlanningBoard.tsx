@@ -301,7 +301,7 @@ function Board({ transport }: { transport: BoardTransport }) {
     const todayInRange = today >= range.from && today <= range.to;
 
     return (
-        <div className="relative flex h-full min-h-0 flex-1 flex-col bg-[#FAFAFB]">
+        <div className="relative flex h-full min-h-0 flex-1 flex-col bg-surface-2">
             {/* ── Top bar ─────────────────────────────────────────────── */}
             <header className="flex flex-wrap items-center gap-2.5 px-6 pb-3 pt-4 xl:px-8">
                 <h1 className="mr-2 text-[24px] font-semibold tracking-tight text-slate-900">Planning</h1>
@@ -326,7 +326,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                             onClick={() => mode !== view && setView(mode)}
                             className={cn(
                                 'h-full rounded-[10px] px-4 text-[13px] transition-colors',
-                                mode === view ? 'border border-indigo-100 bg-indigo-50 font-medium text-indigo-600' : 'text-slate-600 hover:text-slate-900',
+                                mode === view ? 'border border-primary-100 bg-primary-50 font-medium text-primary-600' : 'text-slate-600 hover:text-slate-900',
                             )}
                         >
                             {VIEW_LABELS[mode]}
@@ -335,7 +335,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                 </div>
 
                 {!todayInRange && (
-                    <button type="button" onClick={goToday} className="rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-indigo-600 hover:bg-indigo-50">
+                    <button type="button" onClick={goToday} className="rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-primary-600 hover:bg-primary-50">
                         Aujourd&apos;hui
                     </button>
                 )}
@@ -356,7 +356,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                     <button
                         type="button"
                         onClick={() => setPlanWeekFor(planWeekDefault())}
-                        className="flex h-10 items-center gap-2 rounded-xl bg-indigo-600 px-4 text-[14px] font-semibold text-white shadow-[0_6px_18px_rgba(79,70,229,0.26)] transition-colors hover:bg-indigo-700"
+                        className="flex h-10 items-center gap-2 rounded-xl bg-primary-600 px-4 text-[14px] font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
                     >
                         <CalendarPlus className="h-[18px] w-[18px]" />
                         Planifier la semaine
@@ -411,7 +411,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                                     undo();
                                     dismissFeedback();
                                 }}
-                                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50"
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-primary-600 hover:bg-primary-50"
                             >
                                 <RotateCcw className="h-3.5 w-3.5" /> Annuler
                             </button>
@@ -423,7 +423,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                                     redo();
                                     dismissFeedback();
                                 }}
-                                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50"
+                                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold text-primary-600 hover:bg-primary-50"
                             >
                                 <Redo2 className="h-3.5 w-3.5" /> Rétablir
                             </button>
@@ -572,14 +572,14 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 
 function WelcomeCard({ onClose }: { onClose: () => void }) {
     return (
-        <div className="absolute right-6 top-4 z-30 w-[340px] rounded-2xl border border-indigo-100 bg-white p-5 shadow-[0_16px_48px_rgba(79,70,229,0.14)] animate-in fade-in slide-in-from-top-1 duration-200">
+        <div className="absolute right-6 top-4 z-30 w-[340px] rounded-2xl border border-primary-100 bg-white p-5 shadow-[0_16px_48px_rgba(15,23,42,0.14)] animate-in fade-in slide-in-from-top-1 duration-200">
             <p className="text-[15px] font-semibold text-slate-900">Le planning se peint</p>
             <ol className="mt-3 space-y-2 text-[13px] leading-relaxed text-slate-600">
-                <li><span className="font-semibold text-indigo-600">1.</span> Choisissez une mission dans la barre du bas.</li>
-                <li><span className="font-semibold text-indigo-600">2.</span> Glissez un rectangle sur les jours et les SDR à planifier.</li>
-                <li><span className="font-semibold text-indigo-600">3.</span> Une erreur ? Ctrl+Z. Tout le reste est dans le <span className="font-semibold">?</span> en haut.</li>
+                <li><span className="font-semibold text-primary-600">1.</span> Choisissez une mission dans la barre du bas.</li>
+                <li><span className="font-semibold text-primary-600">2.</span> Glissez un rectangle sur les jours et les SDR à planifier.</li>
+                <li><span className="font-semibold text-primary-600">3.</span> Une erreur ? Ctrl+Z. Tout le reste est dans le <span className="font-semibold">?</span> en haut.</li>
             </ol>
-            <button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-indigo-600 py-2 text-[13px] font-semibold text-white hover:bg-indigo-700">
+            <button type="button" onClick={onClose} className="mt-4 w-full rounded-xl bg-primary-600 py-2 text-[13px] font-semibold text-white hover:bg-primary-700">
                 Compris
             </button>
         </div>
@@ -606,7 +606,7 @@ function GridSkeleton() {
 
 function BoardSkeleton() {
     return (
-        <div className="flex h-full min-h-0 flex-1 flex-col bg-[#FAFAFB]">
+        <div className="flex h-full min-h-0 flex-1 flex-col bg-surface-2">
             <div className="flex items-center gap-3 px-6 pb-3 pt-4">
                 <div className="h-7 w-32 animate-pulse rounded-lg bg-slate-200/70" />
                 <div className="h-10 w-52 animate-pulse rounded-xl bg-slate-200/50" />

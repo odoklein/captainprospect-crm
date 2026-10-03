@@ -38,10 +38,11 @@ import {
     Phone, Plus, TrendingUp, Calendar, CheckCircle2, XCircle,
     Copy, CalendarCheck, User, Briefcase, FileText, Key,
     ShieldCheck, BarChart3, Loader2, ExternalLink, Zap, Video,
-    MapPin, ChevronDown, ChevronUp, Mic, Sparkles, Clock,
+    MapPin, ChevronDown, ChevronUp, Mic, Clock,
     AlertCircle, RefreshCw, Send, Eye, List, Hash, ArrowUpRight,
     PenLine, Download,
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -52,6 +53,7 @@ import { ReachInboxCampaignsPanel } from "@/components/email/ReachInboxCampaigns
 import { EditMissionDialog } from "@/components/missions/EditMissionDialog";
 import { MISSION_STATUS_CONFIG } from "@/lib/constants/missionStatus";
 import type { MissionStatusValue } from "@/lib/constants/missionStatus";
+import { brand } from "@/lib/brand";
 
 // ============================================================
 // TYPES
@@ -242,7 +244,7 @@ const ROLE_BADGE_COLORS: Record<string, { color: string; bg: string; label: stri
 };
 
 const PRIORITY_INDICATOR: Record<string, { color: string; label: string }> = {
-    URGENT: { color: "#EF4444", label: "⚡" },
+    URGENT: { color: "#EF4444", label: "↑↑" },
     HIGH: { color: "#F59E0B", label: "↑" },
     MEDIUM: { color: "#3B82F6", label: "→" },
     LOW: { color: "#6B7280", label: "↓" },
@@ -264,28 +266,28 @@ interface ClientSession {
 }
 
 const SESSION_TYPE_COLORS: Record<SessionType, string> = {
-    "Kick-Off":  "bg-indigo-100 text-indigo-700 border-indigo-200",
+    "Kick-Off":  "bg-primary-100 text-primary-700 border-primary-200",
     "Onboarding":"bg-emerald-100 text-emerald-700 border-emerald-200",
     "Validation":"bg-pink-100 text-pink-700 border-pink-200",
     "Reporting": "bg-amber-100 text-amber-700 border-amber-200",
     "Suivi":     "bg-slate-100 text-slate-600 border-slate-200",
-    "Autre":     "bg-purple-100 text-purple-700 border-purple-200",
+    "Autre":     "bg-accent-100 text-accent-700 border-accent-200",
 };
 
 const SESSION_MARKDOWN_CLASS =
     "prose prose-sm prose-slate max-w-none text-slate-800 " +
     "[&_h1]:text-slate-900 [&_h2]:text-slate-900 [&_h3]:text-slate-900 [&_h4]:text-slate-900 " +
     "[&_p]:text-slate-700 [&_li]:text-slate-700 [&_strong]:text-slate-900 " +
-    "[&_a]:text-indigo-700 [&_a]:underline [&_code]:text-slate-900 [&_pre]:text-slate-900 [&_blockquote]:text-slate-700";
+    "[&_a]:text-primary-700 [&_a]:underline [&_code]:text-slate-900 [&_pre]:text-slate-900 [&_blockquote]:text-slate-700";
 
 const CHANNEL_LABELS = { CALL: "Appel", EMAIL: "Email", LINKEDIN: "LinkedIn" };
 
 // Channel is the primary classifier of a mission — give it a colour + icon
 // instead of the grey 11px subtitle it used to be
 const CHANNEL_STYLES = {
-    CALL: { Icon: Phone, icon: "bg-indigo-50 text-indigo-600", badge: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+    CALL: { Icon: Phone, icon: "bg-primary-50 text-primary-600", badge: "bg-primary-50 text-primary-700 border-primary-200" },
     EMAIL: { Icon: Mail, icon: "bg-sky-50 text-sky-600", badge: "bg-sky-50 text-sky-700 border-sky-200" },
-    LINKEDIN: { Icon: Briefcase, icon: "bg-violet-50 text-violet-600", badge: "bg-violet-50 text-violet-700 border-violet-200" },
+    LINKEDIN: { Icon: Briefcase, icon: "bg-accent-50 text-accent-600", badge: "bg-accent-50 text-accent-700 border-accent-200" },
 } as const;
 
 /**
@@ -312,7 +314,7 @@ function Toggle({
             disabled={disabled}
             onClick={() => onChange(!checked)}
             className={cn(
-                "w-11 h-6 rounded-full relative shrink-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
+                "w-11 h-6 rounded-full relative shrink-0 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2",
                 checked ? "bg-emerald-500" : "bg-slate-300",
                 disabled && "opacity-50 cursor-not-allowed"
             )}
@@ -367,7 +369,7 @@ export function buildCRPrompt({
     crPublicUrl?: string;
     notifyByEmail?: boolean;
 }): string {
-    return `Tu es un assistant expert en relation client B2B pour une agence de prospection commerciale (Captain Prospect).
+    return `Tu es un assistant expert en relation client B2B pour une agence de prospection commerciale (${brand.name}).
 À partir de la transcription intégrale ci-dessous d'une session de type "${sessionType}" avec le client "${clientName}" (${sessionDate}), produis EXACTEMENT deux blocs séparés par le séparateur "---EMAIL_START---".
 
 ════════════════════════════════════════
@@ -384,7 +386,7 @@ Rédige un compte rendu structuré, détaillé et fidèle au déroulé de la ré
 ════════════════════════════════════════
 BLOC 2 — MAIL DE SYNTHÈSE DIRIGEANTS
 ════════════════════════════════════════
-Rédige un mail extrêmement concis, humain et professionnel dans l'esprit Captain Prospect.
+Rédige un mail extrêmement concis, humain et professionnel dans l'esprit ${brand.name}.
 Règles impératives :
 - Commence UNIQUEMENT par le prénom du contact principal suivi d'une virgule
 - Phrase d'intro naturelle type "Merci pour notre échange, voici l'essentiel à retenir" (varier la tournure à chaque fois)
@@ -1598,16 +1600,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
             {/* ── HEADER ── */}
             <div className="relative">
-                <div className="absolute inset-0 -top-6 -left-6 -right-6 h-40 bg-gradient-to-b from-indigo-50/60 to-transparent rounded-3xl -z-10" />
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pt-2">
                     <div className="flex items-center gap-4">
                         <Link href="/manager/clients">
-                            <button className="h-10 w-10 rounded-xl bg-white/80 backdrop-blur border border-slate-200/60 text-slate-400 hover:text-slate-700 hover:border-slate-300 hover:shadow-sm flex items-center justify-center transition-all duration-200">
+                            <button className="h-10 w-10 rounded-xl bg-white border border-slate-200/60 text-slate-400 hover:text-slate-700 hover:border-slate-300 hover:shadow-sm flex items-center justify-center transition-all duration-200">
                                 <ArrowLeft className="w-4 h-4" />
                             </button>
                         </Link>
                         <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 shadow-lg shadow-indigo-500/20 flex items-center justify-center text-2xl font-bold text-white ring-4 ring-white">
+                            <div className="w-14 h-14 rounded-2xl bg-primary-600 flex items-center justify-center text-2xl font-bold text-white ring-4 ring-white">
                                 {client.name[0]}
                             </div>
                             <div>
@@ -1671,8 +1672,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             label="Missions actives"
                             value={client.missions?.filter(m => m.isActive).length || 0}
                             icon={Target}
-                            iconBg="bg-indigo-50"
-                            iconColor="text-indigo-600"
+                            iconBg="bg-primary-50"
+                            iconColor="text-primary-600"
                             subtitle={client.missions?.length ? (
                                 <span className="text-slate-500">{client.missions.length} au total</span>
                             ) : undefined}
@@ -1681,10 +1682,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             label="Sessions"
                             value={sessions.length}
                             icon={Mic}
-                            iconBg="bg-violet-50"
-                            iconColor="text-violet-600"
+                            iconBg="bg-accent-50"
+                            iconColor="text-accent-600"
                             subtitle={sessions.length > 0 ? (
-                                <button onClick={() => setActiveTab("sessions")} className="text-violet-600 font-medium text-xs hover:underline">Voir les sessions</button>
+                                <button onClick={() => setActiveTab("sessions")} className="text-accent-600 font-medium text-xs hover:underline">Voir les sessions</button>
                             ) : undefined}
                         />
                         <StatCard
@@ -1736,8 +1737,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             )}
                         </div>
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">Jours prévus / mois</p>
+                            <div className="rounded-xl border border-primary-100 bg-primary-50/60 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-primary-600">Jours prévus / mois</p>
                                 <p className="mt-2 text-2xl font-bold text-slate-900">
                                     {client.insights?.production.plannedMonthDays ?? "Non défini"}
                                 </p>
@@ -1745,8 +1746,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     {client.insights?.production.hasMonthlyPlan ? "Plans mensuels actifs" : "Calculé depuis les jours / semaine"}
                                 </p>
                             </div>
-                            <div className="rounded-xl border border-violet-100 bg-violet-50/60 p-4">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">Jours prévus / semaine</p>
+                            <div className="rounded-xl border border-accent-100 bg-accent-50/60 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-accent-600">Jours prévus / semaine</p>
                                 <p className="mt-2 text-2xl font-bold text-slate-900">
                                     {client.insights?.production.plannedWeekDays ?? "Non défini"}
                                 </p>
@@ -1790,12 +1791,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
                     {/* ── PROCHAIN RDV — timeline highlight ── */}
                     {nextMeeting && (
-                        <div className="relative rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-indigo-50 via-indigo-50/80 to-white p-5 overflow-hidden group hover:shadow-md hover:border-indigo-300 transition-all duration-300">
-                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-indigo-500 to-indigo-400 rounded-l-2xl" />
+                        <div className="relative rounded-2xl border border-primary-200/70 bg-primary-50 p-5 overflow-hidden group hover:shadow-md hover:border-primary-300 transition-all duration-300">
+                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-primary-500 rounded-l-2xl" />
                             <div className="flex items-center justify-between gap-6 pl-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-white border border-indigo-200/60 shadow-sm flex flex-col items-center justify-center">
-                                        <span className="text-[10px] font-bold text-indigo-600 uppercase leading-none">
+                                    <div className="w-12 h-12 rounded-xl bg-white border border-primary-200/60 shadow-sm flex flex-col items-center justify-center">
+                                        <span className="text-[10px] font-bold text-primary-600 uppercase leading-none">
                                             {new Date(nextMeeting.callbackDate!).toLocaleDateString("fr-FR", { month: "short" })}
                                         </span>
                                         <span className="text-lg font-bold text-slate-900 leading-none mt-0.5">
@@ -1804,7 +1805,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Prochain RDV</span>
+                                            <span className="text-[10px] font-bold text-primary-600 uppercase tracking-wider">Prochain RDV</span>
                                             {nextMeeting.meetingType && (
                                                 <Badge variant="primary" className="text-[10px] py-0 border-0">
                                                     {nextMeeting.meetingType === "VISIO" ? "Visio" : nextMeeting.meetingType === "PHYSIQUE" ? "Présentiel" : "Téléphone"}
@@ -1827,7 +1828,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 <div className="flex items-center gap-2 shrink-0">
                                     {nextMeeting.meetingJoinUrl && (
                                         <a href={nextMeeting.meetingJoinUrl} target="_blank" rel="noopener noreferrer">
-                                            <Button variant="primary" size="sm" className="gap-1.5 shadow-sm shadow-indigo-500/20">
+                                            <Button variant="primary" size="sm" className="gap-1.5 shadow-sm">
                                                 <Video className="w-3.5 h-3.5" />
                                                 Rejoindre
                                             </Button>
@@ -1846,7 +1847,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Missions actives</h2>
-                                    <button onClick={() => setActiveTab("missions")} className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                                    <button onClick={() => setActiveTab("missions")} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
                                         Tout voir <ArrowUpRight className="w-3 h-3" />
                                     </button>
                                 </div>
@@ -1854,7 +1855,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {client.missions.filter(m => m.isActive).slice(0, 4).map((mission) => (
                                             <Link key={mission.id} href={`/manager/clients?client=${client.id}&mission=${mission.id}`} className="block h-full group focus:outline-none">
-                                                <Card className="overflow-hidden border-slate-200 hover:shadow-md hover:border-indigo-200 group-focus-visible:ring-2 group-focus-visible:ring-indigo-500 transition-all duration-200 h-full">
+                                                <Card className="overflow-hidden border-slate-200 hover:shadow-md hover:border-primary-200 group-focus-visible:ring-2 group-focus-visible:ring-primary-500 transition-all duration-200 h-full">
                                                     <div className="p-4 flex flex-col h-full gap-3">
                                                         <div className="flex items-start justify-between gap-2">
                                                             <div className="flex items-center gap-3 min-w-0">
@@ -1865,13 +1866,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                                     })()}
                                                                 </div>
                                                                 <div className="min-w-0">
-                                                                    <p className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 truncate">{mission.name}</p>
+                                                                    <p className="text-sm font-semibold text-slate-900 group-hover:text-primary-600 truncate">{mission.name}</p>
                                                                     <Badge className={cn("mt-1 text-[10px] border", CHANNEL_STYLES[mission.channel].badge)}>
                                                                         {CHANNEL_LABELS[mission.channel]}
                                                                     </Badge>
                                                                 </div>
                                                             </div>
-                                                            <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-500 shrink-0 mt-1" />
+                                                            <ArrowUpRight className="w-4 h-4 text-slate-300 group-hover:text-primary-500 shrink-0 mt-1" />
                                                         </div>
                                                         {/* Two plain counts — the previous ProgressBar plotted campaigns
                                                             over campaigns+lists, which measured nothing */}
@@ -1909,7 +1910,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Sessions récentes</h2>
-                                    <button onClick={() => setActiveTab("sessions")} className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                                    <button onClick={() => setActiveTab("sessions")} className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
                                         Tout voir <ArrowUpRight className="w-3 h-3" />
                                     </button>
                                 </div>
@@ -1962,7 +1963,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             <Card className="overflow-hidden border-slate-200 hover:shadow-md transition-shadow duration-200">
                                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
                                     <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Contact principal</h2>
-                                    <button onClick={() => setShowEditModal(true)} className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">Modifier</button>
+                                    <button onClick={() => setShowEditModal(true)} className="text-xs text-primary-600 font-semibold hover:text-primary-700">Modifier</button>
                                 </div>
                                 <div className="p-4 space-y-2.5">
                                     {client.email ? (
@@ -1970,12 +1971,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
                                                 <Mail className="w-3.5 h-3.5 text-slate-400" />
                                             </div>
-                                            <a href={`mailto:${client.email}`} className="text-sm text-slate-700 hover:text-indigo-600 truncate flex-1">{client.email}</a>
+                                            <a href={`mailto:${client.email}`} className="text-sm text-slate-700 hover:text-primary-600 truncate flex-1">{client.email}</a>
                                             <button
                                                 onClick={() => { navigator.clipboard.writeText(client.email!); success("Copié", "Email copié dans le presse-papiers"); }}
                                                 aria-label="Copier l'email"
                                                 title="Copier l'email"
-                                                className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                             >
                                                 <Copy className="w-3.5 h-3.5" />
                                             </button>
@@ -1986,12 +1987,12 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
                                                 <Phone className="w-3.5 h-3.5 text-slate-400" />
                                             </div>
-                                            <a href={`tel:${client.phone}`} className="text-sm text-slate-700 hover:text-indigo-600 flex-1">{client.phone}</a>
+                                            <a href={`tel:${client.phone}`} className="text-sm text-slate-700 hover:text-primary-600 flex-1">{client.phone}</a>
                                             <button
                                                 onClick={() => { navigator.clipboard.writeText(client.phone!); success("Copié", "Téléphone copié dans le presse-papiers"); }}
                                                 aria-label="Copier le téléphone"
                                                 title="Copier le téléphone"
-                                                className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                             >
                                                 <Copy className="w-3.5 h-3.5" />
                                             </button>
@@ -2002,7 +2003,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
                                                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
                                             </div>
-                                            <a href={client.bookingUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline truncate flex-1">{client.bookingUrl}</a>
+                                            <a href={client.bookingUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-600 hover:underline truncate flex-1">{client.bookingUrl}</a>
                                         </div>
                                     )}
                                 </div>
@@ -2012,7 +2013,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             <Card className="overflow-hidden border-slate-200 hover:shadow-md transition-shadow duration-200">
                                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/30 flex items-center justify-between">
                                     <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                        <Target className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                        <Target className="w-3.5 h-3.5 text-primary-500 shrink-0" />
                                         Persona / ICP
                                     </h2>
                                     <button
@@ -2020,7 +2021,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             setPersonaValue((client.onboarding?.onboardingData as { icp?: string } | null)?.icp ?? "");
                                             setShowPersonaModal(true);
                                         }}
-                                        className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
+                                        className="text-xs text-primary-600 font-semibold hover:text-primary-700"
                                     >
                                         Modifier
                                     </button>
@@ -2061,10 +2062,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         className="flex-1 min-w-0 flex items-center justify-between gap-2 text-left"
                                     >
                                         <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                            <Users className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                            <Users className="w-3.5 h-3.5 text-primary-500 shrink-0" />
                                             Accès et interlocuteurs
                                             {peopleCount > 0 && (
-                                                <Badge className="text-[10px] bg-indigo-100 text-indigo-700 border-0 ml-1">{peopleCount}</Badge>
+                                                <Badge className="text-[10px] bg-primary-100 text-primary-700 border-0 ml-1">{peopleCount}</Badge>
                                             )}
                                         </h2>
                                         {showInterlocuteurs ? <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
@@ -2073,14 +2074,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         <button
                                             type="button"
                                             onClick={() => { setEditingInt(null); setShowIntModal(true); }}
-                                            className="text-xs text-indigo-600 font-semibold hover:text-indigo-700"
+                                            className="text-xs text-primary-600 font-semibold hover:text-primary-700"
                                         >
                                             + Ajouter
                                         </button>
                                         <button
                                             type="button"
                                             onClick={openManageAccessDialog}
-                                            className="text-xs text-slate-500 font-semibold hover:text-indigo-700"
+                                            className="text-xs text-slate-500 font-semibold hover:text-primary-700"
                                         >
                                             Gestion
                                         </button>
@@ -2105,16 +2106,16 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                             setAccessNewPassword("");
                                                             void loadAccessUserDetails(u.id);
                                                         }}
-                                                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                        className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                                     >
                                                         <div className="flex items-center gap-2.5 min-w-0">
-                                                            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">
+                                                            <div className="w-8 h-8 rounded-lg bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold shrink-0">
                                                                 {u.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
                                                             </div>
                                                             <div className="min-w-0 flex-1">
                                                                 <p className="text-sm font-semibold text-slate-900 truncate flex items-center gap-1.5">
                                                                     {u.name}
-                                                                    <Badge className="text-[9px] bg-indigo-100 text-indigo-700 border-0">Accès portail client</Badge>
+                                                                    <Badge className="text-[9px] bg-primary-100 text-primary-700 border-0">Accès portail client</Badge>
                                                                     {u.isActive === false && (
                                                                         <Badge className="text-[9px] bg-red-100 text-red-700 border-0">Révoqué</Badge>
                                                                     )}
@@ -2137,11 +2138,11 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                     const initials = `${interl.firstName[0] ?? ""}${interl.lastName[0] ?? ""}`.toUpperCase();
                                                     const hash = interl.id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
                                                     const avatarColors = [
-                                                        "bg-indigo-100 text-indigo-700",
+                                                        "bg-primary-100 text-primary-700",
                                                         "bg-rose-100 text-rose-700",
                                                         "bg-emerald-100 text-emerald-700",
                                                         "bg-amber-100 text-amber-700",
-                                                        "bg-purple-100 text-purple-700",
+                                                        "bg-accent-100 text-accent-700",
                                                         "bg-cyan-100 text-cyan-700",
                                                     ];
                                                     const avatarColor = avatarColors[hash % avatarColors.length];
@@ -2157,7 +2158,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                                             {interl.firstName} {interl.lastName}
                                                                             <Badge className="text-[9px] bg-slate-100 text-slate-600 border-0">Interlocuteur</Badge>
                                                                             {interl.portalUser && (
-                                                                                <Badge className="text-[9px] bg-violet-100 text-violet-700 border-0">Commercial</Badge>
+                                                                                <Badge className="text-[9px] bg-accent-100 text-accent-700 border-0">Commercial</Badge>
                                                                             )}
                                                                         </p>
                                                                         <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
@@ -2178,7 +2179,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                                         onClick={() => { setEditingInt(interl); setShowIntModal(true); }}
                                                                         aria-label={`Modifier ${interl.firstName} ${interl.lastName}`}
                                                                         title="Modifier"
-                                                                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                        className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                                                     >
                                                                         <Edit className="w-3.5 h-3.5" />
                                                                     </button>
@@ -2221,7 +2222,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                                                 onClick={() => { navigator.clipboard.writeText(bl.url); success("Lien copié", rawLabel || `${bl.durationMinutes} min`); }}
                                                                                 title={`Copier le lien — ${bl.url}`}
                                                                                 aria-label={`Copier le lien de réservation ${chipText}`}
-                                                                                className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-2 py-0.5 text-[10px] font-semibold hover:bg-indigo-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                                                                className="inline-flex items-center gap-1 bg-primary-50 text-primary-700 border border-primary-200 rounded-lg px-2 py-0.5 text-[10px] font-semibold hover:bg-primary-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                                                                             >
                                                                                 <Calendar className="w-2.5 h-2.5 shrink-0" />
                                                                                 {chipText}
@@ -2264,7 +2265,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                                     <button
                                                                         onClick={() => handleActivatePortal(interl)}
                                                                         disabled={activatingPortalFor === interl.id || !interl.isActive}
-                                                                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-full transition-colors disabled:opacity-50"
+                                                                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200 px-2 py-0.5 rounded-full transition-colors disabled:opacity-50"
                                                                     >
                                                                         {activatingPortalFor === interl.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Key className="w-3 h-3" />}
                                                                         Activer portail
@@ -2343,10 +2344,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     <Card className="border-slate-200">
                         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                             <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                                <Target className="w-5 h-5 text-indigo-500" />
+                                <Target className="w-5 h-5 text-primary-500" />
                                 Missions
                             </h2>
-                            <Button variant="primary" size="sm" className="gap-2 shadow-sm shadow-indigo-500/20" onClick={() => setShowNewMissionDialog(true)}>
+                            <Button variant="primary" size="sm" className="gap-2 shadow-sm" onClick={() => setShowNewMissionDialog(true)}>
                                     <Plus className="w-4 h-4" />
                                     Nouvelle mission
                             </Button>
@@ -2359,15 +2360,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         className={cn(
                                             "group block bg-white border rounded-xl p-5 hover:shadow-md transition-all duration-200 border-l-4",
                                             getMissionStatus(mission) === "ACTIVE"
-                                                ? "border-slate-200 border-l-indigo-500 hover:border-indigo-300"
+                                                ? "border-slate-200 border-l-primary-500 hover:border-primary-300"
                                                 : "border-slate-200 border-l-slate-300 hover:border-slate-300"
                                         )}
                                     >
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                             <div className="flex items-start gap-4">
-                                                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", getMissionStatus(mission) === "ACTIVE" ? "bg-indigo-50" : "bg-slate-100")}>
+                                                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", getMissionStatus(mission) === "ACTIVE" ? "bg-primary-50" : "bg-slate-100")}>
                                                     {getMissionStatus(mission) === "ACTIVE"
-                                                        ? <CheckCircle2 className="w-5 h-5 text-indigo-600" />
+                                                        ? <CheckCircle2 className="w-5 h-5 text-primary-600" />
                                                         : <XCircle className="w-5 h-5 text-slate-400" />}
                                                 </div>
                                                 <div className="min-w-0">
@@ -2431,7 +2432,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         <Card className="border-slate-200">
                             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50">
                                 <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                                    <List className="w-5 h-5 text-indigo-500" />
+                                    <List className="w-5 h-5 text-primary-500" />
                                     Listes de prospection
                                 </h2>
                             </div>
@@ -2440,18 +2441,18 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     mission.lists?.length ? (
                                         <div key={mission.id}>
                                             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Target className="w-3.5 h-3.5 text-indigo-400" />
+                                                <Target className="w-3.5 h-3.5 text-primary-400" />
                                                 {mission.name}
                                             </h3>
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                                 {mission.lists.map((list) => (
                                                     <Link key={list.id} href={`/manager/lists/${list.id}`}
-                                                        className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:shadow-md bg-white transition-all group">
+                                                        className="flex items-center justify-between p-4 rounded-xl border border-slate-200 hover:border-primary-300 hover:shadow-md bg-white transition-all group">
                                                         <div>
-                                                            <p className="font-semibold text-slate-900 group-hover:text-indigo-600">{list.name}</p>
+                                                            <p className="font-semibold text-slate-900 group-hover:text-primary-600">{list.name}</p>
                                                             <p className="text-xs text-slate-500 mt-0.5">{list._count.companies} sociétés</p>
                                                         </div>
-                                                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" />
+                                                        <ExternalLink className="w-4 h-4 text-slate-400 group-hover:text-primary-500" />
                                                     </Link>
                                                 ))}
                                             </div>
@@ -2474,8 +2475,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             <h2 className="text-lg font-bold text-slate-900">Sessions & Comptes Rendus</h2>
                             <p className="text-sm text-slate-500 mt-0.5">Historique des sessions de travail et CRs générés via Leexi</p>
                         </div>
-                        <Button variant="primary" className="gap-2 shadow-sm shadow-indigo-500/20" onClick={() => setShowNewSessionModal(true)}>
-                            <Sparkles className="w-4 h-4" />
+                        <Button variant="primary" className="gap-2 shadow-sm" onClick={() => setShowNewSessionModal(true)}>
+                            <Plus className="w-4 h-4" />
                             Nouvelle session
                         </Button>
                     </div>
@@ -2497,14 +2498,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         <div className={cn(
                                             "w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all",
                                             expandedSessionId === s.id
-                                                ? "border-indigo-600 bg-indigo-600 text-white scale-110 shadow-lg shadow-indigo-200"
-                                                : "border-slate-300 bg-white text-slate-500 hover:border-indigo-400 hover:scale-105"
+                                                ? "border-primary-600 bg-primary-600 text-white shadow-sm"
+                                                : "border-slate-300 bg-white text-slate-500 hover:border-primary-400"
                                         )}>
                                             {s.type.charAt(0)}
                                         </div>
                                         <span className={cn(
                                             "text-[10px] font-medium whitespace-nowrap",
-                                            expandedSessionId === s.id ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                                            expandedSessionId === s.id ? "text-primary-600" : "text-slate-400 group-hover:text-slate-600"
                                         )}>
                                             {new Date(s.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                                         </span>
@@ -2523,7 +2524,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     value={sessionSearch}
                                     onChange={e => setSessionSearch(e.target.value)}
                                     placeholder="Rechercher dans les sessions..."
-                                    className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 />
                                 <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             </div>
@@ -2531,7 +2532,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 <button
                                     onClick={() => setSessionTypeFilter("all")}
                                     className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all",
-                                        sessionTypeFilter === "all" ? "bg-indigo-100 text-indigo-700 border-indigo-200" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                                        sessionTypeFilter === "all" ? "bg-primary-100 text-primary-700 border-primary-200" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                                     )}
                                 >
                                     Tous
@@ -2553,7 +2554,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
                     {isLoadingSessions ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                            <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
                         </div>
                     ) : sessions.length === 0 ? (
                         <Card className="border-slate-200">
@@ -2564,7 +2565,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     Connectez une transcription Leexi pour générer automatiquement le compte rendu et le mail de synthèse.
                                 </p>
                                 <Button variant="primary" className="gap-2" onClick={() => setShowNewSessionModal(true)}>
-                                    <Sparkles className="w-4 h-4" />
+                                    <Plus className="w-4 h-4" />
                                     Créer la première session
                                 </Button>
                             </div>
@@ -2618,7 +2619,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                 {session.recordingUrl && (
                                                     <a href={session.recordingUrl} target="_blank" rel="noopener noreferrer"
                                                         onClick={e => e.stopPropagation()}
-                                                        className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium">
+                                                        className="flex items-center gap-1 text-xs text-primary-600 hover:underline font-medium">
                                                         <Mic className="w-3.5 h-3.5" /> Enregistrement
                                                     </a>
                                                 )}
@@ -2626,7 +2627,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                     <Link
                                                         href={`/manager/projects/${session.projectId}`}
                                                         onClick={e => e.stopPropagation()}
-                                                        className="flex items-center gap-1 text-xs text-indigo-600 hover:underline font-medium"
+                                                        className="flex items-center gap-1 text-xs text-primary-600 hover:underline font-medium"
                                                     >
                                                         <Briefcase className="w-3 h-3" />
                                                         Voir le projet
@@ -2635,7 +2636,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="text-xs text-slate-500 hover:text-indigo-600 px-2 py-1"
+                                                    className="text-xs text-slate-500 hover:text-primary-600 px-2 py-1"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
                                                         setExtractedTasks([]);
@@ -2674,7 +2675,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                             navigator.clipboard.writeText(session.summaryEmail!);
                                                             success("Copié", "Mail de synthèse copié");
                                                         }}
-                                                        className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-indigo-600 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white hover:border-indigo-300 transition-colors"
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-primary-600 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white hover:border-primary-300 transition-colors"
                                                     >
                                                         <Copy className="w-3.5 h-3.5" />
                                                         Copier le mail
@@ -2686,7 +2687,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                             e.stopPropagation();
                                                             openSessionReportDialog(session, session.crMarkdown ? "cr" : "email");
                                                         }}
-                                                        className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 border border-indigo-200 rounded-lg px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 border border-primary-200 rounded-lg px-2.5 py-1.5 bg-primary-50 hover:bg-primary-100 transition-colors"
                                                     >
                                                         <Eye className="w-3.5 h-3.5" />
                                                         Voir le rapport
@@ -2759,10 +2760,10 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                                             <button
                                                                                 onClick={() => handleToggleTask(session.id, task.id)}
                                                                                 disabled={togglingTaskId === task.id}
-                                                                                className={cn("w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-all hover:scale-110",
+                                                                                className={cn("w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
                                                                                     task.doneAt
                                                                                         ? "bg-emerald-500 border-emerald-500 text-white"
-                                                                                        : "border-slate-300 hover:border-indigo-400"
+                                                                                        : "border-slate-300 hover:border-primary-400"
                                                                                 )}
                                                                             >
                                                                                 {task.doneAt && <CheckCircle2 className="w-3 h-3" />}
@@ -2877,7 +2878,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     {reportDialogTab === "email" && reportDialogSession.summaryEmail && client?.email && (
                                         <a
                                             href={`mailto:${client.email}?subject=Synthèse de notre session ${reportDialogSession.type}&body=${encodeURIComponent(reportDialogSession.summaryEmail)}`}
-                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-medium hover:bg-indigo-100 transition-colors"
+                                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary-200 bg-primary-50 text-primary-700 text-sm font-medium hover:bg-primary-100 transition-colors"
                                         >
                                             <Send className="w-3.5 h-3.5" />
                                             Ouvrir dans le mail
@@ -2892,7 +2893,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 onClick={() => setReportDialogTab("cr")}
                                 className={cn(
                                     "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                                    reportDialogTab === "cr" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                                    reportDialogTab === "cr" ? "bg-white text-primary-600 shadow-sm" : "text-slate-600"
                                 )}
                             >
                                 Compte rendu
@@ -2901,7 +2902,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 onClick={() => setReportDialogTab("email")}
                                 className={cn(
                                     "px-4 py-2 text-sm font-medium rounded-lg transition-colors",
-                                    reportDialogTab === "email" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                                    reportDialogTab === "email" ? "bg-white text-primary-600 shadow-sm" : "text-slate-600"
                                 )}
                             >
                                 Mail de synthese
@@ -2964,7 +2965,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             prev ? { ...prev, type: e.target.value as SessionType } : prev
                                         )
                                     }
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 >
                                     {(["Kick-Off", "Onboarding", "Validation", "Reporting", "Suivi", "Autre"] as SessionType[]).map((t) => (
                                         <option key={t} value={t}>{t}</option>
@@ -2981,7 +2982,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             prev ? { ...prev, date: e.target.value } : prev
                                         )
                                     }
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                                 />
                             </div>
                         </div>
@@ -2994,7 +2995,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     className={cn(
                                         "flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all",
                                         editPreviewMode
-                                            ? "bg-indigo-50 text-indigo-600 border-indigo-200"
+                                            ? "bg-primary-50 text-primary-600 border-primary-200"
                                             : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
                                     )}
                                 >
@@ -3020,7 +3021,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             prev ? { ...prev, crMarkdown: e.target.value } : prev
                                         )
                                     }
-                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
                                     placeholder="Modifiez ici le compte rendu..."
                                 />
                             )}
@@ -3036,7 +3037,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         prev ? { ...prev, summaryEmail: e.target.value } : prev
                                     )
                                 }
-                                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
                                 placeholder="Modifiez ici le mail de synthèse..."
                             />
                         </div>
@@ -3097,15 +3098,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
                     {/* KPIs */}
                     {isLoadingStats ? (
-                        <div className="flex items-center justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-indigo-500" /></div>
+                        <div className="flex items-center justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-primary-500" /></div>
                     ) : clientStats ? (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <StatCard
                                 label="Appels"
                                 value={clientStats.kpis?.totalCalls || 0}
                                 icon={Phone}
-                                iconBg="bg-indigo-100"
-                                iconColor="text-indigo-600"
+                                iconBg="bg-primary-100"
+                                iconColor="text-primary-600"
                             />
                             <StatCard
                                 label="RDV"
@@ -3139,13 +3140,13 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     <Card className="border-slate-200 overflow-hidden">
                         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/30">
                             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                <Zap className="w-4 h-4 text-indigo-500" />
+                                <Zap className="w-4 h-4 text-primary-500" />
                                 Persona — cibles performantes
                             </h3>
                         </div>
                         <div className="p-6">
                             {isLoadingPersona ? (
-                                <div className="flex items-center justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-indigo-500" /></div>
+                                <div className="flex items-center justify-center py-12"><Loader2 className="w-7 h-7 animate-spin text-primary-500" /></div>
                             ) : clientPersona && (clientPersona.byFunction?.length > 0 || clientPersona.bySector?.length > 0) ? (
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     {clientPersona.byFunction?.length > 0 && (
@@ -3158,7 +3159,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                         <div className="flex items-center gap-4 text-xs">
                                                             <span className="text-slate-500">{r.calls} appels</span>
                                                             <span className="font-semibold text-emerald-600">{r.meetings} RDV</span>
-                                                            <span className="text-indigo-600 font-bold">{r.conversionRate}%</span>
+                                                            <span className="text-primary-600 font-bold">{r.conversionRate}%</span>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -3175,7 +3176,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                         <div className="flex items-center gap-4 text-xs">
                                                             <span className="text-slate-500">{r.calls} appels</span>
                                                             <span className="font-semibold text-emerald-600">{r.meetings} RDV</span>
-                                                            <span className="text-indigo-600 font-bold">{r.conversionRate}%</span>
+                                                            <span className="text-primary-600 font-bold">{r.conversionRate}%</span>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -3254,7 +3255,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             setNewSessionForm((p) => ({ ...p, customTypeLabel: e.target.value }))
                                         }
                                         placeholder='Ex. "Atelier produit", "Point hebdo"...'
-                                        className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                                     />
                                 </div>
                             )}
@@ -3271,7 +3272,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 type="date"
                                 value={sessionDateInput}
                                 onChange={(e) => setSessionDateInput(e.target.value)}
-                                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
                             />
                         </div>
 
@@ -3286,7 +3287,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     className={cn(
                                         "px-3 py-1.5 text-xs font-medium rounded-full flex items-center gap-1",
                                         transcriptMode === "leexi"
-                                            ? "bg-white text-indigo-600 shadow-sm"
+                                            ? "bg-white text-primary-600 shadow-sm"
                                             : "text-slate-600"
                                     )}
                                 >
@@ -3298,7 +3299,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     className={cn(
                                         "px-3 py-1.5 text-xs font-medium rounded-full flex items-center gap-1",
                                         transcriptMode === "text"
-                                            ? "bg-white text-indigo-600 shadow-sm"
+                                            ? "bg-white text-primary-600 shadow-sm"
                                             : "text-slate-600"
                                     )}
                                 >
@@ -3310,7 +3311,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     className={cn(
                                         "px-3 py-1.5 text-xs font-medium rounded-full flex items-center gap-1",
                                         transcriptMode === "cr"
-                                            ? "bg-white text-indigo-600 shadow-sm"
+                                            ? "bg-white text-primary-600 shadow-sm"
                                             : "text-slate-600"
                                     )}
                                 >
@@ -3323,14 +3324,14 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
                                         <label className="text-sm font-semibold text-slate-700">Transcription Leexi</label>
-                                        <button onClick={fetchLeexiTranscriptions} className="text-xs text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                                        <button onClick={fetchLeexiTranscriptions} className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1">
                                             <RefreshCw className={cn("w-3 h-3", isLoadingLeexi && "animate-spin")} />
                                             Actualiser
                                         </button>
                                     </div>
                                     {isLoadingLeexi ? (
                                         <div className="flex items-center justify-center py-8 border border-slate-200 rounded-xl">
-                                            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                                            <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
                                         </div>
                                     ) : leexiTranscriptions.length === 0 ? (
                                         <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl">
@@ -3355,15 +3356,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                     className={cn(
                                                         "w-full text-left p-3 rounded-xl border transition-all",
                                                         newSessionForm.leexiId === t.id
-                                                            ? "border-indigo-400 bg-indigo-50 shadow-sm"
-                                                            : "border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50"
+                                                            ? "border-primary-400 bg-primary-50 shadow-sm"
+                                                            : "border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50"
                                                     )}
                                                 >
                                                     <div className="flex items-center justify-between gap-3">
                                                         <div className="flex items-center gap-3 min-w-0">
-                                                            <Mic className={cn("w-4 h-4 shrink-0", newSessionForm.leexiId === t.id ? "text-indigo-600" : "text-slate-400")} />
+                                                            <Mic className={cn("w-4 h-4 shrink-0", newSessionForm.leexiId === t.id ? "text-primary-600" : "text-slate-400")} />
                                                             <div className="min-w-0">
-                                                                <p className={cn("text-sm font-semibold truncate", newSessionForm.leexiId === t.id ? "text-indigo-900" : "text-slate-900")}>
+                                                                <p className={cn("text-sm font-semibold truncate", newSessionForm.leexiId === t.id ? "text-primary-900" : "text-slate-900")}>
                                                                     {t.title}
                                                                 </p>
                                                                 {t.participants.length > 0 && (
@@ -3393,7 +3394,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         onChange={(e) => setManualTranscript(e.target.value)}
                                         rows={8}
                                         placeholder="Collez ici la transcription de la session (ou un récap très détaillé)..."
-                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
                                     />
                                     <p className="text-[11px] text-slate-400">
                                         {manualTranscript.length} caractères{" "}
@@ -3411,7 +3412,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             onChange={(e) => setManualCR(e.target.value)}
                                             rows={6}
                                             placeholder="Collez ici le compte rendu final (titre, sections, prochaines étapes, etc.)..."
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
                                         />
                                     </div>
                                     <div>
@@ -3423,7 +3424,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                             onChange={(e) => setManualSummaryEmail(e.target.value)}
                                             rows={4}
                                             placeholder="Collez ici le mail de synthèse si vous l'avez déjà rédigé..."
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y"
                                         />
                                     </div>
                                     <p className="text-[11px] text-slate-400">
@@ -3446,7 +3447,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     !client?.email
                                         ? "bg-slate-200 cursor-not-allowed opacity-60"
                                         : newSessionForm.notifyByEmail
-                                            ? "bg-indigo-600"
+                                            ? "bg-primary-600"
                                             : "bg-slate-300"
                                 )}
                             >
@@ -3503,7 +3504,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 }
                                 className="gap-2"
                             >
-                                <Sparkles className="w-4 h-4" />
+                                <AiMark className="w-4 h-4" />
                                 {transcriptMode === "cr" ? "Utiliser ce CR" : "Générer le CR"}
                             </Button>
                         </ModalFooter>
@@ -3515,7 +3516,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             <button
                                 onClick={() => setShowCRTab("cr")}
                                 className={cn("flex-1 py-2 text-sm font-semibold rounded-md transition-all",
-                                    showCRTab === "cr" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                                    showCRTab === "cr" ? "bg-white text-primary-600 shadow-sm" : "text-slate-600"
                                 )}
                             >
                                 Compte rendu
@@ -3523,7 +3524,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                             <button
                                 onClick={() => setShowCRTab("email")}
                                 className={cn("flex-1 py-2 text-sm font-semibold rounded-md transition-all",
-                                    showCRTab === "email" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+                                    showCRTab === "email" ? "bg-white text-primary-600 shadow-sm" : "text-slate-600"
                                 )}
                             >
                                 Mail de synthèse
@@ -3540,7 +3541,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                         <div className={cn(
                             "flex items-center gap-2 p-3 rounded-lg text-sm",
                             newSessionForm.notifyByEmail
-                                ? "bg-indigo-50 border border-indigo-200 text-indigo-700"
+                                ? "bg-primary-50 border border-primary-200 text-primary-700"
                                 : "bg-slate-50 border border-slate-200 text-slate-600"
                         )}>
                             <Send className="w-4 h-4 shrink-0" />
@@ -3588,7 +3589,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">Profil cible (ICP)</label>
                         <textarea
-                            className="w-full min-h-[120px] px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full min-h-[120px] px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                             placeholder="Ex: Directeurs commerciaux en PME B2B, 50–250 employés, secteur industrie ou services..."
                             value={personaValue}
                             onChange={(e) => setPersonaValue(e.target.value)}
@@ -3834,8 +3835,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
                         <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                                <ShieldCheck className="w-4 h-4 text-primary-600" />
                             </div>
                             <div>
                                 <h2 className="text-base font-bold text-slate-900">Gestion des accès portail</h2>
@@ -3860,8 +3861,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     className={cn(
                                         "w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors",
                                         manageAccessMode === "new"
-                                            ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
-                                            : "bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-600"
+                                            ? "bg-primary-600 text-white shadow-sm"
+                                            : "bg-white border border-slate-200 text-slate-700 hover:border-primary-300 hover:text-primary-600"
                                     )}
                                 >
                                     <Plus className="w-3.5 h-3.5" />
@@ -3887,20 +3888,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                         className={cn(
                                                             "w-full text-left px-3 py-2 rounded-lg transition-all flex items-start gap-2.5",
                                                             isSelected
-                                                                ? "bg-white border border-indigo-300 shadow-sm"
+                                                                ? "bg-white border border-primary-300 shadow-sm"
                                                                 : "hover:bg-white hover:border-slate-200 border border-transparent"
                                                         )}
                                                     >
                                                         <div className={cn(
                                                             "w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0",
-                                                            isInactive ? "bg-slate-200 text-slate-500" : "bg-indigo-100 text-indigo-700"
+                                                            isInactive ? "bg-slate-200 text-slate-500" : "bg-primary-100 text-primary-700"
                                                         )}>
                                                             {u.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase()}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
                                                             <p className={cn(
                                                                 "text-xs font-semibold truncate",
-                                                                isSelected ? "text-indigo-700" : "text-slate-900"
+                                                                isSelected ? "text-primary-700" : "text-slate-900"
                                                             )}>
                                                                 {u.name}
                                                             </p>
@@ -3934,20 +3935,20 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                         className={cn(
                                                             "w-full text-left px-3 py-2 rounded-lg transition-all flex items-start gap-2.5",
                                                             isSelected
-                                                                ? "bg-white border border-violet-300 shadow-sm"
+                                                                ? "bg-white border border-accent-300 shadow-sm"
                                                                 : "hover:bg-white hover:border-slate-200 border border-transparent"
                                                         )}
                                                     >
                                                         <div className={cn(
                                                             "w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0",
-                                                            isInactive ? "bg-slate-200 text-slate-500" : "bg-violet-100 text-violet-700"
+                                                            isInactive ? "bg-slate-200 text-slate-500" : "bg-accent-100 text-accent-700"
                                                         )}>
                                                             {interl.firstName[0]}{interl.lastName[0]}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
                                                             <p className={cn(
                                                                 "text-xs font-semibold truncate",
-                                                                isSelected ? "text-violet-700" : "text-slate-900"
+                                                                isSelected ? "text-accent-700" : "text-slate-900"
                                                             )}>
                                                                 {interl.firstName} {interl.lastName}
                                                             </p>
@@ -3973,7 +3974,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                         <>
                                             <div className="mb-5">
                                                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                                    <Plus className="w-4 h-4 text-indigo-500" />
+                                                    <Plus className="w-4 h-4 text-primary-500" />
                                                     Créer un nouvel accès
                                                 </h3>
                                                 <p className="text-xs text-slate-500 mt-1">
@@ -4060,7 +4061,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                     {/* Header */}
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold">
+                                            <div className="w-12 h-12 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">
                                                 {accessUserDetails.name.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase()}
                                             </div>
                                             <div>
@@ -4074,8 +4075,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                     <Badge className={cn(
                                                         "text-[10px] border-0",
                                                         manageAccessSelectedType === "COMMERCIAL"
-                                                            ? "bg-violet-100 text-violet-700"
-                                                            : "bg-indigo-100 text-indigo-700"
+                                                            ? "bg-accent-100 text-accent-700"
+                                                            : "bg-primary-100 text-primary-700"
                                                     )}>
                                                         {manageAccessSelectedType === "COMMERCIAL" ? "COMMERCIAL" : "CLIENT"}
                                                     </Badge>
@@ -4278,7 +4279,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                 </div>
                             ) : isLoadingAccessDetails ? (
                                 <div className="flex items-center justify-center h-full">
-                                    <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                                    <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                                 </div>
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-full text-center">
@@ -4385,7 +4386,7 @@ function InterlocuteurModal({
 
     // Matches the <Input> component's box so identity fields and the repeatable
     // email / phone / booking rows stop disagreeing on height, radius and focus ring
-    const FIELD = "h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 transition-all duration-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20";
+    const FIELD = "h-10 px-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 transition-all duration-200 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20";
 
     const emailErrors = form.emails.map((e) =>
         e.value.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.value.trim())
@@ -4533,8 +4534,8 @@ function InterlocuteurModal({
                                     aria-checked={entry.isPrimary}
                                     onClick={() => setPrimaryEmail(idx)}
                                     title="Utiliser comme email principal (identifiant du portail)"
-                                    className={cn("shrink-0 h-10 text-xs font-semibold px-2.5 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
-                                        entry.isPrimary ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:text-indigo-600 hover:border-indigo-300"
+                                    className={cn("shrink-0 h-10 text-xs font-semibold px-2.5 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
+                                        entry.isPrimary ? "bg-primary-600 text-white border-primary-600" : "bg-white text-slate-500 border-slate-200 hover:text-primary-600 hover:border-primary-300"
                                     )}
                                 >
                                     Principal
@@ -4553,7 +4554,7 @@ function InterlocuteurModal({
                             {emailErrors[idx] && <p className="mt-1 text-[11px] text-red-500">{emailErrors[idx]}</p>}
                         </div>
                     ))}
-                    <button type="button" onClick={addEmail} className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">+ Ajouter un email</button>
+                    <button type="button" onClick={addEmail} className="text-xs text-primary-600 font-semibold hover:text-primary-700">+ Ajouter un email</button>
                 </div>
 
                 {/* Téléphones */}
@@ -4583,8 +4584,8 @@ function InterlocuteurModal({
                                 aria-checked={entry.isPrimary}
                                 onClick={() => setPrimaryPhone(idx)}
                                 title="Utiliser comme téléphone principal"
-                                className={cn("shrink-0 h-10 text-xs font-semibold px-2.5 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
-                                    entry.isPrimary ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:text-indigo-600 hover:border-indigo-300"
+                                className={cn("shrink-0 h-10 text-xs font-semibold px-2.5 rounded-xl border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
+                                    entry.isPrimary ? "bg-primary-600 text-white border-primary-600" : "bg-white text-slate-500 border-slate-200 hover:text-primary-600 hover:border-primary-300"
                                 )}
                             >
                                 Principal
@@ -4601,7 +4602,7 @@ function InterlocuteurModal({
                             </button>
                         </div>
                     ))}
-                    <button type="button" onClick={addPhone} className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">+ Ajouter un téléphone</button>
+                    <button type="button" onClick={addPhone} className="text-xs text-primary-600 font-semibold hover:text-primary-700">+ Ajouter un téléphone</button>
                 </div>
 
                 {/* Booking Links */}
@@ -4650,7 +4651,7 @@ function InterlocuteurModal({
                             {bookingErrors[idx] && <p className="text-[11px] text-red-500">{bookingErrors[idx]}</p>}
                         </div>
                     ))}
-                    <button type="button" onClick={addBookingLink} className="text-xs text-indigo-600 font-semibold hover:text-indigo-700">+ Ajouter un lien</button>
+                    <button type="button" onClick={addBookingLink} className="text-xs text-primary-600 font-semibold hover:text-primary-700">+ Ajouter un lien</button>
                 </div>
 
                 {/* Notes */}
@@ -4661,7 +4662,7 @@ function InterlocuteurModal({
                         value={form.notes}
                         onChange={(e) => setForm(p => ({ ...p, notes: e.target.value }))}
                         rows={3}
-                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 resize-none"
+                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 resize-none"
                     />
                 </div>
 

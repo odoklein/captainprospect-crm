@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lightbulb, X, Send, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Lightbulb, X, Send, AlertCircle, CheckCircle2, Wrench, FolderOpen, MessageSquare } from "lucide-react";
 
 export function SdrSuggestionLauncher() {
     const [isOpen, setIsOpen] = useState(false);
@@ -79,7 +79,7 @@ export function SdrSuggestionLauncher() {
                 >
                     <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         {/* Header */}
-                        <div className="px-6 py-4 bg-gradient-to-r from-amber-500 to-amber-600 text-white flex items-center justify-between">
+                        <div className="px-6 py-4 bg-amber-600 text-white flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                                 <div className="p-1.5 bg-white/20 rounded-lg">
                                     <Lightbulb className="w-5 h-5" />
@@ -105,7 +105,7 @@ export function SdrSuggestionLauncher() {
                                 <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
                                     <CheckCircle2 className="w-6 h-6" />
                                 </div>
-                                <h4 className="text-base font-bold text-slate-900">Merci pour votre retour !</h4>
+                                <h4 className="text-base font-bold text-slate-900">Merci pour votre retour</h4>
                                 <p className="text-xs text-slate-500">
                                     Votre proposition a été envoyée sur le bureau des managers.
                                 </p>
@@ -126,10 +126,10 @@ export function SdrSuggestionLauncher() {
                                     </label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {[
-                                            { id: "IMPROVEMENT", label: "💡 Amélioration", desc: "Idée pour aller plus vite" },
-                                            { id: "BUG", label: "🔧 Problème", desc: "Bouton ou bug d'affichage" },
-                                            { id: "MISSING_DATA", label: "📁 Donnée manquante", desc: "LinkedIn, info, champ" },
-                                            { id: "OTHER", label: "💬 Autre", desc: "Question ou remarque" },
+                                            { id: "IMPROVEMENT", label: "Amélioration", icon: Lightbulb, desc: "Idée pour aller plus vite" },
+                                            { id: "BUG", label: "Problème", icon: Wrench, desc: "Bouton ou bug d'affichage" },
+                                            { id: "MISSING_DATA", label: "Donnée manquante", icon: FolderOpen, desc: "LinkedIn, info, champ" },
+                                            { id: "OTHER", label: "Autre", icon: MessageSquare, desc: "Question ou remarque" },
                                         ].map((t) => (
                                             <button
                                                 key={t.id}
@@ -141,7 +141,10 @@ export function SdrSuggestionLauncher() {
                                                         : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
                                                 }`}
                                             >
-                                                <div className="text-xs">{t.label}</div>
+                                                <div className="inline-flex items-center gap-1.5 text-xs">
+                                                    <t.icon className="h-3.5 w-3.5 shrink-0" />
+                                                    {t.label}
+                                                </div>
                                                 <div className="text-[10px] text-slate-400 mt-0.5">{t.desc}</div>
                                             </button>
                                         ))}

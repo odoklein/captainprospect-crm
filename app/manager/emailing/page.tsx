@@ -1,7 +1,7 @@
 import { EmailingReachInboxWorkspace } from "@/components/emailing/EmailingReachInboxWorkspace";
 
 export const metadata = {
-    title: "Emailing | Captain Prospect",
+    title: "Emailing",
     description: "Statistiques ReachInbox en lecture seule",
 };
 

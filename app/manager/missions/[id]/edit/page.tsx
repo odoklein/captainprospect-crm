@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Button, Select, useToast } from "@/components/ui";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CheckCircle2, PauseCircle } from "lucide-react";
 import Link from "next/link";
 
 // ============================================
@@ -245,7 +245,7 @@ export default function EditMissionPage({ params }: { params: Promise<{ id: stri
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Ex: Prospection SaaS Q1 2026"
-                            className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 ${errors.name ? "border-red-500" : "border-slate-200"
+                            className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 ${errors.name ? "border-red-500" : "border-slate-200"
                                 }`}
                         />
                         {errors.name && (
@@ -263,7 +263,7 @@ export default function EditMissionPage({ params }: { params: Promise<{ id: stri
                             onChange={(e) => setFormData(prev => ({ ...prev, objective: e.target.value }))}
                             placeholder="Ex: Générer 50 meetings qualifiés"
                             rows={3}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none"
                         />
                     </div>
 
@@ -271,9 +271,9 @@ export default function EditMissionPage({ params }: { params: Promise<{ id: stri
                     <Select
                         label="Canal principal *"
                         options={[
-                            { value: "CALL", label: "📞 Appel téléphonique" },
-                            { value: "EMAIL", label: "📧 Email" },
-                            { value: "LINKEDIN", label: "💼 LinkedIn" },
+                            { value: "CALL", label: "Appel téléphonique" },
+                            { value: "EMAIL", label: "Email" },
+                            { value: "LINKEDIN", label: "LinkedIn" },
                         ]}
                         value={formData.channel}
                         onChange={(value) => setFormData(prev => ({ ...prev, channel: value }))}
@@ -295,7 +295,8 @@ export default function EditMissionPage({ params }: { params: Promise<{ id: stri
                                     onChange={() => setFormData(prev => ({ ...prev, isActive: true }))}
                                     className="hidden"
                                 />
-                                ✓ Actif
+                                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                                Actif
                             </label>
                             <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl cursor-pointer border transition-all ${!formData.isActive
                                     ? "bg-amber-50 border-amber-500 text-amber-700"
@@ -307,7 +308,8 @@ export default function EditMissionPage({ params }: { params: Promise<{ id: stri
                                     onChange={() => setFormData(prev => ({ ...prev, isActive: false }))}
                                     className="hidden"
                                 />
-                                ⏸ En pause
+                                <PauseCircle className="w-4 h-4 shrink-0" />
+                                En pause
                             </label>
                         </div>
                     </div>
@@ -322,7 +324,7 @@ export default function EditMissionPage({ params }: { params: Promise<{ id: stri
                                 type="date"
                                 value={formData.startDate}
                                 onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             />
                         </div>
                         <div>
@@ -333,7 +335,7 @@ export default function EditMissionPage({ params }: { params: Promise<{ id: stri
                                 type="date"
                                 value={formData.endDate}
                                 onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
-                                className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 ${errors.endDate ? "border-red-500" : "border-slate-200"
+                                className={`w-full px-4 py-3 bg-white border rounded-xl text-slate-900 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 ${errors.endDate ? "border-red-500" : "border-slate-200"
                                     }`}
                             />
                             {errors.endDate && (

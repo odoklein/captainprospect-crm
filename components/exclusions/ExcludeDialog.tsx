@@ -160,7 +160,7 @@ export function ExcludeDialog({
                                         className={cn(
                                             "rounded-xl border p-3 text-left transition-all",
                                             active
-                                                ? "border-indigo-300 bg-indigo-50 ring-2 ring-indigo-100"
+                                                ? "border-primary-300 bg-primary-50 ring-2 ring-primary-100"
                                                 : "border-slate-200 bg-white hover:border-slate-300"
                                         )}
                                     >
@@ -199,7 +199,7 @@ export function ExcludeDialog({
                         onChange={(e) => setReason(e.target.value.slice(0, MAX_EXCLUSION_REASON_LENGTH))}
                         rows={3}
                         placeholder="Ex : le client ne souhaite plus que l'on appelle ses salariés sur leur téléphone personnel"
-                        className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                        className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
                     />
                     <p className="mt-1 text-xs text-slate-400">
                         {reason.trim().length}/{MAX_EXCLUSION_REASON_LENGTH} — visible par le manager et le client.
@@ -218,7 +218,7 @@ export function ExcludeDialog({
                                 className={cn(
                                     "rounded-lg border px-3 py-1.5 text-sm transition-all",
                                     duration === option.value
-                                        ? "border-indigo-400 bg-indigo-50 text-indigo-700 font-medium"
+                                        ? "border-primary-400 bg-primary-50 text-primary-700 font-medium"
                                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                                 )}
                             >

@@ -11,6 +11,8 @@ import {
     X,
     Check,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
+import { brand } from "@/lib/brand";
 
 interface SavedAccount {
     email: string;
@@ -22,10 +24,10 @@ interface SavedAccount {
 const STORAGE_KEY = "cp_enterprise_saved_accounts";
 
 const ROLE_METADATA: Record<string, { label: string; dotCls: string }> = {
-    MANAGER: { label: "Manager", dotCls: "bg-indigo-500" },
+    MANAGER: { label: "Manager", dotCls: "bg-primary-500" },
     SDR: { label: "SDR", dotCls: "bg-blue-500" },
     BOOKER: { label: "Booker", dotCls: "bg-cyan-500" },
-    BUSINESS_DEVELOPER: { label: "Business Developer", dotCls: "bg-violet-500" },
+    BUSINESS_DEVELOPER: { label: "Business Developer", dotCls: "bg-accent-500" },
     CLIENT: { label: "Client", dotCls: "bg-emerald-500" },
     COMMERCIAL: { label: "Commercial", dotCls: "bg-amber-500" },
     DEVELOPER: { label: "Développeur", dotCls: "bg-rose-500" },
@@ -302,10 +304,10 @@ export default function LoginForm() {
 
     // Compact, airy card: small type, hairline borders, one strong brand button.
     const inputCls =
-        "w-full h-10 px-3 bg-white border border-[#E4E6EF] rounded-lg text-[13.5px] text-[#1A1D2E] placeholder:text-[#A3A8BD] focus:outline-none focus:border-[#27355F] focus:ring-4 focus:ring-[#27355F]/10 transition disabled:bg-[#F6F7FB] disabled:text-[#8A90A8]";
-    const labelCls = "block text-[12.5px] font-medium text-[#1A1D2E] mb-1.5";
+        "w-full h-10 px-3 bg-white border border-line rounded-lg text-[13.5px] text-ink placeholder:text-ink-4 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition disabled:bg-surface-2 disabled:text-ink-3";
+    const labelCls = "block text-[12.5px] font-medium text-ink mb-1.5";
     const secondaryLinkCls =
-        "block text-left text-[12.5px] font-medium text-[#1A1D2E] hover:text-[#C44E8A] transition-colors cursor-pointer";
+        "block text-left text-[12.5px] font-medium text-ink hover:text-accent transition-colors cursor-pointer";
 
     const renderPasswordField = (id: string) => (
         <div>
@@ -330,7 +332,7 @@ export default function LoginForm() {
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 px-3 flex items-center text-[#A3A8BD] hover:text-[#27355F] transition-colors cursor-pointer"
+                    className="absolute inset-y-0 right-0 px-3 flex items-center text-ink-4 hover:text-primary transition-colors cursor-pointer"
                     tabIndex={-1}
                     aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
@@ -350,7 +352,7 @@ export default function LoginForm() {
             className={`w-full h-10 rounded-lg text-[13.5px] font-medium transition flex items-center justify-center gap-2 cursor-pointer shadow-[0_1px_2px_rgba(39,53,95,0.2)] ${
                 isSuccess
                     ? "bg-emerald-600 text-white"
-                    : "bg-[#27355F] hover:bg-[#1E2A4D] text-white active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
+                    : "bg-primary hover:bg-primary-active text-white active:translate-y-px disabled:opacity-60 disabled:cursor-not-allowed"
             }`}
         >
             {isLoading ? (
@@ -379,7 +381,7 @@ export default function LoginForm() {
 
     return (
         <div
-            className="relative min-h-screen w-full flex flex-col items-center text-[#1A1D2E] antialiased overflow-hidden bg-[#EEF1FB]"
+            className="relative min-h-screen w-full flex flex-col items-center text-ink antialiased overflow-hidden bg-surface-3"
             style={{ fontFamily: "var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif" }}
         >
             {/* Misty mountains, anchored to the bottom. The image already fades to white
@@ -396,21 +398,13 @@ export default function LoginForm() {
             />
 
             <header className="relative z-10 pt-12 sm:pt-16 flex justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src="/logocaptainblue-rose.png"
-                    alt="Captain Prospect"
-                    className="h-7 w-auto object-contain"
-                    onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                    }}
-                />
+                <BrandLogo height={28} priority />
             </header>
 
             <main className="relative z-10 flex-1 w-full flex items-center justify-center px-4 py-10">
                 <div
                     key={shakeKey}
-                    className={`w-full max-w-[360px] rounded-xl border border-[#E4E6EF] bg-white/95 backdrop-blur-sm p-5 sm:p-6 shadow-[0_1px_2px_rgba(26,29,46,0.04),0_12px_32px_-12px_rgba(39,53,95,0.18)] transition-all duration-300 ${
+                    className={`w-full max-w-[360px] rounded-xl border border-line bg-white/95 backdrop-blur-sm p-5 sm:p-6 shadow-[0_1px_2px_rgba(26,29,46,0.04),0_12px_32px_-12px_rgba(39,53,95,0.18)] transition-all duration-300 ${
                         mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
                     } ${shakeKey > 0 ? "animate-[shake_0.35s_ease-in-out]" : ""}`}
                 >
@@ -418,10 +412,10 @@ export default function LoginForm() {
                         <h1 className="text-[15px] font-semibold tracking-tight">
                             {isQuickConnect ? "Bon retour" : "Connexion"}
                         </h1>
-                        <p className="mt-1 text-[12.5px] leading-relaxed text-[#8A90A8]">
+                        <p className="mt-1 text-[12.5px] leading-relaxed text-ink-3">
                             {isQuickConnect
                                 ? "Saisissez votre mot de passe pour continuer."
-                                : "Accédez à votre espace Captain Prospect."}
+                                : `Accédez à votre espace ${brand.name}.`}
                         </p>
                     </div>
 
@@ -438,9 +432,9 @@ export default function LoginForm() {
                     {isQuickConnect && activeAccount ? (
                         <form onSubmit={handleSubmit} noValidate className="space-y-4">
                             {/* Active saved profile */}
-                            <div className="p-2.5 rounded-lg border border-[#E4E6EF] bg-[#F6F7FB] flex items-center gap-2.5">
+                            <div className="p-2.5 rounded-lg border border-line bg-surface-2 flex items-center gap-2.5">
                                 <div className="relative shrink-0">
-                                    <div className="w-9 h-9 rounded-full bg-[#27355F] text-white flex items-center justify-center text-[12.5px] font-medium">
+                                    <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-[12.5px] font-medium">
                                         {getInitials(activeAccount.name, activeAccount.email)}
                                     </div>
                                     {activeMeta && (
@@ -451,7 +445,7 @@ export default function LoginForm() {
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="text-[13px] font-medium truncate">{activeAccount.name}</div>
-                                    <div className="text-[12px] text-[#8A90A8] truncate">
+                                    <div className="text-[12px] text-ink-3 truncate">
                                         {activeAccount.email}
                                         {activeMeta && <> · {activeMeta.label}</>}
                                     </div>
@@ -459,7 +453,7 @@ export default function LoginForm() {
                                 <button
                                     type="button"
                                     onClick={(e) => removeSavedAccount(activeAccount.email, e)}
-                                    className="text-[#A3A8BD] hover:text-[#1A1D2E] p-1.5 rounded-md hover:bg-white transition-colors cursor-pointer"
+                                    className="text-ink-4 hover:text-ink p-1.5 rounded-md hover:bg-white transition-colors cursor-pointer"
                                     title={`Oublier ce profil · dernière connexion ${formatTimeAgo(activeAccount.lastLogin)}`}
                                     aria-label="Oublier ce profil"
                                 >
@@ -478,8 +472,8 @@ export default function LoginForm() {
                                                 onClick={() => selectSavedAccount(acc)}
                                                 className={`text-[12px] px-2.5 py-1 rounded-full border transition cursor-pointer max-w-[150px] truncate ${
                                                     isCurrent
-                                                        ? "bg-[#27355F] border-[#27355F] text-white"
-                                                        : "bg-white border-[#E4E6EF] text-[#5B6180] hover:border-[#A3A8BD]"
+                                                        ? "bg-primary border-primary text-white"
+                                                        : "bg-white border-line text-ink-2 hover:border-line-strong"
                                                 }`}
                                             >
                                                 {acc.name}
@@ -532,7 +526,7 @@ export default function LoginForm() {
                             {renderPasswordField("lp-password")}
 
                             {/* Switch-style "remember me" (still a real checkbox for a11y) */}
-                            <label className="flex items-center gap-2.5 text-[12.5px] font-medium text-[#1A1D2E] cursor-pointer select-none">
+                            <label className="flex items-center gap-2.5 text-[12.5px] font-medium text-ink cursor-pointer select-none">
                                 <input
                                     type="checkbox"
                                     checked={rememberDevice}
@@ -541,7 +535,7 @@ export default function LoginForm() {
                                 />
                                 <span
                                     aria-hidden="true"
-                                    className="relative inline-flex h-[18px] w-8 shrink-0 rounded-full bg-[#E4E6EF] transition-colors peer-checked:bg-[#27355F] peer-focus-visible:ring-4 peer-focus-visible:ring-[#27355F]/15 after:absolute after:top-[2px] after:left-[2px] after:h-[14px] after:w-[14px] after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-[14px]"
+                                    className="relative inline-flex h-[18px] w-8 shrink-0 rounded-full bg-surface-3 transition-colors peer-checked:bg-primary peer-focus-visible:ring-4 peer-focus-visible:ring-primary/15 after:absolute after:top-[2px] after:left-[2px] after:h-[14px] after:w-[14px] after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:after:translate-x-[14px]"
                                 />
                                 Se souvenir de moi
                             </label>
@@ -571,8 +565,8 @@ export default function LoginForm() {
                 </div>
             </main>
 
-            <footer className="relative z-10 pb-8 text-[12px] text-[#5B6180]">
-                © {new Date().getFullYear()} Captain Prospect
+            <footer className="relative z-10 pb-8 text-[12px] text-ink-2">
+                © {new Date().getFullYear()} {brand.name}
             </footer>
         </div>
     );

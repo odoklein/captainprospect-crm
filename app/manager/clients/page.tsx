@@ -376,7 +376,7 @@ function ClientsPageInner() {
         return (
             <div className="flex items-center justify-center py-20">
                 <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                     <p className="text-sm text-slate-500">Chargement des clients...</p>
                 </div>
             </div>
@@ -440,14 +440,14 @@ function ClientsPageInner() {
                             onClick={() => setStatusFilter(tab.key)}
                             className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors -mb-px border-b-2 ${
                                 isActive
-                                    ? "text-indigo-600 border-indigo-600"
+                                    ? "text-primary-600 border-primary-600"
                                     : "text-slate-500 border-transparent hover:text-slate-700"
                             }`}
                         >
                             {tab.label}
                             <span
                                 className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
-                                    isActive ? "bg-indigo-50 text-indigo-600" : "bg-slate-100 text-slate-500"
+                                    isActive ? "bg-primary-50 text-primary-600" : "bg-slate-100 text-slate-500"
                                 }`}
                             >
                                 {tab.count}
@@ -479,14 +479,14 @@ function ClientsPageInner() {
 
             {/* Leexi Recaps Section */}
             {leexiData && leexiData.totalRecaps > 0 && (
-                <div className="bg-white border border-violet-200 rounded-2xl overflow-hidden">
+                <div className="bg-white border border-accent-200 rounded-2xl overflow-hidden">
                     <button
                         onClick={() => setShowLeexiSection(!showLeexiSection)}
-                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-violet-50/50 transition-colors"
+                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-accent-50/50 transition-colors"
                     >
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-indigo-100 flex items-center justify-center">
-                                <Mic className="w-5 h-5 text-violet-600" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
+                                <Mic className="w-5 h-5 text-accent-600" />
                             </div>
                             <div className="text-left">
                                 <h3 className="text-sm font-semibold text-slate-900">
@@ -498,7 +498,7 @@ function ClientsPageInner() {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 text-xs">
+                            <Badge variant="outline" className="bg-accent-50 text-accent-700 border-accent-200 text-xs">
                                 {leexiData.totalRecaps} recap{leexiData.totalRecaps > 1 ? "s" : ""}
                             </Badge>
                             {showLeexiSection ? (
@@ -510,24 +510,24 @@ function ClientsPageInner() {
                     </button>
 
                     {showLeexiSection && (
-                        <div className="border-t border-violet-100 px-6 py-4 space-y-3 max-h-80 overflow-y-auto">
+                        <div className="border-t border-accent-100 px-6 py-4 space-y-3 max-h-80 overflow-y-auto">
                             {leexiData.matched.map((group) => (
                                 <div key={group.clientId} className="space-y-2">
                                     {group.recaps.map((recap) => (
                                         <div
                                             key={recap.id}
-                                            className="p-3 bg-violet-50/50 border border-violet-100 rounded-xl"
+                                            className="p-3 bg-accent-50/50 border border-accent-100 rounded-xl"
                                         >
                                             <div
                                                 className="flex items-center justify-between cursor-pointer"
                                                 onClick={() => setExpandedRecapId(expandedRecapId === recap.id ? null : recap.id)}
                                             >
                                                 <div className="flex items-center gap-2 min-w-0">
-                                                    <Mic className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
+                                                    <Mic className="w-3.5 h-3.5 text-accent-500 flex-shrink-0" />
                                                     <span className="text-sm font-medium text-slate-900 truncate">
                                                         {recap.title}
                                                     </span>
-                                                    <Badge variant="outline" className="text-[10px] bg-white border-violet-200 text-violet-600 flex-shrink-0">
+                                                    <Badge variant="outline" className="text-[10px] bg-white border-accent-200 text-accent-600 flex-shrink-0">
                                                         {group.clientName}
                                                     </Badge>
                                                 </div>
@@ -544,7 +544,7 @@ function ClientsPageInner() {
                                                 </div>
                                             </div>
                                             {expandedRecapId === recap.id && (
-                                                <p className="mt-2 text-xs text-slate-600 whitespace-pre-line border-t border-violet-100 pt-2">
+                                                <p className="mt-2 text-xs text-slate-600 whitespace-pre-line border-t border-accent-100 pt-2">
                                                     {recap.recapText.slice(0, 800)}
                                                     {recap.recapText.length > 800 && "..."}
                                                 </p>
@@ -555,7 +555,7 @@ function ClientsPageInner() {
                             ))}
 
                             {leexiData.unmatched.length > 0 && (
-                                <div className="pt-2 border-t border-violet-100">
+                                <div className="pt-2 border-t border-accent-100">
                                     <p className="text-xs font-medium text-slate-500 mb-2">
                                         Non associés ({leexiData.unmatched.length})
                                     </p>
@@ -585,7 +585,7 @@ function ClientsPageInner() {
                                                             e.stopPropagation();
                                                             handleCreateFromRecap(recap.recapText);
                                                         }}
-                                                        className="text-[10px] font-medium px-2 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors"
+                                                        className="text-[10px] font-medium px-2 py-0.5 bg-primary-50 text-primary-600 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
                                                     >
                                                         Créer client
                                                     </button>
@@ -608,7 +608,7 @@ function ClientsPageInner() {
                                                     </p>
                                                     <button
                                                         onClick={() => handleCreateFromRecap(recap.recapText)}
-                                                        className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
                                                     >
                                                         <Plus className="w-3.5 h-3.5" />
                                                         Créer le client depuis cet appel
@@ -685,7 +685,7 @@ function ClientsPageInner() {
                             <div
                                 key={client.id}
                                 onClick={() => handleClientClick(client)}
-                                className={`group relative flex flex-col rounded-xl border border-slate-200 ${statusInfo.surface} ${statusInfo.muted ? "opacity-75 hover:opacity-100" : ""} hover:border-indigo-300 hover:shadow-sm transition-colors cursor-pointer overflow-hidden`}
+                                className={`group relative flex flex-col rounded-xl border border-slate-200 ${statusInfo.surface} ${statusInfo.muted ? "opacity-75 hover:opacity-100" : ""} hover:border-primary-300 hover:shadow-sm transition-colors cursor-pointer overflow-hidden`}
                             >
                                 {/* status rule */}
                                 <div className={`absolute inset-y-0 left-0 w-0.5 ${statusInfo.rule}`} />
@@ -698,7 +698,7 @@ function ClientsPageInner() {
                                                 {client.name.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="min-w-0">
-                                                <h3 className="text-[15px] font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                                                <h3 className="text-[15px] font-semibold text-slate-900 group-hover:text-primary-600 transition-colors truncate">
                                                     {client.name}
                                                 </h3>
                                                 <p className="text-xs text-slate-500 truncate">
@@ -769,7 +769,7 @@ function ClientsPageInner() {
                                             </span>
                                         </div>
                                         <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                                            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${progressPct}%` }} />
+                                            <div className="h-full rounded-full bg-primary-500" style={{ width: `${progressPct}%` }} />
                                         </div>
                                         {/* Mission end — color only when it matters */}
                                         {mission ? (
@@ -825,7 +825,7 @@ function ClientsPageInner() {
                                             </span>
                                         )}
                                     </div>
-                                    <span className="flex items-center gap-1 text-xs font-medium text-slate-400 group-hover:text-indigo-600 transition-colors">
+                                    <span className="flex items-center gap-1 text-xs font-medium text-slate-400 group-hover:text-primary-600 transition-colors">
                                         Gérer <ArrowRight className="w-3.5 h-3.5" />
                                     </span>
                                 </div>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useCallback, useRef, useId } from "react";
-import { X } from "lucide-react";
+import { AlertTriangle, OctagonAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Button from "./Button";
+import { FOCUS_RING } from "./recipes";
 
 // ============================================
 // MODAL COMPONENT
@@ -145,7 +147,7 @@ export function Modal({
             onClick={handleOverlayClick}
         >
             {/* Overlay */}
-            <div className="absolute inset-0 pointer-events-none bg-slate-900/40 backdrop-blur-[4px] animate-fade-in transition-all duration-300" />
+            <div className="absolute inset-0 pointer-events-none bg-ink/45 backdrop-blur-[2px] animate-fade-in" />
 
             {/* Modal */}
             <div
@@ -158,8 +160,8 @@ export function Modal({
                 onKeyDown={handleTabKey}
                 onPointerDown={handleModalPointerDown}
                 className={cn(
-                    "relative w-full bg-white border border-slate-200 shadow-xl rounded-2xl overflow-hidden flex flex-col text-slate-900",
-                    "transform transition-all duration-300 ease-out animate-scale-in max-h-[85vh]",
+                    "relative w-full bg-surface border border-line shadow-overlay rounded-card overflow-hidden flex flex-col text-ink",
+                    "animate-ds-pop max-h-[85vh] focus:outline-none",
                     SIZES[size],
                     className
                 )}
@@ -167,15 +169,15 @@ export function Modal({
             >
                 {/* Header */}
                 {(title || showCloseButton) && (
-                    <div className="flex-shrink-0 flex items-start justify-between px-6 py-5 border-b border-slate-200 bg-slate-50">
-                        <div className="pr-8">
+                    <div className={cn("flex-shrink-0 flex items-start justify-between px-6 pt-5", title || description ? "pb-4 border-b border-line-subtle" : "pb-0")}>
+                        <div className="pr-10 min-w-0">
                             {title && (
-                                <h2 id={titleId} className="text-xl font-bold text-slate-900">
+                                <h2 id={titleId} className="text-lg font-semibold tracking-tight text-ink">
                                     {title}
                                 </h2>
                             )}
                             {description && (
-                                <p id={descId} className="text-sm text-slate-600 mt-1.5 font-medium">
+                                <p id={descId} className="text-sm text-ink-3 mt-1 leading-relaxed">
                                     {description}
                                 </p>
                             )}
@@ -184,9 +186,9 @@ export function Modal({
                             <button
                                 onClick={onClose}
                                 aria-label="Fermer"
-                                className="absolute right-4 top-4 p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-full transition-all duration-200 z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                className={cn("absolute right-3.5 top-3.5 z-10 inline-flex size-9 items-center justify-center rounded-control text-ink-3 transition-colors hover:bg-surface-3 hover:text-ink", FOCUS_RING)}
                             >
-                                <X className="w-5 h-5" />
+                                <X className="size-[18px]" />
                             </button>
                         )}
                     </div>
@@ -195,7 +197,7 @@ export function Modal({
                 {/* Content - explicit bg and text so content is never white-on-white */}
                 <div
                     className={cn(
-                        "p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 bg-white text-slate-900",
+                        "p-6 overflow-y-auto custom-scrollbar flex-1 bg-surface text-ink",
                         contentClassName
                     )}
                 >
@@ -219,7 +221,7 @@ export function ModalFooter({ children, className }: ModalFooterProps) {
     return (
         <div
             className={cn(
-                "flex items-center justify-end gap-3 pt-4 mt-4 border-t border-slate-100",
+                "flex flex-wrap items-center justify-end gap-2 pt-4 mt-6 border-t border-line-subtle",
                 className
             )}
         >
@@ -255,33 +257,35 @@ export function ConfirmModal({
     variant = "default",
     isLoading = false,
 }: ConfirmModalProps) {
-    const buttonVariants = {
-        danger: "bg-red-600 hover:bg-red-700 text-white",
-        warning: "bg-amber-600 hover:bg-amber-700 text-white",
-        default: "bg-indigo-600 hover:bg-indigo-700 text-white",
-    };
+    const Icon = variant === "danger" ? OctagonAlert : variant === "warning" ? AlertTriangle : null;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-            <p className="text-slate-600">{message}</p>
+            <div className="flex items-start gap-3.5">
+                {Icon && (
+                    <span
+                        className={cn(
+                            "inline-flex size-10 shrink-0 items-center justify-center rounded-xl border",
+                            variant === "danger" ? "bg-danger-soft border-danger-line text-danger" : "bg-warning-soft border-warning-line text-warning"
+                        )}
+                    >
+                        <Icon className="size-5" aria-hidden />
+                    </span>
+                )}
+                <p className="pt-0.5 text-sm leading-relaxed text-ink-2">{message}</p>
+            </div>
             <ModalFooter>
-                <button
-                    onClick={onClose}
-                    disabled={isLoading}
-                    className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
-                >
+                <Button variant="ghost" onClick={onClose} disabled={isLoading}>
                     {cancelText}
-                </button>
-                <button
+                </Button>
+                <Button
+                    variant={variant === "danger" ? "danger" : "primary"}
                     onClick={onConfirm}
-                    disabled={isLoading}
-                    className={cn(
-                        "px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50",
-                        buttonVariants[variant]
-                    )}
+                    isLoading={isLoading}
+                    className={variant === "warning" ? "bg-warning hover:bg-warning-ink shadow-xs" : undefined}
                 >
-                    {isLoading ? "Chargement..." : confirmText}
-                </button>
+                    {confirmText}
+                </Button>
             </ModalFooter>
         </Modal>
     );

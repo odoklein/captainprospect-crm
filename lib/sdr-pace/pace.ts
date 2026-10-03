@@ -123,25 +123,17 @@ export function computeEffectiveTime(input: EffectiveTimeInput): EffectiveTime {
 
 export type PaceStatus = "ON_TRACK" | "BEHIND" | "LATE";
 
-export const PACE_STATUS_COPY: Record<
-  PaceStatus,
-  { /** status badge */ badge: string; /** tone of the coaching line */ emoji: string; label: string; message: string }
-> = {
+/** Status label + coaching line. The UI renders the status as a coloured dot (see SdrPaceCard TONE). */
+export const PACE_STATUS_COPY: Record<PaceStatus, { label: string; message: string }> = {
   ON_TRACK: {
-    badge: "✅",
-    emoji: "😎",
     label: "Dans le rythme",
     message: "Tu es pile dans le rythme. Pas le moment de lever le pied, continue à envoyer.",
   },
   BEHIND: {
-    badge: "🟠",
-    emoji: "👀",
     label: "À rattraper",
     message: "Petit retard au compteur. Rien de dramatique, mais remets un peu de gaz maintenant.",
   },
   LATE: {
-    badge: "🔴",
-    emoji: "📞",
     label: "En retard",
     message: "Mode rattrapage. On se concentre et on rattrape vite !",
   },
@@ -150,10 +142,9 @@ export const PACE_STATUS_COPY: Record<
 export const GOAL_REACHED_MESSAGE = "Objectif du jour atteint, bravo ! Chaque appel en plus est du bonus.";
 
 /** The coaching line for a result; once the quota is met, says so instead of "keep going". */
-export function paceHeadline(p: Pick<PaceResult, "status" | "goalReached">): { emoji: string; text: string } {
-  if (p.goalReached) return { emoji: "🎯", text: GOAL_REACHED_MESSAGE };
-  const copy = PACE_STATUS_COPY[p.status];
-  return { emoji: copy.emoji, text: copy.message };
+export function paceHeadline(p: Pick<PaceResult, "status" | "goalReached">): { text: string } {
+  if (p.goalReached) return { text: GOAL_REACHED_MESSAGE };
+  return { text: PACE_STATUS_COPY[p.status].message };
 }
 
 export function statusForBehind(behindBy: number): PaceStatus {

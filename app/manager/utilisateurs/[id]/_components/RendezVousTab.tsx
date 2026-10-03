@@ -155,7 +155,7 @@ export function RendezVousTab({ userId, userName }: { userId: string; userName: 
     }, [rows, filter, query]);
 
     const tiles: Array<{ key: BonusStatus | "all"; label: string; value: number; icon: typeof Clock; tone: string; hint?: string }> = [
-        { key: "all", label: "RDV pris", value: booked, icon: CalendarCheck2, tone: "text-indigo-600 bg-indigo-50", hint: counts.cancelled ? `+ ${counts.cancelled} annulé${counts.cancelled > 1 ? "s" : ""}` : undefined },
+        { key: "all", label: "RDV pris", value: booked, icon: CalendarCheck2, tone: "text-primary-600 bg-primary-50", hint: counts.cancelled ? `+ ${counts.cancelled} annulé${counts.cancelled > 1 ? "s" : ""}` : undefined },
         { key: "valid", label: "Valides", value: counts.valid, icon: CheckCircle2, tone: "text-emerald-600 bg-emerald-50", hint: validRate !== null ? `${validRate} % des RDV avec retour` : "Primables" },
         { key: "awaiting", label: "En attente de retour", value: counts.awaiting, icon: Hourglass, tone: "text-amber-600 bg-amber-50", hint: "Passés, sans retour client" },
         { key: "upcoming", label: "À venir", value: counts.upcoming, icon: Clock, tone: "text-sky-600 bg-sky-50" },
@@ -198,7 +198,7 @@ export function RendezVousTab({ userId, userName }: { userId: string; userName: 
                             aria-pressed={active}
                             className={cn(
                                 "text-left rounded-2xl border bg-white p-3.5 transition shadow-sm hover:shadow",
-                                active ? "border-indigo-300 ring-2 ring-indigo-100" : "border-slate-200 hover:border-slate-300"
+                                active ? "border-primary-300 ring-2 ring-primary-100" : "border-slate-200 hover:border-slate-300"
                             )}
                         >
                             <div className="flex items-center justify-between">
@@ -231,7 +231,7 @@ export function RendezVousTab({ userId, userName }: { userId: string; userName: 
                     <label className="mt-4 block text-xs font-medium text-slate-600" htmlFor={`rate-${userId}`}>
                         Tarif par RDV valide
                     </label>
-                    <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-white focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+                    <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-white focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100">
                         <input
                             id={`rate-${userId}`}
                             inputMode="decimal"
@@ -326,7 +326,7 @@ export function RendezVousTab({ userId, userName }: { userId: string; userName: 
                             onChange={(e) => setQuery(e.target.value)}
                             placeholder="Contact, société, mission…"
                             aria-label="Rechercher un rendez-vous"
-                            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400"
+                            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400"
                         />
                     </div>
                 </div>

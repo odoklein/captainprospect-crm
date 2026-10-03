@@ -29,7 +29,7 @@ function TranscriptionReveal({
             </span>
             {cut < text.length && (
                 <span
-                    className="inline-block w-px h-4 ml-px align-middle bg-indigo-500 animate-pulse"
+                    className="inline-block w-px h-4 ml-px align-middle bg-primary-500 animate-pulse"
                     aria-hidden
                 />
             )}
@@ -121,7 +121,7 @@ export function CallRecordingModal({
                 <div
                     className={cn(
                         "mt-5 max-h-[min(45vh,420px)] overflow-y-auto rounded-2xl border border-slate-100",
-                        "bg-gradient-to-b from-slate-50 to-white p-5 shadow-inner"
+                        "bg-slate-50 p-5 shadow-inner"
                     )}
                 >
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">

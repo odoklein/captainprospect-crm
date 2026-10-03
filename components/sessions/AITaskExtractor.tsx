@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-    Sparkles,
+    ListChecks,
     Loader2,
     CheckCircle2,
     Circle,
@@ -12,16 +12,16 @@ import {
     Briefcase,
     Monitor,
     Users,
-    Zap,
+    AlertTriangle,
     ArrowUp,
     ArrowRight,
     ArrowDown,
-    Wand2,
     AlertCircle,
     Calendar,
     ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ui/AiMark";
 
 // ============================================
 // TYPES
@@ -59,14 +59,14 @@ const ROLE_OPTIONS = [
     { key: "SDR", label: "SDR", icon: Headphones, color: "#10B981" },
     { key: "MANAGER", label: "Manager", icon: Briefcase, color: "#F59E0B" },
     { key: "DEV", label: "Dev", icon: Monitor, color: "#3B82F6" },
-    { key: "ALWAYS", label: "Tous", icon: Users, color: "#8B5CF6" },
+    { key: "ALWAYS", label: "Tous", icon: Users, color: "var(--brand-accent-600)" },
 ] as const;
 
 const PRIORITY_OPTIONS = [
-    { key: "URGENT", label: "Urgent", icon: Zap, color: "#EF4444" },
+    { key: "URGENT", label: "Urgent", icon: AlertTriangle, color: "#EF4444" },
     { key: "HIGH", label: "Haute", icon: ArrowUp, color: "#F59E0B" },
     { key: "MEDIUM", label: "Moyenne", icon: ArrowRight, color: "#3B82F6" },
-    { key: "LOW", label: "Basse", icon: ArrowDown, color: "#6B7280" },
+    { key: "LOW", label: "Basse", icon: ArrowDown, color: "var(--ds-ink-3)" },
 ] as const;
 
 // ============================================
@@ -166,13 +166,13 @@ export default function AITaskExtractor({
                 <div className="flex items-center gap-2.5">
                     <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: "linear-gradient(135deg, #7C5CFC 0%, #A78BFA 100%)" }}
+                        style={{ background: "var(--ds-primary)" }}
                     >
-                        <Wand2 className="w-4 h-4 text-white" />
+                        <ListChecks className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                        <h3 className="text-[14px] font-bold text-[#12122A]">Tâches d'équipe</h3>
-                        <p className="text-[11px] text-[#8B8BA7]">
+                        <h3 className="text-[14px] font-bold text-ink">Tâches d'équipe</h3>
+                        <p className="text-[11px] text-ink-3">
                             {tasks.length > 0
                                 ? `${tasks.length} tâche${tasks.length > 1 ? "s" : ""} identifiée${tasks.length > 1 ? "s" : ""}`
                                 : "Extraire les tâches du CR"}
@@ -183,7 +183,7 @@ export default function AITaskExtractor({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={addEmptyTask}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold bg-white border border-[#E8EBF0] text-[#5A5A7A] hover:border-[#C5C8D4] hover:text-[#12122A] transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold bg-white border border-line text-ink-2 hover:border-line-strong hover:text-ink transition-all"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         Ajouter
@@ -198,8 +198,8 @@ export default function AITaskExtractor({
                         )}
                         style={{
                             background: isExtracting
-                                ? "#6C4CE0"
-                                : "linear-gradient(135deg, #7C5CFC 0%, #6C4CE0 100%)",
+                                ? "var(--ds-primary-hover)"
+                                : "var(--ds-primary)",
                         }}
                     >
                         {isExtracting ? (
@@ -209,7 +209,7 @@ export default function AITaskExtractor({
                             </>
                         ) : (
                             <>
-                                <Sparkles className="w-3.5 h-3.5" />
+                                <AiMark className="w-3.5 h-3.5" />
                                 Extraire avec IA
                             </>
                         )}
@@ -227,8 +227,8 @@ export default function AITaskExtractor({
 
             {/* ── AI Summary ── */}
             {summary && (
-                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[#EEF2FF] border border-[#C7D2FE] text-[12px] text-[#4338CA]">
-                    <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div className="flex items-start gap-2.5 p-3 rounded-lg bg-primary-50 border border-primary-200 text-[12px] text-primary-700">
+                    <AiMark className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <p className="leading-relaxed">{summary}</p>
                 </div>
             )}
@@ -239,22 +239,22 @@ export default function AITaskExtractor({
                     {tasks.map((task, index) => (
                         <div
                             key={index}
-                            className="group bg-white border border-[#E8EBF0] rounded-xl p-3 hover:border-[#C5C8D4] transition-all"
+                            className="group bg-white border border-line rounded-xl p-3 hover:border-line-strong transition-all"
                         >
                             {/* Task Label */}
                             <div className="flex items-start gap-2.5 mb-2.5">
-                                <div className="mt-1 flex-shrink-0 text-[#C5C8D4]">
+                                <div className="mt-1 flex-shrink-0 text-ink-4">
                                     <Circle className="w-4 h-4" />
                                 </div>
                                 <input
                                     value={task.label}
                                     onChange={(e) => updateTask(index, "label", e.target.value)}
-                                    className="flex-1 text-[13px] font-medium text-[#12122A] placeholder:text-[#B0B0C7] bg-transparent border-none outline-none"
+                                    className="flex-1 text-[13px] font-medium text-ink placeholder:text-ink-4 bg-transparent border-none outline-none"
                                     placeholder="Description de la tâche..."
                                 />
                                 <button
                                     onClick={() => removeTask(index)}
-                                    className="flex-shrink-0 text-[#C5C8D4] hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                                    className="flex-shrink-0 text-ink-4 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                                 >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -263,7 +263,7 @@ export default function AITaskExtractor({
                             {/* Task Meta */}
                             <div className="flex items-center gap-2 ml-[26px] flex-wrap">
                                 {/* Role Selector */}
-                                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#F4F6F9]">
+                                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface-3">
                                     {ROLE_OPTIONS.map((role) => {
                                         const Icon = role.icon;
                                         const isActive = task.assigneeRole === role.key;
@@ -275,7 +275,7 @@ export default function AITaskExtractor({
                                                     "flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all",
                                                     isActive
                                                         ? "bg-white shadow-sm"
-                                                        : "text-[#8B8BA7] hover:text-[#5A5A7A]"
+                                                        : "text-ink-3 hover:text-ink-2"
                                                 )}
                                                 style={isActive ? { color: role.color } : {}}
                                                 title={role.label}
@@ -288,7 +288,7 @@ export default function AITaskExtractor({
                                 </div>
 
                                 {/* Priority Selector */}
-                                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-[#F4F6F9]">
+                                <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-surface-3">
                                     {PRIORITY_OPTIONS.map((p) => {
                                         const Icon = p.icon;
                                         const isActive = task.priority === p.key;
@@ -300,7 +300,7 @@ export default function AITaskExtractor({
                                                     "flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all",
                                                     isActive
                                                         ? "bg-white shadow-sm"
-                                                        : "text-[#8B8BA7] hover:text-[#5A5A7A]"
+                                                        : "text-ink-3 hover:text-ink-2"
                                                 )}
                                                 style={isActive ? { color: p.color } : {}}
                                                 title={p.label}
@@ -327,19 +327,19 @@ export default function AITaskExtractor({
                                             };
                                             onTasksChange(updated);
                                         }}
-                                        className="text-[11px] font-medium text-[#5A5A7A] bg-[#F4F6F9] border-none outline-none rounded-md pl-2.5 pr-6 py-1.5 w-32 appearance-none focus:ring-1 focus:ring-[#7C5CFC]/20"
+                                        className="text-[11px] font-medium text-ink-2 bg-surface-3 border-none outline-none rounded-md pl-2.5 pr-6 py-1.5 w-32 appearance-none focus:ring-1 focus:ring-primary-500/20"
                                     >
                                         <option value="">Non assigné</option>
                                         {teamMembers.map(m => (
                                             <option key={m.id} value={m.id}>{m.name}</option>
                                         ))}
                                     </select>
-                                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#B0B0C7] pointer-events-none" />
+                                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-ink-4 pointer-events-none" />
                                 </div>
 
                                 {/* Due Date */}
                                 <div className="relative flex items-center">
-                                    <Calendar className="absolute left-2 w-3 h-3 text-[#B0B0C7] pointer-events-none" />
+                                    <Calendar className="absolute left-2 w-3 h-3 text-ink-4 pointer-events-none" />
                                     <input
                                         type="date"
                                         value={task.dueDate ? task.dueDate.slice(0, 10) : ""}
@@ -348,7 +348,7 @@ export default function AITaskExtractor({
                                             updated[index] = { ...updated[index], dueDate: e.target.value || null };
                                             onTasksChange(updated);
                                         }}
-                                        className="text-[11px] font-medium text-[#5A5A7A] placeholder:text-[#B0B0C7] bg-[#F4F6F9] border-none outline-none rounded-md pl-6 pr-2 py-1.5 w-32 focus:ring-1 focus:ring-[#7C5CFC]/20"
+                                        className="text-[11px] font-medium text-ink-2 placeholder:text-ink-4 bg-surface-3 border-none outline-none rounded-md pl-6 pr-2 py-1.5 w-32 focus:ring-1 focus:ring-primary-500/20"
                                     />
                                 </div>
                             </div>
@@ -359,18 +359,18 @@ export default function AITaskExtractor({
 
             {/* ── Empty State ── */}
             {tasks.length === 0 && !isExtracting && (
-                <div className="flex flex-col items-center py-8 border-2 border-dashed border-[#E8EBF0] rounded-xl">
+                <div className="flex flex-col items-center py-8 border-2 border-dashed border-line rounded-xl">
                     <div
                         className="w-11 h-11 rounded-xl flex items-center justify-center mb-3"
-                        style={{ background: "#F4F6F9" }}
+                        style={{ background: "var(--ds-surface-2)" }}
                     >
-                        <Wand2 className="w-5 h-5 text-[#C5C8D4]" />
+                        <ListChecks className="w-5 h-5 text-ink-4" />
                     </div>
-                    <p className="text-[13px] font-semibold text-[#12122A]">
-                        Aucune tâche encore
+                    <p className="text-[13px] font-semibold text-ink">
+                        Aucune tâche pour le moment
                     </p>
-                    <p className="text-[11px] text-[#8B8BA7] mt-1 text-center max-w-[260px]">
-                        Cliquez sur "Extraire avec IA" pour que Mistral analyse le CR et identifie les tâches automatiquement
+                    <p className="text-[11px] text-ink-3 mt-1 text-center max-w-[260px]">
+                        « Extraire avec IA » lit le CR et propose les tâches. Vous pouvez aussi les ajouter à la main.
                     </p>
                 </div>
             )}

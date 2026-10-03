@@ -62,10 +62,10 @@ function ContactRow({
       className={cn(
         "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-100",
         "border-b border-slate-100 last:border-b-0",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-400",
         isDisabled
           ? "opacity-50 cursor-not-allowed"
-          : "hover:bg-indigo-50 cursor-pointer group"
+          : "hover:bg-primary-50 cursor-pointer group"
       )}
     >
       <Avatar name={name} size={34} />
@@ -85,12 +85,12 @@ function ContactRow({
 
       <div className="flex items-center gap-1.5 shrink-0">
         {isLinking ? (
-          <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" aria-hidden />
+          <Loader2 className="w-4 h-4 text-primary-500 animate-spin" aria-hidden />
         ) : (
           <span
             className={cn(
               "flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors duration-100",
-              "text-indigo-600 bg-indigo-50 group-hover:bg-indigo-100"
+              "text-primary-600 bg-primary-50 group-hover:bg-primary-100"
             )}
           >
             Lier
@@ -291,7 +291,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
         <div className="relative">
           {searching ? (
             <Loader2
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400 animate-spin pointer-events-none"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400 animate-spin pointer-events-none"
               aria-hidden
             />
           ) : (
@@ -304,7 +304,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
             className={cn(
               "w-full h-10 pl-10 pr-4 text-sm bg-slate-50 border border-slate-200 rounded-xl",
               "text-slate-900 placeholder:text-slate-400",
-              "focus:outline-none focus:ring-2 focus:ring-indigo-400/30 focus:border-indigo-400 transition-all"
+              "focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 transition-all"
             )}
             placeholder="Rechercher par nom, email ou entreprise…"
             value={query}
@@ -367,7 +367,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
           <select
             className={cn(
               "w-full h-9 px-3 text-sm font-medium bg-white border border-slate-200 rounded-xl",
-              "text-slate-700 focus:outline-none focus:border-indigo-400 transition-colors cursor-pointer"
+              "text-slate-700 focus:outline-none focus:border-primary-400 transition-colors cursor-pointer"
             )}
             value={selectedCompanyId}
             onChange={(e) => setSelectedCompanyId(e.target.value)}
@@ -390,7 +390,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
               className={cn(
                 "h-9 px-3 text-sm bg-white border border-slate-200 rounded-xl",
                 "text-slate-900 placeholder:text-slate-400",
-                "focus:outline-none focus:border-indigo-400 transition-colors"
+                "focus:outline-none focus:border-primary-400 transition-colors"
               )}
               placeholder="Prénom"
               value={newContact.firstName}
@@ -401,7 +401,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
               className={cn(
                 "h-9 px-3 text-sm bg-white border border-slate-200 rounded-xl",
                 "text-slate-900 placeholder:text-slate-400",
-                "focus:outline-none focus:border-indigo-400 transition-colors"
+                "focus:outline-none focus:border-primary-400 transition-colors"
               )}
               placeholder="Nom"
               value={newContact.lastName}
@@ -415,7 +415,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
             className={cn(
               "h-9 px-3 text-sm bg-white border border-slate-200 rounded-xl",
               "text-slate-900 placeholder:text-slate-400",
-              "focus:outline-none focus:border-indigo-400 transition-colors"
+              "focus:outline-none focus:border-primary-400 transition-colors"
             )}
             placeholder="Fonction (optionnel)"
             value={newContact.title}
@@ -429,7 +429,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
               className={cn(
                 "h-9 px-3 text-sm bg-white border border-slate-200 rounded-xl",
                 "text-slate-900 placeholder:text-slate-400",
-                "focus:outline-none focus:border-indigo-400 transition-colors"
+                "focus:outline-none focus:border-primary-400 transition-colors"
               )}
               placeholder="Email"
               type="email"
@@ -441,7 +441,7 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
               className={cn(
                 "h-9 px-3 text-sm bg-white border border-slate-200 rounded-xl",
                 "text-slate-900 placeholder:text-slate-400",
-                "focus:outline-none focus:border-indigo-400 transition-colors"
+                "focus:outline-none focus:border-primary-400 transition-colors"
               )}
               placeholder="Téléphone"
               value={newContact.phone}
@@ -464,8 +464,8 @@ export function LinkContactModal({ meeting, onClose, onLinked }: LinkContactModa
               disabled={!canCreate || isBusy}
               className={cn(
                 "flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold transition-colors",
-                "bg-indigo-600 text-white hover:bg-indigo-700",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1",
+                "bg-primary-600 text-white hover:bg-primary-700",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
                 "disabled:opacity-40 disabled:cursor-not-allowed"
               )}
             >

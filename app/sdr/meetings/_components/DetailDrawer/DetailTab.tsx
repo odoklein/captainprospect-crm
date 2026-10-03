@@ -61,18 +61,18 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                         <div className="space-y-2">
                             {meeting.contact.email && (
                                 <a href={`mailto:${meeting.contact.email}`} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors group">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
-                                        <Mail className="w-4 h-4 text-slate-500 group-hover:text-indigo-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center group-hover:bg-primary-50 transition-colors">
+                                        <Mail className="w-4 h-4 text-slate-500 group-hover:text-primary-600" />
                                     </div>
-                                    <span className="text-sm text-slate-700 group-hover:text-indigo-700">{meeting.contact.email}</span>
+                                    <span className="text-sm text-slate-700 group-hover:text-primary-700">{meeting.contact.email}</span>
                                 </a>
                             )}
                             {meeting.contact.phone && (
                                 <a href={`tel:${meeting.contact.phone}`} className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors group">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center group-hover:bg-indigo-50 transition-colors">
-                                        <Phone className="w-4 h-4 text-slate-500 group-hover:text-indigo-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center group-hover:bg-primary-50 transition-colors">
+                                        <Phone className="w-4 h-4 text-slate-500 group-hover:text-primary-600" />
                                     </div>
-                                    <span className="text-sm text-slate-700 group-hover:text-indigo-700">{meeting.contact.phone}</span>
+                                    <span className="text-sm text-slate-700 group-hover:text-primary-700">{meeting.contact.phone}</span>
                                 </a>
                             )}
                             {(meeting.contact.linkedin ? (
@@ -103,7 +103,7 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                             <div>
                                 <p className="font-semibold text-slate-900 text-lg">{meeting.contact.company.name}</p>
                                 {meeting.contact.company.website && (
-                                    <a href={meeting.contact.company.website} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 hover:underline flex items-center gap-1">
+                                    <a href={meeting.contact.company.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary-600 hover:underline flex items-center gap-1">
                                         {meeting.contact.company.website.replace(/^https?:\/\//, "")} <ArrowRight className="w-3 h-3" />
                                     </a>
                                 )}
@@ -178,7 +178,7 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                                     value={editMeetingAddress}
                                     onChange={(e) => setEditMeetingAddress(e.target.value)}
                                     placeholder="Adresse du rendez-vous"
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
                                 />
                             </div>
                         )}
@@ -189,7 +189,7 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                                     value={editMeetingJoinUrl}
                                     onChange={(e) => setEditMeetingJoinUrl(e.target.value)}
                                     placeholder="https://..."
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
                                 />
                             </div>
                         )}
@@ -200,7 +200,7 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                                     value={editMeetingPhone}
                                     onChange={(e) => setEditMeetingPhone(e.target.value)}
                                     placeholder={meeting.contact.phone ?? "+33 ..."}
-                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
                                 />
                             </div>
                         )}
@@ -215,7 +215,7 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                             value={editNote}
                             onChange={(e) => setEditNote(e.target.value)}
                             placeholder="Ajouter ou modifier une note..."
-                            className="w-full min-h-[100px] bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 resize-y"
+                            className="w-full min-h-[100px] bg-white border border-slate-200 rounded-lg px-4 py-3 text-slate-700 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 resize-y"
                             rows={3}
                         />
                     </div>
@@ -261,13 +261,13 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                         <div className="pt-3 border-t border-slate-200 space-y-2">
                             <p className="text-xs text-slate-500 uppercase font-medium">Lieu</p>
                             <div className="flex items-center gap-2 text-sm text-slate-700">
-                                {editMeetingType === "VISIO" && <><Video className="w-4 h-4 text-indigo-500 shrink-0" /><span>Visio Conférence</span></>}
-                                {editMeetingType === "PHYSIQUE" && <><User className="w-4 h-4 text-indigo-500 shrink-0" /><span>Physique {editMeetingAddress ? `(${editMeetingAddress})` : ""}</span></>}
-                                {editMeetingType === "TELEPHONIQUE" && <><Phone className="w-4 h-4 text-indigo-500 shrink-0" /><span>Appel téléphonique</span></>}
-                                {!editMeetingType && <><Video className="w-4 h-4 text-indigo-500 shrink-0" /><span>Visio Conférence</span></>}
+                                {editMeetingType === "VISIO" && <><Video className="w-4 h-4 text-primary-500 shrink-0" /><span>Visio Conférence</span></>}
+                                {editMeetingType === "PHYSIQUE" && <><User className="w-4 h-4 text-primary-500 shrink-0" /><span>Physique {editMeetingAddress ? `(${editMeetingAddress})` : ""}</span></>}
+                                {editMeetingType === "TELEPHONIQUE" && <><Phone className="w-4 h-4 text-primary-500 shrink-0" /><span>Appel téléphonique</span></>}
+                                {!editMeetingType && <><Video className="w-4 h-4 text-primary-500 shrink-0" /><span>Visio Conférence</span></>}
                             </div>
                             {editMeetingType === "VISIO" && editMeetingJoinUrl && (
-                                <a href={editMeetingJoinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition-colors">
+                                <a href={editMeetingJoinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-2 px-3 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700 transition-colors">
                                     <Video className="w-4 h-4" /> Rejoindre
                                 </a>
                             )}
@@ -290,7 +290,7 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Mission</h3>
                         <div className="space-y-2">
                             <div className="p-3 bg-white rounded-xl border border-slate-200 flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                                <span className="w-2 h-2 rounded-full bg-primary-500 shrink-0" />
                                 <span className="text-sm font-medium text-slate-700">{meeting.mission.name}</span>
                             </div>
                             {meeting.mission.client && (
@@ -310,7 +310,7 @@ export function DetailTab({ meeting, drawer, isCancelling, onOpenReschedule, onO
                             variant="outline"
                             size="sm"
                             onClick={() => onOpenReschedule(meeting)}
-                            className="w-full justify-center gap-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50 rounded-lg"
+                            className="w-full justify-center gap-2 border-primary-200 text-primary-700 hover:bg-primary-50 rounded-lg"
                         >
                             <CalendarClock className="w-4 h-4" />
                             Reprogrammer le RDV

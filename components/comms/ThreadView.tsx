@@ -14,7 +14,6 @@ import {
     Paperclip,
     ChevronDown,
     Clock,
-    Sparkles,
     Loader2,
     Phone,
     Calendar,
@@ -157,7 +156,7 @@ export function ThreadView({
         <div className="flex flex-col h-full bg-white dark:bg-[#151c2a]">
             <header className="h-12 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 bg-white/80 dark:bg-[#151c2a]/90 backdrop-blur-sm z-10 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className="size-8 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 dark:from-indigo-900/50 dark:to-indigo-800/50 flex items-center justify-center text-xs font-semibold text-indigo-600 dark:text-indigo-400 shrink-0">
+                    <div className="size-8 rounded-full bg-primary-100 dark:bg-indigo-900/50 flex items-center justify-center text-xs font-semibold text-primary-600 dark:text-indigo-400 shrink-0">
                         {threadTitle.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
@@ -180,15 +179,15 @@ export function ThreadView({
                             className={cn(
                                 "p-2 rounded-lg transition-colors",
                                 focusMode
-                                    ? "text-indigo-600 bg-indigo-500/10"
-                                    : "text-slate-500 hover:text-indigo-600 hover:bg-indigo-500/5"
+                                    ? "text-primary-600 bg-primary-500/10"
+                                    : "text-slate-500 hover:text-primary-600 hover:bg-primary-500/5"
                             )}
                             title={focusMode ? "Quitter le mode focus" : "Mode focus (plein écran chat)"}
                         >
                             {focusMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                         </button>
                     )}
-                    <button className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-500/5 rounded-lg transition-colors">
+                    <button className="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-500/5 rounded-lg transition-colors">
                         <Phone className="w-4 h-4" />
                     </button>
                     <div className="relative">
@@ -249,11 +248,11 @@ export function ThreadView({
             {typingUserName && (
                 <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex gap-0.5">
-                        <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                        <span className="w-1.5 h-1.5 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-1.5 h-1.5 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-1.5 h-1.5 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
-                    <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">{typingUserName} écrit…</p>
+                    <p className="text-xs text-primary-600 dark:text-indigo-400 font-medium">{typingUserName} écrit…</p>
                 </div>
             )}
 
@@ -309,7 +308,7 @@ export function ThreadView({
                             </div>
                         )}
                         <MessageAttachments files={files} onChange={setFiles} disabled={isSending} />
-                        <div className="relative bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+                        <div className="relative bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 transition-all">
                             <RichTextEditor
                                 value={messageContent}
                                 onChange={(v, ids) => {
@@ -337,7 +336,7 @@ export function ThreadView({
                                         className={cn(
                                             "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm",
                                             (messageContent.trim() || files.length > 0)
-                                                ? "bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-500/30"
+                                                ? "bg-primary-500 hover:bg-primary-600 text-white"
                                                 : "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                                         )}
                                     >
@@ -350,7 +349,7 @@ export function ThreadView({
                 </div>
             )}
             {thread.status !== "OPEN" && (
-                <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 border-t border-slate-200">
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-200">
                     <div className="flex items-center justify-center gap-3">
                         {thread.status === "RESOLVED" ? <CheckCircle className="w-5 h-5 text-emerald-500" /> : <Archive className="w-5 h-5 text-slate-400" />}
                         <span className="text-sm font-medium text-slate-600">
@@ -393,7 +392,7 @@ function MessageBubble({
     return (
         <div className={cn("flex gap-2.5 group", sameAuthor && "mt-0.5", isOwn ? "flex-row-reverse" : "flex-row")}>
             {showAvatar ? (
-                <div className={cn("size-7 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-0.5", isOwn ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white" : "bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-600 text-slate-600 dark:text-slate-300")}>
+                <div className={cn("size-7 rounded-full flex items-center justify-center text-[10px] font-semibold flex-shrink-0 mt-0.5", isOwn ? "bg-primary-600 text-white" : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300")}>
                     {message.author.initials}
                 </div>
             ) : <div className="size-7 flex-shrink-0 w-[26px]" />}
@@ -405,14 +404,14 @@ function MessageBubble({
                         <span className="text-[11px] text-slate-400 flex items-center gap-0.5">
                             {format(new Date(message.createdAt), "HH:mm", { locale: fr })}
                             {(message as { isOptimistic?: boolean }).isOptimistic && (
-                                <span className="flex items-center gap-0.5 text-indigo-500"><Loader2 className="w-2.5 h-2.5 animate-spin" /> Envoi…</span>
+                                <span className="flex items-center gap-0.5 text-primary-500"><Loader2 className="w-2.5 h-2.5 animate-spin" /> Envoi…</span>
                             )}
                         </span>
                     </div>
                 )}
-                <div className={cn("px-3 py-2 text-sm leading-snug shadow-sm", (message as { isOptimistic?: boolean }).isOptimistic && "opacity-90", isOwn ? "bg-indigo-500 text-white rounded-xl rounded-tr-sm" : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl rounded-tl-sm")}>
+                <div className={cn("px-3 py-2 text-sm leading-snug shadow-sm", (message as { isOptimistic?: boolean }).isOptimistic && "opacity-90", isOwn ? "bg-primary-500 text-white rounded-xl rounded-tr-sm" : "bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-xl rounded-tl-sm")}>
                     <MessageContent content={message.content} isOwn={isOwn} className={isOwn ? "text-white" : ""} />
-                    {message.isEdited && <span className={cn("text-[10px] ml-2", isOwn ? "text-indigo-200" : "text-slate-400")}>(modifié)</span>}
+                    {message.isEdited && <span className={cn("text-[10px] ml-2", isOwn ? "text-primary-200" : "text-slate-400")}>(modifié)</span>}
                 </div>
                 {hasReadReceipt && (
                     <span className="text-xs font-medium text-slate-400 flex items-center gap-1">Lu <CheckCheck className="w-3.5 h-3.5" /></span>
@@ -429,7 +428,7 @@ function MessageBubble({
                 {message.attachments.length > 0 && (
                     <div className="mt-1.5 space-y-1">
                         {message.attachments.map((att) => (
-                            <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg transition-colors", isOwn ? "bg-indigo-400/30 text-indigo-100 hover:bg-indigo-400/50" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>
+                            <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className={cn("flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg transition-colors", isOwn ? "bg-primary-400/30 text-primary-100 hover:bg-primary-400/50" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>
                                 <Paperclip className="w-3.5 h-3.5" /> {att.filename}
                             </a>
                         ))}

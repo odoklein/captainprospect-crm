@@ -17,12 +17,11 @@ import {
     ArrowRightLeft,
     Eye,
     EyeOff,
-    Sparkles,
+    Target,
     Clock,
     MessageSquare,
     Search,
     Info,
-    Zap,
     ToggleLeft,
     ToggleRight,
 } from "lucide-react";
@@ -443,7 +442,7 @@ export default function ManagerSettingsStatusesPage() {
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
                 <p className="text-sm text-slate-500">Chargement des statuts…</p>
             </div>
         );
@@ -461,7 +460,7 @@ export default function ManagerSettingsStatusesPage() {
                 </Link>
                 <div className="flex-1">
                     <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                        <Settings2 className="w-6 h-6 text-indigo-500" />
+                        <Settings2 className="w-6 h-6 text-primary-500" />
                         Gestion des statuts
                     </h1>
                     <p className="text-sm text-slate-500 mt-0.5">
@@ -540,7 +539,7 @@ export default function ManagerSettingsStatusesPage() {
                                 placeholder="Rechercher un statut…"
                                 value={statusSearch}
                                 onChange={(e) => setStatusSearch(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-primary-400"
                             />
                         </div>
                         <button
@@ -561,7 +560,7 @@ export default function ManagerSettingsStatusesPage() {
                         <button
                             type="button"
                             onClick={() => setShowAddStatus(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-xl hover:bg-primary-700 transition-colors"
                         >
                             <Plus className="w-4 h-4" /> Nouveau statut
                         </button>
@@ -578,8 +577,8 @@ export default function ManagerSettingsStatusesPage() {
 
                     {/* Add status form */}
                     {showAddStatus && (
-                        <div className="bg-indigo-50/50 border-2 border-indigo-200 rounded-2xl p-5 space-y-4">
-                            <h3 className="text-sm font-semibold text-indigo-900 flex items-center gap-2">
+                        <div className="bg-primary-50/50 border-2 border-primary-200 rounded-2xl p-5 space-y-4">
+                            <h3 className="text-sm font-semibold text-primary-900 flex items-center gap-2">
                                 <Plus className="w-4 h-4" /> Créer un nouveau statut
                             </h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -590,7 +589,7 @@ export default function ManagerSettingsStatusesPage() {
                                         value={newStatus.code}
                                         onChange={(e) => setNewStatus((p) => ({ ...p, code: e.target.value.toUpperCase().replace(/\s/g, "_") }))}
                                         placeholder="MON_STATUT"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none font-mono"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-400 focus:outline-none font-mono"
                                     />
                                 </div>
                                 <div>
@@ -600,7 +599,7 @@ export default function ManagerSettingsStatusesPage() {
                                         value={newStatus.label}
                                         onChange={(e) => setNewStatus((p) => ({ ...p, label: e.target.value }))}
                                         placeholder="Mon statut"
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-400 focus:outline-none"
                                     />
                                 </div>
                                 <div>
@@ -616,7 +615,7 @@ export default function ManagerSettingsStatusesPage() {
                                             type="text"
                                             value={newStatus.color}
                                             onChange={(e) => setNewStatus((p) => ({ ...p, color: e.target.value }))}
-                                            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg font-mono focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                                            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg font-mono focus:ring-2 focus:ring-primary-400 focus:outline-none"
                                         />
                                     </div>
                                 </div>
@@ -625,7 +624,7 @@ export default function ManagerSettingsStatusesPage() {
                                     <select
                                         value={newStatus.priorityLabel}
                                         onChange={(e) => setNewStatus((p) => ({ ...p, priorityLabel: e.target.value as PriorityLabel }))}
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none bg-white"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-400 focus:outline-none bg-white"
                                     >
                                         {PRIORITY_OPTIONS.map((o) => (
                                             <option key={o.value} value={o.value}>{o.label}</option>
@@ -637,7 +636,7 @@ export default function ManagerSettingsStatusesPage() {
                                     <select
                                         value={newStatus.resultCategoryCode ?? ""}
                                         onChange={(e) => setNewStatus((p) => ({ ...p, resultCategoryCode: e.target.value || null }))}
-                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none bg-white"
+                                        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-400 focus:outline-none bg-white"
                                     >
                                         <option value="">— Aucune —</option>
                                         {categories.map((c) => (
@@ -650,20 +649,20 @@ export default function ManagerSettingsStatusesPage() {
                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                                     <input type="checkbox" checked={newStatus.requiresNote}
                                         onChange={(e) => setNewStatus((p) => ({ ...p, requiresNote: e.target.checked }))}
-                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                                     <MessageSquare className="w-3.5 h-3.5 text-slate-500" /> Note obligatoire
                                 </label>
                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                                     <input type="checkbox" checked={newStatus.triggersCallback}
                                         onChange={(e) => setNewStatus((p) => ({ ...p, triggersCallback: e.target.checked }))}
-                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                                     <Clock className="w-3.5 h-3.5 text-slate-500" /> Déclenche rappel
                                 </label>
                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                                     <input type="checkbox" checked={newStatus.triggersOpportunity}
                                         onChange={(e) => setNewStatus((p) => ({ ...p, triggersOpportunity: e.target.checked }))}
-                                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                                    <Sparkles className="w-3.5 h-3.5 text-slate-500" /> Crée opportunité
+                                        className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
+                                    <Target className="w-3.5 h-3.5 text-slate-500" /> Crée opportunité
                                 </label>
                             </div>
                             <div className="flex gap-2 pt-2">
@@ -671,7 +670,7 @@ export default function ManagerSettingsStatusesPage() {
                                     type="button"
                                     onClick={handleCreateStatus}
                                     disabled={saving || !newStatus.code.trim() || !newStatus.label.trim()}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                 >
                                     {saving ? "Création…" : "Créer le statut"}
                                 </button>
@@ -746,7 +745,7 @@ export default function ManagerSettingsStatusesPage() {
                                                             type="text"
                                                             value={s.label ?? ""}
                                                             onChange={(e) => updateStatusField(s.code, "label", e.target.value)}
-                                                            className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                                                            className="w-full px-2 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-primary-400 focus:outline-none"
                                                         />
                                                     ) : (
                                                         <span className="text-sm text-slate-800">{s.label ?? s.code}</span>
@@ -757,7 +756,7 @@ export default function ManagerSettingsStatusesPage() {
                                                         <select
                                                             value={s.priorityLabel}
                                                             onChange={(e) => updateStatusField(s.code, "priorityLabel", e.target.value)}
-                                                            className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-400 focus:outline-none"
+                                                            className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-primary-400 focus:outline-none"
                                                         >
                                                             {PRIORITY_OPTIONS.map((o) => (
                                                                 <option key={o.value} value={o.value}>{o.label}</option>
@@ -775,7 +774,7 @@ export default function ManagerSettingsStatusesPage() {
                                                             type="checkbox"
                                                             checked={s.requiresNote}
                                                             onChange={(e) => updateStatusField(s.code, "requiresNote", e.target.checked)}
-                                                            className="rounded border-slate-300 text-indigo-600"
+                                                            className="rounded border-slate-300 text-primary-600"
                                                         />
                                                     ) : (
                                                         s.requiresNote && <MessageSquare className="w-4 h-4 text-blue-500 mx-auto" />
@@ -787,7 +786,7 @@ export default function ManagerSettingsStatusesPage() {
                                                             type="checkbox"
                                                             checked={s.triggersCallback}
                                                             onChange={(e) => updateStatusField(s.code, "triggersCallback", e.target.checked)}
-                                                            className="rounded border-slate-300 text-indigo-600"
+                                                            className="rounded border-slate-300 text-primary-600"
                                                         />
                                                     ) : (
                                                         s.triggersCallback && <Clock className="w-4 h-4 text-amber-500 mx-auto" />
@@ -799,10 +798,10 @@ export default function ManagerSettingsStatusesPage() {
                                                             type="checkbox"
                                                             checked={s.triggersOpportunity}
                                                             onChange={(e) => updateStatusField(s.code, "triggersOpportunity", e.target.checked)}
-                                                            className="rounded border-slate-300 text-indigo-600"
+                                                            className="rounded border-slate-300 text-primary-600"
                                                         />
                                                     ) : (
-                                                        s.triggersOpportunity && <Sparkles className="w-4 h-4 text-emerald-500 mx-auto" />
+                                                        s.triggersOpportunity && <Target className="w-4 h-4 text-emerald-500 mx-auto" />
                                                     )}
                                                 </td>
                                                 <td className="py-2.5 px-4">
@@ -810,7 +809,7 @@ export default function ManagerSettingsStatusesPage() {
                                                         <select
                                                             value={s.resultCategoryCode ?? ""}
                                                             onChange={(e) => updateStatusField(s.code, "resultCategoryCode", e.target.value || null)}
-                                                            className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-indigo-400 focus:outline-none min-w-[120px]"
+                                                            className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-primary-400 focus:outline-none min-w-[120px]"
                                                         >
                                                             <option value="">—</option>
                                                             {categories.map((c) => (
@@ -845,8 +844,8 @@ export default function ManagerSettingsStatusesPage() {
                                                         onClick={() => setEditingStatus(isEditing ? null : s.code)}
                                                         className={`p-1.5 rounded-lg transition-colors ${
                                                             isEditing
-                                                                ? "bg-indigo-100 text-indigo-600"
-                                                                : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                                                ? "bg-primary-100 text-primary-600"
+                                                                : "text-slate-400 hover:text-primary-600 hover:bg-primary-50"
                                                         }`}
                                                         title={isEditing ? "Terminer" : "Modifier"}
                                                     >
@@ -878,8 +877,8 @@ export default function ManagerSettingsStatusesPage() {
                 <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                     <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
                         <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                <Tag className="w-4 h-4 text-indigo-600" />
+                            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                                <Tag className="w-4 h-4 text-primary-600" />
                             </div>
                             <div>
                                 <span className="font-semibold text-slate-800">Catégories de résultat</span>
@@ -889,7 +888,7 @@ export default function ManagerSettingsStatusesPage() {
                         <button
                             type="button"
                             onClick={() => setShowAddCategory(true)}
-                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
                         >
                             <Plus className="w-4 h-4" /> Nouvelle catégorie
                         </button>
@@ -904,7 +903,7 @@ export default function ManagerSettingsStatusesPage() {
                                         value={newCategoryCode}
                                         onChange={(e) => setNewCategoryCode(e.target.value.toUpperCase().replace(/\s/g, "_"))}
                                         placeholder="EXEMPLE"
-                                        className="w-48 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
+                                        className="w-48 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400 font-mono"
                                     />
                                 </div>
                                 <div>
@@ -914,7 +913,7 @@ export default function ManagerSettingsStatusesPage() {
                                         value={newCategoryLabel}
                                         onChange={(e) => setNewCategoryLabel(e.target.value)}
                                         placeholder="Exemple catégorie"
-                                        className="w-48 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        className="w-48 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400"
                                     />
                                 </div>
                                 <div>
@@ -933,7 +932,7 @@ export default function ManagerSettingsStatusesPage() {
                                         min={0}
                                         value={newCategorySortOrder}
                                         onChange={(e) => setNewCategorySortOrder(parseInt(e.target.value, 10) || 0)}
-                                        className="w-20 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        className="w-20 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400"
                                     />
                                 </div>
                                 <div className="flex gap-2">
@@ -941,7 +940,7 @@ export default function ManagerSettingsStatusesPage() {
                                         type="button"
                                         onClick={handleCreateCategory}
                                         disabled={categorySaving || !newCategoryCode.trim() || !newCategoryLabel.trim()}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                        className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
                                         {categorySaving ? "Création…" : "Créer"}
                                     </button>
@@ -1006,7 +1005,7 @@ export default function ManagerSettingsStatusesPage() {
                                                 type="button"
                                                 onClick={() => editingCategory && handleUpdateCategory(cat, editingCategory)}
                                                 disabled={categorySaving}
-                                                className="px-3 py-1.5 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                                className="px-3 py-1.5 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg"
                                             >
                                                 OK
                                             </button>
@@ -1028,7 +1027,7 @@ export default function ManagerSettingsStatusesPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => setEditingCategory({ ...cat })}
-                                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                                className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
                                                 title="Modifier"
                                             >
                                                 <Pencil className="w-4 h-4" />
@@ -1075,7 +1074,7 @@ export default function ManagerSettingsStatusesPage() {
 
                     {!remapData ? (
                         <div className="flex flex-col items-center justify-center py-16 gap-4">
-                            <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                            <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
                             <p className="text-sm text-slate-500">Chargement des données…</p>
                         </div>
                     ) : (
@@ -1100,8 +1099,8 @@ export default function ManagerSettingsStatusesPage() {
                             <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                                 <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
                                     <div className="flex items-center gap-2.5">
-                                        <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                                            <ArrowRightLeft className="w-4 h-4 text-violet-600" />
+                                        <div className="w-8 h-8 rounded-lg bg-accent-100 flex items-center justify-center">
+                                            <ArrowRightLeft className="w-4 h-4 text-accent-600" />
                                         </div>
                                         <span className="font-semibold text-slate-800">Actions par statut</span>
                                     </div>
@@ -1110,16 +1109,16 @@ export default function ManagerSettingsStatusesPage() {
                                             type="button"
                                             onClick={handleApplyMappings}
                                             disabled={remapping}
-                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-violet-600 rounded-lg hover:bg-violet-700 disabled:opacity-50"
+                                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-accent-600 rounded-lg hover:bg-accent-700 disabled:opacity-50"
                                         >
-                                            {remapping ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                            {remapping ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
                                             Appliquer {selectedMappings.length} mapping(s)
                                         </button>
                                     )}
                                 </div>
                                 {selectedMappings.length > 0 && (
-                                    <div className="px-6 py-3 border-b border-violet-100 bg-violet-50/60">
-                                        <p className="text-xs text-violet-700">
+                                    <div className="px-6 py-3 border-b border-accent-100 bg-accent-50/60">
+                                        <p className="text-xs text-accent-700">
                                             {selectedMappings.length} mapping(s) sélectionné(s), impact estimé:{" "}
                                             <strong>{selectedImpactCount.toLocaleString()} action(s)</strong>.
                                         </p>
@@ -1177,9 +1176,9 @@ export default function ManagerSettingsStatusesPage() {
                                                                         [rc.code]: e.target.value,
                                                                     }))
                                                                 }
-                                                                className={`text-sm border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400 min-w-[200px] ${
+                                                                className={`text-sm border rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-accent-400 min-w-[200px] ${
                                                                     mappings[rc.code] && mappings[rc.code] !== rc.code
-                                                                        ? "border-violet-300 bg-violet-50"
+                                                                        ? "border-accent-300 bg-accent-50"
                                                                         : "border-slate-200"
                                                                 }`}
                                                             >

@@ -41,17 +41,17 @@ interface ProjectDetail {
     updatedAt: string;
 }
 
-const STATUS_STYLES: Record<string, { bg: string; text: string; label: string; gradient: string }> = {
-    ACTIVE: { bg: "bg-emerald-50", text: "text-emerald-700", label: "Actif", gradient: "from-emerald-500 to-emerald-600" },
-    COMPLETED: { bg: "bg-blue-50", text: "text-blue-700", label: "Terminé", gradient: "from-blue-500 to-blue-600" },
-    ARCHIVED: { bg: "bg-slate-100", text: "text-slate-600", label: "Archivé", gradient: "from-slate-400 to-slate-500" },
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string; solid: string }> = {
+    ACTIVE: { bg: "bg-emerald-50", text: "text-emerald-700", label: "Actif", solid: "bg-emerald-600" },
+    COMPLETED: { bg: "bg-blue-50", text: "text-blue-700", label: "Terminé", solid: "bg-blue-600" },
+    ARCHIVED: { bg: "bg-slate-100", text: "text-slate-600", label: "Archivé", solid: "bg-slate-500" },
 };
 
 const PRIORITY_STYLES: Record<string, { bg: string; text: string; icon: string }> = {
     LOW: { bg: "bg-slate-100", text: "text-slate-600", icon: "↓" },
     MEDIUM: { bg: "bg-blue-100", text: "text-blue-700", icon: "→" },
     HIGH: { bg: "bg-amber-100", text: "text-amber-700", icon: "↑" },
-    URGENT: { bg: "bg-red-100", text: "text-red-700", icon: "⚡" },
+    URGENT: { bg: "bg-red-100", text: "text-red-700", icon: "↑↑" },
 };
 
 const TASK_STATUS_COLORS: Record<string, string> = {
@@ -126,13 +126,13 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
             </Link>
 
             {/* Premium Hero Header */}
-            <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 text-white">
+            <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-8 text-white">
                 <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjwvc3ZnPg==')] opacity-50" />
 
                 <div className="relative z-10 flex items-start justify-between">
                     <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                            <span className={`px-3 py-1 text-xs font-medium rounded-full bg-gradient-to-r ${statusStyle.gradient} text-white`}>
+                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${statusStyle.solid} text-white`}>
                                 {statusStyle.label}
                             </span>
                         </div>
@@ -176,19 +176,13 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                                     cy="50"
                                     r="45"
                                     fill="none"
-                                    stroke="url(#progressGradient)"
+                                    stroke="#3b82f6"
                                     strokeWidth="8"
                                     strokeLinecap="round"
                                     strokeDasharray="283"
                                     strokeDashoffset={283 - (283 * progress) / 100}
                                     className="dev-progress-ring"
                                 />
-                                <defs>
-                                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stopColor="#3b82f6" />
-                                        <stop offset="100%" stopColor="#60a5fa" />
-                                    </linearGradient>
-                                </defs>
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-3xl font-bold">{progress}%</span>
@@ -259,7 +253,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                                             </div>
                                             {task.assignee && (
                                                 <div className="flex items-center gap-2 ml-4">
-                                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xs font-medium text-blue-700">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-medium text-blue-700">
                                                         {task.assignee.name.charAt(0)}
                                                     </div>
                                                 </div>
@@ -276,8 +270,8 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                 <div className="space-y-6">
                     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
-                                <Users className="w-5 h-5 text-violet-600" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
+                                <Users className="w-5 h-5 text-accent-600" />
                             </div>
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Équipe</h2>
@@ -289,7 +283,7 @@ export default function ProjectDetailsPage({ params }: { params: Promise<{ id: s
                             {project.members.map(member => (
                                 <div key={member.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
                                     <div className="relative">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-sm font-medium text-slate-600">
+                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-600">
                                             {member.user.name.charAt(0)}
                                         </div>
                                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />

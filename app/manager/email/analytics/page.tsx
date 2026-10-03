@@ -166,8 +166,8 @@ export default function EmailAnalyticsPage() {
                 <Card>
                     <CardContent className="pt-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                                <Send className="w-5 h-5 text-indigo-600" />
+                            <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center">
+                                <Send className="w-5 h-5 text-primary-600" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-slate-900">
@@ -214,8 +214,8 @@ export default function EmailAnalyticsPage() {
                 <Card>
                     <CardContent className="pt-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                                <Reply className="w-5 h-5 text-purple-600" />
+                            <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
+                                <Reply className="w-5 h-5 text-accent-600" />
                             </div>
                             <div>
                                 <p className="text-2xl font-bold text-slate-900">
@@ -262,7 +262,7 @@ export default function EmailAnalyticsPage() {
 
             {/* Rate Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50">
+                <Card className="bg-slate-50">
                     <CardContent className="pt-4">
                         <p className="text-sm font-medium text-slate-600 mb-1">Taux d'ouverture</p>
                         <p className={cn("text-3xl font-bold", getRateColor(analytics.rates.openRate, 'open'))}>
@@ -274,7 +274,7 @@ export default function EmailAnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50">
+                <Card className="bg-slate-50">
                     <CardContent className="pt-4">
                         <p className="text-sm font-medium text-slate-600 mb-1">Taux de clic</p>
                         <p className={cn("text-3xl font-bold", getRateColor(analytics.rates.clickRate, 'click'))}>
@@ -286,7 +286,7 @@ export default function EmailAnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50">
+                <Card className="bg-slate-50">
                     <CardContent className="pt-4">
                         <p className="text-sm font-medium text-slate-600 mb-1">Taux de réponse</p>
                         <p className={cn("text-3xl font-bold", getRateColor(analytics.rates.replyRate, 'reply'))}>
@@ -298,7 +298,7 @@ export default function EmailAnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50">
+                <Card className="bg-slate-50">
                     <CardContent className="pt-4">
                         <p className="text-sm font-medium text-slate-600 mb-1">Taux de bounce</p>
                         <p className={cn("text-3xl font-bold", getRateColor(analytics.rates.bounceRate, 'bounce'))}>
@@ -330,7 +330,7 @@ export default function EmailAnalyticsPage() {
                                 return (
                                     <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                                         <div 
-                                            className="w-full bg-indigo-500 rounded-t transition-all hover:bg-indigo-400"
+                                            className="w-full bg-primary-500 rounded-t transition-all hover:bg-primary-400"
                                             style={{ height: `${Math.max(height, 4)}%` }}
                                             title={`${day.date}: ${day.sent} envoyés`}
                                         />
@@ -356,7 +356,7 @@ export default function EmailAnalyticsPage() {
                             </span>
                             <a 
                                 href="/manager/email/sequences"
-                                className="text-sm font-normal text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                                className="text-sm font-normal text-primary-600 hover:text-primary-700 flex items-center gap-1"
                             >
                                 Voir toutes
                                 <ArrowUpRight className="w-4 h-4" />
@@ -380,7 +380,7 @@ export default function EmailAnalyticsPage() {
                                             key={sequence.id}
                                             className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg"
                                         >
-                                            <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-semibold flex items-center justify-center">
+                                            <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 text-xs font-semibold flex items-center justify-center">
                                                 {i + 1}
                                             </span>
                                             <div className="flex-1 min-w-0">

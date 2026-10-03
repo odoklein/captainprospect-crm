@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/NotificationBell";
+import { brand } from "@/lib/brand";
 
 const NAV_ITEMS = [
     { href: "/developer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -73,14 +74,14 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
     return (
         <div className="min-h-screen bg-slate-100 flex">
             {/* Premium Sidebar */}
-            <aside className="w-64 bg-[#051423] flex flex-col shadow-xl">
+            <aside className="w-64 bg-inverse flex flex-col shadow-xl">
                 {/* Premium Brand Header */}
                 <div className="h-16 flex items-center gap-3 px-5 border-b border-white/5">
-                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                    <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
                         <Code2 className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className="font-semibold text-white tracking-tight">Suzalink</span>
+                        <span className="font-semibold text-white tracking-tight">{brand.name}</span>
                         <span className="text-xs font-medium text-blue-400 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
                             Dev
                         </span>
@@ -119,7 +120,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
                 <div className="p-4 border-t border-white/5">
                     <div className="flex items-center gap-3 px-3 py-3 rounded-lg bg-white/5 mb-3">
                         <div className="relative">
-                            <div className="dev-avatar w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 text-white text-sm">
+                            <div className="dev-avatar w-10 h-10 bg-blue-600 text-white text-sm">
                                 {session?.user?.name?.charAt(0).toUpperCase()}
                             </div>
                             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-800" />

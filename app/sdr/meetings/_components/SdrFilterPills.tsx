@@ -40,7 +40,7 @@ export function SdrFilterPills({ statusFilter, onSelect, counts }: SdrFilterPill
                         {f.label}
                         <span className={cn(
                             "rounded-full px-1.5 py-0.5 text-[11px] font-bold",
-                            statusFilter === f.key ? "bg-indigo-50 text-indigo-700" : f.key === "absent" && count > 0 ? "bg-red-100 text-red-700" : "bg-slate-200 text-slate-600"
+                            statusFilter === f.key ? "bg-primary-50 text-primary-700" : f.key === "absent" && count > 0 ? "bg-red-100 text-red-700" : "bg-slate-200 text-slate-600"
                         )}>
                             {count}
                         </span>

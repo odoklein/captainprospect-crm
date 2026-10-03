@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
     AlertTriangle, Code2, Eye, Key, Link2, ListOrdered, Loader2, Mail, Megaphone, PhoneCall, RotateCcw, Send,
-    ShieldCheck, Sparkles, Variable,
+    ShieldCheck, PenLine, Variable,
 } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import { SegmentedControl, Shimmer, StatusPill } from "@/components/accueil/Accu
 import {
     DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SaveBar, SettingsCard, SettingsLinkRow,
 } from "@/components/settings/SettingsUI";
+import { brand } from "@/lib/brand";
 
 async function call<T = unknown>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, init);
@@ -349,7 +350,7 @@ function SenderCard({ onLoaded }: { onLoaded: (v: { from: string; source: "setti
                                     id={id}
                                     value={from}
                                     onChange={(e) => { setFrom(e.target.value); setError(null); }}
-                                    placeholder='Ex : "Captain Prospect" <notifications@captainprospect.fr>'
+                                    placeholder={`Ex : "${brand.email.senderName}" <${brand.email.notificationsAddress}>`}
                                     className={cn(INPUT, "pl-10")}
                                 />
                             )}
@@ -386,10 +387,10 @@ function VarChip({ variable, onInsert }: { variable: { name: string; description
             className={cn(
                 "inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border font-mono text-[11.5px] font-semibold transition-colors",
                 "outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45",
-                inserted ? "bg-indigo-50 border-indigo-300 text-indigo-700" : "bg-slate-50 border-slate-200 text-zinc-700 hover:border-indigo-200 hover:bg-indigo-50/60",
+                inserted ? "bg-primary-50 border-primary-300 text-primary-700" : "bg-slate-50 border-slate-200 text-zinc-700 hover:border-primary-200 hover:bg-primary-50/60",
             )}
         >
-            <span className={cn("w-1.5 h-1.5 rounded-full", inserted ? "bg-indigo-500" : "bg-zinc-300")} aria-hidden />
+            <span className={cn("w-1.5 h-1.5 rounded-full", inserted ? "bg-primary-500" : "bg-zinc-300")} aria-hidden />
             {variable.name}
         </button>
     );
@@ -477,7 +478,7 @@ function RdvTemplateCard({ senderFrom }: { senderFrom: string | null }) {
                 title="Email de confirmation de RDV"
                 subtitle="Envoyé automatiquement au client à chaque nouveau rendez-vous confirmé"
                 right={
-                    template?.isCustomized ? <StatusPill tone="indigo" icon={Sparkles}>Personnalisé</StatusPill>
+                    template?.isCustomized ? <StatusPill tone="indigo" icon={PenLine}>Personnalisé</StatusPill>
                         : template ? <StatusPill tone="slate">Par défaut</StatusPill>
                         : undefined
                 }

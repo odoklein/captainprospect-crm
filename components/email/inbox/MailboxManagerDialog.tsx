@@ -15,6 +15,7 @@ import {
     Server,
     X,
 } from "lucide-react";
+import { brand } from "@/lib/brand";
 
 // ============================================
 // TYPES
@@ -75,7 +76,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
             id: 'gmail',
             name: 'Gmail',
             description: 'Connexion sécurisée via Google OAuth',
-            color: 'from-red-500 to-orange-500',
+            color: 'bg-red-500',
             bgColor: 'bg-red-50 hover:bg-red-100',
             borderColor: 'border-red-200',
         },
@@ -83,7 +84,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
             id: 'outlook',
             name: 'Outlook / Microsoft 365',
             description: 'Connexion sécurisée via Microsoft OAuth',
-            color: 'from-blue-500 to-cyan-500',
+            color: 'bg-blue-500',
             bgColor: 'bg-blue-50 hover:bg-blue-100',
             borderColor: 'border-blue-200',
         },
@@ -91,7 +92,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
             id: 'imap',
             name: 'IMAP / SMTP',
             description: 'Configuration manuelle pour tout fournisseur',
-            color: 'from-slate-500 to-slate-600',
+            color: 'bg-slate-600',
             bgColor: 'bg-slate-50 hover:bg-slate-100',
             borderColor: 'border-slate-200',
         },
@@ -99,7 +100,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
             id: 'reachinbox',
             name: 'ReachInbox',
             description: 'Connexion via clÃ© API ReachInbox',
-            color: 'from-emerald-500 to-teal-500',
+            color: 'bg-emerald-600',
             bgColor: 'bg-emerald-50 hover:bg-emerald-100',
             borderColor: 'border-emerald-200',
         },
@@ -219,7 +220,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                             )}
                         >
                             <div className={cn(
-                                "w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-lg",
+                                "w-12 h-12 rounded-xl flex items-center justify-center",
                                 provider.color
                             )}>
                                 {provider.id === 'imap' || provider.id === 'reachinbox' ? (
@@ -261,7 +262,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={reachInboxForm.email}
                                 onChange={(e) => setReachInboxForm({ ...reachInboxForm, email: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="vous@example.com"
                             />
                         </div>
@@ -274,8 +275,8 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 type="text"
                                 value={reachInboxForm.displayName}
                                 onChange={(e) => setReachInboxForm({ ...reachInboxForm, displayName: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
-                                placeholder="Equipe Captain Prospect"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
+                                placeholder={`Équipe ${brand.name}`}
                             />
                         </div>
 
@@ -288,7 +289,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={reachInboxForm.apiKey}
                                 onChange={(e) => setReachInboxForm({ ...reachInboxForm, apiKey: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="ri_..."
                             />
                         </div>
@@ -306,7 +307,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-medium text-sm hover:from-emerald-400 hover:to-teal-500 transition-all disabled:opacity-50"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-500 transition-colors disabled:opacity-50"
                         >
                             {isLoading ? (
                                 <>
@@ -338,7 +339,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={imapForm.email}
                                 onChange={(e) => setImapForm({ ...imapForm, email: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="vous@example.com"
                             />
                         </div>
@@ -351,7 +352,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 type="text"
                                 value={imapForm.displayName}
                                 onChange={(e) => setImapForm({ ...imapForm, displayName: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="John Doe"
                             />
                         </div>
@@ -365,7 +366,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={imapForm.password}
                                 onChange={(e) => setImapForm({ ...imapForm, password: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="••••••••"
                             />
                         </div>
@@ -379,7 +380,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={imapForm.imapHost}
                                 onChange={(e) => setImapForm({ ...imapForm, imapHost: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="imap.example.com"
                             />
                         </div>
@@ -393,7 +394,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={imapForm.imapPort}
                                 onChange={(e) => setImapForm({ ...imapForm, imapPort: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="993"
                             />
                         </div>
@@ -407,7 +408,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={imapForm.smtpHost}
                                 onChange={(e) => setImapForm({ ...imapForm, smtpHost: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="smtp.example.com"
                             />
                         </div>
@@ -421,7 +422,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                                 required
                                 value={imapForm.smtpPort}
                                 onChange={(e) => setImapForm({ ...imapForm, smtpPort: e.target.value })}
-                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all text-sm"
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 outline-none transition-all text-sm"
                                 placeholder="587"
                             />
                         </div>
@@ -439,7 +440,7 @@ function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewP
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-medium text-sm hover:from-indigo-400 hover:to-indigo-500 transition-all disabled:opacity-50"
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 text-white font-medium text-sm hover:bg-primary-500 transition-colors disabled:opacity-50"
                         >
                             {isLoading ? (
                                 <>
@@ -608,7 +609,7 @@ export function MailboxManagerDialog({ isOpen, onClose, onMailboxAdded }: Mailbo
                                 </p>
                                 <button
                                     onClick={() => setView('add')}
-                                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors"
+                                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl hover:bg-primary-700 transition-colors"
                                 >
                                     <Plus className="w-4 h-4" />
                                     Ajouter une boîte
@@ -654,7 +655,7 @@ export function MailboxManagerDialog({ isOpen, onClose, onMailboxAdded }: Mailbo
                                     </p>
                                     <button
                                         onClick={() => setView('add')}
-                                        className="text-indigo-600 font-medium hover:underline"
+                                        className="text-primary-600 font-medium hover:underline"
                                     >
                                         Connecter une boîte
                                     </button>
@@ -664,7 +665,7 @@ export function MailboxManagerDialog({ isOpen, onClose, onMailboxAdded }: Mailbo
                                     {mailboxes.map((mailbox) => (
                                         <div
                                             key={mailbox.id}
-                                            className="group relative bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-indigo-200 hover:shadow-lg hover:shadow-indigo-500/10 transition-all"
+                                            className="group relative bg-white border border-slate-200 rounded-2xl overflow-hidden hover:border-primary-200 hover:shadow-md transition-all"
                                         >
                                             {/* Status Header */}
                                             <div className="h-1.5 w-full" style={{ backgroundColor: getProviderColor(mailbox.provider) }} />

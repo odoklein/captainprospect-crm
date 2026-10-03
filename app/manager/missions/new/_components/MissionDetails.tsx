@@ -3,6 +3,7 @@
 import { Card, Input, Select } from "@/components/ui";
 import { CreateMissionInput } from "@/app/actions/mission-wizard";
 import { PitchBlockEditor } from "@/components/strategy";
+import { Linkedin, Mail, Phone } from "lucide-react";
 
 interface Client {
     id: string;
@@ -61,7 +62,7 @@ export function MissionDetails({ data, onChange, clients, errors }: MissionDetai
                             onChange={(e) => handleChange("objective", e.target.value)}
                             placeholder="Ex: Générer 50 meetings qualifiés"
                             rows={3}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 resize-none"
                         />
                     </div>
 
@@ -73,9 +74,9 @@ export function MissionDetails({ data, onChange, clients, errors }: MissionDetai
                         <p className="text-xs text-slate-500 mb-2">Sélectionnez un ou plusieurs canaux (appels, email, LinkedIn peuvent être utilisés ensemble).</p>
                         <div className="flex flex-wrap gap-3">
                             {[
-                                { value: "CALL" as const, label: "📞 Appel téléphonique" },
-                                { value: "EMAIL" as const, label: "📧 Email" },
-                                { value: "LINKEDIN" as const, label: "💼 LinkedIn" },
+                                { value: "CALL" as const, label: "Appel téléphonique", icon: Phone },
+                                { value: "EMAIL" as const, label: "Email", icon: Mail },
+                                { value: "LINKEDIN" as const, label: "LinkedIn", icon: Linkedin },
                             ].map((opt) => {
                                 const channels = (data as CreateMissionInput & { channels?: string[] }).channels ?? [data.channel];
                                 const isSelected = channels.includes(opt.value);
@@ -83,7 +84,7 @@ export function MissionDetails({ data, onChange, clients, errors }: MissionDetai
                                     <label
                                         key={opt.value}
                                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                                            isSelected ? "border-indigo-500 bg-indigo-50" : "border-slate-200 bg-white hover:border-slate-300"
+                                            isSelected ? "border-primary-500 bg-primary-50" : "border-slate-200 bg-white hover:border-slate-300"
                                         }`}
                                     >
                                         <input
@@ -101,8 +102,9 @@ export function MissionDetails({ data, onChange, clients, errors }: MissionDetai
                                                     channel: next[0] as CreateMissionInput["channel"],
                                                 });
                                             }}
-                                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                                         />
+                                        <opt.icon className="w-4 h-4 shrink-0 text-slate-500" />
                                         <span className="text-sm font-medium text-slate-700">{opt.label}</span>
                                     </label>
                                 );
@@ -148,7 +150,7 @@ export function MissionDetails({ data, onChange, clients, errors }: MissionDetai
                             onChange={(e) => handleChange("icp", e.target.value)}
                             placeholder="Ex: CEOs de startups B2B SaaS entre 10 et 50 employés en France."
                             rows={3}
-                            className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15 transition-all resize-none ${errors.icp ? "border-red-500" : "border-slate-200"}`}
+                            className={`w-full px-4 py-2.5 bg-white border rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 transition-all resize-none ${errors.icp ? "border-red-500" : "border-slate-200"}`}
                         />
                         {errors.icp && (
                             <p className="text-xs text-red-500 mt-1 font-medium">{errors.icp}</p>

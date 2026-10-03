@@ -42,23 +42,23 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
-    MANAGER:           { bg: "bg-indigo-50",  text: "text-indigo-700",  dot: "bg-indigo-500" },
+    MANAGER:           { bg: "bg-primary-50",  text: "text-primary-700",  dot: "bg-primary-500" },
     SDR:               { bg: "bg-blue-50",    text: "text-blue-700",    dot: "bg-blue-500" },
     BUSINESS_DEVELOPER:{ bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500" },
-    DEVELOPER:         { bg: "bg-purple-50",  text: "text-purple-700",  dot: "bg-purple-500" },
+    DEVELOPER:         { bg: "bg-accent-50",  text: "text-accent-700",  dot: "bg-accent-500" },
     CLIENT:            { bg: "bg-sky-50",     text: "text-sky-700",     dot: "bg-sky-500" },
     BOOKER:            { bg: "bg-blue-50",    text: "text-blue-600",    dot: "bg-blue-400" },
     COMMERCIAL:        { bg: "bg-teal-50",    text: "text-teal-700",    dot: "bg-teal-500" },
 };
 
-const ROLE_AVATAR_GRADIENTS: Record<string, string> = {
-    MANAGER:           "from-indigo-500 to-indigo-700",
-    SDR:               "from-blue-500 to-blue-700",
-    BUSINESS_DEVELOPER:"from-emerald-500 to-emerald-700",
-    DEVELOPER:         "from-purple-500 to-purple-700",
-    CLIENT:            "from-sky-500 to-sky-700",
-    BOOKER:            "from-blue-400 to-blue-600",
-    COMMERCIAL:        "from-teal-500 to-teal-700",
+const ROLE_AVATAR_BG: Record<string, string> = {
+    MANAGER:           "bg-primary-600",
+    SDR:               "bg-blue-600",
+    BUSINESS_DEVELOPER:"bg-emerald-600",
+    DEVELOPER:         "bg-accent-600",
+    CLIENT:            "bg-sky-600",
+    BOOKER:            "bg-blue-500",
+    COMMERCIAL:        "bg-teal-600",
 };
 
 // ============================================
@@ -134,18 +134,18 @@ function RoleDistributionBar({ users }: { users: User[] }) {
 
 function UserCard({ user, onClick }: { user: User; onClick: () => void }) {
     const role = ROLE_COLORS[user.role] ?? { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-400" };
-    const grad = ROLE_AVATAR_GRADIENTS[user.role] ?? "from-slate-400 to-slate-600";
+    const avatarBg = ROLE_AVATAR_BG[user.role] ?? "bg-slate-500";
     const online = isOnline(user);
 
     return (
         <button
             onClick={onClick}
-            className="w-full text-left bg-white rounded-2xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-100/50 transition-all duration-200 group"
+            className="w-full text-left bg-white rounded-2xl border border-slate-200 p-5 hover:border-primary-300 hover:shadow-md transition-all duration-200 group"
         >
             <div className="flex items-start gap-3 mb-4">
                 {/* Avatar */}
                 <div className="relative shrink-0">
-                    <div className={cn("w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm shadow-sm", grad)}>
+                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-sm", avatarBg)}>
                         {getInitials(user.name)}
                     </div>
                     <span className={cn(
@@ -155,7 +155,7 @@ function UserCard({ user, onClick }: { user: User; onClick: () => void }) {
                 </div>
                 {/* Name + role */}
                 <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-900 truncate group-hover:text-indigo-700 transition-colors">
+                    <p className="font-semibold text-slate-900 truncate group-hover:text-primary-700 transition-colors">
                         {user.name}
                     </p>
                     <p className="text-xs text-slate-400 truncate">{user.email}</p>
@@ -170,7 +170,7 @@ function UserCard({ user, onClick }: { user: User; onClick: () => void }) {
                         )}
                     </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors shrink-0 mt-1" />
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-400 transition-colors shrink-0 mt-1" />
             </div>
 
             {/* Stats row */}
@@ -206,17 +206,17 @@ function UserCard({ user, onClick }: { user: User; onClick: () => void }) {
 
 function UserRow({ user, onClick }: { user: User; onClick: () => void }) {
     const role = ROLE_COLORS[user.role] ?? { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-400" };
-    const grad = ROLE_AVATAR_GRADIENTS[user.role] ?? "from-slate-400 to-slate-600";
+    const avatarBg = ROLE_AVATAR_BG[user.role] ?? "bg-slate-500";
     const online = isOnline(user);
 
     return (
         <button
             onClick={onClick}
-            className="w-full flex items-center gap-4 px-4 py-3 hover:bg-indigo-50/40 transition-colors group text-left border-b border-slate-100 last:border-0"
+            className="w-full flex items-center gap-4 px-4 py-3 hover:bg-primary-50/40 transition-colors group text-left border-b border-slate-100 last:border-0"
         >
             {/* Avatar */}
             <div className="relative shrink-0">
-                <div className={cn("w-9 h-9 rounded-lg bg-gradient-to-br flex items-center justify-center text-white font-semibold text-xs shadow-sm", grad)}>
+                <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center text-white font-semibold text-xs", avatarBg)}>
                     {getInitials(user.name)}
                 </div>
                 <span className={cn(
@@ -227,7 +227,7 @@ function UserRow({ user, onClick }: { user: User; onClick: () => void }) {
 
             {/* Name + email */}
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-700 transition-colors">
+                <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-primary-700 transition-colors">
                     {user.name}
                 </p>
                 <p className="text-xs text-slate-400 truncate">{user.email}</p>
@@ -257,7 +257,7 @@ function UserRow({ user, onClick }: { user: User; onClick: () => void }) {
                 {user._count.assignedMissions} miss.
             </span>
 
-            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors shrink-0" />
+            <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary-400 transition-colors shrink-0" />
         </button>
     );
 }
@@ -281,7 +281,7 @@ function UserFormFields({
     clients: { id: string; name: string }[];
     onChange: (patch: Partial<typeof data>) => void;
 }) {
-    const fieldClass = "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-900 placeholder:text-slate-400";
+    const fieldClass = "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-slate-900 placeholder:text-slate-400";
     const labelClass = "block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1.5";
 
     return (
@@ -342,7 +342,7 @@ function UserFormFields({
                             <input type="time" className={fieldClass} value={data.sdrFeedbackPromptTime} onChange={(e) => onChange({ sdrFeedbackPromptTime: e.target.value })} />
                         </div>
                         <label className="flex items-center gap-2 text-sm text-slate-700 pb-2.5 cursor-pointer">
-                            <input type="checkbox" checked={data.sdrFeedbackRequiredDaily} onChange={(e) => onChange({ sdrFeedbackRequiredDaily: e.target.checked })} className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                            <input type="checkbox" checked={data.sdrFeedbackRequiredDaily} onChange={(e) => onChange({ sdrFeedbackRequiredDaily: e.target.checked })} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
                             Obligatoire chaque jour
                         </label>
                     </div>
@@ -447,7 +447,7 @@ export default function UtilisateursPage() {
     const ROLES = ["MANAGER", "SDR", "BOOKER", "BUSINESS_DEVELOPER", "DEVELOPER", "CLIENT", "COMMERCIAL"];
 
     return (
-        <div className="min-h-full bg-gradient-to-br from-slate-50 to-slate-100/50 p-6 space-y-5">
+        <div className="min-h-full bg-slate-50 p-6 space-y-5">
 
             {/* ── Header ── */}
             <div className="flex items-start justify-between">
@@ -457,7 +457,7 @@ export default function UtilisateursPage() {
                 </div>
                 <button
                     onClick={() => setShowCreate(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm shadow-indigo-500/20 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold shadow-sm transition-colors"
                 >
                     <Plus className="w-4 h-4" />
                     Nouvel utilisateur
@@ -478,7 +478,7 @@ export default function UtilisateursPage() {
                     { label: "Actifs", value: stats.active, color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
                     { label: "SDR / Booker", value: stats.sdrCount, color: "text-blue-700", bg: "bg-blue-50 border-blue-200" },
                     { label: "Inactifs", value: stats.inactive, color: "text-rose-600", bg: "bg-rose-50 border-rose-200" },
-                    { label: "En ligne", value: stats.online, color: "text-indigo-700", bg: "bg-indigo-50 border-indigo-200" },
+                    { label: "En ligne", value: stats.online, color: "text-primary-700", bg: "bg-primary-50 border-primary-200" },
                 ].map((s) => (
                     <div key={s.label} className={cn("rounded-2xl border px-4 py-3", s.bg)}>
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{s.label}</p>
@@ -497,7 +497,7 @@ export default function UtilisateursPage() {
                         placeholder="Rechercher…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none"
                     />
                     {search && (
                         <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -510,7 +510,7 @@ export default function UtilisateursPage() {
                 <div className="flex items-center gap-1 flex-wrap">
                     <button
                         onClick={() => setRoleFilter("")}
-                        className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors", !roleFilter ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
+                        className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors", !roleFilter ? "bg-primary-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}
                     >Tous</button>
                     {ROLES.map((r) => (
                         <button
@@ -529,7 +529,7 @@ export default function UtilisateursPage() {
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none"
                 >
                     <option value="all">Tous les statuts</option>
                     <option value="active">Actifs</option>
@@ -550,7 +550,7 @@ export default function UtilisateursPage() {
             {/* ── Content ── */}
             {loading ? (
                 <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-7 h-7 text-indigo-500 animate-spin" />
+                    <Loader2 className="w-7 h-7 text-primary-500 animate-spin" />
                 </div>
             ) : users.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -590,7 +590,7 @@ export default function UtilisateursPage() {
                     <button onClick={() => { setShowCreate(false); setFormData(EMPTY_FORM); setFormErrors({}); }} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                         Annuler
                     </button>
-                    <button onClick={handleCreate} disabled={formLoading} className="px-4 py-2 text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50">
+                    <button onClick={handleCreate} disabled={formLoading} className="px-4 py-2 text-sm font-semibold bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50">
                         {formLoading ? "Création…" : "Créer l'utilisateur"}
                     </button>
                 </ModalFooter>

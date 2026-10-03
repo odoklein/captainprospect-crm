@@ -103,7 +103,7 @@ export function MailboxSwitcher({
         return (
             <>
                 <button
-                    className="flex items-center justify-center gap-2 h-10 px-3 text-sm text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors w-full"
+                    className="flex items-center justify-center gap-2 h-10 px-3 text-sm text-primary-600 hover:bg-primary-50 rounded-xl transition-colors w-full"
                     onClick={() => setShowManagerDialog(true)}
                 >
                     <Plus className="w-4 h-4" />
@@ -175,7 +175,7 @@ export function MailboxSwitcher({
                         }}
                         className={cn(
                             "w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors",
-                            !selectedMailboxId && "bg-indigo-50/60"
+                            !selectedMailboxId && "bg-primary-50/60"
                         )}
                         role="option"
                         aria-selected={!selectedMailboxId}
@@ -188,7 +188,7 @@ export function MailboxSwitcher({
                             <p className="text-[11px] text-slate-400">{mailboxes.length} boîte{mailboxes.length > 1 ? "s" : ""}</p>
                         </div>
                         {!selectedMailboxId && (
-                            <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
                         )}
                     </button>
 
@@ -201,8 +201,8 @@ export function MailboxSwitcher({
                             className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors"
                             role="option"
                         >
-                            <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                                <Users className="w-4 h-4 text-indigo-600" />
+                            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4 text-primary-600" />
                             </div>
                             <div className="flex-1 text-left">
                                 <p className="text-[13px] font-medium text-slate-800">Team Inbox</p>
@@ -223,7 +223,7 @@ export function MailboxSwitcher({
                             }}
                             className={cn(
                                 "w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors",
-                                selectedMailboxId === mailbox.id && "bg-indigo-50/60"
+                                selectedMailboxId === mailbox.id && "bg-primary-50/60"
                             )}
                             role="option"
                             aria-selected={selectedMailboxId === mailbox.id}
@@ -247,7 +247,7 @@ export function MailboxSwitcher({
                                 </p>
                             </div>
                             {selectedMailboxId === mailbox.id && (
-                                <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                                <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
                             )}
                         </button>
                     ))}
@@ -259,7 +259,7 @@ export function MailboxSwitcher({
                             setIsOpen(false);
                             setShowManagerDialog(true);
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-indigo-600 hover:bg-indigo-50 transition-colors font-medium"
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-primary-600 hover:bg-primary-50 transition-colors font-medium"
                     >
                         <Settings className="w-4 h-4" />
                         Gérer les boîtes mails

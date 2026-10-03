@@ -23,7 +23,7 @@ export default function ClientContactPage() {
                     title="Contact"
                     subtitle="Contactez l'equipe support"
                     icon={
-                        <span className="flex items-center gap-2 text-indigo-600">
+                        <span className="flex items-center gap-2 text-primary-600">
                             <MessageSquare className="w-5 h-5" />
                         </span>
                     }

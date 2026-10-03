@@ -113,7 +113,7 @@ export function Drawer({
                 aria-modal={modal ? "true" : undefined}
                 aria-label={title || "Panneau latéral"}
                 className={cn(
-                    "fixed top-0 bottom-0 w-full flex flex-col bg-white shadow-2xl shadow-black/10 z-[81] outline-none",
+                    "fixed top-0 bottom-0 w-full flex flex-col bg-surface shadow-2xl shadow-black/10 z-[81] outline-none",
                     side === "right"
                         ? "right-0 animate-slide-in-right"
                         : "left-0 animate-slide-in-left",
@@ -125,7 +125,7 @@ export function Drawer({
                 {/* Header */}
                 {(title || showCloseButton) && (
                     <div className={cn(
-                        "flex items-center px-6 py-4 border-b border-slate-100 bg-white sticky top-0 z-10",
+                        "flex items-center px-6 py-4 border-b border-line-subtle bg-surface sticky top-0 z-10",
                         headerCentered ? "justify-center" : "justify-between"
                     )}>
                         {showCloseButton && !headerCentered && (
@@ -135,7 +135,7 @@ export function Drawer({
                             <button
                                 onClick={onClose}
                                 aria-label="Fermer le panneau"
-                                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 -m-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 -m-1 text-ink-4 hover:text-ink hover:bg-surface-3 rounded-lg transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -145,12 +145,12 @@ export function Drawer({
                             headerCentered ? "text-center pr-10" : "pr-4"
                         )}>
                             {title && (
-                                <h2 className="text-lg font-semibold text-slate-900 truncate leading-tight">
+                                <h2 className="text-lg font-semibold text-ink truncate leading-tight">
                                     {title}
                                 </h2>
                             )}
                             {description && (
-                                <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                                <p className="text-xs text-ink-3 mt-0.5 font-medium">
                                     {description}
                                 </p>
                             )}
@@ -159,7 +159,7 @@ export function Drawer({
                             <button
                                 onClick={onClose}
                                 aria-label="Fermer le panneau"
-                                className="p-2 -m-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                className="p-2 -m-1 text-ink-4 hover:text-ink hover:bg-surface-3 rounded-lg transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -174,12 +174,12 @@ export function Drawer({
 
                 {/* Footer helper link */}
                 {footerHelperLink && (
-                    <div className="px-6 pt-2 pb-1 border-t border-slate-100 bg-slate-50/30">
+                    <div className="px-6 pt-2 pb-1 border-t border-line-subtle bg-surface-2/30">
                         <a
                             href={footerHelperLink.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
+                            className="text-xs text-primary-600 hover:text-primary-700 hover:underline"
                         >
                             {footerHelperLink.label}
                         </a>
@@ -188,7 +188,7 @@ export function Drawer({
 
                 {/* Footer */}
                 {footer && (
-                    <div className="px-6 py-4 border-t border-slate-100 bg-white sticky bottom-0 z-10">
+                    <div className="px-6 py-4 border-t border-line-subtle bg-surface sticky bottom-0 z-10">
                         {footer}
                     </div>
                 )}
@@ -211,7 +211,7 @@ export function DrawerSection({ title, children, className }: DrawerSectionProps
     return (
         <div className={cn("space-y-3", className)}>
             {title && (
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                <h3 className="text-sm font-bold text-ink uppercase tracking-wide">
                     {title}
                 </h3>
             )}
@@ -235,14 +235,14 @@ export function DrawerField({ label, value, icon, className }: DrawerFieldProps)
     return (
         <div className={cn("flex items-start gap-3", className)}>
             {icon && (
-                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-surface-3 flex items-center justify-center flex-shrink-0">
                     {icon}
                 </div>
             )}
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-500">{label}</p>
-                <div className="text-slate-900 mt-0.5">
-                    {value || <span className="text-slate-400 italic">Non renseigné</span>}
+                <p className="text-sm font-medium text-ink-3">{label}</p>
+                <div className="text-ink mt-0.5">
+                    {value || <span className="text-ink-4 italic">Non renseigné</span>}
                 </div>
             </div>
         </div>

@@ -3,18 +3,19 @@
    transparent so they sit on the app shell's own background and width. */
 
 .tokens {
-    --ink: #0f1216;
-    --ink-2: #3b424a;
-    --ink-3: #737b85;
-    --ink-4: #a3aab3;
-    --line: rgba(15, 18, 22, 0.07);
-    --line-2: rgba(15, 18, 22, 0.12);
-    --surface: #ffffff;
-    --sunken: #f2f4f7;
-    --hover: #f7f8fa;
-    --brand: #2b5f3e;
-    --brand-strong: #1f4a2f;
-    --brand-soft: rgba(43, 95, 62, 0.08);
+    /* Brand-driven: the design-system roles from app/globals.css. */
+    --ink: var(--ds-ink);
+    --ink-2: var(--ds-ink-2);
+    --ink-3: var(--ds-ink-3);
+    --ink-4: var(--ds-ink-4);
+    --line: var(--ds-line-subtle);
+    --line-2: var(--ds-line);
+    --surface: var(--ds-surface);
+    --sunken: var(--ds-surface-3);
+    --hover: var(--ds-surface-2);
+    --brand: var(--ds-primary);
+    --brand-strong: var(--ds-primary-active);
+    --brand-soft: color-mix(in oklab, var(--brand-primary) 8%, transparent);
     --success: #1f9d55;
     --warn: #d4870a;
     --info: #3b6fe0;

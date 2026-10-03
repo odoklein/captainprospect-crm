@@ -1,10 +1,11 @@
 // ============================================
-// Suzalink CRM CONFIGURATION
+// CRM CONFIGURATION (brand identity lives in brand/brand.config.ts)
 // ============================================
 // Centralized configuration to replace hardcoded values
 // Environment-aware settings
 // ============================================
 
+import { brand } from "@/lib/brand";
 export const config = {
   // ============================================
   // QUEUE CONFIGURATION
@@ -90,7 +91,7 @@ export const config = {
   notifications: {
     email: {
       enabled: !!process.env.SENDGRID_API_KEY,
-      from: process.env.EMAIL_FROM || "noreply@suzalink.com",
+      from: process.env.EMAIL_FROM || brand.email.notificationsAddress,
     },
     slack: {
       enabled: !!process.env.SLACK_WEBHOOK_URL,

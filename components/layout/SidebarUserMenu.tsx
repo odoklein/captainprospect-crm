@@ -128,7 +128,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                             name={name}
                             src={avatar?.url}
                             className="w-10 h-10 rounded-xl text-[13px] ring-1 ring-white/10"
-                            fallbackClassName="bg-gradient-to-br from-[#7C5CFC] to-[#A78BFA] text-white"
+                            fallbackClassName="bg-primary text-white"
                         />
                         <span className="min-w-0 flex-1">
                             <span className="block text-[13px] font-semibold text-white truncate">{name}</span>
@@ -137,7 +137,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     </Link>
                     <div className="flex items-center gap-1.5 px-2 pt-1 pb-2">
                         <span className="inline-flex items-center gap-1.5 h-5 px-2 rounded-full bg-white/[0.06] border border-white/[0.08] text-[10.5px] font-semibold text-slate-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" aria-hidden />
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" aria-hidden />
                             {roleLabel}
                         </span>
                         {!avatar?.url && settings && (
@@ -145,7 +145,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                                 href={href("profil")}
                                 tabIndex={-1}
                                 onClick={() => setOpen(false)}
-                                className="text-[10.5px] font-semibold text-violet-300 hover:text-violet-200 transition-colors"
+                                className="text-[10.5px] font-semibold text-accent-300 hover:text-accent-200 transition-colors"
                             >
                                 Ajouter une photo
                             </Link>
@@ -201,7 +201,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                 aria-label={`Compte de ${name} — ${roleLabel}`}
                 className={cn(
                     "group w-full flex items-center gap-2.5 rounded-xl border text-left transition-[background-color,border-color] duration-150 outline-none",
-                    "focus-visible:ring-2 focus-visible:ring-violet-400/60",
+                    "focus-visible:ring-2 focus-visible:ring-accent-400/60",
                     isExpanded ? "p-1.5 pr-2" : "p-1 justify-center",
                     open ? "bg-white/[0.08] border-white/[0.10]" : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.07] hover:border-white/[0.10]",
                 )}
@@ -211,9 +211,9 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                         name={name}
                         src={avatar?.url}
                         className={cn("rounded-[10px] text-[11px] ring-1 ring-white/10", isExpanded ? "w-9 h-9" : "w-8 h-8")}
-                        fallbackClassName="bg-gradient-to-br from-[#7C5CFC] to-[#A78BFA] text-white"
+                        fallbackClassName="bg-primary text-white"
                     />
-                    <span aria-hidden className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#101026] shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+                    <span aria-hidden className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-inverse" />
                 </span>
                 {isExpanded && (
                     <>
@@ -222,7 +222,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                             <span className="block text-[10.5px] text-slate-400 truncate leading-tight mt-0.5">
                                 {roleLabel}
                                 <span className="text-slate-500"> · </span>
-                                <span className="group-hover:text-violet-300 transition-colors">Mon compte</span>
+                                <span className="group-hover:text-accent-300 transition-colors">Mon compte</span>
                             </span>
                         </span>
                         <ChevronUp

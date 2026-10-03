@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { brand } from "@/lib/brand";
 
 export default function MigrationPopup() {
     const [visible, setVisible] = useState(false);
@@ -22,7 +23,7 @@ export default function MigrationPopup() {
             style={{
                 position: "fixed",
                 inset: 0,
-                background: "rgba(0,0,0,0.35)",
+                background: "color-mix(in oklab, var(--ds-ink) 40%, transparent)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -32,9 +33,9 @@ export default function MigrationPopup() {
         >
             <div
                 style={{
-                    background: "#fff",
+                    background: "var(--ds-surface)",
                     borderRadius: 16,
-                    border: "0.5px solid rgba(0,0,0,0.1)",
+                    border: "1px solid var(--ds-line)",
                     width: "100%",
                     maxWidth: 500,
                     overflow: "hidden",
@@ -53,16 +54,17 @@ export default function MigrationPopup() {
                     <div>
                         <h2
                             style={{
+                                fontFamily: "var(--font-display-face), inherit",
                                 fontSize: 20,
-                                fontWeight: 500,
-                                color: "#111",
+                                fontWeight: 600,
+                                color: "var(--ds-ink)",
                                 margin: "0 0 4px",
                             }}
                         >
                             Nouvelle adresse
                         </h2>
-                        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>
-                            CaptainProspect a migré vers sa propre infrastructure
+                        <p style={{ fontSize: 13, color: "var(--ds-ink-3)", margin: 0 }}>
+                            {brand.name} a migré vers sa propre infrastructure
                         </p>
                     </div>
                     <button
@@ -73,7 +75,7 @@ export default function MigrationPopup() {
                             border: "none",
                             cursor: "pointer",
                             padding: 2,
-                            color: "#aaa",
+                            color: "var(--ds-ink-4)",
                             marginTop: 2,
                         }}
                         aria-label="Fermer"
@@ -86,7 +88,7 @@ export default function MigrationPopup() {
                 </div>
 
                 {/* Divider */}
-                <div style={{ margin: "1.25rem 1.75rem 0", borderTop: "0.5px solid #eee" }} />
+                <div style={{ margin: "1.25rem 1.75rem 0", borderTop: "1px solid var(--ds-line-subtle)" }} />
 
                 {/* Body */}
                 <div style={{ padding: "1.25rem 1.75rem" }}>
@@ -97,24 +99,24 @@ export default function MigrationPopup() {
                                 width: 36,
                                 height: 36,
                                 borderRadius: "50%",
-                                background: "#1a1a1a",
+                                background: "var(--ds-inverse)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                                 flexShrink: 0,
                             }}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ds-inverse-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M12 2L2 7l10 5 10-5-10-5z" />
                                 <path d="M2 17l10 5 10-5" />
                                 <path d="M2 12l10 5 10-5" />
                             </svg>
                         </div>
                         <div>
-                            <p style={{ fontSize: 13, fontWeight: 500, color: "#111", margin: 0 }}>
-                                CaptainProspect CRM
+                            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ds-ink)", margin: 0 }}>
+                                {brand.productName}
                             </p>
-                            <p style={{ fontSize: 12, color: "#888", margin: 0 }}>
+                            <p style={{ fontSize: 12, color: "var(--ds-ink-3)", margin: 0 }}>
                                 Migration vers infrastructure dédiée
                             </p>
                         </div>
@@ -123,7 +125,8 @@ export default function MigrationPopup() {
                     {/* URL box */}
                     <div
                         style={{
-                            background: "#f5f5f5",
+                            background: "var(--ds-surface-2)",
+                            border: "1px solid var(--ds-line-subtle)",
                             borderRadius: 8,
                             padding: "14px 16px",
                             marginBottom: "1rem",
@@ -132,27 +135,27 @@ export default function MigrationPopup() {
                         <p
                             style={{
                                 fontSize: 11,
-                                color: "#999",
+                                color: "var(--ds-ink-3)",
                                 margin: "0 0 4px",
                                 textTransform: "uppercase",
                                 letterSpacing: "0.06em",
-                                fontWeight: 500,
+                                fontWeight: 600,
                             }}
                         >
                             Nouvelle adresse
                         </p>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 14, fontWeight: 500, color: "#111" }}>
-                                app.captainprospect.fr
+                            <span style={{ fontSize: 14, fontWeight: 600, color: "var(--ds-ink)" }}>
+                                {brand.appHost}
                             </span>
                             <span
                                 style={{
                                     fontSize: 11,
-                                    background: "#e8f5e9",
-                                    color: "#2e7d32",
+                                    background: "var(--ds-success-soft)",
+                                    color: "var(--ds-success-ink)",
                                     padding: "3px 8px",
                                     borderRadius: 20,
-                                    fontWeight: 500,
+                                    fontWeight: 600,
                                 }}
                             >
                                 Actif
@@ -167,8 +170,8 @@ export default function MigrationPopup() {
                             "Tous les services opérationnels",
                             "Connexion sécurisée HTTPS",
                         ].map((item) => (
-                            <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#555" }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ds-ink-2)" }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ds-success)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="20 6 9 17 4 12" />
                                 </svg>
                                 {item}
@@ -180,7 +183,7 @@ export default function MigrationPopup() {
                 {/* Footer */}
                 <div
                     style={{
-                        borderTop: "0.5px solid #eee",
+                        borderTop: "1px solid var(--ds-line-subtle)",
                         padding: "1rem 1.75rem",
                         display: "flex",
                         alignItems: "center",
@@ -193,9 +196,9 @@ export default function MigrationPopup() {
                         onClick={handleDismiss}
                         style={{
                             fontSize: 13,
-                            color: "#666",
+                            color: "var(--ds-ink-2)",
                             background: "none",
-                            border: "0.5px solid #ddd",
+                            border: "1px solid var(--ds-line)",
                             borderRadius: 8,
                             padding: "8px 16px",
                             cursor: "pointer",
@@ -204,12 +207,12 @@ export default function MigrationPopup() {
                         Ignorer
                     </button>
                     <a
-                        href="https://app.captainprospect.fr"
+                        href={brand.appUrl}
                         style={{
                             fontSize: 13,
-                            fontWeight: 500,
-                            color: "#fff",
-                            background: "#1a1a1a",
+                            fontWeight: 600,
+                            color: "var(--ds-primary-fg)",
+                            background: "var(--ds-primary)",
                             border: "none",
                             borderRadius: 8,
                             padding: "8px 20px",
@@ -221,7 +224,7 @@ export default function MigrationPopup() {
                         }}
                     >
                         Accéder maintenant
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
                     </a>

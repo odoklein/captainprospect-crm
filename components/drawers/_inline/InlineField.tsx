@@ -113,7 +113,7 @@ export function InlineText({
                                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) commit();
                             }}
                             rows={3}
-                            className="flex-1 px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-indigo-400 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                            className="flex-1 px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-primary-400 rounded-lg outline-none focus:ring-2 focus:ring-primary-500/20 resize-none"
                         />
                     ) : (
                         <input
@@ -126,13 +126,13 @@ export function InlineText({
                                 if (e.key === "Enter") commit();
                                 if (e.key === "Escape") cancel();
                             }}
-                            className="flex-1 px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-indigo-400 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            className="flex-1 px-2.5 py-1.5 text-sm text-slate-900 bg-white border border-primary-400 rounded-lg outline-none focus:ring-2 focus:ring-primary-500/20"
                         />
                     )}
                     <div className="flex items-center gap-1 pt-0.5">
                         {saving ? (
-                            <div className="w-6 h-6 rounded-md bg-indigo-50 flex items-center justify-center">
-                                <svg className="animate-spin h-3 w-3 text-indigo-600" viewBox="0 0 24 24">
+                            <div className="w-6 h-6 rounded-md bg-primary-50 flex items-center justify-center">
+                                <svg className="animate-spin h-3 w-3 text-primary-600" viewBox="0 0 24 24">
                                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" className="opacity-25" />
                                     <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                                 </svg>
@@ -217,7 +217,7 @@ const TONE_PILL: Record<string, string> = {
     success: "bg-emerald-50 text-emerald-700 border-emerald-200",
     warning: "bg-amber-50 text-amber-700 border-amber-200",
     danger: "bg-red-50 text-red-700 border-red-200",
-    info: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    info: "bg-primary-50 text-primary-700 border-primary-200",
 };
 
 export function InlineSelect({
@@ -317,13 +317,13 @@ export function InlineSelect({
                                 type="button"
                                 onClick={() => handlePick(opt.value)}
                                 className={cn(
-                                    "w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-indigo-50",
-                                    opt.value === value && "bg-indigo-50/60 text-indigo-700 font-medium"
+                                    "w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-primary-50",
+                                    opt.value === value && "bg-primary-50/60 text-primary-700 font-medium"
                                 )}
                             >
                                 {opt.icon}
                                 <span className="flex-1 truncate">{opt.label}</span>
-                                {opt.value === value && <Check className="w-4 h-4 text-indigo-600" />}
+                                {opt.value === value && <Check className="w-4 h-4 text-primary-600" />}
                             </button>
                         ))}
                     </div>,
@@ -370,7 +370,7 @@ export function InlineToggle({ label, description, value, onSave, readOnly }: In
             <div
                 className={cn(
                     "relative flex-shrink-0 w-10 h-5 rounded-full transition-colors mt-0.5",
-                    value ? "bg-indigo-600" : "bg-slate-300"
+                    value ? "bg-primary-600" : "bg-slate-300"
                 )}
             >
                 <div

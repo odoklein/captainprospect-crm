@@ -1,48 +1,65 @@
 import { cn } from "@/lib/utils";
 import { HTMLAttributes, forwardRef } from "react";
 import type { CompletenessStatus } from "@/lib/types";
+import { TONE_FILL, TONE_SOFT, TONE_SOLID, type Tone } from "./recipes";
+
+type BadgeVariant = "default" | "primary" | "accent" | "success" | "warning" | "danger" | "info" | "outline";
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-    variant?: "default" | "primary" | "success" | "warning" | "danger" | "outline";
+    variant?: BadgeVariant;
     status?: CompletenessStatus;
+    size?: "sm" | "md";
+    /** Solid fill instead of the soft tint (counters, strong states). */
+    solid?: boolean;
+    /** Leading coloured dot. */
+    dot?: boolean;
 }
 
-const BADGE_STATUS_VARIANTS: Record<CompletenessStatus, string> = {
-    INCOMPLETE: "bg-red-50 text-red-700 border-red-200",
-    PARTIAL: "bg-amber-50 text-amber-700 border-amber-200",
-    ACTIONABLE: "bg-emerald-50 text-emerald-700 border-emerald-200",
+const STATUS_TONE: Record<CompletenessStatus, Tone> = {
+    INCOMPLETE: "danger",
+    PARTIAL: "warning",
+    ACTIONABLE: "success",
 };
 
-const BADGE_VARIANTS: Record<string, string> = {
-    default: "bg-slate-100 text-slate-700 border-slate-200",
-    primary: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    warning: "bg-amber-50 text-amber-700 border-amber-200",
-    danger: "bg-red-50 text-red-700 border-red-200",
-    outline: "bg-transparent text-slate-600 border-slate-300",
+const VARIANT_TONE: Record<Exclude<BadgeVariant, "outline">, Tone> = {
+    default: "neutral",
+    primary: "primary",
+    accent: "accent",
+    success: "success",
+    warning: "warning",
+    danger: "danger",
+    info: "info",
+};
+
+const SIZES = {
+    sm: "h-5 px-1.5 text-3xs gap-1",
+    md: "h-6 px-2.5 text-xs gap-1.5",
 };
 
 const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
-    ({ className, variant = "default", status, children, ...props }, ref) => {
-        const variantStyle = status ? BADGE_STATUS_VARIANTS[status] : BADGE_VARIANTS[variant];
+    ({ className, variant = "default", status, size = "md", solid, dot, children, ...props }, ref) => {
+        const tone: Tone | null = status ? STATUS_TONE[status] : variant === "outline" ? null : VARIANT_TONE[variant];
+        const look = tone === null
+            ? "bg-transparent text-ink-2 border-line-strong"
+            : solid
+                ? cn(TONE_SOLID[tone], "border-transparent")
+                : TONE_SOFT[tone];
 
         return (
             <span
                 ref={ref}
                 className={cn(
-                    "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border",
-                    variantStyle,
+                    "inline-flex shrink-0 items-center whitespace-nowrap rounded-chip border font-semibold leading-none tabular-nums",
+                    SIZES[size],
+                    look,
                     className
                 )}
                 {...props}
             >
-                {status && (
+                {(status || dot) && (
                     <span
-                        className={cn("w-1.5 h-1.5 rounded-full", {
-                            "bg-red-400": status === "INCOMPLETE",
-                            "bg-amber-400": status === "PARTIAL",
-                            "bg-emerald-400": status === "ACTIONABLE",
-                        })}
+                        aria-hidden
+                        className={cn("size-1.5 shrink-0 rounded-full", solid ? "bg-current opacity-80" : TONE_FILL[tone ?? "neutral"])}
                     />
                 )}
                 {children}
@@ -53,4 +70,5 @@ const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
 
 Badge.displayName = "Badge";
 
+export { Badge };
 export default Badge;

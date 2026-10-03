@@ -91,7 +91,7 @@ export function EditContactModal({ meeting, onClose, onSaved }: EditContactModal
         <button
           disabled={saving}
           onClick={handleSave}
-          className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50"
+          className="px-4 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors disabled:opacity-50"
         >
           {saving ? "Enregistrement…" : "Enregistrer"}
         </button>

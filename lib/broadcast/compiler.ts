@@ -5,6 +5,7 @@
 // ============================================
 
 import { EmailBlock, KeyValueItem } from "./types";
+import { brand, brandUrl } from "@/lib/brand";
 
 const METADATA_PREFIX = "<!-- __BROADCAST_METADATA_START__";
 const METADATA_SUFFIX = "__BROADCAST_METADATA_END__ -->";
@@ -39,7 +40,7 @@ function formatContent(text?: string): string {
 export function compileBlocksToHtml(
   subject: string,
   blocks: EmailBlock[],
-  accentColor = "#4f46e5"
+  accentColor = brand.palette.primarySeed
 ): string {
   const renderedBlocksHtml = blocks
     .map((block) => renderSingleBlock(block, accentColor))
@@ -76,7 +77,7 @@ export function compileBlocksToHtml(
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; width: 100%; margin-top: 16px;">
           <tr>
             <td align="center" style="font-size: 11px; color: #94a3b8; font-family: sans-serif;">
-              Message envoyé via la plateforme Captain Prospect
+              Message envoyé via la plateforme ${brand.name}
             </td>
           </tr>
         </table>
@@ -96,15 +97,15 @@ function renderSingleBlock(block: EmailBlock, accentColor: string): string {
 
   switch (block.type) {
     case "header": {
-      const subtitle = block.props?.logoSubtitle || "Plateforme Captain Prospect";
+      const subtitle = block.props?.logoSubtitle || `Plateforme ${brand.name}`;
       return `
       <!-- Header Block -->
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
         <tr>
           <td align="${align}">
             <div style="display: inline-block;">
-              <span style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">
-                ⚓ Captain Prospect
+              <span style="font-size: 20px; font-weight: 800; color: ${brand.palette.primarySeed}; letter-spacing: -0.02em;">
+                ${brand.name}
               </span>
               <span style="display: block; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px;">
                 ${subtitle}
@@ -195,7 +196,7 @@ function renderSingleBlock(block: EmailBlock, accentColor: string): string {
 
     case "button": {
       const btnText = block.props?.buttonText || "Accéder à mon espace";
-      const btnUrl = block.props?.buttonUrl || "https://app.captainprospect.fr";
+      const btnUrl = block.props?.buttonUrl || brandUrl("/");
       const btnColor = block.props?.buttonColor || accentColor;
 
       return `

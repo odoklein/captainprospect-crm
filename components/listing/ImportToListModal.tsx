@@ -221,8 +221,8 @@ export function ImportToListModal({
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center">
-                            <List className="w-4.5 h-4.5 text-indigo-600" />
+                        <div className="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center">
+                            <List className="w-4.5 h-4.5 text-primary-600" />
                         </div>
                         <div>
                             <h2 className="text-base font-semibold text-slate-900">Ajouter a une liste</h2>
@@ -263,7 +263,7 @@ export function ImportToListModal({
 
                     {listsLoading ? (
                         <div className="flex items-center justify-center py-8">
-                            <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+                            <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                         </div>
                     ) : mode === "existing" ? (
                         <div className="space-y-3">
@@ -310,11 +310,11 @@ export function ImportToListModal({
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-xs">
                                 <span className="text-slate-500">Import en cours...</span>
-                                <span className="font-medium text-indigo-600">{importProgress}%</span>
+                                <span className="font-medium text-primary-600">{importProgress}%</span>
                             </div>
                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                 <div
-                                    className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+                                    className="h-full bg-primary-500 rounded-full transition-all duration-300"
                                     style={{ width: `${importProgress}%` }}
                                 />
                             </div>

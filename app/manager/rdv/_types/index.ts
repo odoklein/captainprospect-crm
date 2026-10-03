@@ -1,3 +1,5 @@
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock, MessageSquare, MicOff, type LucideIcon } from "lucide-react";
+
 export interface Meeting {
   id: string;
   result: string;
@@ -113,17 +115,17 @@ export type ChannelFilter = "CALL" | "EMAIL" | "LINKEDIN";
 export interface QuickPreset {
   id: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   description: string;
 }
 
 export const QUICK_PRESETS: QuickPreset[] = [
-  { id: "absent_open", label: "Absents à traiter", icon: "🚨", description: "Signalés absents, ni replacés ni mis de côté" },
-  { id: "to_confirm", label: "À confirmer", icon: "⏳", description: "RDV à venir en attente de confirmation" },
-  { id: "past_no_feedback", label: "Sans feedback", icon: "💬", description: "RDV passés sans retour renseigné" },
-  { id: "no_audio", label: "Sans audio", icon: "🎙️", description: "RDV sans enregistrement Allo lié" },
-  { id: "this_week", label: "Cette semaine", icon: "📅", description: "RDV créés cette semaine" },
-  { id: "positive", label: "Positifs", icon: "✅", description: "RDV avec feedback positif" },
+  { id: "absent_open", label: "Absents à traiter", icon: AlertTriangle, description: "Signalés absents, ni replacés ni mis de côté" },
+  { id: "to_confirm", label: "À confirmer", icon: Clock, description: "RDV à venir en attente de confirmation" },
+  { id: "past_no_feedback", label: "Sans feedback", icon: MessageSquare, description: "RDV passés sans retour renseigné" },
+  { id: "no_audio", label: "Sans audio", icon: MicOff, description: "RDV sans enregistrement Allo lié" },
+  { id: "this_week", label: "Cette semaine", icon: CalendarDays, description: "RDV créés cette semaine" },
+  { id: "positive", label: "Positifs", icon: CheckCircle2, description: "RDV avec feedback positif" },
 ];
 
 export interface MeetingFilters {

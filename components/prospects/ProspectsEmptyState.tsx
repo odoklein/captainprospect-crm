@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Card, Button } from "@/components/ui";
-import { Users, Plus, BookOpen, Sparkles } from "lucide-react";
+import { Users, Plus, BookOpen, ListChecks } from "lucide-react";
 import Link from "next/link";
 
 // ============================================
@@ -21,8 +21,8 @@ export function ProspectsEmptyState({ hasSources, hasRules }: ProspectsEmptyStat
         return (
             <Card className="p-12 text-center">
                 <div className="max-w-md mx-auto">
-                    <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Plus className="w-8 h-8 text-indigo-600" />
+                    <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Plus className="w-8 h-8 text-primary-600" />
                     </div>
                     <h3 className="text-xl font-semibold text-slate-900 mb-2">
                         Commencez par configurer une source
@@ -53,7 +53,7 @@ export function ProspectsEmptyState({ hasSources, hasRules }: ProspectsEmptyStat
             <Card className="p-12 text-center">
                 <div className="max-w-md mx-auto">
                     <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Sparkles className="w-8 h-8 text-amber-600" />
+                        <ListChecks className="w-8 h-8 text-amber-600" />
                     </div>
                     <h3 className="text-xl font-semibold text-slate-900 mb-2">
                         Configurez vos règles
@@ -62,7 +62,7 @@ export function ProspectsEmptyState({ hasSources, hasRules }: ProspectsEmptyStat
                         Créez des règles pour automatiser la validation et le scoring des prospects entrants.
                     </p>
                     <Button onClick={() => router.push("/manager/prospects/rules")}>
-                        <Sparkles className="w-4 h-4 mr-2" />
+                        <Plus className="w-4 h-4 mr-2" />
                         Créer une règle
                     </Button>
                 </div>

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Zap, Pause, Play, ChevronRight } from "lucide-react";
+import { Workflow, Pause, Play, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -109,8 +109,8 @@ export function SequencePerformancePanel({
             {/* Header */}
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-[#D9E5DD] flex items-center justify-center">
-                        <Zap className="w-3.5 h-3.5 text-[#2B5F3E]" />
+                    <div className="w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center">
+                        <Workflow className="w-3.5 h-3.5 text-primary-700" />
                     </div>
                     <h3 className="text-sm font-semibold text-slate-900">Séquences actives</h3>
                 </div>
@@ -173,7 +173,7 @@ export function SequencePerformancePanel({
                             {/* Sparkline */}
                             <Sparkline
                                 data={seq.sparkline}
-                                className="text-[#4E8B66] hidden md:block"
+                                className="text-primary-500 hidden md:block"
                             />
 
                             {/* Actions */}

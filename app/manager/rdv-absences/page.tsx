@@ -505,8 +505,8 @@ export default function RdvAbsencesPage() {
                     label="Signalés à la main"
                     value={kpis?.reportedManually ?? 0}
                     icon={CheckCircle2}
-                    iconBg="bg-indigo-100"
-                    iconColor="text-indigo-600"
+                    iconBg="bg-primary-100"
+                    iconColor="text-primary-600"
                     subtitle={<span className="text-slate-500">Remontés par un manager, pas par le portail</span>}
                 />
                 <StatCard
@@ -551,7 +551,7 @@ export default function RdvAbsencesPage() {
                     <select
                         value={clientFilter}
                         onChange={(e) => setClientFilter(e.target.value)}
-                        className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         aria-label="Filtrer par client"
                     >
                         <option value="all">Tous les clients</option>
@@ -563,7 +563,7 @@ export default function RdvAbsencesPage() {
                     <select
                         value={sort}
                         onChange={(e) => setSort(e.target.value as SortKey)}
-                        className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                        className="h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-700 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         aria-label="Trier"
                     >
                         <option value="oldest">Plus anciens d&apos;abord</option>
@@ -577,8 +577,8 @@ export default function RdvAbsencesPage() {
 
                 {/* Batch bar */}
                 {selectedRows.length > 0 && (
-                    <div className="sticky top-[7.25rem] z-20 flex flex-wrap items-center gap-2 border-b border-indigo-100 bg-indigo-50/95 px-4 py-2.5 backdrop-blur">
-                        <span className="text-sm font-semibold text-indigo-900">
+                    <div className="sticky top-[7.25rem] z-20 flex flex-wrap items-center gap-2 border-b border-primary-100 bg-primary-50/95 px-4 py-2.5 backdrop-blur">
+                        <span className="text-sm font-semibold text-primary-900">
                             {selectedRows.length} sélectionné{selectedRows.length > 1 ? "s" : ""}
                         </span>
                         <div className="flex-1" />
@@ -639,7 +639,7 @@ export default function RdvAbsencesPage() {
                             <button
                                 type="button"
                                 onClick={() => { setQuery(""); setClientFilter("all"); }}
-                                className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                                className="mt-2 text-xs font-semibold text-primary-600 hover:text-primary-700"
                             >
                                 Réinitialiser les filtres ({totalInTab} au total)
                             </button>
@@ -669,7 +669,7 @@ export default function RdvAbsencesPage() {
                                         key={row.id}
                                         className={cn(
                                             "group relative flex items-start gap-3 px-4 py-3 transition-colors",
-                                            isSelected ? "bg-indigo-50/50" : "hover:bg-slate-50/70",
+                                            isSelected ? "bg-primary-50/50" : "hover:bg-slate-50/70",
                                         )}
                                     >
                                         <span
@@ -870,7 +870,7 @@ export default function RdvAbsencesPage() {
                             rows={3}
                             maxLength={1000}
                             placeholder="Pourquoi ce RDV sort du scope…"
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         />
                         {outOfScopeTargets.length > 1 && (
                             <p className="mt-1 text-xs text-slate-400">
@@ -936,7 +936,7 @@ export default function RdvAbsencesPage() {
                             rows={3}
                             maxLength={1000}
                             placeholder="Pourquoi on le laisse de côté…"
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         />
                         {standByTargets.length > 1 && (
                             <p className="mt-1 text-xs text-slate-400">
@@ -1031,7 +1031,7 @@ export default function RdvAbsencesPage() {
                                     className={cn(
                                         "rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors",
                                         recontact === opt.value
-                                            ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                                            ? "border-primary-300 bg-primary-50 text-primary-700"
                                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50",
                                     )}
                                 >
@@ -1051,7 +1051,7 @@ export default function RdvAbsencesPage() {
                             rows={3}
                             maxLength={1000}
                             placeholder="Ce que le client a dit, le contexte…"
-                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         />
                         {reportTargets.length > 1 && (
                             <p className="mt-1 text-xs text-slate-400">
@@ -1067,7 +1067,7 @@ export default function RdvAbsencesPage() {
                         <select
                             value={selectedSdrId}
                             onChange={(e) => setSelectedSdrId(e.target.value)}
-                            className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
                         >
                             <option value="">Conserver le télépro initial</option>
                             {data?.sdrs?.map((s) => (

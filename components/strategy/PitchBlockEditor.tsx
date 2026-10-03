@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { 
-    Sparkles, 
+    Lightbulb, 
     Target, 
     AlertCircle, 
     BarChart3, 
-    Rocket, 
+    ArrowUpRight, 
     Layers, 
     FileText, 
-    Wand2, 
     Plus, 
     Trash2, 
     Copy, 
@@ -22,6 +21,7 @@ import {
     HelpCircle
 } from "lucide-react";
 import { StrategyArtifactViewer } from "./StrategyArtifactViewer";
+import { AiMark } from "@/components/ui/AiMark";
 
 export interface PitchBlock {
     id: string;
@@ -102,7 +102,7 @@ function parsePitchToBlocks(raw: string): PitchBlock[] {
         return DEFAULT_BLOCKS.map(b => ({ ...b, content: "" }));
     }
 
-    // Check if it has markdown header structure like "### 🎯 Accroche"
+    // Check if it has markdown header structure like "### Accroche"
     const headerRegex = /(?:^|\n)#{2,4}\s+(.+)/g;
     const matches = Array.from(raw.matchAll(headerRegex));
 
@@ -329,11 +329,11 @@ export function PitchBlockEditor({
 
     const renderBlockIcon = (b: PitchBlock) => {
         switch (b.icon) {
-            case "target": return <Target className="w-4 h-4 text-indigo-600" />;
+            case "target": return <Target className="w-4 h-4 text-primary-600" />;
             case "alert": return <AlertCircle className="w-4 h-4 text-amber-600" />;
-            case "sparkles": return <Sparkles className="w-4 h-4 text-emerald-600" />;
+            case "sparkles": return <Lightbulb className="w-4 h-4 text-emerald-600" />;
             case "chart": return <BarChart3 className="w-4 h-4 text-sky-600" />;
-            case "rocket": return <Rocket className="w-4 h-4 text-violet-600" />;
+            case "rocket": return <ArrowUpRight className="w-4 h-4 text-accent-600" />;
             default: return <FileText className="w-4 h-4 text-slate-500" />;
         }
     };
@@ -348,19 +348,19 @@ export function PitchBlockEditor({
                         onClick={() => setMode("blocks")}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                             mode === "blocks"
-                                ? "bg-white text-indigo-700 shadow-sm border border-slate-200"
+                                ? "bg-white text-primary-700 shadow-sm border border-slate-200"
                                 : "text-slate-600 hover:text-slate-900"
                         }`}
                     >
-                        <Layers className="w-3.5 h-3.5 text-indigo-600" />
-                        Mode Blocs (Artifacts)
+                        <Layers className="w-3.5 h-3.5 text-primary-600" />
+                        Mode blocs
                     </button>
                     <button
                         type="button"
                         onClick={() => setMode("text")}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                             mode === "text"
-                                ? "bg-white text-indigo-700 shadow-sm border border-slate-200"
+                                ? "bg-white text-primary-700 shadow-sm border border-slate-200"
                                 : "text-slate-600 hover:text-slate-900"
                         }`}
                     >
@@ -375,10 +375,10 @@ export function PitchBlockEditor({
                         type="button"
                         onClick={handleOrganizePastedText}
                         disabled={isOrganizing || (!rawText.trim() && blocks.every(b => !b.content.trim()))}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 disabled:opacity-40 shadow-sm shadow-indigo-500/20 transition-all"
-                        title="Réorganise intelligemment le texte collé en 5 blocs distincts"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 shadow-sm transition-all"
+                        title="Répartit le texte en 5 blocs avec l'IA"
                     >
-                        {isOrganizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                        {isOrganizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AiMark className="w-3.5 h-3.5" />}
                         <span>Structurer en blocs</span>
                     </button>
 
@@ -388,7 +388,7 @@ export function PitchBlockEditor({
                         onClick={() => setShowPreview(!showPreview)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                             showPreview
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                ? "bg-primary-50 border-primary-200 text-primary-700"
                                 : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
                         }`}
                         title="Aperçu du rendu final"
@@ -407,7 +407,7 @@ export function PitchBlockEditor({
                         key={v}
                         type="button"
                         onClick={() => insertVariable(v)}
-                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-[11px] font-mono font-medium text-slate-600 border border-slate-200 transition-colors"
+                        className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-primary-50 hover:text-primary-600 text-[11px] font-mono font-medium text-slate-600 border border-slate-200 transition-colors"
                     >
                         +{v}
                     </button>
@@ -416,8 +416,8 @@ export function PitchBlockEditor({
 
             {/* LIVE PREVIEW IF TOGGLED */}
             {showPreview && (
-                <div className="p-4 bg-slate-50/70 border border-indigo-100 rounded-2xl animate-in fade-in duration-200">
-                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-700 mb-2">Aperçu rendu commercial</p>
+                <div className="p-4 bg-slate-50/70 border border-primary-100 rounded-2xl animate-in fade-in duration-200">
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary-700 mb-2">Aperçu rendu commercial</p>
                     <StrategyArtifactViewer type="pitch" content={rawText} />
                 </div>
             )}
@@ -428,7 +428,7 @@ export function PitchBlockEditor({
                     {blocks.map((b) => (
                         <div
                             key={b.id}
-                            className="p-3.5 bg-white border border-slate-200 hover:border-indigo-300 rounded-xl shadow-xs transition-all"
+                            className="p-3.5 bg-white border border-slate-200 hover:border-primary-300 rounded-xl shadow-xs transition-all"
                         >
                             <div className="flex items-center justify-between mb-1.5">
                                 <div className="flex items-center gap-2">
@@ -446,7 +446,7 @@ export function PitchBlockEditor({
                                                         setBlocks(updated);
                                                         onChange(serializeBlocks(updated));
                                                     }}
-                                                    className="text-xs font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 focus:outline-none focus:border-indigo-500"
+                                                    className="text-xs font-bold text-slate-800 bg-transparent border-b border-dashed border-slate-300 focus:outline-none focus:border-primary-500"
                                                 />
                                             ) : (
                                                 <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -464,7 +464,7 @@ export function PitchBlockEditor({
                                         <button
                                             type="button"
                                             onClick={() => handleCopyBlock(b.id, b.content)}
-                                            className="p-1 text-slate-400 hover:text-indigo-600 rounded transition-colors"
+                                            className="p-1 text-slate-400 hover:text-primary-600 rounded transition-colors"
                                             title="Copier ce bloc"
                                         >
                                             {copiedBlockId === b.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -489,7 +489,7 @@ export function PitchBlockEditor({
                                 onChange={(e) => handleBlockChange(b.id, e.target.value)}
                                 placeholder={`Rédigez le contenu pour : ${b.title}...`}
                                 rows={2}
-                                className="w-full px-3 py-2 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/15 transition-all resize-y font-sans leading-relaxed whitespace-pre-wrap"
+                                className="w-full px-3 py-2 bg-slate-50/50 hover:bg-white focus:bg-white border border-slate-200 focus:border-primary-500 rounded-lg text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/15 transition-all resize-y font-sans leading-relaxed whitespace-pre-wrap"
                             />
                         </div>
                     ))}
@@ -497,7 +497,7 @@ export function PitchBlockEditor({
                     <button
                         type="button"
                         onClick={handleAddCustomBlock}
-                        className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-slate-300 hover:border-indigo-400 rounded-xl text-xs font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/30 transition-colors"
+                        className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-slate-300 hover:border-primary-400 rounded-xl text-xs font-semibold text-slate-600 hover:text-primary-600 hover:bg-primary-50/30 transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         Ajouter un bloc personnalisé (ex: Offre spéciale, Objection clé)
@@ -515,7 +515,7 @@ export function PitchBlockEditor({
                         onChange={(e) => handleRawTextChange(e.target.value)}
                         placeholder={placeholder}
                         rows={10}
-                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-y font-sans leading-relaxed whitespace-pre-wrap ${
+                        className={`w-full px-4 py-3 bg-white border rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-y font-sans leading-relaxed whitespace-pre-wrap ${
                             error ? "border-red-400" : "border-slate-200"
                         }`}
                     />

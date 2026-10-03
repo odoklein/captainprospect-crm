@@ -461,8 +461,8 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
             sortable: true,
             render: (_, company) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-indigo-500" />
+                    <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center">
+                        <Building2 className="w-5 h-5 text-primary-500" />
                     </div>
                     <div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -487,7 +487,7 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                                 href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-indigo-600 hover:underline"
+                                className="text-xs text-primary-600 hover:underline"
                             >
                                 {company.website}
                             </a>
@@ -607,7 +607,7 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                     return <span className="text-slate-500 font-mono text-xs">{user[0]}***@{domain}</span>;
                 }
                 return (
-                    <a href={`mailto:${value}`} className="text-indigo-600 hover:underline text-sm">
+                    <a href={`mailto:${value}`} className="text-primary-600 hover:underline text-sm">
                         {value}
                     </a>
                 );
@@ -641,7 +641,7 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                         href={value.startsWith("http") ? value : `https://${value}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-600 hover:underline text-sm"
+                        className="text-primary-600 hover:underline text-sm"
                     >
                         Profil
                     </a>
@@ -698,13 +698,13 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="flex items-start gap-5">
                     <Link href={isManager ? "/manager/lists" : "/sdr/lists"}>
-                        <button className="flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm">
+                        <button className="flex items-center justify-center w-10 h-10 rounded-full border border-slate-200 bg-white text-slate-500 hover:text-primary-600 hover:bg-primary-50 hover:border-primary-200 transition-all shadow-sm">
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                     </Link>
                     <div className="flex items-start gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center border border-indigo-100/50 shadow-sm">
-                            <List className="w-7 h-7 text-indigo-600" />
+                        <div className="w-14 h-14 rounded-2xl bg-primary-50 flex items-center justify-center border border-primary-100/50 shadow-sm">
+                            <List className="w-7 h-7 text-primary-600" />
                         </div>
                         <div className="pt-1">
                             <div className="flex items-center gap-3 mb-1.5">
@@ -717,7 +717,7 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                                 <Building2 className="w-4 h-4 text-slate-400" />
                                 <span>{list.mission.client.name}</span>
                                 <span className="text-slate-300">•</span>
-                                <span className="text-indigo-600">{list.mission.name}</span>
+                                <span className="text-primary-600">{list.mission.name}</span>
                                 {list.source && (
                                     <>
                                         <span className="text-slate-300">•</span>
@@ -733,7 +733,7 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                     <button
                         onClick={fetchList}
                         title="Rafraîchir"
-                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:bg-slate-50 transition-colors shadow-sm"
+                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-primary-600 hover:bg-slate-50 transition-colors shadow-sm"
                     >
                         <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
                     </button>
@@ -769,8 +769,8 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                 <div className="mgr-stat-card">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-                            <Building2 className="w-6 h-6 text-indigo-600" />
+                        <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
+                            <Building2 className="w-6 h-6 text-primary-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{companies.length}</p>
@@ -802,8 +802,8 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div className="mgr-stat-card">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center">
-                            <Mail className="w-6 h-6 text-violet-600" />
+                        <div className="w-12 h-12 rounded-xl bg-accent-100 flex items-center justify-center">
+                            <Mail className="w-6 h-6 text-accent-600" />
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">
@@ -867,21 +867,21 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                             <button
                                 onClick={() => setView("companies")}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${view === "companies"
-                                    ? "bg-white text-indigo-700 shadow border-b border-indigo-100"
+                                    ? "bg-white text-primary-700 shadow border-b border-primary-100"
                                     : "text-slate-500 hover:text-slate-700"
                                     }`}
                             >
-                                <Building2 className={`w-4 h-4 ${view === "companies" ? "text-indigo-500" : "text-slate-400"}`} />
+                                <Building2 className={`w-4 h-4 ${view === "companies" ? "text-primary-500" : "text-slate-400"}`} />
                                 Sociétés ({companies.length})
                             </button>
                             <button
                                 onClick={() => setView("contacts")}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${view === "contacts"
-                                    ? "bg-white text-indigo-700 shadow border-b border-indigo-100"
+                                    ? "bg-white text-primary-700 shadow border-b border-primary-100"
                                     : "text-slate-500 hover:text-slate-700"
                                     }`}
                             >
-                                <Users className={`w-4 h-4 ${view === "contacts" ? "text-indigo-500" : "text-slate-400"}`} />
+                                <Users className={`w-4 h-4 ${view === "contacts" ? "text-primary-500" : "text-slate-400"}`} />
                                 Contacts ({totalContacts})
                             </button>
                         </div>
@@ -889,8 +889,8 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 {isManager && selectedIds.size > 0 && (
-                    <div className="flex items-center justify-between mb-4 px-4 py-2.5 rounded-xl bg-indigo-50 border border-indigo-100">
-                        <span className="text-sm font-medium text-indigo-700">
+                    <div className="flex items-center justify-between mb-4 px-4 py-2.5 rounded-xl bg-primary-50 border border-primary-100">
+                        <span className="text-sm font-medium text-primary-700">
                             {selectedIds.size} {view === "companies" ? "société(s)" : "contact(s)"} sélectionné(e)(s)
                         </span>
                         <button

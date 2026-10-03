@@ -377,7 +377,7 @@ function CreateExclusionModal({
                     <select
                         value={scopeId}
                         onChange={(e) => setScopeId(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none focus:border-indigo-300"
+                        className="w-full rounded-xl border border-slate-200 p-2.5 text-sm outline-none focus:border-primary-300"
                     >
                         <option value="">Toutes les missions (tous clients)</option>
                         {clients.map((client) => (
@@ -408,7 +408,7 @@ function CreateExclusionModal({
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
                         rows={3}
-                        className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-indigo-300"
+                        className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-primary-300"
                     />
                 </div>
 
@@ -423,7 +423,7 @@ function CreateExclusionModal({
                                 className={cn(
                                     "rounded-lg border px-3 py-1.5 text-sm",
                                     duration === option.value
-                                        ? "border-indigo-400 bg-indigo-50 text-indigo-700 font-medium"
+                                        ? "border-primary-400 bg-primary-50 text-primary-700 font-medium"
                                         : "border-slate-200 text-slate-600"
                                 )}
                             >
@@ -518,7 +518,7 @@ function LiftExclusionModal({
                     onChange={(e) => setLiftReason(e.target.value)}
                     rows={3}
                     placeholder="Ex : accord écrit du client du 12/09"
-                    className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-indigo-300"
+                    className="w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-primary-300"
                 />
                 <p className="mt-2 text-xs text-slate-500">
                     La règle est conservée dans le journal : elle apparaîtra comme « levée », jamais supprimée.

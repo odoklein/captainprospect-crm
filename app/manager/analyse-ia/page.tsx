@@ -4,13 +4,14 @@ import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Brain, Calendar, ChevronDown, ChevronUp, ChevronRight, ChevronLeft,
-    Sparkles, AlertTriangle, CheckCircle2, Clock, TrendingUp, TrendingDown,
+    AlertTriangle, CheckCircle2, Clock, TrendingUp, TrendingDown,
     Minus, Target, Users, Zap, FileText, MessageSquare, Play, RefreshCw,
     Star, ArrowRight, AlertCircle, Info, BookOpen, Award, Shield,
     Lightbulb, BarChart2, Activity, ThumbsUp, ThumbsDown, Filter,
     History, Loader2, XCircle, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ui/AiMark";
 
 // ============================================
 // TYPES
@@ -237,7 +238,7 @@ function TrendIcon({ trend }: { trend: "UP" | "DOWN" | "STABLE" | "VOLATILE" }) 
 function CitationList({ citations }: { citations: string[] }) {
     if (!citations?.length) return null;
     return (
-        <div className="mt-3 border-l-2 border-indigo-200 pl-3 space-y-1">
+        <div className="mt-3 border-l-2 border-primary-200 pl-3 space-y-1">
             {citations.map((c, i) => (
                 <p key={i} className="text-xs text-slate-500 italic">"{c}"</p>
             ))}
@@ -245,7 +246,7 @@ function CitationList({ citations }: { citations: string[] }) {
     );
 }
 
-function ScoreBar({ value, max = 1, colorClass = "bg-indigo-500" }: { value: number; max?: number; colorClass?: string }) {
+function ScoreBar({ value, max = 1, colorClass = "bg-primary-500" }: { value: number; max?: number; colorClass?: string }) {
     return (
         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden w-full">
             <div
@@ -273,7 +274,7 @@ function CollapsibleCard({
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
             >
                 <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5 text-indigo-500" />
+                    <Icon className="w-5 h-5 text-primary-500" />
                     <span className="font-semibold text-slate-800">{title}</span>
                     {badge}
                 </div>
@@ -295,7 +296,7 @@ function ExecutiveSummarySection({ analysis }: { analysis: WeeklyAnalysis }) {
             {/* KPI Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                    { label: "Total actions", value: snap.actionCount ?? "–", icon: Activity, color: "text-indigo-600" },
+                    { label: "Total actions", value: snap.actionCount ?? "–", icon: Activity, color: "text-primary-600" },
                     { label: "RDV obtenus", value: snap.meetingCount ?? "–", icon: Calendar, color: "text-emerald-600" },
                     { label: "Taux conversion", value: snap.conversionRate != null ? `${snap.conversionRate}%` : "–", icon: TrendingUp, color: "text-amber-600" },
                     { label: "Appels", value: snap.callCount ?? "–", icon: BarChart2, color: "text-blue-600" },
@@ -441,8 +442,8 @@ function ScriptImprovementsSection({ improvements }: { improvements: ScriptImpro
                         className={cn(
                             "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border",
                             activeIdx === i
-                                ? "bg-indigo-600 text-white border-indigo-600"
-                                : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                                ? "bg-primary-600 text-white border-primary-600"
+                                : "bg-white text-slate-600 border-slate-200 hover:border-primary-300"
                         )}
                     >
                         {sectionLabels[imp.section] || imp.section}
@@ -482,12 +483,12 @@ function IcpRefinementsSection({ refinements }: { refinements: IcpRefinement[] }
             {refinements.map((ref, i) => (
                 <div key={i} className="border border-slate-200 rounded-lg p-4 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-indigo-500">{ref.dimension}</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-primary-500">{ref.dimension}</span>
                         <ConfidenceBadge score={ref.confidence} />
                     </div>
                     <p className="text-sm text-slate-700"><span className="font-medium">Observation :</span> {ref.finding}</p>
-                    <div className="bg-indigo-50 border border-indigo-100 rounded p-2">
-                        <p className="text-sm text-indigo-700"><span className="font-medium">Action :</span> {ref.action}</p>
+                    <div className="bg-primary-50 border border-primary-100 rounded p-2">
+                        <p className="text-sm text-primary-700"><span className="font-medium">Action :</span> {ref.action}</p>
                     </div>
                 </div>
             ))}
@@ -559,7 +560,7 @@ function SdrCoachingSection({ actions }: { actions: SdrCoachingAction[] }) {
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             {action.sdrName && (
-                                <p className="text-xs font-semibold text-indigo-500 mb-0.5 flex items-center gap-1">
+                                <p className="text-xs font-semibold text-primary-500 mb-0.5 flex items-center gap-1">
                                     <Users className="w-3 h-3" /> {action.sdrName}
                                 </p>
                             )}
@@ -624,8 +625,8 @@ function RecommendationsSection({
                                                 outcome.status === "partial" ? "bg-amber-100 text-amber-700 border-amber-200" :
                                                     "bg-slate-100 text-slate-500 border-slate-200"
                                         )}>
-                                            {outcome.status === "applied" ? "✓ Appliqué" :
-                                                outcome.status === "partial" ? "~ Partiel" : "✗ Ignoré"}
+                                            {outcome.status === "applied" ? "Appliqué" :
+                                                outcome.status === "partial" ? "Partiel" : "Ignoré"}
                                         </span>
                                     )}
                                 </div>
@@ -648,7 +649,7 @@ function RecommendationsSection({
                                         <ol className="space-y-1.5">
                                             {rec.actionSteps.map((step, i) => (
                                                 <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-                                                    <span className="shrink-0 w-5 h-5 bg-indigo-100 text-indigo-600 rounded-full text-xs font-bold flex items-center justify-center mt-0.5">
+                                                    <span className="shrink-0 w-5 h-5 bg-primary-100 text-primary-600 rounded-full text-xs font-bold flex items-center justify-center mt-0.5">
                                                         {i + 1}
                                                     </span>
                                                     {step}
@@ -674,8 +675,8 @@ function RecommendationsSection({
                                                         : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
                                                 )}
                                             >
-                                                {status === "applied" ? "✓ Appliqué" :
-                                                    status === "partial" ? "~ Partiel" : "✗ Ignoré"}
+                                                {status === "applied" ? "Appliqué" :
+                                                    status === "partial" ? "Partiel" : "Ignoré"}
                                             </button>
                                         ))}
                                     </div>
@@ -760,10 +761,10 @@ function ExpectedImpactsSection({ impacts }: { impacts: ExpectedImpact[] }) {
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                         <span className="text-slate-500">Actuel : <strong className="text-slate-700">{imp.current}</strong></span>
-                        <ArrowRight className="w-4 h-4 text-indigo-400" />
+                        <ArrowRight className="w-4 h-4 text-primary-400" />
                         <span className="text-emerald-600">Projeté : <strong>{imp.projected}</strong></span>
                     </div>
-                    <ScoreBar value={imp.confidence} colorClass="bg-indigo-400" />
+                    <ScoreBar value={imp.confidence} colorClass="bg-primary-400" />
                 </div>
             ))}
         </div>
@@ -790,9 +791,9 @@ function HistoryPanel({
                     key={a.id}
                     onClick={() => onSelect(a)}
                     className={cn(
-                        "w-full text-left p-3 rounded-lg border transition-all hover:border-indigo-300",
+                        "w-full text-left p-3 rounded-lg border transition-all hover:border-primary-300",
                         selectedId === a.id
-                            ? "border-indigo-400 bg-indigo-50"
+                            ? "border-primary-400 bg-primary-50"
                             : "border-slate-200 bg-white hover:bg-slate-50"
                     )}
                 >
@@ -801,19 +802,19 @@ function HistoryPanel({
                             {a.label || formatWeekLabel(a.weekStart, a.weekEnd)}
                         </span>
                         <span className={cn(
-                            "text-xs px-1.5 py-0.5 rounded",
+                            "inline-flex items-center text-xs px-1.5 py-0.5 rounded",
                             a.status === "completed" ? "bg-emerald-100 text-emerald-700" :
                                 a.status === "running" ? "bg-blue-100 text-blue-700" :
                                     "bg-rose-100 text-rose-700"
                         )}>
-                            {a.status === "completed" ? "✓" : a.status === "running" ? "⟳" : "✗"}
+                            {a.status === "completed" ? <CheckCircle2 className="w-3.5 h-3.5" /> : a.status === "running" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
                         </span>
                     </div>
                     {a.status === "completed" && (
                         <div className="flex items-center gap-3">
                             <div className="flex-1">
                                 <div className="text-xs text-slate-400 mb-0.5">Confiance</div>
-                                <ScoreBar value={a.confidenceScore} colorClass="bg-indigo-400" />
+                                <ScoreBar value={a.confidenceScore} colorClass="bg-primary-400" />
                             </div>
                             <span className="text-xs text-slate-500 shrink-0">
                                 {(a.dataSnapshot as any)?.meetingCount ?? "?"} RDV
@@ -946,14 +947,14 @@ export default function AnalyseIAPage() {
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
-                                <Brain className="w-6 h-6 text-indigo-600" />
-                                <h1 className="text-xl font-bold text-slate-900">Analyse IA Stratégique</h1>
-                                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold border border-indigo-200">
-                                    Copilote Hebdomadaire
+                                <Brain className="w-6 h-6 text-primary-600" />
+                                <h1 className="text-xl font-bold text-slate-900">Analyse IA</h1>
+                                <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full font-semibold border border-primary-200">
+                                    Hebdomadaire
                                 </span>
                             </div>
                             <p className="text-sm text-slate-500">
-                                Raisonnement multi-étapes sur vos données terrain — transcriptions, notes, RDV, ICP, scripts.
+                                Analyse de la semaine à partir des transcriptions, notes, RDV, ICP et scripts.
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -962,7 +963,7 @@ export default function AnalyseIAPage() {
                                 className={cn(
                                     "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
                                     showHistory
-                                        ? "bg-indigo-50 border-indigo-300 text-indigo-700"
+                                        ? "bg-primary-50 border-primary-300 text-primary-700"
                                         : "bg-white border-slate-200 text-slate-600 hover:border-slate-400"
                                 )}
                             >
@@ -986,7 +987,7 @@ export default function AnalyseIAPage() {
                                 <span className="text-sm font-medium text-slate-700 min-w-[200px] text-center">
                                     {formatWeekLabel(weekStart, weekEnd)}
                                     {weekOffset === 0 && (
-                                        <span className="ml-2 text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">
+                                        <span className="ml-2 text-xs bg-primary-100 text-primary-600 px-1.5 py-0.5 rounded">
                                             Cette semaine
                                         </span>
                                     )}
@@ -1006,7 +1007,7 @@ export default function AnalyseIAPage() {
                             placeholder="Label optionnel (ex: Mission Alpha S.15)"
                             value={runLabel}
                             onChange={(e) => setRunLabel(e.target.value)}
-                            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white w-64 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                            className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white w-64 focus:outline-none focus:ring-2 focus:ring-primary-300"
                         />
 
                         <button
@@ -1015,8 +1016,8 @@ export default function AnalyseIAPage() {
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all shadow-sm",
                                 isRunning
-                                    ? "bg-indigo-400 text-white cursor-not-allowed"
-                                    : "bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow"
+                                    ? "bg-primary-400 text-white cursor-not-allowed"
+                                    : "bg-primary-600 hover:bg-primary-700 text-white hover:shadow"
                             )}
                         >
                             {isRunning ? (
@@ -1026,7 +1027,7 @@ export default function AnalyseIAPage() {
                                 </>
                             ) : (
                                 <>
-                                    <Sparkles className="w-4 h-4" />
+                                    <AiMark className="w-4 h-4" />
                                     Lancer l'analyse
                                 </>
                             )}
@@ -1050,7 +1051,7 @@ export default function AnalyseIAPage() {
                         <div className="w-72 shrink-0">
                             <div className="bg-white border border-slate-200 rounded-xl p-4 sticky top-6">
                                 <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                                    <History className="w-4 h-4 text-indigo-500" />
+                                    <History className="w-4 h-4 text-primary-500" />
                                     Historique des analyses
                                 </p>
                                 {historyLoading ? (
@@ -1059,8 +1060,8 @@ export default function AnalyseIAPage() {
                                     </div>
                                 ) : analyses.length === 0 ? (
                                     <p className="text-sm text-slate-400 text-center py-6">
-                                        Aucune analyse encore.
-                                        <br />Lancez votre première !
+                                        Aucune analyse pour le moment.
+                                        <br />Lancez la première depuis le bouton ci-dessus.
                                     </p>
                                 ) : (
                                     <HistoryPanel
@@ -1077,9 +1078,9 @@ export default function AnalyseIAPage() {
                     <div className="flex-1 min-w-0">
                         {/* Loading state */}
                         {isRunning && (
-                            <div className="bg-white border border-indigo-200 rounded-xl p-8 text-center mb-6">
-                                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Brain className="w-8 h-8 text-indigo-600 animate-pulse" />
+                            <div className="bg-white border border-primary-200 rounded-xl p-8 text-center mb-6">
+                                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Brain className="w-8 h-8 text-primary-600" />
                                 </div>
                                 <h3 className="text-lg font-semibold text-slate-800 mb-2">Analyse en cours…</h3>
                                 <p className="text-sm text-slate-500 max-w-md mx-auto">
@@ -1093,7 +1094,7 @@ export default function AnalyseIAPage() {
                                         "Génération des recommandations…",
                                     ].map((step, i) => (
                                         <div key={i} className="flex items-center gap-2 text-sm text-slate-500">
-                                            <Loader2 className="w-3 h-3 animate-spin text-indigo-400 shrink-0" />
+                                            <Loader2 className="w-3 h-3 animate-spin text-primary-400 shrink-0" />
                                             {step}
                                         </div>
                                     ))}
@@ -1104,11 +1105,11 @@ export default function AnalyseIAPage() {
                         {/* No analysis selected */}
                         {!displayedAnalysis && !isRunning && (
                             <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-                                <div className="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                                    <Brain className="w-10 h-10 text-indigo-400" />
+                                <div className="w-20 h-20 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                                    <Brain className="w-10 h-10 text-primary-400" />
                                 </div>
                                 <h3 className="text-lg font-semibold text-slate-800 mb-2">
-                                    Votre copilote stratégique
+                                    Aucune analyse sélectionnée
                                 </h3>
                                 <p className="text-sm text-slate-500 max-w-lg mx-auto mb-6">
                                     Lancez une analyse hebdomadaire pour obtenir des recommandations priorisées
@@ -1119,10 +1120,10 @@ export default function AnalyseIAPage() {
                                         { icon: Lightbulb, label: "Insights", desc: "Patterns & signaux faibles" },
                                         { icon: Target, label: "Causes racines", desc: "Pourquoi ça bloque" },
                                         { icon: FileText, label: "Script amélioré", desc: "Suggestions avec lift" },
-                                        { icon: Shield, label: "Objections", desc: "Réponses optimisées" },
+                                        { icon: Shield, label: "Objections", desc: "Réponses proposées" },
                                     ].map(({ icon: Icon, label, desc }) => (
                                         <div key={label} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
-                                            <Icon className="w-5 h-5 text-indigo-500 mb-1.5" />
+                                            <Icon className="w-5 h-5 text-primary-500 mb-1.5" />
                                             <p className="text-sm font-semibold text-slate-700">{label}</p>
                                             <p className="text-xs text-slate-400">{desc}</p>
                                         </div>
@@ -1130,9 +1131,9 @@ export default function AnalyseIAPage() {
                                 </div>
                                 <button
                                     onClick={() => runMutation.mutate()}
-                                    className="mt-8 flex items-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-all shadow mx-auto"
+                                    className="mt-8 flex items-center gap-2 px-6 py-3 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold transition-all shadow mx-auto"
                                 >
-                                    <Sparkles className="w-4 h-4" />
+                                    <AiMark className="w-4 h-4" />
                                     Lancer ma première analyse
                                 </button>
                             </div>
@@ -1142,14 +1143,14 @@ export default function AnalyseIAPage() {
                         {displayedAnalysis && displayedAnalysis.status === "completed" && !isRunning && (
                             <div className="space-y-5">
                                 {/* Analysis header */}
-                                <div className="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl p-5 text-white">
+                                <div className="bg-primary-600 rounded-xl p-5 text-white">
                                     <div className="flex items-start justify-between gap-4 flex-wrap">
                                         <div>
-                                            <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Analyse hebdomadaire</p>
+                                            <p className="text-primary-200 text-xs font-semibold uppercase tracking-wider mb-1">Analyse hebdomadaire</p>
                                             <h2 className="text-lg font-bold">
                                                 {displayedAnalysis.label || formatWeekLabel(displayedAnalysis.weekStart, displayedAnalysis.weekEnd)}
                                             </h2>
-                                            <p className="text-indigo-200 text-sm mt-0.5">
+                                            <p className="text-primary-200 text-sm mt-0.5">
                                                 {(displayedAnalysis.dataSnapshot as any)?.actionCount || 0} actions analysées ·{" "}
                                                 {displayedAnalysis.durationMs ? `${Math.round(displayedAnalysis.durationMs / 1000)}s` : ""} ·{" "}
                                                 {displayedAnalysis.tokensUsed ? `${displayedAnalysis.tokensUsed.toLocaleString()} tokens` : ""}
@@ -1157,12 +1158,12 @@ export default function AnalyseIAPage() {
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-indigo-200 text-xs">Confiance</span>
+                                                <span className="text-primary-200 text-xs">Confiance</span>
                                                 <span className="text-lg font-bold">
                                                     {Math.round(displayedAnalysis.confidenceScore * 100)}%
                                                 </span>
                                             </div>
-                                            <div className="w-32 h-1.5 bg-indigo-400/40 rounded-full overflow-hidden">
+                                            <div className="w-32 h-1.5 bg-primary-400/40 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-white rounded-full"
                                                     style={{ width: `${displayedAnalysis.confidenceScore * 100}%` }}
@@ -1182,7 +1183,7 @@ export default function AnalyseIAPage() {
                                                 className={cn(
                                                     "flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors shrink-0",
                                                     activeTab === key
-                                                        ? "border-indigo-600 text-indigo-600 bg-indigo-50/50"
+                                                        ? "border-primary-600 text-primary-600 bg-primary-50/50"
                                                         : "border-transparent text-slate-600 hover:text-slate-800 hover:bg-slate-50"
                                                 )}
                                             >

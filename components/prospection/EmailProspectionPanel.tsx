@@ -90,7 +90,7 @@ export function EmailProspectionPanel({ missionId, listId }: EmailProspectionPan
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center py-24">
-                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+                <Loader2 className="w-10 h-10 text-primary-500 animate-spin mb-4" />
                 <p className="text-slate-500 font-medium">Chargement du prochain contact...</p>
             </div>
         );
@@ -116,8 +116,8 @@ export function EmailProspectionPanel({ missionId, listId }: EmailProspectionPan
         <div className="space-y-6 max-w-3xl mx-auto">
             <Card className="p-6 border border-slate-200 rounded-2xl shadow-sm">
                 <div className="flex items-center gap-4 mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center">
-                        <User className="w-6 h-6 text-violet-600" />
+                    <div className="w-12 h-12 rounded-xl bg-accent-100 flex items-center justify-center">
+                        <User className="w-6 h-6 text-accent-600" />
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-slate-900">{displayName}</h2>

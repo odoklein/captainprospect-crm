@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
     ArrowLeft, LayoutDashboard, Columns3, List, BarChart3,
-    Activity, Settings, Plus, Sparkles, Loader2, Calendar,
+    Activity, Settings, Plus, Loader2, Calendar,
     Users, CheckCircle2, Clock, AlertTriangle, FolderKanban,
     FileText, MoreHorizontal, Download
 } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
 import { PageHeader, Badge, Tabs, Modal, ModalFooter, LoadingState } from "@/components/ui";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
@@ -218,7 +219,7 @@ export default function ManagerProjectDetailPage() {
         return (
             <div className="p-6 text-center">
                 <p className="text-slate-500">Projet non trouvé</p>
-                <button onClick={() => router.back()} className="mt-4 text-indigo-600 hover:underline text-sm">
+                <button onClick={() => router.back()} className="mt-4 text-primary-600 hover:underline text-sm">
                     Retour
                 </button>
             </div>
@@ -239,7 +240,7 @@ export default function ManagerProjectDetailPage() {
             <div className="mb-6">
                 <button
                     onClick={() => router.push("/manager/projects")}
-                    className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 mb-3 transition-colors"
+                    className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-primary-600 mb-3 transition-colors"
                 >
                     <ArrowLeft className="w-4 h-4" />
                     Projets
@@ -270,18 +271,18 @@ export default function ManagerProjectDetailPage() {
                         <button
                             onClick={generateAiReport}
                             disabled={aiReportLoading}
-                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-primary-600 bg-primary-50 border border-primary-200 rounded-lg hover:bg-primary-100 disabled:opacity-50 transition-colors"
                         >
                             {aiReportLoading ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                                <Sparkles className="w-4 h-4" />
+                                <AiMark className="w-4 h-4" />
                             )}
                             Rapport IA
                         </button>
                         <button
                             onClick={() => handleAddTask()}
-                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             Nouvelle tâche
@@ -372,7 +373,7 @@ export default function ManagerProjectDetailPage() {
                                                         <span className="font-medium text-slate-800">{a.user?.name}</span>{" "}
                                                         {formatActivity(a.action, a.details)}
                                                         {a.task && (
-                                                            <span className="text-indigo-600 ml-1">
+                                                            <span className="text-primary-600 ml-1">
                                                                 {a.task.title}
                                                             </span>
                                                         )}
@@ -406,7 +407,7 @@ export default function ManagerProjectDetailPage() {
                                             );
                                             return (
                                                 <div key={m.user.id} className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">
+                                                    <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold">
                                                         {m.user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
@@ -445,7 +446,7 @@ export default function ManagerProjectDetailPage() {
                                                 }
                                             }}
                                             disabled={addMemberLoading}
-                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 bg-white disabled:opacity-50"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white disabled:opacity-50"
                                         >
                                             <option value="">Ajouter un membre...</option>
                                             {allUsers
@@ -512,7 +513,7 @@ export default function ManagerProjectDetailPage() {
                                     onClick={() => setTaskView("kanban")}
                                     className={cn(
                                         "p-1.5 rounded transition-colors",
-                                        taskView === "kanban" ? "bg-white shadow-sm text-indigo-600" : "text-slate-500"
+                                        taskView === "kanban" ? "bg-white shadow-sm text-primary-600" : "text-slate-500"
                                     )}
                                     title="Kanban"
                                 >
@@ -522,7 +523,7 @@ export default function ManagerProjectDetailPage() {
                                     onClick={() => setTaskView("list")}
                                     className={cn(
                                         "p-1.5 rounded transition-colors",
-                                        taskView === "list" ? "bg-white shadow-sm text-indigo-600" : "text-slate-500"
+                                        taskView === "list" ? "bg-white shadow-sm text-primary-600" : "text-slate-500"
                                     )}
                                     title="Liste"
                                 >
@@ -549,8 +550,8 @@ export default function ManagerProjectDetailPage() {
                                         key={task.id}
                                         onClick={() => handleTaskClick(task.id)}
                                         className={cn(
-                                            "flex items-center gap-4 bg-white border border-slate-200 rounded-lg px-4 py-3 hover:border-indigo-300 cursor-pointer transition-all",
-                                            task.parentTaskId && "ml-4 border-l-2 border-l-indigo-200"
+                                            "flex items-center gap-4 bg-white border border-slate-200 rounded-lg px-4 py-3 hover:border-primary-300 cursor-pointer transition-all",
+                                            task.parentTaskId && "ml-4 border-l-2 border-l-primary-200"
                                         )}
                                     >
                                         <StatusDot status={task.status} />
@@ -559,7 +560,7 @@ export default function ManagerProjectDetailPage() {
                                         </div>
                                         <PriorityBadge priority={task.priority} />
                                         {task.assignee && (
-                                            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">
+                                            <div className="w-6 h-6 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-[10px] font-bold">
                                                 {task.assignee.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
                                             </div>
                                         )}
@@ -605,7 +606,7 @@ export default function ManagerProjectDetailPage() {
                                         {a.task && (
                                             <button
                                                 onClick={() => handleTaskClick(a.task.id)}
-                                                className="text-indigo-600 hover:underline ml-1"
+                                                className="text-primary-600 hover:underline ml-1"
                                             >
                                                 {a.task.title}
                                             </button>
@@ -754,7 +755,7 @@ function ProjectSettings({ project, onUpdate }: { project: ProjectData; onUpdate
                 }),
             });
             if ((await res.json()).success) {
-                alert("Modèle créé avec succès !");
+                alert("Modèle créé");
             }
         } catch (e) {
             console.error(e);
@@ -779,7 +780,7 @@ function ProjectSettings({ project, onUpdate }: { project: ProjectData; onUpdate
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400"
                 />
             </div>
             <div>
@@ -788,7 +789,7 @@ function ProjectSettings({ project, onUpdate }: { project: ProjectData; onUpdate
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-indigo-400 resize-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:border-primary-400 resize-none"
                 />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -819,14 +820,14 @@ function ProjectSettings({ project, onUpdate }: { project: ProjectData; onUpdate
                 <button
                     onClick={save}
                     disabled={saving}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 flex items-center gap-2"
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-50 flex items-center gap-2"
                 >
                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                     Enregistrer
                 </button>
                 <button
                     onClick={saveAsTemplate}
-                    className="px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200"
+                    className="px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200"
                 >
                     Sauvegarder comme modèle
                 </button>

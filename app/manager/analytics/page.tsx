@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
     Calendar, Download, RefreshCw, Target, User, Briefcase, TrendingUp, X, Phone, Clock, Search,
-    Activity, BrainCircuit, Zap, Flame, Trophy, Play, CheckCircle2, LayoutDashboard, Sparkles, FileText, Loader2, List,
+    Activity, BrainCircuit, Percent, Trophy, Play, CheckCircle2, LayoutDashboard, FileText, Loader2, List,
     BarChart3, GitCompare, ChevronDown, ChevronUp, AlertTriangle, ThumbsUp, ThumbsDown, PhoneOff, PhoneMissed, UserX, Mail, ArrowRight
 } from "lucide-react";
 import {
@@ -11,16 +11,17 @@ import {
     BarChart, Bar, Cell
 } from "recharts";
 import { cn } from "@/lib/utils";
+import { AiMark } from "@/components/ui/AiMark";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
 import { DataTable } from "@/components/ui/DataTable";
 import { Modal } from "@/components/ui";
 
 const SDR_COLORS: Record<string, string> = {
-    'Mathieu Deville': '#7C5CFC', // updated to violet
+    'Mathieu Deville': 'var(--brand-primary-600)', // brand primary
     'Rayan': '#059669', // emerald
-    'Anaïs': '#A78BFA', // lighter violet
+    'Anaïs': 'var(--brand-accent-400)', // lighter brand accent
 };
-const getSdrColor = (name: string) => SDR_COLORS[name] || '#94A3B8';
+const getSdrColor = (name: string) => SDR_COLORS[name] || 'var(--brand-neutral-400)';
 
 type AiAnalysis = {
     executiveSummary: string;
@@ -91,10 +92,10 @@ export default function AnalyticsPage() {
 
     // Status labels from mission config (or global fallback)
     const defaultColors: Record<string, string> = {
-        NO_RESPONSE: "#60a5fa", BAD_CONTACT: "#a78bfa", INTERESTED: "#f59e0b",
+        NO_RESPONSE: "#60a5fa", BAD_CONTACT: "var(--brand-accent-400)", INTERESTED: "#f59e0b",
         CALLBACK_REQUESTED: "#f59e0b", MEETING_BOOKED: "#10b981",
-        MEETING_CANCELLED: "#94a3b8", DISQUALIFIED: "#ef4444",
-        ENVOIE_MAIL: "#94a3b8", NOT_INTERESTED: "#94a3b8",
+        MEETING_CANCELLED: "var(--brand-neutral-400)", DISQUALIFIED: "#ef4444",
+        ENVOIE_MAIL: "var(--brand-neutral-400)", NOT_INTERESTED: "var(--brand-neutral-400)",
     };
     const [statusLabelMap, setStatusLabelMap] = useState<Record<string, string>>(ACTION_RESULT_LABELS);
     const [statusColorMap, setStatusColorMap] = useState<Record<string, string>>(defaultColors);
@@ -258,7 +259,7 @@ export default function AnalyticsPage() {
                     const colors: Record<string, string> = { ...defaultColors };
                     for (const s of json.data.statuses) {
                         labels[s.code] = s.label || s.code;
-                        colors[s.code] = s.color || defaultColors[s.code] || "#94a3b8";
+                        colors[s.code] = s.color || defaultColors[s.code] || "var(--brand-neutral-400)";
                     }
                     setStatusLabelMap(labels);
                     setStatusColorMap(colors);
@@ -483,10 +484,10 @@ export default function AnalyticsPage() {
     const getBarColor = (entry: { conversionRate: number; calls: number; meetings: number }) => {
         if (personaMetric === 'conversion') {
             if (entry.conversionRate >= 5) return '#10b981';
-            if (entry.conversionRate >= 3) return '#6366f1';
-            return '#94a3b8';
+            if (entry.conversionRate >= 3) return 'var(--brand-primary-600)';
+            return 'var(--brand-neutral-400)';
         }
-        if (personaMetric === 'calls') return '#6366f1';
+        if (personaMetric === 'calls') return 'var(--brand-primary-600)';
         return '#10b981'; // meetings
     };
 
@@ -508,9 +509,9 @@ export default function AnalyticsPage() {
         return (
             <ResponsiveContainer width="100%" height={height}>
                 <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, left: 0, bottom: 4 }}>
-                    <XAxis type="number" domain={[0, 'auto']} tickFormatter={tickFormatter} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fill: '#475569', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                    <RechartsTooltip content={<PersonaTooltip />} cursor={{ fill: 'rgba(99, 102, 241, 0.06)' }} />
+                    <XAxis type="number" domain={[0, 'auto']} tickFormatter={tickFormatter} tick={{ fontSize: 10, fill: 'var(--ds-ink-4)' }} axisLine={false} tickLine={false} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fill: 'var(--ds-ink-2)', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                    <RechartsTooltip content={<PersonaTooltip />} cursor={{ fill: 'color-mix(in oklab, var(--brand-primary) 6%, transparent)' }} />
                     <Bar dataKey={dataKey} name={metric === 'conversion' ? 'Conversion' : metric === 'calls' ? 'Appels' : 'RDV'} radius={[0, 6, 6, 0]} barSize={22} minPointSize={4}>
                         {data.map((entry, i) => (
                             <Cell key={i} fill={getBarColor(entry)} stroke="none" />
@@ -531,7 +532,7 @@ export default function AnalyticsPage() {
                 code,
                 count: count as number,
                 label: statusLabelMap[code] || code,
-                color: statusColorMap[code] || "#94a3b8",
+                color: statusColorMap[code] || "var(--brand-neutral-400)",
             });
         }
         return items.sort((a, b) => b.count - a.count);
@@ -539,9 +540,9 @@ export default function AnalyticsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center py-40" style={{ background: "#F4F6FA", minHeight: "100vh" }}>
-                <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center mb-4">
-                    <RefreshCw className="w-7 h-7 text-violet-600 animate-spin" />
+            <div className="flex flex-col items-center justify-center py-40" style={{ background: "var(--ds-canvas)", minHeight: "100vh" }}>
+                <div className="w-14 h-14 rounded-2xl bg-accent-100 flex items-center justify-center mb-4">
+                    <RefreshCw className="w-7 h-7 text-accent-600 animate-spin" />
                 </div>
                 <p className="text-[13px] text-slate-400 font-medium">Chargement des analytics...</p>
             </div>
@@ -562,13 +563,13 @@ export default function AnalyticsPage() {
     const HOURS = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 
     return (
-        <div className="min-h-full p-5 lg:p-6 pb-20 overflow-x-hidden" style={{ background: "linear-gradient(160deg, #F4F6FA 0%, #EEF2FF 100%)", fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div className="min-h-full p-5 lg:p-6 pb-20 overflow-x-hidden" style={{ background: "var(--ds-canvas)", fontFamily: "var(--font-body-face), system-ui, sans-serif" }}>
 
             {/* Page Header */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
                     <div className="flex items-center gap-2 mb-1">
-                        <div className="w-8 h-8 rounded-xl bg-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+                        <div className="w-8 h-8 rounded-xl bg-accent-600 flex items-center justify-center">
                             <Activity className="w-4 h-4 text-white" />
                         </div>
                         <h1 className="text-[22px] font-black text-slate-900 tracking-tight">Analytics & Performance</h1>
@@ -577,30 +578,30 @@ export default function AnalyticsPage() {
                 </div>
 
                 <div className="flex items-center gap-2.5 flex-wrap">
-                    <div className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-violet-300 transition-all">
-                        <Calendar className="w-3.5 h-3.5 text-violet-500" />
+                    <div className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-accent-300 transition-all">
+                        <Calendar className="w-3.5 h-3.5 text-accent-500" />
                         <input
                             type="date"
                             value={dateRange.from}
                             onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                            className="bg-transparent border-none p-0 outline-none hover:text-violet-600 transition-colors cursor-pointer"
+                            className="bg-transparent border-none p-0 outline-none hover:text-accent-600 transition-colors cursor-pointer"
                         />
                         <span className="text-slate-300 font-normal">→</span>
                         <input
                             type="date"
                             value={dateRange.to}
                             onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-                            className="bg-transparent border-none p-0 outline-none hover:text-violet-600 transition-colors cursor-pointer"
+                            className="bg-transparent border-none p-0 outline-none hover:text-accent-600 transition-colors cursor-pointer"
                         />
                     </div>
 
                     <button
                         onClick={() => setShowReportModal(true)}
-                        className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:border-violet-300 hover:shadow-sm transition-all shadow-sm"
+                        className="flex items-center gap-2 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:border-accent-300 hover:shadow-sm transition-all shadow-sm"
                     >
                         <Download className="w-3.5 h-3.5 text-slate-400" /> Exporter les stats
                     </button>
-                    <button onClick={fetchStats} className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-violet-600 hover:border-violet-300 hover:shadow-sm transition-all shadow-sm">
+                    <button onClick={fetchStats} className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-accent-600 hover:border-accent-300 hover:shadow-sm transition-all shadow-sm">
                         <RefreshCw className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")} />
                     </button>
                 </div>
@@ -608,7 +609,7 @@ export default function AnalyticsPage() {
 
             {/* Filters */}
             <div className="flex flex-wrap gap-3 mb-6">
-                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-violet-300 shadow-sm">
+                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-accent-300 shadow-sm">
                     <div className="flex-1">
                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mission</span>
                         <select
@@ -625,10 +626,10 @@ export default function AnalyticsPage() {
                             ))}
                         </select>
                     </div>
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0"><Target className="w-4 h-4 text-indigo-500" /></div>
+                    <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0"><Target className="w-4 h-4 text-primary-500" /></div>
                 </div>
 
-                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-violet-300 shadow-sm">
+                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-accent-300 shadow-sm">
                     <div className="flex-1">
                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">SDR</span>
                         <select className="w-full bg-transparent border-none text-[13px] font-semibold text-slate-700 outline-none p-0 cursor-pointer" onChange={e => {
@@ -642,7 +643,7 @@ export default function AnalyticsPage() {
                     <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0"><User className="w-4 h-4 text-emerald-500" /></div>
                 </div>
 
-                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-violet-300 shadow-sm">
+                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-accent-300 shadow-sm">
                     <div className="flex-1">
                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Client</span>
                         <select className="w-full bg-transparent border-none text-[13px] font-semibold text-slate-700 outline-none p-0 cursor-pointer" onChange={e => {
@@ -656,7 +657,7 @@ export default function AnalyticsPage() {
                     <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0"><Briefcase className="w-4 h-4 text-amber-500" /></div>
                 </div>
 
-                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-violet-300 shadow-sm">
+                <div className="flex-1 min-w-[200px] flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 transition-all hover:border-accent-300 shadow-sm">
                     <div className="flex-1">
                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Liste</span>
                         <select
@@ -678,12 +679,10 @@ export default function AnalyticsPage() {
             </div>
 
             {/* AI Hero Banner */}
-            <div className="relative overflow-hidden rounded-2xl p-6 lg:p-8 mb-6 shadow-xl" style={{ background: "linear-gradient(145deg, #16103A 0%, #1A1040 40%, #08051E 100%)" }}>
-                <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: "radial-gradient(circle, #7C5CFC, transparent 70%)" }} />
-                <div className="absolute -bottom-32 -left-32 w-72 h-72 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: "radial-gradient(circle, #A78BFA, transparent 70%)" }} />
+            <div className="relative overflow-hidden rounded-2xl p-6 lg:p-8 mb-6 shadow-sm" style={{ background: "var(--ds-inverse)" }}>
 
                 <button
-                    className="absolute top-6 right-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600/80 to-indigo-600/80 hover:from-violet-500/90 hover:to-indigo-500/90 border border-violet-400/30 text-white transition-all text-[12px] font-bold backdrop-blur-sm z-20 disabled:opacity-60 shadow-lg shadow-violet-900/30"
+                    className="absolute top-6 right-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-600/80 hover:bg-accent-500/90 border border-accent-400/30 text-white transition-colors text-[12px] font-bold z-20 disabled:opacity-60"
                     onClick={() => fetchAiRecap()}
                     disabled={isLoadingAiRecap}
                 >
@@ -691,8 +690,8 @@ export default function AnalyticsPage() {
                 </button>
 
                 <div className="relative z-10 flex items-center gap-3 mb-5">
-                    <div className="flex items-center gap-2 bg-violet-600/30 border border-violet-500/50 text-violet-200 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider">
-                        <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                    <div className="flex items-center gap-2 bg-accent-600/30 border border-accent-500/50 text-accent-200 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider">
+                        <AiMark className="w-3.5 h-3.5 text-accent-400" />
                         ANALYSE IA
                     </div>
                     <span className="text-[13px] font-medium text-white/50">Analyse des notes et statuts</span>
@@ -705,21 +704,21 @@ export default function AnalyticsPage() {
                             { phase: 1, icon: <Activity className="w-4 h-4" />, label: "Collecte des données...", sub: "Récupération des appels et notes" },
                             { phase: 2, icon: <Phone className="w-4 h-4" />, label: "Analyse des statuts d'appels...", sub: `${statusItems.length} statuts différents détectés` },
                             { phase: 3, icon: <FileText className="w-4 h-4" />, label: "Analyse des notes d'appels...", sub: "Extraction des objections et patterns" },
-                            { phase: 4, icon: <Sparkles className="w-4 h-4" />, label: "Génération des recommandations...", sub: "Synthèse IA en cours" },
+                            { phase: 4, icon: <AiMark className="w-4 h-4" />, label: "Génération des recommandations...", sub: "Synthèse IA en cours" },
                         ].map(({ phase, icon, label, sub }) => (
                             <div
                                 key={phase}
                                 className={cn(
                                     "flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-500",
                                     aiPhase > phase ? "bg-emerald-500/10 border border-emerald-500/20" :
-                                    aiPhase === phase ? "bg-violet-500/15 border border-violet-400/30 animate-pulse" :
+                                    aiPhase === phase ? "bg-accent-500/15 border border-accent-400/30" :
                                     "bg-white/5 border border-white/5 opacity-40"
                                 )}
                             >
                                 <div className={cn(
                                     "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-500",
                                     aiPhase > phase ? "bg-emerald-500/20 text-emerald-400" :
-                                    aiPhase === phase ? "bg-violet-500/30 text-violet-300" :
+                                    aiPhase === phase ? "bg-accent-500/30 text-accent-300" :
                                     "bg-white/10 text-white/30"
                                 )}>
                                     {aiPhase > phase ? <CheckCircle2 className="w-4 h-4" /> : aiPhase === phase ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
@@ -738,7 +737,7 @@ export default function AnalyticsPage() {
                                 </div>
                                 {aiPhase === phase && (
                                     <div className="w-16 h-1.5 rounded-full bg-white/10 overflow-hidden shrink-0">
-                                        <div className="h-full bg-violet-400 rounded-full animate-[progressPulse_1.5s_ease-in-out_infinite]" style={{ width: '70%' }} />
+                                        <div className="h-full bg-accent-400 rounded-full animate-[progressPulse_1.5s_ease-in-out_infinite]" style={{ width: '70%' }} />
                                     </div>
                                 )}
                                 {aiPhase > phase && (
@@ -767,12 +766,12 @@ export default function AnalyticsPage() {
                     <div className="relative z-10 space-y-5">
                         {aiAnalysis ? (
                             <>
-                                <div className="rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm p-4 lg:p-5">
-                                    <div className="text-[11px] uppercase tracking-widest text-violet-200/70 font-bold mb-2">Synthèse exécutive</div>
+                                <div className="rounded-2xl bg-white/10 border border-white/15 p-4 lg:p-5">
+                                    <div className="text-[11px] uppercase tracking-widest text-accent-200/70 font-bold mb-2">Synthèse exécutive</div>
                                     <p className="text-[14px] leading-relaxed text-white/90">{aiAnalysis.executiveSummary}</p>
                                     <div className="flex flex-wrap gap-2 mt-4">
                                         {aiAnalysis.keyInsights.map((insight, idx) => (
-                                            <span key={`${insight}-${idx}`} className="px-2.5 py-1.5 rounded-lg bg-violet-500/15 border border-violet-400/30 text-violet-100 text-[11px] font-semibold">
+                                            <span key={`${insight}-${idx}`} className="px-2.5 py-1.5 rounded-lg bg-accent-500/15 border border-accent-400/30 text-accent-100 text-[11px] font-semibold">
                                                 {insight}
                                             </span>
                                         ))}
@@ -800,7 +799,7 @@ export default function AnalyticsPage() {
                                                         </span>
                                                     </div>
                                                     <p className="text-[11px] text-white/65">{item.whyItHappens}</p>
-                                                    <p className="text-[11px] text-violet-100/80 mt-1.5">Réponse: {item.recommendedResponse}</p>
+                                                    <p className="text-[11px] text-accent-100/80 mt-1.5">Réponse: {item.recommendedResponse}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -831,7 +830,7 @@ export default function AnalyticsPage() {
                                                 <div key={`${item.title}-${idx}`} className="rounded-xl bg-white/5 border border-white/10 p-3">
                                                     <div className="flex items-center justify-between gap-2 mb-1.5">
                                                         <p className="text-[12px] font-bold text-white">{item.title}</p>
-                                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-violet-500/20 text-violet-200 border border-violet-400/30">
+                                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-accent-500/20 text-accent-200 border border-accent-400/30">
                                                             {item.priority}
                                                         </span>
                                                     </div>
@@ -869,12 +868,12 @@ export default function AnalyticsPage() {
                                         dangerouslySetInnerHTML={{ __html: aiRecap.replace(/\n/g, "<br />").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }}
                                     />
                                     {!showFullRecap && (
-                                        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#16103A] to-transparent pointer-events-none" />
+                                        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-inverse to-transparent pointer-events-none" />
                                     )}
                                 </div>
                                 <button
                                     onClick={() => setShowFullRecap(!showFullRecap)}
-                                    className="flex items-center gap-1.5 text-[12px] font-bold text-violet-300 hover:text-violet-200 transition-colors"
+                                    className="flex items-center gap-1.5 text-[12px] font-bold text-accent-300 hover:text-accent-200 transition-colors"
                                 >
                                     {showFullRecap ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                     {showFullRecap ? "Réduire" : "Voir l'analyse complète"}
@@ -889,7 +888,7 @@ export default function AnalyticsPage() {
                                 { id: "objections", label: "Objections détaillées", icon: <AlertTriangle className="w-3 h-3" />, prompt: "Liste et analyse en détail toutes les objections récurrentes dans les notes (budget, timing, prestataire actuel, etc.). Donne des exemples concrets et des pistes de réponse." },
                                 { id: "causes", label: "Causes disqualifications", icon: <UserX className="w-3 h-3" />, prompt: "Quelles sont les causes racines des disqualifications ? Analyse les notes des contacts disqualifiés et synthétise les motifs récurrents." },
                                 { id: "recommandations", label: "Recommandations", icon: <ThumbsUp className="w-3 h-3" />, prompt: "Donne des recommandations actionnables et concrètes pour améliorer les résultats (pitch, qualification, timing, etc.)." },
-                                { id: "meetings", label: "Facteurs de succès RDV", icon: <Trophy className="w-3 h-3" />, prompt: "Quels facteurs ou patterns ressortent dans les notes des contacts qui ont booké un RDV ? Que faire pour reproduire ce succès ?" },
+                                { id: "meetings", label: "Facteurs de succès RDV", icon: <Target className="w-3 h-3" />, prompt: "Quels facteurs ou patterns ressortent dans les notes des contacts qui ont booké un RDV ? Que faire pour reproduire ce succès ?" },
                                 { id: "non_reponse", label: "Réduire la non-réponse", icon: <PhoneOff className="w-3 h-3" />, prompt: "Quelles stratégies proposer pour réduire le taux de non-réponse ? Analyse les notes et le contexte pour identifier des leviers." },
                             ].map(({ id, label, icon, prompt }) => {
                                 const extra = aiRecapExtras.find((e) => e.id === id);
@@ -900,8 +899,8 @@ export default function AnalyticsPage() {
                                         onClick={() => !extra && !loading && fetchAiFollowUp(id, prompt, label)}
                                         disabled={!!extra || loading}
                                         className={cn(
-                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border backdrop-blur-sm",
-                                            extra ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-200 cursor-default" : "bg-white/10 hover:bg-white/20 border-white/20 text-white/90 hover:border-violet-400/40"
+                                            "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all border",
+                                            extra ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-200 cursor-default" : "bg-white/10 hover:bg-white/20 border-white/20 text-white/90 hover:border-accent-400/40"
                                         )}
                                     >
                                         {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : extra ? <CheckCircle2 className="w-3 h-3" /> : icon}
@@ -917,8 +916,8 @@ export default function AnalyticsPage() {
                                 {aiRecapExtras.map((ex) => (
                                     <details key={ex.id} className="group rounded-xl bg-white/5 border border-white/10 overflow-hidden" open>
                                         <summary className="flex items-center gap-2 cursor-pointer px-4 py-3 hover:bg-white/5 transition-colors list-none">
-                                            <ChevronDown className="w-3.5 h-3.5 text-violet-400 group-open:rotate-180 transition-transform duration-200" />
-                                            <span className="text-[12px] font-bold text-violet-300 uppercase tracking-wider">{ex.label}</span>
+                                            <ChevronDown className="w-3.5 h-3.5 text-accent-400 group-open:rotate-180 transition-transform duration-200" />
+                                            <span className="text-[12px] font-bold text-accent-300 uppercase tracking-wider">{ex.label}</span>
                                         </summary>
                                         <div className="px-4 pb-4">
                                             <div className="text-[13px] leading-relaxed text-white/85 [&_strong]:text-white [&_ul]:my-2 [&_li]:my-0.5" dangerouslySetInnerHTML={{ __html: ex.answer.replace(/\n/g, "<br />").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />
@@ -930,35 +929,35 @@ export default function AnalyticsPage() {
                     </div>
                 ) : !isLoadingAiRecap ? (
                     <div className="relative z-10 flex flex-col items-center justify-center py-8 gap-3">
-                        <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-                            <BrainCircuit className="w-7 h-7 text-violet-400/60" />
+                        <div className="w-14 h-14 rounded-2xl bg-accent-500/10 border border-accent-500/20 flex items-center justify-center">
+                            <BrainCircuit className="w-7 h-7 text-accent-400/60" />
                         </div>
-                        <p className="text-[14px] text-white/40 font-medium text-center">Cliquez sur <span className="text-violet-300 font-bold">Ré-analyser</span> pour lancer l&apos;analyse IA</p>
-                        <p className="text-[11px] text-white/25 text-center max-w-md">L&apos;IA analysera les statuts, les notes d&apos;appels et générera des recommandations actionnables phase par phase.</p>
+                        <p className="text-[14px] text-white/40 font-medium text-center">Cliquez sur <span className="text-accent-300 font-bold">Ré-analyser</span> pour lancer l&apos;analyse IA</p>
+                        <p className="text-[11px] text-white/25 text-center max-w-md">Analyse des statuts et des notes d&apos;appels de la période, avec des recommandations.</p>
                     </div>
                 ) : null}
 
                 <div className="relative z-10 flex flex-wrap gap-4 mt-7">
-                    <div className="flex items-center gap-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
                         <div className="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center"><Phone className="w-4 h-4 text-red-400" /></div>
                         <div><div className="text-[18px] font-black text-white leading-none tracking-tight">{Math.round((noRespCount / totalCalls) * 100)}%</div><div className="text-[10px] text-white/50 uppercase tracking-widest mt-1">Non-réponse</div></div>
                     </div>
-                    <div className="flex items-center gap-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
                         <div className="w-9 h-9 rounded-full bg-blue-500/20 flex items-center justify-center"><Activity className="w-4 h-4 text-blue-400" /></div>
                         <div><div className="text-[18px] font-black text-white leading-none tracking-tight">{kpis?.totalCalls || 0}</div><div className="text-[10px] text-white/50 uppercase tracking-widest mt-1">Appels passés</div></div>
                     </div>
-                    <div className="flex items-center gap-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
-                        <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center"><Flame className="w-4 h-4 text-amber-400" /></div>
+                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
+                        <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center"><Clock className="w-4 h-4 text-amber-400" /></div>
                         <div><div className="text-[18px] font-black text-white leading-none tracking-tight">{totalCbacks || 0}</div><div className="text-[10px] text-white/50 uppercase tracking-widest mt-1">Opp. à traiter</div></div>
                     </div>
-                    <div className="flex items-center gap-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-5 py-3 hover:bg-white/10 transition-colors">
                         <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center"><CheckCircle2 className="w-4 h-4 text-emerald-400" /></div>
                         <div><div className="text-[18px] font-black text-white leading-none tracking-tight">{kpis?.meetings || 0}</div><div className="text-[10px] text-white/50 uppercase tracking-widest mt-1">RDV Confirmés</div></div>
                     </div>
                     {sdrPerformance?.[0] && (
-                        <div className="flex items-center gap-3 bg-violet-600/20 backdrop-blur-md border border-violet-500/30 rounded-xl px-5 py-3 ml-auto hover:bg-violet-600/30 transition-colors">
-                            <div className="w-9 h-9 rounded-full bg-violet-500/30 flex items-center justify-center"><Trophy className="w-4 h-4 text-violet-300" /></div>
-                            <div><div className="text-[18px] font-black text-white leading-none tracking-tight">{sdrPerformance[0].sdrName.split(' ')[0]}</div><div className="text-[10px] text-violet-300 uppercase tracking-widest mt-1 font-bold">Top SDR</div></div>
+                        <div className="flex items-center gap-3 bg-accent-600/20 border border-accent-500/30 rounded-xl px-5 py-3 ml-auto hover:bg-accent-600/30 transition-colors">
+                            <div className="w-9 h-9 rounded-full bg-accent-500/30 flex items-center justify-center"><Trophy className="w-4 h-4 text-accent-300" /></div>
+                            <div><div className="text-[18px] font-black text-white leading-none tracking-tight">{sdrPerformance[0].sdrName.split(' ')[0]}</div><div className="text-[10px] text-accent-300 uppercase tracking-widest mt-1 font-bold">Top SDR</div></div>
                         </div>
                     )}
                 </div>
@@ -966,10 +965,10 @@ export default function AnalyticsPage() {
 
             {/* KPI ROW */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between group hover:shadow-md hover:border-violet-100 transition-all cursor-default">
+                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between group hover:shadow-md hover:border-accent-100 transition-all cursor-default">
                     <div className="flex items-center justify-between mb-3">
-                        <div className="w-11 h-11 rounded-xl bg-violet-50 flex items-center justify-center transition-transform group-hover:scale-110">
-                            <Phone className="w-5 h-5 text-violet-600" />
+                        <div className="w-11 h-11 rounded-xl bg-accent-50 flex items-center justify-center">
+                            <Phone className="w-5 h-5 text-accent-600" />
                         </div>
                         <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-600 flex items-center gap-1"><TrendingUp className="w-3 h-3" />+12%</span>
                     </div>
@@ -980,17 +979,16 @@ export default function AnalyticsPage() {
                     <div className="h-10 mt-5 -mx-1">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={dailyData}>
-                                <defs><linearGradient id="gViolet" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7c3aed" stopOpacity={0.2} /><stop offset="100%" stopColor="#7c3aed" stopOpacity={0} /></linearGradient></defs>
-                                <Area type="monotone" dataKey="calls" stroke="#7c3aed" strokeWidth={2.5} fillOpacity={1} fill="url(#gViolet)" />
+                                <defs><linearGradient id="gViolet" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--brand-accent-600)" stopOpacity={0.2} /><stop offset="100%" stopColor="var(--brand-accent-600)" stopOpacity={0} /></linearGradient></defs>
+                                <Area type="monotone" dataKey="calls" stroke="var(--brand-accent-600)" strokeWidth={2.5} fillOpacity={1} fill="url(#gViolet)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between group hover:shadow-md hover:border-emerald-100 transition-all cursor-default relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-500"><Target className="w-24 h-24 text-emerald-900" /></div>
                     <div className="flex items-center justify-between mb-5 relative z-10">
-                        <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center transition-transform group-hover:scale-110">
+                        <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
                             <Target className="w-5 h-5 text-emerald-600" />
                         </div>
                     </div>
@@ -1004,10 +1002,10 @@ export default function AnalyticsPage() {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between group hover:shadow-md hover:border-indigo-100 transition-all cursor-default">
+                <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between group hover:shadow-md hover:border-primary-100 transition-all cursor-default">
                     <div className="flex items-center justify-between mb-5">
-                        <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center transition-transform group-hover:scale-110">
-                            <Zap className="w-5 h-5 text-indigo-500" />
+                        <div className="w-11 h-11 rounded-xl bg-primary-50 flex items-center justify-center">
+                            <Percent className="w-5 h-5 text-primary-500" />
                         </div>
                         <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-600 flex items-center gap-1"><TrendingUp className="w-3 h-3 rotate-180" />-2%</span>
                     </div>
@@ -1020,13 +1018,13 @@ export default function AnalyticsPage() {
                     </div>
                     <div className="mt-6">
                         <div className="flex justify-between text-[11px] font-bold text-slate-400 mb-2"><span>Cible (3%)</span><span className="text-slate-700">{Math.min(100, ((kpis?.conversionRate || 0) / 3) * 100).toFixed(0)}%</span></div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-indigo-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, ((kpis?.conversionRate || 0) / 3) * 100)}%` }} /></div>
+                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-primary-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, ((kpis?.conversionRate || 0) / 3) * 100)}%` }} /></div>
                     </div>
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-100 p-5 flex flex-col justify-between group hover:shadow-md hover:border-amber-100 transition-all cursor-default">
                     <div className="flex items-center justify-between mb-5">
-                        <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center transition-transform group-hover:scale-110">
+                        <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center">
                             <Clock className="w-5 h-5 text-amber-500" />
                         </div>
                         <span className="px-2 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-600 flex items-center gap-1"><TrendingUp className="w-3 h-3" />+8%</span>
@@ -1046,10 +1044,10 @@ export default function AnalyticsPage() {
             <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm mb-6 hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between mb-5">
                     <div className="flex items-center gap-2">
-                        <Target className="w-5 h-5 text-violet-500" />
+                        <Target className="w-5 h-5 text-accent-500" />
                         <h3 className="text-[16px] font-bold text-slate-800">Missions proches de l'objectif</h3>
                     </div>
-                    <button className="text-[12px] font-bold text-violet-600 hover:text-violet-800 transition-colors">Voir toutes →</button>
+                    <button className="text-[12px] font-bold text-accent-600 hover:text-accent-800 transition-colors">Voir toutes →</button>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -1062,8 +1060,8 @@ export default function AnalyticsPage() {
                                 <div className="flex items-start justify-between mb-3">
                                     <div className="overflow-hidden">
                                         <div className="flex items-center gap-2 mb-0.5">
-                                            {isHot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />}
-                                            <div className="text-[14px] font-bold text-slate-800 truncate group-hover:text-violet-600 transition-colors">{m.missionName}</div>
+                                            {isHot && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
+                                            <div className="text-[14px] font-bold text-slate-800 truncate group-hover:text-accent-600 transition-colors">{m.missionName}</div>
                                         </div>
                                         <div className="text-[11.5px] text-slate-400 truncate flex items-center gap-1">
                                             <span className={cn("px-1.5 py-0.5 rounded text-[9px] font-bold", m.isActive ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600")}>
@@ -1078,7 +1076,7 @@ export default function AnalyticsPage() {
                                     </div>
                                 </div>
                                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
-                                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, background: isHot ? "linear-gradient(90deg, #7C5CFC, #A78BFA)" : (pct >= 50 ? "#F59E0B" : "#CBD5E1") }} />
+                                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${pct}%`, background: isHot ? "var(--brand-primary-600)" : (pct >= 50 ? "#F59E0B" : "var(--ds-line-strong)") }} />
                                 </div>
                                 <div className="flex justify-between items-center text-[11px] font-semibold text-slate-500">
                                     <div className="flex gap-3">
@@ -1107,7 +1105,7 @@ export default function AnalyticsPage() {
                             <h3 className="text-[15px] font-bold text-slate-800">Évolution de l'activité</h3>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5 text-[11.5px] font-bold text-slate-500"><div className="w-3 h-1.5 rounded bg-violet-500" />Appels</div>
+                            <div className="flex items-center gap-1.5 text-[11.5px] font-bold text-slate-500"><div className="w-3 h-1.5 rounded bg-primary-600" />Appels</div>
                             <div className="flex items-center gap-1.5 text-[11.5px] font-bold text-slate-500"><div className="w-3 h-1.5 rounded bg-amber-400" />Meetings</div>
                         </div>
                     </div>
@@ -1115,13 +1113,13 @@ export default function AnalyticsPage() {
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={dailyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <defs>
-                                    <linearGradient id="gV" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7C5CFC" stopOpacity={0.15} /><stop offset="100%" stopColor="#7C5CFC" stopOpacity={0} /></linearGradient>
+                                    <linearGradient id="gV" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--brand-primary-600)" stopOpacity={0.15} /><stop offset="100%" stopColor="var(--brand-primary-600)" stopOpacity={0} /></linearGradient>
                                 </defs>
-                                <CartesianGrid stroke="#f1f5f9" vertical={false} />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} />
-                                <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '12px', fontWeight: 600, padding: '10px 14px' }} />
-                                <Area type="monotone" dataKey="calls" stroke="#7C5CFC" strokeWidth={2.5} fillOpacity={1} fill="url(#gV)" />
+                                <CartesianGrid stroke="var(--ds-line-subtle)" vertical={false} />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--ds-ink-4)', fontWeight: 600 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: 'var(--ds-ink-4)', fontWeight: 600 }} />
+                                <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid var(--ds-line)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', fontSize: '12px', fontWeight: 600, padding: '10px 14px' }} />
+                                <Area type="monotone" dataKey="calls" stroke="var(--brand-primary-600)" strokeWidth={2.5} fillOpacity={1} fill="url(#gV)" />
                                 <Area type="monotone" dataKey="meetings" stroke="#F59E0B" strokeWidth={2.5} fillOpacity={0} />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -1138,7 +1136,7 @@ export default function AnalyticsPage() {
                     <div className="flex items-center gap-5 mb-5">
                         <div className="w-24 h-24 relative shrink-0">
                             <svg viewBox="0 0 52 52" className="w-full h-full -rotate-90 drop-shadow-sm">
-                                <circle cx="26" cy="26" r="20" fill="none" stroke="#f1f5f9" strokeWidth="5" />
+                                <circle cx="26" cy="26" r="20" fill="none" stroke="var(--ds-surface-3)" strokeWidth="5" />
                                 {(() => {
                                     let offset = 0;
                                     return statusItems.map((item) => {
@@ -1240,8 +1238,8 @@ export default function AnalyticsPage() {
             {/* Call Status Funnel */}
             <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm mb-6 hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 mb-5">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
-                        <ArrowRight className="w-5 h-5 text-indigo-500" />
+                    <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+                        <ArrowRight className="w-5 h-5 text-primary-500" />
                     </div>
                     <div>
                         <h3 className="text-[15px] font-bold text-slate-800">Entonnoir de conversion</h3>
@@ -1250,8 +1248,8 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex items-end gap-1 justify-center">
                     {[
-                        { label: 'Appels', value: funnel?.totalCalls || 0, color: '#6366f1', bg: 'bg-indigo-50' },
-                        { label: 'Contacts', value: funnel?.contacts || 0, color: '#8b5cf6', bg: 'bg-violet-50' },
+                        { label: 'Appels', value: funnel?.totalCalls || 0, color: 'var(--brand-primary-600)', bg: 'bg-primary-50' },
+                        { label: 'Contacts', value: funnel?.contacts || 0, color: 'var(--brand-accent-500)', bg: 'bg-accent-50' },
                         { label: 'Opportunités', value: funnel?.opportunities || 0, color: '#f59e0b', bg: 'bg-amber-50' },
                         { label: 'RDV', value: funnel?.meetings || 0, color: '#10b981', bg: 'bg-emerald-50' },
                     ].map((step, i, arr) => {
@@ -1313,25 +1311,25 @@ export default function AnalyticsPage() {
                                 const contactRate = Math.round((s.contacts / Math.max(1, crmActions)) * 100) || 0;
                                 const isFirst = i === 0;
                                 return (
-                                    <tr key={s.sdrId} className={cn("transition-colors", isFirst ? "bg-gradient-to-r from-violet-50/50 to-transparent" : "hover:bg-slate-50")}>
+                                    <tr key={s.sdrId} className={cn("transition-colors", isFirst ? "bg-accent-50/50" : "hover:bg-slate-50")}>
                                         <td className="px-5 py-4 text-center">
                                             <span className={cn("text-[12px] font-black", i === 0 ? "text-amber-500" : i === 1 ? "text-slate-400" : i === 2 ? "text-amber-700" : "text-slate-300")}>
-                                                {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                                                {i + 1}
                                             </span>
                                         </td>
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-sm", isFirst ? "bg-gradient-to-br from-violet-500 to-indigo-600 shadow-violet-300" : "")} style={!isFirst ? { background: getSdrColor(s.sdrName) } : {}}>
+                                                <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-sm", isFirst ? "bg-accent-600" : "")} style={!isFirst ? { background: getSdrColor(s.sdrName) } : {}}>
                                                     {s.sdrName.substring(0, 2).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <div className={cn("text-[13.5px] font-bold", isFirst ? "text-violet-700" : "text-slate-800")}>{s.sdrName}</div>
+                                                    <div className={cn("text-[13.5px] font-bold", isFirst ? "text-accent-700" : "text-slate-800")}>{s.sdrName}</div>
                                                     <div className="text-[11px] text-slate-500 font-medium">{s.sdrRole}</div>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-5 py-4 text-center text-[13.5px] font-black text-slate-700">{s.alloCalls ?? 0}</td>
-                                        <td className="px-5 py-4 text-center text-[13.5px] font-black text-indigo-600">{s.connectedCalls ?? 0}</td>
+                                        <td className="px-5 py-4 text-center text-[13.5px] font-black text-primary-600">{s.connectedCalls ?? 0}</td>
                                         <td className="px-5 py-4 text-center text-[13.5px] font-black text-slate-700">{crmActions}</td>
                                         <td className="px-5 py-4 text-center text-[13.5px] font-bold text-amber-500">{s.callbacks}</td>
                                         <td className="px-5 py-4 text-center">
@@ -1340,7 +1338,7 @@ export default function AnalyticsPage() {
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3 max-w-[140px]">
                                                 <div className="text-[12.5px] font-black text-slate-600 w-10 text-right">{contactRate}%</div>
-                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-indigo-500 rounded-full" style={{ width: `${contactRate}%` }} /></div>
+                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-primary-500 rounded-full" style={{ width: `${contactRate}%` }} /></div>
                                             </div>
                                         </td>
                                     </tr>
@@ -1355,11 +1353,11 @@ export default function AnalyticsPage() {
             <div className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow p-5 mb-6">
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
                     <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
-                            <BarChart3 className="w-5 h-5 text-indigo-600" />
+                        <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center">
+                            <BarChart3 className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
-                            <h3 className="text-[15px] font-bold text-slate-800">Persona / Target Intelligence</h3>
+                            <h3 className="text-[15px] font-bold text-slate-800">Personas et cibles</h3>
                             <p className="text-[11px] text-slate-500">Conversion par fonction, secteur, taille, géographie</p>
                         </div>
                     </div>
@@ -1367,7 +1365,7 @@ export default function AnalyticsPage() {
                         <select
                             value={compareMode}
                             onChange={(e) => setCompareMode(e.target.value as 'none' | 'lists' | 'missions')}
-                            className="text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                            className="text-[12px] font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl px-3 py-2 hover:border-accent-300 focus:outline-none focus:ring-2 focus:ring-accent-500/20"
                         >
                             <option value="none">Vue globale</option>
                             <option value="lists">Comparer 2 listes</option>
@@ -1419,7 +1417,7 @@ export default function AnalyticsPage() {
                                 className={cn(
                                     "px-3 py-1.5 text-[11px] font-bold rounded-xl transition-all",
                                     personaDimension === dim
-                                        ? "bg-indigo-600 text-white shadow-md"
+                                        ? "bg-primary-600 text-white shadow-md"
                                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                                 )}
                             >
@@ -1455,15 +1453,15 @@ export default function AnalyticsPage() {
 
                 {isLoadingPersona ? (
                     <div className="flex items-center justify-center py-12">
-                        <RefreshCw className="w-6 h-6 text-indigo-500 animate-spin" />
+                        <RefreshCw className="w-6 h-6 text-primary-500 animate-spin" />
                     </div>
                 ) : personaData && (personaData.mode === 'single' ? personaData[personaDimension] : true) ? (
                     personaData.mode === 'compare' ? (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="rounded-xl border border-slate-100 bg-gradient-to-br from-violet-50/30 to-white p-5">
+                            <div className="rounded-xl border border-slate-100 bg-accent-50/30 p-5">
                                 <div className="flex items-center gap-2 mb-4">
-                                    <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                                        <GitCompare className="w-4 h-4 text-violet-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-accent-100 flex items-center justify-center">
+                                        <GitCompare className="w-4 h-4 text-accent-600" />
                                     </div>
                                     <h4 className="text-[13px] font-bold text-slate-800">{personaData.segmentA?.label}</h4>
                                 </div>
@@ -1482,10 +1480,10 @@ export default function AnalyticsPage() {
                                     metric={personaMetric}
                                 />
                             </div>
-                            <div className="rounded-xl border border-slate-100 bg-gradient-to-br from-indigo-50/30 to-white p-5">
+                            <div className="rounded-xl border border-slate-100 bg-primary-50/30 p-5">
                                 <div className="flex items-center gap-2 mb-4">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                        <GitCompare className="w-4 h-4 text-indigo-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
+                                        <GitCompare className="w-4 h-4 text-primary-600" />
                                     </div>
                                     <h4 className="text-[13px] font-bold text-slate-800">{personaData.segmentB?.label}</h4>
                                 </div>
@@ -1506,12 +1504,12 @@ export default function AnalyticsPage() {
                             </div>
                         </div>
                     ) : personaChartData.length > 0 ? (
-                        <div className="rounded-xl border border-slate-100 bg-gradient-to-br from-slate-50/50 to-white p-5">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5">
                             {personaMetric === 'conversion' && (
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="flex gap-1.5 text-[11px] font-bold text-slate-500">
                                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />≥5%</span>
-                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" />≥3%</span>
+                                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary-500" />≥3%</span>
                                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400" />&lt;3%</span>
                                     </div>
                                 </div>
@@ -1547,26 +1545,26 @@ export default function AnalyticsPage() {
 
                 <div className="flex flex-wrap items-center justify-between gap-4 mb-5">
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0">
-                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl", journalFilter === 'all' ? "bg-slate-800 text-white shadow-md shadow-slate-800/20" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('all')}>
+                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl", journalFilter === 'all' ? "bg-slate-800 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('all')}>
                             Tous <span className={cn("ml-1.5 px-1.5 py-0.5 rounded text-[9px]", journalFilter === 'all' ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500")}>{actions.length}</span>
                         </button>
-                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'meetings' ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('meetings')}>
+                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'meetings' ? "bg-emerald-500 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('meetings')}>
                             <div className={cn("w-1.5 h-1.5 rounded-full", journalFilter === 'meetings' ? "bg-white" : "bg-emerald-500")} /> Meetings
                         </button>
-                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'callbacks' ? "bg-amber-500 text-white shadow-md shadow-amber-500/20" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('callbacks')}>
+                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'callbacks' ? "bg-amber-500 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('callbacks')}>
                             <div className={cn("w-1.5 h-1.5 rounded-full", journalFilter === 'callbacks' ? "bg-white" : "bg-amber-500")} /> Intéressés
                         </button>
-                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'disqualified' ? "bg-red-500 text-white shadow-md shadow-red-500/20" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('disqualified')}>
+                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'disqualified' ? "bg-red-500 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('disqualified')}>
                             <div className={cn("w-1.5 h-1.5 rounded-full", journalFilter === 'disqualified' ? "bg-white" : "bg-red-500")} /> Disqualifiés
                         </button>
-                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'no_response' ? "bg-blue-500 text-white shadow-md shadow-blue-500/20" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('no_response')}>
+                        <button className={cn("px-3.5 py-1.5 text-[11px] font-bold transition-all whitespace-nowrap rounded-xl flex items-center gap-1.5", journalFilter === 'no_response' ? "bg-blue-500 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200")} onClick={() => setJournalFilter('no_response')}>
                             <div className={cn("w-1.5 h-1.5 rounded-full", journalFilter === 'no_response' ? "bg-white" : "bg-blue-500")} /> Sans réponse
                         </button>
                     </div>
 
                     <div className="relative shrink-0 w-full md:w-auto">
                         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input className="w-full md:w-56 pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500/50 transition-all placeholder:text-slate-400 shadow-sm" type="text" placeholder="Rechercher..." disabled />
+                        <input className="w-full md:w-56 pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-[12px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500/50 transition-all placeholder:text-slate-400 shadow-sm" type="text" placeholder="Rechercher..." disabled />
                     </div>
                 </div>
 
@@ -1576,7 +1574,7 @@ export default function AnalyticsPage() {
                         columns={[
                             { key: "createdAt", header: "Date", sortable: true, render: (val: string) => <div className="text-[12px] text-slate-500 font-bold font-mono bg-slate-50 px-2 py-1 rounded w-max">{new Date(val).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div> },
                             { key: "sdrName", header: "SDR", sortable: true, render: (val: string) => <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black text-white shrink-0 shadow-sm" style={{ background: getSdrColor(val) }}>{val.substring(0, 2).toUpperCase()}</div><span className="font-bold text-slate-700">{val}</span></div> },
-                            { key: "missionName", header: "Mission", sortable: true, render: (val: string) => <span className="text-[12px] font-bold text-violet-600 bg-violet-50 px-2 py-1 rounded-md">{val}</span> },
+                            { key: "missionName", header: "Mission", sortable: true, render: (val: string) => <span className="text-[12px] font-bold text-accent-600 bg-accent-50 px-2 py-1 rounded-md">{val}</span> },
                             { key: "contactName", header: "Contact", sortable: true, render: (val: string, row: any) => <div><div className="font-black text-slate-800 tracking-tight">{val}</div><div className="text-[11.5px] font-medium text-slate-400">{row.companyName}</div></div> },
                             {
                                 key: "result", header: "Résultat", sortable: true, render: (val: string) => {
@@ -1618,7 +1616,7 @@ export default function AnalyticsPage() {
                                     className={cn(
                                         "flex-1 px-3 py-2.5 rounded-xl text-[13px] font-semibold border transition-all",
                                         reportType === t
-                                            ? "bg-violet-50 border-violet-300 text-violet-700"
+                                            ? "bg-accent-50 border-accent-300 text-accent-700"
                                             : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                                     )}
                                 >
@@ -1635,7 +1633,7 @@ export default function AnalyticsPage() {
                                 type="date"
                                 value={reportDate}
                                 onChange={(e) => setReportDate(e.target.value)}
-                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                             />
                         </div>
                     )}
@@ -1647,7 +1645,7 @@ export default function AnalyticsPage() {
                                 type="date"
                                 value={reportDate}
                                 onChange={(e) => setReportDate(e.target.value)}
-                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                             />
                             <p className="text-[11px] text-slate-400 mt-1">La semaine (lun-dim) contenant cette date sera utilisée.</p>
                         </div>
@@ -1661,7 +1659,7 @@ export default function AnalyticsPage() {
                                     type="date"
                                     value={reportDateFrom}
                                     onChange={(e) => setReportDateFrom(e.target.value)}
-                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                                 />
                             </div>
                             <div>
@@ -1670,7 +1668,7 @@ export default function AnalyticsPage() {
                                     type="date"
                                     value={reportDateTo}
                                     onChange={(e) => setReportDateTo(e.target.value)}
-                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-accent-500/20 focus:border-accent-500"
                                 />
                             </div>
                         </div>
@@ -1693,7 +1691,7 @@ export default function AnalyticsPage() {
                             type="button"
                             onClick={handleGenerateReport}
                             disabled={isGeneratingReport}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-[13px] font-semibold rounded-xl hover:bg-violet-700 disabled:opacity-60 transition-colors"
+                            className="flex items-center gap-2 px-5 py-2.5 bg-accent-600 text-white text-[13px] font-semibold rounded-xl hover:bg-accent-700 disabled:opacity-60 transition-colors"
                         >
                             {isGeneratingReport ? (
                                 <>

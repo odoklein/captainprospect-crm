@@ -34,7 +34,7 @@ function Pill({
         red: 'bg-rose-50 text-rose-600 hover:bg-rose-100/70',
         amber: 'bg-amber-50 text-amber-700 hover:bg-amber-100/70',
         slate: 'bg-slate-100 text-slate-600 hover:bg-slate-200/70',
-        indigo: 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100/70',
+        indigo: 'bg-primary-50 text-primary-600 hover:bg-primary-100/70',
         green: 'bg-emerald-50 text-emerald-700',
     };
     return (
@@ -154,7 +154,7 @@ export function AlertsBar({
                                                     onPaintMission(mission.id);
                                                     setOpen(null);
                                                 }}
-                                                className="shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-semibold text-indigo-600 hover:bg-indigo-50"
+                                                className="shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-semibold text-primary-600 hover:bg-primary-50"
                                             >
                                                 Planifier
                                             </button>

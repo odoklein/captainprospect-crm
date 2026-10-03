@@ -16,7 +16,8 @@
  */
 
 import { useEffect, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
+import { AiMark } from "@/components/ui/AiMark";
 import AssistantProjetPanel from "./AssistantProjetPanel";
 
 export default function AssistantLauncher() {
@@ -56,15 +57,15 @@ export default function AssistantLauncher() {
                 aria-label={isOpen ? "Fermer l'assistant" : "Ouvrir l'assistant"}
                 aria-expanded={isOpen}
                 title="Assistant"
-                className="fixed bottom-6 right-5 z-[78] grid h-12 w-12 place-items-center rounded-2xl text-white shadow-lg transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C64B8B]"
+                className="fixed bottom-6 right-5 z-[78] grid h-12 w-12 place-items-center rounded-2xl text-white shadow-lg transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                 style={{
                     background: isOpen
                         ? "#A63A73"
-                        : "linear-gradient(135deg, #C64B8B 0%, #D96FA5 100%)",
-                    boxShadow: "0 10px 28px -8px rgba(198,75,139,.55), 0 2px 8px rgba(27,38,71,.12)",
+                        : "#C64B8B",
+                    boxShadow: "0 4px 12px rgba(27,38,71,.16), 0 1px 2px rgba(27,38,71,.08)",
                 }}
             >
-                {isOpen ? <X className="h-5 w-5" /> : <Sparkles className="h-5 w-5" />}
+                {isOpen ? <X className="h-5 w-5" /> : <AiMark className="h-5 w-5" />}
             </button>
         </>
     );

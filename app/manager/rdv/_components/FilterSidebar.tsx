@@ -13,7 +13,11 @@ import type {
   SortField,
 } from "../_types";
 import { QUICK_PRESETS } from "../_types";
-import { Filter, ChevronLeft, ChevronDown, ChevronUp, SortAsc, SortDesc, Zap } from "lucide-react";
+import {
+  Filter, ChevronLeft, ChevronDown, ChevronUp, SortAsc, SortDesc, Zap,
+  AlertTriangle, CheckCircle2, Linkedin, Mail, MapPin, MessageSquare, MessageSquareOff, Mic, MinusCircle,
+  PauseCircle, Phone, UserX, Video, XCircle, type LucideIcon,
+} from "lucide-react";
 import { FilterSection } from "./shared/FilterSection";
 import { FilterChip } from "./shared/FilterChip";
 import { hashColor } from "../_lib/formatters";
@@ -53,14 +57,18 @@ function toggleSetValue<T>(setter: Dispatch<SetStateAction<Set<T>>>, value: T) {
   });
 }
 
-function ToggleFilter({ label, value, onChange }: {
+function ToggleFilter({ label, icon: Icon, value, onChange }: {
   label: string;
+  icon?: LucideIcon;
   value: boolean | null;
   onChange: (v: boolean | null) => void;
 }) {
   return (
     <div className="flex items-center justify-between py-1">
-      <span style={{ fontSize: 13, color: "var(--ink2)" }}>{label}</span>
+      <span style={{ fontSize: 13, color: "var(--ink2)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+        {Icon && <Icon size={13} style={{ color: "var(--ink3)", flexShrink: 0 }} />}
+        {label}
+      </span>
       <div style={{ display: "flex", gap: 4 }}>
         {([null, true, false] as const).map((v) => (
           <button
@@ -174,7 +182,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
               }}
               className="rdv-btn"
             >
-              <span style={{ fontSize: 14 }}>{preset.icon}</span>
+              <preset.icon size={14} style={{ color: "var(--ink3)", flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>{preset.label}</div>
                 <div style={{ fontSize: 10, color: "var(--ink3)", lineHeight: 1.3 }}>{preset.description}</div>
@@ -294,14 +302,14 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
 
       {/* ─── Smart filters ─── */}
       <FilterSection title="Données liées">
-        <ToggleFilter label="🎙 Audio lié" value={hasAudio} onChange={setHasAudio} />
-        <ToggleFilter label="💬 Feedback renseigné" value={hasFeedback} onChange={setHasFeedback} />
+        <ToggleFilter label="Audio lié" icon={Mic} value={hasAudio} onChange={setHasAudio} />
+        <ToggleFilter label="Feedback renseigné" icon={MessageSquare} value={hasFeedback} onChange={setHasFeedback} />
       </FilterSection>
 
       {/* ─── Channel ─── */}
       <FilterSection title="Canal">
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {([["CALL", "📞 Appel"], ["EMAIL", "📧 Email"], ["LINKEDIN", "🔗 LinkedIn"]] as [ChannelFilter, string][]).map(([key, label]) => (
+          {([["CALL", "Appel", Phone], ["EMAIL", "Email", Mail], ["LINKEDIN", "LinkedIn", Linkedin]] as [ChannelFilter, string, LucideIcon][]).map(([key, label, Icon]) => (
             <button
               key={key}
               className="rdv-pill"
@@ -313,6 +321,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
               }}
               onClick={() => toggleSetValue(setSelectedChannels, key)}
             >
+              <Icon size={12} />
               {label}
             </button>
           ))}
@@ -383,7 +392,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
       {/* ─── Type + Category ─── */}
       <FilterSection title="Type & Catégorie">
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
-          {([["VISIO", "📹 Visio"], ["PHYSIQUE", "📍 Physique"], ["TELEPHONIQUE", "📞 Tel"]] as [MeetingTypeFilter, string][]).map(([key, label]) => (
+          {([["VISIO", "Visio", Video], ["PHYSIQUE", "Physique", MapPin], ["TELEPHONIQUE", "Tel", Phone]] as [MeetingTypeFilter, string, LucideIcon][]).map(([key, label, Icon]) => (
             <button
               key={key}
               className="rdv-pill"
@@ -395,6 +404,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
               }}
               onClick={() => toggleSetValue(setSelectedMeetingTypes, key)}
             >
+              <Icon size={12} />
               {label}
             </button>
           ))}
@@ -421,7 +431,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
       {/* ─── Feedback outcome ─── */}
       <FilterSection title="Feedback">
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {([["POSITIVE", "✅ Positif"], ["NEUTRAL", "➖ Neutre"], ["NEGATIVE", "❌ Négatif"], ["NO_SHOW", "👻 Absent"], ["NONE", "💬 Sans retour"]] as [OutcomeFilter, string][]).map(([key, label]) => (
+          {([["POSITIVE", "Positif", CheckCircle2], ["NEUTRAL", "Neutre", MinusCircle], ["NEGATIVE", "Négatif", XCircle], ["NO_SHOW", "Absent", UserX], ["NONE", "Sans retour", MessageSquareOff]] as [OutcomeFilter, string, LucideIcon][]).map(([key, label, Icon]) => (
             <button
               key={key}
               className="rdv-pill"
@@ -433,6 +443,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
               }}
               onClick={() => toggleSetValue(setSelectedOutcomes, key)}
             >
+              <Icon size={12} />
               {label}
             </button>
           ))}
@@ -442,7 +453,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
       {/* ─── Absences ─── */}
       <FilterSection title="Absences">
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {([["open", "🚨 À traiter"], ["standby", "⏸ En stand by"]] as [Exclude<NoShowFilter, "all">, string][]).map(([key, label]) => (
+          {([["open", "À traiter", AlertTriangle], ["standby", "En stand by", PauseCircle]] as [Exclude<NoShowFilter, "all">, string, LucideIcon][]).map(([key, label, Icon]) => (
             <button
               key={key}
               className="rdv-pill"
@@ -454,6 +465,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
               }}
               onClick={() => setNoShowFilter(noShowFilter === key ? "all" : key)}
             >
+              <Icon size={12} />
               {label}
             </button>
           ))}

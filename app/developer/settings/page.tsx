@@ -91,7 +91,7 @@ function ChangePasswordForm() {
             {success && (
                 <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm rounded-xl flex items-center gap-3">
                     <Check className="w-5 h-5" />
-                    Mot de passe modifié avec succès.
+                    Mot de passe modifié.
                 </div>
             )}
             <button
@@ -141,7 +141,7 @@ export default function SettingsPage() {
 
         setTimeout(() => {
             setIsLoading(false);
-            setSuccessMessage("Profil mis à jour avec succès !");
+            setSuccessMessage("Profil mis à jour");
             setTimeout(() => setSuccessMessage(""), 3000);
         }, 1000);
     };
@@ -171,7 +171,7 @@ export default function SettingsPage() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${activeTab === tab.id
-                                    ? "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 shadow-sm"
+                                    ? "bg-blue-50 text-blue-700 shadow-sm"
                                     : "text-slate-600 hover:bg-slate-100"
                                 }`}
                         >
@@ -192,7 +192,7 @@ export default function SettingsPage() {
                                 {/* Avatar Section */}
                                 <div className="flex items-center gap-6 pb-6 border-b border-slate-100">
                                     <div className="relative group">
-                                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                                        <div className="w-20 h-20 rounded-2xl bg-blue-600 flex items-center justify-center text-2xl font-bold text-white">
                                             {profile.name.charAt(0).toUpperCase()}
                                         </div>
                                         <button
@@ -404,7 +404,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (checked: b
             type="button"
             onClick={() => onChange(!checked)}
             className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${checked
-                    ? "bg-gradient-to-r from-blue-500 to-blue-600"
+                    ? "bg-blue-600"
                     : "bg-slate-200"
                 }`}
         >

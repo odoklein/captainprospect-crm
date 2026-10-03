@@ -12,7 +12,7 @@
  */
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Briefcase, ChevronDown, Clock, Mail, Phone, Sparkles } from "lucide-react";
+import { Briefcase, CalendarCheck, ChevronDown, Clock, Mail, Phone } from "lucide-react";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
 import { clientResultColor } from "@/lib/client-status-display";
 import { cn } from "@/lib/utils";
@@ -86,18 +86,18 @@ export const RESULT_META_FALLBACK: Record<string, { label: string; color: string
     DISQUALIFIED: { label: "Disqualifié", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
 };
 
-// Avatar gradient palettes keyed by first letter
+// Flat avatar colours keyed by first letter (names kept for existing imports)
 export const AVATAR_GRADIENTS: Record<string, string> = {
-    A: "from-violet-500 to-indigo-600", B: "from-indigo-500 to-blue-600",
-    C: "from-blue-500 to-cyan-600",     D: "from-cyan-500 to-teal-600",
-    E: "from-teal-500 to-emerald-600",  F: "from-emerald-500 to-green-600",
-    G: "from-green-500 to-lime-600",    H: "from-amber-500 to-orange-600",
-    I: "from-orange-500 to-red-600",    J: "from-rose-500 to-pink-600",
-    K: "from-pink-500 to-fuchsia-600",  L: "from-fuchsia-500 to-violet-600",
+    A: "bg-accent-600",  B: "bg-primary-600",
+    C: "bg-blue-600",    D: "bg-cyan-600",
+    E: "bg-teal-600",    F: "bg-emerald-600",
+    G: "bg-green-600",   H: "bg-amber-600",
+    I: "bg-orange-600",  J: "bg-rose-600",
+    K: "bg-pink-600",    L: "bg-fuchsia-600",
 };
 export function avatarGradient(name: string): string {
     const letter = name.trim().toUpperCase()[0] ?? "A";
-    return AVATAR_GRADIENTS[letter] ?? "from-violet-500 to-indigo-600";
+    return AVATAR_GRADIENTS[letter] ?? "bg-accent-600";
 }
 
 // ─── Result Badge ─────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export function ResultBadge({ result, resultMeta }: {
     result: string;
     resultMeta: Record<string, { label: string; color: string; bg: string; border: string }>;
 }) {
-    const meta = resultMeta[result] ?? { label: ACTION_RESULT_LABELS[result] ?? result, color: "#64748b", bg: "#f8fafc", border: "#e2e8f0" };
+    const meta = resultMeta[result] ?? { label: ACTION_RESULT_LABELS[result] ?? result, color: "var(--ds-ink-3)", bg: "var(--ds-surface-2)", border: "var(--ds-line)" };
     return (
         <span
             style={{ background: meta.bg, borderColor: meta.border, color: meta.color }}
@@ -123,11 +123,11 @@ export function MiniBar({ counts, total, statusOrder, resultMeta }: {
     resultMeta: Record<string, { label: string; color: string; bg: string; border: string }>;
 }) {
     return (
-        <div className="flex h-2 rounded-full overflow-hidden w-full bg-[#EEF0F8]">
+        <div className="flex h-2 rounded-full overflow-hidden w-full bg-surface-3">
             {statusOrder.map((k) => {
                 const pct = total ? ((counts[k] || 0) / total) * 100 : 0;
                 return pct > 0 ? (
-                    <div key={k} style={{ width: `${pct}%`, background: resultMeta[k]?.color ?? "#64748b" }} className="transition-all duration-700" />
+                    <div key={k} style={{ width: `${pct}%`, background: resultMeta[k]?.color ?? "var(--ds-ink-3)" }} className="transition-all duration-700" />
                 ) : null;
             })}
         </div>
@@ -147,7 +147,7 @@ export function CallCard({ call, resultMeta, index, extra }: {
     const name = [call.contact?.firstName, call.contact?.lastName].filter(Boolean).join(" ") || "—";
     const co = call.contact?.company?.name ?? "—";
     const dur = fmtDuration(call.duration ?? null);
-    const meta = resultMeta[call.result] ?? { color: "#64748b", bg: "#f8fafc", border: "#e2e8f0", label: "" };
+    const meta = resultMeta[call.result] ?? { color: "var(--ds-ink-3)", bg: "var(--ds-surface-2)", border: "var(--ds-line)", label: "" };
     const initials = getInitials(call.contact?.firstName, call.contact?.lastName);
     const grad = avatarGradient(name);
     const delay = `${index * 40}ms`;
@@ -157,17 +157,17 @@ export function CallCard({ call, resultMeta, index, extra }: {
             className="group relative bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200"
             style={{
                 borderLeft: `3px solid ${meta.color}`,
-                border: `1px solid #E8EBF0`,
+                border: `1px solid var(--ds-line)`,
                 borderLeftWidth: 3,
                 borderLeftColor: meta.color,
                 animation: `dashFadeUp 0.3s ease both ${delay}`,
             }}
         >
             <div className="flex items-start gap-3 p-3.5">
-                {/* Gradient avatar */}
+                {/* Avatar */}
                 <div
                     className={cn(
-                        "flex-shrink-0 w-9 h-9 rounded-full bg-gradient-to-br flex items-center justify-center text-[12px] font-black text-white select-none shadow-sm",
+                        "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-black text-white select-none shadow-sm",
                         grad
                     )}
                 >
@@ -177,15 +177,15 @@ export function CallCard({ call, resultMeta, index, extra }: {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 flex-wrap">
                         <div className="min-w-0">
-                            <p className="text-sm font-bold text-[#12122A]">{name}</p>
-                            <div className="flex items-center gap-1 text-xs text-[#8B8DAF] mt-0.5">
+                            <p className="text-sm font-bold text-ink">{name}</p>
+                            <div className="flex items-center gap-1 text-xs text-ink-3 mt-0.5">
                                 <Briefcase className="w-3 h-3 flex-shrink-0" />
                                 <span className="truncate">{call.contact?.title ?? "—"} · {co}</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
                             <ResultBadge result={call.result} resultMeta={resultMeta} />
-                            <span className="text-[10px] text-[#B0B3C8] tabular-nums font-medium">
+                            <span className="text-[10px] text-ink-4 tabular-nums font-medium">
                                 {fmtTime(call.createdAt)}
                             </span>
                         </div>
@@ -194,7 +194,7 @@ export function CallCard({ call, resultMeta, index, extra }: {
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
                         {extra}
                         {dur && (
-                            <span className="flex items-center gap-1 text-[11px] text-[#8B8DAF]">
+                            <span className="flex items-center gap-1 text-[11px] text-ink-3">
                                 <Clock className="w-3 h-3" />{dur}
                             </span>
                         )}
@@ -202,7 +202,7 @@ export function CallCard({ call, resultMeta, index, extra }: {
                             <button
                                 type="button"
                                 onClick={() => setNoteOpen((o) => !o)}
-                                className="flex items-center gap-1 text-[11px] text-[#7C5CFC] hover:text-violet-700 font-semibold transition-colors"
+                                className="flex items-center gap-1 text-[11px] text-primary-600 hover:text-accent-700 font-semibold transition-colors"
                             >
                                 <ChevronDown className={cn("w-3 h-3 transition-transform duration-200", noteOpen && "rotate-180")} />
                                 Note de l&apos;agent
@@ -214,14 +214,14 @@ export function CallCard({ call, resultMeta, index, extra }: {
 
             {/* Contact links strip */}
             {(call.contact?.email || call.contact?.phone) && (
-                <div className="flex flex-wrap gap-x-5 gap-y-1 px-3.5 py-2 bg-[#F8F7FF] border-t border-[#EEF0F8]">
+                <div className="flex flex-wrap gap-x-5 gap-y-1 px-3.5 py-2 bg-primary-50 border-t border-line-subtle">
                     {call.contact?.email && (
-                        <a href={`mailto:${call.contact.email}`} className="flex items-center gap-1.5 text-[11px] text-[#8B8DAF] hover:text-[#7C5CFC] transition-colors">
+                        <a href={`mailto:${call.contact.email}`} className="flex items-center gap-1.5 text-[11px] text-ink-3 hover:text-primary-600 transition-colors">
                             <Mail className="w-3 h-3" />{call.contact.email}
                         </a>
                     )}
                     {call.contact?.phone && (
-                        <a href={`tel:${call.contact.phone}`} className="flex items-center gap-1.5 text-[11px] text-[#8B8DAF] hover:text-[#7C5CFC] transition-colors">
+                        <a href={`tel:${call.contact.phone}`} className="flex items-center gap-1.5 text-[11px] text-ink-3 hover:text-primary-600 transition-colors">
                             <Phone className="w-3 h-3" />{call.contact.phone}
                         </a>
                     )}
@@ -230,10 +230,10 @@ export function CallCard({ call, resultMeta, index, extra }: {
 
             {/* Collapsible note */}
             {call.note && noteOpen && (
-                <div className="px-3.5 py-3 border-t border-[#EEF0F8]">
-                    <div className="rounded-xl border border-[#E8EBF0] bg-gradient-to-br from-violet-50/80 to-indigo-50/60 px-3 py-2.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#7C5CFC] mb-1">Note agent</p>
-                        <p className="text-xs text-[#4B4D7A] italic leading-relaxed">&quot;{call.note}&quot;</p>
+                <div className="px-3.5 py-3 border-t border-line-subtle">
+                    <div className="rounded-xl border border-line bg-accent-50/70 px-3 py-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-primary-600 mb-1">Note agent</p>
+                        <p className="text-xs text-ink-2 italic leading-relaxed">&quot;{call.note}&quot;</p>
                     </div>
                 </div>
             )}
@@ -287,16 +287,15 @@ export function DayBlock({ dateKey: dk, calls, statusOrder, resultMeta, defaultO
     const month = d.toLocaleDateString("fr-FR", { month: "short" });
 
     return (
-        <div className="rounded-xl border border-[#E8EBF0] overflow-hidden bg-white">
-            <div className="flex items-center gap-2 px-4 py-3 hover:bg-[#F8F7FF] transition-colors">
+        <div className="rounded-xl border border-line overflow-hidden bg-white">
+            <div className="flex items-center gap-2 px-4 py-3 hover:bg-primary-50 transition-colors">
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
                     className="flex flex-1 min-w-0 items-center gap-4 text-left"
                 >
-                    {/* Date chip – matching BreakdownCharts gradient style */}
-                    <div className="flex-shrink-0 w-[52px] rounded-xl overflow-hidden text-center shadow-sm"
-                        style={{ background: "linear-gradient(135deg, #7C5CFC 0%, #4338CA 100%)" }}>
+                    {/* Date chip */}
+                    <div className="flex-shrink-0 w-[52px] rounded-xl overflow-hidden text-center shadow-sm bg-primary">
                         <p className="text-[8px] font-bold uppercase tracking-widest text-white/60 pt-1.5 leading-none">{weekday}</p>
                         <p className="text-[22px] font-black text-white leading-tight">{dayNum}</p>
                         <p className="text-[8px] font-bold uppercase tracking-widest text-white/60 pb-1.5 leading-none">{month}</p>
@@ -304,12 +303,12 @@ export function DayBlock({ dateKey: dk, calls, statusOrder, resultMeta, defaultO
 
                     <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-bold text-[#12122A]">
+                            <span className="text-sm font-bold text-ink">
                                 {calls.length} appel{calls.length > 1 ? "s" : ""}
                             </span>
                             {meetings > 0 && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-[11px] font-bold text-emerald-700">
-                                    <Sparkles className="w-2.5 h-2.5" />
+                                    <CalendarCheck className="w-2.5 h-2.5" />
                                     {meetings} RDV
                                 </span>
                             )}
@@ -336,7 +335,7 @@ export function DayBlock({ dateKey: dk, calls, statusOrder, resultMeta, defaultO
                 <button
                     type="button"
                     onClick={() => setOpen((o) => !o)}
-                    className="flex-shrink-0 p-1 rounded-lg text-[#B0B3C8] hover:bg-white/80 hover:text-[#7C5CFC] transition-colors"
+                    className="flex-shrink-0 p-1 rounded-lg text-ink-4 hover:bg-white/80 hover:text-primary-600 transition-colors"
                     aria-expanded={open}
                     aria-label={open ? "Replier le jour" : "Déplier le jour"}
                 >
@@ -347,8 +346,8 @@ export function DayBlock({ dateKey: dk, calls, statusOrder, resultMeta, defaultO
             {open && (
                 <>
                     {chipCodes.length > 0 && (
-                        <div className="border-t border-[#EEF0F8] bg-white px-4 py-2.5">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-[#A0A3BD] mb-2">
+                        <div className="border-t border-line-subtle bg-white px-4 py-2.5">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-ink-4 mb-2">
                                 Filtrer par résultat
                             </p>
                             <div className="flex flex-wrap gap-1.5">
@@ -358,8 +357,8 @@ export function DayBlock({ dateKey: dk, calls, statusOrder, resultMeta, defaultO
                                     className={cn(
                                         "inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all",
                                         resultFilter === null
-                                            ? "bg-[#7C5CFC] text-white border-[#7C5CFC] shadow-sm shadow-violet-500/20"
-                                            : "bg-[#F4F5FA] text-[#8B8DAF] border-[#E8EBF0] hover:border-[#7C5CFC]/35"
+                                            ? "bg-primary text-white border-primary-500 shadow-sm"
+                                            : "bg-surface-2 text-ink-3 border-line hover:border-primary-500/35"
                                     )}
                                 >
                                     Tous ({calls.length})
@@ -396,9 +395,9 @@ export function DayBlock({ dateKey: dk, calls, statusOrder, resultMeta, defaultO
                             </div>
                         </div>
                     )}
-                    <div className="border-t border-[#EEF0F8] bg-[#F8F7FF]/60 px-4 py-3 space-y-2">
+                    <div className="border-t border-line-subtle bg-primary-50/60 px-4 py-3 space-y-2">
                         {displayedCalls.length === 0 ? (
-                            <p className="text-center text-xs font-medium text-[#8B8DAF] py-6">
+                            <p className="text-center text-xs font-medium text-ink-3 py-6">
                                 Aucun appel pour ce résultat sur ce jour.
                             </p>
                         ) : (

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
     Users,
-    Zap,
+    Workflow,
     Inbox,
     BarChart3,
     Send,
@@ -62,7 +62,7 @@ const MANAGER_TABS: EmailHubTab[] = [
         id: "sequences",
         label: "Séquences",
         href: "/manager/emails/sequences",
-        icon: <Zap className="w-4 h-4" />,
+        icon: <Workflow className="w-4 h-4" />,
     },
     {
         id: "mailboxes",
@@ -89,7 +89,7 @@ const SDR_TABS: EmailHubTab[] = [
         id: "sequences",
         label: "Séquences",
         href: "/sdr/emails/sequences",
-        icon: <Zap className="w-4 h-4" />,
+        icon: <Workflow className="w-4 h-4" />,
     },
     {
         id: "templates",

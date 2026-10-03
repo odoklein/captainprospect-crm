@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import {
     X, Calendar, Clock, User, GitBranch, MessageSquare, FileText,
-    Activity, Plus, Check, Trash2, Sparkles, Loader2, ChevronRight,
+    Activity, Plus, Check, Trash2, Loader2, ChevronRight,
     AlertCircle, Tag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Drawer } from "@/components/ui/Drawer";
+import { AiMark } from "@/components/ui/AiMark";
 import { Tabs } from "@/components/ui/Tabs";
 import { Badge } from "@/components/ui/Badge";
 
@@ -297,7 +298,7 @@ export function TaskDetailDrawer({
         <Drawer isOpen={isOpen} onClose={onClose} size="xl" title="">
             {loading || !task ? (
                 <div className="flex items-center justify-center h-64">
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                    <Loader2 className="w-6 h-6 animate-spin text-primary-500" />
                 </div>
             ) : (
                 <div className="flex flex-col h-full">
@@ -344,12 +345,12 @@ export function TaskDetailDrawer({
                                 onChange={(e) => setTitleValue(e.target.value)}
                                 onBlur={saveTitle}
                                 onKeyDown={(e) => e.key === "Enter" && saveTitle()}
-                                className="w-full text-lg font-semibold text-slate-900 bg-transparent border-b-2 border-indigo-400 outline-none pb-1"
+                                className="w-full text-lg font-semibold text-slate-900 bg-transparent border-b-2 border-primary-400 outline-none pb-1"
                             />
                         ) : (
                             <h2
                                 onClick={() => setEditingTitle(true)}
-                                className="text-lg font-semibold text-slate-900 cursor-text hover:text-indigo-700 transition-colors"
+                                className="text-lg font-semibold text-slate-900 cursor-text hover:text-primary-700 transition-colors"
                             >
                                 {task.title}
                             </h2>
@@ -432,7 +433,7 @@ export function TaskDetailDrawer({
                                     </span>
                                     <div className="flex flex-wrap gap-1">
                                         {task.labels.map((l) => (
-                                            <span key={l} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md">
+                                            <span key={l} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-md">
                                                 {l}
                                             </span>
                                         ))}
@@ -478,12 +479,12 @@ export function TaskDetailDrawer({
                                                 rows={6}
                                                 value={descValue}
                                                 onChange={(e) => setDescValue(e.target.value)}
-                                                className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg p-3 outline-none focus:border-indigo-400 resize-none"
+                                                className="w-full text-sm text-slate-700 border border-slate-200 rounded-lg p-3 outline-none focus:border-primary-400 resize-none"
                                             />
                                             <div className="flex gap-2 mt-2">
                                                 <button
                                                     onClick={saveDescription}
-                                                    className="px-3 py-1 text-xs font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                                    className="px-3 py-1 text-xs font-medium bg-primary-600 text-white rounded-md hover:bg-primary-700"
                                                 >
                                                     Enregistrer
                                                 </button>
@@ -540,7 +541,7 @@ export function TaskDetailDrawer({
                                                 "w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
                                                 sub.status === "DONE"
                                                     ? "bg-emerald-500 border-emerald-500 text-white"
-                                                    : "border-slate-300 hover:border-indigo-400"
+                                                    : "border-slate-300 hover:border-primary-400"
                                             )}
                                         >
                                             {sub.status === "DONE" && <Check className="w-3 h-3" />}
@@ -565,12 +566,12 @@ export function TaskDetailDrawer({
                                         onChange={(e) => setNewSubtask(e.target.value)}
                                         onKeyDown={(e) => e.key === "Enter" && addSubtask()}
                                         placeholder="Ajouter une sous-tâche..."
-                                        className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400"
+                                        className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-primary-400"
                                     />
                                     <button
                                         onClick={addSubtask}
                                         disabled={!newSubtask.trim() || submitting}
-                                        className="px-3 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                        className="px-3 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
                                         <Plus className="w-4 h-4" />
                                     </button>
@@ -580,12 +581,12 @@ export function TaskDetailDrawer({
                                 <button
                                     onClick={aiDecompose}
                                     disabled={aiLoading}
-                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 border border-indigo-200 transition-colors disabled:opacity-50 mt-4"
+                                    className="flex items-center gap-2 w-full px-3 py-2.5 text-sm font-medium text-primary-700 bg-primary-50 rounded-lg hover:bg-primary-100 border border-primary-200 transition-colors disabled:opacity-50 mt-4"
                                 >
                                     {aiLoading ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : (
-                                        <Sparkles className="w-4 h-4" />
+                                        <AiMark className="w-4 h-4" />
                                     )}
                                     Décomposer avec IA
                                 </button>
@@ -601,7 +602,7 @@ export function TaskDetailDrawer({
 
                                 {task.comments.map((c) => (
                                     <div key={c.id} className="flex gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">
+                                        <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold shrink-0">
                                             {c.user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                                         </div>
                                         <div className="flex-1">
@@ -625,12 +626,12 @@ export function TaskDetailDrawer({
                                         value={newComment}
                                         onChange={(e) => setNewComment(e.target.value)}
                                         placeholder="Écrire un commentaire..."
-                                        className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 resize-none"
+                                        className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-primary-400 resize-none"
                                     />
                                     <button
                                         onClick={addComment}
                                         disabled={!newComment.trim() || submitting}
-                                        className="self-end px-3 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                        className="self-end px-3 py-2 text-sm font-medium bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
                                         Envoyer
                                     </button>
@@ -678,12 +679,12 @@ export function TaskDetailDrawer({
                         <button
                             onClick={aiEnhance}
                             disabled={aiLoading}
-                            className="flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-2 py-1.5 rounded-md transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 hover:bg-primary-50 px-2 py-1.5 rounded-md transition-colors disabled:opacity-50"
                         >
                             {aiLoading ? (
                                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             ) : (
-                                <Sparkles className="w-3.5 h-3.5" />
+                                <AiMark className="w-3.5 h-3.5" />
                             )}
                             Améliorer avec IA
                         </button>

@@ -4,6 +4,7 @@ import { callProvider } from "./provider";
 import { acquireAlloSlot } from "./allo-semaphore";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
 import { DateTime } from "luxon";
+import { brand } from "@/lib/brand";
 
 const DEFAULT_COUNTRY = (process.env.PHONE_DEFAULT_COUNTRY ?? "FR") as Parameters<typeof isValidPhoneNumber>[1];
 const ENRICHMENT_DAY_TZ = process.env.CALL_ENRICHMENT_DAY_TZ ?? "Europe/Paris";
@@ -80,7 +81,7 @@ async function generateFicheFromTranscription(transcription: string): Promise<Re
         messages: [
           {
             role: "system",
-            content: `Tu es un assistant de compte-rendu commercial (CRM CaptainProspect).\n\nTa tâche: à partir d'une transcription d'échange (appel / RDV), extraire et structurer les informations dans une "fiche RDV".\n\nRetourne UNIQUEMENT un JSON valide avec EXACTEMENT ces clés (toutes présentes, même si vides):\n- "contexte"\n- "besoinsProblemes"\n- "solutionsEnPlace"\n- "objectionsFreins"\n- "notesImportantes"\n\nContraintes:\n- Écris en français.\n- Pas de blabla, pas de Markdown, pas de texte hors JSON.\n- Chaque champ doit être une chaîne de caractères (string).`,
+            content: `Tu es un assistant de compte-rendu commercial (CRM ${brand.name}).\n\nTa tâche: à partir d'une transcription d'échange (appel / RDV), extraire et structurer les informations dans une "fiche RDV".\n\nRetourne UNIQUEMENT un JSON valide avec EXACTEMENT ces clés (toutes présentes, même si vides):\n- "contexte"\n- "besoinsProblemes"\n- "solutionsEnPlace"\n- "objectionsFreins"\n- "notesImportantes"\n\nContraintes:\n- Écris en français.\n- Pas de blabla, pas de Markdown, pas de texte hors JSON.\n- Chaque champ doit être une chaîne de caractères (string).`,
           },
           {
             role: "user",

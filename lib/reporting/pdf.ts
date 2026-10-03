@@ -1,5 +1,8 @@
 import PDFDocument from "pdfkit";
+import path from "path";
+import { existsSync } from "fs";
 import type { ReportData, ReportMission } from "@/lib/reporting/types";
+import { brand } from "@/lib/brand";
 
 // Client report PDF. Every text call gets explicit x/y (pdfkit otherwise
 // reuses the last x and width, which is how titles ended up wrapped in a
@@ -8,11 +11,15 @@ import type { ReportData, ReportMission } from "@/lib/reporting/types";
 
 type Doc = PDFKit.PDFDocument;
 
+// Brand colours come from brand/brand.config.ts (same ramps as the app).
+const P = brand.palette.primary;
 const C = {
-    brand: "#2B5F3E",
-    brandStrong: "#1F4A2F",
-    brandMid: "#6F9E80",
-    brandSoft: "#E8F0EA",
+    brand: brand.palette.primarySeed,
+    brandStrong: P[950],
+    brandMid: P[400],
+    brandSoft: P[50],
+    onBrand: P[200],
+    onBrandSoft: P[100],
     cream: "#F7F6F2",
     ink: "#0F1216",
     ink2: "#3B424A",
@@ -149,9 +156,14 @@ function sectionTitle(doc: Doc, cur: Cursor, title: string, hint?: string) {
 
 function drawTopBar(doc: Doc, cur: Cursor) {
     const y = cur.y;
-    doc.roundedRect(LEFT, y, 16, 16, 4).fill(C.brand);
-    doc.roundedRect(LEFT + 5, y + 5, 6, 6, 1.5).fill(C.white);
-    text(doc, "Captain Prospect", LEFT + 24, y + 2.5, { font: F.bold, size: 11.5, color: C.ink });
+    const mark = path.join(process.cwd(), "public", brand.logos.mark);
+    if (existsSync(mark)) {
+        doc.image(mark, LEFT, y - 1, { width: 18, height: 18 });
+    } else {
+        doc.roundedRect(LEFT, y, 16, 16, 4).fill(C.brand);
+        doc.roundedRect(LEFT + 5, y + 5, 6, 6, 1.5).fill(C.white);
+    }
+    text(doc, brand.name, LEFT + 24, y + 2.5, { font: F.bold, size: 11.5, color: C.ink });
     eyebrow(doc, "Rapport d'activité", LEFT, y + 4.5, C.ink3, CW, "right");
     cur.y = y + 30;
     hairline(doc, cur.y);
@@ -186,7 +198,7 @@ function drawHero(doc: Doc, cur: Cursor, data: ReportData) {
 
     // Left: meetings, the headline result.
     const lx = x + 28;
-    eyebrow(doc, "RDV obtenus", lx, y + 26, "#BFD6C6");
+    eyebrow(doc, "RDV obtenus", lx, y + 26, C.onBrand);
     const big = fr(data.meetingsBooked);
     text(doc, big, lx, y + 42, { font: F.bold, size: 56, color: C.white });
     if (data.meetingsDelta != null) {
@@ -198,7 +210,7 @@ function drawHero(doc: Doc, cur: Cursor, data: ReportData) {
             size: 8,
         });
     } else {
-        text(doc, "sur la période", lx, y + H - 32, { size: 9, color: "#BFD6C6" });
+        text(doc, "sur la période", lx, y + H - 32, { size: 9, color: C.onBrand });
     }
 
     // Divider + right: conversion.
@@ -206,9 +218,9 @@ function drawHero(doc: Doc, cur: Cursor, data: ReportData) {
     doc.save().fillOpacity(0.18).rect(dx, y + 26, 0.75, H - 52).fill(C.white).restore();
     const rx = dx + 26;
     const rw = x + CW - 28 - rx;
-    eyebrow(doc, "Taux de conversion", rx, y + 26, "#BFD6C6");
+    eyebrow(doc, "Taux de conversion", rx, y + 26, C.onBrand);
     text(doc, pct(data.conversionRate), rx, y + 42, { font: F.bold, size: 32, color: C.white });
-    text(doc, "des contacts touchés ont obtenu un RDV", rx, y + 86, { size: 9, color: "#D6E4DA", width: rw, lineGap: 2 });
+    text(doc, "des contacts touchés ont obtenu un RDV", rx, y + 86, { size: 9, color: C.onBrandSoft, width: rw, lineGap: 2 });
     const convDelta = data.deltas?.[3];
     if (convDelta != null) {
         pill(doc, `${deltaLabel(convDelta, "pts")} vs période précédente`, rx, y + H - 36, {
@@ -387,7 +399,7 @@ function drawFooters(doc: Doc, data: ReportData) {
         doc.page.margins.bottom = 0;
         const y = PAGE.height - 34;
         hairline(doc, y - 10);
-        text(doc, `Captain Prospect  ·  Rapport d'activité ${data.clientName}`, LEFT, y, { size: 7.5, color: C.ink4 });
+        text(doc, `${brand.name}  ·  Rapport d'activité ${data.clientName}`, LEFT, y, { size: 7.5, color: C.ink4 });
         text(doc, `${i + 1} / ${range.count}`, LEFT, y, { size: 7.5, color: C.ink4, width: CW, align: "right" });
         doc.page.margins.bottom = bottom;
     }
@@ -409,8 +421,8 @@ export async function generateClientReportPdf(data: ReportData): Promise<Buffer>
         bufferPages: true,
         info: {
             Title: `Rapport d'activité - ${data.clientName}`,
-            Author: "Captain Prospect",
-            Creator: "Captain Prospect",
+            Author: brand.name,
+            Creator: brand.productName,
         },
     });
     const done = collectPdfBuffer(doc);

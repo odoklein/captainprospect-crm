@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
+import { brand } from "@/lib/brand";
 
 interface CampaignStats {
     sent: number;
@@ -199,7 +200,7 @@ function OnboardingCard({ onConnected }: { onConnected: () => void }) {
                         Connecter ReachInbox
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6" style={{ color: "var(--cp-ink-3)" }}>
-                        Ajoutez uniquement la cle API ReachInbox. Captain Prospect l'utilise cote serveur pour lire les statistiques
+                        Ajoutez uniquement la clé API ReachInbox. {brand.name} l'utilise cote serveur pour lire les statistiques
                         et afficher le dashboard manager. Aucune creation, modification, pause ou lancement de campagne n'est expose ici.
                     </p>
                     <div className="mt-5 grid gap-3 sm:grid-cols-3">

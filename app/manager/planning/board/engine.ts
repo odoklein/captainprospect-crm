@@ -178,7 +178,7 @@ export function missionColor(colors: Map<string, MissionColor>, missionId: strin
     return colors.get(missionId) ?? FALLBACK_COLOR;
 }
 
-const AVATAR_COLORS = ['#6366F1', '#0EA5E9', '#14B8A6', '#F59E0B', '#F43F5E', '#8B5CF6', '#10B981', '#EC4899', '#F97316', '#64748B'];
+const AVATAR_COLORS = ['var(--brand-primary-600)', '#0EA5E9', '#14B8A6', '#F59E0B', '#F43F5E', 'var(--brand-accent-700)', '#10B981', '#EC4899', '#F97316', 'var(--brand-neutral-500)'];
 
 export function avatarColor(name: string): string {
     return AVATAR_COLORS[hash(name) % AVATAR_COLORS.length];

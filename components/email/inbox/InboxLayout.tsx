@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { MailboxSwitcher, type MailboxData } from "./MailboxSwitcher";
 import { FolderNav } from "./FolderNav";
@@ -22,6 +21,7 @@ import {
     AlertCircle,
     X,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand/BrandLogo";
 
 // ============================================
 // TYPES
@@ -69,12 +69,12 @@ function ToastContainer({
                         "flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium animate-in slide-in-from-right-5 fade-in duration-300",
                         toast.type === "success" && "bg-emerald-50 border-emerald-200 text-emerald-800",
                         toast.type === "error" && "bg-red-50 border-red-200 text-red-800",
-                        toast.type === "info" && "bg-indigo-50 border-indigo-200 text-indigo-800"
+                        toast.type === "info" && "bg-primary-50 border-primary-200 text-primary-800"
                     )}
                 >
                     {toast.type === "success" && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
                     {toast.type === "error" && <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />}
-                    {toast.type === "info" && <RefreshCw className="w-4 h-4 text-indigo-500 flex-shrink-0" />}
+                    {toast.type === "info" && <RefreshCw className="w-4 h-4 text-primary-500 flex-shrink-0" />}
                     <span className="flex-1">{toast.message}</span>
                     <button
                         onClick={() => onDismiss(toast.id)}
@@ -309,7 +309,7 @@ export function InboxLayout({
             <div className={cn(containerHeight, "flex items-center justify-center bg-white", !standalone && "rounded-2xl border border-slate-200 shadow-sm", className)}>
                 <div className="flex flex-col items-center gap-4">
                     <div className="relative">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                        <div className="w-14 h-14 rounded-2xl bg-primary-600 flex items-center justify-center">
                             <Loader2 className="w-7 h-7 text-white animate-spin" />
                         </div>
                     </div>
@@ -336,7 +336,7 @@ export function InboxLayout({
                     </div>
                     <button
                         onClick={fetchMailboxes}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
                     >
                         <RefreshCw className="w-4 h-4" />
                         Réessayer
@@ -357,8 +357,8 @@ export function InboxLayout({
                             <span className="text-sm font-medium">Retour</span>
                         </Link>
                         <div className="flex-1 flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                                <Image src="/suzalink_logo.png" alt="" width={16} height={16} className="rounded object-contain" />
+                            <div className="w-7 h-7 rounded-lg bg-inverse flex items-center justify-center">
+                                <BrandLogo variant="mark" tone="inverse" height={18} />
                             </div>
                             <span className="font-semibold text-slate-800 text-[15px]">Email Hub</span>
                         </div>
@@ -391,8 +391,8 @@ export function InboxLayout({
                         </Link>
                     ) : null}
                     <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shadow-indigo-500/20">
-                            <Image src="/suzalink_logo.png" alt="" width={16} height={16} className="rounded object-contain" />
+                        <div className="w-7 h-7 rounded-lg bg-inverse flex items-center justify-center">
+                            <BrandLogo variant="mark" tone="inverse" height={18} />
                         </div>
                         <span className="font-semibold text-slate-800 text-[15px] hidden sm:inline">Email Hub</span>
                     </div>
@@ -451,7 +451,7 @@ export function InboxLayout({
                     <div className="p-3 pb-1">
                         <button
                             onClick={handleCompose}
-                            className="w-full flex items-center justify-center gap-2.5 h-11 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-sm font-semibold rounded-xl hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg hover:shadow-indigo-500/25 hover:-translate-y-[1px] active:translate-y-0 transition-all duration-200"
+                            className="w-full flex items-center justify-center gap-2.5 h-11 px-4 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-500 transition-colors duration-200"
                         >
                             <Pencil className="w-4 h-4" />
                             Nouveau message
@@ -495,7 +495,7 @@ export function InboxLayout({
                         <div className="p-3 pb-0 lg:hidden">
                             <button
                                 onClick={handleCompose}
-                                className="w-full flex items-center justify-center gap-2.5 h-11 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-sm font-semibold rounded-xl hover:from-indigo-500 hover:to-violet-500 transition-all duration-200"
+                                className="w-full flex items-center justify-center gap-2.5 h-11 px-4 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-500 transition-colors duration-200"
                             >
                                 <Pencil className="w-4 h-4" />
                                 Nouveau message
@@ -529,8 +529,8 @@ export function InboxLayout({
                     {/* No thread selected placeholder (desktop only) */}
                     {!selectedThread && (
                         <div className="flex-1 hidden lg:flex flex-col items-center justify-center bg-slate-50/30">
-                            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center mb-4">
-                                <Image src="/suzalink_logo.png" alt="" width={32} height={32} className="rounded-lg object-contain opacity-40" />
+                            <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+                                <BrandLogo variant="mark" height={34} className="opacity-40 grayscale" />
                             </div>
                             <p className="text-sm text-slate-400 font-medium">Sélectionnez un email pour le lire</p>
                             <p className="text-xs text-slate-300 mt-1">ou appuyez sur C pour rédiger un nouveau message</p>
