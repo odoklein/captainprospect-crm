@@ -8,11 +8,25 @@ import { cn } from "@/lib/utils";
 // DRAWER COMPONENT
 // ============================================
 
+/**
+ * Shared look of every right-side drawer / sheet in the app.
+ * - Backdrop: a light scrim (the page stays readable behind the panel), no blur.
+ * - Panel: floats inset from the viewport edge, rounded on all corners and
+ *   clipped to them (`overflow-hidden`) so sticky headers/footers and inner
+ *   scroll areas follow the radius.
+ * Exported so non-`Drawer` sheets (e.g. the booking dialog) match exactly.
+ */
+export const DRAWER_BACKDROP_CLASS = "bg-black/15 animate-fade-in";
+export const DRAWER_PANEL_SURFACE_CLASS =
+    "overflow-hidden rounded-2xl sm:rounded-[20px] border border-line bg-surface shadow-overlay";
+
 interface DrawerProps {
     isOpen: boolean;
     onClose: () => void;
-    title?: string;
-    description?: string;
+    /** Centered in the header. */
+    title?: React.ReactNode;
+    /** Centered under the title. */
+    description?: React.ReactNode;
     children: React.ReactNode;
     size?: "sm" | "md" | "lg" | "xl" | "full";
     side?: "right" | "left";
@@ -23,8 +37,12 @@ interface DrawerProps {
     footer?: React.ReactNode;
     /** Helper link shown above footer (e.g. "Learn more about...") */
     footerHelperLink?: { href: string; label: string };
-    /** Center title in header (reference style) */
+    /** @deprecated The title is always centered now; kept so existing call sites compile. */
     headerCentered?: boolean;
+    /** Optional content for the header's left slot (back button, status, ...). */
+    headerLeft?: React.ReactNode;
+    /** Optional actions rendered in the header's right slot, before the close button. */
+    headerActions?: React.ReactNode;
     /** If false, drawer behaves as non-modal side panel (no full-screen blocking layer). */
     modal?: boolean;
 }
@@ -36,6 +54,71 @@ const SIZES = {
     xl: "max-w-4xl",
     full: "max-w-[95vw]",
 };
+
+// ============================================
+// DRAWER HEADER (3 slots: left / centered title / right)
+// ============================================
+
+interface DrawerHeaderProps {
+    title?: React.ReactNode;
+    subtitle?: React.ReactNode;
+    /** Left slot, pinned to the start edge. */
+    left?: React.ReactNode;
+    /** Right slot, pinned to the end edge (before the close button). */
+    right?: React.ReactNode;
+    onClose?: () => void;
+    showCloseButton?: boolean;
+    className?: string;
+}
+
+/**
+ * Header with a truly centered title: the two outer columns are equal (`1fr`)
+ * so the title stays in the middle whatever the left/right slots contain.
+ */
+export function DrawerHeader({
+    title,
+    subtitle,
+    left,
+    right,
+    onClose,
+    showCloseButton = true,
+    className,
+}: DrawerHeaderProps) {
+    return (
+        <div
+            className={cn(
+                "grid shrink-0 grid-cols-[minmax(2.5rem,1fr)_minmax(0,auto)_minmax(2.5rem,1fr)] items-center gap-2",
+                "border-b border-line-subtle bg-surface px-3 py-3 sm:px-4",
+                className
+            )}
+        >
+            <div className="flex min-w-0 items-center justify-start gap-1">{left}</div>
+            <div className="min-w-0 max-w-full text-center">
+                {title && (
+                    <h2 className="truncate text-base font-semibold leading-tight text-ink sm:text-lg">
+                        {title}
+                    </h2>
+                )}
+                {subtitle && (
+                    <p className="mt-0.5 truncate text-xs font-medium text-ink-3">{subtitle}</p>
+                )}
+            </div>
+            <div className="flex min-w-0 items-center justify-end gap-1">
+                {right}
+                {showCloseButton && onClose && (
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Fermer le panneau"
+                        className="flex-shrink-0 rounded-lg p-2 text-ink-4 transition-colors duration-150 hover:bg-surface-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
 
 export function Drawer({
     isOpen,
@@ -51,7 +134,8 @@ export function Drawer({
     className,
     footer,
     footerHelperLink,
-    headerCentered = false,
+    headerLeft,
+    headerActions,
     modal = true,
 }: DrawerProps) {
     const drawerRef = useRef<HTMLDivElement>(null);
@@ -99,82 +183,54 @@ export function Drawer({
             {/* Overlay */}
             {modal && (
                 <div
-                    className="absolute inset-0 bg-black/30 backdrop-blur-[2px] animate-fade-in cursor-pointer transition-opacity duration-300"
+                    className={cn(
+                        DRAWER_BACKDROP_CLASS,
+                        "absolute inset-0 transition-opacity duration-300",
+                        closeOnOverlay && "cursor-pointer"
+                    )}
                     onClick={handleOverlayClickClose}
                     aria-hidden="true"
                 />
             )}
 
-            {/* Drawer panel */}
+            {/* Drawer panel: floating, inset from the viewport edge, rounded + clipped */}
             <div
                 ref={drawerRef}
                 tabIndex={-1}
                 role="dialog"
                 aria-modal={modal ? "true" : undefined}
-                aria-label={title || "Panneau latéral"}
+                aria-label={typeof title === "string" ? title : "Panneau latéral"}
                 className={cn(
-                    "fixed top-0 bottom-0 w-full flex flex-col bg-surface shadow-2xl shadow-black/10 z-[81] outline-none",
+                    "fixed top-2 bottom-2 z-[81] flex w-[calc(100%-1rem)] flex-col outline-none sm:top-3 sm:bottom-3 sm:w-[calc(100%-1.5rem)]",
+                    DRAWER_PANEL_SURFACE_CLASS,
                     side === "right"
-                        ? "right-0 animate-slide-in-right"
-                        : "left-0 animate-slide-in-left",
+                        ? "right-2 sm:right-3 animate-drawer-in-right"
+                        : "left-2 sm:left-3 animate-drawer-in-left",
                     !modal && "pointer-events-auto",
                     SIZES[size],
                     className
                 )}
             >
                 {/* Header */}
-                {(title || showCloseButton) && (
-                    <div className={cn(
-                        "flex items-center px-6 py-4 border-b border-line-subtle bg-surface sticky top-0 z-10",
-                        headerCentered ? "justify-center" : "justify-between"
-                    )}>
-                        {showCloseButton && !headerCentered && (
-                            <div className="flex-1 min-w-0 pr-4" />
-                        )}
-                        {showCloseButton && headerCentered && (
-                            <button
-                                onClick={onClose}
-                                aria-label="Fermer le panneau"
-                                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 -m-1 text-ink-4 hover:text-ink hover:bg-surface-3 rounded-lg transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        )}
-                        <div className={cn(
-                            "flex-1 min-w-0",
-                            headerCentered ? "text-center pr-10" : "pr-4"
-                        )}>
-                            {title && (
-                                <h2 className="text-lg font-semibold text-ink truncate leading-tight">
-                                    {title}
-                                </h2>
-                            )}
-                            {description && (
-                                <p className="text-xs text-ink-3 mt-0.5 font-medium">
-                                    {description}
-                                </p>
-                            )}
-                        </div>
-                        {showCloseButton && !headerCentered && (
-                            <button
-                                onClick={onClose}
-                                aria-label="Fermer le panneau"
-                                className="p-2 -m-1 text-ink-4 hover:text-ink hover:bg-surface-3 rounded-lg transition-all duration-150 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        )}
-                    </div>
+                {(title || description || headerLeft || headerActions || showCloseButton) && (
+                    <DrawerHeader
+                        title={title}
+                        subtitle={description}
+                        left={headerLeft}
+                        right={headerActions}
+                        onClose={onClose}
+                        showCloseButton={showCloseButton}
+                    />
                 )}
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 drawer-scrollbar">
+                <div className="min-h-0 flex-1 overflow-y-auto p-6 drawer-scrollbar">
                     {children}
                 </div>
 
                 {/* Footer helper link */}
                 {footerHelperLink && (
-                    <div className="px-6 pt-2 pb-1 border-t border-line-subtle bg-surface-2/30">
+                    <div className="shrink-0 px-6 pt-2 pb-1 border-t border-line-subtle bg-surface-2/30">
                         <a
                             href={footerHelperLink.href}
                             target="_blank"
@@ -188,7 +244,7 @@ export function Drawer({
 
                 {/* Footer */}
                 {footer && (
-                    <div className="px-6 py-4 border-t border-line-subtle bg-surface sticky bottom-0 z-10">
+                    <div className="shrink-0 px-6 py-4 border-t border-line-subtle bg-surface">
                         {footer}
                     </div>
                 )}

@@ -23,6 +23,7 @@ import type { UseFicheRdvReturn } from "../../_hooks/useFicheRdv";
 import { useToast } from "@/components/ui";
 import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
+import { AUDIO_ACCEPT, AUDIO_FORMATS_LABEL, MAX_AUDIO_SIZE, MAX_AUDIO_SIZE_LABEL, isAcceptedAudioFile } from "@/lib/audio-upload";
 
 interface AudioTabProps {
   meeting: Meeting;
@@ -595,13 +596,12 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
       e.target.value = ""; // allow re-selecting the same file later
       if (!file) return;
 
-      if (!file.type.startsWith("audio/")) {
-        showError("Fichier invalide", "Veuillez sélectionner un fichier audio.");
+      if (!isAcceptedAudioFile(file.name, file.type)) {
+        showError("Fichier invalide", `Veuillez sélectionner un fichier audio (${AUDIO_FORMATS_LABEL}).`);
         return;
       }
-      const MAX_SIZE = 50 * 1024 * 1024;
-      if (file.size > MAX_SIZE) {
-        showError("Fichier trop volumineux", "La taille maximale autorisée est de 50 Mo.");
+      if (file.size > MAX_AUDIO_SIZE) {
+        showError("Fichier trop volumineux", `La taille maximale autorisée est de ${MAX_AUDIO_SIZE_LABEL}.`);
         return;
       }
 
@@ -620,6 +620,7 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
         }
 
         const d = json.data;
+        if (d.storageError) showError("Stockage", d.storageError);
         const updated: Meeting = {
           ...meeting,
           callRecordingUrl: d.callRecordingUrl ?? meeting.callRecordingUrl,
@@ -666,7 +667,7 @@ export function AudioTab({ meeting, updateMeeting, setSelectedMeeting, ficheStat
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*"
+        accept={AUDIO_ACCEPT}
         onChange={handleFileSelected}
         className="hidden"
       />

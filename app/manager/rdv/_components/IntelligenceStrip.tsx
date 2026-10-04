@@ -68,7 +68,7 @@ export const IntelligenceStrip = memo(function IntelligenceStrip({
     {
       label: "Taux Conv. SAS",
       value: aggregates?.conversionRate ?? 0,
-      color: "var(--blue)",
+      color: "var(--accent)",
       suffix: "%",
       icon: TrendingUp,
       active: false,
@@ -87,7 +87,7 @@ export const IntelligenceStrip = memo(function IntelligenceStrip({
     {
       label: "Moy. / SDR",
       value: aggregates?.avgPerSdr ?? 0,
-      color: "#8b5cf6",
+      color: "var(--rose)",
       icon: Users,
       active: false,
       interactive: false,
@@ -96,89 +96,49 @@ export const IntelligenceStrip = memo(function IntelligenceStrip({
   ];
 
   return (
-    <div
-      style={{
-        display: "flex",
-        gap: 10,
-        padding: "8px 20px",
-        flexShrink: 0,
-        overflowX: "auto",
-        background: "var(--surface)",
-        borderBottom: "1px solid var(--border)",
-      }}
-      className="rdv-scrollbar"
-    >
+    <div className="rdv-kpi-strip rdv-scrollbar">
       {loading
-        ? Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ flex: 1, minWidth: 130 }}>
-              <Skeleton w="100%" h={54} r={10} />
-            </div>
-          ))
+        ? Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} w="100%" h={58} r={12} />)
         : cards.map((card) => {
             const Icon = card.icon;
-            return (
-              <div
-                key={card.label}
-                className={`rdv-metric-card ${card.active ? "active" : ""} ${card.urgent ? "pulse-urgent" : ""}`}
-                style={{
-                  flex: 1,
-                  minWidth: 135,
-                  cursor: card.interactive ? "pointer" : "default",
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  borderLeft: `3px solid ${card.color}`,
-                  background: card.active ? "var(--surface2)" : "var(--surface)",
-                }}
-                onClick={card.interactive ? card.onClick : undefined}
-                title={card.interactive ? `Filtrer par : ${card.label}` : undefined}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: "var(--ink3)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.05em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {card.label}
-                  </span>
-                  <Icon size={12} style={{ color: card.color, opacity: 0.8 }} />
-                </div>
-
-                <div style={{ display: "flex", alignItems: "baseline", gap: 2, marginTop: 2 }}>
-                  <span
-                    style={{
-                      fontSize: 19,
-                      fontWeight: 700,
-                      color: card.urgent ? "var(--amber)" : "var(--ink)",
-                      letterSpacing: "-0.02em",
-                      lineHeight: 1.1,
-                    }}
-                  >
-                    <AnimatedNumber value={card.value} />
-                  </span>
-                  {card.suffix && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink3)" }}>{card.suffix}</span>
-                  )}
-                  {card.urgent && (
-                    <span
-                      style={{
-                        marginLeft: "auto",
-                        fontSize: 9,
-                        fontWeight: 700,
-                        padding: "1px 5px",
-                        borderRadius: 4,
-                        background: "var(--amberLight)",
-                        color: "var(--amber)",
-                      }}
-                    >
-                      À traiter
+            const className = `rdv-metric-card ${card.interactive ? "interactive" : ""} ${card.active ? "active" : ""} ${card.urgent ? "pulse-urgent" : ""}`;
+            const body = (
+              <>
+                <span className="rdv-metric-icon" style={{ "--tone": card.urgent ? "var(--amber)" : card.color } as React.CSSProperties}>
+                  <Icon size={16} strokeWidth={2} />
+                </span>
+                <span style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 0, flex: 1 }}>
+                  <span className="rdv-metric-label">{card.label}</span>
+                  <span style={{ display: "flex", alignItems: "baseline", gap: 3 }}>
+                    <span className="rdv-metric-value" style={card.urgent ? { color: "var(--amberInk)" } : undefined}>
+                      <AnimatedNumber value={card.value} />
                     </span>
-                  )}
-                </div>
+                    {card.suffix && (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink3)" }}>{card.suffix}</span>
+                    )}
+                    {card.urgent && (
+                      <span className="rdv-count" data-tone="pending" style={{ marginLeft: "auto" }}>
+                        À traiter
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </>
+            );
+            return card.interactive ? (
+              <button
+                key={card.label}
+                type="button"
+                className={className}
+                onClick={card.onClick}
+                aria-pressed={card.active}
+                title={`Filtrer par : ${card.label}`}
+              >
+                {body}
+              </button>
+            ) : (
+              <div key={card.label} className={className}>
+                {body}
               </div>
             );
           })}

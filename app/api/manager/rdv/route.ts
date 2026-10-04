@@ -9,6 +9,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { createClientPortalNotification, sendNewRdvEmailNotification } from "@/lib/notifications";
 import { filterRdvList } from "@/lib/utils/meetingFilters";
+import { buildRdvOverview } from "@/lib/rdv/overview";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   await requireRole(["MANAGER"], request);
@@ -111,6 +112,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     result: { in: ["MEETING_BOOKED", "MEETING_CANCELLED"] },
   };
 
+  // Two kinds of filters. "Scope" ones (who / when / what kind) define the
+  // population; "drill-down" ones (status, SAS, outcome, feedback, absences)
+  // pick a slice of it. The list uses both; the Bilan overview uses scope only,
+  // so it stays a stable picture of the population while the manager drills in.
   const andClauses: Prisma.ActionWhereInput[] = [];
 
   if (search) {
@@ -146,6 +151,25 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     end.setHours(23, 59, 59, 999);
     andClauses.push({ createdAt: { lte: end } });
   }
+  if (meetingTypes.length > 0) {
+    andClauses.push({ meetingType: { in: meetingTypes } });
+  }
+  if (meetingCategories.length > 0) {
+    andClauses.push({ meetingCategory: { in: meetingCategories } });
+  }
+  if (channels.length > 0) {
+    andClauses.push({ channel: { in: channels as any[] } });
+  }
+  if (hasAudioParam === "1") {
+    andClauses.push({ callRecordingUrl: { not: null } });
+  } else if (hasAudioParam === "0") {
+    andClauses.push({ callRecordingUrl: null });
+  }
+
+  const scopeWhere: Prisma.ActionWhereInput = {
+    result: { in: ["MEETING_BOOKED", "MEETING_CANCELLED"] },
+    ...(andClauses.length > 0 ? { AND: [...andClauses] } : {}),
+  };
 
   if (statuses.length > 0) {
     const statusOr: Prisma.ActionWhereInput[] = [];
@@ -157,30 +181,17 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     if (statusOr.length > 0) andClauses.push({ OR: statusOr });
   }
 
-  if (meetingTypes.length > 0) {
-    andClauses.push({ meetingType: { in: meetingTypes } });
-  }
-
-  if (meetingCategories.length > 0) {
-    andClauses.push({ meetingCategory: { in: meetingCategories } });
-  }
-
   if (outcomes.length > 0) {
-    andClauses.push({ meetingFeedback: { outcome: { in: outcomes as any[] } } });
+    // "NONE" = no feedback recorded yet ("Sans retour").
+    const realOutcomes = outcomes.filter((o) => o !== "NONE");
+    const outcomeOr: Prisma.ActionWhereInput[] = [];
+    if (realOutcomes.length > 0) outcomeOr.push({ meetingFeedback: { outcome: { in: realOutcomes as any[] } } });
+    if (outcomes.includes("NONE")) outcomeOr.push({ meetingFeedback: null });
+    andClauses.push({ OR: outcomeOr });
   }
 
   if (confirmationStatuses.length > 0) {
     andClauses.push({ confirmationStatus: { in: confirmationStatuses as any[] } });
-  }
-
-  if (channels.length > 0) {
-    andClauses.push({ channel: { in: channels as any[] } });
-  }
-
-  if (hasAudioParam === "1") {
-    andClauses.push({ callRecordingUrl: { not: null } });
-  } else if (hasAudioParam === "0") {
-    andClauses.push({ callRecordingUrl: null });
   }
 
   if (hasFeedbackParam === "1") {
@@ -323,6 +334,34 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }),
   ]);
 
+  // Bilan: one light row per RDV of the scope (no drill-down filters), with the
+  // same "cancelled < 10 min" exclusion as the list so the totals agree.
+  const overviewRows = page > 1 ? null : await prisma.action.findMany({
+    where: scopeWhere,
+    select: {
+      result: true,
+      confirmationStatus: true,
+      confirmationUpdatedAt: true,
+      callbackDate: true,
+      cancellationReason: true,
+      sdr: { select: { id: true, name: true } },
+      campaign: { select: { mission: { select: { client: { select: { id: true, name: true } } } } } },
+      meetingFeedback: { select: { outcome: true, standByAt: true, outOfScopeAt: true } },
+    },
+  });
+  const overview = overviewRows && buildRdvOverview(
+    filterRdvList(overviewRows).map((r) => ({
+      result: r.result,
+      confirmationStatus: r.confirmationStatus,
+      callbackDate: r.callbackDate,
+      cancellationReason: r.cancellationReason,
+      sdr: r.sdr,
+      client: r.campaign?.mission?.client ?? null,
+      feedback: r.meetingFeedback,
+    })),
+    now,
+  );
+
   const avgPerSdr = sdrCounts.length > 0 ? Math.round(totalBookedCount / sdrCounts.length) : 0;
   // SAS RDV conversion = % of booked meetings that are confirmed
   const conversionRate =
@@ -430,5 +469,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       meetingsThisWeek: weekCount,
       meetingsThisMonth: monthCount,
     },
+    overview,
   });
 });

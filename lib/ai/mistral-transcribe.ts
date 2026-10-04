@@ -6,6 +6,8 @@
 // so the whole audio pipeline only depends on MISTRAL_API_KEY.
 // ============================================
 
+import { ensureAudioFilename, resolveAudioMime } from "@/lib/audio-upload";
+
 export type TranscribeResult =
   | { ok: true; text: string }
   | { ok: false; message: string; status: number };
@@ -85,7 +87,7 @@ export async function transcribeAudioFr(
     console.warn(`[Transcription] Local Whisper (${localWhisperUrl}) failed: ${localResult.error}. Falling back to Mistral...`);
   }
 
-  // 2. Fallback to Mistral Voxtral
+  // 2. Mistral Voxtral
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) {
     return {
@@ -97,45 +99,93 @@ export async function transcribeAudioFr(
     };
   }
 
-  const form = new FormData();
-  form.append(
-    "file",
-    new Blob([new Uint8Array(buffer)], { type: mimeType || "audio/mpeg" }),
-    filename || "audio.mp3",
-  );
-  form.append("model", VOXTRAL_MODEL);
-  form.append("language", "fr");
+  // Timeout scales with file size: ~60 s base + 12 s per MB, capped under the route's maxDuration.
+  const sizeMb = buffer.length / (1024 * 1024);
+  const timeoutMs = Math.min(270_000, Math.round(60_000 + sizeMb * 12_000));
+  const safeName = ensureAudioFilename(filename, mimeType);
+  const safeMime = resolveAudioMime(filename, mimeType);
 
-  let response: Response;
-  try {
-    response = await fetch(MISTRAL_TRANSCRIPTIONS_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      body: form,
-      signal: AbortSignal.timeout(120_000),
-    });
-  } catch (e) {
-    console.error("Mistral transcription fetch error:", e);
-    return { ok: false, message: "Impossible de contacter le service de transcription Mistral", status: 502 };
+  let lastMessage = "Erreur lors de la transcription audio";
+  let lastStatus = 502;
+
+  // Up to 2 attempts, only retrying on transient failures (429 / 5xx / network).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2500));
+
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(buffer)], { type: safeMime }), safeName);
+    form.append("model", VOXTRAL_MODEL);
+    form.append("language", "fr");
+
+    let response: Response;
+    try {
+      response = await fetch(MISTRAL_TRANSCRIPTIONS_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (e) {
+      const name = (e as { name?: string })?.name;
+      if (name === "TimeoutError" || name === "AbortError") {
+        console.error("Mistral transcription timeout after", timeoutMs, "ms");
+        return {
+          ok: false,
+          message:
+            "La transcription a pris trop de temps (enregistrement trop long). Essayez avec un fichier plus court ou compressé (MP3).",
+          status: 504,
+        };
+      }
+      console.error("Mistral transcription fetch error:", e);
+      lastMessage = "Impossible de contacter le service de transcription Mistral";
+      lastStatus = 502;
+      continue;
+    }
+
+    if (!response.ok) {
+      const err = (await response.json().catch(() => ({}))) as {
+        error?: { message?: string };
+        message?: unknown;
+      };
+      console.error("Mistral transcription error:", response.status, JSON.stringify(err).slice(0, 500));
+      const upstream =
+        err?.error?.message || (typeof err?.message === "string" ? err.message : "") || "";
+
+      if (response.status === 401 || response.status === 403) {
+        return { ok: false, message: "Clé API Mistral invalide ou non autorisée pour la transcription (MISTRAL_API_KEY).", status: 502 };
+      }
+      if (response.status === 413) {
+        return { ok: false, message: "Fichier audio trop volumineux pour le service de transcription. Compressez-le (MP3) ou découpez-le.", status: 413 };
+      }
+      if (response.status === 400 || response.status === 422) {
+        return {
+          ok: false,
+          message: `Mistral n'a pas pu lire ce fichier audio (format ou durée non pris en charge).${upstream ? ` Détail : ${upstream.slice(0, 160)}` : ""}`,
+          status: 422,
+        };
+      }
+      if (response.status === 429) {
+        lastMessage = "Trop de requêtes vers Mistral (transcription). Veuillez patienter quelques instants puis réessayer.";
+        lastStatus = 429;
+        continue;
+      }
+      lastMessage = upstream || "Erreur lors de la transcription audio";
+      lastStatus = 502;
+      if (response.status >= 500) continue;
+      return { ok: false, message: lastMessage, status: 502 };
+    }
+
+    const data = await response.json().catch(() => null);
+    const text = typeof data?.text === "string" ? data.text.trim() : "";
+    if (!text) {
+      return {
+        ok: false,
+        message: "Aucune parole détectée dans l'enregistrement (la transcription est vide).",
+        status: 422,
+      };
+    }
+    return { ok: true, text };
   }
 
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    const message =
-      (err as { error?: { message?: string }; message?: string })?.error?.message ||
-      (err as { message?: string })?.message ||
-      (response.status === 429
-        ? "Trop de requêtes vers Mistral (transcription). Veuillez patienter quelques instants."
-        : "Erreur lors de la transcription audio");
-    console.error("Mistral transcription error:", response.status, err);
-    return { ok: false, message, status: response.status >= 500 ? 502 : response.status };
-  }
-
-  const data = await response.json().catch(() => null);
-  const text = typeof data?.text === "string" ? data.text.trim() : "";
-  if (!text) {
-    return { ok: false, message: "La transcription a renvoyé un résultat vide", status: 500 };
-  }
-
-  return { ok: true, text };
+  return { ok: false, message: lastMessage, status: lastStatus };
 }

@@ -7,10 +7,64 @@ import {
     NotFoundError,
 } from "@/lib/api-utils";
 import { actionService } from "@/lib/services/ActionService";
+import { storageService } from "@/lib/storage/storage-service";
+import { resolveAudioMime } from "@/lib/audio-upload";
 
 const ALLO_HOST = "api.withallo.com";
 const ALLO_RECORDINGS_PATH_PREFIX = "/v1/assets/recordings/";
 const VAULT_RECORDING_PATH_SUFFIX = "/recording";
+
+// Recordings uploaded by hand (app/api/actions/[id]/upload-audio) live in our own storage under
+// call-recordings/<userId>/<timestamp>/<uuid>.<ext>. The stored URL can point at a private MinIO/S3
+// bucket the browser cannot read, so they are streamed through here using the storage credentials.
+const UPLOADED_KEY_RE = /^call-recordings\/[A-Za-z0-9_-]+\/\d+\/[0-9a-f-]{36}\.[A-Za-z0-9]{1,8}$/;
+
+function uploadedRecordingKey(urlString: string): string | null {
+    let pathname: string;
+    try {
+        pathname = decodeURIComponent(new URL(urlString.trim(), "http://local.invalid").pathname);
+    } catch {
+        return null;
+    }
+    const idx = pathname.indexOf("call-recordings/");
+    if (idx < 0) return null;
+    const key = pathname.slice(idx);
+    return UPLOADED_KEY_RE.test(key) ? key : null;
+}
+
+async function serveUploadedRecording(request: NextRequest, key: string) {
+    let data: Buffer;
+    try {
+        data = await storageService.download(key);
+    } catch {
+        throw new NotFoundError("Enregistrement introuvable");
+    }
+    const total = data.length;
+    const mime = resolveAudioMime(key, "");
+    const headers = new Headers({
+        "Content-Type": mime,
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, max-age=300",
+    });
+
+    const range = request.headers.get("Range");
+    const m = range ? /^bytes=(\d*)-(\d*)$/.exec(range.trim()) : null;
+    if (m && (m[1] || m[2])) {
+        const start = m[1] ? parseInt(m[1], 10) : Math.max(0, total - parseInt(m[2], 10));
+        let end = m[1] && m[2] ? parseInt(m[2], 10) : total - 1;
+        end = Math.min(end, total - 1);
+        if (start > end || start >= total) {
+            headers.set("Content-Range", `bytes */${total}`);
+            return new NextResponse(null, { status: 416, headers });
+        }
+        headers.set("Content-Range", `bytes ${start}-${end}/${total}`);
+        headers.set("Content-Length", String(end - start + 1));
+        return new NextResponse(new Uint8Array(data.subarray(start, end + 1)), { status: 206, headers });
+    }
+
+    headers.set("Content-Length", String(total));
+    return new NextResponse(new Uint8Array(data), { status: 200, headers });
+}
 
 type Upstream = { url: URL; authHeader: string };
 
@@ -87,6 +141,11 @@ export const GET = withErrorHandler(
         }
 
         await assertCanStreamRecording(session.user.id, session.user.role, action);
+
+        const uploadedKey = uploadedRecordingKey(action.callRecordingUrl);
+        if (uploadedKey) {
+            return serveUploadedRecording(request, uploadedKey);
+        }
 
         const { url: targetUrl, authHeader } = resolveUpstream(action.callRecordingUrl);
 

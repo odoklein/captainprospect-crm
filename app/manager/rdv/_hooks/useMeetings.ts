@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import type { Meeting, Aggregates, Pagination, FilterOption } from "../_types";
+import type { Meeting, Aggregates, Pagination, FilterOption, RdvOverview } from "../_types";
 import type { MeetingFiltersState } from "./useMeetingFilters";
 
 export interface UseMeetingsReturn {
   meetings: Meeting[];
   aggregates: Aggregates | null;
+  /** Bilan of the scope (ignores drill-down filters). Only sent with page 1. */
+  overview: RdvOverview | null;
   pagination: Pagination | null;
   loading: boolean;
   loadingMore: boolean;
@@ -30,9 +32,7 @@ function buildQuery(filters: MeetingFiltersState, page = 1): string {
   if (filters.noShowFilter !== "all") p.set("noShow", filters.noShowFilter);
   filters.selectedMeetingTypes.forEach((t) => p.append("meetingType[]", t));
   filters.selectedMeetingCategories.forEach((c) => p.append("meetingCategory[]", c));
-  filters.selectedOutcomes.forEach((o) => {
-    if (o !== "NONE") p.append("outcome[]", o);
-  });
+  filters.selectedOutcomes.forEach((o) => p.append("outcome[]", o));
   filters.selectedChannels.forEach((ch) => p.append("channel[]", ch));
   if (filters.hasAudio !== null) p.set("hasAudio", filters.hasAudio ? "1" : "0");
   if (filters.hasFeedback !== null) p.set("hasFeedback", filters.hasFeedback ? "1" : "0");
@@ -46,6 +46,7 @@ function buildQuery(filters: MeetingFiltersState, page = 1): string {
 export function useMeetings(filters: MeetingFiltersState): UseMeetingsReturn {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [aggregates, setAggregates] = useState<Aggregates | null>(null);
+  const [overview, setOverview] = useState<RdvOverview | null>(null);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -86,6 +87,7 @@ export function useMeetings(filters: MeetingFiltersState): UseMeetingsReturn {
             filters.setSdrOptions(Array.from(sdrMap.values()));
           }
           setAggregates(json.data.aggregates);
+          if (json.data.overview) setOverview(json.data.overview);
           setPagination(json.data.pagination);
         }
       } catch (e) {
@@ -133,6 +135,7 @@ export function useMeetings(filters: MeetingFiltersState): UseMeetingsReturn {
   return {
     meetings,
     aggregates,
+    overview,
     pagination,
     loading,
     loadingMore,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useToast } from "@/components/ui";
+import { useToast, DRAWER_BACKDROP_CLASS, DRAWER_PANEL_SURFACE_CLASS } from "@/components/ui";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
 import {
     Loader2,
@@ -871,7 +871,7 @@ export function BookingDrawer({
     return (
         <>
             {/* Overlay */}
-            <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm" onClick={handleDismiss} aria-hidden="true" />
+            <div className={cn("fixed inset-0 z-[60]", DRAWER_BACKDROP_CLASS)} onClick={handleDismiss} aria-hidden="true" />
 
             {/* Dialog */}
             <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
@@ -879,25 +879,27 @@ export function BookingDrawer({
                     role="dialog"
                     aria-modal="true"
                     aria-label={`Planifier un RDV avec ${contactName}`}
-                    className="w-full max-w-5xl h-[88vh] min-h-[560px] bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+                    className={cn("w-full max-w-5xl h-[88vh] min-h-[560px] flex flex-col", DRAWER_PANEL_SURFACE_CLASS)}
                 >
-                    {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-primary-600 text-white">
-                        <div className="flex items-center gap-3">
+                    {/* Header: icon left, title centered, close right (equal outer columns) */}
+                    <div className="grid shrink-0 grid-cols-[minmax(2.5rem,1fr)_minmax(0,auto)_minmax(2.5rem,1fr)] items-center gap-2 px-3 sm:px-4 py-3 border-b border-slate-200 bg-primary-600 text-white">
+                        <div className="flex items-center justify-start">
                             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
                                 <CalendarCheck className="w-5 h-5" />
                             </div>
-                            <div>
-                                <h2 className="text-base font-semibold">Planifier un rendez-vous</h2>
-                                <p className="text-xs text-primary-100 mt-0.5">
-                                    {contactName}
-                                    {contactInfo?.companyName ? ` — ${contactInfo.companyName}` : ""}
-                                </p>
-                            </div>
                         </div>
-                        <button onClick={handleDismiss} aria-label="Fermer" className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
+                        <div className="min-w-0 max-w-full text-center">
+                            <h2 className="truncate text-base font-semibold">Planifier un rendez-vous</h2>
+                            <p className="truncate text-xs text-primary-100 mt-0.5">
+                                {contactName}
+                                {contactInfo?.companyName ? ` — ${contactInfo.companyName}` : ""}
+                            </p>
+                        </div>
+                        <div className="flex items-center justify-end">
+                            <button onClick={handleDismiss} aria-label="Fermer" className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
 
                     {confirmedBooking && (

@@ -27,6 +27,7 @@
     "test:sdr-pace": "tsx --test lib/sdr-pace/pace.test.ts",
     "test:sdr-daily-report": "tsx --test lib/sdr-daily-report/report.test.ts",
     "test:manager-home": "tsx --test lib/manager-home/rules.test.ts",
+    "test:rdv-overview": "tsx --test lib/rdv/overview.test.ts",
     "test:hr": "tsx --test lib/hr/hr-calculation-service.test.ts",
     "test:hr:all": "tsx --test lib/hr/hr-calculation-service.test.ts lib/hr/hr-integration.test.ts"
   },

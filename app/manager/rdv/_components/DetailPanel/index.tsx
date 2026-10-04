@@ -195,100 +195,92 @@ export function DetailPanel({
       <div className={`rdv-panel ${panelOpen ? "open" : ""}`}>
         {/* Navigation Bar */}
         <div className="rdv-panel-nav">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink2)", letterSpacing: "0.02em" }}>
-              RDV {currentIndex >= 0 ? currentIndex + 1 : 1} / {meetings.length || 1}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ds-inverse-ink-2)" }}>
+              Dossier RDV
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <span style={{ fontSize: 12, fontWeight: 650, fontVariantNumeric: "tabular-nums" }}>
+              {currentIndex >= 0 ? currentIndex + 1 : 1} / {meetings.length || 1}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <button
+                type="button"
+                className="rdv-icon-btn"
                 onClick={handlePrev}
                 disabled={!hasPrev}
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border2)",
-                  borderRadius: 5,
-                  padding: "3px 6px",
-                  cursor: hasPrev ? "pointer" : "not-allowed",
-                  opacity: hasPrev ? 1 : 0.35,
-                  display: "flex",
-                  alignItems: "center",
-                  color: "var(--ink2)",
-                }}
                 title="RDV précédent (Touche ↑)"
+                aria-label="RDV précédent"
               >
-                <ChevronUp size={13} />
+                <ChevronUp size={14} />
               </button>
               <button
+                type="button"
+                className="rdv-icon-btn"
                 onClick={handleNext}
                 disabled={!hasNext}
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border2)",
-                  borderRadius: 5,
-                  padding: "3px 6px",
-                  cursor: hasNext ? "pointer" : "not-allowed",
-                  opacity: hasNext ? 1 : 0.35,
-                  display: "flex",
-                  alignItems: "center",
-                  color: "var(--ink2)",
-                }}
                 title="RDV suivant (Touche ↓)"
+                aria-label="RDV suivant"
               >
-                <ChevronDown size={13} />
+                <ChevronDown size={14} />
               </button>
             </div>
-            <span style={{ fontSize: 10, color: "var(--ink4)", marginLeft: 4 }}>
-              (Naviguer: ↑ ↓)
+            <span style={{ display: "inline-flex", gap: 3 }}>
+              <span className="rdv-kbd">↑</span>
+              <span className="rdv-kbd">↓</span>
             </span>
           </div>
 
           <button
+            type="button"
+            className="rdv-icon-btn"
             onClick={closePanel}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--ink3)",
-              cursor: "pointer",
-              padding: "4px 8px",
-              borderRadius: 6,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 11,
-              fontWeight: 500,
-            }}
+            style={{ width: "auto", padding: "0 8px", gap: 6 }}
             title="Fermer (Échap)"
           >
-            <span style={{ fontSize: 10, opacity: 0.7 }}>Échap</span>
-            <X size={15} />
+            <span className="rdv-kbd" style={{ border: "none", padding: 0 }}>Échap</span>
+            <X size={14} />
           </button>
         </div>
 
         {/* Header content */}
         <div className="rdv-panel-header">
           {/* Contact Hero */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
-            <Avatar name={contactName(selectedMeeting.contact)} size={46} />
+          <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 16 }}>
+            <Avatar name={contactName(selectedMeeting.contact)} size={48} />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="rdv-serif" style={{ fontSize: 18, color: "var(--ink)", lineHeight: 1.2 }}>
+                <span className="rdv-serif" style={{ fontSize: 20, color: "var(--ink)", lineHeight: 1.2 }}>
                   {contactName(selectedMeeting.contact)}
                 </span>
                 {selectedMeeting.contact?.email && (
                   <button
+                    type="button"
+                    className="rdv-icon-btn"
+                    style={{ width: 22, height: 22, border: "none", background: "transparent" }}
                     onClick={() => navigator.clipboard.writeText(selectedMeeting.contact!.email!)}
-                    style={{ background: "transparent", border: "none", color: "var(--ink3)", cursor: "pointer", padding: 2 }}
                     title="Copier l'email"
                   >
                     <Copy size={12} />
                   </button>
                 )}
               </div>
-              <div style={{ fontSize: 12, color: "var(--ink3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 12.5, color: "var(--ink3)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {selectedMeeting.contact?.title ? `${selectedMeeting.contact.title} · ` : ""}
                 <strong style={{ color: "var(--ink2)", fontWeight: 600 }}>{selectedMeeting.company?.name || "Société non renseignée"}</strong>
               </div>
             </div>
+            {selectedMeeting.confirmationStatus && (
+              <span
+                className={`status-badge ${isPending ? "status-badge-pending-pulse" : ""}`}
+                style={{
+                  background: confirmationBg(selectedMeeting.confirmationStatus as ConfirmationFilter),
+                  color: confirmationColor(selectedMeeting.confirmationStatus as ConfirmationFilter),
+                  flexShrink: 0,
+                }}
+              >
+                {confirmationLabel(selectedMeeting.confirmationStatus as ConfirmationFilter)}
+              </span>
+            )}
           </div>
 
           {/* Absence — flagging a late no-show happens here, on the RDV itself,
@@ -306,26 +298,14 @@ export function DetailPanel({
 
           {/* Prominent SAS Confirmation Action Card */}
           {isReplaced && (
-            <div
-              style={{
-                background: "rgba(217, 119, 6, 0.07)",
-                border: "1px solid rgba(217, 119, 6, 0.22)",
-                borderRadius: 10,
-                padding: "8px 12px",
-                marginBottom: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--amber)" }}>
+            <div className="rdv-banner" data-tone="pending" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div className="rdv-banner-title">
                 <CalendarClock size={15} />
                 <span>RDV replacé — un nouveau rendez-vous le remplace</span>
               </div>
               <button
                 onClick={handleUndoReplaced}
-                className="rdv-btn rdv-btn-ghost"
-                style={{ fontSize: 11, padding: "3px 8px" }}
+                className="rdv-btn rdv-btn-ghost rdv-btn-sm"
                 title="Annuler le marquage et remettre le RDV en confirmé"
               >
                 <Check size={11} /> Rétablir
@@ -334,52 +314,33 @@ export function DetailPanel({
           )}
 
           {isPending && !isReplaced && (
-            <div
-              style={{
-                background: "rgba(245, 158, 11, 0.08)",
-                border: "1px solid rgba(245, 158, 11, 0.28)",
-                borderRadius: 10,
-                padding: "10px 14px",
-                marginBottom: 14,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--amber)" }}>
-                  <Clock size={14} /> EN ATTENTE DE VALIDATION SAS
+            <div className="rdv-banner" data-tone="pending" style={{ padding: "12px 14px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
+                <div className="rdv-banner-title" style={{ letterSpacing: "0.04em", textTransform: "uppercase", fontSize: 11 }}>
+                  <Clock size={14} /> En attente de validation SAS
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--amber)" }}>
+                <span style={{ fontSize: 10.5, fontWeight: 600 }}>
                   Auto-confirmation sous 24h
                 </span>
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button
-                  className="rdv-btn rdv-btn-primary"
-                  style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    background: "var(--green)",
-                    color: "#ffffff",
-                    padding: "7px 14px",
-                    fontWeight: 600,
-                  }}
+                  className="rdv-btn rdv-btn-confirm"
+                  style={{ flex: 1, justifyContent: "center", padding: "8px 14px", fontWeight: 650 }}
                   onClick={handleConfirm}
                 >
                   <Check size={14} /> Confirmer le RDV
                 </button>
                 <button
-                  className="rdv-btn rdv-btn-ghost"
-                  style={{
-                    padding: "7px 14px",
-                    color: "var(--red)",
-                    borderColor: "rgba(225,29,72,0.25)",
-                  }}
+                  className="rdv-btn rdv-btn-danger"
+                  style={{ padding: "8px 14px" }}
                   onClick={handleCancel}
                 >
                   <X size={14} /> Rejeter / Annuler
                 </button>
                 <button
                   className="rdv-btn rdv-btn-ghost"
-                  style={{ padding: "7px 14px" }}
+                  style={{ padding: "8px 14px" }}
                   onClick={handleReplaced}
                   title="Le RDV a été replacé : un nouveau RDV le remplace"
                 >
@@ -390,19 +351,8 @@ export function DetailPanel({
           )}
 
           {isConfirmed && !isReplaced && (
-            <div
-              style={{
-                background: "rgba(5, 150, 105, 0.07)",
-                border: "1px solid rgba(5, 150, 105, 0.22)",
-                borderRadius: 10,
-                padding: "8px 12px",
-                marginBottom: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--green)" }}>
+            <div className="rdv-banner" data-tone="confirmed" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div className="rdv-banner-title">
                 <CheckCircle2 size={15} />
                 <span>RDV Confirmé & Validé</span>
                 {selectedMeeting.confirmedAt && (
@@ -411,32 +361,16 @@ export function DetailPanel({
                   </span>
                 )}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <button
+                  type="button"
+                  className="rdv-link-btn"
                   onClick={handleReplaced}
-                  style={{
-                    fontSize: 11,
-                    color: "var(--ink3)",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
                   title="Le RDV a été replacé : un nouveau RDV le remplace"
                 >
                   RDV replacé
                 </button>
-                <button
-                  onClick={handleCancel}
-                  style={{
-                    fontSize: 11,
-                    color: "var(--ink3)",
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                  }}
-                >
+                <button type="button" className="rdv-link-btn" onClick={handleCancel}>
                   Annuler
                 </button>
               </div>
@@ -444,26 +378,15 @@ export function DetailPanel({
           )}
 
           {isCancelled && !isReplaced && (
-            <div
-              style={{
-                background: "rgba(225, 29, 72, 0.06)",
-                border: "1px solid rgba(225, 29, 72, 0.2)",
-                borderRadius: 10,
-                padding: "8px 12px",
-                marginBottom: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--red)", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <XCircle size={12} />
+            <div className="rdv-banner" data-tone="cancelled" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <span className="rdv-banner-title">
+                <XCircle size={14} />
                 {isReplaced ? "Rendez-vous replacé" : "Rendez-vous annulé"}
               </span>
               <button
                 onClick={handleConfirm}
-                className="rdv-btn rdv-btn-ghost"
-                style={{ fontSize: 11, padding: "3px 8px", color: "var(--green)" }}
+                className="rdv-btn rdv-btn-ghost rdv-btn-sm"
+                style={{ color: "var(--greenInk)" }}
               >
                 <Check size={11} /> Re-confirmer
               </button>
@@ -475,8 +398,8 @@ export function DetailPanel({
             {selectedMeeting.contact?.email && (
               <a
                 href={`mailto:${selectedMeeting.contact.email}`}
-                className="rdv-btn rdv-btn-ghost"
-                style={{ fontSize: 11, padding: "5px 10px", textDecoration: "none" }}
+                className="rdv-btn rdv-btn-ghost rdv-btn-sm"
+                style={{ textDecoration: "none" }}
               >
                 <Mail size={12} /> Email
               </a>
@@ -484,8 +407,8 @@ export function DetailPanel({
             {selectedMeeting.contact?.phone && (
               <a
                 href={`tel:${selectedMeeting.contact.phone}`}
-                className="rdv-btn rdv-btn-ghost"
-                style={{ fontSize: 11, padding: "5px 10px", textDecoration: "none" }}
+                className="rdv-btn rdv-btn-ghost rdv-btn-sm"
+                style={{ textDecoration: "none" }}
               >
                 <Phone size={12} /> Appeler
               </a>
@@ -495,8 +418,8 @@ export function DetailPanel({
                 href={selectedMeeting.contact.linkedin}
                 target="_blank"
                 rel="noreferrer"
-                className="rdv-btn rdv-btn-ghost"
-                style={{ fontSize: 11, padding: "5px 10px", textDecoration: "none" }}
+                className="rdv-btn rdv-btn-ghost rdv-btn-sm"
+                style={{ textDecoration: "none" }}
               >
                 <Linkedin size={12} /> LinkedIn
               </a>
@@ -506,24 +429,15 @@ export function DetailPanel({
                 href={selectedMeeting.meetingJoinUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rdv-btn"
-                style={{
-                  fontSize: 11,
-                  padding: "5px 10px",
-                  textDecoration: "none",
-                  background: "rgba(37, 99, 235, 0.09)",
-                  color: "var(--blue)",
-                  border: "1px solid rgba(37, 99, 235, 0.2)",
-                  fontWeight: 600,
-                }}
+                className="rdv-btn rdv-btn-primary rdv-btn-sm"
+                style={{ textDecoration: "none" }}
               >
                 <Video size={12} /> Rejoindre Visio
               </a>
             )}
             {selectedMeeting.callbackDate && (
               <button
-                className="rdv-btn rdv-btn-ghost"
-                style={{ fontSize: 11, padding: "5px 10px" }}
+                className="rdv-btn rdv-btn-ghost rdv-btn-sm"
                 onClick={() => downloadICS(selectedMeeting)}
               >
                 <CalendarPlus size={12} /> Export .ics
@@ -532,7 +446,7 @@ export function DetailPanel({
           </div>
 
           {/* Segmented Tabs */}
-          <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
+          <div className="rdv-tabs rdv-scrollbar" role="tablist">
             {TABS.map(({ key, label, Icon }) => {
               const hasIndicator =
                 (key === "fiche" && hasFiche) ||
@@ -542,19 +456,18 @@ export function DetailPanel({
               return (
                 <button
                   key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={panelTab === key}
                   className={`rdv-tab ${panelTab === key ? "active" : ""}`}
                   onClick={() => setPanelTab(key)}
                 >
-                  <Icon size={12} />
+                  <Icon size={13} />
                   <span>{label}</span>
                   {hasIndicator && (
                     <span
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: key === "audio" ? "var(--accent)" : "var(--green)",
-                      }}
+                      className="rdv-tab-dot"
+                      style={key === "audio" ? { background: "var(--rose)" } : undefined}
                     />
                   )}
                 </button>

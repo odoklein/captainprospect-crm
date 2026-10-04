@@ -56,7 +56,7 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
     <div style={{ flexShrink: 0, zIndex: 20, background: "var(--surface)", borderBottom: "1px solid var(--border)" }}>
       <div
         style={{
-          height: 52,
+          height: 60,
           display: "flex",
           alignItems: "center",
           padding: "0 20px",
@@ -64,131 +64,46 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
         }}
       >
         {/* Title & SAS Badge */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <h1 className="rdv-serif" style={{ fontSize: 18, color: "var(--ink)", margin: 0, whiteSpace: "nowrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <h1 className="rdv-serif" style={{ fontSize: 20, color: "var(--ink)", margin: 0, whiteSpace: "nowrap" }}>
             SAS RDV
           </h1>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              padding: "2px 7px",
-              borderRadius: 5,
-              background: "rgba(79, 70, 229, 0.08)",
-              color: "var(--accent)",
-            }}
-          >
-            Validation
-          </span>
+          <span className="rdv-tag">Validation</span>
         </div>
 
         {/* SAS Status Quick Switcher */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            background: "var(--surface2)",
-            borderRadius: 8,
-            padding: 2,
-            gap: 2,
-            flexShrink: 0,
-          }}
-        >
+        <div className="rdv-seg" role="group" aria-label="Statut SAS">
           <button
+            type="button"
+            className={`rdv-seg-btn ${confirmationFilter === "all" ? "active" : ""}`}
             onClick={() => setConfirmationFilter("all")}
-            style={{
-              fontSize: 12,
-              fontWeight: confirmationFilter === "all" ? 600 : 500,
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: "none",
-              cursor: "pointer",
-              background: confirmationFilter === "all" ? "var(--surface)" : "transparent",
-              color: confirmationFilter === "all" ? "var(--ink)" : "var(--ink3)",
-              boxShadow: confirmationFilter === "all" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
-              transition: "all 0.12s",
-            }}
           >
-            Tous ({aggregates?.totalCount ?? meetings.length})
+            Tous <span className="rdv-count">{aggregates?.totalCount ?? meetings.length}</span>
           </button>
-
           <button
+            type="button"
+            data-tone="pending"
+            className={`rdv-seg-btn ${confirmationFilter === "PENDING" ? "active" : ""}`}
             onClick={() => setConfirmationFilter("PENDING")}
-            style={{
-              fontSize: 12,
-              fontWeight: confirmationFilter === "PENDING" ? 700 : 500,
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              background: confirmationFilter === "PENDING" ? "var(--surface)" : "transparent",
-              color: confirmationFilter === "PENDING" ? "var(--amber)" : "var(--ink3)",
-              boxShadow: confirmationFilter === "PENDING" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
-              transition: "all 0.12s",
-            }}
           >
             <Clock size={12} style={{ color: "var(--amber)" }} />
             <span>En attente</span>
-            {pendingCount > 0 && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  padding: "1px 6px",
-                  borderRadius: 999,
-                  background: "var(--amber)",
-                  color: "#ffffff",
-                }}
-              >
-                {pendingCount}
-              </span>
-            )}
+            {pendingCount > 0 && <span className="rdv-count" data-tone="pending">{pendingCount}</span>}
           </button>
-
           <button
+            type="button"
+            data-tone="confirmed"
+            className={`rdv-seg-btn ${confirmationFilter === "CONFIRMED" ? "active" : ""}`}
             onClick={() => setConfirmationFilter("CONFIRMED")}
-            style={{
-              fontSize: 12,
-              fontWeight: confirmationFilter === "CONFIRMED" ? 600 : 500,
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              background: confirmationFilter === "CONFIRMED" ? "var(--surface)" : "transparent",
-              color: confirmationFilter === "CONFIRMED" ? "var(--green)" : "var(--ink3)",
-              boxShadow: confirmationFilter === "CONFIRMED" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
-              transition: "all 0.12s",
-            }}
           >
             <CheckCircle2 size={12} style={{ color: "var(--green)" }} />
             <span>Confirmés</span>
           </button>
-
           <button
+            type="button"
+            data-tone="cancelled"
+            className={`rdv-seg-btn ${confirmationFilter === "CANCELLED" ? "active" : ""}`}
             onClick={() => setConfirmationFilter("CANCELLED")}
-            style={{
-              fontSize: 12,
-              fontWeight: confirmationFilter === "CANCELLED" ? 600 : 500,
-              padding: "4px 10px",
-              borderRadius: 6,
-              border: "none",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              background: confirmationFilter === "CANCELLED" ? "var(--surface)" : "transparent",
-              color: confirmationFilter === "CANCELLED" ? "var(--red)" : "var(--ink3)",
-              boxShadow: confirmationFilter === "CANCELLED" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
-              transition: "all 0.12s",
-            }}
           >
             <XCircle size={12} style={{ color: "var(--red)" }} />
             <span>Annulés</span>
@@ -203,24 +118,15 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
         {/* Right Action Tools */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {/* View toggle */}
-          <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 8, padding: 2 }}>
+          <div className="rdv-seg" role="group" aria-label="Vue">
             {([["list", List], ["calendar", CalendarDays]] as const).map(([v, Icon]) => (
               <button
                 key={v}
+                type="button"
                 onClick={() => setView(v)}
-                style={{
-                  background: view === v ? "var(--surface)" : "transparent",
-                  color: view === v ? "var(--accent)" : "var(--ink3)",
-                  border: "none",
-                  padding: "5px 9px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  transition: "all 0.12s",
-                  borderRadius: 6,
-                  boxShadow: view === v ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-                }}
+                className={`rdv-seg-btn icon-only ${view === v ? "active" : ""}`}
                 title={v === "list" ? "Vue Liste" : "Vue Calendrier"}
+                aria-pressed={view === v}
               >
                 <Icon size={14} />
               </button>
@@ -228,22 +134,13 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
           </div>
 
           {/* Date presets */}
-          <div style={{ display: "flex", background: "var(--surface2)", borderRadius: 8, padding: 2, gap: 1 }}>
+          <div className="rdv-seg" role="group" aria-label="Période">
             {([["today", "Auj."], ["7days", "7j"], ["30days", "30j"], ["3months", "3m"]] as [DatePreset, string][]).map(([key, label]) => (
               <button
                 key={key}
-                style={{
-                  padding: "4px 9px",
-                  fontSize: 11,
-                  borderRadius: 6,
-                  background: datePreset === key ? "var(--surface)" : "transparent",
-                  color: datePreset === key ? "var(--accent)" : "var(--ink3)",
-                  border: "none",
-                  fontWeight: datePreset === key ? 600 : 400,
-                  cursor: "pointer",
-                  boxShadow: datePreset === key ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
-                  transition: "all 0.12s",
-                }}
+                type="button"
+                className={`rdv-seg-btn ${datePreset === key ? "active" : ""}`}
+                style={{ fontSize: 11.5, padding: "4px 9px" }}
                 onClick={() => setDatePreset(key)}
               >
                 {label}
@@ -251,7 +148,7 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
             ))}
           </div>
 
-          <button className="rdv-btn rdv-btn-ghost" onClick={() => setAddRdvOpen(true)} title="Ajouter un RDV">
+          <button className="rdv-btn rdv-btn-primary" onClick={() => setAddRdvOpen(true)} title="Ajouter un RDV">
             <Plus size={13} /> <span className="hidden sm:inline">Ajouter</span>
           </button>
           <button className="rdv-btn rdv-btn-ghost" onClick={() => setImportRdvOpen(true)} title="Importer des RDV">
@@ -289,7 +186,7 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
     {/* ─── Active filter chips bar ─── */}
     {activeFilterCount > 0 && (
       <div style={{
-        display: "flex", alignItems: "center", gap: 6, padding: "6px 32px 8px",
+        display: "flex", alignItems: "center", gap: 6, padding: "7px 20px 9px",
         flexWrap: "wrap", borderTop: "1px solid var(--border)",
       }}>
         <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--ink3)", whiteSpace: "nowrap" }}>
@@ -298,8 +195,8 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
         {hasAudio !== null && (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600,
-            background: "var(--accentLight)", color: "var(--accent)", borderRadius: 20,
-            padding: "2px 8px 2px 10px", border: "1px solid var(--accent)",
+            background: "var(--accentLight)", color: "var(--accentInk)", borderRadius: 20,
+            padding: "3px 8px 3px 10px", border: "1px solid color-mix(in oklab, var(--accent) 22%, transparent)",
           }}>
             <Mic size={11} />
             {hasAudio ? "Avec audio" : "Sans audio"}
@@ -311,8 +208,8 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
         {hasFeedback !== null && (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600,
-            background: "var(--accentLight)", color: "var(--accent)", borderRadius: 20,
-            padding: "2px 8px 2px 10px", border: "1px solid var(--accent)",
+            background: "var(--accentLight)", color: "var(--accentInk)", borderRadius: 20,
+            padding: "3px 8px 3px 10px", border: "1px solid color-mix(in oklab, var(--accent) 22%, transparent)",
           }}>
             <MessageSquare size={11} />
             {hasFeedback ? "Avec feedback" : "Sans feedback"}
@@ -324,8 +221,8 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
         {search && (
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600,
-            background: "var(--accentLight)", color: "var(--accent)", borderRadius: 20,
-            padding: "2px 8px 2px 10px", border: "1px solid var(--accent)",
+            background: "var(--accentLight)", color: "var(--accentInk)", borderRadius: 20,
+            padding: "3px 8px 3px 10px", border: "1px solid color-mix(in oklab, var(--accent) 22%, transparent)",
           }}>
             <Search size={11} />
             &ldquo;{search}&rdquo;

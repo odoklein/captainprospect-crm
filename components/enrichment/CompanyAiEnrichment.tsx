@@ -54,9 +54,25 @@ const TRUST: Record<SuggestionTrust, { label: string; className: string }> = {
 const PROGRESS_STEPS = ["Recherche sur le web…", "Lecture des sources…", "Vérification des informations…"];
 
 async function callApi<T>(url: string, init?: RequestInit): Promise<T> {
-    const response = await fetch(url, { headers: { "Content-Type": "application/json" }, ...init });
-    const payload = await response.json();
-    if (!response.ok || !payload.success) throw new Error(payload.error || "Action impossible.");
+    let response: Response;
+    try {
+        response = await fetch(url, { headers: { "Content-Type": "application/json" }, ...init });
+    } catch {
+        throw new Error("Connexion impossible. Vérifiez votre réseau puis réessayez.");
+    }
+    // A proxy timeout or crash answers with HTML, not JSON: keep the message readable.
+    const payload = await response.json().catch(() => null);
+    if (!payload) {
+        throw new Error(
+            response.status === 504 || response.status === 502
+                ? "La recherche a pris trop de temps. Réessayez dans un instant."
+                : "Réponse inattendue du serveur. Réessayez.",
+        );
+    }
+    if (!response.ok || !payload.success) {
+        if (response.status === 401 || response.status === 403) throw new Error("Session expirée ou accès refusé. Rechargez la page.");
+        throw new Error(payload.error || "Action impossible.");
+    }
     return payload.data as T;
 }
 
@@ -200,13 +216,22 @@ export function CompanyAiEnrichment({
                 applied: EnrichableField[];
                 skipped: Array<{ field: EnrichableField; reason: string }>;
                 suggestions: EnrichmentSuggestion[];
+                lookupId?: string;
             }>(ENDPOINT, {
                 method: "PATCH",
                 body: JSON.stringify({ lookupId: lookup.data?.lookupId, decisions }),
             }),
         onSuccess: (result) => {
             queryClient.setQueryData<CompanyAiLookupPayload>(queryKey, (old) =>
-                old ? { ...old, suggestions: result.suggestions, found: result.suggestions.some((s) => s.status === "PENDING") } : old,
+                old
+                    ? {
+                          ...old,
+                          // Without the DB table the lookup id is a signed token that changes after each review.
+                          lookupId: result.lookupId ?? old.lookupId,
+                          suggestions: result.suggestions,
+                          found: result.suggestions.some((s) => s.status === "PENDING"),
+                      }
+                    : old,
             );
             if (result.applied.length > 0) {
                 toast.success("Fiche mise à jour", result.applied.map((f) => FIELD_LABELS[f]).join(", "));
@@ -255,7 +280,7 @@ export function CompanyAiEnrichment({
         return (
             <Shell tone="error">
                 <div className="px-3.5 py-3" role="alert">
-                    <p className="text-sm font-semibold text-red-800">Recherche IA indisponible</p>
+                    <p className="text-sm font-semibold text-red-800">IA indisponible</p>
                     <p className="mt-0.5 text-xs leading-5 text-red-700">{search.error.message}</p>
                     <button
                         type="button"
@@ -328,6 +353,8 @@ export function CompanyAiEnrichment({
                         search.mutate(searchedWithoutLuck);
                     }}
                     disabled={lookup.isLoading}
+                    title="Compléter la fiche avec l'IA"
+                    aria-label={searchedWithoutLuck ? "Relancer l'IA" : "Compléter la fiche avec l'IA"}
                     className="group flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-primary-50/50 active:scale-[0.995] disabled:opacity-60"
                 >
                     <span className="flex min-w-0 items-center gap-2.5">
@@ -346,7 +373,7 @@ export function CompanyAiEnrichment({
                         </span>
                     </span>
                     <span className="shrink-0 text-xs font-semibold text-primary-600 transition-transform group-hover:translate-x-0.5">
-                        {searchedWithoutLuck ? "Relancer" : "Compléter avec l'IA"}
+                        {searchedWithoutLuck ? "Relancer l'IA" : "IA"}
                     </span>
                 </button>
             </Shell>

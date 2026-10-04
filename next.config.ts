@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfkit"],
   // Allow larger request bodies for email send (attachments). Default is 1MB.
   experimental: {
+    // middleware.ts runs on /api/*: without this, request bodies are truncated at 10 MB (RDV audio uploads go up to 50 MB).
+    proxyClientMaxBodySize: "60mb",
     serverActions: {
       bodySizeLimit: "26mb",
     },

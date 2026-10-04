@@ -12,6 +12,7 @@ import {
     ConfirmModal,
     Modal,
     DatePicker,
+    DrawerHeader,
 } from "@/components/ui";
 import { CLIENTS_QUERY_KEY, clientDetailQueryKey } from "@/lib/query-keys";
 import {
@@ -711,24 +712,27 @@ export function ClientDrawer({
     // ───────────────────────────────────────────────────────────────────────
 
     const Header = (
-        <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-100 bg-white">
-            {/* Monogram */}
-            <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 text-base font-semibold">
-                {client.name[0]?.toUpperCase() || "?"}
-            </div>
-
-            {/* Name + industry */}
-            <div className="flex-1 min-w-0">
+        <DrawerHeader
+            className="!px-4 sm:!px-6"
+            onClose={onClose}
+            title={
                 <InlineText
                     value={client.name}
                     onSave={(v) => saveField({ name: v })}
-                    valueClassName="text-base font-semibold !text-slate-900"
-                    className="!mb-0"
+                    valueClassName="text-center text-base font-semibold !text-slate-900"
+                    className="!mb-0 [&_button]:!mx-0"
                 />
-                <p className="text-xs text-slate-500 truncate">
+            }
+            subtitle={
+                <>
                     {client.industry || "Secteur non spécifié"} · Client depuis{" "}
                     {new Date(client.createdAt).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
-                </p>
+                </>
+            }
+            left={<>
+            {/* Monogram */}
+            <div className="hidden sm:flex w-10 h-10 flex-shrink-0 rounded-lg bg-slate-100 items-center justify-center text-slate-500 text-base font-semibold">
+                {client.name[0]?.toUpperCase() || "?"}
             </div>
 
             {/* Client status pill */}
@@ -745,7 +749,7 @@ export function ClientDrawer({
                 {statusMenuOpen && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setStatusMenuOpen(false)} />
-                        <div className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                        <div className="absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden">
                             {(Object.keys(CLIENT_STATUS_CONFIG) as ClientStatus[]).map((key) => {
                                 const opt = CLIENT_STATUS_CONFIG[key];
                                 const OptIcon = opt.icon;
@@ -764,7 +768,8 @@ export function ClientDrawer({
                     </>
                 )}
             </div>
-
+            </>}
+            right={<>
             {/* Overflow menu */}
             <button
                 ref={moreBtnRef}
@@ -796,16 +801,8 @@ export function ClientDrawer({
                     </button>
                 </div>
             </PopoverPanel>
-
-            {/* Close */}
-            <button
-                onClick={onClose}
-                aria-label="Fermer"
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
-            >
-                <X className="w-5 h-5" />
-            </button>
-        </div>
+            </>}
+        />
     );
 
     // ───────────────────────────────────────────────────────────────────────
@@ -1748,27 +1745,20 @@ export function ClientDrawer({
                 {activeMissionId ? (
                     /* Drill-down: the mission workspace takes over the drawer body */
                     <div className="-m-6 flex flex-col h-full">
-                        <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-6 py-2.5">
-                            <button
-                                type="button"
-                                onClick={() => openMission(null)}
-                                className="truncate text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
-                            >
-                                {client.name}
-                            </button>
-                            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" />
-                            <span className="truncate text-sm font-semibold text-slate-900">
-                                {missions.find((m) => m.id === activeMissionId)?.name ?? "Mission"}
-                            </span>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="ml-auto rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                                aria-label="Fermer"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
+                        <DrawerHeader
+                            onClose={onClose}
+                            title={missions.find((m) => m.id === activeMissionId)?.name ?? "Mission"}
+                            left={
+                                <button
+                                    type="button"
+                                    onClick={() => openMission(null)}
+                                    className="inline-flex min-w-0 items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                                >
+                                    <ChevronRight className="h-3.5 w-3.5 shrink-0 rotate-180" />
+                                    <span className="truncate">{client.name}</span>
+                                </button>
+                            }
+                        />
 
                         <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
                             <MissionWorkspace

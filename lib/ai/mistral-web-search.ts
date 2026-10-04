@@ -7,7 +7,7 @@
  * nothing stored server-side (`store: false`).
  *
  * Failure handling mirrors the chat client: a 403 tier rejection degrades to the
- * next model; 429 / 5xx / network errors get one retry.
+ * next model; 429 / 5xx / network errors get up to two patient retries.
  */
 
 import { MistralError } from "./mistral";
@@ -16,6 +16,7 @@ const CONVERSATIONS_URL = "https://api.mistral.ai/v1/conversations";
 const DEFAULT_MODEL = "mistral-medium-latest";
 const FALLBACK_MODELS = ["mistral-small-latest"];
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+const MAX_ATTEMPTS = 3;
 
 export interface WebSearchRun {
     /** The assistant's final text (JSON fence included — the caller parses it). */
@@ -86,19 +87,22 @@ export async function runWebSearchConversation(params: {
             completion_args: { temperature: 0.1, max_tokens: params.maxTokens ?? 500 },
         };
 
+        // This account's web_search quota 429s on back-to-back calls, so a 429 gets a patient retry
+        // (retry-after, else 2 s then 4 s) instead of the short backoff the chat client uses.
         let response: Response | null = null;
-        for (let attempt = 0; attempt < 2; attempt++) {
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            const last = attempt === MAX_ATTEMPTS - 1;
             try {
                 response = await post(apiKey, body, timeoutMs);
             } catch (error) {
-                // Timeout or network failure: one more try, then give up with an upstream error.
-                if (attempt === 1) throw new MistralError(error instanceof Error ? error.message : "Réseau indisponible", 504);
+                // Timeout or network failure: retry, then give up with an upstream error.
+                if (last) throw new MistralError(error instanceof Error ? error.message : "Réseau indisponible", 504);
                 await sleep(500);
                 continue;
             }
-            if (response.ok || !RETRYABLE.has(response.status) || attempt === 1) break;
+            if (response.ok || !RETRYABLE.has(response.status) || last) break;
             const retryAfter = Number(response.headers.get("retry-after"));
-            await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 2000) : 700);
+            await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 6000) : 2000 * (attempt + 1));
         }
         if (!response) continue;
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, Badge, Button, DataTable, useToast } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
-import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
+import dynamic from "next/dynamic";
 import {
     ArrowLeft,
     List as ListIcon,
@@ -21,6 +21,11 @@ import {
     PenLine
 } from "lucide-react";
 import Link from "next/link";
+
+const UnifiedActionDrawer = dynamic(
+    () => import("@/components/drawers/UnifiedActionDrawer").then((m) => ({ default: m.UnifiedActionDrawer })),
+    { ssr: false },
+);
 
 // ============================================
 // TYPES
@@ -94,9 +99,8 @@ export default function SDRListDetailPage({ params }: { params: Promise<{ id: st
     const [isLoading, setIsLoading] = useState(true);
     const [view, setView] = useState<"companies" | "contacts">("contacts"); // Default to contacts for SDR
 
-    // Drawer state (contact or company fiche — view and edit)
-    const [editContact, setEditContact] = useState<Contact | null>(null);
-    const [editCompany, setEditCompany] = useState<Company | null>(null);
+    // Drawer state: the UnifiedActionDrawer (contact or company fiche — view, edit, act)
+    const [drawerTarget, setDrawerTarget] = useState<{ contactId: string | null; companyId: string } | null>(null);
 
     const hasAppliedUrlDrawers = useRef(false);
 
@@ -164,8 +168,7 @@ export default function SDRListDetailPage({ params }: { params: Promise<{ id: st
         const company = companies.find((c) => c.id === companyId);
         if (contact && company) {
             hasAppliedUrlDrawers.current = true;
-            setEditCompany({ ...company, missionId: list.mission?.id } as Company & { missionId?: string });
-            setEditContact({ ...contact, companyName: company.name, missionId: list.mission?.id } as Contact & { companyName?: string; missionId?: string });
+            setDrawerTarget({ contactId: contact.id, companyId: company.id });
             router.replace(`/sdr/lists/${listId}`, { scroll: false });
         }
     }, [searchParams, isLoading, list, companies, listId, router]);
@@ -175,24 +178,24 @@ export default function SDRListDetailPage({ params }: { params: Promise<{ id: st
     // ============================================
 
     const handleEditContact = (contact: Contact | (Contact & { companyName?: string })) => {
-        setEditCompany(null);
-        setEditContact({ ...(contact as Contact), missionId: list?.mission?.id } as Contact & { missionId?: string });
+        setDrawerTarget({ contactId: contact.id, companyId: (contact as Contact).companyId });
     };
 
     const handleEditCompany = (company: Company) => {
-        setEditContact(null);
-        setEditCompany({ ...company, missionId: list?.mission?.id } as Company & { missionId?: string });
+        setDrawerTarget({ contactId: null, companyId: company.id });
     };
 
-    const handleContactFromCompanyDrawer = (contact: Contact) => {
-        setEditCompany(null);
-        setEditContact({ ...contact, companyName: editCompany?.name ?? undefined });
-    };
-
-    const handleContactCreated = (contact: Contact & { companyName?: string }) => {
-        setEditCompany(null);
-        setEditContact({ ...contact, companyName: contact.companyName ?? editCompany?.name });
-        fetchList();
+    // Edits made inside the drawer don't flow back through callbacks: on close,
+    // quietly re-pull the companies so the tables show the fresh data.
+    const closeDrawer = () => {
+        setDrawerTarget(null);
+        if (!listId) return;
+        fetch(`/api/lists/${listId}/companies`)
+            .then((r) => r.json())
+            .then((json) => {
+                if (json?.success) setCompanies(json.data);
+            })
+            .catch(() => {});
     };
 
     // ============================================
@@ -409,30 +412,21 @@ export default function SDRListDetailPage({ params }: { params: Promise<{ id: st
                 />
             </Card>
 
-            {/* Contact drawer — view and edit */}
-            <ContactDrawer
-                isOpen={!!editContact}
-                onClose={() => setEditContact(null)}
-                contact={editContact}
-                onUpdate={() => fetchList()}
-                isManager={true}
-                enableGooglePhoneLookup
-                listId={listId || undefined}
-                companies={companies.map((c) => ({ id: c.id, name: c.name }))}
-            />
-
-            {/* Company drawer — view and edit; SDR can add contacts from here (company-only lists) */}
-            <CompanyDrawer
-                isOpen={!!editCompany}
-                onClose={() => setEditCompany(null)}
-                company={editCompany}
-                onUpdate={() => fetchList()}
-                onContactClick={handleContactFromCompanyDrawer}
-                onContactCreated={handleContactCreated}
-                isManager={true}
-                enableGooglePhoneLookup
-                listId={listId || undefined}
-            />
+            {drawerTarget && list && (
+                <UnifiedActionDrawer
+                    isOpen
+                    onClose={closeDrawer}
+                    contactId={drawerTarget.contactId}
+                    companyId={drawerTarget.companyId}
+                    missionId={list.mission.id}
+                    missionName={list.mission.name}
+                    enableGooglePhoneLookup
+                    onActionRecorded={fetchList}
+                    onContactSelect={(newContactId) =>
+                        setDrawerTarget((prev) => (prev ? { ...prev, contactId: newContactId } : prev))
+                    }
+                />
+            )}
         </div>
     );
 }

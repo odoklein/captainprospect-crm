@@ -1062,6 +1062,44 @@ textarea::placeholder {
     animation: slideInLeft 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Floating drawer panels sit inset from the viewport edge, so they travel the
+   panel width plus that inset to start fully off-screen. */
+@keyframes drawerFloatInRight {
+    from {
+        transform: translateX(calc(100% + 1.5rem));
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+@keyframes drawerFloatInLeft {
+    from {
+        transform: translateX(calc(-100% - 1.5rem));
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+.animate-drawer-in-right {
+    animation: drawerFloatInRight 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.animate-drawer-in-left {
+    animation: drawerFloatInLeft 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .animate-drawer-in-right,
+    .animate-drawer-in-left {
+        animation: none;
+    }
+}
+
 /* Micro-interactions */
 .hover-lift {
     transition: transform 0.2s ease;

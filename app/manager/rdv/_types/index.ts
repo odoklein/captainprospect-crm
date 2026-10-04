@@ -84,6 +84,8 @@ export interface Aggregates {
   meetingsThisMonth: number;
 }
 
+export type { RdvOverview, RdvBucket } from "@/lib/rdv/overview";
+
 export interface Pagination {
   total: number;
   page: number;

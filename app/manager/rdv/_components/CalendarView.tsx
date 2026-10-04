@@ -61,7 +61,7 @@ export function CalendarView({ meetings, openPanel, updateMeeting, updateLocalMe
                 background: calendarView === v ? "var(--surface)" : "transparent",
                 color: calendarView === v ? "var(--accent)" : "var(--ink3)",
                 border: "none",
-                boxShadow: calendarView === v ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                boxShadow: calendarView === v ? "var(--rdv-shadow-sm)" : "none",
               }}
               onClick={() => setCalendarView(v)}
             >
@@ -134,7 +134,7 @@ export function CalendarView({ meetings, openPanel, updateMeeting, updateLocalMe
                               <button
                                 type="button"
                                 className="rdv-btn"
-                                style={{ fontSize: 10, padding: "4px 8px", background: "var(--greenLight)", color: "var(--green)", border: "1px solid rgba(5,150,105,0.2)" }}
+                                style={{ fontSize: 10, padding: "4px 8px", background: "var(--greenLight)", color: "var(--green)", border: "1px solid var(--greenLine)" }}
                                 onClick={() => {
                                   updateMeeting(m.id, { confirmationStatus: "CONFIRMED" });
                                   updateLocalMeeting(m.id, {
@@ -150,7 +150,7 @@ export function CalendarView({ meetings, openPanel, updateMeeting, updateLocalMe
                               <button
                                 type="button"
                                 className="rdv-btn"
-                                style={{ fontSize: 10, padding: "4px 8px", background: "var(--redLight)", color: "var(--red)", border: "1px solid rgba(220,38,38,0.2)" }}
+                                style={{ fontSize: 10, padding: "4px 8px", background: "var(--redLight)", color: "var(--red)", border: "1px solid var(--redLine)" }}
                                 onClick={() => {
                                   updateMeeting(m.id, { confirmationStatus: "CANCELLED" });
                                   updateLocalMeeting(m.id, {

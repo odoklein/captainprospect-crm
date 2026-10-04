@@ -1641,7 +1641,6 @@ export function UnifiedActionDrawer({
             title={displayName}
             description={missionName ? `Mission : ${missionName}` : undefined}
             size="lg"
-            className="top-2 bottom-2 right-2 rounded-[24px] border border-slate-200/80 shadow-[0_24px_64px_rgba(15,23,42,0.16)]"
         >
             <style>{`
                 @keyframes uadSectionIn {

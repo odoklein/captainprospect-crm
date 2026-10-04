@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Card, Badge, Button, Drawer, Spinner } from "@/components/ui";
+import { Card, Badge, Button, Spinner } from "@/components/ui";
 import Link from "next/link";
-import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
+import dynamic from "next/dynamic";
 import {
     Phone,
     Calendar,
@@ -28,6 +28,11 @@ import { cn } from "@/lib/utils";
 // ============================================
 // TYPES
 // ============================================
+
+const UnifiedActionDrawer = dynamic(
+    () => import("@/components/drawers/UnifiedActionDrawer").then((m) => ({ default: m.UnifiedActionDrawer })),
+    { ssr: false },
+);
 
 interface SDRStats {
     actionsToday: number;
@@ -61,6 +66,8 @@ interface BDActionItem {
     id: string;
     contactId: string | null;
     companyId: string | null;
+    missionId?: string;
+    missionName?: string;
     result: string;
     resultLabel: string;
     channel: string;
@@ -69,43 +76,6 @@ interface BDActionItem {
     companyName?: string;
     note?: string;
     createdAt: string;
-}
-
-interface DrawerContact {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string | null;
-    phone: string | null;
-    title: string | null;
-    linkedin: string | null;
-    status: "INCOMPLETE" | "PARTIAL" | "ACTIONABLE";
-    companyId: string;
-    companyName?: string;
-    missionId?: string;
-}
-
-interface DrawerCompany {
-    id: string;
-    name: string;
-    industry: string | null;
-    country: string | null;
-    website: string | null;
-    size: string | null;
-    status: "INCOMPLETE" | "PARTIAL" | "ACTIONABLE";
-    missionId?: string;
-    contacts: Array<{
-        id: string;
-        firstName: string | null;
-        lastName: string | null;
-        email: string | null;
-        phone: string | null;
-        title: string | null;
-        linkedin: string | null;
-        status: "INCOMPLETE" | "PARTIAL" | "ACTIONABLE";
-        companyId: string;
-    }>;
-    _count: { contacts: number };
 }
 
 // ============================================
@@ -138,11 +108,8 @@ export default function BDDashboardPage() {
     const [actionsPeriod, setActionsPeriod] = useState<"today" | "all">("today");
     const [myActions, setMyActions] = useState<BDActionItem[]>([]);
     const [actionsLoading, setActionsLoading] = useState(false);
-    const [drawerContactId, setDrawerContactId] = useState<string | null>(null);
-    const [drawerCompanyId, setDrawerCompanyId] = useState<string | null>(null);
-    const [drawerContact, setDrawerContact] = useState<DrawerContact | null>(null);
-    const [drawerCompany, setDrawerCompany] = useState<DrawerCompany | null>(null);
-    const [drawerLoading, setDrawerLoading] = useState(false);
+    // Same drawer as the SDR: UnifiedActionDrawer, opened on an action row's contact/company.
+    const [drawerTarget, setDrawerTarget] = useState<{ contactId: string | null; companyId: string; missionId?: string; missionName?: string } | null>(null);
 
     // ============================================
     // FETCH DATA
@@ -211,103 +178,22 @@ export default function BDDashboardPage() {
         fetchMyActions();
     }, [actionsPeriod]);
 
-    useEffect(() => {
-        if (!drawerContactId) {
-            setDrawerContact(null);
+    const openFicheForAction = async (item: BDActionItem) => {
+        if (!item.contactId && !item.companyId) return;
+        const ctx = { missionId: item.missionId, missionName: item.missionName };
+        if (item.companyId) {
+            setDrawerTarget({ contactId: item.contactId, companyId: item.companyId, ...ctx });
             return;
         }
-        setDrawerLoading(true);
-        fetch(`/api/contacts/${drawerContactId}`)
-            .then((res) => res.json())
-            .then((json) => {
-                if (json.success && json.data) {
-                    const c = json.data;
-                    setDrawerContact({
-                        id: c.id,
-                        firstName: c.firstName,
-                        lastName: c.lastName,
-                        email: c.email,
-                        phone: c.phone,
-                        title: c.title,
-                        linkedin: c.linkedin,
-                        status: c.status ?? "PARTIAL",
-                        companyId: c.company?.id ?? "",
-                        companyName: c.company?.name ?? undefined,
-                        missionId: (c.company as { list?: { mission?: { id: string } } })?.list?.mission?.id,
-                    });
-                } else {
-                    setDrawerContact(null);
-                }
-            })
-            .catch(() => setDrawerContact(null))
-            .finally(() => setDrawerLoading(false));
-    }, [drawerContactId]);
-
-    useEffect(() => {
-        if (!drawerCompanyId) {
-            setDrawerCompany(null);
-            return;
+        // Contact-only action: resolve its company, the drawer needs both.
+        try {
+            const res = await fetch(`/api/contacts/${item.contactId}`);
+            const json = await res.json();
+            const companyId = json?.data?.company?.id ?? json?.data?.companyId;
+            if (json?.success && companyId) setDrawerTarget({ contactId: item.contactId, companyId, ...ctx });
+        } catch {
+            /* fiche unavailable */
         }
-        setDrawerLoading(true);
-        fetch(`/api/companies/${drawerCompanyId}`)
-            .then((res) => res.json())
-            .then((json) => {
-                if (json.success && json.data) {
-                    const co = json.data;
-                    setDrawerCompany({
-                        id: co.id,
-                        name: co.name,
-                        industry: co.industry,
-                        country: co.country,
-                        website: co.website,
-                        size: co.size,
-                        status: co.status ?? "PARTIAL",
-                        missionId: (co.list as { mission?: { id: string } })?.mission?.id,
-                        contacts: (co.contacts ?? []).map((ct: { id: string; firstName: string | null; lastName: string | null; email: string | null; phone: string | null; title: string | null; linkedin: string | null; status: string; companyId: string }) => ({
-                            id: ct.id,
-                            firstName: ct.firstName,
-                            lastName: ct.lastName,
-                            email: ct.email,
-                            phone: ct.phone,
-                            title: ct.title,
-                            linkedin: ct.linkedin,
-                            status: (ct.status ?? "PARTIAL") as "INCOMPLETE" | "PARTIAL" | "ACTIONABLE",
-                            companyId: ct.companyId,
-                        })),
-                        _count: { contacts: co._count?.contacts ?? co.contacts?.length ?? 0 },
-                    });
-                } else {
-                    setDrawerCompany(null);
-                }
-            })
-            .catch(() => setDrawerCompany(null))
-            .finally(() => setDrawerLoading(false));
-    }, [drawerCompanyId]);
-
-    const openFicheForAction = (item: BDActionItem) => {
-        if (item.contactId) {
-            setDrawerCompanyId(null);
-            setDrawerContactId(item.contactId);
-        } else if (item.companyId) {
-            setDrawerContactId(null);
-            setDrawerCompanyId(item.companyId);
-        }
-    };
-
-    const closeContactDrawer = () => {
-        setDrawerContactId(null);
-        setDrawerContact(null);
-    };
-
-    const closeCompanyDrawer = () => {
-        setDrawerCompanyId(null);
-        setDrawerCompany(null);
-    };
-
-    const handleContactFromCompany = (contact: { id: string }) => {
-        setDrawerCompanyId(null);
-        setDrawerCompany(null);
-        setDrawerContactId(contact.id);
     };
 
     const activeMission = missions.find((m) => m.id === selectedMissionId);
@@ -660,40 +546,18 @@ export default function BDDashboardPage() {
                 </Card>
             )}
 
-            {(drawerContactId || drawerCompanyId) && drawerLoading && (
-                <Drawer
+            {drawerTarget && (
+                <UnifiedActionDrawer
                     isOpen
-                    onClose={() => {
-                        setDrawerContactId(null);
-                        setDrawerCompanyId(null);
-                    }}
-                    title="Chargement..."
-                >
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                    </div>
-                </Drawer>
-            )}
-
-            {drawerContactId && drawerContact && (
-                <ContactDrawer
-                    isOpen={!!drawerContactId}
-                    onClose={closeContactDrawer}
-                    contact={drawerContact}
-                    onUpdate={(updated) => setDrawerContact(updated)}
-                    isManager={true}
-                    companies={[]}
-                />
-            )}
-
-            {drawerCompanyId && drawerCompany && (
-                <CompanyDrawer
-                    isOpen={!!drawerCompanyId}
-                    onClose={closeCompanyDrawer}
-                    company={drawerCompany}
-                    onUpdate={(updated) => setDrawerCompany(updated)}
-                    onContactClick={handleContactFromCompany}
-                    isManager={true}
+                    onClose={() => setDrawerTarget(null)}
+                    contactId={drawerTarget.contactId}
+                    companyId={drawerTarget.companyId}
+                    missionId={drawerTarget.missionId ?? selectedMissionId ?? undefined}
+                    missionName={drawerTarget.missionName ?? activeMission?.name}
+                    enableGooglePhoneLookup
+                    onContactSelect={(newContactId) =>
+                        setDrawerTarget((prev) => (prev ? { ...prev, contactId: newContactId } : prev))
+                    }
                 />
             )}
         </div>

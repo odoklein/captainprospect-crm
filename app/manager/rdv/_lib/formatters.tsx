@@ -7,8 +7,10 @@ export function hashColor(str: string): string {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
   const colors = [
-    "#6C63FF", "#059669", "#D97706", "#DC2626", "#2563EB",
-    "#DB2777", "#7C3AED", "#0D9488", "#EA580C", "#0891B2",
+    // Literal hex on purpose: callers append alpha suffixes (`${c}12`).
+    // Brand-harmonised: navy / rose family first, then calm support hues.
+    "#263460", "#C64B8B", "#3B5BA9", "#0F766E", "#B45309",
+    "#7A3E6B", "#2F6F8F", "#4D5B7C", "#A23B5F", "#3F7D58",
   ];
   return colors[Math.abs(h) % colors.length];
 }
@@ -50,9 +52,9 @@ export function confirmationLabel(s: ConfirmationFilter): string {
 }
 
 export function confirmationColor(s: ConfirmationFilter): string {
-  if (s === "CONFIRMED") return "var(--green)";
-  if (s === "CANCELLED") return "var(--red)";
-  if (s === "PENDING") return "var(--amber)";
+  if (s === "CONFIRMED") return "var(--greenInk)";
+  if (s === "CANCELLED") return "var(--redInk)";
+  if (s === "PENDING") return "var(--amberInk)";
   return "var(--ink3)";
 }
 

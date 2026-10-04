@@ -134,11 +134,9 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
-    // Drawer states
-    const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-    const [selectedContact, setSelectedContact] = useState<(Contact & { companyName: string }) | null>(null);
-    const [showCompanyDrawer, setShowCompanyDrawer] = useState(false);
-    const [showContactDrawer, setShowContactDrawer] = useState(false);
+    // Drawer states. Viewing/editing a company or contact always goes through the
+    // UnifiedActionDrawer (same as the SDR); CompanyDrawer/ContactDrawer are kept
+    // only as "create" forms, which the unified drawer doesn't offer.
     const [isCreatingCompany, setIsCreatingCompany] = useState(false);
     const [isCreatingContact, setIsCreatingContact] = useState(false);
     const [unifiedDrawerTarget, setUnifiedDrawerTarget] = useState<{ contactId: string | null; companyId: string } | null>(null);
@@ -237,10 +235,7 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
         const company = companies.find((c) => c.id === companyId);
         if (contact && company) {
             hasAppliedUrlDrawers.current = true;
-            setSelectedCompany(company);
-            setSelectedContact(contact);
-            setShowCompanyDrawer(true);
-            setShowContactDrawer(true);
+            setUnifiedDrawerTarget({ contactId: contact.id, companyId: company.id });
             router.replace(`/manager/lists/${listId}`, { scroll: false });
         }
     }, [searchParams, isLoading, list, companies, listId, router]);
@@ -255,17 +250,6 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
 
     const handleContactClick = (contact: Contact & { companyName: string }) => {
         setUnifiedDrawerTarget({ contactId: contact.id, companyId: contact.companyId });
-    };
-
-    const handleCompanyUpdate = (updatedCompany: Company) => {
-        setCompanies((prev) =>
-            prev.map((c) => (c.id === updatedCompany.id ? { ...c, ...updatedCompany } : c))
-        );
-        setSelectedCompany((prev) => (prev?.id === updatedCompany.id ? { ...prev, ...updatedCompany } : prev));
-        // Refresh list to update counts if needed
-        if (updatedCompany._count.contacts !== selectedCompany?._count.contacts) {
-            fetchList();
-        }
     };
 
     const handleCompanyCreate = (newCompany: Company) => {
@@ -292,57 +276,17 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
         fetchList(); // Refresh to update counts
     };
 
-    const handleContactUpdate = (updatedContact: Contact) => {
-        // Update in companies list (nested)
-        setCompanies((prev) =>
-            prev.map((company) => {
-                if (company.id === updatedContact.companyId) {
-                    return {
-                        ...company,
-                        contacts: company.contacts.map((c) =>
-                            c.id === updatedContact.id ? { ...c, ...updatedContact } : c
-                        ),
-                    };
-                }
-                return company;
+    // Edits made inside the UnifiedActionDrawer don't flow back through callbacks:
+    // on close, quietly re-pull the companies so the tables show the fresh data.
+    const closeUnifiedDrawer = () => {
+        setUnifiedDrawerTarget(null);
+        if (!listId) return;
+        fetch(`/api/lists/${listId}/companies`)
+            .then((r) => r.json())
+            .then((json) => {
+                if (json?.success) setCompanies(json.data);
             })
-        );
-
-        // Update selected contact if open
-        if (selectedContact?.id === updatedContact.id) {
-            setSelectedContact({
-                ...updatedContact,
-                companyName: selectedContact.companyName,
-            });
-        }
-
-        // Update selected company's contacts if open
-        if (selectedCompany && selectedCompany.id === updatedContact.companyId) {
-            setSelectedCompany(prev => {
-                if (!prev) return null;
-                return {
-                    ...prev,
-                    contacts: prev.contacts.map(c => c.id === updatedContact.id ? updatedContact : c)
-                }
-            })
-        }
-    };
-
-    // Handle contact click from inside CompanyDrawer
-    const handleCompanyContactClick = (contact: Contact) => {
-        if (!selectedCompany) return;
-
-        setSelectedContact({
-            ...contact,
-            companyName: selectedCompany.name,
-            companyId: selectedCompany.id
-        });
-        // We keep company drawer open but maybe overlay or switch? 
-        // For better UX, let's close company and open contact, or just stack them.
-        // Stacking might be complex with current implementation (one z-index).
-        // Let's close company drawer and open contact drawer for now.
-        setShowCompanyDrawer(false);
-        setTimeout(() => setShowContactDrawer(true), 100);
+            .catch(() => {});
     };
 
     // ============================================
@@ -839,8 +783,6 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                                     <button
                                         onClick={() => {
                                             setIsCreatingCompany(true);
-                                            setSelectedCompany(null);
-                                            setShowCompanyDrawer(true);
                                         }}
                                         className="mgr-btn-primary flex items-center gap-2 h-10 px-4 text-sm font-medium"
                                     >
@@ -851,8 +793,6 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                                     <button
                                         onClick={() => {
                                             setIsCreatingContact(true);
-                                            setSelectedContact(null);
-                                            setShowContactDrawer(true);
                                         }}
                                         disabled={companies.length === 0}
                                         className="mgr-btn-primary flex items-center gap-2 h-10 px-4 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
@@ -965,49 +905,41 @@ export default function ListDetailPage({ params }: { params: Promise<{ id: strin
                 )}
             </div>
 
-            {/* Company Drawer */}
-            <CompanyDrawer
-                isOpen={showCompanyDrawer}
-                onClose={() => {
-                    setShowCompanyDrawer(false);
-                    setIsCreatingCompany(false);
-                    setSelectedCompany(null);
-                }}
-                company={selectedCompany}
-                onUpdate={handleCompanyUpdate}
-                onCreate={isCreatingCompany ? handleCompanyCreate : undefined}
-                onContactClick={handleCompanyContactClick}
-                isManager={isManager}
-                listId={listId}
-                isCreating={isCreatingCompany}
-            />
+            {/* Create forms only: viewing/editing a company or contact uses the UnifiedActionDrawer below */}
+            {isCreatingCompany && (
+                <CompanyDrawer
+                    isOpen
+                    onClose={() => setIsCreatingCompany(false)}
+                    company={null}
+                    onCreate={handleCompanyCreate}
+                    isManager={isManager}
+                    listId={listId}
+                    isCreating
+                />
+            )}
+            {isCreatingContact && (
+                <ContactDrawer
+                    isOpen
+                    onClose={() => setIsCreatingContact(false)}
+                    contact={null}
+                    onCreate={handleContactCreate}
+                    isManager={isManager}
+                    listId={listId}
+                    companies={companies}
+                    isCreating
+                />
+            )}
 
-            {/* Contact Drawer */}
-            <ContactDrawer
-                isOpen={showContactDrawer}
-                onClose={() => {
-                    setShowContactDrawer(false);
-                    setIsCreatingContact(false);
-                    setSelectedContact(null);
-                }}
-                contact={selectedContact}
-                onUpdate={handleContactUpdate}
-                onCreate={isCreatingContact ? handleContactCreate : undefined}
-                isManager={isManager}
-                listId={listId}
-                companies={companies}
-                isCreating={isCreatingContact}
-            />
-
-            {/* Unified Action Drawer (open on row click) */}
+            {/* Unified Action Drawer — same drawer as the SDR (row click, URL deep-link) */}
             {unifiedDrawerTarget && (
                 <UnifiedActionDrawer
                     isOpen={!!unifiedDrawerTarget}
-                    onClose={() => setUnifiedDrawerTarget(null)}
+                    onClose={closeUnifiedDrawer}
                     contactId={unifiedDrawerTarget.contactId}
                     companyId={unifiedDrawerTarget.companyId}
                     missionId={list.mission.id}
                     missionName={list.mission.name}
+                    enableGooglePhoneLookup
                     clientBookingUrl={clientBookingUrl || undefined}
                     clientInterlocuteurs={clientInterlocuteurs}
                     onActionRecorded={fetchList}

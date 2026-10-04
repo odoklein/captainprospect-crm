@@ -1770,7 +1770,13 @@ export default function ManagerProspectionPage() {
                                     return (
                                         <tr
                                             key={row.id}
-                                            onClick={() => toggleRow(row.id)}
+                                            onClick={() => {
+                                                // Row click = open the same UnifiedActionDrawer the SDR gets;
+                                                // selection stays on the checkbox. Rows with no company
+                                                // reference can't open it, so they fall back to selection.
+                                                if (row.companyId || row.contact?.company?.id || row.company?.id) setDrawerAction(row);
+                                                else toggleRow(row.id);
+                                            }}
                                             className={cn(
                                                 "group cursor-pointer transition-colors duration-100",
                                                 isSelected
@@ -2058,14 +2064,15 @@ export default function ManagerProspectionPage() {
                 }}
             />
 
-            {drawerAction && (
+            {drawerAction && (drawerAction.companyId || drawerAction.contact?.company?.id || drawerAction.company?.id) && (
                 <UnifiedActionDrawer
                     isOpen={!!drawerAction}
                     onClose={() => setDrawerAction(null)}
                     contactId={drawerAction.contactId || null}
-                    companyId={drawerAction.companyId || drawerAction.contact?.company?.id || ""}
+                    companyId={drawerAction.companyId || drawerAction.contact?.company?.id || drawerAction.company?.id || ""}
                     missionId={selectedMission.id}
                     missionName={selectedMission.name}
+                    enableGooglePhoneLookup
                     clientBookingUrl={drawerClientBookingUrl || undefined}
                     clientInterlocuteurs={drawerClientInterlocuteurs}
                     onActionRecorded={() => {

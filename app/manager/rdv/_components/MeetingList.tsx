@@ -23,6 +23,7 @@ import {
 import type { ConfirmationFilter } from "../_types";
 import { Copy, Linkedin, RefreshCw, Check, X, Mic, ChevronUp, ChevronDown } from "lucide-react";
 import type { SortField, SortDir } from "../_types";
+import { BUCKET_META, bucketSwatch, meetingBucket } from "../_lib/buckets";
 
 interface MeetingListProps {
   meetings: Meeting[];
@@ -61,6 +62,8 @@ const MeetingRow = memo(function MeetingRow({
   const rdvDate = formatDateShort(meeting.callbackDate);
   const proximity = proximityLabel(meeting.callbackDate);
   const isPending = meeting.confirmationStatus === "PENDING";
+  const bucket = meetingBucket(meeting);
+  const isUpcoming = bucket === "upcoming_confirmed" || bucket === "upcoming_pending";
   const [audioPopupOpen, setAudioPopupOpen] = useState(false);
   const hasAudio = !!meeting.callRecordingUrl?.trim();
   const transcription = meeting.callTranscription?.trim() ?? "";
@@ -86,7 +89,7 @@ const MeetingRow = memo(function MeetingRow({
 
   return (
     <div
-      className={`rdv-row ${selected ? "selected" : ""}`}
+      className={`rdv-row ${selected ? "selected" : ""} ${isPending ? "pending" : ""}`}
       onClick={() => onOpen(meeting)}
     >
       <div style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
@@ -134,7 +137,7 @@ const MeetingRow = memo(function MeetingRow({
 
       {/* Company */}
       <div style={{ flex: 2, minWidth: 120, display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-        <div style={{ width: 26, height: 26, borderRadius: 6, background: "var(--surface2)", border: "1px solid var(--border)", display: "grid", placeContent: "center", fontSize: 11, fontWeight: 700, color: "var(--ink3)", flexShrink: 0 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accentLight)", border: "1px solid color-mix(in oklab, var(--accent) 14%, transparent)", display: "grid", placeContent: "center", fontFamily: "var(--font-display)", fontSize: 12, fontWeight: 700, color: "var(--accentInk)", flexShrink: 0 }}>
           {(meeting.company?.name || "?")[0]}
         </div>
         <div style={{ minWidth: 0 }}>
@@ -191,7 +194,7 @@ const MeetingRow = memo(function MeetingRow({
       {/* Durée */}
       <div style={{ width: 45, textAlign: "center" }}>
         {meeting.duration ? (
-          <span style={{ fontSize: 10, fontWeight: 600, color: "var(--ink3)", background: "var(--surface2)", padding: "2px 5px", borderRadius: 4 }}>
+          <span className="rdv-chip">
             {formatDuration(meeting.duration)}
           </span>
         ) : (
@@ -218,6 +221,21 @@ const MeetingRow = memo(function MeetingRow({
         )}
       </div>
 
+      {/* Issue: what happened to this RDV (same buckets as the Bilan) */}
+      <div style={{ width: 104, overflow: "hidden" }} title={BUCKET_META[bucket].hint}>
+        {isUpcoming ? (
+          <span style={{ fontSize: 11, color: "var(--ink4)" }}>À venir</span>
+        ) : (
+          <span className="rdv-outcome" style={bucket === "negative" ? { color: "var(--redInk)" } : bucket === "positive" ? { color: "var(--greenInk)" } : undefined}>
+            <span className="rdv-bilan-swatch" style={bucketSwatch(bucket)} />
+            {BUCKET_META[bucket].rowLabel}
+            {bucket === "no_show" && meeting.feedback?.standByAt && (
+              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--ink4)" }}>· stand-by</span>
+            )}
+          </span>
+        )}
+      </div>
+
       {/* Audio icon */}
       <div style={{ width: 32, textAlign: "center", position: "relative" }}>
         {hasAudio ? (
@@ -227,18 +245,9 @@ const MeetingRow = memo(function MeetingRow({
                 e.stopPropagation();
                 setAudioPopupOpen((prev) => !prev);
               }}
-              style={{
-                width: 24,
-                height: 24,
-                borderRadius: 6,
-                border: "1px solid var(--border)",
-                background: audioPopupOpen ? "rgba(79,70,229,0.12)" : "var(--surface2)",
-                color: audioPopupOpen ? "var(--accent)" : "var(--ink3)",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
+              className="rdv-icon-btn"
+              data-active={audioPopupOpen}
+              style={{ width: 24, height: 24 }}
               title="Audio et transcription"
             >
               <Mic size={12} />
@@ -253,9 +262,9 @@ const MeetingRow = memo(function MeetingRow({
                   width: 300,
                   zIndex: 30,
                   border: "1px solid var(--border2)",
-                  borderRadius: 10,
+                  borderRadius: 12,
                   background: "var(--surface)",
-                  boxShadow: "0 10px 30px rgba(15,23,42,0.15)",
+                  boxShadow: "var(--rdv-shadow-lg)",
                   padding: 10,
                   textAlign: "left",
                 }}
@@ -284,38 +293,24 @@ const MeetingRow = memo(function MeetingRow({
       </div>
 
       {/* Quick inline action buttons on hover */}
-      <div style={{ width: 68, display: "flex", justifyContent: "flex-end" }}>
-        <div className="rdv-row-actions" style={{ display: "flex", gap: 3 }}>
+      <div style={{ width: 84, display: "flex", justifyContent: "flex-end" }}>
+        <div className="rdv-row-actions" style={{ display: "flex", gap: 4 }}>
           {isPending && (
             <>
               <button
                 onClick={handleInlineConfirm}
-                style={{
-                  background: "var(--greenLight)",
-                  border: "1px solid rgba(5,150,105,0.25)",
-                  color: "var(--green)",
-                  cursor: "pointer",
-                  padding: "3px 5px",
-                  borderRadius: 5,
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                className="rdv-icon-btn"
+                data-tone="success"
+                style={{ width: 24, height: 24 }}
                 title="Confirmer immédiatement"
               >
                 <Check size={11} />
               </button>
               <button
                 onClick={handleInlineCancel}
-                style={{
-                  background: "var(--redLight)",
-                  border: "1px solid rgba(220,38,38,0.25)",
-                  color: "var(--red)",
-                  cursor: "pointer",
-                  padding: "3px 5px",
-                  borderRadius: 5,
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                className="rdv-icon-btn"
+                data-tone="danger"
+                style={{ width: 24, height: 24 }}
                 title="Annuler le RDV"
               >
                 <X size={11} />
@@ -325,7 +320,8 @@ const MeetingRow = memo(function MeetingRow({
           {meeting.contact?.email && (
             <button
               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(meeting.contact!.email!); }}
-              style={{ background: "var(--surface2)", border: "1px solid var(--border)", color: "var(--ink3)", cursor: "pointer", padding: "3px 5px", borderRadius: 5 }}
+              className="rdv-icon-btn"
+              style={{ width: 24, height: 24 }}
               title="Copier email"
             >
               <Copy size={11} />
@@ -337,7 +333,8 @@ const MeetingRow = memo(function MeetingRow({
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
-              style={{ color: "var(--ink3)", padding: "3px 5px", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 5, display: "flex" }}
+              className="rdv-icon-btn"
+              style={{ width: 24, height: 24 }}
               title="LinkedIn"
             >
               <Linkedin size={11} />
@@ -360,9 +357,9 @@ function SortHeader({ label, field, sortBy, sortDir, onSort, style }: {
       style={{
         background: "none", border: "none", cursor: onSort ? "pointer" : "default",
         display: "flex", alignItems: "center", gap: 2, padding: 0,
-        fontSize: 10, fontWeight: active ? 700 : 600,
-        color: active ? "var(--accent)" : "var(--ink3)",
-        textTransform: "uppercase", letterSpacing: "0.05em",
+        fontSize: 10.5, fontWeight: active ? 700 : 600,
+        color: active ? "var(--ink)" : "var(--ink3)",
+        textTransform: "uppercase", letterSpacing: "0.06em",
         whiteSpace: "nowrap",
         ...style,
       }}
@@ -431,33 +428,36 @@ export function MeetingList({
           <div style={{ flex: 2, minWidth: 120 }}>
             <SortHeader label="Entreprise" field="companyName" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
           </div>
-          <div style={{ flex: 1, minWidth: 80, fontSize: 10, fontWeight: 600, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <div style={{ flex: 1, minWidth: 80 }} className="rdv-th">
             Client
           </div>
           <div style={{ width: 95 }}>
             <SortHeader label="SDR" field="sdrName" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
           </div>
-          <div style={{ width: 110, fontSize: 10, fontWeight: 600, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <div style={{ width: 110 }} className="rdv-th">
             Commercial
           </div>
-          <div style={{ width: 32, textAlign: "center", fontSize: 10, fontWeight: 600, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <div style={{ width: 32, textAlign: "center" }} className="rdv-th">
             Type
           </div>
           <div style={{ width: 45, textAlign: "center" }}>
             <SortHeader label="Durée" field="duration" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={{ justifyContent: "center" }} />
           </div>
-          <div style={{ width: 95, textAlign: "center", fontSize: 10, fontWeight: 600, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <div style={{ width: 95, textAlign: "center" }} className="rdv-th">
             SAS Validation
           </div>
-          <div style={{ width: 32, textAlign: "center", fontSize: 10, fontWeight: 600, color: "var(--ink3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          <div style={{ width: 104 }} className="rdv-th">
+            Issue
+          </div>
+          <div style={{ width: 32, textAlign: "center" }} className="rdv-th">
             Audio
           </div>
-          <div style={{ width: 68 }} />
+          <div style={{ width: 84 }} />
         </div>
 
         {loading ? (
           Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 10, borderBottom: "1px solid var(--border)", height: 54 }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 10, borderBottom: "1px solid var(--border)", height: 56 }}>
               <Skeleton w={16} h={16} r={4} />
               <Skeleton w={60} h={26} r={6} />
               <Skeleton w={70} h={26} r={6} />

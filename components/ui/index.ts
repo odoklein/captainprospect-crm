@@ -8,7 +8,7 @@ export type { RadioCardOption } from "./RadioCardGroup";
 
 // New Components
 export { Modal, ModalFooter, ConfirmModal } from "./Modal";
-export { Drawer, DrawerSection, DrawerField } from "./Drawer";
+export { Drawer, DrawerHeader, DrawerSection, DrawerField, DRAWER_BACKDROP_CLASS, DRAWER_PANEL_SURFACE_CLASS } from "./Drawer";
 export { Select, MultiSelect } from "./Select";
 export type { SelectOption } from "./Select";
 export { ToastProvider, useToast } from "./Toast";

@@ -20,7 +20,25 @@ import { DetailPanel } from "./DetailPanel";
 import { RdvBulkActions } from "./RdvBulkActions";
 import { RdvModals, type RdvModalType } from "./RdvModals";
 import { DeleteRdvConfirmDialog } from "./modals/DeleteRdvConfirmDialog";
+import { OutcomeOverview } from "./OutcomeOverview";
+import type { DatePreset } from "../_types";
 import "./rdv-shell.css";
+
+const PERIOD_LABELS: Record<DatePreset, string> = {
+  today: "aujourd'hui",
+  "7days": "ces 7 derniers jours",
+  "30days": "ces 30 derniers jours",
+  "3months": "ces 3 derniers mois",
+  all: "depuis le début",
+  custom: "sur la période choisie",
+};
+
+function toggleInSet(prev: Set<string>, id: string): Set<string> {
+  const next = new Set(prev);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
 
 export function RdvShell() {
   const [view, setView] = useState<ViewMode>("list");
@@ -33,6 +51,7 @@ export function RdvShell() {
   const {
     meetings,
     aggregates,
+    overview,
     loading,
     loadingMore,
     fetchMeetings,
@@ -49,6 +68,16 @@ export function RdvShell() {
   const selectedMeeting = panelState.selectedMeeting;
   const { initFiche } = ficheState;
   const { initFeedback } = feedbackState;
+
+  // The period filter applies to the booking date, so the Bilan says so.
+  const scopeLabel = useMemo(() => {
+    const parts = [`créés ${PERIOD_LABELS[filters.datePreset]}`];
+    if (filters.selectedClients.size > 0) parts.push(`${filters.selectedClients.size} client${filters.selectedClients.size > 1 ? "s" : ""}`);
+    if (filters.selectedMissions.size > 0) parts.push(`${filters.selectedMissions.size} mission${filters.selectedMissions.size > 1 ? "s" : ""}`);
+    if (filters.selectedSdrs.size > 0) parts.push(`${filters.selectedSdrs.size} SDR`);
+    if (filters.search) parts.push(`« ${filters.search} »`);
+    return parts.join(" · ");
+  }, [filters.datePreset, filters.selectedClients, filters.selectedMissions, filters.selectedSdrs, filters.search]);
 
   const selectedMeetings = useMemo(
     () => meetings.filter((meeting) => panelState.selectedIds.has(meeting.id)),
@@ -117,6 +146,18 @@ export function RdvShell() {
         onSetStatusFilter={filters.setStatusFilter}
         onSetDatePreset={filters.setDatePreset}
         onSetConfirmationFilter={filters.setConfirmationFilter}
+      />
+
+      <OutcomeOverview
+        overview={overview}
+        loading={loading}
+        activeBucket={filters.activeBucket}
+        onDrill={filters.drillBucket}
+        selectedClients={filters.selectedClients}
+        selectedSdrs={filters.selectedSdrs}
+        onToggleClient={(id) => filters.setSelectedClients((prev) => toggleInSet(prev, id))}
+        onToggleSdr={(id) => filters.setSelectedSdrs((prev) => toggleInSet(prev, id))}
+        scopeLabel={scopeLabel}
       />
 
       <div className={`rdv-content-layout ${panelState.panelOpen ? "panel-open" : ""}`}>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { ContactDrawer } from "@/components/drawers";
+import dynamic from "next/dynamic";
 import { useSdrPace } from "@/components/sdr/SdrPaceProvider";
 import { formatHours } from "@/lib/sdr-pace/pace";
 import {
@@ -65,6 +65,8 @@ interface SDRActionItem {
     id: string;
     contactId: string | null;
     companyId: string | null;
+    missionId?: string;
+    missionName?: string;
     result: string;
     resultLabel: string;
     channel: string;
@@ -104,18 +106,16 @@ interface SDRCallbackItem {
     sdr?: { id: string; name: string | null };
 }
 
-interface DrawerContact {
-    id: string;
-    firstName: string | null;
-    lastName: string | null;
-    email: string | null;
-    phone: string | null;
-    title: string | null;
-    linkedin: string | null;
-    status: "INCOMPLETE" | "PARTIAL" | "ACTIONABLE";
+const UnifiedActionDrawer = dynamic(
+    () => import("@/components/drawers/UnifiedActionDrawer").then((m) => ({ default: m.UnifiedActionDrawer })),
+    { ssr: false },
+);
+
+interface DrawerTarget {
+    contactId: string | null;
     companyId: string;
-    companyName?: string;
     missionId?: string;
+    missionName?: string;
 }
 
 // ============================================
@@ -289,12 +289,9 @@ export default function SDRDashboardPage() {
     const [showShortcuts, setShowShortcuts] = useState(false);
 
     // Coming soon pop-up for company navigation
-    const [companyModalOpen, setCompanyModalOpen] = useState(false);
 
     // Drawer state (for contacts only)
-    const [drawerContactId, setDrawerContactId] = useState<string | null>(null);
-    const [drawerContact, setDrawerContact] = useState<DrawerContact | null>(null);
-    const [drawerLoading, setDrawerLoading] = useState(false);
+    const [drawerTarget, setDrawerTarget] = useState<DrawerTarget | null>(null);
 
     // Hero counter animation
     const heroTarget = pace?.callsDone ?? stats?.actionsToday ?? 0;
@@ -398,48 +395,27 @@ export default function SDRDashboardPage() {
         return () => clearInterval(interval);
     }, [heroTarget]);
 
-    // Drawer logic (Contact only)
-    useEffect(() => {
-        if (!drawerContactId) {
-            setDrawerContact(null);
+    // Contact / company fiche: the UnifiedActionDrawer, same everywhere in the app.
+    const handleEntityClick = async (
+        contactId?: string | null,
+        companyId?: string | null,
+        mission?: { id?: string | null; name?: string | null } | null,
+    ) => {
+        const ctx = { missionId: mission?.id ?? undefined, missionName: mission?.name ?? undefined };
+        if (companyId) {
+            setDrawerTarget({ contactId: contactId ?? null, companyId, ...ctx });
             return;
         }
-        setDrawerLoading(true);
-        fetch(`/api/contacts/${drawerContactId}`)
-            .then(res => res.json())
-            .then(json => {
-                if (json.success && json.data) {
-                    const c = json.data;
-                    setDrawerContact({
-                        id: c.id,
-                        firstName: c.firstName,
-                        lastName: c.lastName,
-                        email: c.email,
-                        phone: c.phone,
-                        title: c.title,
-                        linkedin: c.linkedin,
-                        status: c.status ?? "PARTIAL",
-                        companyId: c.company?.id ?? "",
-                        companyName: c.company?.name ?? undefined,
-                        missionId: (c.company as { list?: { mission?: { id: string } } })?.list?.mission?.id,
-                    });
-                }
-            })
-            .catch(() => setDrawerContact(null))
-            .finally(() => setDrawerLoading(false));
-    }, [drawerContactId]);
-
-    // Intercept Company navigation: show coming soon modal
-    const handleEntityClick = (contactId?: string | null, companyId?: string | null) => {
-        if (contactId) {
-            setDrawerContactId(contactId);
-        } else if (companyId) {
-            setCompanyModalOpen(true);
+        if (!contactId) return;
+        // Contact without a known company: resolve it, the drawer needs both.
+        try {
+            const res = await fetch(`/api/contacts/${contactId}`);
+            const json = await res.json();
+            const resolved = json?.data?.company?.id ?? json?.data?.companyId;
+            if (json?.success && resolved) setDrawerTarget({ contactId, companyId: resolved, ...ctx });
+        } catch {
+            /* fiche unavailable */
         }
-    };
-
-    const handleCompanyClick = () => {
-        setCompanyModalOpen(true);
     };
 
     // Filtered Callbacks
@@ -883,7 +859,7 @@ export default function SDRDashboardPage() {
                                                 <div className="flex items-baseline gap-2">
                                                     {contactName ? (
                                                         <button
-                                                            onClick={() => handleEntityClick(cb.contact?.id, null)}
+                                                            onClick={() => handleEntityClick(cb.contact?.id, cb.contact?.company?.id ?? cb.company?.id, cb.mission)}
                                                             className="text-sm font-extrabold text-zinc-900 hover:text-primary-600 transition-colors truncate text-left"
                                                         >
                                                             {contactName}
@@ -891,7 +867,7 @@ export default function SDRDashboardPage() {
                                                     ) : null}
                                                     {companyName && (
                                                         <button
-                                                            onClick={handleCompanyClick}
+                                                            onClick={() => handleEntityClick(null, cb.company?.id ?? cb.contact?.company?.id, cb.mission)}
                                                             className="text-xs text-zinc-500 hover:text-primary-600 font-semibold truncate transition-colors"
                                                             title="Ouvrir la fiche entreprise"
                                                         >
@@ -920,7 +896,7 @@ export default function SDRDashboardPage() {
 
                                                 {cb.contact?.id ? (
                                                     <button
-                                                        onClick={() => handleEntityClick(cb.contact?.id, null)}
+                                                        onClick={() => handleEntityClick(cb.contact?.id, cb.contact?.company?.id ?? cb.company?.id, cb.mission)}
                                                         className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-zinc-800 text-xs font-bold transition-colors"
                                                     >
                                                         <span>Voir fiche</span>
@@ -928,7 +904,7 @@ export default function SDRDashboardPage() {
                                                     </button>
                                                 ) : (
                                                     <button
-                                                        onClick={handleCompanyClick}
+                                                        onClick={() => handleEntityClick(null, cb.company?.id ?? cb.contact?.company?.id, cb.mission)}
                                                         className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-zinc-800 text-xs font-bold transition-colors"
                                                     >
                                                         <span>Voir fiche</span>
@@ -1006,7 +982,7 @@ export default function SDRDashboardPage() {
                                     return (
                                         <div
                                             key={item.id}
-                                            onClick={() => item.contactId ? handleEntityClick(item.contactId, null) : handleCompanyClick()}
+                                            onClick={() => handleEntityClick(item.contactId, item.companyId, item.missionId ? { id: item.missionId, name: item.missionName } : null)}
                                             className="p-3.5 rounded-2xl bg-slate-50/70 hover:bg-slate-100/90 border border-slate-200/80 transition-all flex items-center justify-between gap-3 cursor-pointer group"
                                         >
                                             <div className="flex items-center gap-3 min-w-0">
@@ -1243,22 +1219,18 @@ export default function SDRDashboardPage() {
             {/* 4. MODALS & POP-UPS                          */}
             {/* ============================================ */}
 
-            {/* Coming Soon Pop-up for Company Action */}
-            <CompanyComingSoonModal
-                isOpen={companyModalOpen}
-                onClose={() => setCompanyModalOpen(false)}
-            />
-
-            {/* Contact Drawer (for contact details) */}
-            {drawerContactId && drawerContact && (
-                <ContactDrawer
-                    isOpen={!!drawerContactId}
-                    onClose={() => { setDrawerContactId(null); setDrawerContact(null); }}
-                    contact={drawerContact}
-                    onUpdate={(updated) => setDrawerContact(updated)}
-                    isManager={false}
+            {drawerTarget && (
+                <UnifiedActionDrawer
+                    isOpen
+                    onClose={() => setDrawerTarget(null)}
+                    contactId={drawerTarget.contactId}
+                    companyId={drawerTarget.companyId}
+                    missionId={drawerTarget.missionId}
+                    missionName={drawerTarget.missionName}
                     enableGooglePhoneLookup
-                    companies={[]}
+                    onContactSelect={(newContactId) =>
+                        setDrawerTarget((prev) => (prev ? { ...prev, contactId: newContactId } : prev))
+                    }
                 />
             )}
         </div>

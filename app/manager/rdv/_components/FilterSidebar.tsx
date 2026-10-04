@@ -126,7 +126,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
           position: "absolute", left: 0, top: 16, zIndex: 10,
           background: "var(--surface)", border: "1px solid var(--border)", borderLeft: "none",
           borderRadius: "0 10px 10px 0", padding: "10px 8px", color: "var(--ink3)", cursor: "pointer",
-          boxShadow: "2px 0 8px rgba(0,0,0,0.04)",
+          boxShadow: "var(--rdv-shadow-md)",
         }}
       >
         <Filter size={14} />
@@ -335,7 +335,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
         ) : (
           <>
             <button
-              style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 11, cursor: "pointer", padding: 0, marginBottom: 4, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}
+              style={{ background: "none", border: "none", color: "var(--accent)", fontSize: 11, cursor: "pointer", padding: 0, marginBottom: 4, fontWeight: 500 }}
               onClick={() => {
                 if (selectedClients.size === clientOptions.length) setSelectedClients(new Set());
                 else setSelectedClients(new Set(clientOptions.map((c) => c.id)));
@@ -480,7 +480,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
         <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
             <span style={{ fontSize: 11, color: "var(--ink3)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Filtres actifs</span>
-            <button style={{ background: "none", border: "none", color: "var(--red)", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }} onClick={clearAllFilters}>
+            <button style={{ background: "none", border: "none", color: "var(--red)", fontSize: 11, cursor: "pointer", fontWeight: 600 }} onClick={clearAllFilters}>
               Tout effacer
             </button>
           </div>

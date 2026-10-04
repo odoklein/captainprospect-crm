@@ -28,7 +28,6 @@ export function FilterSection({
           cursor: "pointer",
           padding: 0,
           marginBottom: open ? 10 : 0,
-          fontFamily: "'DM Sans', sans-serif",
         }}
       >
         {title}

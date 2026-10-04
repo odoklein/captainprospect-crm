@@ -1,30 +1,46 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Inter:wght@300;400;500;600;700&display=swap");
-
 :root {
-  --bg: var(--brand-neutral-50);
-  --surface: #ffffff;
-  --surface2: var(--brand-neutral-100);
-  --surface3: var(--brand-neutral-200);
-  --border: color-mix(in oklab, var(--brand-neutral-900) 7%, transparent);
-  --border2: color-mix(in oklab, var(--brand-neutral-900) 12%, transparent);
-  --ink: var(--brand-neutral-900);
-  --ink2: var(--brand-neutral-700);
-  --ink3: var(--brand-neutral-500);
-  --ink4: var(--brand-neutral-400);
-  --accent: var(--brand-primary-600);
-  --accentLight: color-mix(in oklab, var(--brand-primary-600) 8%, transparent);
-  --accentHover: var(--brand-primary-700);
-  --green: #059669;
-  --greenLight: rgba(5, 150, 105, 0.09);
-  --emerald: #059669;
-  --emeraldLight: rgba(5, 150, 105, 0.09);
-  --amber: #d97706;
-  --amberLight: rgba(217, 119, 6, 0.1);
-  --red: #e11d48;
-  --redLight: rgba(225, 29, 72, 0.08);
-  --blue: #2563eb;
-  --blueLight: rgba(37, 99, 235, 0.08);
-  --rdv-panel-width: 580px;
+  /* SAS RDV vocabulary → brand design-system roles (app/globals.css --ds-*).
+     Kept as aliases because the RDV + SDR meetings components read these names. */
+  --bg: var(--ds-canvas);
+  --surface: var(--ds-surface);
+  --surface2: var(--ds-surface-2);
+  --surface3: var(--ds-surface-3);
+  --border: var(--ds-line-subtle);
+  --border2: var(--ds-line);
+  --border3: var(--ds-line-strong);
+  --ink: var(--ds-ink);
+  --ink2: var(--ds-ink-2);
+  --ink3: var(--ds-ink-3);
+  --ink4: var(--ds-ink-4);
+  --accent: var(--ds-primary);
+  --accentLight: var(--ds-primary-soft);
+  --accentInk: var(--ds-primary-soft-ink);
+  --accentHover: var(--ds-primary-hover);
+  --rose: var(--ds-accent);
+  --roseLight: var(--ds-accent-soft);
+  --roseInk: var(--ds-accent-soft-ink);
+  --green: var(--ds-success);
+  --greenLight: var(--ds-success-soft);
+  --greenLine: var(--ds-success-line);
+  --greenInk: var(--ds-success-ink);
+  --emerald: var(--ds-success);
+  --emeraldLight: var(--ds-success-soft);
+  --amber: var(--ds-warning);
+  --amberLight: var(--ds-warning-soft);
+  --amberLine: var(--ds-warning-line);
+  --amberInk: var(--ds-warning-ink);
+  --red: var(--ds-danger);
+  --redLight: var(--ds-danger-soft);
+  --redLine: var(--ds-danger-line);
+  --redInk: var(--ds-danger-ink);
+  --blue: var(--ds-info);
+  --blueLight: var(--ds-info-soft);
+  --blueLine: var(--ds-info-line);
+  --blueInk: var(--ds-info-ink);
+  --rdv-shadow-sm: 0 1px 2px color-mix(in oklab, var(--ds-shadow-color) 6%, transparent);
+  --rdv-shadow-md: 0 6px 18px -6px color-mix(in oklab, var(--ds-shadow-color) 16%, transparent);
+  --rdv-shadow-lg: 0 18px 48px -12px color-mix(in oklab, var(--ds-shadow-color) 28%, transparent);
+  --rdv-panel-width: 600px;
 }
 
 @keyframes shimmer {
@@ -67,7 +83,8 @@
 
 /* ─── Base Page Layout ─── */
 .rdv-page {
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1, "cv11" 1;
   background: var(--bg);
   color: var(--ink);
   height: 100%;
@@ -81,9 +98,9 @@
 }
 
 .rdv-serif {
-  font-family: "DM Sans", "Inter", system-ui, sans-serif;
+  font-family: var(--font-display);
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .rdv-content-layout {
@@ -127,24 +144,29 @@
 .rdv-row {
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  height: 54px;
-  min-height: 54px;
+  padding: 0 16px 0 13px;
+  height: 56px;
+  min-height: 56px;
   border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: background 0.12s ease, border-color 0.12s ease;
   gap: 10px;
   box-sizing: border-box;
   position: relative;
 }
 
 .rdv-row:hover {
-  background: var(--brand-neutral-50) !important;
+  background: var(--surface2) !important;
+}
+
+.rdv-row.pending {
+  border-left-color: color-mix(in oklab, var(--amber) 55%, transparent);
 }
 
 .rdv-row.selected {
-  background: color-mix(in oklab, var(--brand-primary-600) 4%, transparent) !important;
-  border-left: 3px solid var(--accent);
+  background: color-mix(in oklab, var(--rose) 5%, var(--surface)) !important;
+  border-left-color: var(--rose);
 }
 
 .rdv-row .rdv-row-actions {
@@ -152,7 +174,8 @@
   transition: opacity 0.12s ease;
 }
 
-.rdv-row:hover .rdv-row-actions {
+.rdv-row:hover .rdv-row-actions,
+.rdv-row:focus-within .rdv-row-actions {
   opacity: 1;
 }
 
@@ -160,11 +183,9 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  background: rgba(255, 255, 255, 0.94);
-  border-bottom: 1px solid var(--border);
-  padding: 8px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border2);
+  padding: 9px 16px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -173,12 +194,21 @@
   box-sizing: border-box;
 }
 
+.rdv-th {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
 /* ─── Checkbox ─── */
 .rdv-checkbox {
   appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border2);
+  border: 1.5px solid var(--border3);
   border-radius: 4px;
   background: var(--surface);
   cursor: pointer;
@@ -189,6 +219,10 @@
   flex-shrink: 0;
 }
 
+.rdv-checkbox:hover {
+  border-color: var(--accent);
+}
+
 .rdv-checkbox:checked {
   background: var(--accent);
   border-color: var(--accent);
@@ -196,10 +230,15 @@
 
 .rdv-checkbox:checked::after {
   content: "✓";
-  color: white;
+  color: var(--ds-primary-fg);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
+}
+
+.rdv-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus);
 }
 
 /* ─── Scrollbars ─── */
@@ -213,12 +252,12 @@
 }
 
 .rdv-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
+  background: color-mix(in oklab, var(--ink4) 45%, transparent);
   border-radius: 3px;
 }
 
 .rdv-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.7);
+  background: color-mix(in oklab, var(--ink4) 80%, transparent);
 }
 
 /* ─── Inputs & Buttons ─── */
@@ -230,14 +269,19 @@
   padding: 7px 12px;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   font-family: inherit;
   box-sizing: border-box;
 }
 
+.rdv-input:hover {
+  border-color: var(--border3);
+}
+
 .rdv-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accentLight);
+  border-color: var(--rose);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--rose) 16%, transparent);
+  background: var(--surface);
 }
 
 .rdv-input::placeholder {
@@ -247,37 +291,221 @@
 .rdv-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 550;
   cursor: pointer;
-  transition: all 0.15s;
-  border: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
+  border: 1px solid transparent;
   font-family: inherit;
   white-space: nowrap;
+  line-height: 1.2;
+}
+
+.rdv-btn:focus-visible,
+.rdv-seg-btn:focus-visible,
+.rdv-icon-btn:focus-visible,
+.rdv-metric-card:focus-visible,
+.rdv-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus);
+}
+
+.rdv-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .rdv-btn-primary {
   background: var(--accent);
-  color: white;
+  color: var(--ds-primary-fg);
+  box-shadow: var(--rdv-shadow-sm);
 }
 
-.rdv-btn-primary:hover {
+.rdv-btn-primary:hover:not(:disabled) {
   background: var(--accentHover);
 }
 
 .rdv-btn-ghost {
   background: var(--surface);
   color: var(--ink2);
-  border: 1px solid var(--border2);
+  border-color: var(--border2);
 }
 
-.rdv-btn-ghost:hover {
+.rdv-btn-ghost:hover:not(:disabled) {
   background: var(--surface2);
   color: var(--ink);
-  border-color: var(--ink3);
+  border-color: var(--border3);
+}
+
+/* AI actions wear the brand accent (--ds-accent: "AI, focus, selection") */
+.rdv-btn-ai {
+  background: var(--rose);
+  color: var(--ds-accent-fg);
+  box-shadow: var(--rdv-shadow-sm);
+}
+
+.rdv-btn-ai:hover:not(:disabled) {
+  background: var(--ds-accent-hover);
+}
+
+.rdv-btn-confirm {
+  background: var(--green);
+  color: #ffffff;
+  box-shadow: var(--rdv-shadow-sm);
+}
+
+.rdv-btn-confirm:hover:not(:disabled) {
+  background: var(--greenInk);
+}
+
+.rdv-btn-danger {
+  background: var(--surface);
+  color: var(--redInk);
+  border-color: var(--redLine);
+}
+
+.rdv-btn-danger:hover:not(:disabled) {
+  background: var(--redLight);
+}
+
+.rdv-btn-sm {
+  font-size: 11px;
+  padding: 4px 9px;
+  gap: 5px;
+}
+
+.rdv-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--ink3);
+  cursor: pointer;
+  transition: all 0.12s;
+  padding: 0;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.rdv-icon-btn:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--border3);
+  background: var(--surface2);
+}
+
+.rdv-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.rdv-icon-btn[data-tone="success"] {
+  color: var(--greenInk);
+  background: var(--greenLight);
+  border-color: var(--greenLine);
+}
+
+.rdv-icon-btn[data-tone="danger"] {
+  color: var(--redInk);
+  background: var(--redLight);
+  border-color: var(--redLine);
+}
+
+.rdv-icon-btn[data-active="true"] {
+  color: var(--roseInk);
+  background: var(--roseLight);
+  border-color: color-mix(in oklab, var(--rose) 35%, transparent);
+}
+
+/* ─── Segmented controls ─── */
+.rdv-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--surface3);
+  flex-shrink: 0;
+}
+
+.rdv-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--ink3);
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+  white-space: nowrap;
+}
+
+.rdv-seg-btn:hover {
+  color: var(--ink);
+}
+
+.rdv-seg-btn.active {
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 650;
+  box-shadow: var(--rdv-shadow-sm), 0 0 0 1px var(--border);
+}
+
+.rdv-seg-btn.active[data-tone="pending"] { color: var(--amberInk); }
+.rdv-seg-btn.active[data-tone="confirmed"] { color: var(--greenInk); }
+.rdv-seg-btn.active[data-tone="cancelled"] { color: var(--redInk); }
+
+.rdv-seg-btn.icon-only {
+  padding: 5px 8px;
+}
+
+.rdv-count {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--ink3) 12%, transparent);
+  color: var(--ink2);
+  font-variant-numeric: tabular-nums;
+}
+
+.rdv-count[data-tone="pending"] {
+  background: var(--amber);
+  color: #ffffff;
+}
+
+/* ─── Pills & badges ─── */
+.rdv-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--roseLight);
+  color: var(--roseInk);
+}
+
+.rdv-tag::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rose);
 }
 
 .rdv-pill {
@@ -294,54 +522,140 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
+  gap: 6px;
+  padding: 4px 9px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, currentColor 18%, transparent);
 }
 
 .status-badge::before {
   content: "";
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
 
 .status-badge-pending-pulse::before {
-  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.18);
+  animation: rdvPulse 1.8s ease-in-out infinite;
 }
 
-/* ─── Compact Intelligence Strip Cards ─── */
+@keyframes rdvPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--amber) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-badge-pending-pulse::before {
+    animation: none;
+  }
+}
+
+.rdv-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 650;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--surface3);
+  color: var(--ink2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── KPI strip ─── */
+.rdv-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(158px, 1fr));
+  gap: 10px;
+  padding: 12px 20px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border2);
+}
+
 .rdv-metric-card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border2);
   border-radius: 12px;
-  padding: 10px 16px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  padding: 11px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: var(--rdv-shadow-sm);
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  min-width: 0;
 }
 
-.rdv-metric-card:hover {
-  border-color: var(--border2);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+.rdv-metric-card.interactive {
+  cursor: pointer;
+}
+
+.rdv-metric-card.interactive:hover {
+  border-color: var(--border3);
+  box-shadow: var(--rdv-shadow-md);
 }
 
 .rdv-metric-card.active {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1.5px var(--accentLight);
+  box-shadow: 0 0 0 1px var(--accent), var(--rdv-shadow-md);
 }
 
 .rdv-metric-card.pulse-urgent {
-  border-color: rgba(217, 119, 6, 0.45);
+  border-color: var(--amberLine);
+  background: color-mix(in oklab, var(--amberLight) 60%, var(--surface));
+}
+
+.rdv-metric-card.pulse-urgent.active {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px var(--amber), var(--rdv-shadow-md);
+}
+
+.rdv-metric-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: grid;
+  place-content: center;
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--tone) 11%, var(--surface));
+  color: var(--tone);
+}
+
+.rdv-metric-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rdv-metric-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ─── Drawer (DetailPanel Overlay) ─── */
@@ -349,9 +663,9 @@
   position: fixed;
   top: 56px;
   inset: 0;
-  background: color-mix(in oklab, var(--brand-neutral-900) 35%, transparent);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: color-mix(in oklab, var(--ds-inverse) 32%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   z-index: 40;
   opacity: 0;
   pointer-events: none;
@@ -369,14 +683,14 @@
   right: 0;
   bottom: 0;
   width: min(var(--rdv-panel-width), 94vw);
-  background: var(--surface);
+  background: var(--bg);
   border-left: 1px solid var(--border2);
   z-index: 45;
   transform: translateX(100%);
   transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  box-shadow: -12px 0 40px color-mix(in oklab, var(--brand-neutral-900) 16%, transparent);
+  box-shadow: var(--rdv-shadow-lg);
   overflow: hidden;
 }
 
@@ -384,20 +698,44 @@
   transform: translateX(0);
 }
 
+/* Navy brand bar on top of the dossier */
 .rdv-panel-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: var(--surface2);
-  border-bottom: 1px solid var(--border);
+  background: var(--ds-inverse);
+  color: var(--ds-inverse-ink);
+  border-bottom: 1px solid var(--ds-inverse-line);
   flex-shrink: 0;
 }
 
+.rdv-panel-nav .rdv-icon-btn {
+  background: var(--ds-inverse-raised);
+  border-color: var(--ds-inverse-line);
+  color: var(--ds-inverse-ink-2);
+}
+
+.rdv-panel-nav .rdv-icon-btn:hover:not(:disabled) {
+  color: var(--ds-inverse-ink);
+  background: color-mix(in oklab, #ffffff 12%, var(--ds-inverse-raised));
+}
+
+.rdv-kbd {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--ds-inverse-line);
+  color: var(--ds-inverse-ink-3);
+}
+
 .rdv-panel-header {
-  padding: 16px 20px 0;
+  padding: 18px 20px 0;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border2);
   flex-shrink: 0;
 }
 
@@ -408,15 +746,74 @@
   min-height: 0;
 }
 
-/* ─── Drawer Tabs ─── */
-.rdv-tab {
-  padding: 8px 14px;
+/* SAS state banners in the dossier header */
+.rdv-banner {
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+}
+
+.rdv-banner[data-tone="pending"] {
+  background: var(--amberLight);
+  border-color: var(--amberLine);
+  color: var(--amberInk);
+}
+
+.rdv-banner[data-tone="confirmed"] {
+  background: var(--greenLight);
+  border-color: var(--greenLine);
+  color: var(--greenInk);
+}
+
+.rdv-banner[data-tone="cancelled"] {
+  background: var(--redLight);
+  border-color: var(--redLine);
+  color: var(--redInk);
+}
+
+.rdv-banner-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 12px;
+  font-weight: 650;
+}
+
+.rdv-link-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink3);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rdv-link-btn:hover {
+  color: var(--ink);
+}
+
+/* ─── Drawer Tabs ─── */
+.rdv-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  margin: 0 -4px;
+}
+
+.rdv-tab {
+  padding: 10px 12px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--ink3);
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: all 0.12s;
+  transition: color 0.12s, border-color 0.12s;
   background: none;
   border-top: none;
   border-left: none;
@@ -424,7 +821,7 @@
   font-family: inherit;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
 }
 
@@ -433,9 +830,16 @@
 }
 
 .rdv-tab.active {
-  color: var(--accent);
-  font-weight: 600;
-  border-bottom-color: var(--accent);
+  color: var(--ink);
+  font-weight: 650;
+  border-bottom-color: var(--rose);
+}
+
+.rdv-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
 }
 
 .rdv-tab-badge {
@@ -448,8 +852,420 @@
 }
 
 .rdv-tab.active .rdv-tab-badge {
-  background: var(--accentLight);
-  color: var(--accent);
+  background: var(--roseLight);
+  color: var(--roseInk);
+}
+
+/* ─── Fiche RDV ─── */
+.rdv-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  box-shadow: var(--rdv-shadow-sm);
+}
+
+.rdv-fiche-head {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rdv-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+
+.rdv-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface3);
+  overflow: hidden;
+}
+
+.rdv-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.rdv-progress[data-complete="true"] > span {
+  background: var(--green);
+}
+
+.rdv-fiche-section {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.rdv-fiche-section:first-child {
+  border-top: none;
+}
+
+.rdv-fiche-index {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: grid;
+  place-content: center;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface3);
+  color: var(--ink3);
+  transition: background 0.15s, color 0.15s;
+}
+
+.rdv-fiche-section[data-filled="true"] .rdv-fiche-index {
+  background: var(--accent);
+  color: var(--ds-primary-fg);
+}
+
+.rdv-fiche-section:focus-within .rdv-fiche-index {
+  background: var(--rose);
+  color: var(--ds-accent-fg);
+}
+
+.rdv-fiche-label {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.rdv-fiche-hint {
+  font-size: 11.5px;
+  color: var(--ink3);
+  margin-bottom: 8px;
+}
+
+.rdv-fiche-textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 9px 11px;
+  background: var(--surface2);
+  border-color: var(--border);
+}
+
+.rdv-ai-zone {
+  border: 1px dashed color-mix(in oklab, var(--rose) 40%, var(--border2));
+  background: color-mix(in oklab, var(--roseLight) 55%, var(--surface));
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.rdv-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--ink3);
+}
+
+.rdv-save-state[data-tone="ok"] {
+  color: var(--greenInk);
+}
+
+.rdv-save-state[data-tone="error"] {
+  color: var(--redInk);
+}
+
+.rdv-alert {
+  background: var(--redLight);
+  border: 1px solid var(--redLine);
+  color: var(--redInk);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+/* ─── Bilan des RDV (outcome overview) ─── */
+.rdv-bilan {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border2);
+}
+
+.rdv-bilan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+}
+
+.rdv-bilan-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  padding: 0 20px 14px;
+}
+
+@media (max-width: 1280px) {
+  .rdv-bilan-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rdv-bilan-bar {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+}
+
+.rdv-bilan-seg {
+  flex-basis: 0;
+  min-width: 4px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.rdv-bilan-seg:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.rdv-bilan-seg:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.rdv-bilan-seg:only-child {
+  border-radius: 4px;
+}
+
+.rdv-bilan-seg.dim {
+  opacity: 0.35;
+}
+
+.rdv-bilan-seg:focus-visible {
+  outline: 2px solid var(--rose);
+  outline-offset: 2px;
+}
+
+.rdv-bilan-readout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink2);
+  flex-wrap: wrap;
+}
+
+.rdv-bilan-readout strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.rdv-bilan-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.rdv-bilan-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 2fr) minmax(0, 1.25fr);
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .rdv-bilan-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.rdv-bilan-group {
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 8px;
+  min-width: 0;
+}
+
+.rdv-bilan-group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: 0 4px 6px;
+}
+
+.rdv-bilan-group-head strong {
+  color: var(--ink);
+}
+
+.rdv-bilan-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink2);
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.rdv-bilan-item strong {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.rdv-bilan-item:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--border2);
+}
+
+.rdv-bilan-item.active {
+  background: var(--surface);
+  border-color: var(--rose);
+  box-shadow: 0 0 0 1px var(--rose);
+}
+
+.rdv-bilan-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rdv-bilan-item:focus-visible,
+.rdv-bilan-row:focus-visible,
+.rdv-bilan-rate.interactive:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus);
+}
+
+.rdv-bilan-rates {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .rdv-bilan-rates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rdv-bilan-rate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.rdv-bilan-rate.interactive {
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.rdv-bilan-rate.interactive:hover {
+  border-color: var(--border3);
+  box-shadow: var(--rdv-shadow-sm);
+}
+
+.rdv-bilan-side {
+  border-left: 1px solid var(--border);
+  padding-left: 20px;
+  min-width: 0;
+}
+
+@media (max-width: 1280px) {
+  .rdv-bilan-side {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+}
+
+.rdv-bilan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) 30px 62px;
+  align-items: center;
+  gap: 10px;
+  font-family: inherit;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.rdv-bilan-row:hover {
+  background: var(--surface2);
+}
+
+.rdv-bilan-row.active {
+  background: color-mix(in oklab, var(--rose) 6%, var(--surface));
+  border-color: color-mix(in oklab, var(--rose) 40%, transparent);
+}
+
+.rdv-bilan-row-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rdv-bilan-mini {
+  display: flex;
+  gap: 1px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface3);
+}
+
+.rdv-bilan-mini > span {
+  flex-basis: 0;
+  min-width: 2px;
+}
+
+/* Outcome cell in the meeting list */
+.rdv-outcome {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink2);
+  white-space: nowrap;
 }
 
 /* ─── Bulk Action Bar ─── */
@@ -458,11 +1274,10 @@
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border2);
-  box-shadow: 0 12px 36px -8px color-mix(in oklab, var(--brand-neutral-900) 20%, transparent);
+  background: var(--ds-inverse);
+  color: var(--ds-inverse-ink);
+  border: 1px solid var(--ds-inverse-line);
+  box-shadow: var(--rdv-shadow-lg);
   border-radius: 14px;
   z-index: 35;
 }

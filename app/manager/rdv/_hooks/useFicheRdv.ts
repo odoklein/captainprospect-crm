@@ -22,7 +22,7 @@ export interface UseFicheRdvReturn {
   ficheSaving: boolean;
   ficheSaved: boolean;
   ficheManualTranscript: string;
-  setFicheManualTranscript: (v: string) => void;
+  setFicheManualTranscript: React.Dispatch<React.SetStateAction<string>>;
   ficheAutoSaveStatus: FicheAutoSaveStatus;
   initFiche: (m: Meeting) => void;
   generateWithAI: (meeting: Meeting, onUpdate: (m: Meeting) => void) => Promise<void>;
@@ -48,6 +48,7 @@ export function useFicheRdv(
   const [ficheManualTranscript, setFicheManualTranscript] = useState("");
   const [ficheAutoSaveStatus, setFicheAutoSaveStatus] = useState<FicheAutoSaveStatus>("idle");
   const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedMeetingIdRef = useRef<string | null>(null);
 
   const initFiche = useCallback((m: Meeting) => {
     setFicheForm({
@@ -59,7 +60,12 @@ export function useFicheRdv(
     });
     setFicheLoading(false);
     setFicheError(null);
-    setFicheManualTranscript("");
+    // Same RDV re-synced (e.g. after an audio upload): keep what is in the textarea, but adopt a newly
+    // stored transcription if the field is empty. Different RDV: start from its stored transcription.
+    const sameMeeting = initializedMeetingIdRef.current === m.id;
+    initializedMeetingIdRef.current = m.id;
+    const stored = m.callTranscription?.trim() ?? "";
+    setFicheManualTranscript((prev) => (sameMeeting && prev.trim() ? prev : stored));
     setFicheSaved(false);
   }, []);
 

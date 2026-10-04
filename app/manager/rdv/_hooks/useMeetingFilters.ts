@@ -14,6 +14,7 @@ import type {
   MeetingFilters,
   SortField,
   SortDir,
+  RdvBucket,
 } from "../_types";
 import { buildDateRange } from "../_lib/formatters";
 
@@ -38,6 +39,10 @@ export interface MeetingFiltersState extends MeetingFilters {
   setSortDir: (v: SortDir) => void;
   toggleSort: (field: SortField) => void;
   applyQuickPreset: (id: string) => void;
+  /** Bilan drill-down: show one bucket's RDVs (click again to clear). Keeps the scope filters. */
+  drillBucket: (bucket: RdvBucket) => void;
+  /** The bucket the current drill-down filters correspond to, if any. */
+  activeBucket: RdvBucket | null;
   clearAllFilters: () => void;
   activeFilterCount: number;
   dateRange: { from: string; to: string };
@@ -153,6 +158,70 @@ export function useMeetingFilters(): MeetingFiltersState {
     }
   }, []);
 
+  // Bilan buckets → the drill-down filters that list them. Scope filters
+  // (client, mission, SDR, period, search, type…) are left untouched.
+  const activeBucket = useMemo<RdvBucket | null>(() => {
+    if (noShowFilter !== "all" || hasFeedback !== null) return null;
+    const outcome = selectedOutcomes.size === 1 ? Array.from(selectedOutcomes)[0] : null;
+    if (selectedOutcomes.size > 1) return null;
+    if (statusFilter === "upcoming" && !outcome) {
+      if (confirmationFilter === "CONFIRMED") return "upcoming_confirmed";
+      if (confirmationFilter === "PENDING") return "upcoming_pending";
+    }
+    if (statusFilter === "past" && confirmationFilter === "all") {
+      if (outcome === "POSITIVE") return "positive";
+      if (outcome === "NEUTRAL") return "neutral";
+      if (outcome === "NEGATIVE") return "negative";
+      if (outcome === "NO_SHOW") return "no_show";
+      if (outcome === "NONE") return "no_feedback";
+    }
+    if (statusFilter === "all" && confirmationFilter === "CANCELLED" && !outcome) return "rejected";
+    if (statusFilter === "cancelled" && confirmationFilter === "all" && !outcome) return "cancelled";
+    return null;
+  }, [statusFilter, confirmationFilter, noShowFilter, selectedOutcomes, hasFeedback]);
+
+  const drillBucket = useCallback((bucket: RdvBucket) => {
+    const target = bucket === "replaced" ? "cancelled" : bucket;
+    const clear = activeBucket === target;
+    setNoShowFilter("all");
+    setHasFeedback(null);
+    setStatusFilter("all");
+    setConfirmationFilter("all");
+    setSelectedOutcomes(new Set());
+    if (clear) return;
+    switch (target) {
+      case "upcoming_confirmed":
+        setStatusFilter("upcoming");
+        setConfirmationFilter("CONFIRMED");
+        break;
+      case "upcoming_pending":
+        setStatusFilter("upcoming");
+        setConfirmationFilter("PENDING");
+        break;
+      case "positive":
+      case "neutral":
+      case "negative":
+      case "no_show":
+      case "no_feedback": {
+        const outcome: OutcomeFilter =
+          target === "positive" ? "POSITIVE"
+          : target === "neutral" ? "NEUTRAL"
+          : target === "negative" ? "NEGATIVE"
+          : target === "no_show" ? "NO_SHOW"
+          : "NONE";
+        setStatusFilter("past");
+        setSelectedOutcomes(new Set([outcome]));
+        break;
+      }
+      case "rejected":
+        setConfirmationFilter("CANCELLED");
+        break;
+      case "cancelled":
+        setStatusFilter("cancelled");
+        break;
+    }
+  }, [activeBucket]);
+
   const clearAllFilters = useCallback(() => {
     setSearch("");
     setStatusFilter("all");
@@ -226,6 +295,8 @@ export function useMeetingFilters(): MeetingFiltersState {
     sortDir, setSortDir,
     toggleSort,
     applyQuickPreset,
+    drillBucket,
+    activeBucket,
     clearAllFilters,
     activeFilterCount,
     dateRange,
