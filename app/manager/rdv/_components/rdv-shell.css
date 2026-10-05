@@ -1289,3 +1289,65 @@
     max-width: 100%;
   }
 }
+
+/* ─── Period picker ─── */
+.rdv-period-set {
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--border2));
+  background: var(--accentLight);
+}
+
+.rdv-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  width: 340px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  box-shadow: var(--rdv-shadow-lg);
+}
+
+.rdv-period-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.rdv-period-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--ink2);
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+.rdv-period-opt:hover {
+  background: var(--surface2);
+  color: var(--ink);
+}
+
+.rdv-period-opt.active {
+  background: var(--accentLight);
+  color: var(--accentInk);
+  font-weight: 650;
+}
+
+.rdv-period-opt.wide {
+  grid-column: 1 / -1;
+  border-color: var(--border2);
+}
+
+.rdv-period-opt:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ds-focus);
+}

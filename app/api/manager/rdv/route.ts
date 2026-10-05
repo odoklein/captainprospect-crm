@@ -21,6 +21,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   const sdrIds = sp.getAll("sdrIds[]");
   const dateFrom = sp.get("dateFrom");
   const dateTo = sp.get("dateTo");
+  /** Period applies to the booking date (default) or to the RDV date itself. */
+  const dateField: "createdAt" | "callbackDate" = sp.get("dateField") === "callbackDate" ? "callbackDate" : "createdAt";
   const statuses = sp.getAll("status[]");
   const meetingTypes = sp.getAll("meetingType[]");
   const meetingCategories = sp.getAll("meetingCategory[]");
@@ -144,12 +146,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     andClauses.push({ sdrId: { in: sdrIds } });
   }
   if (dateFrom) {
-    andClauses.push({ createdAt: { gte: new Date(dateFrom) } });
+    andClauses.push({ [dateField]: { gte: new Date(dateFrom) } });
   }
   if (dateTo) {
     const end = new Date(dateTo);
     end.setHours(23, 59, 59, 999);
-    andClauses.push({ createdAt: { lte: end } });
+    andClauses.push({ [dateField]: { lte: end } });
   }
   if (meetingTypes.length > 0) {
     andClauses.push({ meetingType: { in: meetingTypes } });
@@ -249,8 +251,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     },
   } satisfies Prisma.ActionInclude;
 
-  // Fetch enough rows so that after excluding RDV cancelled with <10 min notice we can fill this page
-  const fetchTake = Math.min(skip + limit + 200, 1000);
+  // Page straight from the database. The "cancelled < 10 min" exclusion is
+  // applied per page afterwards (it compares two columns, which Prisma can't
+  // express), so a page may hold a few rows less — but paging never stops.
+  // The former over-fetch was capped at 1000 rows, which cut "Depuis le début".
   // Build dynamic orderBy from sortByParam
   const orderBy: Prisma.ActionOrderByWithRelationInput[] = (() => {
     switch (sortByParam) {
@@ -274,14 +278,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       where,
       include,
       orderBy,
-      skip: 0,
-      take: fetchTake,
+      skip,
+      take: limit,
     }),
     prisma.action.count({ where }),
   ]);
 
-  const meetingsFiltered = filterRdvList(rawMeetings);
-  const meetings = meetingsFiltered.slice(skip, skip + limit);
+  const meetings = filterRdvList(rawMeetings);
 
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - now.getDay() + 1);

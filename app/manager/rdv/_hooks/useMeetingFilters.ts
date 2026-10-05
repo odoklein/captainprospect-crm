@@ -6,6 +6,7 @@ import type {
   ConfirmationFilter,
   NoShowFilter,
   DatePreset,
+  DateField,
   MeetingTypeFilter,
   MeetingCategoryFilter,
   OutcomeFilter,
@@ -24,6 +25,9 @@ export interface MeetingFiltersState extends MeetingFilters {
   setConfirmationFilter: (v: ConfirmationFilter) => void;
   setNoShowFilter: (v: NoShowFilter) => void;
   setDatePreset: (v: DatePreset) => void;
+  setDateField: (v: DateField) => void;
+  /** Pick an exact range in one go (switches to "custom"). */
+  setCustomRange: (from: string, to: string) => void;
   setDateFrom: (v: string) => void;
   setDateTo: (v: string) => void;
   setSelectedClients: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -59,8 +63,9 @@ export function useMeetingFilters(): MeetingFiltersState {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [confirmationFilter, setConfirmationFilter] = useState<ConfirmationFilter>("all");
-  const [noShowFilter, setNoShowFilter] = useState<NoShowFilter>("all");
+  const [noShowFilter, setNoShowFilterRaw] = useState<NoShowFilter>("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("3months");
+  const [dateField, setDateField] = useState<DateField>("createdAt");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedClients, setSelectedClients] = useState<Set<string>>(new Set());
@@ -78,6 +83,19 @@ export function useMeetingFilters(): MeetingFiltersState {
   const [clientOptions, setClientOptions] = useState<FilterOption[]>([]);
   const [missionOptions, setMissionOptions] = useState<FilterOption[]>([]);
   const [sdrOptions, setSdrOptions] = useState<FilterOption[]>([]);
+
+  // An absence backlog is older than any rolling window: asking for absents
+  // opens the period to the whole history unless an exact range was chosen.
+  const setNoShowFilter = useCallback((v: NoShowFilter) => {
+    setNoShowFilterRaw(v);
+    if (v !== "all") setDatePreset((prev) => (prev === "custom" ? prev : "all"));
+  }, []);
+
+  const setCustomRange = useCallback((from: string, to: string) => {
+    setDateFrom(from);
+    setDateTo(to);
+    setDatePreset("custom");
+  }, []);
 
   const dateRange = useMemo(
     () => buildDateRange(datePreset, dateFrom, dateTo),
@@ -102,8 +120,9 @@ export function useMeetingFilters(): MeetingFiltersState {
     setSearch("");
     setStatusFilter("all");
     setConfirmationFilter("all");
-    setNoShowFilter("all");
+    setNoShowFilterRaw("all");
     setDatePreset("3months");
+    setDateField("createdAt");
     setDateFrom("");
     setDateTo("");
     setSelectedClients(new Set());
@@ -123,7 +142,7 @@ export function useMeetingFilters(): MeetingFiltersState {
       case "absent_open":
         // The one-click "absent" view: flagged absent, still to deal with,
         // oldest first because that is the one going cold.
-        setNoShowFilter("open");
+        setNoShowFilterRaw("open");
         setDatePreset("all");
         setSortBy("callbackDate");
         setSortDir("asc");
@@ -228,6 +247,7 @@ export function useMeetingFilters(): MeetingFiltersState {
     setConfirmationFilter("all");
     setNoShowFilter("all");
     setDatePreset("3months");
+    setDateField("createdAt");
     setDateFrom("");
     setDateTo("");
     setSelectedClients(new Set());
@@ -280,6 +300,8 @@ export function useMeetingFilters(): MeetingFiltersState {
     confirmationFilter, setConfirmationFilter,
     noShowFilter, setNoShowFilter,
     datePreset, setDatePreset,
+    dateField, setDateField,
+    setCustomRange,
     dateFrom, setDateFrom,
     dateTo, setDateTo,
     selectedClients, setSelectedClients,

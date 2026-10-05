@@ -3,11 +3,12 @@
 import { memo, useState } from "react";
 import type { Meeting, Aggregates } from "../_types";
 import type { MeetingFiltersState } from "../_hooks/useMeetingFilters";
-import type { ViewMode, DatePreset, ConfirmationFilter } from "../_types";
+import type { ViewMode, ConfirmationFilter } from "../_types";
 import { SearchInput } from "./shared/SearchInput";
 import { downloadCSV } from "../_lib/csv-export";
 import { List, CalendarDays, Download, Plus, Upload, Mic, SortAsc, SortDesc, X, Clock, CheckCircle2, XCircle, MessageSquare, Search } from "lucide-react";
 import { AddRdvModal } from "./modals/AddRdvModal";
+import { PeriodPicker } from "./PeriodPicker";
 import { ImportRdvModal } from "./modals/ImportRdvModal";
 
 const SORT_LABELS: Record<string, string> = {
@@ -133,20 +134,16 @@ export const CommandBar = memo(function CommandBar({ view, setView, filters, mee
             ))}
           </div>
 
-          {/* Date presets */}
-          <div className="rdv-seg" role="group" aria-label="Période">
-            {([["today", "Auj."], ["7days", "7j"], ["30days", "30j"], ["3months", "3m"]] as [DatePreset, string][]).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={`rdv-seg-btn ${datePreset === key ? "active" : ""}`}
-                style={{ fontSize: 11.5, padding: "4px 9px" }}
-                onClick={() => setDatePreset(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* Period: presets up to the whole history, exact dates, booking vs RDV date */}
+          <PeriodPicker
+            datePreset={datePreset}
+            dateField={filters.dateField}
+            dateFrom={filters.dateFrom}
+            dateTo={filters.dateTo}
+            setDatePreset={setDatePreset}
+            setDateField={filters.setDateField}
+            setCustomRange={filters.setCustomRange}
+          />
 
           <button className="rdv-btn rdv-btn-primary" onClick={() => setAddRdvOpen(true)} title="Ajouter un RDV">
             <Plus size={13} /> <span className="hidden sm:inline">Ajouter</span>

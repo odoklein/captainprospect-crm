@@ -229,23 +229,47 @@ export function downloadICS(meeting: Parameters<typeof generateICS>[0]) {
   URL.revokeObjectURL(url);
 }
 
+/** Period presets, in menu order. `short` is for tight spots (chips, buttons). */
+export const PERIOD_OPTIONS: { key: MeetingFilters["datePreset"]; label: string; short: string }[] = [
+  { key: "today", label: "Aujourd'hui", short: "Auj." },
+  { key: "7days", label: "7 derniers jours", short: "7 j" },
+  { key: "30days", label: "30 derniers jours", short: "30 j" },
+  { key: "thisMonth", label: "Ce mois-ci", short: "Ce mois" },
+  { key: "lastMonth", label: "Mois dernier", short: "Mois dernier" },
+  { key: "3months", label: "3 derniers mois", short: "3 mois" },
+  { key: "6months", label: "6 derniers mois", short: "6 mois" },
+  { key: "12months", label: "12 derniers mois", short: "12 mois" },
+  { key: "thisYear", label: "Cette année", short: "Cette année" },
+  { key: "all", label: "Depuis le début du CRM", short: "Tout" },
+  { key: "custom", label: "Personnalisée", short: "Personnalisée" },
+];
+
+/** Local calendar date (YYYY-MM-DD). toISOString() would shift to UTC and drop a day after midnight in France. */
+export function toLocalDateInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 export function buildDateRange(
   datePreset: MeetingFilters["datePreset"],
   dateFrom: string,
   dateTo: string
 ): { from: string; to: string } {
   const now = new Date();
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const fmt = toLocalDateInput;
+  const back = (patch: (d: Date) => void) => { const d = new Date(); patch(d); return { from: fmt(d), to: fmt(now) }; };
   switch (datePreset) {
     case "today": return { from: fmt(now), to: fmt(now) };
-    case "7days": { const d = new Date(); d.setDate(d.getDate() - 7); return { from: fmt(d), to: fmt(now) }; }
-    case "30days": {
-      // Current calendar month by creation date
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      return { from: fmt(startOfMonth), to: fmt(endOfMonth) };
-    }
-    case "3months": { const d = new Date(); d.setMonth(d.getMonth() - 3); return { from: fmt(d), to: fmt(now) }; }
+    case "7days": return back((d) => d.setDate(d.getDate() - 7));
+    case "30days": return back((d) => d.setDate(d.getDate() - 30));
+    case "thisMonth":
+      return { from: fmt(new Date(now.getFullYear(), now.getMonth(), 1)), to: fmt(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
+    case "lastMonth":
+      return { from: fmt(new Date(now.getFullYear(), now.getMonth() - 1, 1)), to: fmt(new Date(now.getFullYear(), now.getMonth(), 0)) };
+    case "3months": return back((d) => d.setMonth(d.getMonth() - 3));
+    case "6months": return back((d) => d.setMonth(d.getMonth() - 6));
+    case "12months": return back((d) => d.setFullYear(d.getFullYear() - 1));
+    case "thisYear": return { from: fmt(new Date(now.getFullYear(), 0, 1)), to: fmt(new Date(now.getFullYear(), 11, 31)) };
     // No bound at all: an absence backlog goes back further than 3 months,
     // and a date window would quietly hide the oldest ones.
     case "all": return { from: "", to: "" };

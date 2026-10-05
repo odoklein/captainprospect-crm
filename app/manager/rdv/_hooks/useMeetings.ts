@@ -24,6 +24,7 @@ function buildQuery(filters: MeetingFiltersState, page = 1): string {
   if (filters.search) p.set("search", filters.search);
   if (filters.dateRange.from) p.set("dateFrom", filters.dateRange.from);
   if (filters.dateRange.to) p.set("dateTo", filters.dateRange.to);
+  if ((filters.dateRange.from || filters.dateRange.to) && filters.dateField !== "createdAt") p.set("dateField", filters.dateField);
   filters.selectedClients.forEach((id) => p.append("clientIds[]", id));
   filters.selectedMissions.forEach((id) => p.append("missionIds[]", id));
   filters.selectedSdrs.forEach((id) => p.append("sdrIds[]", id));
@@ -101,6 +102,7 @@ export function useMeetings(filters: MeetingFiltersState): UseMeetingsReturn {
     [
       filters.search,
       filters.dateRange,
+      filters.dateField,
       filters.statusFilter,
       filters.confirmationFilter,
       filters.noShowFilter,

@@ -102,7 +102,20 @@ export interface FilterOption {
 
 export type ViewMode = "list" | "calendar";
 export type StatusFilter = "all" | "upcoming" | "past" | "cancelled";
-export type DatePreset = "today" | "7days" | "30days" | "3months" | "all" | "custom";
+export type DatePreset =
+  | "today"
+  | "7days"
+  | "30days"
+  | "thisMonth"
+  | "lastMonth"
+  | "3months"
+  | "6months"
+  | "12months"
+  | "thisYear"
+  | "all"
+  | "custom";
+/** Which date the period applies to: when the RDV was booked, or when it takes place. */
+export type DateField = "createdAt" | "callbackDate";
 export type MeetingTypeFilter = "VISIO" | "PHYSIQUE" | "TELEPHONIQUE";
 export type MeetingCategoryFilter = "EXPLORATOIRE" | "BESOIN";
 export type OutcomeFilter = "POSITIVE" | "NEUTRAL" | "NEGATIVE" | "NO_SHOW" | "NONE";
@@ -136,6 +149,7 @@ export interface MeetingFilters {
   confirmationFilter: ConfirmationFilter;
   noShowFilter: NoShowFilter;
   datePreset: DatePreset;
+  dateField: DateField;
   dateFrom: string;
   dateTo: string;
   selectedClients: Set<string>;

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { FilterSection } from "./shared/FilterSection";
 import { FilterChip } from "./shared/FilterChip";
-import { hashColor } from "../_lib/formatters";
+import { hashColor, PERIOD_OPTIONS } from "../_lib/formatters";
 import {
   statusLabel,
   confirmationLabel,
@@ -236,7 +236,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
       {/* ─── Period ─── */}
       <FilterSection title="Période">
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {([["today", "Aujourd'hui"], ["7days", "7 jours"], ["30days", "30 jours"], ["3months", "3 mois"], ["all", "Tout"], ["custom", "Personnalisée"]] as [DatePreset, string][]).map(([key, label]) => (
+          {PERIOD_OPTIONS.map(({ key, short: label }) => (
             <button
               key={key}
               className="rdv-btn"

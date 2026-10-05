@@ -21,6 +21,7 @@ import { RdvBulkActions } from "./RdvBulkActions";
 import { RdvModals, type RdvModalType } from "./RdvModals";
 import { DeleteRdvConfirmDialog } from "./modals/DeleteRdvConfirmDialog";
 import { OutcomeOverview } from "./OutcomeOverview";
+import { periodLabel } from "./PeriodPicker";
 import type { DatePreset } from "../_types";
 import "./rdv-shell.css";
 
@@ -28,9 +29,14 @@ const PERIOD_LABELS: Record<DatePreset, string> = {
   today: "aujourd'hui",
   "7days": "ces 7 derniers jours",
   "30days": "ces 30 derniers jours",
+  thisMonth: "ce mois-ci",
+  lastMonth: "le mois dernier",
   "3months": "ces 3 derniers mois",
-  all: "depuis le début",
-  custom: "sur la période choisie",
+  "6months": "ces 6 derniers mois",
+  "12months": "ces 12 derniers mois",
+  thisYear: "cette année",
+  all: "depuis le début du CRM",
+  custom: "",
 };
 
 function toggleInSet(prev: Set<string>, id: string): Set<string> {
@@ -71,13 +77,18 @@ export function RdvShell() {
 
   // The period filter applies to the booking date, so the Bilan says so.
   const scopeLabel = useMemo(() => {
-    const parts = [`créés ${PERIOD_LABELS[filters.datePreset]}`];
+    const verb = filters.dateField === "callbackDate" ? "prévus" : "créés";
+    const period =
+      filters.datePreset === "custom"
+        ? periodLabel("custom", filters.dateFrom, filters.dateTo).toLowerCase()
+        : PERIOD_LABELS[filters.datePreset];
+    const parts = [`${verb} ${period}`];
     if (filters.selectedClients.size > 0) parts.push(`${filters.selectedClients.size} client${filters.selectedClients.size > 1 ? "s" : ""}`);
     if (filters.selectedMissions.size > 0) parts.push(`${filters.selectedMissions.size} mission${filters.selectedMissions.size > 1 ? "s" : ""}`);
     if (filters.selectedSdrs.size > 0) parts.push(`${filters.selectedSdrs.size} SDR`);
     if (filters.search) parts.push(`« ${filters.search} »`);
     return parts.join(" · ");
-  }, [filters.datePreset, filters.selectedClients, filters.selectedMissions, filters.selectedSdrs, filters.search]);
+  }, [filters.datePreset, filters.dateField, filters.dateFrom, filters.dateTo, filters.selectedClients, filters.selectedMissions, filters.selectedSdrs, filters.search]);
 
   const selectedMeetings = useMemo(
     () => meetings.filter((meeting) => panelState.selectedIds.has(meeting.id)),
