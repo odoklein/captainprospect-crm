@@ -40,35 +40,11 @@ import {
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/utils";
 import { NO_SHOW_REPORT_WINDOW_HOURS } from "@/lib/meetings/noShowWindow";
-
-interface AbsenceRow {
-    id: string;
-    callbackDate: string | null;
-    meetingType: string | null;
-    contactName: string;
-    companyName: string;
-    missionId: string | null;
-    missionName: string | null;
-    campaignName: string | null;
-    clientId: string | null;
-    clientName: string;
-    sdr: { id: string; name: string } | null;
-    portalWindowOpen: boolean;
-    feedback: {
-        outcome: string;
-        recontactRequested: string;
-        note: string | null;
-        source: string | null;
-        reportedBy: string | null;
-        reportedAt: string;
-        standByAt: string | null;
-        standByReason: string | null;
-        standByBy: string | null;
-        outOfScopeAt: string | null;
-        outOfScopeReason: string | null;
-        outOfScopeBy: string | null;
-    } | null;
-}
+import { AbsenceDrawer } from "./_components/AbsenceDrawer";
+import {
+    agingTone, elapsedLabel, fmtDate, RECONTACT_OPTS, SOURCE_LABEL,
+    type AbsenceRow, type TabKey,
+} from "./_shared";
 
 interface AbsencesPayload {
     pending: AbsenceRow[];
@@ -87,54 +63,7 @@ interface AbsencesPayload {
     };
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-    PORTAL_CLIENT: "Portail client",
-    PORTAL_COMMERCIAL: "Portail commercial",
-    MANAGER: "Manager (fiche RDV)",
-    MANAGER_MANUAL: "Signalement manuel",
-};
-
-const RECONTACT_OPTS = [
-    { value: "YES", label: "Oui, à recontacter" },
-    { value: "MAYBE", label: "Peut-être" },
-    { value: "NO", label: "Non, clôturer" },
-] as const;
-
-type TabKey = "reported" | "standby" | "outofscope";
 type SortKey = "oldest" | "newest";
-
-function fmtDate(iso: string | null): string {
-    if (!iso) return "Date inconnue";
-    return new Date(iso).toLocaleString("fr-FR", {
-        day: "2-digit", month: "short", year: "numeric",
-        hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
-    });
-}
-
-function hoursSince(iso: string | null): number | null {
-    if (!iso) return null;
-    return Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000);
-}
-
-function elapsedLabel(iso: string | null): string {
-    const h = hoursSince(iso);
-    if (h == null) return "—";
-    if (h < 1) return "à l'instant";
-    if (h < 24) return `il y a ${h} h`;
-    const d = Math.floor(h / 24);
-    if (d < 31) return `il y a ${d} j`;
-    const m = Math.floor(d / 30);
-    return `il y a ${m} mois`;
-}
-
-/** Older than this and the backlog item is properly stale, not just late. */
-function agingTone(iso: string | null): "fresh" | "late" | "stale" {
-    const h = hoursSince(iso);
-    if (h == null) return "fresh";
-    if (h >= 24 * 14) return "stale";
-    if (h >= NO_SHOW_REPORT_WINDOW_HOURS) return "late";
-    return "fresh";
-}
 
 export default function RdvAbsencesPage() {
     const { success, error: showError } = useToast();
@@ -165,6 +94,10 @@ export default function RdvAbsencesPage() {
     const [isSettingOutOfScope, setIsSettingOutOfScope] = useState(false);
     const [isStandingBy, setIsStandingBy] = useState(false);
     const [isReactivating, setIsReactivating] = useState(false);
+
+    // The drawer holds an id, not the row: the row object is replaced on every
+    // refresh, and a row that left the list (just actioned) must close it.
+    const [drawerId, setDrawerId] = useState<string | null>(null);
 
     const load = useCallback(async (silent = false) => {
         if (silent) setIsRefreshing(true);
@@ -224,6 +157,11 @@ export default function RdvAbsencesPage() {
             return sort === "oldest" ? ta - tb : tb - ta;
         });
     }, [data, tab, clientFilter, query, sort]);
+
+    const drawerRow = useMemo(
+        () => (drawerId ? rows.find((r) => r.id === drawerId) ?? null : null),
+        [rows, drawerId],
+    );
 
     const selectedRows = useMemo(
         () => rows.filter((r) => selected.has(r.id)),
@@ -667,8 +605,18 @@ export default function RdvAbsencesPage() {
                                 return (
                                     <li
                                         key={row.id}
+                                        tabIndex={0}
+                                        aria-label={`Ouvrir la fiche de ${row.contactName}`}
+                                        onClick={(e) => {
+                                            // Checkboxes and the row's own buttons keep their job.
+                                            if ((e.target as HTMLElement).closest("button, input, a, label")) return;
+                                            setDrawerId(row.id);
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && e.target === e.currentTarget) setDrawerId(row.id);
+                                        }}
                                         className={cn(
-                                            "group relative flex items-start gap-3 px-4 py-3 transition-colors",
+                                            "group relative flex cursor-pointer items-start gap-3 px-4 py-3 outline-none transition-colors focus-visible:bg-slate-50",
                                             isSelected ? "bg-primary-50/50" : "hover:bg-slate-50/70",
                                         )}
                                     >
@@ -822,6 +770,19 @@ export default function RdvAbsencesPage() {
                     </>
                 )}
             </div>
+
+            <AbsenceDrawer
+                row={drawerRow}
+                tab={tab}
+                onClose={() => setDrawerId(null)}
+                onChanged={() => { setDrawerId(null); void load(true); }}
+                // The confirmation modals own these three; the drawer steps aside for them.
+                onStandBy={(row) => { setDrawerId(null); setStandByReason(""); setStandByTargets([row]); }}
+                onOutOfScope={(row) => { setDrawerId(null); setOutOfScopeReason(""); setOutOfScopeTargets([row]); }}
+                onReplace={(row) => { setDrawerId(null); setReplaceTargets([row]); }}
+                onReactivate={async (row) => { await reactivate([row]); setDrawerId(null); }}
+                isReactivating={isReactivating}
+            />
 
             {/* Hors scope — single or batch */}
             <Modal
