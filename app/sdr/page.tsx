@@ -341,7 +341,7 @@ export default function SDRDashboardPage() {
     const fetchCallbacks = async () => {
         setCallbacksLoading(true);
         try {
-            const res = await fetch("/api/sdr/callbacks?limit=50");
+            const res = await fetch("/api/sdr/callbacks?limit=50&plannedToday=true");
             const json = await res.json();
             if (json.success && Array.isArray(json.data)) {
                 setCallbacks(json.data);

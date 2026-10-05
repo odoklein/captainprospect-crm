@@ -40,6 +40,8 @@ export async function GET(request: Request) {
         const dateFromParam = searchParams.get("dateFrom") || undefined;
         const dateToParam = searchParams.get("dateTo") || undefined;
         const includeOthers = searchParams.get("includeOthers") === "true";
+        // Dashboard: hide callbacks of missions the SDR is not planned on today.
+        const plannedTodayOnly = searchParams.get("plannedToday") === "true";
 
         const userRole = (session.user as { role?: string }).role;
         const isBusinessDeveloper = userRole === "BUSINESS_DEVELOPER";
@@ -119,7 +121,22 @@ export async function GET(request: Request) {
             } else {
                 // Default: only the callbacks this SDR created, optionally for one mission
                 whereClause.sdrId = session.user.id;
-                if (missionIdParam) whereClause.campaign = { missionId: missionIdParam };
+                if (plannedTodayOnly) {
+                    const plannedIds = await getTodaySdrMissionIds(session.user.id);
+                    const scopedIds = missionIdParam
+                        ? plannedIds.filter((id) => id === missionIdParam)
+                        : plannedIds;
+                    if (scopedIds.length === 0) {
+                        return NextResponse.json({
+                            success: true,
+                            data: [],
+                            pagination: { limit: limit || null, skip, hasMore: false },
+                        });
+                    }
+                    whereClause.campaign = { missionId: { in: scopedIds } };
+                } else if (missionIdParam) {
+                    whereClause.campaign = { missionId: missionIdParam };
+                }
             }
         } else {
             // Booker: only filter by missionId if provided; otherwise all missions
