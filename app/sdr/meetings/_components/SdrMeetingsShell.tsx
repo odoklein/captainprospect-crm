@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import dynamic from "next/dynamic";
 import { ContextMenu, useContextMenu, useToast } from "@/components/ui";
 import { Eye, CalendarClock, XCircle, Trash2 } from "lucide-react";
 import { useRdvKeyboardNavigation } from "@/lib/rdv/hooks/useRdvKeyboardNavigation";
@@ -19,9 +20,15 @@ import { CancelMeetingModal } from "./modals/CancelMeetingModal";
 import { RescheduleMeetingModal } from "./modals/RescheduleMeetingModal";
 import { DeleteMeetingConfirmDialog } from "./modals/DeleteMeetingConfirmDialog";
 import { SdrImportRdvModal } from "./ImportRdvModal";
-import { toLocalDatetimeInput } from "../_lib/formatters";
+import { RdvSummary } from "./RdvSummary";
+import { isOpenNoShow, toLocalDatetimeInput } from "../_lib/formatters";
 import type { Meeting } from "../_types";
 import "../../../manager/rdv/_components/rdv-shell.css";
+
+const UnifiedActionDrawer = dynamic(
+    () => import("@/components/drawers/UnifiedActionDrawer").then((m) => ({ default: m.UnifiedActionDrawer })),
+    { ssr: false }
+);
 
 export function SdrMeetingsShell() {
     // Default to RDVs booked this month: SDRs track (and are paid on) their monthly RDVs.
@@ -46,6 +53,14 @@ export function SdrMeetingsShell() {
 
     const [deleteConfirmMeeting, setDeleteConfirmMeeting] = useState<Meeting | null>(null);
     const [importModalOpen, setImportModalOpen] = useState(false);
+    // An open absence is a prospect to call back, not a booking to edit: it opens in
+    // the UnifiedActionDrawer (RDV summary → history → action) instead of the RDV fiche.
+    const [actionMeeting, setActionMeeting] = useState<Meeting | null>(null);
+
+    const openMeeting = useCallback(
+        (meeting: Meeting) => (isOpenNoShow(meeting) ? setActionMeeting(meeting) : drawer.setSelectedMeeting(meeting)),
+        [drawer]
+    );
 
     const openCancelModal = (meeting: Meeting) => {
         setCancelModalMeeting(meeting);
@@ -157,7 +172,7 @@ export function SdrMeetingsShell() {
         {
             label: "Ouvrir",
             icon: <Eye className="w-4 h-4" />,
-            onClick: () => drawer.setSelectedMeeting(meeting),
+            onClick: () => openMeeting(meeting),
         },
         ...(meeting.result === "MEETING_BOOKED"
             ? [
@@ -191,7 +206,7 @@ export function SdrMeetingsShell() {
                     onImport={() => setImportModalOpen(true)}
                 />
 
-                <AbsentRdvBanner absentMeetings={filters.absentMeetings} onOpen={drawer.setSelectedMeeting} />
+                <AbsentRdvBanner absentMeetings={filters.absentMeetings} onOpen={openMeeting} />
 
                 <div className="flex justify-end">
                     <SdrMonthPicker value={period} onChange={setPeriod} />
@@ -206,7 +221,7 @@ export function SdrMeetingsShell() {
                     isLoading={isLoading}
                     query={filters.query}
                     statusFilter={filters.statusFilter}
-                    onOpen={drawer.setSelectedMeeting}
+                    onOpen={openMeeting}
                     onReschedule={openRescheduleModal}
                     onCancel={openCancelModal}
                     onContextMenu={handleContextMenu}
@@ -223,6 +238,20 @@ export function SdrMeetingsShell() {
                     onSave={handleSaveMeeting}
                     onOpenReschedule={openRescheduleModal}
                     onOpenCancel={openCancelModal}
+                />
+            )}
+
+            {actionMeeting && (
+                <UnifiedActionDrawer
+                    isOpen
+                    onClose={() => setActionMeeting(null)}
+                    contactId={actionMeeting.contact.id}
+                    companyId={actionMeeting.contact.company.id}
+                    missionId={actionMeeting.mission?.id}
+                    missionName={actionMeeting.mission?.name}
+                    enableGooglePhoneLookup
+                    summary={<RdvSummary meeting={actionMeeting} />}
+                    onActionRecorded={mutations.invalidate}
                 />
             )}
 

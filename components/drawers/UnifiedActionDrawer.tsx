@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Drawer, Button, Badge, Select, useToast, TextSkeleton, ListSkeleton, DateTimePicker, Modal } from "@/components/ui";
@@ -153,6 +153,10 @@ interface UnifiedActionDrawerProps {
     enableGooglePhoneLookup?: boolean;
     /** AI web-search panel for incomplete company sheets. Defaults to the value of enableGooglePhoneLookup (same SDR pages). */
     enableCompanyAiEnrichment?: boolean;
+    /** Context block shown above the history (e.g. the RDV summary when opened from an
+     *  absent RDV). When set, the drawer reads summary → history → action, the
+     *  contact/company sheet moving below the action form. */
+    summary?: ReactNode;
 }
 
 interface AlloCallItem {
@@ -467,6 +471,7 @@ export function UnifiedActionDrawer({
     onAlloDialogOpenChange,
     enableGooglePhoneLookup = false,
     enableCompanyAiEnrichment,
+    summary,
 }: UnifiedActionDrawerProps) {
     const { success, error: showError, info: showInfo } = useToast();
     const { data: session } = useSession();
@@ -1632,6 +1637,1082 @@ export function UnifiedActionDrawer({
     }, [actions, isCallbackResult]);
     const visibleActions = historyExpanded ? sortedHistoryActions : sortedHistoryActions.slice(0, 5);
 
+    // Quick actions + contact/company sheet. Rendered between the history and the
+    // action form by default; below the form when a summary is passed (RDV view).
+    const ficheSections = (
+        <>
+            {/* ── Quick Action Bar ── */}
+            <section
+                aria-label="Actions rapides"
+                className="flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60"
+                style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+            >
+                {primaryPhone && (
+                    <button
+                        type="button"
+                        aria-label={`Appeler ${primaryPhone.number}`}
+                        onClick={() => {
+                            window.open(`tel:${primaryPhone.number}`, "_self");
+                        }}
+                        className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                    >
+                        <PhoneCall className="w-4 h-4" aria-hidden="true" />
+                        <span>Appeler</span>
+                        {primaryPhone.label === "Société" && (
+                            <span className="text-xs opacity-75 font-normal">
+                                (société)
+                            </span>
+                        )}
+                    </button>
+                )}
+
+                {primaryEmail && (
+                    <a
+                        href={`mailto:${primaryEmail}`}
+                        aria-label={`Envoyer un email à ${primaryEmail}`}
+                        className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                    >
+                        <Send className="w-4 h-4" aria-hidden="true" />
+                        Email
+                    </a>
+                )}
+
+                {(contact?.linkedin || company?.website) && (
+                    <a
+                        href={
+                            contact?.linkedin
+                                ? contact.linkedin.startsWith("http")
+                                    ? contact.linkedin
+                                    : `https://${contact.linkedin}`
+                                : company?.website?.startsWith("http")
+                                    ? company.website
+                                    : `https://${company?.website}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={contact?.linkedin ? "Ouvrir le profil LinkedIn" : "Ouvrir le site web"}
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98]"
+                    >
+                        {contact?.linkedin ? (
+                            <Linkedin className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                        ) : (
+                            <Globe className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                        )}
+                        {contact?.linkedin ? "LinkedIn" : "Site web"}
+                    </a>
+                )}
+            </section>
+
+            {/* ── Tab Navigation ── */}
+            {contact && (
+                <div
+                    role="tablist"
+                    aria-label="Informations contact ou société"
+                    className="flex rounded-xl bg-slate-100/80 p-1 gap-1 border border-slate-200/60"
+                    style={{ animation: "uadSectionIn 250ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+                    onKeyDown={(e) => {
+                        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                            e.preventDefault();
+                            const next = activeTab === "contact" ? "company" : "contact";
+                            setActiveTab(next);
+                            document.getElementById(`tab-${next}`)?.focus();
+                        }
+                    }}
+                >
+                    <button
+                        role="tab"
+                        id="tab-contact"
+                        aria-selected={activeTab === "contact"}
+                        aria-controls="tabpanel-contact"
+                        tabIndex={activeTab === "contact" ? 0 : -1}
+                        onClick={() => setActiveTab("contact")}
+                        className={cn(
+                            "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
+                            activeTab === "contact"
+                                ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
+                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                        )}
+                    >
+                        <User className="w-4 h-4" aria-hidden="true" />
+                        Contact
+                    </button>
+                    <button
+                        role="tab"
+                        id="tab-company"
+                        aria-selected={activeTab === "company"}
+                        aria-controls="tabpanel-company"
+                        tabIndex={activeTab === "company" ? 0 : -1}
+                        onClick={() => setActiveTab("company")}
+                        className={cn(
+                            "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
+                            activeTab === "company"
+                                ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
+                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                        )}
+                    >
+                        <Building2 className="w-4 h-4" aria-hidden="true" />
+                        Société
+                    </button>
+                </div>
+            )}
+
+            {/* ── Contact Tab ── */}
+            {activeTab === "contact" && contact && (
+                <section
+                    id="tabpanel-contact"
+                    role="tabpanel"
+                    aria-labelledby="tab-contact"
+                    tabIndex={0}
+                    className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1"
+                    style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
+                >
+                    {/* Contact header */}
+                    <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-primary-50/30">
+                        <div
+                            className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center text-base font-bold text-white shadow-sm ring-2 ring-white shrink-0"
+                            aria-hidden="true"
+                        >
+                            {(contact.firstName?.[0] || contact.lastName?.[0] || "?").toUpperCase()}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                            {isEditingContact ? (
+                                <div className="space-y-2">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={editContactData.firstName || ""}
+                                            onChange={(e) =>
+                                                setEditContactData({ ...editContactData, firstName: e.target.value })
+                                            }
+                                            placeholder="Prénom"
+                                            aria-label="Prénom"
+                                            className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={editContactData.lastName || ""}
+                                            onChange={(e) =>
+                                                setEditContactData({ ...editContactData, lastName: e.target.value })
+                                            }
+                                            placeholder="Nom"
+                                            aria-label="Nom de famille"
+                                            className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
+                                        />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={editContactData.title || ""}
+                                        onChange={(e) =>
+                                            setEditContactData({ ...editContactData, title: e.target.value })
+                                        }
+                                        placeholder="Titre / Poste"
+                                        aria-label="Titre ou poste"
+                                        className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <h3 className="text-sm font-semibold text-slate-900 leading-snug">
+                                        {contact.firstName || ""} {contact.lastName || ""}
+                                        {!contact.firstName && !contact.lastName && (
+                                            <span className="text-slate-400 italic font-normal">Sans nom</span>
+                                        )}
+                                    </h3>
+                                    {contact.title && (
+                                        <p className="text-xs text-slate-500 mt-0.5">{contact.title}</p>
+                                    )}
+                                    <div className="mt-1.5">
+                                        <StatusPill status={contact.status} />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="flex gap-1 shrink-0">
+                            {isEditingContact ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingContact(false)}
+                                        disabled={saveContactMutation.isPending}
+                                        aria-label="Annuler les modifications"
+                                        className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                                    >
+                                        <X className="w-4 h-4" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveContact}
+                                        disabled={saveContactMutation.isPending}
+                                        aria-label="Sauvegarder le contact"
+                                        className="w-8 h-8 flex items-center justify-center bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                                    >
+                                        {saveContactMutation.isPending ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                                        ) : (
+                                            <Save className="w-4 h-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleBadContact()}
+                                        title="Marquer comme mauvais contact"
+                                        aria-label="Marquer comme mauvais contact"
+                                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                                    >
+                                        <UserX className="w-4 h-4" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditContactData({
+                                                firstName: contact.firstName,
+                                                lastName: contact.lastName,
+                                                title: contact.title,
+                                                email: contact.email,
+                                                phone: contact.phone,
+                                                additionalPhones: Array.isArray(contact.additionalPhones) ? contact.additionalPhones : [],
+                                                additionalEmails: Array.isArray(contact.additionalEmails) ? contact.additionalEmails : [],
+                                                linkedin: contact.linkedin,
+                                            });
+                                            setIsEditingContact(true);
+                                        }}
+                                        aria-label="Modifier le contact"
+                                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
+                                    >
+                                        <Pencil className="w-4 h-4" aria-hidden="true" />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Contact fields */}
+                    <div>
+                        {(contact.phone || isEditingContact) && (
+                            <InfoRow
+                                icon={Phone}
+                                iconColor="text-emerald-600"
+                                iconBg="bg-emerald-50"
+                                label="Téléphone"
+                                editing={isEditingContact}
+                                action={
+                                    !isEditingContact && contact.phone ? (
+                                        <CopyButton text={contact.phone} label="Téléphone" />
+                                    ) : undefined
+                                }
+                            >
+                                {isEditingContact ? (
+                                    <input
+                                        type="tel"
+                                        value={editContactData.phone || ""}
+                                        onChange={(e) =>
+                                            setEditContactData({ ...editContactData, phone: e.target.value })
+                                        }
+                                        placeholder="Numéro de téléphone"
+                                        aria-label="Téléphone principal"
+                                        className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
+                                    />
+                                ) : (
+                                    <a
+                                        href={`tel:${contact.phone}`}
+                                        className="text-sm font-medium text-emerald-600 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded"
+                                    >
+                                        {contact.phone}
+                                    </a>
+                                )}
+                            </InfoRow>
+                        )}
+
+                        {enableGooglePhoneLookup &&
+                            !showCompanyAiEnrichment &&
+                            !isEditingContact &&
+                            !contactHasPhone &&
+                            !companyHasPhone &&
+                            company && (
+                                <div className="border-b border-slate-100 px-4 py-3">
+                                    <GooglePhoneSuggestion
+                                        companyId={company.id}
+                                        companyName={company.name}
+                                        onApplied={handleGooglePhoneApplied}
+                                    />
+                                </div>
+                            )}
+
+                        {(contact.email || isEditingContact) && (
+                            <InfoRow
+                                icon={Mail}
+                                iconColor="text-primary-600"
+                                iconBg="bg-primary-50"
+                                label="Email"
+                                editing={isEditingContact}
+                                action={
+                                    !isEditingContact && contact.email ? (
+                                        <CopyButton text={contact.email} label="Email" />
+                                    ) : undefined
+                                }
+                            >
+                                {isEditingContact ? (
+                                    <input
+                                        type="email"
+                                        value={editContactData.email || ""}
+                                        onChange={(e) =>
+                                            setEditContactData({ ...editContactData, email: e.target.value })
+                                        }
+                                        placeholder="Adresse email"
+                                        aria-label="Email principal"
+                                        className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
+                                    />
+                                ) : (
+                                    <a
+                                        href={`mailto:${contact.email}`}
+                                        className="text-sm font-medium text-primary-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
+                                    >
+                                        {contact.email}
+                                    </a>
+                                )}
+                            </InfoRow>
+                        )}
+
+                        {/* Additional phones */}
+                        {(isEditingContact
+                            ? (editContactData.additionalPhones?.length ?? 0) > 0
+                            : Array.isArray(contact.additionalPhones) &&
+                            contact.additionalPhones.filter(Boolean).length > 0) && (
+                                <div className="px-4 py-3 border-b border-slate-100">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                        <Phone className="w-3 h-3 text-emerald-500" aria-hidden="true" />
+                                        Autres numéros
+                                    </p>
+                                    {isEditingContact ? (
+                                        <div className="space-y-2">
+                                            {(editContactData.additionalPhones ?? []).map((num, idx) => (
+                                                <div key={idx} className="flex gap-2">
+                                                    <input
+                                                        type="tel"
+                                                        value={num}
+                                                        aria-label={`Numéro supplémentaire ${idx + 1}`}
+                                                        onChange={(e) => {
+                                                            const next = [...(editContactData.additionalPhones ?? [])];
+                                                            next[idx] = e.target.value;
+                                                            setEditContactData({ ...editContactData, additionalPhones: next });
+                                                        }}
+                                                        placeholder="Numéro"
+                                                        className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Supprimer ce numéro"
+                                                        onClick={() =>
+                                                            setEditContactData({
+                                                                ...editContactData,
+                                                                additionalPhones: (editContactData.additionalPhones ?? []).filter((_, i) => i !== idx),
+                                                            })
+                                                        }
+                                                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setEditContactData({
+                                                        ...editContactData,
+                                                        additionalPhones: [...(editContactData.additionalPhones ?? []), ""],
+                                                    })
+                                                }
+                                                className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                                                Ajouter un numéro
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {(contact.additionalPhones ?? []).filter(Boolean).map((num, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs"
+                                                >
+                                                    <a href={`tel:${num}`} className="text-emerald-700 hover:underline font-medium">
+                                                        {num}
+                                                    </a>
+                                                    <CopyButton text={num} label="Numéro" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        {isEditingContact && (editContactData.additionalPhones?.length ?? 0) === 0 && (
+                            <div className="px-4 py-3 border-b border-slate-100">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
+                                    Autres numéros
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setEditContactData({
+                                            ...editContactData,
+                                            additionalPhones: [""],
+                                        })
+                                    }
+                                    className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
+                                >
+                                    <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                                    Ajouter un numéro
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Additional emails */}
+                        {(isEditingContact
+                            ? (editContactData.additionalEmails?.length ?? 0) > 0
+                            : Array.isArray(contact.additionalEmails) &&
+                            contact.additionalEmails.filter(Boolean).length > 0) && (
+                                <div className="px-4 py-3 border-b border-slate-100">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                        <Mail className="w-3 h-3 text-primary-500" aria-hidden="true" />
+                                        Autres emails
+                                    </p>
+                                    {isEditingContact ? (
+                                        <div className="space-y-2">
+                                            {(editContactData.additionalEmails ?? []).map((em, idx) => (
+                                                <div key={idx} className="flex gap-2">
+                                                    <input
+                                                        type="email"
+                                                        value={em}
+                                                        aria-label={`Email supplémentaire ${idx + 1}`}
+                                                        onChange={(e) => {
+                                                            const next = [...(editContactData.additionalEmails ?? [])];
+                                                            next[idx] = e.target.value;
+                                                            setEditContactData({ ...editContactData, additionalEmails: next });
+                                                        }}
+                                                        placeholder="Email"
+                                                        className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Supprimer cet email"
+                                                        onClick={() =>
+                                                            setEditContactData({
+                                                                ...editContactData,
+                                                                additionalEmails: (editContactData.additionalEmails ?? []).filter((_, i) => i !== idx),
+                                                            })
+                                                        }
+                                                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setEditContactData({
+                                                        ...editContactData,
+                                                        additionalEmails: [...(editContactData.additionalEmails ?? []), ""],
+                                                    })
+                                                }
+                                                className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                                                Ajouter un email
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {(contact.additionalEmails ?? []).filter(Boolean).map((em, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 border border-primary-100 text-xs"
+                                                >
+                                                    <a
+                                                        href={`mailto:${em}`}
+                                                        className="text-primary-700 hover:underline truncate max-w-[160px]"
+                                                    >
+                                                        {em}
+                                                    </a>
+                                                    <CopyButton text={em} label="Email" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        {isEditingContact && (editContactData.additionalEmails?.length ?? 0) === 0 && (
+                            <div className="px-4 py-3 border-b border-slate-100">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
+                                    Autres emails
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setEditContactData({
+                                            ...editContactData,
+                                            additionalEmails: [""],
+                                        })
+                                    }
+                                    className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
+                                >
+                                    <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                                    Ajouter un email
+                                </button>
+                            </div>
+                        )}
+
+                        {(contact.linkedin || isEditingContact) && (
+                            <InfoRow
+                                icon={Linkedin}
+                                iconColor="text-blue-600"
+                                iconBg="bg-blue-50"
+                                label="LinkedIn"
+                                editing={isEditingContact}
+                                action={
+                                    !isEditingContact && contact.linkedin ? (
+                                        <a
+                                            href={
+                                                contact.linkedin.startsWith("http")
+                                                    ? contact.linkedin
+                                                    : `https://${contact.linkedin}`
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label="Ouvrir LinkedIn dans un nouvel onglet"
+                                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                                        </a>
+                                    ) : undefined
+                                }
+                            >
+                                {isEditingContact ? (
+                                    <input
+                                        type="url"
+                                        value={editContactData.linkedin || ""}
+                                        onChange={(e) =>
+                                            setEditContactData({ ...editContactData, linkedin: e.target.value })
+                                        }
+                                        placeholder="URL LinkedIn"
+                                        aria-label="Profil LinkedIn"
+                                        className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
+                                    />
+                                ) : (
+                                    <a
+                                        href={
+                                            contact.linkedin!.startsWith("http")
+                                                ? contact.linkedin!
+                                                : `https://${contact.linkedin}`
+                                        }
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm font-medium text-blue-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 rounded"
+                                    >
+                                        Voir le profil
+                                    </a>
+                                )}
+                            </InfoRow>
+                        )}
+
+                        {/* Contact custom data */}
+                        {contact.customData &&
+                            typeof contact.customData === "object" &&
+                            Object.keys(contact.customData).length > 0 &&
+                            !isEditingContact && (
+                                <div className="px-4 py-3 bg-slate-50/60">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                        <FileText className="w-3 h-3" aria-hidden="true" />
+                                        Infos supplémentaires
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {Object.entries(contact.customData as Record<string, unknown>).map(
+                                            ([key, value]) => {
+                                                if (value == null || value === "") return null;
+                                                return (
+                                                    <div
+                                                        key={key}
+                                                        className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] text-slate-700"
+                                                    >
+                                                        <span className="font-semibold text-slate-500 mr-1">
+                                                            {formatCustomLabel(key)}:
+                                                        </span>
+                                                        <span>{String(value)}</span>
+                                                    </div>
+                                                );
+                                            }
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                        {!isEditingContact &&
+                            !contact.phone &&
+                            !contact.email &&
+                            !contact.linkedin &&
+                            !(contact.additionalPhones?.filter(Boolean).length) &&
+                            !(contact.additionalEmails?.filter(Boolean).length) && (
+                                <div className="flex flex-col items-center py-8 text-slate-400">
+                                    <Info className="w-8 h-8 mb-2 opacity-40" aria-hidden="true" />
+                                    <p className="text-sm">Aucune information de contact</p>
+                                </div>
+                            )}
+                    </div>
+                </section>
+            )}
+
+            {/* ── Company Tab ── */}
+            {(activeTab === "company" || !contact) && company && (
+                <section
+                    id="tabpanel-company"
+                    role="tabpanel"
+                    aria-labelledby="tab-company"
+                    tabIndex={0}
+                    className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1"
+                    style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
+                >
+                    {/* No contact prompt */}
+                    {!contact && (
+                        <div className="mx-4 mt-4 rounded-xl border-2 border-dashed border-primary-200 bg-primary-50/50 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
+                                    <User className="w-4 h-4 text-primary-600" aria-hidden="true" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-slate-900 text-sm">
+                                        Aucun contact associé
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                        Ajoutez un contact pour enregistrer des actions.
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="primary"
+                                onClick={() => setShowAddContact(true)}
+                                className="gap-2 shrink-0"
+                            >
+                                <Plus className="w-4 h-4" aria-hidden="true" />
+                                Ajouter
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Company header */}
+                    <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-accent-50/30">
+                        <div
+                            className="w-12 h-12 rounded-xl bg-accent-600 flex items-center justify-center shrink-0 shadow-sm ring-2 ring-white"
+                            aria-hidden="true"
+                        >
+                            <Building2 className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            {isEditingCompany ? (
+                                <div className="space-y-2">
+                                    <input
+                                        type="text"
+                                        value={editCompanyData.name || ""}
+                                        onChange={(e) =>
+                                            setEditCompanyData({ ...editCompanyData, name: e.target.value })
+                                        }
+                                        placeholder="Nom de la société"
+                                        aria-label="Nom de la société"
+                                        className="w-full px-2.5 py-1.5 text-sm font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={editCompanyData.industry || ""}
+                                        onChange={(e) =>
+                                            setEditCompanyData({ ...editCompanyData, industry: e.target.value })
+                                        }
+                                        placeholder="Secteur d'activité"
+                                        aria-label="Secteur d'activité"
+                                        className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <h3 className="text-sm font-semibold text-slate-900 leading-snug">
+                                        {company.name}
+                                    </h3>
+                                    {company.industry && (
+                                        <p className="text-xs text-slate-500 mt-0.5">{company.industry}</p>
+                                    )}
+                                    <div className="mt-1.5">
+                                        <StatusPill status={company.status} />
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                            {isEditingCompany ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingCompany(false)}
+                                        disabled={saveCompanyMutation.isPending}
+                                        aria-label="Annuler les modifications"
+                                        className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+                                    >
+                                        <X className="w-4 h-4" aria-hidden="true" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleSaveCompany}
+                                        disabled={saveCompanyMutation.isPending}
+                                        aria-label="Sauvegarder la société"
+                                        className="w-8 h-8 flex items-center justify-center bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+                                    >
+                                        {saveCompanyMutation.isPending ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                                        ) : (
+                                            <Save className="w-4 h-4" aria-hidden="true" />
+                                        )}
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setEditCompanyData({
+                                            name: company.name,
+                                            industry: company.industry,
+                                            country: company.country,
+                                            website: company.website,
+                                            size: company.size,
+                                            phone: company.phone,
+                                        });
+                                        setIsEditingCompany(true);
+                                    }}
+                                    aria-label="Modifier la société"
+                                    className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-accent-600 hover:bg-accent-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+                                >
+                                    <Pencil className="w-4 h-4" aria-hidden="true" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Company fields */}
+                    <div>
+                        {showCompanyAiEnrichment && !isEditingCompany && (
+                            <div className="border-b border-slate-100 px-4 py-3">
+                                <CompanyAiEnrichment
+                                    companyId={company.id}
+                                    company={company}
+                                    onApplied={handleGooglePhoneApplied}
+                                />
+                            </div>
+                        )}
+                        {(company.phone || isEditingCompany) && (
+                            <InfoRow
+                                icon={Phone}
+                                iconColor="text-emerald-600"
+                                iconBg="bg-emerald-50"
+                                label="Téléphone"
+                                editing={isEditingCompany}
+                                action={
+                                    !isEditingCompany && company.phone ? (
+                                        <CopyButton text={company.phone} label="Téléphone société" />
+                                    ) : undefined
+                                }
+                            >
+                                {isEditingCompany ? (
+                                    <input
+                                        type="tel"
+                                        value={editCompanyData.phone || ""}
+                                        onChange={(e) =>
+                                            setEditCompanyData({ ...editCompanyData, phone: e.target.value })
+                                        }
+                                        placeholder="Numéro de téléphone"
+                                        aria-label="Téléphone de la société"
+                                        className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
+                                    />
+                                ) : (
+                                    <a
+                                        href={`tel:${company.phone}`}
+                                        className="text-sm font-medium text-emerald-600 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded"
+                                    >
+                                        {company.phone}
+                                    </a>
+                                )}
+                            </InfoRow>
+                        )}
+
+                        {enableGooglePhoneLookup &&
+                            !showCompanyAiEnrichment &&
+                            !isEditingCompany &&
+                            !companyHasPhone && (
+                                <div className="border-b border-slate-100 px-4 py-3">
+                                    <GooglePhoneSuggestion
+                                        companyId={company.id}
+                                        companyName={company.name}
+                                        onApplied={handleGooglePhoneApplied}
+                                    />
+                                </div>
+                            )}
+
+                        {(company.website || isEditingCompany) && (
+                            <InfoRow
+                                icon={Globe}
+                                iconColor="text-primary-600"
+                                iconBg="bg-primary-50"
+                                label="Site web"
+                                editing={isEditingCompany}
+                                action={
+                                    !isEditingCompany && company.website ? (
+                                        <a
+                                            href={
+                                                company.website.startsWith("http")
+                                                    ? company.website
+                                                    : `https://${company.website}`
+                                            }
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            aria-label="Ouvrir le site web dans un nouvel onglet"
+                                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                        >
+                                            <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                                        </a>
+                                    ) : undefined
+                                }
+                            >
+                                {isEditingCompany ? (
+                                    <input
+                                        type="url"
+                                        value={editCompanyData.website || ""}
+                                        onChange={(e) =>
+                                            setEditCompanyData({ ...editCompanyData, website: e.target.value })
+                                        }
+                                        placeholder="Site web"
+                                        aria-label="Site web de la société"
+                                        className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
+                                    />
+                                ) : (
+                                    <a
+                                        href={
+                                            company.website!.startsWith("http")
+                                                ? company.website!
+                                                : `https://${company.website}`
+                                        }
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm font-medium text-primary-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
+                                    >
+                                        {company.website}
+                                    </a>
+                                )}
+                            </InfoRow>
+                        )}
+
+                        {/* Country + Size grid */}
+                        <div className="grid grid-cols-2 border-b border-slate-100">
+                            <div className="flex items-center gap-3 px-4 py-3 border-r border-slate-100 hover:bg-slate-50/60 transition-colors">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                                <div className="w-full">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Pays</p>
+                                    {isEditingCompany ? (
+                                        <input
+                                            type="text"
+                                            value={editCompanyData.country || ""}
+                                            onChange={(e) =>
+                                                setEditCompanyData({ ...editCompanyData, country: e.target.value })
+                                            }
+                                            placeholder="Pays"
+                                            aria-label="Pays"
+                                            className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
+                                        />
+                                    ) : (
+                                        <p className="text-sm font-medium text-slate-700">{company.country || "—"}</p>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
+                                <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                                <div className="w-full">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Effectif</p>
+                                    {isEditingCompany ? (
+                                        <input
+                                            type="text"
+                                            value={editCompanyData.size || ""}
+                                            onChange={(e) =>
+                                                setEditCompanyData({ ...editCompanyData, size: e.target.value })
+                                            }
+                                            placeholder="Taille"
+                                            aria-label="Taille de l'effectif"
+                                            className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
+                                        />
+                                    ) : (
+                                        <p className="text-sm font-medium text-slate-700">{company.size || "—"}</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Company custom data */}
+                        {company.customData &&
+                            typeof company.customData === "object" &&
+                            Object.keys(company.customData).length > 0 &&
+                            !isEditingCompany && (
+                                <div className="px-4 py-3 bg-slate-50/60">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                        <FileText className="w-3 h-3" aria-hidden="true" />
+                                        Infos supplémentaires
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {Object.entries(company.customData as Record<string, unknown>).map(
+                                            ([key, value]) => {
+                                                if (value == null || value === "") return null;
+                                                return (
+                                                    <div
+                                                        key={key}
+                                                        className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] text-slate-700"
+                                                    >
+                                                        <span className="font-semibold text-slate-500 mr-1">
+                                                            {formatCustomLabel(key)}:
+                                                        </span>
+                                                        <span>{String(value)}</span>
+                                                    </div>
+                                                );
+                                            }
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                        {/* Other contacts */}
+                        {company.contacts?.length > 0 && (
+                            <div className="px-4 py-3 border-t border-slate-100">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                    <Users className="w-3 h-3" aria-hidden="true" />
+                                    Autres contacts ({company.contacts.length})
+                                </p>
+                                <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                                    {company.contacts.slice(0, 5).map((c) => (
+                                        <div key={c.id} className="rounded-xl border border-slate-100 bg-slate-50 overflow-hidden">
+                                            <div
+                                                className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-100/70 transition-colors cursor-pointer"
+                                                onClick={() => {
+                                                    if (expandedCompanyContactId === c.id) {
+                                                        onContactSelect?.(c.id);
+                                                        return;
+                                                    }
+                                                    setExpandedCompanyContactId(c.id);
+                                                }}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" || e.key === " ") {
+                                                        e.preventDefault();
+                                                        if (expandedCompanyContactId === c.id) {
+                                                            onContactSelect?.(c.id);
+                                                        } else {
+                                                            setExpandedCompanyContactId(c.id);
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                <div
+                                                    className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600 shrink-0"
+                                                    aria-hidden="true"
+                                                >
+                                                    {(c.firstName?.[0] || c.lastName?.[0] || "?").toUpperCase()}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-slate-800 truncate">
+                                                        {c.firstName || ""} {c.lastName || ""}
+                                                    </p>
+                                                    {c.title && (
+                                                        <p className="text-xs text-slate-400 truncate">{c.title}</p>
+                                                    )}
+                                                </div>
+                                                {expandedCompanyContactId === c.id ? (
+                                                    <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                                                ) : (
+                                                    <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                                                )}
+                                            </div>
+                                            {expandedCompanyContactId === c.id && (
+                                                <div className="px-3 pb-2.5 pt-1 border-t border-slate-200 bg-white">
+                                                    <div className="space-y-1.5 text-xs text-slate-600">
+                                                        <p className="font-medium text-slate-700">
+                                                            {`${c.firstName || ""} ${c.lastName || ""}`.trim() || "Sans nom"}
+                                                        </p>
+                                                        {c.phone && (
+                                                            <p className="flex items-center gap-1.5">
+                                                                <Phone className="w-3 h-3 text-emerald-500" />
+                                                                {c.phone}
+                                                            </p>
+                                                        )}
+                                                        {c.email && (
+                                                            <p className="flex items-center gap-1.5">
+                                                                <Mail className="w-3 h-3 text-primary-500" />
+                                                                {c.email}
+                                                            </p>
+                                                        )}
+                                                        {!c.phone && !c.email && (
+                                                            <p className="text-slate-400">Aucun téléphone/email</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+                                                        {c.phone && (
+                                                            <a
+                                                                href={`tel:${c.phone}`}
+                                                                aria-label={`Appeler ${c.firstName || c.lastName || "contact"}`}
+                                                                className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                            >
+                                                                <Phone className="w-3.5 h-3.5" aria-hidden="true" />
+                                                            </a>
+                                                        )}
+                                                        {c.email && (
+                                                            <a
+                                                                href={`mailto:${c.email}`}
+                                                                aria-label={`Envoyer un email à ${c.firstName || c.lastName || "contact"}`}
+                                                                className="p-1.5 text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+                                                            >
+                                                                <Mail className="w-3.5 h-3.5" aria-hidden="true" />
+                                                            </a>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleBadContact(c.id);
+                                                            }}
+                                                            title="Mauvais contact"
+                                                            aria-label={`Marquer ${c.firstName || c.lastName || "contact"} comme mauvais contact`}
+                                                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        >
+                                                            <UserX className="w-3.5 h-3.5" aria-hidden="true" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddContact(true)}
+                                    className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-primary-200 text-primary-600 hover:bg-primary-50 text-sm font-medium transition-colors"
+                                >
+                                    <Plus className="w-4 h-4" aria-hidden="true" />
+                                    Ajouter un nouveau contact
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
+            )}
+        </>
+    );
+
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
@@ -1700,6 +2781,12 @@ export function UnifiedActionDrawer({
                                 target: activeExclusion.target,
                             }}
                         />
+                    )}
+
+                    {summary && (
+                        <div style={{ animation: "uadSectionIn 250ms cubic-bezier(0.16, 1, 0.3, 1)" }}>
+                            {summary}
+                        </div>
                     )}
 
                     {!activeExclusion && company && (
@@ -2079,1075 +3166,7 @@ export function UnifiedActionDrawer({
                         </div>
                     </section>
 
-                    {/* ── Quick Action Bar ── */}
-                    <section
-                        aria-label="Actions rapides"
-                        className="flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60"
-                        style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
-                    >
-                        {primaryPhone && (
-                            <button
-                                type="button"
-                                aria-label={`Appeler ${primaryPhone.number}`}
-                                onClick={() => {
-                                    window.open(`tel:${primaryPhone.number}`, "_self");
-                                }}
-                                className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
-                            >
-                                <PhoneCall className="w-4 h-4" aria-hidden="true" />
-                                <span>Appeler</span>
-                                {primaryPhone.label === "Société" && (
-                                    <span className="text-xs opacity-75 font-normal">
-                                        (société)
-                                    </span>
-                                )}
-                            </button>
-                        )}
-
-                        {primaryEmail && (
-                            <a
-                                href={`mailto:${primaryEmail}`}
-                                aria-label={`Envoyer un email à ${primaryEmail}`}
-                                className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:scale-[0.98]"
-                            >
-                                <Send className="w-4 h-4" aria-hidden="true" />
-                                Email
-                            </a>
-                        )}
-
-                        {(contact?.linkedin || company?.website) && (
-                            <a
-                                href={
-                                    contact?.linkedin
-                                        ? contact.linkedin.startsWith("http")
-                                            ? contact.linkedin
-                                            : `https://${contact.linkedin}`
-                                        : company?.website?.startsWith("http")
-                                            ? company.website
-                                            : `https://${company?.website}`
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                aria-label={contact?.linkedin ? "Ouvrir le profil LinkedIn" : "Ouvrir le site web"}
-                                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98]"
-                            >
-                                {contact?.linkedin ? (
-                                    <Linkedin className="w-4 h-4 text-blue-600" aria-hidden="true" />
-                                ) : (
-                                    <Globe className="w-4 h-4 text-slate-500" aria-hidden="true" />
-                                )}
-                                {contact?.linkedin ? "LinkedIn" : "Site web"}
-                            </a>
-                        )}
-                    </section>
-
-                    {/* ── Tab Navigation ── */}
-                    {contact && (
-                        <div
-                            role="tablist"
-                            aria-label="Informations contact ou société"
-                            className="flex rounded-xl bg-slate-100/80 p-1 gap-1 border border-slate-200/60"
-                            style={{ animation: "uadSectionIn 250ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
-                            onKeyDown={(e) => {
-                                if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                                    e.preventDefault();
-                                    const next = activeTab === "contact" ? "company" : "contact";
-                                    setActiveTab(next);
-                                    document.getElementById(`tab-${next}`)?.focus();
-                                }
-                            }}
-                        >
-                            <button
-                                role="tab"
-                                id="tab-contact"
-                                aria-selected={activeTab === "contact"}
-                                aria-controls="tabpanel-contact"
-                                tabIndex={activeTab === "contact" ? 0 : -1}
-                                onClick={() => setActiveTab("contact")}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
-                                    activeTab === "contact"
-                                        ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
-                                        : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                                )}
-                            >
-                                <User className="w-4 h-4" aria-hidden="true" />
-                                Contact
-                            </button>
-                            <button
-                                role="tab"
-                                id="tab-company"
-                                aria-selected={activeTab === "company"}
-                                aria-controls="tabpanel-company"
-                                tabIndex={activeTab === "company" ? 0 : -1}
-                                onClick={() => setActiveTab("company")}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
-                                    activeTab === "company"
-                                        ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
-                                        : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                                )}
-                            >
-                                <Building2 className="w-4 h-4" aria-hidden="true" />
-                                Société
-                            </button>
-                        </div>
-                    )}
-
-                    {/* ── Contact Tab ── */}
-                    {activeTab === "contact" && contact && (
-                        <section
-                            id="tabpanel-contact"
-                            role="tabpanel"
-                            aria-labelledby="tab-contact"
-                            tabIndex={0}
-                            className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1"
-                            style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
-                        >
-                            {/* Contact header */}
-                            <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-primary-50/30">
-                                <div
-                                    className="w-12 h-12 rounded-xl bg-primary-600 flex items-center justify-center text-base font-bold text-white shadow-sm ring-2 ring-white shrink-0"
-                                    aria-hidden="true"
-                                >
-                                    {(contact.firstName?.[0] || contact.lastName?.[0] || "?").toUpperCase()}
-                                </div>
-
-                                <div className="flex-1 min-w-0">
-                                    {isEditingContact ? (
-                                        <div className="space-y-2">
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={editContactData.firstName || ""}
-                                                    onChange={(e) =>
-                                                        setEditContactData({ ...editContactData, firstName: e.target.value })
-                                                    }
-                                                    placeholder="Prénom"
-                                                    aria-label="Prénom"
-                                                    className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={editContactData.lastName || ""}
-                                                    onChange={(e) =>
-                                                        setEditContactData({ ...editContactData, lastName: e.target.value })
-                                                    }
-                                                    placeholder="Nom"
-                                                    aria-label="Nom de famille"
-                                                    className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
-                                                />
-                                            </div>
-                                            <input
-                                                type="text"
-                                                value={editContactData.title || ""}
-                                                onChange={(e) =>
-                                                    setEditContactData({ ...editContactData, title: e.target.value })
-                                                }
-                                                placeholder="Titre / Poste"
-                                                aria-label="Titre ou poste"
-                                                className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <h3 className="text-sm font-semibold text-slate-900 leading-snug">
-                                                {contact.firstName || ""} {contact.lastName || ""}
-                                                {!contact.firstName && !contact.lastName && (
-                                                    <span className="text-slate-400 italic font-normal">Sans nom</span>
-                                                )}
-                                            </h3>
-                                            {contact.title && (
-                                                <p className="text-xs text-slate-500 mt-0.5">{contact.title}</p>
-                                            )}
-                                            <div className="mt-1.5">
-                                                <StatusPill status={contact.status} />
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div className="flex gap-1 shrink-0">
-                                    {isEditingContact ? (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsEditingContact(false)}
-                                                disabled={saveContactMutation.isPending}
-                                                aria-label="Annuler les modifications"
-                                                className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-                                            >
-                                                <X className="w-4 h-4" aria-hidden="true" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleSaveContact}
-                                                disabled={saveContactMutation.isPending}
-                                                aria-label="Sauvegarder le contact"
-                                                className="w-8 h-8 flex items-center justify-center bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                                            >
-                                                {saveContactMutation.isPending ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                                                ) : (
-                                                    <Save className="w-4 h-4" aria-hidden="true" />
-                                                )}
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleBadContact()}
-                                                title="Marquer comme mauvais contact"
-                                                aria-label="Marquer comme mauvais contact"
-                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
-                                            >
-                                                <UserX className="w-4 h-4" aria-hidden="true" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setEditContactData({
-                                                        firstName: contact.firstName,
-                                                        lastName: contact.lastName,
-                                                        title: contact.title,
-                                                        email: contact.email,
-                                                        phone: contact.phone,
-                                                        additionalPhones: Array.isArray(contact.additionalPhones) ? contact.additionalPhones : [],
-                                                        additionalEmails: Array.isArray(contact.additionalEmails) ? contact.additionalEmails : [],
-                                                        linkedin: contact.linkedin,
-                                                    });
-                                                    setIsEditingContact(true);
-                                                }}
-                                                aria-label="Modifier le contact"
-                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
-                                            >
-                                                <Pencil className="w-4 h-4" aria-hidden="true" />
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Contact fields */}
-                            <div>
-                                {(contact.phone || isEditingContact) && (
-                                    <InfoRow
-                                        icon={Phone}
-                                        iconColor="text-emerald-600"
-                                        iconBg="bg-emerald-50"
-                                        label="Téléphone"
-                                        editing={isEditingContact}
-                                        action={
-                                            !isEditingContact && contact.phone ? (
-                                                <CopyButton text={contact.phone} label="Téléphone" />
-                                            ) : undefined
-                                        }
-                                    >
-                                        {isEditingContact ? (
-                                            <input
-                                                type="tel"
-                                                value={editContactData.phone || ""}
-                                                onChange={(e) =>
-                                                    setEditContactData({ ...editContactData, phone: e.target.value })
-                                                }
-                                                placeholder="Numéro de téléphone"
-                                                aria-label="Téléphone principal"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
-                                            />
-                                        ) : (
-                                            <a
-                                                href={`tel:${contact.phone}`}
-                                                className="text-sm font-medium text-emerald-600 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded"
-                                            >
-                                                {contact.phone}
-                                            </a>
-                                        )}
-                                    </InfoRow>
-                                )}
-
-                                {enableGooglePhoneLookup &&
-                                    !showCompanyAiEnrichment &&
-                                    !isEditingContact &&
-                                    !contactHasPhone &&
-                                    !companyHasPhone &&
-                                    company && (
-                                        <div className="border-b border-slate-100 px-4 py-3">
-                                            <GooglePhoneSuggestion
-                                                companyId={company.id}
-                                                companyName={company.name}
-                                                onApplied={handleGooglePhoneApplied}
-                                            />
-                                        </div>
-                                    )}
-
-                                {(contact.email || isEditingContact) && (
-                                    <InfoRow
-                                        icon={Mail}
-                                        iconColor="text-primary-600"
-                                        iconBg="bg-primary-50"
-                                        label="Email"
-                                        editing={isEditingContact}
-                                        action={
-                                            !isEditingContact && contact.email ? (
-                                                <CopyButton text={contact.email} label="Email" />
-                                            ) : undefined
-                                        }
-                                    >
-                                        {isEditingContact ? (
-                                            <input
-                                                type="email"
-                                                value={editContactData.email || ""}
-                                                onChange={(e) =>
-                                                    setEditContactData({ ...editContactData, email: e.target.value })
-                                                }
-                                                placeholder="Adresse email"
-                                                aria-label="Email principal"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400"
-                                            />
-                                        ) : (
-                                            <a
-                                                href={`mailto:${contact.email}`}
-                                                className="text-sm font-medium text-primary-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
-                                            >
-                                                {contact.email}
-                                            </a>
-                                        )}
-                                    </InfoRow>
-                                )}
-
-                                {/* Additional phones */}
-                                {(isEditingContact
-                                    ? (editContactData.additionalPhones?.length ?? 0) > 0
-                                    : Array.isArray(contact.additionalPhones) &&
-                                    contact.additionalPhones.filter(Boolean).length > 0) && (
-                                        <div className="px-4 py-3 border-b border-slate-100">
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-                                                <Phone className="w-3 h-3 text-emerald-500" aria-hidden="true" />
-                                                Autres numéros
-                                            </p>
-                                            {isEditingContact ? (
-                                                <div className="space-y-2">
-                                                    {(editContactData.additionalPhones ?? []).map((num, idx) => (
-                                                        <div key={idx} className="flex gap-2">
-                                                            <input
-                                                                type="tel"
-                                                                value={num}
-                                                                aria-label={`Numéro supplémentaire ${idx + 1}`}
-                                                                onChange={(e) => {
-                                                                    const next = [...(editContactData.additionalPhones ?? [])];
-                                                                    next[idx] = e.target.value;
-                                                                    setEditContactData({ ...editContactData, additionalPhones: next });
-                                                                }}
-                                                                placeholder="Numéro"
-                                                                className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                aria-label="Supprimer ce numéro"
-                                                                onClick={() =>
-                                                                    setEditContactData({
-                                                                        ...editContactData,
-                                                                        additionalPhones: (editContactData.additionalPhones ?? []).filter((_, i) => i !== idx),
-                                                                    })
-                                                                }
-                                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setEditContactData({
-                                                                ...editContactData,
-                                                                additionalPhones: [...(editContactData.additionalPhones ?? []), ""],
-                                                            })
-                                                        }
-                                                        className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
-                                                    >
-                                                        <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                                                        Ajouter un numéro
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {(contact.additionalPhones ?? []).filter(Boolean).map((num, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-xs"
-                                                        >
-                                                            <a href={`tel:${num}`} className="text-emerald-700 hover:underline font-medium">
-                                                                {num}
-                                                            </a>
-                                                            <CopyButton text={num} label="Numéro" />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                {isEditingContact && (editContactData.additionalPhones?.length ?? 0) === 0 && (
-                                    <div className="px-4 py-3 border-b border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
-                                            Autres numéros
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setEditContactData({
-                                                    ...editContactData,
-                                                    additionalPhones: [""],
-                                                })
-                                            }
-                                            className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
-                                        >
-                                            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                                            Ajouter un numéro
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Additional emails */}
-                                {(isEditingContact
-                                    ? (editContactData.additionalEmails?.length ?? 0) > 0
-                                    : Array.isArray(contact.additionalEmails) &&
-                                    contact.additionalEmails.filter(Boolean).length > 0) && (
-                                        <div className="px-4 py-3 border-b border-slate-100">
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-                                                <Mail className="w-3 h-3 text-primary-500" aria-hidden="true" />
-                                                Autres emails
-                                            </p>
-                                            {isEditingContact ? (
-                                                <div className="space-y-2">
-                                                    {(editContactData.additionalEmails ?? []).map((em, idx) => (
-                                                        <div key={idx} className="flex gap-2">
-                                                            <input
-                                                                type="email"
-                                                                value={em}
-                                                                aria-label={`Email supplémentaire ${idx + 1}`}
-                                                                onChange={(e) => {
-                                                                    const next = [...(editContactData.additionalEmails ?? [])];
-                                                                    next[idx] = e.target.value;
-                                                                    setEditContactData({ ...editContactData, additionalEmails: next });
-                                                                }}
-                                                                placeholder="Email"
-                                                                className="flex-1 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                aria-label="Supprimer cet email"
-                                                                onClick={() =>
-                                                                    setEditContactData({
-                                                                        ...editContactData,
-                                                                        additionalEmails: (editContactData.additionalEmails ?? []).filter((_, i) => i !== idx),
-                                                                    })
-                                                                }
-                                                                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setEditContactData({
-                                                                ...editContactData,
-                                                                additionalEmails: [...(editContactData.additionalEmails ?? []), ""],
-                                                            })
-                                                        }
-                                                        className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium mt-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
-                                                    >
-                                                        <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                                                        Ajouter un email
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {(contact.additionalEmails ?? []).filter(Boolean).map((em, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 border border-primary-100 text-xs"
-                                                        >
-                                                            <a
-                                                                href={`mailto:${em}`}
-                                                                className="text-primary-700 hover:underline truncate max-w-[160px]"
-                                                            >
-                                                                {em}
-                                                            </a>
-                                                            <CopyButton text={em} label="Email" />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                {isEditingContact && (editContactData.additionalEmails?.length ?? 0) === 0 && (
-                                    <div className="px-4 py-3 border-b border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
-                                            Autres emails
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                setEditContactData({
-                                                    ...editContactData,
-                                                    additionalEmails: [""],
-                                                })
-                                            }
-                                            className="flex items-center gap-1.5 text-xs text-primary-600 hover:text-primary-700 font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
-                                        >
-                                            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-                                            Ajouter un email
-                                        </button>
-                                    </div>
-                                )}
-
-                                {(contact.linkedin || isEditingContact) && (
-                                    <InfoRow
-                                        icon={Linkedin}
-                                        iconColor="text-blue-600"
-                                        iconBg="bg-blue-50"
-                                        label="LinkedIn"
-                                        editing={isEditingContact}
-                                        action={
-                                            !isEditingContact && contact.linkedin ? (
-                                                <a
-                                                    href={
-                                                        contact.linkedin.startsWith("http")
-                                                            ? contact.linkedin
-                                                            : `https://${contact.linkedin}`
-                                                    }
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    aria-label="Ouvrir LinkedIn dans un nouvel onglet"
-                                                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                                                >
-                                                    <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-                                                </a>
-                                            ) : undefined
-                                        }
-                                    >
-                                        {isEditingContact ? (
-                                            <input
-                                                type="url"
-                                                value={editContactData.linkedin || ""}
-                                                onChange={(e) =>
-                                                    setEditContactData({ ...editContactData, linkedin: e.target.value })
-                                                }
-                                                placeholder="URL LinkedIn"
-                                                aria-label="Profil LinkedIn"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-400/30"
-                                            />
-                                        ) : (
-                                            <a
-                                                href={
-                                                    contact.linkedin!.startsWith("http")
-                                                        ? contact.linkedin!
-                                                        : `https://${contact.linkedin}`
-                                                }
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-sm font-medium text-blue-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-400 rounded"
-                                            >
-                                                Voir le profil
-                                            </a>
-                                        )}
-                                    </InfoRow>
-                                )}
-
-                                {/* Contact custom data */}
-                                {contact.customData &&
-                                    typeof contact.customData === "object" &&
-                                    Object.keys(contact.customData).length > 0 &&
-                                    !isEditingContact && (
-                                        <div className="px-4 py-3 bg-slate-50/60">
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-                                                <FileText className="w-3 h-3" aria-hidden="true" />
-                                                Infos supplémentaires
-                                            </p>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {Object.entries(contact.customData as Record<string, unknown>).map(
-                                                    ([key, value]) => {
-                                                        if (value == null || value === "") return null;
-                                                        return (
-                                                            <div
-                                                                key={key}
-                                                                className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] text-slate-700"
-                                                            >
-                                                                <span className="font-semibold text-slate-500 mr-1">
-                                                                    {formatCustomLabel(key)}:
-                                                                </span>
-                                                                <span>{String(value)}</span>
-                                                            </div>
-                                                        );
-                                                    }
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                {!isEditingContact &&
-                                    !contact.phone &&
-                                    !contact.email &&
-                                    !contact.linkedin &&
-                                    !(contact.additionalPhones?.filter(Boolean).length) &&
-                                    !(contact.additionalEmails?.filter(Boolean).length) && (
-                                        <div className="flex flex-col items-center py-8 text-slate-400">
-                                            <Info className="w-8 h-8 mb-2 opacity-40" aria-hidden="true" />
-                                            <p className="text-sm">Aucune information de contact</p>
-                                        </div>
-                                    )}
-                            </div>
-                        </section>
-                    )}
-
-                    {/* ── Company Tab ── */}
-                    {(activeTab === "company" || !contact) && company && (
-                        <section
-                            id="tabpanel-company"
-                            role="tabpanel"
-                            aria-labelledby="tab-company"
-                            tabIndex={0}
-                            className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1"
-                            style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
-                        >
-                            {/* No contact prompt */}
-                            {!contact && (
-                                <div className="mx-4 mt-4 rounded-xl border-2 border-dashed border-primary-200 bg-primary-50/50 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
-                                            <User className="w-4 h-4 text-primary-600" aria-hidden="true" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-slate-900 text-sm">
-                                                Aucun contact associé
-                                            </p>
-                                            <p className="text-xs text-slate-500">
-                                                Ajoutez un contact pour enregistrer des actions.
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        variant="primary"
-                                        onClick={() => setShowAddContact(true)}
-                                        className="gap-2 shrink-0"
-                                    >
-                                        <Plus className="w-4 h-4" aria-hidden="true" />
-                                        Ajouter
-                                    </Button>
-                                </div>
-                            )}
-
-                            {/* Company header */}
-                            <div className="flex items-start gap-4 p-4 border-b border-slate-100 bg-accent-50/30">
-                                <div
-                                    className="w-12 h-12 rounded-xl bg-accent-600 flex items-center justify-center shrink-0 shadow-sm ring-2 ring-white"
-                                    aria-hidden="true"
-                                >
-                                    <Building2 className="w-5 h-5 text-white" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    {isEditingCompany ? (
-                                        <div className="space-y-2">
-                                            <input
-                                                type="text"
-                                                value={editCompanyData.name || ""}
-                                                onChange={(e) =>
-                                                    setEditCompanyData({ ...editCompanyData, name: e.target.value })
-                                                }
-                                                placeholder="Nom de la société"
-                                                aria-label="Nom de la société"
-                                                className="w-full px-2.5 py-1.5 text-sm font-semibold border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
-                                            />
-                                            <input
-                                                type="text"
-                                                value={editCompanyData.industry || ""}
-                                                onChange={(e) =>
-                                                    setEditCompanyData({ ...editCompanyData, industry: e.target.value })
-                                                }
-                                                placeholder="Secteur d'activité"
-                                                aria-label="Secteur d'activité"
-                                                className="w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <h3 className="text-sm font-semibold text-slate-900 leading-snug">
-                                                {company.name}
-                                            </h3>
-                                            {company.industry && (
-                                                <p className="text-xs text-slate-500 mt-0.5">{company.industry}</p>
-                                            )}
-                                            <div className="mt-1.5">
-                                                <StatusPill status={company.status} />
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                                <div className="flex gap-1 shrink-0">
-                                    {isEditingCompany ? (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsEditingCompany(false)}
-                                                disabled={saveCompanyMutation.isPending}
-                                                aria-label="Annuler les modifications"
-                                                className="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
-                                            >
-                                                <X className="w-4 h-4" aria-hidden="true" />
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={handleSaveCompany}
-                                                disabled={saveCompanyMutation.isPending}
-                                                aria-label="Sauvegarder la société"
-                                                className="w-8 h-8 flex items-center justify-center bg-accent-600 hover:bg-accent-700 text-white rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
-                                            >
-                                                {saveCompanyMutation.isPending ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                                                ) : (
-                                                    <Save className="w-4 h-4" aria-hidden="true" />
-                                                )}
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setEditCompanyData({
-                                                    name: company.name,
-                                                    industry: company.industry,
-                                                    country: company.country,
-                                                    website: company.website,
-                                                    size: company.size,
-                                                    phone: company.phone,
-                                                });
-                                                setIsEditingCompany(true);
-                                            }}
-                                            aria-label="Modifier la société"
-                                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-accent-600 hover:bg-accent-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
-                                        >
-                                            <Pencil className="w-4 h-4" aria-hidden="true" />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Company fields */}
-                            <div>
-                                {showCompanyAiEnrichment && !isEditingCompany && (
-                                    <div className="border-b border-slate-100 px-4 py-3">
-                                        <CompanyAiEnrichment
-                                            companyId={company.id}
-                                            company={company}
-                                            onApplied={handleGooglePhoneApplied}
-                                        />
-                                    </div>
-                                )}
-                                {(company.phone || isEditingCompany) && (
-                                    <InfoRow
-                                        icon={Phone}
-                                        iconColor="text-emerald-600"
-                                        iconBg="bg-emerald-50"
-                                        label="Téléphone"
-                                        editing={isEditingCompany}
-                                        action={
-                                            !isEditingCompany && company.phone ? (
-                                                <CopyButton text={company.phone} label="Téléphone société" />
-                                            ) : undefined
-                                        }
-                                    >
-                                        {isEditingCompany ? (
-                                            <input
-                                                type="tel"
-                                                value={editCompanyData.phone || ""}
-                                                onChange={(e) =>
-                                                    setEditCompanyData({ ...editCompanyData, phone: e.target.value })
-                                                }
-                                                placeholder="Numéro de téléphone"
-                                                aria-label="Téléphone de la société"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
-                                            />
-                                        ) : (
-                                            <a
-                                                href={`tel:${company.phone}`}
-                                                className="text-sm font-medium text-emerald-600 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 rounded"
-                                            >
-                                                {company.phone}
-                                            </a>
-                                        )}
-                                    </InfoRow>
-                                )}
-
-                                {enableGooglePhoneLookup &&
-                                    !showCompanyAiEnrichment &&
-                                    !isEditingCompany &&
-                                    !companyHasPhone && (
-                                        <div className="border-b border-slate-100 px-4 py-3">
-                                            <GooglePhoneSuggestion
-                                                companyId={company.id}
-                                                companyName={company.name}
-                                                onApplied={handleGooglePhoneApplied}
-                                            />
-                                        </div>
-                                    )}
-
-                                {(company.website || isEditingCompany) && (
-                                    <InfoRow
-                                        icon={Globe}
-                                        iconColor="text-primary-600"
-                                        iconBg="bg-primary-50"
-                                        label="Site web"
-                                        editing={isEditingCompany}
-                                        action={
-                                            !isEditingCompany && company.website ? (
-                                                <a
-                                                    href={
-                                                        company.website.startsWith("http")
-                                                            ? company.website
-                                                            : `https://${company.website}`
-                                                    }
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    aria-label="Ouvrir le site web dans un nouvel onglet"
-                                                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                                                >
-                                                    <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-                                                </a>
-                                            ) : undefined
-                                        }
-                                    >
-                                        {isEditingCompany ? (
-                                            <input
-                                                type="url"
-                                                value={editCompanyData.website || ""}
-                                                onChange={(e) =>
-                                                    setEditCompanyData({ ...editCompanyData, website: e.target.value })
-                                                }
-                                                placeholder="Site web"
-                                                aria-label="Site web de la société"
-                                                className="w-full mt-0.5 px-2.5 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-400/30"
-                                            />
-                                        ) : (
-                                            <a
-                                                href={
-                                                    company.website!.startsWith("http")
-                                                        ? company.website!
-                                                        : `https://${company.website}`
-                                                }
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-sm font-medium text-primary-600 hover:underline truncate block focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded"
-                                            >
-                                                {company.website}
-                                            </a>
-                                        )}
-                                    </InfoRow>
-                                )}
-
-                                {/* Country + Size grid */}
-                                <div className="grid grid-cols-2 border-b border-slate-100">
-                                    <div className="flex items-center gap-3 px-4 py-3 border-r border-slate-100 hover:bg-slate-50/60 transition-colors">
-                                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
-                                        <div className="w-full">
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Pays</p>
-                                            {isEditingCompany ? (
-                                                <input
-                                                    type="text"
-                                                    value={editCompanyData.country || ""}
-                                                    onChange={(e) =>
-                                                        setEditCompanyData({ ...editCompanyData, country: e.target.value })
-                                                    }
-                                                    placeholder="Pays"
-                                                    aria-label="Pays"
-                                                    className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
-                                                />
-                                            ) : (
-                                                <p className="text-sm font-medium text-slate-700">{company.country || "—"}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
-                                        <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
-                                        <div className="w-full">
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Effectif</p>
-                                            {isEditingCompany ? (
-                                                <input
-                                                    type="text"
-                                                    value={editCompanyData.size || ""}
-                                                    onChange={(e) =>
-                                                        setEditCompanyData({ ...editCompanyData, size: e.target.value })
-                                                    }
-                                                    placeholder="Taille"
-                                                    aria-label="Taille de l'effectif"
-                                                    className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
-                                                />
-                                            ) : (
-                                                <p className="text-sm font-medium text-slate-700">{company.size || "—"}</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Company custom data */}
-                                {company.customData &&
-                                    typeof company.customData === "object" &&
-                                    Object.keys(company.customData).length > 0 &&
-                                    !isEditingCompany && (
-                                        <div className="px-4 py-3 bg-slate-50/60">
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-                                                <FileText className="w-3 h-3" aria-hidden="true" />
-                                                Infos supplémentaires
-                                            </p>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {Object.entries(company.customData as Record<string, unknown>).map(
-                                                    ([key, value]) => {
-                                                        if (value == null || value === "") return null;
-                                                        return (
-                                                            <div
-                                                                key={key}
-                                                                className="px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] text-slate-700"
-                                                            >
-                                                                <span className="font-semibold text-slate-500 mr-1">
-                                                                    {formatCustomLabel(key)}:
-                                                                </span>
-                                                                <span>{String(value)}</span>
-                                                            </div>
-                                                        );
-                                                    }
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                {/* Other contacts */}
-                                {company.contacts?.length > 0 && (
-                                    <div className="px-4 py-3 border-t border-slate-100">
-                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
-                                            <Users className="w-3 h-3" aria-hidden="true" />
-                                            Autres contacts ({company.contacts.length})
-                                        </p>
-                                        <div className="space-y-1.5 max-h-36 overflow-y-auto">
-                                            {company.contacts.slice(0, 5).map((c) => (
-                                                <div key={c.id} className="rounded-xl border border-slate-100 bg-slate-50 overflow-hidden">
-                                                    <div
-                                                        className="flex items-center gap-2.5 px-3 py-2 hover:bg-slate-100/70 transition-colors cursor-pointer"
-                                                        onClick={() => {
-                                                            if (expandedCompanyContactId === c.id) {
-                                                                onContactSelect?.(c.id);
-                                                                return;
-                                                            }
-                                                            setExpandedCompanyContactId(c.id);
-                                                        }}
-                                                        role="button"
-                                                        tabIndex={0}
-                                                        onKeyDown={(e) => {
-                                                            if (e.key === "Enter" || e.key === " ") {
-                                                                e.preventDefault();
-                                                                if (expandedCompanyContactId === c.id) {
-                                                                    onContactSelect?.(c.id);
-                                                                } else {
-                                                                    setExpandedCompanyContactId(c.id);
-                                                                }
-                                                            }
-                                                        }}
-                                                    >
-                                                        <div
-                                                            className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600 shrink-0"
-                                                            aria-hidden="true"
-                                                        >
-                                                            {(c.firstName?.[0] || c.lastName?.[0] || "?").toUpperCase()}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium text-slate-800 truncate">
-                                                                {c.firstName || ""} {c.lastName || ""}
-                                                            </p>
-                                                            {c.title && (
-                                                                <p className="text-xs text-slate-400 truncate">{c.title}</p>
-                                                            )}
-                                                        </div>
-                                                        {expandedCompanyContactId === c.id ? (
-                                                            <ChevronUp className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
-                                                        ) : (
-                                                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
-                                                        )}
-                                                    </div>
-                                                    {expandedCompanyContactId === c.id && (
-                                                        <div className="px-3 pb-2.5 pt-1 border-t border-slate-200 bg-white">
-                                                            <div className="space-y-1.5 text-xs text-slate-600">
-                                                                <p className="font-medium text-slate-700">
-                                                                    {`${c.firstName || ""} ${c.lastName || ""}`.trim() || "Sans nom"}
-                                                                </p>
-                                                                {c.phone && (
-                                                                    <p className="flex items-center gap-1.5">
-                                                                        <Phone className="w-3 h-3 text-emerald-500" />
-                                                                        {c.phone}
-                                                                    </p>
-                                                                )}
-                                                                {c.email && (
-                                                                    <p className="flex items-center gap-1.5">
-                                                                        <Mail className="w-3 h-3 text-primary-500" />
-                                                                        {c.email}
-                                                                    </p>
-                                                                )}
-                                                                {!c.phone && !c.email && (
-                                                                    <p className="text-slate-400">Aucun téléphone/email</p>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
-                                                                {c.phone && (
-                                                                    <a
-                                                                        href={`tel:${c.phone}`}
-                                                                        aria-label={`Appeler ${c.firstName || c.lastName || "contact"}`}
-                                                                        className="p-1.5 text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
-                                                                    >
-                                                                        <Phone className="w-3.5 h-3.5" aria-hidden="true" />
-                                                                    </a>
-                                                                )}
-                                                                {c.email && (
-                                                                    <a
-                                                                        href={`mailto:${c.email}`}
-                                                                        aria-label={`Envoyer un email à ${c.firstName || c.lastName || "contact"}`}
-                                                                        className="p-1.5 text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
-                                                                    >
-                                                                        <Mail className="w-3.5 h-3.5" aria-hidden="true" />
-                                                                    </a>
-                                                                )}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleBadContact(c.id);
-                                                                    }}
-                                                                    title="Mauvais contact"
-                                                                    aria-label={`Marquer ${c.firstName || c.lastName || "contact"} comme mauvais contact`}
-                                                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                                                >
-                                                                    <UserX className="w-3.5 h-3.5" aria-hidden="true" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowAddContact(true)}
-                                            className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-primary-200 text-primary-600 hover:bg-primary-50 text-sm font-medium transition-colors"
-                                        >
-                                            <Plus className="w-4 h-4" aria-hidden="true" />
-                                            Ajouter un nouveau contact
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </section>
-                    )}
+                    {!summary && ficheSections}
 
                     {/* ── Record Action Section ── */}
                     <section
@@ -3696,6 +3715,8 @@ export function UnifiedActionDrawer({
                             )}
                         </div>
                     </section>
+
+                    {summary && ficheSections}
 
                 </div>
             )}

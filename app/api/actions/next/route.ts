@@ -8,6 +8,7 @@ import {
 import { statusConfigService } from '@/lib/services/StatusConfigService';
 import { getTodaySdrMissionIds } from '@/lib/sdr-today-missions';
 import { LAST_ACTION_CTES } from '@/lib/sdr-queue/last-action';
+import { findAbsentRdvRecalls } from '@/lib/sdr-queue/absent-rdv';
 import { listCommercialIds } from '@/lib/lists/commercials';
 
 function buildCallbackResultCodes(config: { statuses: Array<{ code: string; label: string; triggersCallback?: boolean }> }) {
@@ -290,34 +291,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const callbackResultCodes = buildCallbackResultCodes(config);
 
-    const bookedContactIds = result
-        .filter((r) => r.last_action_result === "MEETING_BOOKED" && r.contact_id)
-        .map((r) => r.contact_id!);
-    const bookedCompanyIds = result
-        .filter((r) => r.last_action_result === "MEETING_BOOKED" && !r.contact_id)
-        .map((r) => r.company_id);
-
-    let absentContactIds = new Set<string>();
-    let absentCompanyIds = new Set<string>();
-
-    if (bookedContactIds.length > 0 || bookedCompanyIds.length > 0) {
-        const absentActions = await prisma.action.findMany({
-            where: {
-                result: "MEETING_BOOKED",
-                sdrId,
-                // Stand-by and hors-scope absences are set aside by a manager: they
-                // stay on record but must not reappear at the top of the queue.
-                meetingFeedback: { outcome: "NO_SHOW", standByAt: null, outOfScopeAt: null },
-                OR: [
-                    ...(bookedContactIds.length > 0 ? [{ contactId: { in: bookedContactIds } }] : []),
-                    ...(bookedCompanyIds.length > 0 ? [{ companyId: { in: bookedCompanyIds }, contactId: null }] : []),
-                ],
-            },
-            select: { contactId: true, companyId: true },
-        });
-        absentContactIds = new Set(absentActions.filter((a) => a.contactId).map((a) => a.contactId!));
-        absentCompanyIds = new Set(absentActions.filter((a) => !a.contactId && a.companyId).map((a) => a.companyId!));
-    }
+    const { contactIds: absentContactIds, companyIds: absentCompanyIds } = await findAbsentRdvRecalls(result);
 
     const withPriority = result.map((row) => {
         const isAbsentRdv = row.contact_id
