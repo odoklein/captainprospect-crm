@@ -55,6 +55,8 @@ interface DataTableProps<T> {
     selectedIds?: Set<string>;
     /** Callback when selection changes */
     onSelectionChange?: (selectedIds: string[]) => void;
+    /** Back to page 1 whenever this changes (external filters on `data`). */
+    resetPageKey?: string;
 }
 
 type SortDirection = "asc" | "desc" | null;
@@ -90,6 +92,7 @@ export function DataTable<T extends Record<string, any>>({
     selectable = false,
     selectedIds: controlledSelectedIds,
     onSelectionChange,
+    resetPageKey,
 }: DataTableProps<T>) {
     const [searchQuery, setSearchQuery] = useState("");
     const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
@@ -199,7 +202,7 @@ export function DataTable<T extends Record<string, any>>({
     // Reset to first page only when search query changes (not when data changes e.g. after quick action)
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchQuery]);
+    }, [searchQuery, resetPageKey]);
 
     // When data length changes (e.g. row removed), clamp current page so we don't show an empty page
     useEffect(() => {

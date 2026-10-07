@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -40,7 +40,7 @@ import {
     Briefcase,
     FileText,
 } from "lucide-react";
-import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker } from "@/components/ui";
+import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import dynamic from "next/dynamic";
 import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
@@ -48,6 +48,8 @@ import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { ScriptCompanionDrawer } from "@/components/sdr/ScriptCompanionDrawer";
 import { AlreadyContactedModal, type AlreadyContactedInfo } from "@/components/sdr/AlreadyContactedModal";
+import { ActionQueueToolbar } from "@/components/sdr/ActionQueueToolbar";
+import { DEFAULT_QUEUE_FILTERS, hasAnyQueueFilter, matchesQueueFilters, prepareSearch, type QueueFilters } from "@/lib/sdr-queue/queue-filters";
 import { useSidebar } from "@/components/layout/SidebarProvider";
 
 const UnifiedActionDrawer = dynamic(
@@ -573,11 +575,9 @@ export default function SDRActionPage() {
             return next;
         });
     }, []);
-    // Mission search: server-side search so contacts can be filtered by name
-    const [tableSearchInput, setTableSearchInput] = useState("");
-    const [tableSearchApi, setTableSearchApi] = useState("");
     const queryClient = useQueryClient();
-    const queueQueryKey = sdrActionQueueKey(selectedMissionId, selectedListId, tableSearchApi);
+    // The API returns the full eligible queue; search and filters run client-side (see tableFilters).
+    const queueQueryKey = sdrActionQueueKey(selectedMissionId, selectedListId, "");
     const mapQueueItems = useCallback((items: QueueItem[]) =>
         items.map((i) => ({
             ...i,
@@ -600,7 +600,6 @@ export default function SDRActionPage() {
             params.set("missionId", selectedMissionId!);
             params.set("limit", String(TABLE_QUEUE_LIMIT));
             if (selectedListId) params.set("listId", selectedListId);
-            if (tableSearchApi) params.set("search", tableSearchApi);
             const res = await fetch(`/api/sdr/action-queue?${params.toString()}`);
             const json = await res.json();
             if (!json.success || !json.data?.items) throw new Error(json.error || "Impossible de charger la file d'actions");
@@ -614,11 +613,9 @@ export default function SDRActionPage() {
     const [tableSelectedIds, setTableSelectedIds] = useState<Set<string>>(new Set());
     const [isBulkDisqualifying, setIsBulkDisqualifying] = useState(false);
 
-    // Table view filters (client-side on current queue)
-    const [tableFilterResult, setTableFilterResult] = useState<string>(""); // "" | ActionResult | "NONE" (no last action)
-    const [tableFilterPriority, setTableFilterPriority] = useState<string>("");
-    const [tableFilterChannel, setTableFilterChannel] = useState<string>("");
-    const [tableFilterType, setTableFilterType] = useState<string>("contact"); // "" | "contact" | "company" — default to contacts in table view
+    // Table view filters (client-side on current queue) — contacts only by default
+    const [tableFilters, setTableFilters] = useState<QueueFilters>(DEFAULT_QUEUE_FILTERS);
+    const patchTableFilters = useCallback((patch: Partial<QueueFilters>) => setTableFilters((f) => ({ ...f, ...patch })), []);
 
     // Stats modal (table + card view): view stats and list of contacts with status
     const [showStatsModal, setShowStatsModal] = useState(false);
@@ -1022,29 +1019,19 @@ export default function SDRActionPage() {
         ? lists.filter((l) => l.mission.id === selectedMissionId)
         : lists;
 
-    // Table view: client-side filtered queue (by last action result, priority, channel, type)
+    // Table view: client-side filtered queue. Deferred so typing stays instant on large queues.
+    const deferredTableFilters = useDeferredValue(tableFilters);
     const filteredQueueItems = useMemo(() => {
-        return queueItems.filter((row) => {
-            if (tableFilterResult) {
-                if (tableFilterResult === "NONE") {
-                    if (row.lastAction) return false;
-                } else if (!row.lastAction || row.lastAction.result !== tableFilterResult) return false;
-            }
-            if (tableFilterPriority && row.priority !== tableFilterPriority) return false;
-            if (tableFilterChannel && row.channel !== tableFilterChannel) return false;
-            if (tableFilterType === "contact" && !row.contactId) return false;
-            if (tableFilterType === "company" && row.contactId) return false;
-            return true;
-        });
-    }, [queueItems, tableFilterResult, tableFilterPriority, tableFilterChannel, tableFilterType]);
+        const search = prepareSearch(deferredTableFilters.search);
+        return queueItems.filter((row) => matchesQueueFilters(row, deferredTableFilters, search));
+    }, [queueItems, deferredTableFilters]);
+    // Changes when the filters change (not when a row updates) → table goes back to page 1.
+    const tableFiltersKey = JSON.stringify(deferredTableFilters);
 
-    const hasTableFiltersActive = !!(tableFilterResult || tableFilterPriority || tableFilterChannel || tableFilterType);
-    const clearTableFilters = () => {
-        setTableFilterResult("");
-        setTableFilterPriority("");
-        setTableFilterChannel("");
-        setTableFilterType("");
-    };
+    const hasTableFiltersActive = hasAnyQueueFilter(tableFilters) || tableFilters.type !== "";
+    // Toolbar reset keeps the Contacts/Sociétés choice; the empty-state reset shows everything.
+    const resetTableFilters = () => setTableFilters((f) => ({ ...DEFAULT_QUEUE_FILTERS, type: f.type }));
+    const clearTableFilters = () => setTableFilters({ ...DEFAULT_QUEUE_FILTERS, type: "" });
 
     // Why is the table empty? (so SDR/BD see a clear reason instead of a generic empty message)
     const emptyTableReason = useMemo((): { title: string; description: string; icon: typeof AlertCircle } => {
@@ -1076,18 +1063,18 @@ export default function SDRActionPage() {
                 description: "Aucune liste n'est associée à cette mission (ou les listes ne sont pas encore chargées). Demandez à votre manager d'ajouter des listes avec des sociétés et contacts.",
             };
         }
-        if (tableSearchApi && queueItems.length === 0) {
+        if (tableFilters.search.trim() && queueItems.length > 0 && filteredQueueItems.length === 0) {
             return {
                 icon: AlertCircle,
                 title: "Aucun résultat pour cette recherche",
-                description: `Aucun contact ou société ne correspond à « ${tableSearchApi} ». Modifiez la recherche dans le filtre ci-dessus ou videz le champ pour voir toute la file.`,
+                description: `Aucun contact ou société ne correspond à « ${tableFilters.search.trim()} ». Modifiez la recherche ou les filtres, ou videz le champ pour voir toute la file.`,
             };
         }
         if (hasTableFiltersActive && queueItems.length > 0 && filteredQueueItems.length === 0) {
             return {
                 icon: Filter,
                 title: "Aucun contact ne correspond aux filtres",
-                description: "Les filtres (statut, priorité, canal ou type) excluent tous les contacts. Cliquez sur « Réinitialiser » dans la zone Filtres pour tout réafficher.",
+                description: "Les filtres (priorité, téléphone, statut, canal ou type) excluent tous les contacts. Réinitialisez-les pour tout réafficher.",
             };
         }
         if (queueItems.length === 0) {
@@ -1102,17 +1089,7 @@ export default function SDRActionPage() {
             title: "Aucun contact affiché",
             description: "Aucun contact ne correspond aux critères actuels. Réinitialisez les filtres ou la recherche.",
         };
-    }, [missions.length, selectableMissions.length, selectedMissionId, filteredLists.length, tableSearchApi, hasTableFiltersActive, queueItems.length, filteredQueueItems.length]);
-
-    // Debounce mission search so we don't refetch on every keystroke
-    useEffect(() => {
-        if (!tableSearchInput.trim()) {
-            setTableSearchApi("");
-            return;
-        }
-        const t = setTimeout(() => setTableSearchApi(tableSearchInput.trim()), 400);
-        return () => clearTimeout(t);
-    }, [tableSearchInput]);
+    }, [missions.length, selectableMissions.length, selectedMissionId, filteredLists.length, tableFilters.search, hasTableFiltersActive, queueItems.length, filteredQueueItems.length]);
 
     // Load next action
     const loadNextAction = useCallback(async () => {
@@ -1833,19 +1810,6 @@ export default function SDRActionPage() {
     ]);
 
     // Handlers
-    const handleMissionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const id = e.target.value;
-        setSelectedMissionId(id);
-        localStorage.setItem("sdr_selected_mission", id);
-        const firstList = lists.find((l) => l.mission.id === id);
-        setSelectedListId(firstList?.id ?? null);
-    };
-
-    const handleListChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const id = e.target.value;
-        setSelectedListId(id === "all" ? null : id);
-    };
-
     const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 
     // Select a result and, when it requires a note, jump the cursor straight into the note field
@@ -2271,147 +2235,64 @@ export default function SDRActionPage() {
 
         return (
             <div className="space-y-4">
-                {/* Header — Table View */}
-                <div className="relative overflow-hidden bg-inverse rounded-2xl p-5 shadow-xl">
-
-                    <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-accent-500/20 flex items-center justify-center border border-accent-400/20">
-                                <Phone className="w-5 h-5 text-inverse-ink-2" />
-                            </div>
-                            <div>
-                                <h1 className="text-[22px] font-medium text-white leading-tight">Actions</h1>
-                                <p className="text-[13px] text-white/50">File d'actions — vue tableau</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <div className="flex rounded-xl border border-white/10 p-0.5 bg-white/5">
-                                <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
-                                    <User className="w-3.5 h-3.5" /> Carte
-                                </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
-                                    <Building2 className="w-3.5 h-3.5" /> Tableau
-                                </button>
-                            </div>
-
-                            <Button type="button" onClick={() => setShowStatsModal(true)} className="rounded-xl border border-white/15 bg-white/8 hover:bg-white/15 text-white gap-1.5 px-3 py-1.5 h-auto text-[13px] font-medium">
-                                <BarChart2 className="w-3.5 h-3.5" /> Stats
-                            </Button>
-
-                            {syncCallsButton}
-
-                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/8 border border-white/10">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-[22px] font-medium text-white tabular-nums leading-none">{actionsCompleted}</span>
-                                <span className="text-[11px] text-white/50 uppercase tracking-wide font-medium">actions</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Filter Card */}
-                <div className="bg-white rounded-2xl border border-neutral-200 shadow-sm overflow-hidden">
-                    <div className="px-5 py-3.5 border-b border-neutral-200 bg-neutral-100/50">
-                        <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-primary-hover flex items-center justify-center">
-                                    <Filter className="w-3.5 h-3.5 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-medium text-neutral-900">Filtres</h3>
-                                    {hasTableFiltersActive && (
-                                        <p className="text-xs text-accent-600 font-medium">
-                                            {[tableFilterResult, tableFilterPriority, tableFilterChannel, tableFilterType].filter(Boolean).length} actif{[tableFilterResult, tableFilterPriority, tableFilterChannel, tableFilterType].filter(Boolean).length > 1 ? "s" : ""}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            {hasTableFiltersActive && (
-                                <Button variant="ghost" size="sm" onClick={clearTableFilters} className="text-slate-400 hover:text-red-500 hover:bg-red-50 gap-1.5 text-xs h-7">
-                                    <RotateCcw className="w-3 h-3" />
-                                    Réinitialiser
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="p-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
-                            {/* Mission */}
-                            <div className="space-y-1 xl:col-span-2">
-                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Mission</label>
-                                <select value={selectedMissionId || ""} onChange={handleMissionChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
-                                    {selectableMissions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                </select>
-                            </div>
-                            {/* Liste */}
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Liste</label>
-                                <select value={selectedListId || "all"} onChange={handleListChange} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
-                                    <option value="all">Toutes</option>
-                                    {filteredLists.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                                </select>
-                            </div>
-                            {/* Search */}
-                            <div className="space-y-1 sm:col-span-2 xl:col-span-2">
-                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Rechercher</label>
-                                <input type="text" value={tableSearchInput} onChange={(e) => setTableSearchInput(e.target.value)} placeholder="Contact, société ou numéro…" className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow" />
-                            </div>
-                            {/* Statut */}
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Statut</label>
-                                <select value={tableFilterResult} onChange={(e) => setTableFilterResult(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
-                                    <option value="">Tous</option>
-                                    <option value="NONE">Jamais contacté</option>
-                                    {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                                </select>
-                            </div>
-                            {/* Priorité */}
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Priorité</label>
-                                <select value={tableFilterPriority} onChange={(e) => setTableFilterPriority(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
-                                    <option value="">Toutes</option>
-                                    {Object.entries(PRIORITY_LABELS).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}
-                                </select>
-                            </div>
-                            {/* Canal */}
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Canal</label>
-                                <select value={tableFilterChannel} onChange={(e) => setTableFilterChannel(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
-                                    <option value="">Tous</option>
-                                    {(Object.entries(CHANNEL_LABELS) as [Channel, string][]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                                </select>
-                            </div>
-                            {/* Type */}
-                            <div className="space-y-1">
-                                <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">Type</label>
-                                <select value={tableFilterType} onChange={(e) => setTableFilterType(e.target.value)} className="w-full h-9 px-3 text-[13px] border border-neutral-200 rounded-lg bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-400 transition-shadow cursor-pointer">
-                                    <option value="">Tous</option>
-                                    <option value="contact">Contact</option>
-                                    <option value="company">Société</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Results summary */}
-                        <div className="mt-3 pt-3 border-t border-neutral-200 flex items-center justify-between">
-                            <span className="text-xs text-slate-500">
-                                {tableSearchApi ? (
-                                    <><span className="font-medium text-accent-600">{queueItems.length}</span> résultat{queueItems.length !== 1 ? "s" : ""} pour «&nbsp;{tableSearchApi}&nbsp;»</>
-                                ) : hasTableFiltersActive ? (
-                                    <><span className="font-medium text-accent-600">{filteredQueueItems.length}</span> sur {queueItems.length}</>
-                                ) : (
-                                    <><span className="font-medium text-neutral-900">{queueItems.length}</span> dans la file</>
-                                )}
+                <ActionQueueToolbar
+                    items={queueItems}
+                    filteredCount={filteredQueueItems.length}
+                    filters={tableFilters}
+                    onChange={patchTableFilters}
+                    onReset={resetTableFilters}
+                    missions={selectableMissions}
+                    missionId={selectedMissionId}
+                    onMissionChange={(id) => {
+                        setSelectedMissionId(id);
+                        localStorage.setItem("sdr_selected_mission", id);
+                        const firstList = lists.find((l) => l.mission.id === id);
+                        setSelectedListId(firstList?.id ?? null);
+                    }}
+                    lists={filteredLists}
+                    listId={selectedListId}
+                    onListChange={setSelectedListId}
+                    statusLabels={statusLabels}
+                    priorityLabels={PRIORITY_LABELS}
+                    channelLabels={CHANNEL_LABELS}
+                    trailing={
+                        <>
+                            <span
+                                className="inline-flex h-9 items-center gap-1.5 rounded-control border border-success-line bg-success-soft px-2.5 text-[13px] font-semibold text-success-ink tabular-nums"
+                                title="Actions enregistrées pendant cette session"
+                            >
+                                <CheckCircle2 className="size-3.5" aria-hidden />
+                                {actionsCompleted}
                             </span>
-                            <Button variant="ghost" size="sm" onClick={() => refreshQueue()} className="text-slate-400 hover:text-accent-600 gap-1.5 text-xs h-7">
-                                <RefreshCw className="w-3 h-3" />
-                                Actualiser
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+                            <button
+                                type="button"
+                                onClick={handleSyncCalls}
+                                disabled={isSyncingCalls}
+                                title="Synchroniser les résumés et transcriptions d'appels Allo (24 dernières heures)"
+                                className="inline-flex h-9 items-center gap-1.5 rounded-control border border-line bg-surface px-3 text-[13px] font-medium text-ink-2 shadow-2xs transition-colors hover:border-line-strong hover:text-ink disabled:opacity-60"
+                            >
+                                {isSyncingCalls ? <Loader2 className="size-3.5 animate-spin" /> : <PhoneCall className="size-3.5" />}
+                                {isSyncingCalls ? "Synchro…" : "Sync appels"}
+                                {syncResult && !isSyncingCalls && (
+                                    <span className={cn("rounded-full px-1.5 text-[10px] font-bold tabular-nums", syncResult.enriched > 0 ? "bg-success-soft text-success-ink" : "bg-surface-3 text-ink-3")}>
+                                        {syncResult.enriched}/{syncResult.total}
+                                    </span>
+                                )}
+                            </button>
+                            <IconButton icon={BarChart2} label="Statistiques" variant="outline" onClick={() => setShowStatsModal(true)} />
+                            <IconButton icon={RefreshCw} label="Actualiser la file" variant="outline" onClick={() => refreshQueue()} />
+                            <SegmentedControl<"card" | "table">
+                                ariaLabel="Affichage"
+                                value={viewMode}
+                                onChange={setViewMode}
+                                options={[
+                                    { value: "card", label: "Carte", icon: User },
+                                    { value: "table", label: "Tableau", icon: Building2 },
+                                ]}
+                            />
+                        </>
+                    }
+                />
 
                 {/* Bulk delete bar */}
                 {tableSelectedIds.size > 0 && (
@@ -2492,9 +2373,7 @@ export default function SDRActionPage() {
                             data={filteredQueueItems}
                             columns={queueColumns}
                             keyField={(row) => queueRowKey(row)}
-                            searchable
-                            searchPlaceholder="Rechercher contact, société, téléphone, note..."
-                            searchFields={["_displayName", "_companyName", "_phone", "_searchNote", "missionName"]}
+                            resetPageKey={tableFiltersKey}
                             pagination
                             pageSize={15}
                             emptyMessage="Aucun contact dans la file. Changez de mission ou liste."
