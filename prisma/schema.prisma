@@ -1227,6 +1227,10 @@ model Action {
   // Powers "historical bookers per client/mission" aggregation on the staffing
   // dashboard (groupBy sdrId filtered by campaignId IN (...)).
   @@index([campaignId])
+  // Public API (/api/v1): per-contact / per-company / per-SDR history, newest first.
+  @@index([contactId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([sdrId, createdAt])
 }
 
 // ============================================
@@ -3811,6 +3815,7 @@ model ApiKeyUsageLog {
   createdAt DateTime @default(now())
 
   @@index([apiKeyId])
+  @@index([apiKeyId, createdAt])
   @@index([createdAt])
   @@index([endpoint])
 }

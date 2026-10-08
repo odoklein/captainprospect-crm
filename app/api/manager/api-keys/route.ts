@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole, successResponse, errorResponse, withErrorHandler } from '@/lib/api-utils';
 import { generateApiKey, getAvailableEndpoints, validateRateLimits } from '@/lib/api-keys';
+import { READ_SCOPES, allowedEndpointsForScopes } from '@/lib/api-v1/scopes';
 import { z } from 'zod';
 
 // ============================================
@@ -13,10 +14,12 @@ import { z } from 'zod';
 // Schema for creating API key
 const createApiKeySchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long').trim(),
-  role: z.enum(['MANAGER', 'SDR', 'CLIENT', 'DEVELOPER', 'BUSINESS_DEVELOPER', 'COMMERCIAL', 'BOOKER']),
+  role: z.enum(['MANAGER', 'SDR', 'CLIENT', 'DEVELOPER', 'BUSINESS_DEVELOPER', 'COMMERCIAL', 'BOOKER']).default('CLIENT'),
   clientId: z.string().cuid().optional().nullable(),
   missionId: z.string().cuid().optional().nullable(),
-  allowedEndpoints: z.array(z.string().min(1).max(500)).min(1, 'At least one endpoint required').max(50, 'Too many endpoints'),
+  // Legacy keys list endpoints; public API (/api/v1, MCP) keys list read scopes instead.
+  allowedEndpoints: z.array(z.string().min(1).max(500)).max(50, 'Too many endpoints').default([]),
+  scopes: z.array(z.enum(READ_SCOPES)).max(READ_SCOPES.length).optional(),
   rateLimitPerMinute: z.number().int().min(1).max(1000).default(60),
   rateLimitPerHour: z.number().int().min(1).max(10000).default(3600),
   expiresAt: z.string().datetime().optional().nullable(),
@@ -127,8 +130,18 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     }
   }
 
+  // Public API keys (scopes) must be bound to a client: that is the tenant they can read.
+  const isV1Key = !!validated.scopes?.length;
+  if (isV1Key && !validated.clientId) {
+    return errorResponse('clientId is required for keys with scopes (tenant isolation)', 400);
+  }
+  if (!isV1Key && validated.allowedEndpoints.length === 0) {
+    return errorResponse('At least one endpoint (or scope) required', 400);
+  }
+  const allowedEndpoints = isV1Key ? allowedEndpointsForScopes(validated.scopes!) : validated.allowedEndpoints;
+
   // Validate endpoints exist and are enabled
-  const endpoints = await prisma.externalEndpoint.findMany({
+  const endpoints = isV1Key ? [] : await prisma.externalEndpoint.findMany({
     where: {
       path: { in: validated.allowedEndpoints },
       isEnabled: true,
@@ -136,7 +149,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     select: { path: true },
   });
 
-  if (endpoints.length !== validated.allowedEndpoints.length) {
+  if (!isV1Key && endpoints.length !== validated.allowedEndpoints.length) {
     const validPaths = endpoints.map(e => e.path);
     const invalidPaths = validated.allowedEndpoints.filter(p => !validPaths.includes(p));
     return errorResponse(
@@ -177,7 +190,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
       role: validated.role,
       clientId: validated.clientId || null,
       missionId: validated.missionId || null,
-      allowedEndpoints: validated.allowedEndpoints,
+      allowedEndpoints,
       rateLimitPerMinute: validated.rateLimitPerMinute,
       rateLimitPerHour: validated.rateLimitPerHour,
       expiresAt,

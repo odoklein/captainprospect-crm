@@ -70,6 +70,7 @@ export const config = {
         "/dashboard",
         // All /api routes except /api/auth/* (NextAuth handles its own routes)
         // and /api/webhooks/* (provider callbacks, each route verifies its own signature)
-        "/api/((?!auth/|webhooks/).*)",
+        // and /api/v1/* + /api/mcp (public API: Bearer API key, authenticated by the route itself)
+        "/api/((?!auth/|webhooks/|v1/|mcp).*)",
     ],
 };
