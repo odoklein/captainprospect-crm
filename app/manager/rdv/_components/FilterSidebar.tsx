@@ -15,7 +15,7 @@ import type {
 import { QUICK_PRESETS } from "../_types";
 import {
   Filter, ChevronLeft, ChevronDown, ChevronUp, SortAsc, SortDesc, Zap,
-  AlertTriangle, CheckCircle2, Linkedin, Mail, MapPin, MessageSquare, MessageSquareOff, Mic, MinusCircle,
+  AlertTriangle, Ban, CheckCircle2, Linkedin, Mail, MapPin, MessageSquare, MessageSquareOff, Mic, MinusCircle,
   PauseCircle, Phone, UserX, Video, XCircle, type LucideIcon,
 } from "lucide-react";
 import { FilterSection } from "./shared/FilterSection";
@@ -453,7 +453,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
       {/* ─── Absences ─── */}
       <FilterSection title="Absences">
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {([["open", "À traiter", AlertTriangle], ["standby", "En stand by", PauseCircle]] as [Exclude<NoShowFilter, "all">, string, LucideIcon][]).map(([key, label, Icon]) => (
+          {([["open", "À traiter", AlertTriangle], ["standby", "En stand by", PauseCircle], ["outofscope", "Hors scope", Ban]] as [Exclude<NoShowFilter, "all">, string, LucideIcon][]).map(([key, label, Icon]) => (
             <button
               key={key}
               className="rdv-pill"
@@ -471,7 +471,7 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
           ))}
         </div>
         <div style={{ fontSize: 10, color: "var(--ink3)", marginTop: 6, lineHeight: 1.4 }}>
-          « À traiter » = signalés absents, ni replacés ni mis de côté.
+          « À traiter » = signalés absents, ni replacés ni mis de côté. « Hors scope » = abandonnés pour de bon, invisibles côté SDR.
         </div>
       </FilterSection>
 

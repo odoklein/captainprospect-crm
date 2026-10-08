@@ -19,6 +19,26 @@ export function isOpenNoShow(m: Meeting): boolean {
 }
 
 /**
+ * An absence a manager set aside (stand by or hors scope): still on record, but
+ * not the SDR's to call back. It must not compete with the absences to work, so
+ * it is counted and shown apart, in a quiet compact row.
+ */
+export function isSetAsideNoShow(m: Meeting): boolean {
+    return (
+        m.meetingFeedback?.outcome === "NO_SHOW"
+        && m.result !== "MEETING_CANCELLED"
+        && (!!m.meetingFeedback.standByAt || !!m.meetingFeedback.outOfScopeAt)
+    );
+}
+
+/** Days since the RDV was missed (falls back to the report date). */
+export function daysSinceMissed(m: Meeting, now = Date.now()): number | null {
+    const ref = m.callbackDate ?? m.meetingFeedback?.createdAt;
+    if (!ref) return null;
+    return Math.max(0, Math.floor((now - new Date(ref).getTime()) / 86_400_000));
+}
+
+/**
  * A RDV that was missed and then replaced still opens in the action drawer: the
  * SDR needs the trail (what the client said, when it was missed, when it was
  * replaced) next to the history, not a bare booking form.

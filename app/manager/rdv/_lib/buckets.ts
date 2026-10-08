@@ -50,7 +50,7 @@ export function meetingBucket(m: Meeting, now = new Date()): RdvBucket {
         ? {
             outcome: m.feedback.outcome,
             standByAt: m.feedback.standByAt ? new Date(m.feedback.standByAt) : null,
-            outOfScopeAt: null,
+            outOfScopeAt: m.feedback.outOfScopeAt ? new Date(m.feedback.outOfScopeAt) : null,
           }
         : null,
     },

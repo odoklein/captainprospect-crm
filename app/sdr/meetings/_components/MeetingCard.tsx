@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { getAvatarColor, getDisplayNote, getInitials, getMeetingDisplayDate, getRdvStatus, formatCardMonth, formatCardTime, isOpenNoShow } from "../_lib/formatters";
+import { getAvatarColor, getDisplayNote, getInitials, getMeetingDisplayDate, getRdvStatus, formatCardMonth, formatCardTime, isOpenNoShow, isSetAsideNoShow } from "../_lib/formatters";
 import { StatusBadge } from "./StatusBadge";
 import type { Meeting } from "../_types";
 
@@ -34,6 +34,32 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
     const feedback = meeting.meetingFeedback;
     const openNoShow = isOpenNoShow(meeting);
     const displayNote = getDisplayNote(meeting);
+
+    // An absence a manager set aside is not the SDR's to work: one quiet line,
+    // so it stops pushing the real RDV and the absences to call back off screen.
+    if (isSetAsideNoShow(meeting) && feedback) {
+        const outOfScope = !!feedback.outOfScopeAt;
+        const reason = outOfScope ? feedback.outOfScopeReason : feedback.standByReason;
+        const name = [meeting.contact.firstName, meeting.contact.lastName].filter(Boolean).join(" ") || "Contact";
+        return (
+            <div
+                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-2.5 text-sm transition hover:bg-slate-50"
+                onClick={onOpen ? () => onOpen(meeting) : undefined}
+                onContextMenu={onContextMenu ? (e) => onContextMenu(e, meeting) : undefined}
+            >
+                {outOfScope ? <Ban className="h-4 w-4 shrink-0 text-slate-400" /> : <PauseCircle className="h-4 w-4 shrink-0 text-slate-400" />}
+                <div className="min-w-0 flex-1 truncate">
+                    <span className="font-semibold text-slate-600">{name}</span>
+                    <span className="ml-2 text-xs text-slate-400">{meeting.contact.company.name}</span>
+                    {reason && <span className="ml-2 text-xs italic text-slate-400">· {reason}</span>}
+                </div>
+                {d && <span className="hidden shrink-0 text-xs text-slate-400 sm:inline">RDV du {d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</span>}
+                <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                    Absent — {outOfScope ? "hors scope" : "en stand by"}
+                </span>
+            </div>
+        );
+    }
 
     return (
         <div

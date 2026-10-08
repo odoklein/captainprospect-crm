@@ -67,6 +67,9 @@ export interface Meeting {
     /** Set when the absence was parked: on record, off the SDR boards. */
     standByAt?: string | null;
     standByReason?: string | null;
+    /** Set when the absence was retired for good (hors scope): never to be called back. */
+    outOfScopeAt?: string | null;
+    outOfScopeReason?: string | null;
     reportedBy?: string | null;
     reportedAt?: string | null;
   } | null;
@@ -121,7 +124,7 @@ export type MeetingCategoryFilter = "EXPLORATOIRE" | "BESOIN";
 export type OutcomeFilter = "POSITIVE" | "NEUTRAL" | "NEGATIVE" | "NO_SHOW" | "NONE";
 export type ConfirmationFilter = "all" | "PENDING" | "CONFIRMED" | "CANCELLED";
 /** Absences: "open" = signalés absents et non traités · "standby" = mis de côté. */
-export type NoShowFilter = "all" | "open" | "standby";
+export type NoShowFilter = "all" | "open" | "standby" | "outofscope";
 export type PanelTab = "detail" | "fiche" | "feedback" | "audio" | "history";
 export type SortField = "createdAt" | "callbackDate" | "duration" | "contactName" | "companyName" | "sdrName";
 export type SortDir = "asc" | "desc";

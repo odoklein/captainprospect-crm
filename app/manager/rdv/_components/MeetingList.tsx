@@ -229,8 +229,14 @@ const MeetingRow = memo(function MeetingRow({
           <span className="rdv-outcome" style={bucket === "negative" ? { color: "var(--redInk)" } : bucket === "positive" ? { color: "var(--greenInk)" } : undefined}>
             <span className="rdv-bilan-swatch" style={bucketSwatch(bucket)} />
             {BUCKET_META[bucket].rowLabel}
-            {bucket === "no_show" && meeting.feedback?.standByAt && (
-              <span style={{ fontSize: 10, fontWeight: 500, color: "var(--ink4)" }}>· stand-by</span>
+            {bucket === "no_show" && (
+              meeting.feedback?.outOfScopeAt ? (
+                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--ink4)" }}>· hors scope</span>
+              ) : meeting.feedback?.standByAt ? (
+                <span style={{ fontSize: 10, fontWeight: 500, color: "var(--ink4)" }}>· stand-by</span>
+              ) : (
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--redInk, var(--red))" }}>· à traiter</span>
+              )
             )}
           </span>
         )}

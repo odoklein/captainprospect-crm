@@ -49,6 +49,7 @@ import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { ScriptCompanionDrawer } from "@/components/sdr/ScriptCompanionDrawer";
 import { AlreadyContactedModal, type AlreadyContactedInfo } from "@/components/sdr/AlreadyContactedModal";
 import { ActionQueueToolbar } from "@/components/sdr/ActionQueueToolbar";
+import { AbsentsToTreatButton, ABSENTS_TO_TREAT_QUERY_KEY, type AbsentToTreat } from "@/components/sdr/AbsentsToTreat";
 import { DEFAULT_QUEUE_FILTERS, hasAnyQueueFilter, matchesQueueFilters, prepareSearch, type QueueFilters } from "@/lib/sdr-queue/queue-filters";
 import { useSidebar } from "@/components/layout/SidebarProvider";
 
@@ -1351,7 +1352,16 @@ export default function SDRActionPage() {
         setUnifiedDrawerOpen(true);
     };
 
+    // An absent prospect picked from "Les absents à traiter", whatever list or
+    // mission is selected: it opens in the same drawer as a queue row.
+    const openAbsentFromButton = (item: AbsentToTreat) => {
+        openDrawerForRow({ ...item, lastAction: null, priority: "ABSENT_RDV" } as QueueItem);
+        if (item.missionId) setUnifiedDrawerMissionId(item.missionId);
+    };
+
     const closeUnifiedDrawer = () => {
+        // Whatever was logged on an absent prospect may have cleared it.
+        queryClient.invalidateQueries({ queryKey: ABSENTS_TO_TREAT_QUERY_KEY });
         setUnifiedDrawerOpen(false);
         setUnifiedBookingDialogOpen(false);
         setUnifiedAlloDialogOpen(false);
@@ -2265,6 +2275,7 @@ export default function SDRActionPage() {
                     channelLabels={CHANNEL_LABELS}
                     trailing={
                         <>
+                            <AbsentsToTreatButton onOpen={openAbsentFromButton} />
                             <span
                                 className="inline-flex h-9 items-center gap-1.5 rounded-control border border-success-line bg-success-soft px-2.5 text-[13px] font-semibold text-success-ink tabular-nums"
                                 title="Actions enregistrées pendant cette session"
@@ -2680,6 +2691,7 @@ export default function SDRActionPage() {
 
                         {/* Right: Controls & Stats */}
                         <div className="flex items-center gap-2 flex-wrap">
+                            <AbsentsToTreatButton onOpen={openAbsentFromButton} tone="dark" />
                             {/* View Toggle */}
                             <div className="flex rounded-xl border border-white/10 p-0.5 bg-white/5">
                                 <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>

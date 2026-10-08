@@ -15,6 +15,7 @@ const FILTERS = [
     { key: "absent" as const, label: "Absents" },
     { key: "negative" as const, label: "Négatifs" },
     { key: "cancelled" as const, label: "Annulés" },
+    { key: "setAside" as const, label: "Mis de côté" },
 ];
 
 export function SdrFilterPills({ statusFilter, onSelect, counts }: SdrFilterPillsProps) {

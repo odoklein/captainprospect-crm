@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, PauseCircle, PlayCircle, RefreshCw, UserX } from "lucide-react";
+import { Ban, Loader2, PauseCircle, PlayCircle, RefreshCw, UserX } from "lucide-react";
 import { Modal, ModalFooter, useToast } from "@/components/ui";
 import type { Meeting } from "../../_types";
 
@@ -44,7 +44,9 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
 
     const feedback = meeting.feedback;
     const isNoShow = feedback?.outcome === "NO_SHOW";
-    const isStandBy = isNoShow && !!feedback?.standByAt;
+    const isOutOfScope = isNoShow && !!feedback?.outOfScopeAt;
+    const isStandBy = isNoShow && !isOutOfScope && !!feedback?.standByAt;
+    const isSetAside = isStandBy || isOutOfScope;
     const isCancelled = meeting.result === "MEETING_CANCELLED";
 
     const [formOpen, setFormOpen] = useState(false);
@@ -136,12 +138,49 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
                     note: feedback?.note ?? null,
                     standByAt: standBy ? new Date().toISOString() : null,
                     standByReason: standBy ? feedback?.standByReason ?? null : null,
+                    outOfScopeAt: feedback?.outOfScopeAt ?? null,
+                    outOfScopeReason: feedback?.outOfScopeReason ?? null,
                 },
             });
             success(
                 standBy ? "RDV mis en stand by" : "RDV réactivé",
                 standBy
                     ? "Il sort du tableau des absents côté SDR et de la file d'appels."
+                    : "Il revient dans les absents à traiter, côté SDR aussi.",
+            );
+        } catch (err) {
+            showError(err instanceof Error ? err.message : "Échec");
+        } finally {
+            setIsParking(false);
+        }
+    }
+
+    async function setOutOfScope(outOfScope: boolean) {
+        setIsParking(true);
+        try {
+            const res = await fetch("/api/manager/rdv-absences", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ actionId: meeting.id, outOfScope }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.error || "Échec");
+
+            onUpdated({
+                feedback: {
+                    outcome: feedback?.outcome ?? "NO_SHOW",
+                    recontact: feedback?.recontact ?? "YES",
+                    note: feedback?.note ?? null,
+                    standByAt: null,
+                    standByReason: null,
+                    outOfScopeAt: outOfScope ? new Date().toISOString() : null,
+                    outOfScopeReason: null,
+                },
+            });
+            success(
+                outOfScope ? "RDV mis hors scope" : "RDV réintégré",
+                outOfScope
+                    ? "Abandonné pour de bon : il disparaît des absents côté SDR."
                     : "Il revient dans les absents à traiter, côté SDR aussi.",
             );
         } catch (err) {
@@ -178,17 +217,17 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
             {isNoShow && (
                 <div
                     style={{
-                        background: isStandBy ? "var(--surface2)" : "rgba(225, 29, 72, 0.06)",
-                        border: `1px solid ${isStandBy ? "var(--border)" : "rgba(225,29,72,0.22)"}`,
+                        background: isSetAside ? "var(--surface2)" : "rgba(225, 29, 72, 0.06)",
+                        border: `1px solid ${isSetAside ? "var(--border)" : "rgba(225,29,72,0.22)"}`,
                         borderRadius: 10,
                         padding: "10px 12px",
                         marginBottom: 14,
                     }}
                 >
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                        {isStandBy ? <PauseCircle size={15} color="var(--ink3)" /> : <UserX size={15} color="var(--red)" />}
-                        <span style={{ fontSize: 12, fontWeight: 700, color: isStandBy ? "var(--ink2)" : "var(--red)" }}>
-                            {isStandBy ? "Absent — en stand by" : "Contact absent"}
+                        {isOutOfScope ? <Ban size={15} color="var(--ink3)" /> : isStandBy ? <PauseCircle size={15} color="var(--ink3)" /> : <UserX size={15} color="var(--red)" />}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: isSetAside ? "var(--ink2)" : "var(--red)" }}>
+                            {isOutOfScope ? "Absent — hors scope" : isStandBy ? "Absent — en stand by" : "Contact absent à traiter"}
                         </span>
                         {feedback?.reportedAt && (
                             <span style={{ fontSize: 11, color: "var(--ink3)" }}>
@@ -213,6 +252,11 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
                             &ldquo;{feedback.note}&rdquo;
                         </p>
                     )}
+                    {isOutOfScope && feedback?.outOfScopeReason && (
+                        <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--ink3)" }}>
+                            Hors scope : {feedback.outOfScopeReason}
+                        </p>
+                    )}
                     {isStandBy && feedback?.standByReason && (
                         <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--ink3)" }}>
                             Stand by : {feedback.standByReason}
@@ -228,28 +272,52 @@ export function NoShowActions({ meeting, onUpdated }: NoShowActionsProps) {
                         >
                             <RefreshCw size={13} /> Réaffecter / préciser
                         </button>
-                        {isStandBy ? (
+                        {isOutOfScope ? (
                             <button
                                 className="rdv-btn rdv-btn-ghost"
                                 style={{ padding: "6px 12px", fontSize: 12 }}
-                                onClick={() => setStandBy(false)}
+                                onClick={() => setOutOfScope(false)}
                                 disabled={isParking}
                                 title="Le remettre dans les listes SDR"
                             >
                                 {isParking ? <Loader2 size={13} className="animate-spin" /> : <PlayCircle size={13} />}
-                                Réactiver
+                                Réintégrer
                             </button>
                         ) : (
-                            <button
-                                className="rdv-btn rdv-btn-ghost"
-                                style={{ padding: "6px 12px", fontSize: 12 }}
-                                onClick={() => setStandBy(true)}
-                                disabled={isParking}
-                                title="Le laisser de côté : il sort des listes SDR sans être clôturé"
-                            >
-                                {isParking ? <Loader2 size={13} className="animate-spin" /> : <PauseCircle size={13} />}
-                                Mettre en stand by
-                            </button>
+                            <>
+                                {isStandBy ? (
+                                    <button
+                                        className="rdv-btn rdv-btn-ghost"
+                                        style={{ padding: "6px 12px", fontSize: 12 }}
+                                        onClick={() => setStandBy(false)}
+                                        disabled={isParking}
+                                        title="Le remettre dans les listes SDR"
+                                    >
+                                        {isParking ? <Loader2 size={13} className="animate-spin" /> : <PlayCircle size={13} />}
+                                        Réactiver
+                                    </button>
+                                ) : (
+                                    <button
+                                        className="rdv-btn rdv-btn-ghost"
+                                        style={{ padding: "6px 12px", fontSize: 12 }}
+                                        onClick={() => setStandBy(true)}
+                                        disabled={isParking}
+                                        title="Le laisser de côté : il sort des listes SDR sans être clôturé"
+                                    >
+                                        {isParking ? <Loader2 size={13} className="animate-spin" /> : <PauseCircle size={13} />}
+                                        Mettre en stand by
+                                    </button>
+                                )}
+                                <button
+                                    className="rdv-btn rdv-btn-ghost"
+                                    style={{ padding: "6px 12px", fontSize: 12 }}
+                                    onClick={() => setOutOfScope(true)}
+                                    disabled={isParking}
+                                    title="L'abandonner pour de bon : jamais à rappeler"
+                                >
+                                    <Ban size={13} /> Hors scope
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>

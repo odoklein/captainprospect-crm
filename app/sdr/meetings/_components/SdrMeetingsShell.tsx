@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { ContextMenu, useContextMenu, useToast } from "@/components/ui";
 import { Eye, CalendarClock, XCircle, Trash2 } from "lucide-react";
 import { useRdvKeyboardNavigation } from "@/lib/rdv/hooks/useRdvKeyboardNavigation";
-import { currentMonthPeriod, useSdrMeetingsQuery } from "../_hooks/useSdrMeetingsQuery";
+import { useSdrMeetingsQuery } from "../_hooks/useSdrMeetingsQuery";
 import { SdrMonthPicker } from "./SdrMonthPicker";
 import { useSdrMeetingMutations } from "../_hooks/useSdrMeetingMutations";
 import { useSdrMeetingFilters } from "../_hooks/useSdrMeetingFilters";
@@ -31,8 +31,10 @@ const UnifiedActionDrawer = dynamic(
 );
 
 export function SdrMeetingsShell() {
-    // Default to RDVs booked this month: SDRs track (and are paid on) their monthly RDVs.
-    const [period, setPeriod] = useState(currentMonthPeriod);
+    // Default to the whole history: an absence or an upcoming RDV booked in an
+    // earlier month must not vanish from the page. The month picker narrows it
+    // down for monthly bonus tracking.
+    const [period, setPeriod] = useState<string>("all");
     const { data, isLoading } = useSdrMeetingsQuery(period);
     const meetings = data ?? [];
     const mutations = useSdrMeetingMutations();
@@ -206,7 +208,13 @@ export function SdrMeetingsShell() {
                     onImport={() => setImportModalOpen(true)}
                 />
 
-                <AbsentRdvBanner absentMeetings={filters.absentMeetings} onOpen={openMeeting} />
+                <AbsentRdvBanner
+                    absentMeetings={filters.absentMeetings}
+                    setAsideCount={filters.stats.setAside}
+                    onOpen={openMeeting}
+                    onShowAll={() => filters.setStatusFilter("absent")}
+                    onShowSetAside={() => filters.setStatusFilter("setAside")}
+                />
 
                 <div className="flex justify-end">
                     <SdrMonthPicker value={period} onChange={setPeriod} />

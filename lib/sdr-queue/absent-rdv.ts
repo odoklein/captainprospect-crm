@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
  * a manager (stand by / hors scope). Whoever works the mission gets it, not only
  * the SDR who booked it: the booker is often no longer planned on that mission,
  * and the absence then sat in nobody's queue. "Ne pas recontacter" absences stay
- * out. Once anything is logged on the row, its last action is no longer the
+ * out, and so do those of a mission that has since been stopped. Once anything is logged on the row, its last action is no longer the
  * booking and the usual priority/cooldown rules take over.
  */
 export async function findAbsentRdvRecalls(
@@ -29,6 +29,9 @@ export async function findAbsentRdvRecalls(
     const absentActions = await prisma.action.findMany({
         where: {
             result: "MEETING_BOOKED",
+            // A stopped mission (paused, completed, archived) takes its absences
+            // out of the call queue with it.
+            campaign: { is: { mission: { is: { isActive: true } } } },
             meetingFeedback: {
                 outcome: "NO_SHOW",
                 recontactRequested: { in: ["YES", "MAYBE"] },

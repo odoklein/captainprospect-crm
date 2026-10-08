@@ -22,6 +22,7 @@ const EMPTY_DESCRIPTIONS: Record<StatusFilter, string> = {
     absent: "Aucun rendez-vous marqué absent.",
     negative: "Aucun retour négatif sur vos rendez-vous.",
     cancelled: "Aucun rendez-vous annulé.",
+    setAside: "Aucune absence mise de côté par un manager.",
 };
 
 export function MeetingList({ meetings, isLoading, query, statusFilter, onOpen, onReschedule, onCancel, onContextMenu }: MeetingListProps) {

@@ -209,11 +209,16 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   if (noShowParam === "open") {
     andClauses.push({
       result: "MEETING_BOOKED",
-      meetingFeedback: { is: { outcome: "NO_SHOW", standByAt: null } },
+      meetingFeedback: { is: { outcome: "NO_SHOW", standByAt: null, outOfScopeAt: null } },
     });
   } else if (noShowParam === "standby") {
+    // Hors scope wins over stand by (a retired RDV is not waiting to be reactivated).
     andClauses.push({
-      meetingFeedback: { is: { outcome: "NO_SHOW", standByAt: { not: null } } },
+      meetingFeedback: { is: { outcome: "NO_SHOW", standByAt: { not: null }, outOfScopeAt: null } },
+    });
+  } else if (noShowParam === "outofscope") {
+    andClauses.push({
+      meetingFeedback: { is: { outcome: "NO_SHOW", outOfScopeAt: { not: null } } },
     });
   }
 
@@ -447,6 +452,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
           note: m.meetingFeedback.clientNote,
           standByAt: m.meetingFeedback.standByAt?.toISOString() ?? null,
           standByReason: m.meetingFeedback.standByReason ?? null,
+          outOfScopeAt: m.meetingFeedback.outOfScopeAt?.toISOString() ?? null,
+          outOfScopeReason: m.meetingFeedback.outOfScopeReason ?? null,
           reportedAt: m.meetingFeedback.updatedAt?.toISOString() ?? null,
         }
       : null,
