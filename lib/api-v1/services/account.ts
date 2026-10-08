@@ -16,13 +16,14 @@ import { parseInput } from "../input";
  */
 export async function getAccount(ctx: Ctx) {
   const now = new Date();
-  const [client, missions] = await Promise.all([
-    ctx.db.client.findUnique({ where: { id: ctx.p.clientId }, select: { id: true, name: true, status: true } }),
+  const [client, clientCount, missions] = await Promise.all([
+    ctx.p.clientId ? ctx.db.client.findUnique({ where: { id: ctx.p.clientId }, select: { id: true, name: true, status: true } }) : Promise.resolve(null),
+    ctx.p.allClients ? ctx.db.client.count({ where: { archivedAt: null } }) : Promise.resolve(1),
     ctx.db.mission.findMany({
       where: { AND: [missionScope(ctx.p), { status: "ACTIVE" }, { isActive: true }] },
-      select: { id: true, name: true, startDate: true, endDate: true, teamLeadSdr: { select: { name: true } }, _count: { select: { sdrAssignments: true } } },
+      select: { id: true, name: true, startDate: true, endDate: true, client: { select: { name: true } }, teamLeadSdr: { select: { name: true } }, _count: { select: { sdrAssignments: true } } },
       orderBy: { name: "asc" },
-      take: 50,
+      take: ctx.p.allClients ? 200 : 50,
     }),
   ]);
 
@@ -36,14 +37,19 @@ export async function getAccount(ctx: Ctx) {
   return {
     now: { iso: now.toISOString(), paris: parisNow(now), timezone: TIMEZONE },
     visible_scope: {
+      all_clients: ctx.p.allClients,
+      clients_visible: clientCount,
       client: client ? { id: client.id, name: client.name, status: client.status } : null,
       restricted_to_one_mission: ctx.p.missionId,
-      statement: `This API key only sees the data of the client "${client?.name ?? "?"}"${ctx.p.missionId ? " (one mission only)" : ""}. It is NOT the whole CRM: other clients' missions, contacts and calls do not exist for it — say so instead of claiming something does not exist.`,
+      statement: ctx.p.allClients
+        ? `This is an INTERNAL all-clients key: it sees every client (${clientCount} active clients) — their missions, campaigns and scripts, lists, contacts, calls and appointments${ctx.p.missionId ? " (limited to one mission)" : ""}. Use list_clients to enumerate them and the client_id argument to narrow. Each result names its client: always say which client you are talking about.`
+        : `This API key only sees the data of the client "${client?.name ?? "?"}"${ctx.p.missionId ? " (one mission only)" : ""}. It is NOT the whole CRM: other clients' missions, contacts and calls do not exist for it — say so instead of claiming something does not exist.`,
     },
     permissions: ctx.p.scopes,
     active_missions: missions.map((m) => ({
       id: m.id,
       name: m.name,
+      client: m.client.name,
       start_date: iso(m.startDate),
       end_date: iso(m.endDate),
       team_lead: m.teamLeadSdr?.name ?? null,

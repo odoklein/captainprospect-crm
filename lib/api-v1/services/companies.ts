@@ -3,12 +3,13 @@ import { CompletenessStatus, type Prisma } from "@prisma/client";
 import { dateRange, pageArgs, pageParams, toPage, zDate } from "../pagination";
 import { notFound } from "../errors";
 import { ACTION_SELECT, actionSummary, contactStats, fullName, ref, trunc, type Ctx } from "../serializers";
-import { actionScope, companyScope, opportunityScope } from "../tenant";
+import { actionScope, clientFilterParam, companyScope, opportunityScope } from "../tenant";
 
 export const searchCompaniesParams = {
   query: z.string().trim().min(1).max(100).optional().describe("Matches company name, industry or website"),
   status: z.nativeEnum(CompletenessStatus).optional().describe("Data completeness: INCOMPLETE | PARTIAL | ACTIONABLE"),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
   date_from: zDate.optional().describe("Company created on/after"),
   date_to: zDate.optional().describe("Company created on/before"),
   ...pageParams,
@@ -53,7 +54,7 @@ export async function searchCompanies(ctx: Ctx, input: SearchCompaniesInput) {
   const rows = await ctx.db.company.findMany({
     where: {
       AND: [
-        companyScope(ctx.p),
+        companyScope(ctx.p, input.client_id),
         input.status ? { status: input.status } : {},
         input.mission_id ? { list: { missionId: input.mission_id } } : {},
         created ? { createdAt: created } : {},

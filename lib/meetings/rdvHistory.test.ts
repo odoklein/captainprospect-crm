@@ -82,3 +82,33 @@ test("history reads oldest first", () => {
     ]);
     assert.deepEqual(sorted.map((e) => e.id), ["1", "2"]);
 });
+
+import { isStaleNoShow, staleAbsenceEntry } from "./rdvHistory";
+
+const NOW = d("2026-10-08T12:00:00Z");
+const noShow = { outcome: "NO_SHOW", createdAt: d("2026-10-03T12:00:00Z") };
+
+test("an absence on a RDV moved to a future date is stale", () => {
+    assert.equal(isStaleNoShow(noShow, d("2026-10-12T10:00:00Z"), NOW), true);
+});
+
+test("a genuine absence (date passed) is never stale", () => {
+    assert.equal(isStaleNoShow(noShow, d("2026-10-03T10:00:00Z"), NOW), false);
+});
+
+test("future date but earlier than the absence report is not stale", () => {
+    assert.equal(isStaleNoShow({ outcome: "NO_SHOW", createdAt: d("2026-10-20T00:00:00Z") }, d("2026-10-12T10:00:00Z"), NOW), false);
+});
+
+test("other outcomes and missing data are never stale", () => {
+    assert.equal(isStaleNoShow({ outcome: "POSITIVE", createdAt: noShow.createdAt }, d("2026-10-12T10:00:00Z"), NOW), false);
+    assert.equal(isStaleNoShow(null, d("2026-10-12T10:00:00Z"), NOW), false);
+    assert.equal(isStaleNoShow(noShow, null, NOW), false);
+});
+
+test("a stale absence keeps the client's comment in its trace", () => {
+    const e = staleAbsenceEntry({ id: "a1", callbackDate: d("2026-10-12T10:00:00Z"), meetingFeedback: { clientNote: " pas venu ", createdAt: noShow.createdAt } });
+    assert.equal(e.clientNote, "pas venu");
+    assert.equal(e.reportedAt, "2026-10-03T12:00:00.000Z");
+    assert.equal(e.newDate, "2026-10-12T10:00:00.000Z");
+});

@@ -5,13 +5,14 @@ import { zBool, zDate } from "../pagination";
 import { CATEGORY_LABELS, REACHED_CATEGORIES, resultCategory, resultLabel, type ResultCategory } from "../glossary";
 import { TIMEZONE, periodRange, zPeriod, type Period } from "../dates";
 import { ref, type Ctx } from "../serializers";
-import { actionScope } from "../tenant";
+import { actionScope, clientFilterParam, clientSql, missionScope } from "../tenant";
 
 export const salesReportParams = {
   period: zPeriod.optional(),
   date_from: zDate.optional().describe("Period start (ignored when `period` is set; default: 30 days ago)"),
   date_to: zDate.optional().describe("Period end, inclusive (ignored when `period` is set; default: now)"),
   mission_id: z.string().max(40).optional().describe("Restrict to one mission / team"),
+  client_id: clientFilterParam,
   user_id: z.string().max(40).optional().describe("Restrict to one SDR"),
   compare_previous: zBool.describe("Also return the previous period of equal length and the change (%)"),
 };
@@ -20,12 +21,12 @@ export type SalesReportInput = z.infer<z.ZodObject<typeof salesReportParams>>;
 const DAY = 86_400_000;
 const MAX_SPAN_DAYS = 366;
 
-interface Filters { from: Date; to: Date; missionId?: string; userId?: string }
+interface Filters { from: Date; to: Date; missionId?: string; userId?: string; clientId?: string }
 
 function actionFilters(ctx: Ctx, f: Filters) {
   return {
     AND: [
-      actionScope(ctx.p),
+      actionScope(ctx.p, f.clientId),
       { createdAt: { gte: f.from, lte: f.to } },
       f.missionId ? { campaign: { missionId: f.missionId } } : {},
       f.userId ? { sdrId: f.userId } : {},
@@ -36,7 +37,7 @@ function actionFilters(ctx: Ctx, f: Filters) {
 /** WHERE for raw SQL: the tenant (and optional mission) come from the principal, bound as parameters. */
 function rawWhere(ctx: Ctx, f: Filters): Prisma.Sql {
   const parts: Prisma.Sql[] = [
-    Prisma.sql`m."clientId" = ${ctx.p.clientId}`,
+    clientSql(ctx.p, "m", f.clientId),
     Prisma.sql`a."createdAt" >= ${f.from}`,
     Prisma.sql`a."createdAt" <= ${f.to}`,
   ];
@@ -109,7 +110,7 @@ export async function getSalesReport(ctx: Ctx, i: SalesReportInput) {
   if (to.getTime() - from.getTime() > MAX_SPAN_DAYS * DAY) {
     throw new ApiError(400, "invalid_params", `Period too long (max ${MAX_SPAN_DAYS} days)`);
   }
-  const f: Filters = { from, to, missionId: i.mission_id, userId: i.user_id };
+  const f: Filters = { from, to, missionId: i.mission_id, userId: i.user_id, clientId: i.client_id };
   const spanDays = (to.getTime() - from.getTime()) / DAY;
 
   const prevFilters: Filters = { ...f, from: new Date(from.getTime() - (to.getTime() - from.getTime()) - 1), to: new Date(from.getTime() - 1) };
@@ -119,8 +120,8 @@ export async function getSalesReport(ctx: Ctx, i: SalesReportInput) {
     ctx.db.action.groupBy({ by: ["campaignId", "sdrId", "channel", "result"], where: actionFilters(ctx, f), _count: { _all: true } }) as Promise<Grouped>,
     ctx.db.action.groupBy({ by: ["confirmationStatus"], where: { AND: [actionFilters(ctx, f), { result: "MEETING_BOOKED" }] }, _count: { _all: true } }),
     ctx.db.campaign.findMany({
-      where: { mission: { clientId: ctx.p.clientId, ...(ctx.p.missionId ? { id: ctx.p.missionId } : {}) } },
-      select: { id: true, mission: { select: { id: true, name: true } } },
+      where: { mission: missionScope(ctx.p, i.client_id) },
+      select: { id: true, mission: { select: { id: true, name: true, client: { select: { id: true, name: true } } } } },
     }),
     uniqueCalled(ctx, f),
     series(ctx, f, spanDays > 62 ? "month" : "day"),
@@ -137,7 +138,8 @@ export async function getSalesReport(ctx: Ctx, i: SalesReportInput) {
   const byResult = new Map<string, number>();
   const byCategory = new Map<ResultCategory, number>();
   const byUser = new Map<string, Bucket>();
-  const byMission = new Map<string, Bucket & { name: string }>();
+  const byMission = new Map<string, Bucket & { name: string; client: { id: string; name: string } }>();
+  const byClient = new Map<string, Bucket & { name: string }>();
 
   for (const g of grouped) {
     const n = g._count._all;
@@ -153,11 +155,16 @@ export async function getSalesReport(ctx: Ctx, i: SalesReportInput) {
 
     const m = missionByCampaign.get(g.campaignId);
     if (m) {
-      const b = byMission.get(m.id) ?? { ...blank(), name: m.name };
+      const b = byMission.get(m.id) ?? { ...blank(), name: m.name, client: m.client };
       b.actions += n;
       b.appointments_booked += booked;
       if (g.channel === "CALL") b.calls += n;
       byMission.set(m.id, b);
+      const c = byClient.get(m.client.id) ?? { ...blank(), name: m.client.name };
+      c.actions += n;
+      c.appointments_booked += booked;
+      if (g.channel === "CALL") c.calls += n;
+      byClient.set(m.client.id, c);
     }
   }
 
@@ -199,6 +206,8 @@ export async function getSalesReport(ctx: Ctx, i: SalesReportInput) {
     by_result: [...byResult.entries()].sort((a, b) => b[1] - a[1]).map(([result, count]) => ({ result, label: resultLabel(result), category: resultCategory(result), count })),
     series: { unit: spanDays > 62 ? "month" : "day", points: daily },
     by_user: topUsers.map(([id, b]) => ({ ...ref({ id, name: nameById.get(id) ?? "?" }), ...b })),
+    // Only meaningful across several clients (all-clients key); one row for a client-bound key.
+    by_client: [...byClient.entries()].sort((a, b) => b[1].calls - a[1].calls).map(([id, b]) => ({ id, ...b })),
     by_mission: [...byMission.entries()].sort((a, b) => b[1].calls - a[1].calls).map(([id, b]) => ({ id, ...b })),
     ...(prev && prevUnique
       ? {

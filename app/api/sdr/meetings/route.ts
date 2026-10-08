@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { filterRdvList } from "@/lib/utils/meetingFilters";
 import { loadAbsenceHistory } from "@/lib/meetings/feedbackHistory";
-import { foldReplacedRdvs, sortHistory, type RdvHistoryEntry } from "@/lib/meetings/rdvHistory";
+import { foldReplacedRdvs, isStaleNoShow, sortHistory, staleAbsenceEntry, type RdvHistoryEntry } from "@/lib/meetings/rdvHistory";
 
 // ============================================
 // GET /api/sdr/meetings
@@ -191,9 +191,11 @@ export async function GET(request: NextRequest) {
             meetingJoinUrl: meeting.meetingJoinUrl ?? undefined,
             meetingPhone: meeting.meetingPhone ?? undefined,
             confirmationStatus: meeting.confirmationStatus,
-            meetingFeedback: meeting.meetingFeedback ?? null,
+            // An old absence on a RDV since moved to a future date is no longer an absence.
+            meetingFeedback: isStaleNoShow(meeting.meetingFeedback, meeting.callbackDate) ? null : (meeting.meetingFeedback ?? null),
             history: sortHistory([
                 ...(historyByHead.get(meeting.id) ?? []),
+                ...(isStaleNoShow(meeting.meetingFeedback, meeting.callbackDate) ? [staleAbsenceEntry(meeting)] : []),
                 ...(movedHistory.get(meeting.id) ?? []).map((h): RdvHistoryEntry => ({
                     id: h.id,
                     kind: "rescheduled",

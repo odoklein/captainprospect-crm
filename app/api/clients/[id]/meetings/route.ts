@@ -1,4 +1,4 @@
-import { resetAbsenceOnReschedule, loadAbsenceHistory } from "@/lib/meetings/feedbackHistory";
+import { foldPortalAbsences } from "@/lib/meetings/portalAbsence";
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
@@ -162,8 +162,7 @@ export const GET = withErrorHandler(async (
         orderBy: { createdAt: 'desc' },
     });
 
-    const meetings = filterRdvList(rawMeetings);
-    const absenceHistory = await loadAbsenceHistory(meetings.map((m) => m.id));
+    const meetings = await foldPortalAbsences(filterRdvList(rawMeetings));
 
     // Group by mission
     const byMission = new Map<string, {
@@ -224,7 +223,6 @@ export const GET = withErrorHandler(async (
         byCampaign: Array.from(byCampaign.values()),
         allMeetings: meetings.map((meeting) => ({
             ...meeting,
-            absenceHistory: absenceHistory.get(meeting.id) ?? [],
             interlocuteur: meeting.interlocuteur
                 ? {
                     id: meeting.interlocuteur.id,

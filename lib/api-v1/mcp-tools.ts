@@ -18,6 +18,7 @@ import { getSalesReport, salesReportParams } from "./services/reports";
 import { getAccount, globalSearch, globalSearchParams } from "./services/account";
 import { searchMissions, getMission, searchMissionsParams } from "./services/missions";
 import { searchLists, getList, searchListsParams } from "./services/lists";
+import { searchClients, searchCampaigns, getCampaign, searchClientsParams, searchCampaignsParams } from "./services/campaigns";
 import {
   getRdvOverview,
   searchExclusions,
@@ -188,6 +189,28 @@ export const TOOLS: ToolDef[] = [
     shape: { user_id: id("user") },
     idArg: "user_id",
     run: (ctx, a) => getUser(ctx, a.user_id),
+  }),
+  tool({
+    name: "list_clients",
+    description: "The clients (companies we prospect for) with their status and number of missions (total / active). With an all-clients key this is EVERY client; with a client-bound key, just that one. Use the ids as `client_id` to narrow other tools." + PAGING,
+    scope: "missions:read",
+    shape: searchClientsParams,
+    run: (ctx, a) => searchClients(ctx, a),
+  }),
+  tool({
+    name: "list_campaigns",
+    description: "Campaigns across missions (and clients, with an all-clients key): target profile (ICP), pitch and a script preview, plus client and mission. Searchable by text inside the pitch/script. Use get_campaign for the full script." + PAGING,
+    scope: "missions:read",
+    shape: searchCampaignsParams,
+    run: (ctx, a) => searchCampaigns(ctx, a),
+  }),
+  tool({
+    name: "get_campaign",
+    description: "One campaign in full: complete script, pitch, target profile (ICP), rules, and the lists that use this script.",
+    scope: "missions:read",
+    shape: { campaign_id: id("campaign") },
+    idArg: "campaign_id",
+    run: (ctx, a) => getCampaign(ctx, a.campaign_id),
   }),
   tool({
     name: "list_missions",

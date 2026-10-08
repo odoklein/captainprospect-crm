@@ -15,7 +15,7 @@ import {
   type ActionRow,
   type Ctx,
 } from "../serializers";
-import { actionScope, contactScope, opportunityScope } from "../tenant";
+import { actionScope, clientFilterParam, contactScope, opportunityScope } from "../tenant";
 import type { Scope } from "../scopes";
 
 // ============================================
@@ -28,6 +28,7 @@ export const searchContactsParams = {
   assigned_to: z.string().max(40).optional().describe("User id — contacts this user has worked"),
   company_id: z.string().max(40).optional(),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
   date_from: zDate.optional().describe("Contact created on/after"),
   date_to: zDate.optional().describe("Contact created on/before"),
   ...pageParams,
@@ -70,7 +71,7 @@ export async function searchContacts(ctx: Ctx, input: SearchContactsInput) {
   const q = input.query;
   const where: Prisma.ContactWhereInput = {
     AND: [
-      contactScope(ctx.p),
+      contactScope(ctx.p, input.client_id),
       input.status ? { status: input.status } : {},
       input.company_id ? { companyId: input.company_id } : {},
       input.mission_id ? { company: { list: { missionId: input.mission_id } } } : {},

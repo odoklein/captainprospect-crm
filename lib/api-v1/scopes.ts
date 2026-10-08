@@ -51,6 +51,17 @@ export function isScope(value: string): value is Scope {
   return isReadScope(value) || isWriteScope(value);
 }
 
+/**
+ * Internal keys: one key that sees EVERY client (for the agency's own managers).
+ * Stored as a `flag:all_clients` entry; the key then has no clientId. Both halves
+ * are required (flag AND no client), and the issuer must still be an active MANAGER.
+ */
+const ALL_CLIENTS_FLAG = "flag:all_clients";
+
+export function hasAllClientsFlag(allowedEndpoints: unknown): boolean {
+  return Array.isArray(allowedEndpoints) && allowedEndpoints.includes(ALL_CLIENTS_FLAG);
+}
+
 /** Scopes granted by a key, read from its stored `allowedEndpoints` JSON. */
 export function scopesFromAllowedEndpoints(allowedEndpoints: unknown): Scope[] {
   if (!Array.isArray(allowedEndpoints)) return [];
@@ -61,6 +72,6 @@ export function scopesFromAllowedEndpoints(allowedEndpoints: unknown): Scope[] {
 }
 
 /** The `allowedEndpoints` value to persist for a key holding these scopes. */
-export function allowedEndpointsForScopes(scopes: readonly Scope[]): string[] {
-  return [V1_ENDPOINT_MARKER, ...scopes.map((s) => `${SCOPE_PREFIX}${s}`)];
+export function allowedEndpointsForScopes(scopes: readonly Scope[], opts: { allClients?: boolean } = {}): string[] {
+  return [V1_ENDPOINT_MARKER, ...(opts.allClients ? [ALL_CLIENTS_FLAG] : []), ...scopes.map((s) => `${SCOPE_PREFIX}${s}`)];
 }

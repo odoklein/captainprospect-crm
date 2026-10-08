@@ -431,10 +431,10 @@ interface Meeting {
   absenceHistory?: {
     id: string;
     clientNote?: string | null;
-    reportedAt: string;
+    reportedAt?: string | null;
     previousCallbackDate?: string | null;
-    newCallbackDate: string;
-    replacedAt: string;
+    newCallbackDate?: string | null;
+    replacedAt?: string | null;
   }[];
   meetingFeedback?: {
     id?: string;
@@ -1240,8 +1240,8 @@ function DetailModal({ m, onClose, onFeedback }: {
                   Absent{h.previousCallbackDate ? ` au RDV du ${fmtFull(h.previousCallbackDate)}` : ""}
                 </div>
                 <div style={{fontSize:12,color:tk.ink3,marginTop:3,lineHeight:1.6}}>
-                  Signalé le {fmtFull(h.reportedAt)}<br />
-                  RDV replacé le {fmtFull(h.replacedAt)} au {fmtFull(h.newCallbackDate)}
+                  {h.reportedAt && <>Signalé le {fmtFull(h.reportedAt)}<br /></>}
+                  {h.newCallbackDate && <>RDV replacé{h.replacedAt ? ` le ${fmtFull(h.replacedAt)}` : ""} au {fmtFull(h.newCallbackDate)}</>}
                 </div>
                 {h.clientNote && <p style={{fontSize:13,fontStyle:"italic",color:tk.ink2,margin:"8px 0 0",lineHeight:1.6}}>&ldquo;{h.clientNote}&rdquo;</p>}
               </div>

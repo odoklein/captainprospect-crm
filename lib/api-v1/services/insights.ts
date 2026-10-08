@@ -4,7 +4,7 @@ import { dateRange, pageArgs, pageParams, toPage, zBool, zDate } from "../pagina
 import { withPeriod, zPeriod } from "../dates";
 import { buildRdvOverview, type OverviewRow } from "../../rdv/overview";
 import { iso, ref, trunc, type Ctx } from "../serializers";
-import { actionScope, companyScope, contactScope, missionScope } from "../tenant";
+import { actionScope, clientFilterParam, clientSql, companyScope, contactScope, missionScope } from "../tenant";
 
 // ============================================
 // RDV OVERVIEW ("Bilan des RDV") — what happened to every appointment
@@ -15,6 +15,7 @@ export const rdvOverviewParams = {
   date_from: zDate.optional(),
   date_to: zDate.optional(),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
 };
 export type RdvOverviewInput = z.infer<z.ZodObject<typeof rdvOverviewParams>>;
 
@@ -26,7 +27,7 @@ export async function getRdvOverview(ctx: Ctx, raw: RdvOverviewInput) {
   const rows = await ctx.db.action.findMany({
     where: {
       AND: [
-        actionScope(ctx.p),
+        actionScope(ctx.p, i.client_id),
         { result: { in: ["MEETING_BOOKED", "MEETING_CANCELLED"] } },
         i.mission_id ? { campaign: { missionId: i.mission_id } } : {},
         range ? { OR: [{ callbackDate: range }, { AND: [{ callbackDate: null }, { createdAt: range }] }] } : {},
@@ -75,23 +76,29 @@ export async function getRdvOverview(ctx: Ctx, raw: RdvOverviewInput) {
 // ============================================
 
 export const searchExclusionsParams = {
+  client_id: clientFilterParam,
   include_lifted: zBool.describe("Include rules that were lifted (default false)"),
   ...pageParams,
 };
 export type SearchExclusionsInput = z.infer<z.ZodObject<typeof searchExclusionsParams>>;
 
 export async function searchExclusions(ctx: Ctx, i: SearchExclusionsInput) {
-  const missions = await ctx.db.mission.findMany({ where: missionScope(ctx.p), select: { id: true } });
+  const missions = await ctx.db.mission.findMany({ where: missionScope(ctx.p, i.client_id), select: { id: true } });
+  // An all-clients key with no narrowing sees every rule; otherwise: the rules of the visible clients and missions + global ones.
+  const everything = ctx.p.allClients && !i.client_id && !ctx.p.missionId;
+  const clientIds = ctx.p.clientId ? [ctx.p.clientId] : i.client_id ? [i.client_id] : [];
   const rows = await ctx.db.exclusion.findMany({
     where: {
       AND: [
-        {
-          OR: [
-            { scope: "CLIENT", scopeId: ctx.p.clientId },
-            { scope: "MISSION", scopeId: { in: missions.map((m) => m.id) } },
-            { scope: "GLOBAL" },
-          ],
-        },
+        everything
+          ? {}
+          : {
+              OR: [
+                { scope: "CLIENT", scopeId: { in: clientIds } },
+                { scope: "MISSION", scopeId: { in: missions.map((m) => m.id) } },
+                { scope: "GLOBAL" },
+              ],
+            },
         i.include_lifted ? {} : { liftedAt: null },
       ],
     },
@@ -127,6 +134,7 @@ export const dailyReportsParams = {
   date_to: zDate.optional(),
   user_id: z.string().max(40).optional(),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
   ...pageParams,
 };
 export type DailyReportsInput = z.infer<z.ZodObject<typeof dailyReportsParams>>;
@@ -134,7 +142,7 @@ export type DailyReportsInput = z.infer<z.ZodObject<typeof dailyReportsParams>>;
 export async function getDailyReports(ctx: Ctx, raw: DailyReportsInput) {
   const i = withPeriod(raw);
   const range = dateRange(i.date_from, i.date_to);
-  const inTenant = { OR: [{ mission: missionScope(ctx.p) }, { missions: { some: { mission: missionScope(ctx.p) } } }] };
+  const inTenant = { OR: [{ mission: missionScope(ctx.p, i.client_id) }, { missions: { some: { mission: missionScope(ctx.p, i.client_id) } } }] };
   const rows = await ctx.db.sdrDailyFeedback.findMany({
     where: {
       AND: [
@@ -173,16 +181,17 @@ export async function getDailyReports(ctx: Ctx, raw: DailyReportsInput) {
 
 export const dataQualityParams = {
   mission_id: z.string().max(40).optional().describe("Restrict to one mission"),
+  client_id: clientFilterParam,
 };
 export type DataQualityInput = z.infer<z.ZodObject<typeof dataQualityParams>>;
 
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : null);
 
 export async function getDataQuality(ctx: Ctx, i: DataQualityInput) {
-  const co = { AND: [companyScope(ctx.p), i.mission_id ? { list: { missionId: i.mission_id } } : {}] };
-  const ct = { AND: [contactScope(ctx.p), i.mission_id ? { company: { list: { missionId: i.mission_id } } } : {}] };
+  const co = { AND: [companyScope(ctx.p, i.client_id), i.mission_id ? { list: { missionId: i.mission_id } } : {}] };
+  const ct = { AND: [contactScope(ctx.p, i.client_id), i.mission_id ? { company: { list: { missionId: i.mission_id } } } : {}] };
   const dupWhere = (extra: Prisma.Sql) => Prisma.sql`
-    WHERE m."clientId" = ${ctx.p.clientId}
+    WHERE ${clientSql(ctx.p, "m", i.client_id)}
       ${ctx.p.missionId ? Prisma.sql`AND m.id = ${ctx.p.missionId}` : Prisma.empty}
       ${i.mission_id ? Prisma.sql`AND m.id = ${i.mission_id}` : Prisma.empty}
       ${extra}`;

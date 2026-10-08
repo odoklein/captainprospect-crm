@@ -1,14 +1,16 @@
 import { createHash } from "crypto";
 import type { PrismaClient } from "@prisma/client";
 import { ApiError } from "./errors";
-import { scopesFromAllowedEndpoints, type Scope } from "./scopes";
+import { hasAllClientsFlag, scopesFromAllowedEndpoints, type Scope } from "./scopes";
 
 /** Who is calling, resolved once from the API key. Never from the request body or query. */
 export interface Principal {
   keyId: string;
   keyName: string;
-  /** The tenant. Every query is filtered on it. */
-  clientId: string;
+  /** The tenant. Every query is filtered on it. Null only for an internal all-clients key. */
+  clientId: string | null;
+  /** Internal key issued by a manager: sees every client. Never true for a client-bound key. */
+  allClients: boolean;
   /** Optional narrowing of the tenant to a single mission. */
   missionId: string | null;
   scopes: Scope[];
@@ -67,6 +69,7 @@ export async function authenticateApiKey(
       rateLimitPerMinute: true,
       rateLimitPerHour: true,
       createdById: true,
+      createdBy: { select: { role: true, isActive: true } },
     },
   });
 
@@ -78,8 +81,15 @@ export async function authenticateApiKey(
   if (scopes.length === 0) {
     throw new ApiError(403, "no_scopes", "This API key has no /api/v1 scopes.");
   }
-  // A v1 key without a tenant would read every client's data: refuse it outright.
-  if (!key.clientId) {
+  // A key without a tenant would read every client's data: only an explicitly
+  // flagged internal key, still backed by an active manager, may do that.
+  const allClients = hasAllClientsFlag(key.allowedEndpoints);
+  if (allClients) {
+    if (key.clientId) throw new ApiError(403, "invalid_key", "An all-clients key cannot also be bound to a client.");
+    if (key.createdBy?.role !== "MANAGER" || !key.createdBy.isActive) {
+      throw new ApiError(403, "issuer_not_manager", "The manager who issued this all-clients key is no longer an active manager.");
+    }
+  } else if (!key.clientId) {
     throw new ApiError(403, "no_tenant", "This API key is not bound to a client.");
   }
 
@@ -95,6 +105,7 @@ export async function authenticateApiKey(
     keyId: key.id,
     keyName: key.name,
     clientId: key.clientId,
+    allClients,
     missionId: key.missionId,
     scopes,
     issuedById: key.createdById,

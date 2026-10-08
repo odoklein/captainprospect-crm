@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { pageArgs, pageParams, toPage, zBool } from "../pagination";
 import { notFound } from "../errors";
 import { iso, ref, type Ctx } from "../serializers";
-import { missionScope } from "../tenant";
+import { clientFilterParam, clientSql, missionScope } from "../tenant";
 
 // ============================================
 // LISTS — the prospect databases, and how far each has been worked
@@ -12,6 +12,7 @@ import { missionScope } from "../tenant";
 export const searchListsParams = {
   query: z.string().trim().min(1).max(100).optional().describe("Matches list name"),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
   include_archived: zBool.describe("Include archived lists (default false)"),
   ...pageParams,
 };
@@ -45,7 +46,7 @@ export async function listStats(ctx: Ctx, listIds: string[]): Promise<Map<string
     LEFT JOIN "Company" co ON co."listId" = l.id
     LEFT JOIN "Contact" c ON c."companyId" = co.id
     LEFT JOIN "Action" a ON a."contactId" = c.id
-    WHERE m."clientId" = ${ctx.p.clientId}
+    WHERE ${clientSql(ctx.p, "m")}
       ${ctx.p.missionId ? Prisma.sql`AND m.id = ${ctx.p.missionId}` : Prisma.empty}
       AND l.id IN (${Prisma.join(listIds)})
     GROUP BY l.id`);
@@ -61,7 +62,7 @@ const LIST_SELECT = {
   isActive: true,
   isArchived: true,
   createdAt: true,
-  mission: { select: { id: true, name: true } },
+  mission: { select: { id: true, name: true, client: { select: { id: true, name: true } } } },
   campaign: { select: { id: true, name: true } },
 } satisfies Prisma.ListSelect;
 
@@ -81,6 +82,7 @@ function summarize(l: ListRow, s?: ListStatsRow) {
     archived: l.isArchived,
     created_at: l.createdAt.toISOString(),
     mission: ref(l.mission),
+    client: ref(l.mission.client),
     script_campaign: ref(l.campaign),
     companies: s?.companies ?? 0,
     contacts,
@@ -97,7 +99,7 @@ export async function searchLists(ctx: Ctx, i: SearchListsInput) {
   const rows = await ctx.db.list.findMany({
     where: {
       AND: [
-        { mission: missionScope(ctx.p) },
+        { mission: missionScope(ctx.p, i.client_id) },
         i.include_archived ? {} : { isArchived: false },
         i.mission_id ? { missionId: i.mission_id } : {},
         i.query ? { name: { contains: i.query, mode: "insensitive" } } : {},

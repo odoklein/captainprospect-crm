@@ -3,7 +3,7 @@ import { MissionStatus, Prisma, type Channel } from "@prisma/client";
 import { pageArgs, pageParams, toPage } from "../pagination";
 import { notFound } from "../errors";
 import { iso, ref, trunc, type Ctx } from "../serializers";
-import { actionScope, missionScope } from "../tenant";
+import { actionScope, clientFilterParam, missionScope } from "../tenant";
 
 // ============================================
 // MISSIONS — what a team is selling, to whom, with which script
@@ -12,6 +12,7 @@ import { actionScope, missionScope } from "../tenant";
 export const searchMissionsParams = {
   query: z.string().trim().min(1).max(100).optional().describe("Matches mission name or objective"),
   status: z.nativeEnum(MissionStatus).optional().describe("ACTIVE | COMPLETED | ARCHIVED"),
+  client_id: clientFilterParam,
   ...pageParams,
 };
 export type SearchMissionsInput = z.infer<z.ZodObject<typeof searchMissionsParams>>;
@@ -25,6 +26,7 @@ const MISSION_LIST_SELECT = {
   startDate: true,
   endDate: true,
   totalContractDays: true,
+  client: { select: { id: true, name: true } },
   teamLeadSdr: { select: { id: true, name: true } },
   _count: { select: { lists: true, campaigns: true, sdrAssignments: true } },
 } satisfies Prisma.MissionSelect;
@@ -33,7 +35,7 @@ export async function searchMissions(ctx: Ctx, i: SearchMissionsInput) {
   const rows = await ctx.db.mission.findMany({
     where: {
       AND: [
-        missionScope(ctx.p),
+        missionScope(ctx.p, i.client_id),
         i.status ? { status: i.status } : {},
         i.query ? { OR: [{ name: { contains: i.query, mode: "insensitive" } }, { objective: { contains: i.query, mode: "insensitive" } }] } : {},
       ],
@@ -45,6 +47,7 @@ export async function searchMissions(ctx: Ctx, i: SearchMissionsInput) {
   return toPage(rows, i.limit, (m) => ({
     id: m.id,
     name: m.name,
+    client: ref(m.client),
     objective: trunc(m.objective, 300),
     status: m.status,
     channels: m.channels as Channel[],
@@ -92,6 +95,7 @@ export async function getMission(ctx: Ctx, id: string) {
   return {
     id: m.id,
     name: m.name,
+    client: ref(m.client),
     objective: m.objective,
     status: m.status,
     channels: m.channels,

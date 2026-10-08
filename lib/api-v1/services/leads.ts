@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { decodeCursor, encodeCursor, pageParams, zBool, zDate, type Page } from "../pagination";
 import { notFound } from "../errors";
 import { escapeLike, fullName, iso, trunc, type Ctx } from "../serializers";
-import { opportunityScope } from "../tenant";
+import { clientFilterParam, clientSql, opportunityScope } from "../tenant";
 import { withPeriod, zPeriod } from "../dates";
 
 /**
@@ -23,6 +23,7 @@ export const searchLeadsParams = {
   assigned_to: z.string().max(40).optional().describe("User id of the last SDR who worked the lead"),
   company_id: z.string().max(40).optional(),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
   min_calls: z.coerce.number().int().min(1).max(500).optional().describe("At least N calls"),
   no_appointment: zBool.describe("Only leads that never got an appointment"),
   period: zPeriod.optional().describe("Preset for the last-action window"),
@@ -43,6 +44,8 @@ interface LeadRow {
   company_name: string;
   mission_id: string;
   mission_name: string;
+  client_id: string;
+  client_name: string;
   action_count: number;
   call_count: number;
   meeting_count: number;
@@ -65,7 +68,9 @@ const FOLLOW_UP_SQL = Prisma.sql`('RAPPEL','RELANCE','PROJET_A_SUIVRE','CALLBACK
  * parameter.
  */
 async function queryLeads(ctx: Ctx, input: Partial<SearchLeadsInput> & { contactId?: string; limit: number }): Promise<LeadRow[]> {
-  const { clientId, missionId } = ctx.p;
+  const { missionId } = ctx.p;
+  const cm = clientSql(ctx.p, "m", input.client_id);
+  const clm = clientSql(ctx.p, "lm", input.client_id);
   const missionFilter = (alias: string) => (missionId ? Prisma.sql`AND ${Prisma.raw(alias)}.id = ${missionId}` : Prisma.empty);
 
   const conds: Prisma.Sql[] = [];
@@ -105,7 +110,7 @@ async function queryLeads(ctx: Ctx, input: Partial<SearchLeadsInput> & { contact
         c.id AS contact_id, c."firstName" AS first_name, c."lastName" AS last_name, c.title AS title,
         c."excludedAt" AS excluded_at,
         co.id AS company_id, co.name AS company_name,
-        lm.id AS mission_id, lm.name AS mission_name,
+        lm.id AS mission_id, lm.name AS mission_name, cl.id AS client_id, cl.name AS client_name,
         agg.action_count, agg.call_count, agg.meeting_count, agg.last_action_at, agg.last_call_at,
         lst.last_result, lst.last_callback AS next_callback_at,
         lst.last_sdr_id, u.name AS last_sdr_name,
@@ -125,7 +130,7 @@ async function queryLeads(ctx: Ctx, input: Partial<SearchLeadsInput> & { contact
         FROM "Action" a
         JOIN "Campaign" cp ON cp.id = a."campaignId"
         JOIN "Mission" m ON m.id = cp."missionId"
-        WHERE m."clientId" = ${clientId} ${missionFilter("m")}
+        WHERE ${cm} ${missionFilter("m")}
           AND a."contactId" IS NOT NULL
           ${input.contactId ? Prisma.sql`AND a."contactId" = ${input.contactId}` : Prisma.empty}
         GROUP BY a."contactId"
@@ -136,7 +141,7 @@ async function queryLeads(ctx: Ctx, input: Partial<SearchLeadsInput> & { contact
         FROM "Action" a
         JOIN "Campaign" cp ON cp.id = a."campaignId"
         JOIN "Mission" m ON m.id = cp."missionId"
-        WHERE m."clientId" = ${clientId} ${missionFilter("m")}
+        WHERE ${cm} ${missionFilter("m")}
           AND a."contactId" IS NOT NULL
           ${input.contactId ? Prisma.sql`AND a."contactId" = ${input.contactId}` : Prisma.empty}
         ORDER BY a."contactId", (a.channel = 'CALL') DESC, a."createdAt" DESC, a.id DESC
@@ -144,7 +149,8 @@ async function queryLeads(ctx: Ctx, input: Partial<SearchLeadsInput> & { contact
       JOIN "Contact" c ON c.id = agg.contact_id
       JOIN "Company" co ON co.id = c."companyId"
       JOIN "List" l ON l.id = co."listId"
-      JOIN "Mission" lm ON lm.id = l."missionId" AND lm."clientId" = ${clientId} ${missionFilter("lm")}
+      JOIN "Mission" lm ON lm.id = l."missionId" AND ${clm} ${missionFilter("lm")}
+      JOIN "Client" cl ON cl.id = lm."clientId"
       LEFT JOIN "User" u ON u.id = lst.last_sdr_id
     ) t
     ${where}
@@ -159,6 +165,7 @@ const leadSummary = (r: LeadRow) => ({
   title: r.title,
   company: { id: r.company_id, name: r.company_name },
   mission: { id: r.mission_id, name: r.mission_name },
+  client: { id: r.client_id, name: r.client_name },
   stage: r.stage,
   call_count: r.call_count,
   action_count: r.action_count,

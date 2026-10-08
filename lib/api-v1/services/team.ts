@@ -3,7 +3,7 @@ import { MissionStatus, UserRole, type Prisma } from "@prisma/client";
 import { pageArgs, pageParams, toPage } from "../pagination";
 import { notFound } from "../errors";
 import { iso, ref, type Ctx } from "../serializers";
-import { actionScope, missionScope, userScope } from "../tenant";
+import { actionScope, clientFilterParam, missionScope, userScope } from "../tenant";
 
 /**
  * Captain Prospect has no "Team" table. A team is the staffing of a mission: a team-lead SDR
@@ -92,6 +92,7 @@ export async function getUser(ctx: Ctx, id: string) {
 export const searchTeamsParams = {
   query: z.string().trim().min(1).max(100).optional().describe("Matches mission / team name"),
   status: z.nativeEnum(MissionStatus).optional(),
+  client_id: clientFilterParam,
   ...pageParams,
 };
 export type SearchTeamsInput = z.infer<z.ZodObject<typeof searchTeamsParams>>;
@@ -102,6 +103,7 @@ const TEAM_SELECT = {
   status: true,
   startDate: true,
   endDate: true,
+  client: { select: { id: true, name: true } },
   teamLeadSdr: { select: { id: true, name: true } },
   sdrAssignments: { select: { sdr: { select: { id: true, name: true } } }, take: 50 },
   campaigns: { select: { id: true } },
@@ -135,6 +137,7 @@ async function teamPerformance(ctx: Ctx, teams: TeamRow[]) {
 const teamSummary = (t: TeamRow, perf?: { actions: number; calls: number; appointments_booked: number }) => ({
   id: t.id,
   name: t.name,
+  client: ref(t.client),
   status: t.status,
   start_date: iso(t.startDate),
   end_date: iso(t.endDate),
@@ -146,7 +149,7 @@ const teamSummary = (t: TeamRow, perf?: { actions: number; calls: number; appoin
 export async function searchTeams(ctx: Ctx, i: SearchTeamsInput) {
   const rows = await ctx.db.mission.findMany({
     where: {
-      AND: [missionScope(ctx.p), i.status ? { status: i.status } : {}, i.query ? { name: { contains: i.query, mode: "insensitive" } } : {}],
+      AND: [missionScope(ctx.p, i.client_id), i.status ? { status: i.status } : {}, i.query ? { name: { contains: i.query, mode: "insensitive" } } : {}],
     },
     select: TEAM_SELECT,
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],

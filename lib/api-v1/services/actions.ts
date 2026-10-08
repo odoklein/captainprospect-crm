@@ -3,7 +3,7 @@ import { ActionResult, Channel, MeetingConfirmationStatus, type Prisma } from "@
 import { dateRange, pageArgs, pageParams, toPage, zBool, zDate } from "../pagination";
 import { notFound } from "../errors";
 import { ACTION_SELECT, actionSummary, fullName, iso, ref, trunc, type Ctx } from "../serializers";
-import { actionScope } from "../tenant";
+import { actionScope, clientFilterParam } from "../tenant";
 import { withPeriod, zPeriod } from "../dates";
 
 /** Filters shared by calls and activities. */
@@ -14,6 +14,7 @@ const actionFilters = {
   company_id: z.string().max(40).optional(),
   user_id: z.string().max(40).optional().describe("The SDR who made the action"),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
   period: zPeriod.optional(),
   date_from: zDate.optional(),
   date_to: zDate.optional(),
@@ -33,7 +34,7 @@ function actionWhere(ctx: Ctx, i: SearchActivitiesInput, channel: Channel | unde
   const q = i.query;
   return {
     AND: [
-      actionScope(ctx.p),
+      actionScope(ctx.p, i.client_id),
       channel ? { channel } : {},
       i.status ? { result: i.status } : {},
       i.user_id ? { sdrId: i.user_id } : {},
@@ -97,6 +98,7 @@ export const searchAppointmentsParams = {
   company_id: z.string().max(40).optional(),
   user_id: z.string().max(40).optional().describe("The SDR who booked it"),
   mission_id: z.string().max(40).optional(),
+  client_id: clientFilterParam,
   period: zPeriod.optional(),
   date_from: zDate.optional().describe("Meeting scheduled on/after (booking date when no schedule is set)"),
   date_to: zDate.optional().describe("Meeting scheduled on/before"),
@@ -113,7 +115,7 @@ export async function searchAppointments(ctx: Ctx, rawInput: SearchAppointmentsI
   const rows = await ctx.db.action.findMany({
     where: {
       AND: [
-        actionScope(ctx.p),
+        actionScope(ctx.p, i.client_id),
         { result: { in: results } },
         i.confirmation ? { confirmationStatus: i.confirmation } : {},
         i.upcoming ? { callbackDate: { gte: new Date() } } : {},
