@@ -19,6 +19,15 @@ export function isOpenNoShow(m: Meeting): boolean {
 }
 
 /**
+ * A RDV that was missed and then replaced still opens in the action drawer: the
+ * SDR needs the trail (what the client said, when it was missed, when it was
+ * replaced) next to the history, not a bare booking form.
+ */
+export function hasAbsenceHistory(m: Meeting): boolean {
+    return (m.history?.length ?? 0) > 0;
+}
+
+/**
  * Bookings made through a client calendar carry a machine-written note
  * ("RDV planifié via calendrier (X)", historically followed by an empty JSON
  * dump). It says nothing to whoever reads the card, so it is hidden here the

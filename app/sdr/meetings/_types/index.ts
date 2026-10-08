@@ -14,6 +14,18 @@ export interface MeetingFeedbackData {
     outOfScopeReason?: string | null;
 }
 
+/** A past absence of this RDV (moved in place or re-booked), oldest first. */
+export interface RdvHistoryEntry {
+    id: string;
+    kind: "rescheduled" | "replaced";
+    rdvDate: string | null;
+    bookingNote: string | null;
+    clientNote: string | null;
+    reportedAt: string | null;
+    replacedAt: string | null;
+    newDate: string | null;
+}
+
 export interface Meeting {
     id: string;
     createdAt: string;
@@ -28,6 +40,7 @@ export interface Meeting {
     meetingPhone?: string | null;
     confirmationStatus?: "PENDING" | "CONFIRMED" | "CANCELLED";
     meetingFeedback?: MeetingFeedbackData | null;
+    history?: RdvHistoryEntry[];
     contact: {
         id: string;
         firstName: string | null;

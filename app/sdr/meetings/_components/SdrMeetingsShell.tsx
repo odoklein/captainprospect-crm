@@ -21,7 +21,7 @@ import { RescheduleMeetingModal } from "./modals/RescheduleMeetingModal";
 import { DeleteMeetingConfirmDialog } from "./modals/DeleteMeetingConfirmDialog";
 import { SdrImportRdvModal } from "./ImportRdvModal";
 import { RdvSummary } from "./RdvSummary";
-import { isOpenNoShow, toLocalDatetimeInput } from "../_lib/formatters";
+import { hasAbsenceHistory, isOpenNoShow, toLocalDatetimeInput } from "../_lib/formatters";
 import type { Meeting } from "../_types";
 import "../../../manager/rdv/_components/rdv-shell.css";
 
@@ -58,7 +58,7 @@ export function SdrMeetingsShell() {
     const [actionMeeting, setActionMeeting] = useState<Meeting | null>(null);
 
     const openMeeting = useCallback(
-        (meeting: Meeting) => (isOpenNoShow(meeting) ? setActionMeeting(meeting) : drawer.setSelectedMeeting(meeting)),
+        (meeting: Meeting) => (isOpenNoShow(meeting) || hasAbsenceHistory(meeting) ? setActionMeeting(meeting) : drawer.setSelectedMeeting(meeting)),
         [drawer]
     );
 

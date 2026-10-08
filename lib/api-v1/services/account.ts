@@ -62,6 +62,8 @@ export async function getAccount(ctx: Ctx) {
       "Use `period` (this_month, last_month, last_7_days…) instead of computing dates yourself.",
       "For totals, unique counts, rates and trends call get_sales_report — do not page through search_* results to count.",
       "For everything about one prospect call get_contact_context. To find something by name call global_search.",
+      "What a team sells and how it pitches: get_mission (ICP, pitch, script, playbook). How far a database was worked: list_lists / get_list. Appointment outcomes and absences: get_rdv_overview. Why numbers move: get_daily_reports. State of the data: get_data_quality. Do-not-contact rules: list_exclusions.",
+      "This connection is read-only: you cannot modify the CRM. If asked to change something, say so and explain what the user can do in the app.",
       "Lists are paginated: when has_more is true, pass next_cursor as `cursor`.",
       "Never invent numbers. If a tool cannot answer, say what is missing.",
     ],

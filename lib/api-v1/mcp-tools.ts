@@ -16,6 +16,18 @@ import {
 import { searchTeams, getTeam, searchUsers, getUser, searchTeamsParams, searchUsersParams } from "./services/team";
 import { getSalesReport, salesReportParams } from "./services/reports";
 import { getAccount, globalSearch, globalSearchParams } from "./services/account";
+import { searchMissions, getMission, searchMissionsParams } from "./services/missions";
+import { searchLists, getList, searchListsParams } from "./services/lists";
+import {
+  getRdvOverview,
+  searchExclusions,
+  getDailyReports,
+  getDataQuality,
+  rdvOverviewParams,
+  searchExclusionsParams,
+  dailyReportsParams,
+  dataQualityParams,
+} from "./services/insights";
 import { parseInput } from "./input";
 
 export interface ToolDef {
@@ -176,6 +188,64 @@ export const TOOLS: ToolDef[] = [
     shape: { user_id: id("user") },
     idArg: "user_id",
     run: (ctx, a) => getUser(ctx, a.user_id),
+  }),
+  tool({
+    name: "list_missions",
+    description: "List the missions (what each team sells): objective, channels, dates, team lead, number of lists, campaigns and SDRs." + PAGING,
+    scope: "missions:read",
+    shape: searchMissionsParams,
+    run: (ctx, a) => searchMissions(ctx, a),
+  }),
+  tool({
+    name: "get_mission",
+    description: "One mission in depth: objective, campaigns with target profile (ICP), pitch and call script, playbook, lists with sizes, team, and the last 30 days of activity. Use it to answer 'what are we selling / how do we pitch / who is on it'.",
+    scope: "missions:read",
+    shape: { mission_id: id("mission") },
+    idArg: "mission_id",
+    run: (ctx, a) => getMission(ctx, a.mission_id),
+  }),
+  tool({
+    name: "list_lists",
+    description: "List the prospect lists (databases) with how far each was worked: companies, contacts, contacts already worked, coverage %, contacts left to call, calls, appointments, last activity." + PAGING,
+    scope: "lists:read",
+    shape: searchListsParams,
+    run: (ctx, a) => searchLists(ctx, a),
+  }),
+  tool({
+    name: "get_list",
+    description: "One prospect list in depth: size, coverage, calls, appointments and the data-completeness breakdown (INCOMPLETE / PARTIAL / ACTIONABLE).",
+    scope: "lists:read",
+    shape: { list_id: id("list") },
+    idArg: "list_id",
+    run: (ctx, a) => getList(ctx, a.list_id),
+  }),
+  tool({
+    name: "get_rdv_overview",
+    description: "The appointments balance sheet: how many RDV are upcoming (validated / awaiting review), held (positive, neutral, negative), absent (open, on stand-by, out of scope), without client feedback, rejected, cancelled or replaced; show rate, positive rate, feedback coverage, loss rate; by SDR." + DATES,
+    scope: "appointments:read",
+    shape: rdvOverviewParams,
+    run: (ctx, a) => getRdvOverview(ctx, a),
+  }),
+  tool({
+    name: "list_exclusions",
+    description: "The 'do not contact' rules that apply to this client (company or contact level; client, mission or global scope), with reason, source and how many records each one blocked." + PAGING,
+    scope: "contacts:read",
+    shape: searchExclusionsParams,
+    run: (ctx, a) => searchExclusions(ctx, a),
+  }),
+  tool({
+    name: "get_daily_reports",
+    description: "The SDRs' end-of-day field reports ('Retour journée'): reachability, prospect feedback, how the pitch felt, main blocker, free comment. Useful to understand WHY numbers move." + DATES + PAGING,
+    scope: "reports:read",
+    shape: dailyReportsParams,
+    run: (ctx, a) => getDailyReports(ctx, a),
+  }),
+  tool({
+    name: "get_data_quality",
+    description: "State of the databases in numbers: contacts and companies without phone / email / website, unreachable contacts, data completeness, same-name duplicate companies, duplicate emails, contacts never worked, do-not-contact count.",
+    scope: "contacts:read",
+    shape: dataQualityParams,
+    run: (ctx, a) => getDataQuality(ctx, a),
   }),
   tool({
     name: "get_sales_report",

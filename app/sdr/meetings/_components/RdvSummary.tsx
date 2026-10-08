@@ -1,7 +1,7 @@
 import { Briefcase, CalendarClock, MapPin, Phone, Video } from "lucide-react";
 import { formatScheduledDate, getDisplayNote } from "../_lib/formatters";
 import { MeetingFeedbackPanel } from "./MeetingFeedbackPanel";
-import type { Meeting } from "../_types";
+import type { Meeting, RdvHistoryEntry } from "../_types";
 
 /**
  * The RDV this drawer was opened from, read before the history and the action
@@ -19,6 +19,33 @@ const CATEGORY_LABEL: Record<NonNullable<Meeting["meetingCategory"]>, string> = 
     EXPLORATOIRE: "Exploratoire",
     BESOIN: "Besoin",
 };
+
+const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+function HistoryItem({ entry }: { entry: RdvHistoryEntry }) {
+    return (
+        <li className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-1.5">
+            <p className="text-xs font-bold text-slate-800">
+                Absent{entry.rdvDate ? ` au RDV du ${fmt(entry.rdvDate)}` : ""}
+            </p>
+            <p className="text-[11px] leading-relaxed text-slate-500">
+                {entry.reportedAt && <>Signalé le {fmt(entry.reportedAt)}<br /></>}
+                {entry.replacedAt && <>Replacé le {fmt(entry.replacedAt)}{entry.newDate ? ` → ${fmt(entry.newDate)}` : ""}</>}
+            </p>
+            {entry.bookingNote && (
+                <p className="whitespace-pre-wrap break-words text-xs text-slate-600">
+                    <span className="font-semibold text-slate-500">Note de prise de RDV :</span> {entry.bookingNote}
+                </p>
+            )}
+            {entry.clientNote && (
+                <p className="whitespace-pre-wrap break-words border-l-2 border-red-300 pl-2 text-xs italic text-slate-700">
+                    « {entry.clientNote} »
+                </p>
+            )}
+        </li>
+    );
+}
 
 export function RdvSummary({ meeting }: { meeting: Meeting }) {
     const type = meeting.meetingType ? TYPE_LABEL[meeting.meetingType] : null;
@@ -72,6 +99,15 @@ export function RdvSummary({ meeting }: { meeting: Meeting }) {
                 )}
 
                 {meeting.meetingFeedback && <MeetingFeedbackPanel feedback={meeting.meetingFeedback} />}
+
+                {(meeting.history?.length ?? 0) > 0 && (
+                    <div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Historique des notes</p>
+                        <ul className="space-y-2">
+                            {meeting.history!.map((h) => <HistoryItem key={h.id} entry={h} />)}
+                        </ul>
+                    </div>
+                )}
             </div>
         </section>
     );

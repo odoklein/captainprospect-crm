@@ -6,6 +6,9 @@
  * in the existing `allowedEndpoints` JSON as `scope:<name>` entries, next to the
  * `/api/v1` marker that keeps these keys off the legacy /api/stats endpoints.
  * A key without any `scope:` entry is a legacy key: it can never call /api/v1.
+ *
+ * READ scopes are what "all" means. WRITE scopes are never implied: a key gets
+ * them only when they are named explicitly at creation.
  */
 
 export const READ_SCOPES = [
@@ -17,18 +20,35 @@ export const READ_SCOPES = [
   "appointments:read",
   "reports:read",
   "users:read",
+  "missions:read",
+  "lists:read",
 ] as const;
 
-/** Reserved for a later version. Refused at key creation until writes exist. */
+/** No write tool exists yet: every key is read-only. */
+export const WRITE_SCOPES = [] as const;
+
+/** Reserved for a later version. Refused at key creation until the matching tools exist. */
 export const RESERVED_WRITE_SCOPES = ["contacts:write", "activities:write", "appointments:write"] as const;
 
-export type Scope = (typeof READ_SCOPES)[number];
+export type ReadScope = (typeof READ_SCOPES)[number];
+export type WriteScope = (typeof WRITE_SCOPES)[number];
+export type Scope = ReadScope | WriteScope;
+
+export const ALL_SCOPES: readonly Scope[] = [...READ_SCOPES, ...WRITE_SCOPES];
 
 export const V1_ENDPOINT_MARKER = "/api/v1";
 const SCOPE_PREFIX = "scope:";
 
-export function isReadScope(value: string): value is Scope {
+export function isReadScope(value: string): value is ReadScope {
   return (READ_SCOPES as readonly string[]).includes(value);
+}
+
+export function isWriteScope(value: string): value is WriteScope {
+  return (WRITE_SCOPES as readonly string[]).includes(value);
+}
+
+export function isScope(value: string): value is Scope {
+  return isReadScope(value) || isWriteScope(value);
 }
 
 /** Scopes granted by a key, read from its stored `allowedEndpoints` JSON. */
@@ -37,7 +57,7 @@ export function scopesFromAllowedEndpoints(allowedEndpoints: unknown): Scope[] {
   return allowedEndpoints
     .filter((e): e is string => typeof e === "string" && e.startsWith(SCOPE_PREFIX))
     .map((e) => e.slice(SCOPE_PREFIX.length))
-    .filter(isReadScope);
+    .filter(isScope);
 }
 
 /** The `allowedEndpoints` value to persist for a key holding these scopes. */

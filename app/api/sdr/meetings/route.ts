@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { filterRdvList } from "@/lib/utils/meetingFilters";
+import { loadAbsenceHistory } from "@/lib/meetings/feedbackHistory";
+import { foldReplacedRdvs, sortHistory, type RdvHistoryEntry } from "@/lib/meetings/rdvHistory";
 
 // ============================================
 // GET /api/sdr/meetings
@@ -159,7 +161,22 @@ export async function GET(request: NextRequest) {
         });
 
         // Exclude RDV cancelled with less than 10 min before scheduled time
-        const meetings = filterRdvList(rawMeetings);
+        const listed = filterRdvList(rawMeetings);
+
+        // A RDV closed as "replaced" and re-booked is one RDV, not two: the old row
+        // leaves the list and its trace (booking note, absence, client comment) is
+        // folded into the new one. A RDV moved in place keeps its archived absences.
+        const replacedContactIds = [...new Set(
+            listed.filter((m) => m.cancellationReason === "replaced" && m.contactId).map((m) => m.contactId as string)
+        )];
+        const successors = replacedContactIds.length > 0
+            ? await prisma.action.findMany({
+                where: { contactId: { in: replacedContactIds }, result: "MEETING_BOOKED" },
+                select: { id: true, contactId: true, createdAt: true, callbackDate: true },
+            })
+            : [];
+        const { visible: meetings, historyByHead } = foldReplacedRdvs(listed, successors);
+        const movedHistory = await loadAbsenceHistory(meetings.map((m) => m.id));
 
         const transformedMeetings = meetings.map((meeting) => ({
             id: meeting.id,
@@ -175,6 +192,19 @@ export async function GET(request: NextRequest) {
             meetingPhone: meeting.meetingPhone ?? undefined,
             confirmationStatus: meeting.confirmationStatus,
             meetingFeedback: meeting.meetingFeedback ?? null,
+            history: sortHistory([
+                ...(historyByHead.get(meeting.id) ?? []),
+                ...(movedHistory.get(meeting.id) ?? []).map((h): RdvHistoryEntry => ({
+                    id: h.id,
+                    kind: "rescheduled",
+                    rdvDate: h.previousCallbackDate?.toISOString() ?? null,
+                    bookingNote: null,
+                    clientNote: h.clientNote,
+                    reportedAt: h.reportedAt.toISOString(),
+                    replacedAt: h.replacedAt.toISOString(),
+                    newDate: h.newCallbackDate.toISOString(),
+                })),
+            ]),
             contact: meeting.contact,
             mission: meeting.campaign?.mission
                 ? {

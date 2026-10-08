@@ -28,6 +28,10 @@ import { searchLeads, getLead, searchLeadsParams } from "./services/leads";
 import { searchCalls, getCall, searchActivities, searchAppointments, searchCallsParams, searchActivitiesParams, searchAppointmentsParams } from "./services/actions";
 import { searchUsers, getUser, searchTeams, getTeam, searchUsersParams, searchTeamsParams } from "./services/team";
 import { getSalesReport, salesReportParams } from "./services/reports";
+import { getAccount, globalSearch, globalSearchParams } from "./services/account";
+import { searchMissions, getMission, searchMissionsParams } from "./services/missions";
+import { searchLists, getList, searchListsParams } from "./services/lists";
+import { getRdvOverview, searchExclusions, getDailyReports, getDataQuality, rdvOverviewParams, searchExclusionsParams, dailyReportsParams, dataQualityParams } from "./services/insights";
 import type { Ctx } from "./serializers";
 
 // ============================================
@@ -217,7 +221,17 @@ const runAll: Array<[string, (c: Ctx) => Promise<unknown>]> = [
   ["getUser", (c) => getUser(c, "user-of-B")],
   ["searchTeams", (c) => searchTeams(c, parseInput(searchTeamsParams, { ...HOSTILE }))],
   ["getTeam", (c) => getTeam(c, "team-of-B")],
-  ["getSalesReport", (c) => getSalesReport(c, parseInput(salesReportParams, { ...HOSTILE, mission_id: "mission-of-B" }))],
+  ["getSalesReport", (c) => getSalesReport(c, parseInput(salesReportParams, { ...HOSTILE, mission_id: "mission-of-B", compare_previous: "true" }))],
+  ["getAccount", (c) => getAccount(c)],
+  ["searchMissions", (c) => searchMissions(c, parseInput(searchMissionsParams, { ...HOSTILE, query: "x" }))],
+  ["getMission", (c) => getMission(c, "mission-of-B")],
+  ["searchLists", (c) => searchLists(c, parseInput(searchListsParams, { ...HOSTILE, mission_id: "mission-of-B" }))],
+  ["getList", (c) => getList(c, "list-of-B")],
+  ["getRdvOverview", (c) => getRdvOverview(c, parseInput(rdvOverviewParams, { ...HOSTILE, period: "this_month" }))],
+  ["searchExclusions", (c) => searchExclusions(c, parseInput(searchExclusionsParams, { ...HOSTILE }))],
+  ["getDailyReports", (c) => getDailyReports(c, parseInput(dailyReportsParams, { ...HOSTILE, user_id: "user-of-B" }))],
+  ["getDataQuality", (c) => getDataQuality(c, parseInput(dataQualityParams, { ...HOSTILE, mission_id: "mission-of-B" }))],
+  ["globalSearch", (c) => globalSearch(c, parseInput(globalSearchParams, { ...HOSTILE, query: "talis" }))],
 ];
 
 test("tenant: hostile clientId/tenantId parameters are dropped before they reach a service", () => {
@@ -241,7 +255,9 @@ for (const [name, run] of runAll) {
     // Every query on tenant-owned data carries tenant A (raw SQL binds it as a parameter).
     for (const c of calls) {
       if (c.model === "$queryRaw") {
-        assert.ok(c.args.values.filter((v: unknown) => v === "tenant-A").length >= 2, "raw SQL must bind the tenant on actions AND on the contact's list");
+        const bound = c.args.values.filter((v: unknown) => v === "tenant-A").length;
+        // /leads filters the actions AND the contact's own list; the report queries filter the actions.
+        assert.ok(bound >= (name.includes("Lead") ? 2 : 1), "raw SQL must bind the tenant as a parameter");
       } else if (TENANT_MODELS.has(c.model) && c.method !== "groupBy") {
         const q = json(c.args.where);
         // Children of an already tenant-verified parent (contacts of a verified company) are the only exception.
@@ -507,6 +523,8 @@ test("report: period is bounded and totals fold the grouped counts", async () =>
 const REQUIRED_TOOLS = [
   "search_contacts", "get_contact", "get_contact_context", "search_companies", "get_company", "search_leads", "get_lead",
   "search_calls", "get_call", "search_activities", "search_appointments", "get_team", "get_user", "get_sales_report",
+  "whoami", "global_search",
+  "list_missions", "get_mission", "list_lists", "get_list", "get_rdv_overview", "list_exclusions", "get_daily_reports", "get_data_quality",
 ];
 
 test("mcp: the required tools exist, are unique, read-only and map to a read scope", () => {
@@ -514,7 +532,7 @@ test("mcp: the required tools exist, are unique, read-only and map to a read sco
   assert.equal(new Set(names).size, names.length);
   for (const n of REQUIRED_TOOLS) assert.ok(names.includes(n), n);
   for (const t of TOOLS) {
-    assert.ok(isReadScope(t.scope), `${t.name} scope`);
+    assert.ok(t.scope === null || isReadScope(t.scope), `${t.name} scope`);
     assert.ok(t.description.length > 20, `${t.name} description`);
     assert.ok(!("clientId" in t.shape) && !("tenantId" in t.shape), `${t.name} must not take a tenant`);
   }
@@ -525,7 +543,7 @@ test("mcp: every tool runs against the service layer and is scoped to the key's 
     const { db, calls } = recordingDb();
     const args = t.idArg ? { [t.idArg]: "some-id" } : {};
     try {
-      await t.run(ctx(A, db), { ...args, clientId: "tenant-B" });
+      await t.run(ctx(A, db), { ...args, query: "abc", clientId: "tenant-B" });
     } catch (e) {
       assert.ok(e instanceof ApiError && e.status === 404, `${t.name}: ${e}`);
     }
@@ -553,7 +571,7 @@ test("mcp protocol: tools/list exposes JSON-schema'd tools, filtered by the key'
   assert.equal(ctxTool.annotations?.readOnlyHint, true);
 
   const limited = await connect(principal("tenant-A", ["calls:read"]), recordingDb().db);
-  assert.deepEqual((await limited.client.listTools()).tools.map((t) => t.name).sort(), ["get_call", "search_calls"]);
+  assert.deepEqual((await limited.client.listTools()).tools.map((t) => t.name).sort(), ["get_call", "global_search", "search_calls", "whoami"]);
 });
 
 test("mcp protocol: tool calls return compact JSON, errors are isError, and the audit trail has ids but no search text", async () => {

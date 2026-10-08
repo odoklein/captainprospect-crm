@@ -14,7 +14,7 @@ import { withPeriod, zPeriod } from "../dates";
  *
  * Stage (derived, not stored):
  *   meeting_booked  — at least one MEETING_BOOKED action
- *   to_follow_up    — no meeting, and the latest action is a follow-up result (RAPPEL, RELANCE, PROJET_A_SUIVRE…)
+ *   to_follow_up    — no meeting, and the latest CALL is a follow-up result (RAPPEL, RELANCE, PROJET_A_SUIVRE…)
  *   contacted       — worked, no meeting, nothing pending
  */
 export const searchLeadsParams = {
@@ -139,7 +139,7 @@ async function queryLeads(ctx: Ctx, input: Partial<SearchLeadsInput> & { contact
         WHERE m."clientId" = ${clientId} ${missionFilter("m")}
           AND a."contactId" IS NOT NULL
           ${input.contactId ? Prisma.sql`AND a."contactId" = ${input.contactId}` : Prisma.empty}
-        ORDER BY a."contactId", a."createdAt" DESC, a.id DESC
+        ORDER BY a."contactId", (a.channel = 'CALL') DESC, a."createdAt" DESC, a.id DESC
       ) lst ON lst.contact_id = agg.contact_id
       JOIN "Contact" c ON c.id = agg.contact_id
       JOIN "Company" co ON co.id = c."companyId"
