@@ -26,6 +26,20 @@ export function extractBearerKey(headers: Headers): string | null {
 }
 
 /**
+ * MCP clients that cannot set headers (ChatGPT's custom connector offers only
+ * OAuth or nothing) pass the key as `?key=`. Used by /api/mcp only — never by
+ * /api/v1. A real Authorization header always wins.
+ */
+export function withUrlKey(headers: Headers, url: URL): Headers {
+  if (extractBearerKey(headers)) return headers;
+  const key = url.searchParams.get("key");
+  if (!key) return headers;
+  const merged = new Headers(headers);
+  merged.set("authorization", `Bearer ${key.slice(0, 200)}`);
+  return merged;
+}
+
+/**
  * API key → tenant + scopes. Throws ApiError (401 / 403 / 429) on any failure,
  * with the same message for "unknown" and "malformed" so keys can't be probed.
  */

@@ -14,7 +14,8 @@ import { createHash } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
-import { authenticateApiKey, requireScope, type Principal } from "./auth";
+import { authenticateApiKey, requireScope, withUrlKey, type Principal } from "./auth";
+import { redactApiKeys, scrubApiKeys } from "./redact";
 import { ApiError } from "./errors";
 import { READ_SCOPES, RESERVED_WRITE_SCOPES, allowedEndpointsForScopes, isReadScope, scopesFromAllowedEndpoints, type Scope } from "./scopes";
 import { parseInput } from "./input";
@@ -154,6 +155,23 @@ test("auth: a key without a tenant is refused rather than reading every client",
 test("auth: rate limit per minute and per hour answer 429", async () => {
   await assert.rejects(authenticateApiKey(authDb({}, { minute: 60, hour: 60 }), bearer(KEY)), status(429));
   await assert.rejects(authenticateApiKey(authDb({}, { minute: 1, hour: 1000 }), bearer(KEY)), status(429));
+});
+
+test("auth: MCP accepts the key in the URL (?key=), a real header still wins, bad key is 401", async () => {
+  const viaUrl = withUrlKey(new Headers(), new URL(`https://x.test/api/mcp?key=${KEY}`));
+  assert.equal((await authenticateApiKey(authDb({}), viaUrl)).clientId, "tenant-A");
+  const headerWins = withUrlKey(bearer(KEY), new URL("https://x.test/api/mcp?key=cp_live_other"));
+  assert.equal((await authenticateApiKey(authDb({}), headerWins)).clientId, "tenant-A");
+  await assert.rejects(authenticateApiKey(authDb({}), withUrlKey(new Headers(), new URL("https://x.test/api/mcp?key=cp_live_nope"))), status(401));
+  await assert.rejects(authenticateApiKey(authDb({}), withUrlKey(new Headers(), new URL("https://x.test/api/mcp"))), status(401));
+});
+
+test("redact: a key in a URL, query string or nested event never survives scrubbing", () => {
+  assert.equal(redactApiKeys(`GET /api/mcp?key=${KEY}&a=1`), "GET /api/mcp?key=cp_live_[redacted]&a=1");
+  const event = { request: { url: `https://h/api/mcp?key=${KEY}`, query_string: `key=${KEY}` }, spans: [{ data: { "url.full": `https://h/api/mcp?key=${KEY}` } }], breadcrumbs: [{ message: KEY }] };
+  const out = JSON.stringify(scrubApiKeys(event));
+  assert.ok(!out.includes(KEY) && !out.includes("cp_live_a"), out);
+  assert.deepEqual(scrubApiKeys({ ok: 1 }), { ok: 1 });
 });
 
 // ============================================

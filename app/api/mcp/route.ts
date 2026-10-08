@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { prisma } from "@/lib/prisma";
-import { authenticateApiKey, type Principal } from "@/lib/api-v1/auth";
+import { authenticateApiKey, withUrlKey, type Principal } from "@/lib/api-v1/auth";
 import { ApiError } from "@/lib/api-v1/errors";
 import { errorBody, recordAccess } from "@/lib/api-v1/handler";
 import { buildMcpServer } from "@/lib/api-v1/mcp-server";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   let principal: Principal;
   try {
-    principal = await authenticateApiKey(prisma, req.headers);
+    principal = await authenticateApiKey(prisma, withUrlKey(req.headers, req.nextUrl));
   } catch (err) {
     if (err instanceof ApiError) {
       return NextResponse.json(errorBody(err.code, err.message), {

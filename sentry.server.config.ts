@@ -3,6 +3,7 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { scrubApiKeys } from "./lib/api-v1/redact";
 
 Sentry.init({
   dsn: "https://e9e7ab45ba6bbfc9c14ca4097f11ceab@o4510960325885952.ingest.de.sentry.io/4510960330342480",
@@ -16,4 +17,9 @@ Sentry.init({
   // Enable sending user PII (Personally Identifiable Information)
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   sendDefaultPii: true,
+
+  // API keys can travel in the /api/mcp URL: never let them reach Sentry.
+  beforeSend: (event) => scrubApiKeys(event),
+  beforeSendTransaction: (event) => scrubApiKeys(event),
+  beforeBreadcrumb: (breadcrumb) => scrubApiKeys(breadcrumb),
 });
