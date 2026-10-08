@@ -20,6 +20,8 @@ const createApiKeySchema = z.object({
   // Legacy keys list endpoints; public API (/api/v1, MCP) keys list read scopes instead.
   allowedEndpoints: z.array(z.string().min(1).max(500)).max(50, 'Too many endpoints').default([]),
   scopes: z.array(z.enum(READ_SCOPES)).max(READ_SCOPES.length).optional(),
+  // Internal key that sees EVERY client. Manager-only (this route), no clientId, expiry required (max 90 days).
+  allClients: z.boolean().optional(),
   rateLimitPerMinute: z.number().int().min(1).max(1000).default(60),
   rateLimitPerHour: z.number().int().min(1).max(10000).default(3600),
   expiresAt: z.string().datetime().optional().nullable(),
@@ -132,13 +134,18 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   // Public API keys (scopes) must be bound to a client: that is the tenant they can read.
   const isV1Key = !!validated.scopes?.length;
-  if (isV1Key && !validated.clientId) {
+  if (validated.allClients) {
+    if (!isV1Key) return errorResponse('scopes are required for an all-clients key', 400);
+    if (validated.clientId || validated.missionId) return errorResponse('An all-clients key cannot be bound to a client or mission', 400);
+    if (!validated.expiresAt) return errorResponse('An all-clients key must have an expiration date (max 90 days)', 400);
+    if (new Date(validated.expiresAt).getTime() > Date.now() + 90 * 86_400_000) return errorResponse('An all-clients key cannot live more than 90 days', 400);
+  } else if (isV1Key && !validated.clientId) {
     return errorResponse('clientId is required for keys with scopes (tenant isolation)', 400);
   }
   if (!isV1Key && validated.allowedEndpoints.length === 0) {
     return errorResponse('At least one endpoint (or scope) required', 400);
   }
-  const allowedEndpoints = isV1Key ? allowedEndpointsForScopes(validated.scopes!) : validated.allowedEndpoints;
+  const allowedEndpoints = isV1Key ? allowedEndpointsForScopes(validated.scopes!, { allClients: !!validated.allClients }) : validated.allowedEndpoints;
 
   // Validate endpoints exist and are enabled
   const endpoints = isV1Key ? [] : await prisma.externalEndpoint.findMany({

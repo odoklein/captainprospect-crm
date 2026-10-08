@@ -117,7 +117,7 @@ export async function getSalesReport(ctx: Ctx, i: SalesReportInput) {
 
   const [grouped, confirmations, campaigns, unique, daily, prevGrouped, prevUnique] = await Promise.all([
     // One bounded groupBy feeds totals, by_result, by_category, by_user and by_mission.
-    ctx.db.action.groupBy({ by: ["campaignId", "sdrId", "channel", "result"], where: actionFilters(ctx, f), _count: { _all: true } }) as Promise<Grouped>,
+    ctx.db.action.groupBy({ by: ["campaignId", "sdrId", "channel", "result"], where: actionFilters(ctx, f), _count: { _all: true } }) as unknown as Promise<Grouped>,
     ctx.db.action.groupBy({ by: ["confirmationStatus"], where: { AND: [actionFilters(ctx, f), { result: "MEETING_BOOKED" }] }, _count: { _all: true } }),
     ctx.db.campaign.findMany({
       where: { mission: missionScope(ctx.p, i.client_id) },
@@ -126,7 +126,7 @@ export async function getSalesReport(ctx: Ctx, i: SalesReportInput) {
     uniqueCalled(ctx, f),
     series(ctx, f, spanDays > 62 ? "month" : "day"),
     i.compare_previous
-      ? (ctx.db.action.groupBy({ by: ["campaignId", "sdrId", "channel", "result"], where: actionFilters(ctx, prevFilters), _count: { _all: true } }) as Promise<Grouped>)
+      ? (ctx.db.action.groupBy({ by: ["campaignId", "sdrId", "channel", "result"], where: actionFilters(ctx, prevFilters), _count: { _all: true } }) as unknown as Promise<Grouped>)
       : Promise.resolve(null),
     i.compare_previous ? uniqueCalled(ctx, prevFilters) : Promise.resolve(null),
   ]);

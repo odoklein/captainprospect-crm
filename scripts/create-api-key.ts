@@ -5,6 +5,10 @@
  *       --by manager@example.com [--scopes contacts:read,calls:read | all] \
  *       [--mission <missionId>] [--expires-days 90]
  *
+ * Internal key that sees EVERY client (manager only, expiry required, max 90 days):
+ *   npx tsx scripts/create-api-key.ts --all-clients --name "ChatGPT interne" \
+ *       --by manager@example.com --expires-days 30
+ *
  * The key is printed ONCE; only its SHA-256 hash is stored. Writes one ApiKey
  * row to whatever DATABASE_URL points at — check it first.
  */
@@ -19,6 +23,7 @@ function arg(name: string): string | undefined {
 }
 
 async function main() {
+  const allClients = process.argv.includes("--all-clients");
   const clientId = arg("client");
   const name = arg("name");
   const byEmail = arg("by");
@@ -26,8 +31,8 @@ async function main() {
   const missionId = arg("mission") ?? null;
   const expiresDays = Number(arg("expires-days") ?? 0);
 
-  if (!clientId || !name || !byEmail) {
-    console.error('Usage: --client <clientId> --name "<label>" --by <manager email> [--scopes a,b|all] [--mission id] [--expires-days n]');
+  if ((!allClients && !clientId) || (allClients && clientId) || !name || !byEmail) {
+    console.error('Usage: (--client <clientId> | --all-clients) --name "<label>" --by <manager email> [--scopes a,b|all] [--mission id] [--expires-days n]');
     process.exit(1);
   }
 
@@ -46,12 +51,17 @@ async function main() {
     process.exit(1);
   }
 
+  if (allClients && !(expiresDays > 0 && expiresDays <= 90)) {
+    console.error("An all-clients key needs --expires-days between 1 and 90.");
+    process.exit(1);
+  }
+
   const [client, issuer, mission] = await Promise.all([
-    prisma.client.findUnique({ where: { id: clientId }, select: { id: true, name: true } }),
+    clientId ? prisma.client.findUnique({ where: { id: clientId }, select: { id: true, name: true } }) : Promise.resolve(null),
     prisma.user.findUnique({ where: { email: byEmail }, select: { id: true, role: true } }),
     missionId ? prisma.mission.findFirst({ where: { id: missionId, clientId }, select: { id: true } }) : Promise.resolve(null),
   ]);
-  if (!client) throw new Error(`Client ${clientId} not found`);
+  if (!allClients && !client) throw new Error(`Client ${clientId} not found`);
   if (!issuer || issuer.role !== "MANAGER") throw new Error(`${byEmail} is not a MANAGER user`);
   if (missionId && !mission) throw new Error(`Mission ${missionId} does not belong to client ${clientId}`);
 
@@ -64,14 +74,14 @@ async function main() {
       role: "CLIENT",
       clientId,
       missionId,
-      allowedEndpoints: allowedEndpointsForScopes(scopes),
+      allowedEndpoints: allowedEndpointsForScopes(scopes, { allClients }),
       expiresAt: expiresDays > 0 ? new Date(Date.now() + expiresDays * 86_400_000) : null,
       createdById: issuer.id,
     },
     select: { id: true },
   });
 
-  console.log(`Key created for client "${client.name}" (id ${record.id})`);
+  console.log(allClients ? `ALL-CLIENTS key created (id ${record.id}) - it sees every client` : `Key created for client "${client!.name}" (id ${record.id})`);
   console.log(`Scopes: ${scopes.join(", ")}`);
   console.log("\nCopy it now — it will not be shown again:\n");
   console.log(fullKey);

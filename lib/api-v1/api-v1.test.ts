@@ -30,6 +30,7 @@ import { searchUsers, getUser, searchTeams, getTeam, searchUsersParams, searchTe
 import { getSalesReport, salesReportParams } from "./services/reports";
 import { getAccount, globalSearch, globalSearchParams } from "./services/account";
 import { searchMissions, getMission, searchMissionsParams } from "./services/missions";
+import { searchClients, searchCampaigns, getCampaign, searchClientsParams, searchCampaignsParams } from "./services/campaigns";
 import { searchLists, getList, searchListsParams } from "./services/lists";
 import { getRdvOverview, searchExclusions, getDailyReports, getDataQuality, rdvOverviewParams, searchExclusionsParams, dailyReportsParams, dataQualityParams } from "./services/insights";
 import type { Ctx } from "./serializers";
@@ -80,6 +81,7 @@ const principal = (clientId: string, scopes: readonly Scope[] = READ_SCOPES, mis
   keyId: `key-${clientId}`,
   keyName: "test",
   clientId,
+  allClients: false,
   missionId,
   scopes: [...scopes],
   issuedById: "manager-1",
@@ -100,7 +102,7 @@ const KEY = "cp_live_" + "a".repeat(48) + "_lx1";
 const baseKey = {
   id: "key-1",
   name: "ChatGPT",
-  clientId: "tenant-A",
+  clientId: "tenant-A" as string | null,
   missionId: null,
   allowedEndpoints: allowedEndpointsForScopes(["contacts:read", "calls:read"]),
   isActive: true,
@@ -108,6 +110,7 @@ const baseKey = {
   rateLimitPerMinute: 60,
   rateLimitPerHour: 1000,
   createdById: "manager-1",
+  createdBy: { role: "MANAGER", isActive: true },
 };
 
 function authDb(key: Partial<typeof baseKey> | null, usage = { minute: 0, hour: 0 }) {
@@ -204,7 +207,7 @@ test("scopes: stored in allowedEndpoints, unknown and write scopes are ignored (
 const TENANT_MODELS = new Set(["action", "opportunity", "contact", "company", "mission"]);
 
 /** Every service function, called with hostile input trying to reach tenant B. */
-const HOSTILE = { clientId: "tenant-B", tenantId: "tenant-B", client_id: "tenant-B", tenant_id: "tenant-B" };
+const HOSTILE = { clientId: "tenant-B", tenantId: "tenant-B", tenant_id: "tenant-B" };
 const runAll: Array<[string, (c: Ctx) => Promise<unknown>]> = [
   ["searchContacts", (c) => searchContacts(c, parseInput(searchContactsParams, { ...HOSTILE, mission_id: "mission-of-B", company_id: "company-of-B", assigned_to: "user-of-B", query: "x" }))],
   ["getContact", (c) => getContact(c, "contact-of-B")],
@@ -223,6 +226,9 @@ const runAll: Array<[string, (c: Ctx) => Promise<unknown>]> = [
   ["getTeam", (c) => getTeam(c, "team-of-B")],
   ["getSalesReport", (c) => getSalesReport(c, parseInput(salesReportParams, { ...HOSTILE, mission_id: "mission-of-B", compare_previous: "true" }))],
   ["getAccount", (c) => getAccount(c)],
+  ["searchClients", (c) => searchClients(c, parseInput(searchClientsParams, { ...HOSTILE, query: "x" }))],
+  ["searchCampaigns", (c) => searchCampaigns(c, parseInput(searchCampaignsParams, { ...HOSTILE, mission_id: "mission-of-B" }))],
+  ["getCampaign", (c) => getCampaign(c, "campaign-of-B")],
   ["searchMissions", (c) => searchMissions(c, parseInput(searchMissionsParams, { ...HOSTILE, query: "x" }))],
   ["getMission", (c) => getMission(c, "mission-of-B")],
   ["searchLists", (c) => searchLists(c, parseInput(searchListsParams, { ...HOSTILE, mission_id: "mission-of-B" }))],
@@ -503,7 +509,7 @@ test("report: period is bounded and totals fold the grouped counts", async () =>
             { campaignId: "cp1", sdrId: "u1", channel: "CALL", result: "MEETING_BOOKED", _count: { _all: 2 } },
             { campaignId: "cp1", sdrId: "u1", channel: "EMAIL", result: "MAIL_ENVOYE", _count: { _all: 8 } },
           ],
-    "campaign.findMany": () => [{ id: "cp1", mission: { id: "m1", name: "Mission BTP" } }],
+    "campaign.findMany": () => [{ id: "cp1", mission: { id: "m1", name: "Mission BTP", client: { id: "tenant-A", name: "Client A" } } }],
     "user.findMany": () => [{ id: "u1", name: "Marie" }],
   });
   const r: any = await getSalesReport(ctx(A, db), parseInput(salesReportParams, {}));
@@ -524,7 +530,7 @@ const REQUIRED_TOOLS = [
   "search_contacts", "get_contact", "get_contact_context", "search_companies", "get_company", "search_leads", "get_lead",
   "search_calls", "get_call", "search_activities", "search_appointments", "get_team", "get_user", "get_sales_report",
   "whoami", "global_search",
-  "list_missions", "get_mission", "list_lists", "get_list", "get_rdv_overview", "list_exclusions", "get_daily_reports", "get_data_quality",
+  "list_clients", "list_campaigns", "get_campaign", "list_missions", "get_mission", "list_lists", "get_list", "get_rdv_overview", "list_exclusions", "get_daily_reports", "get_data_quality",
 ];
 
 test("mcp: the required tools exist, are unique, read-only and map to a read scope", () => {

@@ -33,7 +33,8 @@ function envelope(result: unknown, limit: number | undefined) {
   return { data: result };
 }
 
-type RouteContext = { params?: Promise<Record<string, string>> };
+// Next.js requires this exact shape for the second argument of a route handler.
+type RouteContext = { params: Promise<Record<string, string>> };
 
 /**
  * Wraps a /api/v1 route: authenticate → scope → run → envelope → audit.
@@ -43,7 +44,7 @@ export function v1Route(
   scope: Scope | null,
   run: (ctx: Ctx, args: { params: Record<string, string>; query: Record<string, string> }) => Promise<unknown>,
 ) {
-  return async (req: NextRequest, context: RouteContext = {}): Promise<NextResponse> => {
+  return async (req: NextRequest, context?: RouteContext): Promise<NextResponse> => {
     const startedAt = Date.now();
     const url = new URL(req.url);
     let principal: Principal | null = null;
@@ -52,7 +53,7 @@ export function v1Route(
       principal = await authenticateApiKey(prisma, req.headers);
       if (scope) requireScope(principal, scope);
       const query = Object.fromEntries(url.searchParams);
-      const params = context.params ? await context.params : {};
+      const params = context?.params ? await context.params : {};
       const result = await run({ p: principal, db: prisma }, { params, query });
       const limit = Number(query.limit) || undefined;
       return NextResponse.json(envelope(result, limit), { status, headers: NO_STORE });

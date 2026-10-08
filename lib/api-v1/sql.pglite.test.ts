@@ -37,13 +37,14 @@ function db() {
 }
 
 const ctx = (clientId: string, missionId: string | null = null): Ctx => ({
-  p: { keyId: "k", keyName: "t", clientId, missionId, scopes: [...READ_SCOPES], issuedById: "m" },
+  p: { keyId: "k", keyName: "t", clientId, allClients: false, missionId, scopes: [...READ_SCOPES], issuedById: "m" },
   db: db(),
 });
 
 before(async () => {
   pg = new PGlite();
   await pg.exec(`
+    CREATE TABLE "Client"   (id text PRIMARY KEY, name text);
     CREATE TABLE "Mission"  (id text PRIMARY KEY, "clientId" text, name text);
     CREATE TABLE "Campaign" (id text PRIMARY KEY, "missionId" text);
     CREATE TABLE "List"     (id text PRIMARY KEY, "missionId" text);
@@ -52,6 +53,7 @@ before(async () => {
     CREATE TABLE "User"     (id text PRIMARY KEY, name text);
     CREATE TABLE "Action"   (id text PRIMARY KEY, "contactId" text, "companyId" text, "campaignId" text, "sdrId" text,
                              channel text, result text, "callbackDate" timestamp, "createdAt" timestamp);
+    INSERT INTO "Client" VALUES ('tenant-A','Client A'), ('tenant-B','Client B');
     INSERT INTO "Mission" VALUES ('mA','tenant-A','Mission A'), ('mA2','tenant-A','Mission A2'), ('mB','tenant-B','Mission B');
     INSERT INTO "Campaign" VALUES ('cpA','mA'), ('cpA2','mA2'), ('cpB','mB');
     INSERT INTO "List" VALUES ('lA','mA'), ('lA2','mA2'), ('lB','mB');
@@ -187,4 +189,40 @@ test("sql data quality: same-name duplicate companies and duplicate emails, per 
   assert.equal(b.companies.duplicates_same_name_same_mission.extra_rows, 0);
   const narrowed: any = await getDataQuality(ctx("tenant-A"), parseInput(dataQualityParams, { mission_id: "mA2" }));
   assert.equal(narrowed.companies.duplicates_same_name_same_mission.extra_rows, 0);
+});
+
+const all = (): Ctx => ({ p: { keyId: "k", keyName: "t", clientId: null, allClients: true, missionId: null, scopes: [...READ_SCOPES], issuedById: "m" }, db: db() });
+
+test("sql all-clients key: leads and reports span every client, name the client, and client_id narrows", async () => {
+  const leads = await searchLeads(all(), parseInput(searchLeadsParams, {}));
+  assert.deepEqual(leads.items.map((l) => l.id).sort(), ["c1", "c2", "c3", "c4", "cB"]);
+  assert.equal(leads.items.find((l) => l.id === "cB")!.client.name, "Client B");
+  assert.equal(leads.items.find((l) => l.id === "c1")!.client.name, "Client A");
+
+  const onlyB = await searchLeads(all(), parseInput(searchLeadsParams, { client_id: "tenant-B" }));
+  assert.deepEqual(onlyB.items.map((l) => l.id), ["cB"]);
+
+  const lead = await getLead(all(), "cB");
+  assert.equal(lead.company.name, "Secret Corp");
+
+  const r: any = await getSalesReport(all(), parseInput(salesReportParams, { date_from: "2026-09-01", date_to: "2026-10-31" }));
+  assert.equal(r.unique_called.contacts, 5);
+  const narrowed: any = await getSalesReport(all(), parseInput(salesReportParams, { date_from: "2026-09-01", date_to: "2026-10-31", client_id: "tenant-B" }));
+  assert.equal(narrowed.unique_called.contacts, 1);
+});
+
+test("sql client-bound key: a client_id for ANOTHER client returns nothing, never that client's data", async () => {
+  const leads = await searchLeads(ctx("tenant-A"), parseInput(searchLeadsParams, { client_id: "tenant-B" }));
+  assert.deepEqual(leads.items, []);
+  const r: any = await getSalesReport(ctx("tenant-A"), parseInput(salesReportParams, { date_from: "2026-09-01", date_to: "2026-10-31", client_id: "tenant-B" }));
+  assert.equal(r.unique_called.contacts, 0);
+  assert.equal(r.totals.calls, 0);
+});
+
+test("sql all-clients key: list stats and data quality cover every client", async () => {
+  const stats = await listStats(all(), ["lA", "lB"]);
+  assert.equal(stats.has("lB"), true);
+  assert.equal(stats.get("lB")!.contacts, 1);
+  const q: any = await getDataQuality(all(), parseInput(dataQualityParams, {}));
+  assert.equal(q.companies.duplicates_same_name_same_mission.extra_rows, 1);
 });
