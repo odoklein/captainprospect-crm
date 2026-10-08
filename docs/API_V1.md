@@ -92,7 +92,9 @@ Tous en `GET`. Tous retournent `{ "data": … }` ; les listes ajoutent `"paginat
 | `/appointments` | `status` (booked\|cancelled\|all), `confirmation, upcoming, contact_id, company_id, user_id, mission_id, date_from, date_to, limit, cursor` |
 | `/users` · `/users/:id` | `query, role, mission_id, limit, cursor` |
 | `/teams` · `/teams/:id` | `query, status, limit, cursor` |
-| `/reports` | `date_from, date_to` (défaut 30 j, max 366 j), `mission_id, user_id` |
+| `/reports` | `period` ou `date_from, date_to` (défaut 30 j, max 366 j), `mission_id, user_id, compare_previous` |
+| `/account` | — (toute clé valide) : client visible, date du jour, missions actives, glossaire |
+| `/search` | `query, limit` : contacts + entreprises + équipes en un appel |
 
 `status` = code résultat de l'action (ex. `RAPPEL`, `NO_RESPONSE`) sur `/calls`, `/activities` ; complétude (`INCOMPLETE|PARTIAL|ACTIONABLE`) sur `/contacts`, `/companies` ; étape pipeline sur `/leads`.
 `date_to` au format `YYYY-MM-DD` inclut toute la journée.
@@ -163,7 +165,7 @@ Sans base de données : les services tournent contre un double de Prisma qui enr
 
 ## Limites connues
 
-- Pas testé contre une vraie base : ni la requête SQL de `/leads` ni les requêtes Prisma n'ont tourné sur Postgres. À essayer sur une base de test avec une clé `--scopes all` avant de la donner à un agent.
+- Le SQL brut de `/leads` et de `/reports` est exécuté dans les tests sur un Postgres en mémoire (PGlite) avec deux clients fictifs ; les requêtes Prisma sont vérifiées par un faux qui enregistre les requêtes. Aucun test n'a tourné sur la base de production : essaie avec une clé de test.
 - `/leads` agrège l'historique d'actions du client à chaque appel (rapide avec les index ci-dessus, à surveiller sur de très gros volumes).
 - « Leads » n'est pas une table Captain Prospect : c'est une vue dérivée des actions (voir plus haut). Les appels entrants Allo (`IncomingCall`) ne sont pas exposés.
 - Le texte libre (notes, transcriptions) est renvoyé tel quel, tronqué : un agent doit le traiter comme une donnée, pas comme des instructions.

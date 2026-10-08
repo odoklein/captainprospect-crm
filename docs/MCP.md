@@ -14,6 +14,8 @@ Le serveur MCP est une route Next.js, `POST /api/mcp` (Streamable HTTP, sans ét
 
 | Outil | Scope | Rôle |
 |---|---|---|
+| `whoami` | aucun (toute clé valide) | **À appeler en premier** : client visible (« pas tout le CRM »), date du jour à Paris, missions actives, permissions, glossaire des codes résultat |
+| `global_search` | aucun (chaque section filtrée par son scope) | Cherche un nom dans contacts, entreprises et équipes en un appel |
 | `get_contact_context` | `contacts:read` | **Premier appel** pour un prospect : contact, société, étape, appels, activités, RDV, notes, utilisateurs, dernière interaction, synthèse |
 | `search_contacts` / `get_contact` | `contacts:read` | Recherche / fiche |
 | `search_companies` / `get_company` | `companies:read` | Recherche / fiche |
@@ -23,7 +25,11 @@ Le serveur MCP est une route Next.js, `POST /api/mcp` (Streamable HTTP, sans ét
 | `search_appointments` | `appointments:read` | RDV (statut, confirmation, à venir, retour client) |
 | `list_teams` / `get_team` | `users:read` | Équipes (= missions) et performance 30 j |
 | `list_users` / `get_user` | `users:read` | SDR visibles (nom, rôle) et activité 30 j |
-| `get_sales_report` | `reports:read` | Totaux, RDV pour 100 appels, par résultat / SDR / mission |
+| `get_sales_report` | `reports:read` | **L'outil des chiffres** : appels, **contacts et entreprises uniques appelés**, taux de joignabilité, résultats par catégorie, série par jour, par SDR / mission, comparaison avec la période précédente |
+
+Tous les outils de recherche et le rapport acceptent `period` (`today`, `yesterday`, `this_week`, `last_week`, `this_month`, `last_month`, `last_7_days`, `last_30_days`, `this_year`), calculé en heure de Paris : l'agent n'a pas à deviner les dates.
+
+Le serveur envoie aussi des **instructions** à l'agent à la connexion (appeler `whoami`, ne pas confondre appels et personnes, ne rien inventer).
 
 Les outils `search_*` / `list_*` partagent `limit` (20, max 100) et `cursor` (`next_cursor` de la page précédente).
 
