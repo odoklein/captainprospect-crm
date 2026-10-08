@@ -1,3 +1,4 @@
+import { resetAbsenceOnReschedule, loadAbsenceHistory } from "@/lib/meetings/feedbackHistory";
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
@@ -162,6 +163,7 @@ export const GET = withErrorHandler(async (
     });
 
     const meetings = filterRdvList(rawMeetings);
+    const absenceHistory = await loadAbsenceHistory(meetings.map((m) => m.id));
 
     // Group by mission
     const byMission = new Map<string, {
@@ -222,6 +224,7 @@ export const GET = withErrorHandler(async (
         byCampaign: Array.from(byCampaign.values()),
         allMeetings: meetings.map((meeting) => ({
             ...meeting,
+            absenceHistory: absenceHistory.get(meeting.id) ?? [],
             interlocuteur: meeting.interlocuteur
                 ? {
                     id: meeting.interlocuteur.id,

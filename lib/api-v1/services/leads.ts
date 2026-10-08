@@ -4,6 +4,7 @@ import { decodeCursor, encodeCursor, pageParams, zBool, zDate, type Page } from 
 import { notFound } from "../errors";
 import { escapeLike, fullName, iso, trunc, type Ctx } from "../serializers";
 import { opportunityScope } from "../tenant";
+import { withPeriod, zPeriod } from "../dates";
 
 /**
  * A "lead" is a prospect that has actually been worked: a contact with at least
@@ -24,6 +25,7 @@ export const searchLeadsParams = {
   mission_id: z.string().max(40).optional(),
   min_calls: z.coerce.number().int().min(1).max(500).optional().describe("At least N calls"),
   no_appointment: zBool.describe("Only leads that never got an appointment"),
+  period: zPeriod.optional().describe("Preset for the last-action window"),
   date_from: zDate.optional().describe("Last action on/after (recent activity)"),
   date_to: zDate.optional().describe("Last action on/before (stale leads)"),
   callback_due_before: zDate.optional().describe("Follow-up callback scheduled on/before this date — use today's date for 'to follow up today'"),
@@ -169,7 +171,8 @@ const leadSummary = (r: LeadRow) => ({
   do_not_contact: r.excluded_at !== null,
 });
 
-export async function searchLeads(ctx: Ctx, input: SearchLeadsInput): Promise<Page<ReturnType<typeof leadSummary>>> {
+export async function searchLeads(ctx: Ctx, rawInput: SearchLeadsInput): Promise<Page<ReturnType<typeof leadSummary>>> {
+  const input = withPeriod(rawInput);
   const rows = await queryLeads(ctx, input);
   const hasMore = rows.length > input.limit;
   const slice = hasMore ? rows.slice(0, input.limit) : rows;

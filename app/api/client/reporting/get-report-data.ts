@@ -7,8 +7,15 @@ import { DateTime } from "luxon";
 import { prisma } from "@/lib/prisma";
 import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 import { REPORT_ZONE, parisMonthKey } from "@/lib/reporting/period";
+import { clientCountableMeetingWhere } from "@/lib/meetings/clientVisibility";
 
 const QUALIFIED_RESULTS = ["INTERESTED", "CALLBACK_REQUESTED", "MEETING_BOOKED"] as const;
+
+/** An RDV only qualifies a lead once the SAS has confirmed it. */
+function isQualified(a: { result: string; confirmationStatus: string }): boolean {
+    if (a.result === "MEETING_BOOKED") return a.confirmationStatus === "CONFIRMED";
+    return QUALIFIED_RESULTS.includes(a.result as (typeof QUALIFIED_RESULTS)[number]);
+}
 
 export interface GetReportDataParams {
     clientId: string;
@@ -119,13 +126,14 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
                 contactId: true,
                 companyId: true,
                 result: true,
+                confirmationStatus: true,
                 createdAt: true,
             },
         }),
         prisma.action.count({
             where: {
                 campaignId: { in: campaignIds },
-                result: "MEETING_BOOKED",
+                ...clientCountableMeetingWhere,
                 createdAt: { gte: dateFromDate, lte: dateToDate },
             },
         }),
@@ -142,7 +150,7 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
         prisma.action.findMany({
             where: {
                 campaignId: { in: campaignIds },
-                result: "MEETING_BOOKED",
+                ...clientCountableMeetingWhere,
                 createdAt: { gte: dateFromDate, lte: dateToDate },
             },
             select: { createdAt: true },
@@ -166,7 +174,7 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
     for (const a of actionsInPeriod) {
         if (a.contactId) {
             contactIdsReached.add(a.contactId);
-            if (QUALIFIED_RESULTS.includes(a.result as (typeof QUALIFIED_RESULTS)[number])) {
+            if (isQualified(a)) {
                 contactIdsQualified.add(a.contactId);
             }
         } else if (a.companyId) {
@@ -193,13 +201,13 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
                     where: {
                         campaignId: { in: campaignIds },
                         createdAt: { gte: prevDateFrom, lte: prevDateTo },
-                    },
-                    select: { contactId: true, companyId: true, result: true },
+                            },
+                    select: { contactId: true, companyId: true, result: true, confirmationStatus: true },
                 }),
                 prisma.action.count({
                     where: {
                         campaignId: { in: campaignIds },
-                        result: "MEETING_BOOKED",
+                        ...clientCountableMeetingWhere,
                         createdAt: { gte: prevDateFrom, lte: prevDateTo },
                     },
                 }),
@@ -209,7 +217,7 @@ export async function getReportData(params: GetReportDataParams): Promise<GetRep
             for (const a of prevActions) {
                 if (a.contactId) {
                     prevContactIds.add(a.contactId);
-                    if (QUALIFIED_RESULTS.includes(a.result as (typeof QUALIFIED_RESULTS)[number])) {
+                    if (isQualified(a)) {
                         prevQualifiedIds.add(a.contactId);
                     }
                 } else if (a.companyId) prevContactIds.add(`company:${a.companyId}`);

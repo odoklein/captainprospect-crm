@@ -1,3 +1,4 @@
+import { clientVisibleActionWhere } from "@/lib/meetings/clientVisibility";
 import { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +19,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const where: Prisma.ActionWhereInput = {
         channel: "CALL" as const,
+        AND: [clientVisibleActionWhere],
         campaign: {
             mission: {
                 clientId,

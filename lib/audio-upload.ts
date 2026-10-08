@@ -2,7 +2,7 @@
 // Shared rules for manual RDV audio uploads (client + server).
 // Browsers frequently report an empty or "video/*" MIME type for
 // m4a / webm / ogg recordings, so we validate on extension too and
-// derive a clean MIME type for storage and for Mistral Voxtral.
+// derive a clean MIME type for storage and for OpenAI transcription.
 // ============================================
 
 export const MAX_AUDIO_SIZE = 50 * 1024 * 1024;
@@ -48,7 +48,7 @@ export function resolveAudioMime(filename: string, mimeType: string): string {
   return MIME_BY_EXT[audioExtension(filename)] ?? "audio/mpeg";
 }
 
-/** Guarantees a filename with an extension Mistral can sniff. */
+/** Guarantees a filename with an extension OpenAI can sniff. */
 export function ensureAudioFilename(filename: string, mimeType: string): string {
   const base = filename?.trim() || "audio";
   if (audioExtension(base) in MIME_BY_EXT) return base;

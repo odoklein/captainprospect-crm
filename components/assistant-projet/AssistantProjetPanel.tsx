@@ -632,7 +632,7 @@ export default function AssistantProjetPanel({
                     <div className="ap-composer-bar">
                         <span className="ap-model">
                             <span className="ap-model-dot" aria-hidden="true" />
-                            Mistral Large
+                            GPT-4.1 mini
                         </span>
                         <span className="ap-hint">
                             <kbd>Entrée</kbd> envoyer · <kbd>Maj+Entrée</kbd> ligne

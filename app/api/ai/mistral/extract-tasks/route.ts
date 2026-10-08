@@ -20,8 +20,8 @@ const extractTasksSchema = z.object({
     sessionType: z.string().max(100).optional(),
 });
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = process.env.MISTRAL_MODEL || 'mistral-small-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireAuth(request);
@@ -68,7 +68,7 @@ Contraintes :
 - Maximum 20 tâches`;
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
-    const mistralApiKey = process.env.MISTRAL_API_KEY;
+    const mistralApiKey = process.env.OPENAI_API_KEY;
 
     // 1. Try free Gemini 2.0 Flash model first
     if (geminiApiKey) {
@@ -115,7 +115,7 @@ Contraintes :
     }
 
     if (!mistralApiKey) {
-        return errorResponse('Aucune clé API IA configurée (GEMINI_API_KEY ou MISTRAL_API_KEY)', 503);
+        return errorResponse('Aucune clé API IA configurée (GEMINI_API_KEY ou OPENAI_API_KEY)', 503);
     }
 
     try {
@@ -144,7 +144,7 @@ Contraintes :
             const err = await response.json().catch(() => ({}));
             console.error('Mistral extract-tasks error:', err);
             return errorResponse(
-                err.error?.message || 'Erreur Mistral AI',
+                err.error?.message || 'Erreur OpenAI',
                 response.status,
             );
         }
@@ -153,7 +153,7 @@ Contraintes :
         const raw = result.choices?.[0]?.message?.content?.trim();
 
         if (!raw) {
-            return errorResponse('Réponse vide de Mistral AI', 500);
+            return errorResponse('Réponse vide de OpenAI', 500);
         }
 
         const parsed = JSON.parse(raw);
@@ -186,6 +186,6 @@ Contraintes :
         });
     } catch (error) {
         console.error('Mistral extract-tasks request failed:', error);
-        return errorResponse('Erreur de connexion à Mistral AI', 500);
+        return errorResponse('Erreur de connexion à OpenAI', 500);
     }
 });

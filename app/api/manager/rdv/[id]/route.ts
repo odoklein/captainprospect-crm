@@ -1,3 +1,4 @@
+import { resetAbsenceOnReschedule, loadAbsenceHistory } from "@/lib/meetings/feedbackHistory";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
@@ -109,6 +110,17 @@ export const PUT = withErrorHandler(
         interlocuteur: { select: { id: true, firstName: true, lastName: true, title: true } },
       },
     });
+
+    // Absent RDV moved to a new future date: back to "À venir", absence archived.
+    if (body.callbackDate !== undefined) {
+      const reset = await resetAbsenceOnReschedule({
+        actionId: id,
+        previousCallbackDate,
+        newCallbackDate: updated.callbackDate,
+        replacedById: session.user.id,
+      });
+      if (reset) (updated as { meetingFeedback: unknown }).meetingFeedback = null;
+    }
 
     // Date moved: tell the client, so they are not left with the old slot in
     // their calendar. Only for real meetings, and only when the date actually

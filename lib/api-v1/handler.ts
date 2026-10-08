@@ -40,7 +40,7 @@ type RouteContext = { params?: Promise<Record<string, string>> };
  * The route only ever sees a `Ctx` whose tenant comes from the API key.
  */
 export function v1Route(
-  scope: Scope,
+  scope: Scope | null,
   run: (ctx: Ctx, args: { params: Record<string, string>; query: Record<string, string> }) => Promise<unknown>,
 ) {
   return async (req: NextRequest, context: RouteContext = {}): Promise<NextResponse> => {
@@ -50,7 +50,7 @@ export function v1Route(
     let status = 200;
     try {
       principal = await authenticateApiKey(prisma, req.headers);
-      requireScope(principal, scope);
+      if (scope) requireScope(principal, scope);
       const query = Object.fromEntries(url.searchParams);
       const params = context.params ? await context.params : {};
       const result = await run({ p: principal, db: prisma }, { params, query });

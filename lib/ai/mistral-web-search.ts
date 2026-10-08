@@ -1,20 +1,21 @@
 /**
- * Mistral Conversations API with the built-in `web_search` tool.
+ * OpenAI Responses API with the built-in `web_search` tool (file kept under its historical
+ * "mistral" name so callers stay unchanged; it reuses MistralError for the French messages).
+ * `model` + `tools` are passed inline, nothing stored server-side (`store: false`).
  *
- * Web search is not available on /v1/chat/completions, so this is a separate
- * client from lib/ai/mistral.ts (it reuses MistralError for the user-facing
- * French messages). `model` + `tools` are passed inline — no pre-created agent,
- * nothing stored server-side (`store: false`).
+ * OpenAI does not return the retrieved page text, only the cited sources. The adapter below
+ * re-shapes them into synthetic `tool.execution` entries (url, title, cited passage) so
+ * collectPages() in lib/enrichment/company-ai-core.ts keeps working unchanged.
  *
- * Failure handling mirrors the chat client: a 403 tier rejection degrades to the
- * next model; 429 / 5xx / network errors get up to two patient retries.
+ * Failure handling: a 403 / 404 on a model degrades to the next one; 429 / 5xx / network
+ * errors get up to two patient retries.
  */
 
 import { MistralError } from "./mistral";
 
-const CONVERSATIONS_URL = "https://api.mistral.ai/v1/conversations";
-const DEFAULT_MODEL = "mistral-medium-latest";
-const FALLBACK_MODELS = ["mistral-small-latest"];
+const CONVERSATIONS_URL = "https://api.openai.com/v1/responses";
+const DEFAULT_MODEL = "gpt-4.1-mini";
+const FALLBACK_MODELS = ["gpt-4o-mini"];
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
 
@@ -27,18 +28,51 @@ export interface WebSearchRun {
     model: string;
 }
 
-type OutputEntry = { type?: string; role?: string; content?: unknown };
+type OutputEntry = { type?: string; role?: string; content?: unknown; info?: { result: string } };
 
-function finalText(outputs: OutputEntry[]): string {
-    const message = [...outputs].reverse().find((o) => o.type === "message.output");
-    const content = message?.content;
-    if (typeof content === "string") return content;
-    if (Array.isArray(content)) {
-        return content
-            .map((chunk) => (chunk && typeof chunk === "object" && (chunk as { type?: string }).type === "text" ? String((chunk as { text?: unknown }).text ?? "") : ""))
-            .join("");
+type Annotation = { type?: string; url?: string; title?: string; start_index?: number; end_index?: number };
+type OpenAIOutputItem = {
+    type?: string;
+    content?: Array<{ type?: string; text?: string; annotations?: Annotation[] }>;
+};
+
+/** Final answer text plus synthetic `tool.execution` entries built from the cited sources. */
+function adapt(output: OpenAIOutputItem[]): { text: string; outputs: OutputEntry[]; searchCount: number } {
+    let text = "";
+    const hits: Record<string, { url: string; title: string; description: null; snippets: string[] }> = {};
+    let searchCount = 0;
+
+    for (const item of output) {
+        if (item.type === "web_search_call") searchCount += 1;
+        if (item.type !== "message") continue;
+        for (const chunk of item.content ?? []) {
+            if (chunk.type !== "output_text") continue;
+            const chunkText = String(chunk.text ?? "");
+            text += chunkText;
+            for (const note of chunk.annotations ?? []) {
+                if (note.type !== "url_citation" || !note.url) continue;
+                const from = Math.max(0, (note.start_index ?? 0) - 160);
+                const passage = chunkText.slice(from, note.end_index ?? chunkText.length).trim();
+                const hit = (hits[note.url] ??= { url: note.url, title: note.title ?? "", description: null, snippets: [] });
+                if (passage) hit.snippets.push(passage);
+            }
+        }
     }
-    return "";
+
+    // The API sometimes returns no url_citation annotations: fall back to the URLs written in the answer.
+    if (Object.keys(hits).length === 0) {
+        for (const match of text.matchAll(/https?:\/\/[^\s)\]>"']+/g)) {
+            const url = match[0].replace(/[.,;]+$/, "");
+            const from = Math.max(0, (match.index ?? 0) - 160);
+            const hit = (hits[url] ??= { url, title: "", description: null, snippets: [] });
+            hit.snippets.push(text.slice(from, (match.index ?? 0) + match[0].length).trim());
+        }
+    }
+
+    const outputs: OutputEntry[] = [];
+    for (let i = 0; i < searchCount; i++) outputs.push({ type: "tool.execution" });
+    if (Object.keys(hits).length > 0) outputs.push({ type: "tool.execution", info: { result: JSON.stringify(hits) } });
+    return { text, outputs, searchCount };
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -56,7 +90,8 @@ async function post(apiKey: string, body: Record<string, unknown>, timeoutMs: nu
 async function isTierRejection(response: Response): Promise<boolean> {
     try {
         const data = await response.clone().json();
-        return data?.type === "tier_not_allowed" || String(data?.code) === "1910" || /tier/i.test(String(data?.message ?? ""));
+        const err = data?.error ?? data;
+        return /model_not_found|does not have access|not supported|tier/i.test(`${err?.code ?? ""} ${err?.message ?? ""}`);
     } catch {
         return false;
     }
@@ -69,11 +104,11 @@ export async function runWebSearchConversation(params: {
     maxTokens?: number;
     timeoutMs?: number;
 }): Promise<WebSearchRun> {
-    const apiKey = process.env.MISTRAL_API_KEY?.trim();
-    if (!apiKey) throw new MistralError("MISTRAL_API_KEY manquante", 401);
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    if (!apiKey) throw new MistralError("OPENAI_API_KEY manquante", 401);
 
     const timeoutMs = params.timeoutMs ?? 30_000;
-    const requested = params.model || process.env.MISTRAL_WEB_MODEL || DEFAULT_MODEL;
+    const requested = params.model || process.env.OPENAI_WEB_MODEL || DEFAULT_MODEL;
     const models = [requested, ...FALLBACK_MODELS.filter((m) => m !== requested)];
     let lastError: MistralError | null = null;
 
@@ -82,9 +117,10 @@ export async function runWebSearchConversation(params: {
             model,
             store: false,
             instructions: params.instructions,
-            inputs: params.input,
+            input: params.input,
             tools: [{ type: "web_search" }],
-            completion_args: { temperature: 0.1, max_tokens: params.maxTokens ?? 500 },
+            temperature: 0.1,
+            max_output_tokens: Math.max(16, params.maxTokens ?? 500),
         };
 
         // This account's web_search quota 429s on back-to-back calls, so a 429 gets a patient retry
@@ -107,21 +143,16 @@ export async function runWebSearchConversation(params: {
         if (!response) continue;
 
         if (response.ok) {
-            const json = (await response.json()) as { outputs?: OutputEntry[] };
-            const outputs = Array.isArray(json.outputs) ? json.outputs : [];
-            return {
-                text: finalText(outputs),
-                outputs,
-                searchCount: outputs.filter((o) => o.type === "tool.execution").length,
-                model,
-            };
+            const json = (await response.json()) as { output?: OpenAIOutputItem[] };
+            const { text, outputs, searchCount } = adapt(Array.isArray(json.output) ? json.output : []);
+            return { text, outputs, searchCount, model };
         }
 
         const detail = (await response.clone().json().catch(() => ({}))) as { message?: string; error?: { message?: string } };
-        lastError = new MistralError(detail?.error?.message || detail?.message || `Mistral request failed (${response.status})`, response.status);
-        if (response.status === 403 && (await isTierRejection(response))) continue;
+        lastError = new MistralError(detail?.error?.message || detail?.message || `OpenAI request failed (${response.status})`, response.status);
+        if ((response.status === 403 || response.status === 404) && (await isTierRejection(response))) continue;
         throw lastError;
     }
 
-    throw lastError ?? new MistralError("Aucun modèle Mistral disponible", 403);
+    throw lastError ?? new MistralError("Aucun modèle OpenAI disponible", 403);
 }

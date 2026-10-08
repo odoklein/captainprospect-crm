@@ -1198,7 +1198,7 @@ export function UnifiedActionDrawer({
             return json.data.improvedText as string;
         },
         onSuccess: (summaryText) => setNewActionNote(summaryText),
-        onError: (err: Error) => showError("Erreur IA", err.message || "Connexion à Mistral impossible"),
+        onError: (err: Error) => showError("Erreur IA", err.message || "Connexion à l'IA impossible"),
     });
 
     const handleSummarizeWithAi = () => {
@@ -3618,7 +3618,7 @@ export function UnifiedActionDrawer({
                                                     summarizeNoteMutation.isPending
                                                 }
                                                 aria-label="Résumer avec l'IA"
-                                                title="Générer un résumé factuel et concis avec Mistral IA"
+                                                title="Générer un résumé factuel et concis avec l'IA"
                                                 className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary-400 rounded-lg px-2 py-1 hover:bg-primary-50 border border-transparent hover:border-primary-100"
                                             >
                                                 {summarizeNoteMutation.isPending ? (

@@ -428,6 +428,14 @@ interface Meeting {
     lastName?: string | null;
     title?: string | null;
   } | null;
+  absenceHistory?: {
+    id: string;
+    clientNote?: string | null;
+    reportedAt: string;
+    previousCallbackDate?: string | null;
+    newCallbackDate: string;
+    replacedAt: string;
+  }[];
   meetingFeedback?: {
     id?: string;
     outcome: string;
@@ -1216,6 +1224,26 @@ function DetailModal({ m, onClose, onFeedback }: {
                 <div style={{fontSize:13,color:value?.trim()?tk.ink2:tk.ink4,whiteSpace:"pre-wrap",lineHeight:1.6}}>
                   {value?.toString().trim() || "—"}
                 </div>
+              </div>
+            ))}
+          </div>
+        </Sec>
+      )}
+
+      {/* Past absence, kept on record after the RDV was replaced */}
+      {(m.absenceHistory?.length ?? 0) > 0 && (
+        <Sec label="Historique d'absence">
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {m.absenceHistory!.map(h => (
+              <div key={h.id} style={{padding:14,borderRadius:12,background:"var(--ds-surface-3)",border:`1px solid ${tk.border}`}}>
+                <div style={{fontSize:13,fontWeight:700,color:tk.ink}}>
+                  Absent{h.previousCallbackDate ? ` au RDV du ${fmtFull(h.previousCallbackDate)}` : ""}
+                </div>
+                <div style={{fontSize:12,color:tk.ink3,marginTop:3,lineHeight:1.6}}>
+                  Signalé le {fmtFull(h.reportedAt)}<br />
+                  RDV replacé le {fmtFull(h.replacedAt)} au {fmtFull(h.newCallbackDate)}
+                </div>
+                {h.clientNote && <p style={{fontSize:13,fontStyle:"italic",color:tk.ink2,margin:"8px 0 0",lineHeight:1.6}}>&ldquo;{h.clientNote}&rdquo;</p>}
               </div>
             ))}
           </div>

@@ -1,5 +1,5 @@
 /**
- * Mistral AI client — chat completions with function calling.
+ * OpenAI client (module kept under its historical "mistral" name so callers stay unchanged) — chat completions with function calling.
  *
  * Handles the two failures this account actually hits:
  *  · `tier_not_allowed` — degrade to the next model and remember the rejection,
@@ -8,19 +8,19 @@
  *  · 429 / 5xx — retry with `Retry-After`-aware exponential backoff.
  */
 
-export const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
+export const MISTRAL_API_URL = "https://api.openai.com/v1/chat/completions";
 
 /** Reasoning tier. Anything that has to choose between tools uses Large. */
-export const MISTRAL_LARGE_MODEL = "mistral-large-latest";
+export const MISTRAL_LARGE_MODEL = "gpt-4.1-mini";
 
 export function getMistralLargeModel(): string {
-    return process.env.MISTRAL_LARGE_MODEL || MISTRAL_LARGE_MODEL;
+    return process.env.OPENAI_LARGE_MODEL || MISTRAL_LARGE_MODEL;
 }
 
 /** Models this tier rejected, learned at runtime and not retried. */
 const tierBlockedModels = new Set<string>();
 
-const FALLBACK_MODELS = ["mistral-medium-latest", "mistral-small-latest"];
+const FALLBACK_MODELS = ["gpt-4o-mini"];
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
 const BASE_BACKOFF_MS = 700;
@@ -69,7 +69,7 @@ async function postWithRetry(apiKey: string, body: Record<string, unknown>): Pro
         if (response.ok || !RETRYABLE_STATUSES.has(response.status)) return response;
         const delay = backoffDelay(response, attempt);
         console.warn(
-            `[mistral] ${response.status} on "${body.model}" — retry ${attempt + 1} in ${Math.round(delay)}ms`,
+            `[openai] ${response.status} on "${body.model}" — retry ${attempt + 1} in ${Math.round(delay)}ms`,
         );
         await sleep(delay);
         response = await postOnce(apiKey, body);
@@ -84,7 +84,7 @@ async function mistralFetch(
     const requested = (payload.model as string) || getMistralLargeModel();
     const chain = [requested, ...FALLBACK_MODELS.filter((m) => m !== requested)];
     const candidates = chain.filter((m) => !tierBlockedModels.has(m));
-    const models = candidates.length > 0 ? candidates : ["mistral-small-latest"];
+    const models = candidates.length > 0 ? candidates : ["gpt-4o-mini"];
 
     let lastResponse: Response | null = null;
 
@@ -94,7 +94,7 @@ async function mistralFetch(
 
         if (response.status === 403 && (await isTierRejection(response))) {
             tierBlockedModels.add(model);
-            console.warn(`[mistral] "${model}" unavailable on this tier — degrading.`);
+            console.warn(`[openai] "${model}" unavailable on this tier — degrading.`);
             lastResponse = response;
             continue;
         }
@@ -135,9 +135,9 @@ export class MistralError extends Error {
             case "rate_limited":
                 return "L'assistant est momentanément saturé (limite du fournisseur IA). Réessaie dans quelques secondes.";
             case "unauthorized":
-                return "La clé API Mistral est invalide ou absente.";
+                return "La clé API OpenAI est invalide ou absente.";
             case "tier_not_allowed":
-                return "Le modèle Mistral configuré n'est pas disponible sur cet abonnement.";
+                return "Le modèle OpenAI configuré n'est pas disponible sur cet abonnement.";
             case "upstream":
                 return "Le fournisseur IA est indisponible. Réessaie dans un instant.";
             default:
@@ -197,7 +197,7 @@ export async function mistralChat(
 
     if (params.tools && params.tools.length > 0) {
         payload.tools = params.tools;
-        payload.tool_choice = params.toolChoice ?? "auto";
+        payload.tool_choice = params.toolChoice === "any" ? "required" : (params.toolChoice ?? "auto");
     }
 
     const response = await mistralFetch(apiKey, payload);
@@ -208,7 +208,7 @@ export async function mistralChat(
             error?: { message?: string };
         };
         throw new MistralError(
-            error?.error?.message || error?.message || `Mistral request failed (${response.status})`,
+            error?.error?.message || error?.message || `OpenAI request failed (${response.status})`,
             response.status,
         );
     }
@@ -223,7 +223,7 @@ export async function mistralChat(
     };
 
     const choice = result.choices?.[0];
-    if (!choice?.message) throw new Error("Mistral returned an empty choice");
+    if (!choice?.message) throw new Error("OpenAI returned an empty choice");
 
     return {
         message: {

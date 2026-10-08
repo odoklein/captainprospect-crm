@@ -1,3 +1,4 @@
+import { isClientCountableMeeting } from "@/lib/meetings/clientVisibility";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
@@ -71,6 +72,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         select: {
             id: true,
             result: true,
+            confirmationStatus: true,
             contact: {
                 select: {
                     title: true,
@@ -93,7 +95,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             action.contact?.company?.size ?? action.company?.size
         );
         const fn = normalize(action.contact?.title);
-        const isRdv = action.result === "MEETING_BOOKED";
+        const isRdv = isClientCountableMeeting(action);
 
         increment(byIndustry, industry, isRdv);
         increment(bySize, size, isRdv);
@@ -101,7 +103,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }
 
     const totalCalls = actions.length;
-    const totalRdv = actions.filter((a) => a.result === "MEETING_BOOKED").length;
+    const totalRdv = actions.filter(isClientCountableMeeting).length;
 
     return successResponse({
         totalCalls,

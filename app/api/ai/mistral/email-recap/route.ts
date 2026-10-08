@@ -16,15 +16,15 @@ const emailRecapSchema = z.object({
     emailBodyText: z.string().min(1, 'Corps de l\'email requis'),
 });
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = 'gpt-4.1-mini';
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireAuth(request);
 
-    const apiKey = process.env.MISTRAL_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-        return errorResponse('MISTRAL_API_KEY non configurée', 503);
+        return errorResponse('OPENAI_API_KEY non configurée', 503);
     }
 
     const { emailBodyText } = await validateRequest(request, emailRecapSchema);
@@ -53,7 +53,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             const err = await response.json().catch(() => ({}));
             console.error('Mistral email-recap error:', err);
             return errorResponse(
-                err.error?.message || 'Erreur Mistral AI',
+                err.error?.message || 'Erreur OpenAI',
                 response.status
             );
         }
@@ -62,12 +62,12 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         const recap = result.choices?.[0]?.message?.content?.trim();
 
         if (!recap) {
-            return errorResponse('Réponse vide de Mistral AI', 500);
+            return errorResponse('Réponse vide de OpenAI', 500);
         }
 
         return successResponse({ recap });
     } catch (error) {
         console.error('Mistral email-recap request failed:', error);
-        return errorResponse('Erreur de connexion à Mistral AI', 500);
+        return errorResponse('Erreur de connexion à OpenAI', 500);
     }
 });

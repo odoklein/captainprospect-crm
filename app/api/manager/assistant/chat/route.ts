@@ -41,9 +41,9 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
     const body = await validateRequest(request, ChatBody);
 
-    if (!process.env.MISTRAL_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
         return errorResponse(
-            "L'assistant n'est pas configuré : MISTRAL_API_KEY est absente côté serveur.",
+            "L'assistant n'est pas configuré : OPENAI_API_KEY est absente côté serveur.",
             503,
         );
     }
@@ -110,7 +110,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             systemPrompt,
             history,
             ctx,
-            apiKey: process.env.MISTRAL_API_KEY,
+            apiKey: process.env.OPENAI_API_KEY,
         });
     } catch (error) {
         if (error instanceof MistralError) {

@@ -1,3 +1,4 @@
+import { isClientCountableMeeting } from "@/lib/meetings/clientVisibility";
 import { NextRequest } from "next/server";
 import { DateTime } from "luxon";
 import { prisma } from "@/lib/prisma";
@@ -35,7 +36,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             campaign: { missionId: { in: missions.map((m) => m.id) } },
             createdAt: { gte: launch.startOf("month").toJSDate() },
         },
-        select: { createdAt: true, result: true, channel: true, contactId: true, companyId: true },
+        select: { createdAt: true, result: true, confirmationStatus: true, channel: true, contactId: true, companyId: true },
     });
 
     const byMonth = new Map<string, { meetings: number; calls: number; actions: number; touched: Set<string> }>();
@@ -49,7 +50,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         if (!entry) continue;
         entry.actions++;
         if (a.channel === "CALL") entry.calls++;
-        if (a.result === "MEETING_BOOKED") entry.meetings++;
+        if (isClientCountableMeeting(a)) entry.meetings++;
         if (a.contactId) entry.touched.add(a.contactId);
         else if (a.companyId) entry.touched.add(`company:${a.companyId}`);
     }

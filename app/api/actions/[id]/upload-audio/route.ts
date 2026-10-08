@@ -1,8 +1,8 @@
 // ============================================
 // POST /api/actions/[id]/upload-audio
 // Manual audio upload for a meeting/RDV: stores the recording,
-// transcribes it in French (Mistral Voxtral), then extracts a
-// "fiche RDV" from the transcription (Mistral) and saves both on
+// transcribes it in French (OpenAI), then extracts a
+// "fiche RDV" from the transcription (OpenAI) and saves both on
 // the Action. Every failure step is returned explicitly instead of
 // leaving fields silently blank.
 // ============================================
@@ -135,7 +135,7 @@ export const POST = withErrorHandler(async (
       ficheResult = await generateFicheFromTranscription(transcription);
     } catch (e) {
       console.error("[upload-audio] fiche generation failed:", e);
-      ficheResult = { ok: false, message: "Impossible de contacter le service Mistral AI pour la fiche", status: 502 };
+      ficheResult = { ok: false, message: "Impossible de contacter le service OpenAI pour la fiche", status: 502 };
     }
   }
 

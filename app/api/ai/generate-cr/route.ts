@@ -20,8 +20,8 @@ const schema = z.object({
   prompt: z.string().min(10, 'Prompt requis'),
 });
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = process.env.MISTRAL_MODEL || 'mistral-small-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
   await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
@@ -29,7 +29,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   const { prompt } = await validateRequest(request, schema);
 
   const geminiApiKey = process.env.GEMINI_API_KEY;
-  const mistralApiKey = process.env.MISTRAL_API_KEY;
+  const mistralApiKey = process.env.OPENAI_API_KEY;
 
   // 1. Try free Gemini 2.0 Flash model first
   if (geminiApiKey) {
@@ -65,7 +65,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   // 2. Fallback to free/low-cost Mistral model (mistral-small-latest)
   if (!mistralApiKey) {
-    return errorResponse('Aucune clé API IA configurée (GEMINI_API_KEY ou MISTRAL_API_KEY)', 503);
+    return errorResponse('Aucune clé API IA configurée (GEMINI_API_KEY ou OPENAI_API_KEY)', 503);
   }
 
   const response = await fetch(MISTRAL_API_URL, {
@@ -86,7 +86,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const err = await response.json().catch(() => ({}));
     console.error('Mistral generate-cr error:', err);
     return errorResponse(
-      err?.error?.message || 'Erreur Mistral AI',
+      err?.error?.message || 'Erreur OpenAI',
       response.status,
     );
   }

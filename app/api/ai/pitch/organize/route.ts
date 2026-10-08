@@ -15,8 +15,8 @@ const organizePitchSchema = z.object({
     icp: z.string().optional(),
 });
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = 'gpt-4.1-mini';
 
 /**
  * Robust heuristic segmentation when offline or without Mistral API key
@@ -75,7 +75,7 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     const body = await req.json();
     const data = validateRequest(organizePitchSchema, body);
 
-    const apiKey = process.env.MISTRAL_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
         const result = heuristicOrganize(data.rawText);

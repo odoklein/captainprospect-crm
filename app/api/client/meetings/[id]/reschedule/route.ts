@@ -8,6 +8,7 @@ import {
     AuthError,
     errorResponse,
 } from "@/lib/api-utils";
+import { resetAbsenceOnReschedule } from "@/lib/meetings/feedbackHistory";
 import { notifyManagersClientReschedule } from "@/lib/notifications";
 
 export const POST = withErrorHandler(async (
@@ -100,6 +101,14 @@ export const POST = withErrorHandler(async (
         },
     });
 
+    // Absent RDV moved to a new date: back to "À venir", the absence archived.
+    const absenceReset = await resetAbsenceOnReschedule({
+        actionId,
+        previousCallbackDate: action.callbackDate,
+        newCallbackDate: parsed,
+        replacedById: session.user.id,
+    });
+
     const contactName = [updated.contact?.firstName, updated.contact?.lastName].filter(Boolean).join(" ") || "Contact";
     const companyName = updated.contact?.company?.name ?? "Entreprise";
     notifyManagersClientReschedule({
@@ -112,6 +121,6 @@ export const POST = withErrorHandler(async (
         reason: reason ?? null,
     }).catch(() => {});
 
-    return successResponse(updated);
+    return successResponse(absenceReset ? { ...updated, meetingFeedback: null } : updated);
 });
 

@@ -18,3 +18,23 @@ export const clientVisibleMeetingWhere: Prisma.ActionWhereInput = {
         { result: "MEETING_CANCELLED", confirmationStatus: "CANCELLED", confirmedAt: { not: null } },
     ],
 };
+
+/**
+ * For any client-portal query over ALL actions (calls, timelines, the prospect
+ * database): keeps every non-meeting action, and meeting actions only once the
+ * SAS has confirmed them. A pending or SAS-rejected RDV stays invisible.
+ */
+export const clientVisibleActionWhere: Prisma.ActionWhereInput = {
+    OR: [{ result: { notIn: ["MEETING_BOOKED", "MEETING_CANCELLED"] } }, clientVisibleMeetingWhere],
+};
+
+/** A booked RDV the client may count: confirmed at the SAS. */
+export const clientCountableMeetingWhere: Prisma.ActionWhereInput = {
+    result: "MEETING_BOOKED",
+    confirmationStatus: "CONFIRMED",
+};
+
+/** Same rule for rows already loaded in memory. */
+export function isClientCountableMeeting(a: { result: string; confirmationStatus: string }): boolean {
+    return a.result === "MEETING_BOOKED" && a.confirmationStatus === "CONFIRMED";
+}

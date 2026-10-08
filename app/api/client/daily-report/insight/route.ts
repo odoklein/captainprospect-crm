@@ -79,7 +79,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const report = await buildDailyReport(clientId, query);
     const fallback = buildRuleInsight(report);
 
-    const apiKey = process.env.MISTRAL_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     // Nothing to interpret: the rule summary says it as well as a model would.
     if (!apiKey || (report.totals.calls === 0 && report.totals.meetings === 0)) {
         return successResponse(fallback);
@@ -88,7 +88,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     let insight: DailyInsight = fallback;
     try {
         const result = await mistralChat(apiKey, {
-            model: 'mistral-small-latest',
+            model: 'gpt-4o-mini',
             temperature: 0.3,
             maxTokens: 350,
             messages: [

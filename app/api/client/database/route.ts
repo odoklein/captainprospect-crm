@@ -1,3 +1,4 @@
+import { clientVisibleActionWhere } from "@/lib/meetings/clientVisibility";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
@@ -87,9 +88,14 @@ async function loadMission(
         }),
         prisma.action.findMany({
             where: {
-                OR: [
-                    { contact: { company: { listId: { in: listIds } } } },
-                    { contactId: null, company: { listId: { in: listIds } } },
+                AND: [
+                    {
+                        OR: [
+                            { contact: { company: { listId: { in: listIds } } } },
+                            { contactId: null, company: { listId: { in: listIds } } },
+                        ],
+                    },
+                    clientVisibleActionWhere,
                 ],
             },
             select: {

@@ -1,7 +1,7 @@
 // ============================================
 // POST /api/ai/mistral/rdv-fiche
 // Extract structured "fiche RDV" sections from a transcription.
-// Uses Mistral AI (mistral-small-latest) directly (no Google AI).
+// Uses OpenAI (gpt-4o-mini) directly (no Google AI).
 // ============================================
 
 import { NextRequest } from "next/server";

@@ -7,7 +7,7 @@ import { NextRequest } from "next/server";
 import {
   successResponse,
   errorResponse,
-  requireRole,
+  requireAuth,
   withErrorHandler,
   validateRequest,
 } from "@/lib/api-utils";
@@ -19,7 +19,7 @@ const schema = z.object({
 });
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const OPENAI_MODEL = "gpt-4o";
+const OPENAI_MODEL = "gpt-4o-mini";
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
   await requireAuth(request);

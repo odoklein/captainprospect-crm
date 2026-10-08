@@ -1,9 +1,9 @@
 // ============================================
-// Audio transcription via Mistral Voxtral (audio/transcriptions).
+// Audio transcription via OpenAI (audio/transcriptions, gpt-4o-mini-transcribe).
 // Used by the manual audio-upload flow to turn an uploaded recording
 // into a French transcription before fiche extraction. Kept on the
 // same provider as the fiche-generation step (lib/ai/mistral-fiche.ts)
-// so the whole audio pipeline only depends on MISTRAL_API_KEY.
+// so the whole audio pipeline only depends on OPENAI_API_KEY.
 // ============================================
 
 import { ensureAudioFilename, resolveAudioMime } from "@/lib/audio-upload";
@@ -12,8 +12,8 @@ export type TranscribeResult =
   | { ok: true; text: string }
   | { ok: false; message: string; status: number };
 
-const MISTRAL_TRANSCRIPTIONS_URL = "https://api.mistral.ai/v1/audio/transcriptions";
-const VOXTRAL_MODEL = process.env.MISTRAL_VOXTRAL_MODEL || "voxtral-mini-latest";
+const MISTRAL_TRANSCRIPTIONS_URL = "https://api.openai.com/v1/audio/transcriptions";
+const VOXTRAL_MODEL = process.env.OPENAI_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe";
 
 /**
  * Attempts transcription via a local or sidecar faster-whisper microservice.
@@ -70,7 +70,7 @@ async function transcribeWithLocalWhisper(
  * downstream fiche-generation prompt expects French input.
  * Priority:
  *  1. Local faster-whisper microservice (via process.env.WHISPER_API_URL)
- *  2. Fallback to Mistral Voxtral (via process.env.MISTRAL_API_KEY)
+ *  2. Fallback to OpenAI transcription (via process.env.OPENAI_API_KEY)
  */
 export async function transcribeAudioFr(
   buffer: Buffer,
@@ -84,17 +84,17 @@ export async function transcribeAudioFr(
     if (localResult.ok) {
       return { ok: true, text: localResult.text };
     }
-    console.warn(`[Transcription] Local Whisper (${localWhisperUrl}) failed: ${localResult.error}. Falling back to Mistral...`);
+    console.warn(`[Transcription] Local Whisper (${localWhisperUrl}) failed: ${localResult.error}. Falling back to OpenAI...`);
   }
 
-  // 2. Mistral Voxtral
-  const apiKey = process.env.MISTRAL_API_KEY;
+  // 2. OpenAI transcription
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return {
       ok: false,
       message: localWhisperUrl
-        ? "Le service Whisper local a échoué et la clé MISTRAL_API_KEY n'est pas configurée pour le repli."
-        : "Clé API Mistral non configurée (MISTRAL_API_KEY) et aucun service WHISPER_API_URL défini.",
+        ? "Le service Whisper local a échoué et la clé OPENAI_API_KEY n'est pas configurée pour le repli."
+        : "Clé API OpenAI non configurée (OPENAI_API_KEY) et aucun service WHISPER_API_URL défini.",
       status: 503,
     };
   }
@@ -128,7 +128,7 @@ export async function transcribeAudioFr(
     } catch (e) {
       const name = (e as { name?: string })?.name;
       if (name === "TimeoutError" || name === "AbortError") {
-        console.error("Mistral transcription timeout after", timeoutMs, "ms");
+        console.error("OpenAI transcription timeout after", timeoutMs, "ms");
         return {
           ok: false,
           message:
@@ -136,8 +136,8 @@ export async function transcribeAudioFr(
           status: 504,
         };
       }
-      console.error("Mistral transcription fetch error:", e);
-      lastMessage = "Impossible de contacter le service de transcription Mistral";
+      console.error("OpenAI transcription fetch error:", e);
+      lastMessage = "Impossible de contacter le service de transcription OpenAI";
       lastStatus = 502;
       continue;
     }
@@ -147,12 +147,12 @@ export async function transcribeAudioFr(
         error?: { message?: string };
         message?: unknown;
       };
-      console.error("Mistral transcription error:", response.status, JSON.stringify(err).slice(0, 500));
+      console.error("OpenAI transcription error:", response.status, JSON.stringify(err).slice(0, 500));
       const upstream =
         err?.error?.message || (typeof err?.message === "string" ? err.message : "") || "";
 
       if (response.status === 401 || response.status === 403) {
-        return { ok: false, message: "Clé API Mistral invalide ou non autorisée pour la transcription (MISTRAL_API_KEY).", status: 502 };
+        return { ok: false, message: "Clé API OpenAI invalide ou non autorisée pour la transcription (OPENAI_API_KEY).", status: 502 };
       }
       if (response.status === 413) {
         return { ok: false, message: "Fichier audio trop volumineux pour le service de transcription. Compressez-le (MP3) ou découpez-le.", status: 413 };
@@ -160,12 +160,12 @@ export async function transcribeAudioFr(
       if (response.status === 400 || response.status === 422) {
         return {
           ok: false,
-          message: `Mistral n'a pas pu lire ce fichier audio (format ou durée non pris en charge).${upstream ? ` Détail : ${upstream.slice(0, 160)}` : ""}`,
+          message: `OpenAI n'a pas pu lire ce fichier audio (format ou durée non pris en charge).${upstream ? ` Détail : ${upstream.slice(0, 160)}` : ""}`,
           status: 422,
         };
       }
       if (response.status === 429) {
-        lastMessage = "Trop de requêtes vers Mistral (transcription). Veuillez patienter quelques instants puis réessayer.";
+        lastMessage = "Trop de requêtes vers OpenAI (transcription). Veuillez patienter quelques instants puis réessayer.";
         lastStatus = 429;
         continue;
       }

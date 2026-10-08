@@ -578,13 +578,13 @@ model User {
   messagingIdentities          MessagingIdentity[]  @relation("MessagingIdentityUser")
 
   // Manager Hierarchy (RH)
-  managerId            String?
-  manager              User?                @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
-  managedUsers         User[]               @relation("UserManager")
+  managerId    String?
+  manager      User?   @relation("UserManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managedUsers User[]  @relation("UserManager")
 
   // RH (Ressources Humaines)
-  hrProfile            HrProfile?           @relation("UserHrProfile")
-  hrMonthRecords       HrMonthRecord[]      @relation("UserHrMonthRecords")
+  hrProfile      HrProfile?      @relation("UserHrProfile")
+  hrMonthRecords HrMonthRecord[] @relation("UserHrMonthRecords")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1117,22 +1117,22 @@ model PhoneEnrichmentLookup {
 /// as the cache (same queryHash within expiresAt is not searched again), the
 /// per-user rate-limit ledger and the review/audit trail.
 model CompanyEnrichmentLookup {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   companyId       String
-  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  provider        String    @default("MISTRAL_WEB")
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  provider        String   @default("MISTRAL_WEB")
   queryHash       String
   /// OPEN = at least one suggestion still PENDING; DONE = all reviewed; NO_RESULT = nothing found.
-  status          String    @default("OPEN")
+  status          String   @default("OPEN")
   requestedFields String[]
   suggestions     Json
   requestedById   String
-  cacheHit        Boolean   @default(false)
-  searchCount     Int       @default(0)
+  cacheHit        Boolean  @default(false)
+  searchCount     Int      @default(0)
   durationMs      Int?
   expiresAt       DateTime
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([companyId, createdAt])
   @@index([queryHash, expiresAt])
@@ -1220,6 +1220,7 @@ model Action {
   createdAt DateTime @default(now())
 
   meetingFeedback MeetingFeedback?
+  feedbackHistory MeetingFeedbackHistory[]
 
   @@index([companyId])
   @@index([contactId])
@@ -3607,6 +3608,31 @@ model MeetingFeedback {
   @@index([outOfScopeAt])
 }
 
+/// Trace of an absence that was later replaced: when the RDV is moved to a new
+/// future date, the live MeetingFeedback (NO_SHOW + the client's comment) is
+/// archived here and removed, so the RDV reads as a fresh upcoming one while
+/// the absence, the comment and the replacement date stay on record.
+model MeetingFeedbackHistory {
+  id                   String                 @id @default(cuid())
+  actionId             String
+  action               Action                 @relation(fields: [actionId], references: [id], onDelete: Cascade)
+  outcome              MeetingOutcome
+  recontactRequested   RecontactPreference
+  clientNote           String?                @db.Text
+  source               MeetingFeedbackSource?
+  /// When the absence was reported (MeetingFeedback.createdAt).
+  reportedAt           DateTime
+  /// The slot the contact did not show up to.
+  previousCallbackDate DateTime?
+  /// The new slot the RDV was moved to.
+  newCallbackDate      DateTime
+  /// When the replacement happened.
+  replacedAt           DateTime               @default(now())
+  replacedById         String?
+
+  @@index([actionId, replacedAt])
+}
+
 model SdrDailyFeedback {
   id             String                    @id @default(cuid())
   sdrId          String
@@ -3623,14 +3649,14 @@ model SdrDailyFeedback {
 
   // Structured "Retour journée SDR". Stores option codes, see lib/sdr-daily-report/options.ts.
   reportDate      String? // Europe/Paris day "YYYY-MM-DD"; null on legacy rows. One report per SDR per day.
-  reachability    String[]                 @default([])
-  prospectReturns String[]                 @default([])
-  pitchFeeling    String[]                 @default([])
+  reachability    String[] @default([])
+  prospectReturns String[] @default([])
+  pitchFeeling    String[] @default([])
   mainBlocker     String?
-  fieldComment    String?                  @db.Text
+  fieldComment    String?  @db.Text
 
-  submittedAt    DateTime                  @default(now())
-  createdAt      DateTime                  @default(now())
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   @@unique([sdrId, reportDate])
   @@index([sdrId])
@@ -4084,7 +4110,7 @@ model SupportAttachment {
   conversationId String?
   conversation   SupportConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   messageId      String?
-  message        SupportMessage?     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message        SupportMessage?      @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   /// Storage key handed to the storage service (never exposed to the browser).
   storageKey String
@@ -4783,20 +4809,20 @@ enum HrDayDecision {
 }
 
 model HrProfile {
-  id                  String             @id @default(cuid())
-  userId              String             @unique
-  user                User               @relation("UserHrProfile", fields: [userId], references: [id], onDelete: Cascade)
-  contractType        ContractType       @default(SALARIE)
-  remunerationMode    RemunerationMode   @default(FIXE)
-  fixedSalaryCents    Int                @default(0) // Fixed monthly salary in cents (€ * 100)
-  variablePerRdvCents Int                @default(0) // Variable bonus per confirmed RDV in cents (€ * 100)
-  dailyQuota          Int                @default(0) // Daily call quota expected
-  effectiveFrom       DateTime           @db.Date
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
+  id                  String           @id @default(cuid())
+  userId              String           @unique
+  user                User             @relation("UserHrProfile", fields: [userId], references: [id], onDelete: Cascade)
+  contractType        ContractType     @default(SALARIE)
+  remunerationMode    RemunerationMode @default(FIXE)
+  fixedSalaryCents    Int              @default(0) // Fixed monthly salary in cents (€ * 100)
+  variablePerRdvCents Int              @default(0) // Variable bonus per confirmed RDV in cents (€ * 100)
+  dailyQuota          Int              @default(0) // Daily call quota expected
+  effectiveFrom       DateTime         @db.Date
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
-  snapshots           HrProfileSnapshot[]
-  monthRecords        HrMonthRecord[]
+  snapshots    HrProfileSnapshot[]
+  monthRecords HrMonthRecord[]
 
   @@index([userId])
 }
@@ -4820,32 +4846,32 @@ model HrProfileSnapshot {
 }
 
 model HrMonthRecord {
-  id                  String                @id @default(cuid())
+  id                  String        @id @default(cuid())
   hrProfileId         String
-  hrProfile           HrProfile             @relation(fields: [hrProfileId], references: [id], onDelete: Cascade)
+  hrProfile           HrProfile     @relation(fields: [hrProfileId], references: [id], onDelete: Cascade)
   userId              String
-  user                User                  @relation("UserHrMonthRecords", fields: [userId], references: [id], onDelete: Cascade)
-  month               String                // "YYYY-MM" format
-  workingDays         Int                   @default(0)
-  absenceDays         Int                   @default(0)
-  totalCalls          Int                   @default(0)
-  totalRdv            Int                   @default(0)
-  dailyQuota          Int                   @default(0)
-  fixedAmountCents    Int                   @default(0)
-  variableAmountCents Int                   @default(0)
-  adjustmentCents     Int                   @default(0)
-  totalAmountCents    Int                   @default(0)
+  user                User          @relation("UserHrMonthRecords", fields: [userId], references: [id], onDelete: Cascade)
+  month               String // "YYYY-MM" format
+  workingDays         Int           @default(0)
+  absenceDays         Int           @default(0)
+  totalCalls          Int           @default(0)
+  totalRdv            Int           @default(0)
+  dailyQuota          Int           @default(0)
+  fixedAmountCents    Int           @default(0)
+  variableAmountCents Int           @default(0)
+  adjustmentCents     Int           @default(0)
+  totalAmountCents    Int           @default(0)
   rulesSnapshot       Json?
-  status              HrMonthStatus         @default(DRAFT)
+  status              HrMonthStatus @default(DRAFT)
   validatedAt         DateTime?
   validatedById       String?
   paidAt              DateTime?
-  adjustmentNote      String?               @db.Text
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  adjustmentNote      String?       @db.Text
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  dayDecisions        HrDayDecisionRecord[]
-  auditLogs           HrAuditLog[]
+  dayDecisions HrDayDecisionRecord[]
+  auditLogs    HrAuditLog[]
 
   @@unique([userId, month])
   @@index([userId])
@@ -4885,4 +4911,3 @@ model HrAuditLog {
   @@index([actorId])
   @@index([createdAt])
 }
-

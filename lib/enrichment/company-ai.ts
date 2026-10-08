@@ -36,11 +36,11 @@ export interface CompanyAiResult {
 
 /** The model occasionally answers in prose; one cheap pass turns it back into JSON. */
 async function repairToJson(text: string, requested: EnrichableField[]): Promise<RawAiAnswer | null> {
-    const apiKey = process.env.MISTRAL_API_KEY?.trim();
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) return null;
     try {
         const result = await mistralChat(apiKey, {
-            model: "mistral-small-latest",
+            model: "gpt-4o-mini",
             temperature: 0,
             maxTokens: 250,
             messages: [

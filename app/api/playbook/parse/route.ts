@@ -16,7 +16,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   await requireRole(['MANAGER'], request);
 
   if (!isPlaybookParsingAvailable()) {
-    return errorResponse('MISTRAL_API_KEY non configurée. L\'analyse des playbooks est indisponible.', 503);
+    return errorResponse('OPENAI_API_KEY non configurée. L\'analyse des playbooks est indisponible.', 503);
   }
 
   const body = await request.json().catch(() => ({}));

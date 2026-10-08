@@ -184,11 +184,11 @@ async function callGemini(data: z.infer<typeof analyzeClientSchema>) {
 // MISTRAL (fallback)
 // ============================================
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = 'gpt-4.1-mini';
 
 async function callMistral(data: z.infer<typeof analyzeClientSchema>) {
-    const apiKey = process.env.MISTRAL_API_KEY!;
+    const apiKey = process.env.OPENAI_API_KEY!;
     const response = await fetch(MISTRAL_API_URL, {
         method: 'POST',
         headers: {
@@ -209,17 +209,17 @@ async function callMistral(data: z.infer<typeof analyzeClientSchema>) {
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error((error as { error?: { message?: string } })?.error?.message || 'Erreur Mistral AI');
+        throw new Error((error as { error?: { message?: string } })?.error?.message || 'Erreur OpenAI');
     }
 
     const result = await response.json();
     const content = result.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Réponse vide Mistral AI');
+    if (!content) throw new Error('Réponse vide OpenAI');
     let parsed: unknown;
     try {
         parsed = JSON.parse(content);
     } catch {
-        throw new Error('Impossible de parser la réponse Mistral AI');
+        throw new Error('Impossible de parser la réponse OpenAI');
     }
     return { analysis: parsed, usage: result.usage };
 }
@@ -232,10 +232,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
 
     const geminiKey = process.env.GEMINI_API_KEY;
-    const mistralKey = process.env.MISTRAL_API_KEY;
+    const mistralKey = process.env.OPENAI_API_KEY;
     if (!geminiKey && !mistralKey) {
         return errorResponse(
-            'Aucune configuration IA (GEMINI_API_KEY ou MISTRAL_API_KEY). Contactez l\'administrateur.',
+            'Aucune configuration IA (GEMINI_API_KEY ou OPENAI_API_KEY). Contactez l\'administrateur.',
             500
         );
     }

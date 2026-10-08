@@ -24,9 +24,9 @@ const generatePlaybookSchema = z.object({
 export const POST = withErrorHandler(async (request: NextRequest) => {
   await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
 
-  if (!process.env.MISTRAL_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return errorResponse(
-      'MISTRAL_API_KEY non configurée. Contactez l\'administrateur.',
+      'OPENAI_API_KEY non configurée. Contactez l\'administrateur.',
       503,
     );
   }

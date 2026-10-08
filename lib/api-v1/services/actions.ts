@@ -2,8 +2,9 @@ import { z } from "zod";
 import { ActionResult, Channel, MeetingConfirmationStatus, type Prisma } from "@prisma/client";
 import { dateRange, pageArgs, pageParams, toPage, zBool, zDate } from "../pagination";
 import { notFound } from "../errors";
-import { ACTION_SELECT, actionSummary, escapeLike, fullName, iso, ref, trunc, type Ctx } from "../serializers";
+import { ACTION_SELECT, actionSummary, fullName, iso, ref, trunc, type Ctx } from "../serializers";
 import { actionScope } from "../tenant";
+import { withPeriod, zPeriod } from "../dates";
 
 /** Filters shared by calls and activities. */
 const actionFilters = {
@@ -13,6 +14,7 @@ const actionFilters = {
   company_id: z.string().max(40).optional(),
   user_id: z.string().max(40).optional().describe("The SDR who made the action"),
   mission_id: z.string().max(40).optional(),
+  period: zPeriod.optional(),
   date_from: zDate.optional(),
   date_to: zDate.optional(),
   ...pageParams,
@@ -55,7 +57,8 @@ function actionWhere(ctx: Ctx, i: SearchActivitiesInput, channel: Channel | unde
   };
 }
 
-async function listActions(ctx: Ctx, input: SearchActivitiesInput, channel: Channel | undefined) {
+async function listActions(ctx: Ctx, rawInput: SearchActivitiesInput, channel: Channel | undefined) {
+  const input = withPeriod(rawInput);
   const rows = await ctx.db.action.findMany({
     where: actionWhere(ctx, input, channel),
     select: ACTION_SELECT,
@@ -94,13 +97,15 @@ export const searchAppointmentsParams = {
   company_id: z.string().max(40).optional(),
   user_id: z.string().max(40).optional().describe("The SDR who booked it"),
   mission_id: z.string().max(40).optional(),
+  period: zPeriod.optional(),
   date_from: zDate.optional().describe("Meeting scheduled on/after (booking date when no schedule is set)"),
   date_to: zDate.optional().describe("Meeting scheduled on/before"),
   ...pageParams,
 };
 export type SearchAppointmentsInput = z.infer<z.ZodObject<typeof searchAppointmentsParams>>;
 
-export async function searchAppointments(ctx: Ctx, i: SearchAppointmentsInput) {
+export async function searchAppointments(ctx: Ctx, rawInput: SearchAppointmentsInput) {
+  const i = withPeriod(rawInput);
   const range = dateRange(i.date_from, i.date_to);
   const results: ActionResult[] =
     i.status === "booked" ? ["MEETING_BOOKED"] : i.status === "cancelled" ? ["MEETING_CANCELLED"] : ["MEETING_BOOKED", "MEETING_CANCELLED"];
@@ -151,4 +156,3 @@ export async function searchAppointments(ctx: Ctx, i: SearchAppointmentsInput) {
   }));
 }
 
-export { escapeLike };

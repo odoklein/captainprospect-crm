@@ -1,5 +1,5 @@
 // ============================================
-// Shared "fiche RDV" extraction via Mistral AI.
+// Shared "fiche RDV" extraction via OpenAI.
 // Used by /api/ai/mistral/rdv-fiche (manual paste flow) and the
 // manual audio-upload flow (app/api/actions/[id]/upload-audio).
 // ============================================
@@ -17,8 +17,8 @@ export type GenerateFicheResult =
   | { ok: true; fiche: FicheData; usage?: unknown }
   | { ok: false; message: string; status: number };
 
-const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
-const MISTRAL_MODEL = process.env.MISTRAL_MODEL || "mistral-small-latest";
+const MISTRAL_API_URL = "https://api.openai.com/v1/chat/completions";
+const MISTRAL_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 function cleanJsonString(str: string): string {
   let cleaned = str.trim();
@@ -49,15 +49,15 @@ function extractFieldText(val: unknown): string {
 }
 
 /**
- * Calls Mistral to extract a structured "fiche RDV" from a raw transcription.
- * Retries on 429/503 (Mistral free tier is rate-limited to ~1 req/sec).
+ * Calls OpenAI to extract a structured "fiche RDV" from a raw transcription.
+ * Retries on 429/503 (rate limits / transient 5xx).
  */
 export async function generateFicheFromTranscription(
   transcription: string,
 ): Promise<GenerateFicheResult> {
-  const mistralApiKey = process.env.MISTRAL_API_KEY;
+  const mistralApiKey = process.env.OPENAI_API_KEY;
   if (!mistralApiKey) {
-    return { ok: false, message: "Clé API Mistral non configurée (MISTRAL_API_KEY)", status: 503 };
+    return { ok: false, message: "Clé API OpenAI non configurée (OPENAI_API_KEY)", status: 503 };
   }
 
   const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM ${brand.name}).
@@ -122,7 +122,7 @@ Extrais les sections demandées. Si une section est absente, mets une chaîne vi
   }
 
   if (!response) {
-    return { ok: false, message: "Impossible de contacter le service Mistral AI", status: 500 };
+    return { ok: false, message: "Impossible de contacter le service OpenAI", status: 500 };
   }
 
   if (!response.ok) {
@@ -130,15 +130,15 @@ Extrais les sections demandées. Si une section est absente, mets une chaîne vi
     const message =
       (err as { error?: { message?: string } })?.error?.message ||
       (response.status === 429
-        ? "Trop de requêtes vers Mistral AI. Veuillez patienter quelques secondes avant de réessayer."
-        : "Erreur IA Mistral");
+        ? "Trop de requêtes vers OpenAI. Veuillez patienter quelques secondes avant de réessayer."
+        : "Erreur IA OpenAI");
     console.error("Mistral fiche generation error:", response.status, err || lastErrorText);
     return { ok: false, message, status: response.status };
   }
 
   const result = await response.json();
   const rawContent = result.choices?.[0]?.message?.content?.trim();
-  if (!rawContent) return { ok: false, message: "Réponse vide de l'IA Mistral", status: 500 };
+  if (!rawContent) return { ok: false, message: "Réponse vide de l'IA OpenAI", status: 500 };
 
   const cleanContent = cleanJsonString(rawContent);
 
@@ -147,7 +147,7 @@ Extrais les sections demandées. Si une section est absente, mets une chaîne vi
     parsed = JSON.parse(cleanContent);
   } catch {
     console.error("Failed to parse Mistral response:", cleanContent);
-    return { ok: false, message: "Impossible de parser la réponse JSON de Mistral", status: 500 };
+    return { ok: false, message: "Impossible de parser la réponse JSON d'OpenAI", status: 500 };
   }
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {

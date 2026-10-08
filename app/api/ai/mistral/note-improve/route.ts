@@ -22,15 +22,15 @@ const noteImproveSchema = z.object({
     transcription: z.string().max(10000, 'Transcription trop longue').optional().nullable(),
 });
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = 'gpt-4.1-mini';
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireAuth(request);
 
-    const apiKey = process.env.MISTRAL_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-        return errorResponse('MISTRAL_API_KEY non configurée', 503);
+        return errorResponse('OPENAI_API_KEY non configurée', 503);
     }
 
     const { text, channel, resultCode, resultLabel, callSummary, transcription } =
@@ -97,7 +97,7 @@ DIRECTIVES STRICTES ET ABSOLUES :
             const err = await response.json().catch(() => ({}));
             console.error('Mistral note-improve error:', err);
             return errorResponse(
-                err.error?.message || 'Erreur Mistral AI',
+                err.error?.message || 'Erreur OpenAI',
                 response.status
             );
         }
@@ -106,7 +106,7 @@ DIRECTIVES STRICTES ET ABSOLUES :
         let improved = result.choices?.[0]?.message?.content?.trim();
 
         if (!improved) {
-            return errorResponse('Réponse vide de Mistral AI', 500);
+            return errorResponse('Réponse vide de OpenAI', 500);
         }
 
         // Trim to 500 chars to match note maxLength
@@ -115,6 +115,6 @@ DIRECTIVES STRICTES ET ABSOLUES :
         return successResponse({ improvedText: improved });
     } catch (error) {
         console.error('Mistral note-improve request failed:', error);
-        return errorResponse('Erreur de connexion à Mistral AI', 500);
+        return errorResponse('Erreur de connexion à OpenAI', 500);
     }
 });

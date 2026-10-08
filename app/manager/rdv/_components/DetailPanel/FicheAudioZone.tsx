@@ -35,7 +35,7 @@ function formatMb(bytes: number) {
 
 /**
  * Audio upload for the RDV: sends the file to /api/actions/[id]/upload-audio, which stores it,
- * transcribes it with Mistral Voxtral (French) and, if the fiche is still empty, generates it.
+ * transcribes it with OpenAI (French) and, if the fiche is still empty, generates it.
  * The resulting transcript lands in the "Génération IA" textarea so it can be edited / re-used.
  */
 export function FicheAudioZone({ meeting, setSelectedMeeting, ficheState }: FicheAudioZoneProps) {
@@ -210,7 +210,7 @@ export function FicheAudioZone({ meeting, setSelectedMeeting, ficheState }: Fich
             Audio du rendez-vous
           </div>
           <div style={{ fontSize: 11.5, color: "var(--ink3)", marginTop: 2 }}>
-            Importez l&apos;enregistrement : il est transcrit en français par Mistral Voxtral, puis la fiche peut être
+            Importez l&apos;enregistrement : il est transcrit en français par OpenAI, puis la fiche peut être
             générée.
           </div>
         </div>

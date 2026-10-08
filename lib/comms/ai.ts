@@ -232,12 +232,12 @@ function generateExtractriveSummary(
 // MESSAGE SUGGESTIONS
 // ============================================
 
-const MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions";
-const MISTRAL_MODEL = "mistral-large-latest";
+const MISTRAL_API_URL = "https://api.openai.com/v1/chat/completions";
+const MISTRAL_MODEL = "gpt-4o-mini";
 
 /**
  * Generate reply suggestions based on thread context.
- * Sends the last 10 messages to Mistral (or OpenAI) and returns contextual reply suggestions.
+ * Sends the last 10 messages to OpenAI and returns contextual reply suggestions.
  */
 export async function generateMessageSuggestions(
     threadId: string,
@@ -265,7 +265,7 @@ export async function generateMessageSuggestions(
         return [];
     }
 
-    const mistralKey = process.env.MISTRAL_API_KEY;
+    const mistralKey = process.env.OPENAI_API_KEY;
     if (mistralKey) {
         try {
             return await generateMistralSuggestions(chronological, mistralKey);
@@ -288,7 +288,7 @@ export async function generateMessageSuggestions(
 }
 
 /**
- * Generate reply suggestions using Mistral API with last 10 messages context.
+ * Generate reply suggestions using OpenAI API with last 10 messages context.
  */
 async function generateMistralSuggestions(
     messages: Array<{ content: string; author: { name: string } }>,

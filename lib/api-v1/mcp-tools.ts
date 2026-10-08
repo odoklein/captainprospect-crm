@@ -15,12 +15,14 @@ import {
 } from "./services/actions";
 import { searchTeams, getTeam, searchUsers, getUser, searchTeamsParams, searchUsersParams } from "./services/team";
 import { getSalesReport, salesReportParams } from "./services/reports";
+import { getAccount, globalSearch, globalSearchParams } from "./services/account";
 import { parseInput } from "./input";
 
 export interface ToolDef {
   name: string;
   description: string;
-  scope: Scope;
+  /** null = available to every valid key (the tool gates its sections itself). */
+  scope: Scope | null;
   shape: z.ZodRawShape;
   /** Name of the argument holding the id of the record being read — kept in the audit trail. */
   idArg?: string;
@@ -35,6 +37,7 @@ function tool<S extends z.ZodRawShape>(
   return { ...def, run: (ctx, args) => def.run(ctx, parseInput(def.shape, args)) };
 }
 
+const DATES = " Dates: prefer the `period` preset (Paris time).";
 const PAGING = " Results are paginated: pass the returned next_cursor as `cursor` to get the next page.";
 
 /**
@@ -44,6 +47,22 @@ const PAGING = " Results are paginated: pass the returned next_cursor as `cursor
  * All tools are read-only.
  */
 export const TOOLS: ToolDef[] = [
+  tool({
+    name: "whoami",
+    description:
+      "CALL THIS FIRST. Returns who this API key is, which client's data it can see (it is NOT the whole CRM), today's date in Paris time, the active missions, the permissions, a glossary of result codes grouped by meaning, and usage tips.",
+    scope: null,
+    shape: {},
+    run: (ctx) => getAccount(ctx),
+  }),
+  tool({
+    name: "global_search",
+    description:
+      "Find anything by name in one call: contacts, companies and teams/missions matching a text (e.g. 'TALIS', 'Dupont'). Use it when the user names something and you do not know what kind of record it is.",
+    scope: null,
+    shape: globalSearchParams,
+    run: (ctx, a) => globalSearch(ctx, a),
+  }),
   tool({
     name: "search_contacts",
     description: "Search people (prospects) by name, email, phone, title or company. Returns compact rows with call count, last contact and appointment count." + PAGING,
@@ -86,7 +105,7 @@ export const TOOLS: ToolDef[] = [
   tool({
     name: "search_leads",
     description:
-      "Search worked prospects (contacts with at least one action) by pipeline stage. Stages: meeting_booked, to_follow_up (latest action is a callback/follow-up), contacted (worked, no meeting). Useful filters: min_calls + no_appointment ('called several times, no RDV'), callback_due_before (today's date → 'to follow up today'), date_from ('recent activity')." + PAGING,
+      "Search worked prospects (contacts with at least one action) by pipeline stage. Stages: meeting_booked, to_follow_up (latest action is a callback/follow-up), contacted (worked, no meeting). Useful filters: min_calls + no_appointment ('called several times, no RDV'), callback_due_before (today's date → 'to follow up today'), date_from ('recent activity')." + DATES + PAGING,
     scope: "leads:read",
     shape: searchLeadsParams,
     run: (ctx, a) => searchLeads(ctx, a),
@@ -101,7 +120,7 @@ export const TOOLS: ToolDef[] = [
   }),
   tool({
     name: "search_calls",
-    description: "Search calls (phone actions) by text in notes/summary, result code, contact, company, SDR and date range. Newest first." + PAGING,
+    description: "Search calls (phone actions) by text in notes/summary, result code, contact, company, SDR and date range. Newest first." + DATES + PAGING,
     scope: "calls:read",
     shape: searchCallsParams,
     run: (ctx, a) => searchCalls(ctx, a),
@@ -116,14 +135,14 @@ export const TOOLS: ToolDef[] = [
   }),
   tool({
     name: "search_activities",
-    description: "Search all prospecting actions (calls, emails, LinkedIn) with the same filters as search_calls plus `channel`." + PAGING,
+    description: "Search all prospecting actions (calls, emails, LinkedIn) with the same filters as search_calls plus `channel`." + DATES + PAGING,
     scope: "activities:read",
     shape: searchActivitiesParams,
     run: (ctx, a) => searchActivities(ctx, a),
   }),
   tool({
     name: "search_appointments",
-    description: "Search appointments (RDV): booked or cancelled, confirmation status, upcoming only, by SDR, contact, company, mission or date. Includes the client's meeting outcome when reported." + PAGING,
+    description: "Search appointments (RDV): booked or cancelled, confirmation status, upcoming only, by SDR, contact, company, mission or date. Includes the client's meeting outcome when reported." + DATES + PAGING,
     scope: "appointments:read",
     shape: searchAppointmentsParams,
     run: (ctx, a) => searchAppointments(ctx, a),
@@ -160,7 +179,7 @@ export const TOOLS: ToolDef[] = [
   }),
   tool({
     name: "get_sales_report",
-    description: "Sales performance over a period (default last 30 days, max 366): totals, appointments per 100 calls, breakdown by result, by SDR and by mission.",
+    description: "THE tool for any number or trend. Use `period` (this_month, last_month, last_7_days…) for the dates. Returns calls, DISTINCT contacts and companies phoned (unique_called — a call is not a person), appointments, reach rate (conversations), results grouped by meaning (by_category) and by code with French labels, a per-day (or per-month) series, per SDR and per mission. `compare_previous` adds the change vs the previous period of equal length.",
     scope: "reports:read",
     shape: salesReportParams,
     run: (ctx, a) => getSalesReport(ctx, a),

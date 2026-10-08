@@ -1,3 +1,4 @@
+import { loadAbsenceHistory } from "@/lib/meetings/feedbackHistory";
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
@@ -140,5 +141,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     });
 
     const meetings = filterRdvList(rawMeetings);
-    return successResponse({ total: meetings.length, allMeetings: meetings });
+    const absenceHistory = await loadAbsenceHistory(meetings.map((m) => m.id));
+    return successResponse({
+        total: meetings.length,
+        allMeetings: meetings.map((m) => ({ ...m, absenceHistory: absenceHistory.get(m.id) ?? [] })),
+    });
 });

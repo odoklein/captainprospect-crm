@@ -1,17 +1,17 @@
 // ============================================
 // PLAYBOOK PARSER (AI)
 // Parses Notion/markdown sales playbook into structured CRM entities
-// Uses Mistral API (MISTRAL_API_KEY)
+// Uses Mistral API (OPENAI_API_KEY)
 // ============================================
 
 import type { ParsedPlaybook } from './types';
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = 'gpt-4.1-mini';
 const MAX_INPUT_CHARS = 120000; // ~30k tokens safety
 
 function getMistralKey(): string | undefined {
-  return process.env.MISTRAL_API_KEY;
+  return process.env.OPENAI_API_KEY;
 }
 
 /**
@@ -77,7 +77,7 @@ Règles:
 export async function parsePlaybook(content: string): Promise<ParsedPlaybook> {
   const apiKey = getMistralKey();
   if (!apiKey) {
-    throw new Error('MISTRAL_API_KEY non configurée');
+    throw new Error('OPENAI_API_KEY non configurée');
   }
 
   const truncated = truncateContent(content);

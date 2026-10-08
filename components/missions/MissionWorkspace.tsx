@@ -1048,7 +1048,7 @@ export function MissionWorkspace({
                 showError("Erreur", json.error || "Impossible de générer le script");
             }
         } catch {
-            showError("Erreur", "Erreur de connexion à Mistral AI");
+            showError("Erreur", "Erreur de connexion à l'IA");
         } finally {
             setIsGenerating(false);
             setGeneratingSection(null);
@@ -1442,7 +1442,7 @@ export function MissionWorkspace({
                 showError("Erreur IA", json.error || "Impossible de générer le template");
             }
         } catch {
-            showError("Erreur IA", "Erreur de connexion à Mistral AI");
+            showError("Erreur IA", "Erreur de connexion à l'IA");
         } finally {
             setIsGeneratingTemplateAi(false);
         }
@@ -3598,7 +3598,7 @@ export function MissionWorkspace({
                         {/* Tab bar */}
                         <div className="flex gap-1 px-6 pt-3 pb-0 border-b border-slate-200 bg-white flex-shrink-0">
                             {(["write", "preview", "ai"] as const).map((tab) => {
-                                const labels = { write: "Éditeur", preview: "Prévisualisation", ai: "IA Mistral" };
+                                const labels = { write: "Éditeur", preview: "Prévisualisation", ai: "IA" };
                                 const TabIcon = { write: Pencil, preview: Eye, ai: AiMark }[tab];
                                 return (
                                     <button
@@ -3869,7 +3869,7 @@ export function MissionWorkspace({
                         {/* Tab bar */}
                         <div className="flex gap-1 px-6 pt-3 pb-0 border-b border-slate-200 bg-white flex-shrink-0">
                             {(["write", "preview", "ai"] as const).map((tab) => {
-                                const labels = { write: "Éditeur", preview: "Prévisualisation", ai: "IA Mistral" };
+                                const labels = { write: "Éditeur", preview: "Prévisualisation", ai: "IA" };
                                 const TabIcon = { write: Pencil, preview: Eye, ai: AiMark }[tab];
                                 return (
                                     <button

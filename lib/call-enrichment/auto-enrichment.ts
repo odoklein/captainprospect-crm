@@ -70,14 +70,14 @@ function relativeWindow(date: Date, beforeH: number, afterH: number) {
 }
 
 async function generateFicheFromTranscription(transcription: string): Promise<Record<string, string> | null> {
-  const apiKey = process.env.MISTRAL_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !transcription.trim()) return null;
   try {
-    const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "mistral-large-latest",
+        model: "gpt-4.1-mini",
         messages: [
           {
             role: "system",

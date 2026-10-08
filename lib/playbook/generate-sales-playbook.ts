@@ -1,12 +1,12 @@
 // ============================================
-// SALES PLAYBOOK GENERATOR (Mistral AI)
+// SALES PLAYBOOK GENERATOR (OpenAI)
 // Reusable, framework-agnostic service function
 // ============================================
 
 import { type Playbook, normalizePlaybook } from './leexi-types';
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MODEL = 'mistral-large-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MODEL = 'gpt-4.1-mini';
 const MAX_INPUT_CHARS = 80_000;
 
 const SYSTEM_PROMPT = `You are a B2B sales strategist specialized in French outbound prospecting agencies.
@@ -77,15 +77,15 @@ Required JSON schema:
 
 /**
  * Generate a structured Sales Playbook from a Leexi meeting recap.
- * Calls Mistral AI server-side (requires MISTRAL_API_KEY env var).
+ * Calls OpenAI server-side (requires OPENAI_API_KEY env var).
  * Returns a strictly typed Playbook with safe defaults for missing fields.
  */
 export async function generateSalesPlaybookFromRecap(
   recapText: string
 ): Promise<Playbook> {
-  const apiKey = process.env.MISTRAL_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error('MISTRAL_API_KEY non configurée');
+    throw new Error('OPENAI_API_KEY non configurée');
   }
 
   if (!recapText || recapText.trim().length < 20) {

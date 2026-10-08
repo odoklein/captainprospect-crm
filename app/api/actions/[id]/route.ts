@@ -1,3 +1,4 @@
+import { resetAbsenceOnReschedule, loadAbsenceHistory } from "@/lib/meetings/feedbackHistory";
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
@@ -162,6 +163,15 @@ export const PATCH = withErrorHandler(async (
         }
         return rec;
     });
+
+    // Absent RDV moved to a new future date: back to "À venir", absence archived.
+    if (isMeetingAction && updateData.callbackDate) {
+        await resetAbsenceOnReschedule({
+            actionId: id,
+            previousCallbackDate: action.callbackDate,
+            newCallbackDate: updateData.callbackDate,
+        });
+    }
 
     // A booked RDV that moves is news for the client: same email as a new
     // booking, worded as a change and showing the slot it replaces. Silent when

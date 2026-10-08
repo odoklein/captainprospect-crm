@@ -1,3 +1,4 @@
+import { clientVisibleActionWhere } from "@/lib/meetings/clientVisibility";
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { errorResponse, requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
@@ -35,7 +36,7 @@ export const GET = withErrorHandler(async (
 
     const [actions, statuses] = await Promise.all([
         prisma.action.findMany({
-            where: { OR: [{ contact: { companyId } }, { contactId: null, companyId }] },
+            where: { AND: [{ OR: [{ contact: { companyId } }, { contactId: null, companyId }] }, clientVisibleActionWhere] },
             select: { id: true, contactId: true, channel: true, result: true, callbackDate: true, createdAt: true },
             orderBy: { createdAt: "desc" },
             take: TIMELINE_LIMIT + 1,

@@ -29,8 +29,8 @@ const generateScriptSchema = z.object({
 // Mistral API Configuration
 // ============================================
 
-const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions';
-const MISTRAL_MODEL = 'mistral-large-latest';
+const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
+const MISTRAL_MODEL = 'gpt-4.1-mini';
 
 // ============================================
 // Helper: Build prompt based on section
@@ -142,9 +142,9 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
     
     // Check for API key
-    const apiKey = process.env.MISTRAL_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-        return errorResponse('Configuration Mistral AI manquante. Contactez l\'administrateur.', 500);
+        return errorResponse('Configuration OpenAI manquante. Contactez l\'administrateur.', 500);
     }
     
     const data = await validateRequest(request, generateScriptSchema);
@@ -186,7 +186,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             const error = await response.json().catch(() => ({}));
             console.error('Mistral API error:', error);
             return errorResponse(
-                `Erreur Mistral AI: ${error.error?.message || 'Erreur inconnue'}`,
+                `Erreur OpenAI: ${error.error?.message || 'Erreur inconnue'}`,
                 response.status
             );
         }
@@ -195,7 +195,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         const content = result.choices?.[0]?.message?.content;
         
         if (!content) {
-            return errorResponse('Réponse vide de Mistral AI', 500);
+            return errorResponse('Réponse vide de OpenAI', 500);
         }
         
         // Parse JSON response
@@ -204,7 +204,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             parsed = JSON.parse(content);
         } catch (e) {
             console.error('Failed to parse Mistral response:', content);
-            return errorResponse('Impossible de parser la réponse de Mistral AI', 500);
+            return errorResponse('Impossible de parser la réponse de OpenAI', 500);
         }
 
         const suggestions: ScriptSuggestions = {};
@@ -235,6 +235,6 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         
     } catch (error) {
         console.error('Mistral API request failed:', error);
-        return errorResponse('Erreur de connexion à Mistral AI', 500);
+        return errorResponse('Erreur de connexion à OpenAI', 500);
     }
 });
