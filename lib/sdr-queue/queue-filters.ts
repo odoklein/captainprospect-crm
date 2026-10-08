@@ -16,7 +16,7 @@ export interface QueueFilters {
     channel: string;
     /** Digits typed in the advanced "Numéro" field. */
     phone: string;
-    /** Which number `phone` and `lineType` look at. */
+    /** Which number `phone` and `lineType` look at ("any" = for `lineType`, the number the table shows). */
     phoneScope: PhoneScope;
     phoneAvailability: PhoneAvailability;
     lineType: LineType;
@@ -69,17 +69,29 @@ function isUsable(raw: string | null | undefined): boolean {
     return n >= 7 && n <= 15;
 }
 
-/** French numbering plan: 6/7 = mobile, 1-5/9 = fixed. Anything else is unknown. */
+/**
+ * Team rule: only French mobiles (+33 6 / +33 7, i.e. 06 / 07) are "mobile";
+ * every other usable number is "landline" (standards, 08, foreign numbers).
+ * null = no usable number.
+ */
 export function lineKind(raw: string | null | undefined): "mobile" | "landline" | null {
-    if (!isUsable(raw)) return null;
-    const trimmed = raw!.trim();
-    // An explicit foreign prefix (+32, 0044…) can't be classified with FR rules.
-    if (/^(\+|00)(?!33)/.test(trimmed)) return null;
+    // Some fields hold two numbers ("04 84 35 05 06 / 06 40 64 17 66"): mobile if any part is.
+    const parts = (raw ?? "").split(/[\/;,|]|\bou\b/i).filter(isUsable);
+    if (parts.length === 0) return null;
+    return parts.some(isFrenchMobile) ? "mobile" : "landline";
+}
+
+function isFrenchMobile(raw: string): boolean {
+    // Drop Excel's leading apostrophe and similar junk before reading the prefix.
+    const trimmed = raw.trim().replace(/^[^\d+]+/, "");
+    if (/^(\+|00)(?!33)/.test(trimmed)) return false;
     const d = nationalDigits(trimmed);
-    if (d.length !== 9) return null;
-    if (d[0] === "6" || d[0] === "7") return "mobile";
-    if ("123459".includes(d[0])) return "landline";
-    return null;
+    return d.length === 9 && (d[0] === "6" || d[0] === "7");
+}
+
+/** The number the table shows and the SDR dials: the contact's, else the company standard. */
+export function displayedPhone(row: QueueRowLike): string | null {
+    return row.contact?.phone || row.company.phone || null;
 }
 
 /** Needle for phone matching; null when the query has too few digits. */
@@ -152,8 +164,8 @@ export function matchesQueueFilters(
     if (f.channel && row.channel !== f.channel) return false;
 
     if (f.phoneAvailability) {
-        const hasContact = isUsable(row.contact?.phone);
-        const hasCompany = isUsable(row.company.phone);
+        const hasContact = lineKind(row.contact?.phone) !== null;
+        const hasCompany = lineKind(row.company.phone) !== null;
         switch (f.phoneAvailability) {
             case "contact": if (!hasContact) return false; break;
             case "company": if (!hasCompany) return false; break;
@@ -163,10 +175,15 @@ export function matchesQueueFilters(
         }
     }
 
-    const scoped = phonesInScope(row, f.phoneScope);
     const needle = phoneNeedle(f.phone);
-    if (needle && !phoneMatches(scoped, needle)) return false;
-    if (f.lineType && !scoped.some((p) => lineKind(p) === f.lineType)) return false;
+    if (needle && !phoneMatches(phonesInScope(row, f.phoneScope), needle)) return false;
+    if (f.lineType) {
+        // Judge the number the SDR sees in the row, so a mobile standard behind a
+        // fixed contact line (or vice versa) never surfaces under the wrong type.
+        const phone = f.phoneScope === "any" ? displayedPhone(row)
+            : f.phoneScope === "contact" ? row.contact?.phone : row.company.phone;
+        if (lineKind(phone) !== f.lineType) return false;
+    }
 
     if (search && !rowMatchesSearch(row, search)) return false;
     return true;

@@ -37,11 +37,16 @@ test("nationalDigits folds +33 / 0033 / leading 0", () => {
     assert.equal(nationalDigits("'+33611777641"), "611777641");
 });
 
-test("lineKind classifies French numbers only", () => {
+test("lineKind: only +33 6 / +33 7 are mobile, the rest is fixe", () => {
     assert.equal(lineKind("06 19 45 69 24"), "mobile");
     assert.equal(lineKind("+33 7 11 22 33 44"), "mobile");
+    assert.equal(lineKind("'+33673957761"), "mobile");
+    assert.equal(lineKind("+33 (0)6 73 95 77 61"), "mobile");
     assert.equal(lineKind("02 51 05 85 85"), "landline");
-    assert.equal(lineKind("+32 2 555 12 12"), null);
+    assert.equal(lineKind("0 800 123 456"), "landline");
+    assert.equal(lineKind("+32 470 12 34 56"), "landline");
+    assert.equal(lineKind("04 78 64 02 02 (siège)"), "landline");
+    assert.equal(lineKind("04 84 35 05 06 / 06 40 64 17 66"), "mobile");
     assert.equal(lineKind("123"), null);
 });
 
@@ -60,10 +65,18 @@ test("phone field respects its scope", () => {
     assert.ok(match(row(), { phone: "02 51", phoneScope: "company" }));
 });
 
-test("line type uses the scoped numbers", () => {
+test("line type judges the displayed number, not any number of the row", () => {
     assert.ok(match(row(), { lineType: "mobile" }));
-    assert.ok(match(row(), { lineType: "landline" }));
-    assert.ok(!match(row(), { lineType: "landline", phoneScope: "contact" }));
+    assert.ok(!match(row(), { lineType: "landline" }));
+    assert.ok(match(row(), { lineType: "landline", phoneScope: "company" }));
+    // Fixed contact line + mobile standard: shown number is fixed → not "Mobile".
+    const fixedContact = row({ contact: { phone: "02 40 11 22 33" }, company: { name: "X", phone: "06 11 22 33 44" } });
+    assert.ok(!match(fixedContact, { lineType: "mobile" }));
+    assert.ok(match(fixedContact, { lineType: "landline" }));
+    // No contact phone → the standard is what's shown.
+    const standardOnly = row({ contact: { phone: null }, company: { name: "X", phone: "02 51 05 85 85" } });
+    assert.ok(!match(standardOnly, { lineType: "mobile" }));
+    assert.ok(match(standardOnly, { lineType: "landline" }));
 });
 
 test("phone availability", () => {

@@ -2026,6 +2026,14 @@ export default function SDRActionPage() {
                                 <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
                                 <span className="font-mono tracking-tight">{phone}</span>
                             </a>
+                            {row.contactId && !row.contact?.phone && (
+                                <span
+                                    className="px-1.5 py-0.5 rounded-md border border-line bg-surface-2 text-[10px] font-semibold uppercase tracking-wide text-ink-3"
+                                    title="Le contact n'a pas de numéro : c'est le standard de la société"
+                                >
+                                    Standard
+                                </span>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => copyToClipboard(phone, callContext)}

@@ -282,7 +282,8 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
                         </div>
                     </FilterField>
 
-                    <FilterField label="Type de ligne">
+                    <FilterField label="Type de ligne" hint="Mobile = 06 / 07 (+33 6 / +33 7), le reste en fixe. Avec « Tous », on juge le numéro affiché.">
+
                         <SegmentedControl<LineType>
                             ariaLabel="Type de ligne"
                             fullWidth
@@ -438,9 +439,9 @@ function NativeSelect({
     );
 }
 
-function FilterField({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+function FilterField({ label, hint, className, children }: { label: string; hint?: string; className?: string; children: ReactNode }) {
     return (
-        <div className={cn("min-w-0 space-y-1", className)}>
+        <div className={cn("min-w-0 space-y-1", className)} title={hint}>
             <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-4">{label}</span>
             {children}
         </div>
