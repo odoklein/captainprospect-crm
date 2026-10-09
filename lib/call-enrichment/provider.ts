@@ -6,6 +6,7 @@ export interface CallRecord {
   summary?: string;
   transcription?: string;
   recordingUrl?: string;
+  duration?: number;
 }
 
 export interface CallProviderInput {

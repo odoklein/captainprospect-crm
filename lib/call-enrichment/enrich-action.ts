@@ -259,6 +259,7 @@ export async function enrichActionFromCallProvider(
       callSummary:         record.summary        ?? null,
       callTranscription:   record.transcription  ?? null,
       callRecordingUrl:    record.recordingUrl   ?? null,
+      duration:            record.duration != null ? record.duration : undefined,
       callEnrichmentAt:    new Date(),
       callEnrichmentError: null,
     },

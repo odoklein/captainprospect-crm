@@ -157,6 +157,7 @@ function alloCallToRecord(call: AlloCall): CallRecord {
     summary:        call.summary?.trim() || undefined,
     transcription,
     recordingUrl:   call.recording_url?.trim() || undefined,
+    duration:       typeof call.duration === 'number' && !Number.isNaN(call.duration) ? Math.round(call.duration) : undefined,
   };
 }
 

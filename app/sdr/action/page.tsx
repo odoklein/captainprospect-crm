@@ -1783,6 +1783,7 @@ export default function SDRActionPage() {
                             summary: callToLink.summary ?? null,
                             transcription,
                             recordingUrl: callToLink.recording_url ?? null,
+                            duration: typeof callToLink.duration === "number" ? callToLink.duration : null,
                         }),
                     });
                     const enrichJson = await enrichRes.json();

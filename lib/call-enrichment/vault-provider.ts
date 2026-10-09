@@ -24,6 +24,7 @@ export class VaultProvider implements CallProvider {
       // Store the stable proxy reference, not the presigned URL the vault returned inline —
       // that one expires in an hour and this field gets persisted (see vaultRecordingProxyUrl).
       recordingUrl: best.recordingUrl?.trim() ? (vaultRecordingProxyUrl(best.callId) ?? undefined) : undefined,
+      duration: typeof best.durationSec === 'number' && !Number.isNaN(best.durationSec) ? Math.round(best.durationSec) : undefined,
     };
   }
 }

@@ -9,13 +9,13 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronUp, LogOut, Settings2, ShieldCheck, ShieldOff, User } from "lucide-react";
+import { ChevronUp, LogOut, Settings2, ShieldCheck, ShieldOff, Sparkles, User } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
 import { UserAvatar, useMyAvatar } from "@/components/settings/Avatar";
 import { ROLE_LABEL } from "@/components/settings/roles";
-import { LogoutConfirmModal } from "@/components/auth/LogoutConfirmModal";
+import type { UserAiUsageSummary } from "@/lib/ai/usage";
 
 /** Personal settings page per role; `sections` = it understands ?section=. */
 const SETTINGS: Partial<Record<UserRole, { path: string; sections: boolean }>> = {
@@ -37,11 +37,27 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
     const { data: avatar } = useMyAvatar();
     const { success: toastSuccess, error: toastError } = useToast();
     const [open, setOpen] = useState(false);
-    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [usage, setUsage] = useState<UserAiUsageSummary | null>(null);
     const [loggingOutOthers, setLoggingOutOthers] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // Fetch user AI usage on mount
+    useEffect(() => {
+        let active = true;
+        fetch("/api/ai/usage")
+            .then((res) => (res.ok ? res.json() : null))
+            .then((payload) => {
+                if (!active || !payload) return;
+                const data = payload.data ?? payload;
+                setUsage(data);
+            })
+            .catch(() => {});
+        return () => {
+            active = false;
+        };
+    }, []);
 
     const role = session?.user?.role as UserRole | undefined;
     const name = session?.user?.name ?? "";
@@ -178,6 +194,29 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                         </>
                     )}
 
+                    {/* AI Consumption (small text area) */}
+                    <div className="mx-1 my-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px]">
+                        <div className="flex items-center justify-between text-slate-300">
+                            <span className="flex items-center gap-1.5 font-medium">
+                                <Sparkles className="w-3 h-3 text-amber-400" />
+                                IA OpenAI
+                            </span>
+                            <span className="font-semibold text-emerald-400">
+                                {formatTokens(usage?.today?.tokens ?? 0)} tok.
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+                            <span>Aujourd&apos;hui : <strong className="text-slate-200">{formatEuros(usage?.today?.costEur ?? 0)}</strong></span>
+                            <span className="text-slate-500 font-mono text-[9.5px]">{usage?.defaultModel ?? "gpt-4o-mini"}</span>
+                        </div>
+                        {usage && usage.total.tokens > 0 && (
+                            <div className="flex items-center justify-between text-[9.5px] text-slate-500 mt-1 pt-1 border-t border-white/[0.04]">
+                                <span>Cumul total</span>
+                                <span>{formatTokens(usage.total.tokens)} tok.</span>
+                            </div>
+                        )}
+                    </div>
+
                     <button type="button" role="menuitem" onClick={logoutOtherDevices} disabled={loggingOutOthers} className={ITEM}>
                         <ShieldOff className="w-3.5 h-3.5 text-slate-400" aria-hidden />
                         {loggingOutOthers ? "Déconnexion…" : "Déconnecter les autres appareils"}
@@ -185,10 +224,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     <button
                         type="button"
                         role="menuitem"
-                        onClick={() => {
-                            setOpen(false);
-                            setShowLogoutConfirm(true);
-                        }}
+                        onClick={() => signOut({ callbackUrl: "/login" })}
                         className={cn(ITEM, "text-red-400 hover:text-red-300 hover:bg-red-500/[0.12] focus-visible:text-red-300 focus-visible:bg-red-500/[0.12]")}
                     >
                         <LogOut className="w-3.5 h-3.5" aria-hidden />
@@ -229,6 +265,12 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                                 <span className="text-slate-500"> · </span>
                                 <span className="group-hover:text-accent-300 transition-colors">Mon compte</span>
                             </span>
+                            {usage && (
+                                <span className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5 leading-tight truncate">
+                                    <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                                    <span>IA : <strong className="text-emerald-400 font-medium">{formatTokens(usage.today.tokens)}</strong> tok.</span>
+                                </span>
+                            )}
                         </span>
                         <ChevronUp
                             className={cn("w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-150 flex-shrink-0", !open && "rotate-180")}
@@ -237,11 +279,22 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     </>
                 )}
             </button>
-
-            <LogoutConfirmModal
-                isOpen={showLogoutConfirm}
-                onClose={() => setShowLogoutConfirm(false)}
-            />
         </div>
     );
+}
+
+function formatTokens(num: number) {
+    return new Intl.NumberFormat("fr-FR").format(num);
+}
+
+function formatEuros(cost: number) {
+    if (cost < 0.01 && cost > 0) {
+        return `${cost.toFixed(4).replace(".", ",")} €`;
+    }
+    return new Intl.NumberFormat("fr-FR", {
+        style: "currency",
+        currency: "EUR",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+    }).format(cost);
 }

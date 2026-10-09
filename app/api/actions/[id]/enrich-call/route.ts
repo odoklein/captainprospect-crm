@@ -9,6 +9,7 @@ const schema = z.object({
   summary:       z.string().optional().nullable(),
   transcription: z.string().optional().nullable(),
   recordingUrl:  z.string().optional().nullable(),
+  duration:      z.number().optional().nullable(),
 });
 
 // PATCH /api/actions/[id]/enrich-call
@@ -41,7 +42,7 @@ export async function PATCH(
     return NextResponse.json({ success: false, error: 'Interdit' }, { status: 403 });
   }
 
-  const { summary, transcription, recordingUrl } = parsed.data;
+  const { summary, transcription, recordingUrl, duration } = parsed.data;
 
   await prisma.action.update({
     where: { id },
@@ -49,6 +50,7 @@ export async function PATCH(
       callSummary:         summary       ?? null,
       callTranscription:   transcription ?? null,
       callRecordingUrl:    recordingUrl  ?? null,
+      duration:            duration != null ? Math.round(duration) : undefined,
       callEnrichmentAt:    new Date(),
       callEnrichmentError: null,
     },

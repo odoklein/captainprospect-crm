@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, withErrorHandler } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
+import { fetchAlloMetricsForLine } from "@/lib/call-enrichment/allo-metrics";
 
 // ============================================
 // GET /api/users/[id]/sdr-report
@@ -33,7 +34,7 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: { p
     // Verify user exists and is SDR/BOOKER
     const user = await prisma.user.findUnique({
         where: { id: sdrId },
-        select: { id: true, name: true, role: true },
+        select: { id: true, name: true, role: true, alloPhoneNumber: true },
     });
     if (!user) {
         return NextResponse.json({ success: false, error: "Utilisateur introuvable" }, { status: 404 });
@@ -204,7 +205,23 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: { p
         .slice(0, 15)
         .map(([word, count]) => ({ word, count }));
 
-    const conversionRate = totalCalls > 0 ? Math.round((totalRdv / totalCalls) * 10000) / 100 : 0;
+    // Fetch actual WithAllo calls strictly on this SDR's line
+    let alloMetrics = {
+        calls: 0,
+        connectedCalls: 0,
+        talkTimeSeconds: 0,
+        callsOver1Min: 0,
+        answerRate: 0,
+    };
+    if (user.alloPhoneNumber) {
+        alloMetrics = await fetchAlloMetricsForLine(user.alloPhoneNumber, dateFrom, dateTo);
+    }
+
+    // Effective calls = Allo calls if present, else CRM actions where channel=CALL
+    const effectiveCalls = alloMetrics.calls > 0 ? alloMetrics.calls : totalCalls;
+    // Effective duration = CRM action durations if populated, else Allo talk time
+    const effectiveDuration = totalDuration > 0 ? totalDuration : alloMetrics.talkTimeSeconds;
+    const conversionRate = effectiveCalls > 0 ? Math.round((totalRdv / effectiveCalls) * 10000) / 100 : 0;
 
     return NextResponse.json({
         success: true,
@@ -213,12 +230,18 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: { p
             period: { from, to },
             overview: {
                 totalActions: actions.length,
-                totalCalls,
+                totalCalls: effectiveCalls,
+                qualifiedCalls: totalCalls,
+                alloCalls: alloMetrics.calls,
                 totalRdv,
                 totalCallbacks,
                 totalInterested,
                 totalNoResponse,
-                totalDuration,
+                totalDuration: effectiveDuration,
+                crmDuration: totalDuration,
+                alloTalkTimeSeconds: alloMetrics.talkTimeSeconds,
+                alloConnectedCalls: alloMetrics.connectedCalls,
+                alloAnswerRate: alloMetrics.answerRate,
                 conversionRate,
             },
             byMission,

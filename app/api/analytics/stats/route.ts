@@ -7,6 +7,7 @@ import {
 } from '@/lib/api-utils';
 import { ActionResult, Prisma } from '@prisma/client';
 import { parseAlloCallsListResponse } from '@/lib/call-enrichment/allo-response';
+import { fetchAlloMetricsForLine } from '@/lib/call-enrichment/allo-metrics';
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     // Only Managers and Developers can see full team stats
@@ -233,15 +234,22 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         meetings
     };
 
+    const alloTotalCalls = sdrPerformanceWithAllo.reduce((acc, curr) => acc + (curr.alloCalls || 0), 0);
+    const alloTotalTalkTime = sdrPerformanceWithAllo.reduce((acc, curr) => acc + (curr.talkTimeSeconds || 0), 0);
+    const effectiveTotalCalls = alloTotalCalls > 0 ? alloTotalCalls : totalCalls;
+    const effectiveTotalTalkTime = (basicStats._sum.duration || 0) > 0 ? (basicStats._sum.duration || 0) : alloTotalTalkTime;
+
     return successResponse({
         timeframe: { from: dateFrom, to: dateTo },
         kpis: {
-            totalCalls,
+            totalCalls: effectiveTotalCalls,
+            crmTotalCalls: totalCalls,
+            alloTotalCalls,
             uniqueContacts: basicStats._count.contactId,
-            totalTalkTime: basicStats._sum.duration || 0,
-            avgCallDuration: totalCalls > 0 ? Math.round((basicStats._sum.duration || 0) / totalCalls) : 0,
-            conversionRate: totalCalls > 0 ? Number(((meetings / totalCalls) * 100).toFixed(2)) : 0,
-            interestRate: totalCalls > 0 ? Number(((segments.success / totalCalls) * 100).toFixed(2)) : 0,
+            totalTalkTime: effectiveTotalTalkTime,
+            avgCallDuration: effectiveTotalCalls > 0 ? Math.round(effectiveTotalTalkTime / effectiveTotalCalls) : 0,
+            conversionRate: effectiveTotalCalls > 0 ? Number(((meetings / effectiveTotalCalls) * 100).toFixed(2)) : 0,
+            interestRate: effectiveTotalCalls > 0 ? Number(((segments.success / effectiveTotalCalls) * 100).toFixed(2)) : 0,
             meetings,
         },
         statusBreakdown: statuses,
@@ -263,16 +271,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
 });
 
-const ALLO_BASE_URL = 'https://api.withallo.com';
-const ALLO_CONNECTED_RESULTS = new Set([
-    'ANSWERED',
-    'TRANSFERRED_AI',
-    'TRANSFERRED_EXTERNAL',
-    'RECEIVED',
-    'CLOSED',
-]);
-const ALLO_MAX_PAGES = Math.max(1, parseInt(process.env.CALL_ENRICHMENT_ALLO_MAX_PAGES ?? '60', 10));
-
 async function enrichSdrPerformanceWithAlloCalls(
     rows: any[],
     dateFrom: Date,
@@ -289,6 +287,7 @@ async function enrichSdrPerformanceWithAlloCalls(
             crmActions: r.calls ?? 0,
             alloCalls: 0,
             connectedCalls: 0,
+            talkTimeSeconds: 0,
         }));
     }
 
@@ -322,18 +321,15 @@ async function enrichSdrPerformanceWithAlloCalls(
 
     return rows.map((r) => {
         const line = lineBySdrId.get(String(r.sdrId || '')) || '';
-        const metrics = line ? (metricsByLine[line] || { calls: 0, connectedCalls: 0 }) : { calls: 0, connectedCalls: 0 };
+        const metrics = line ? (metricsByLine[line] || { calls: 0, connectedCalls: 0, talkTimeSeconds: 0 }) : { calls: 0, connectedCalls: 0, talkTimeSeconds: 0 };
         return {
             ...r,
             crmActions: r.calls ?? 0,
             alloCalls: metrics.calls,
             connectedCalls: metrics.connectedCalls,
+            talkTimeSeconds: metrics.talkTimeSeconds,
         };
     });
-}
-
-function normalizeDay(date: Date): string {
-    return date.toISOString().split('T')[0];
 }
 
 async function fetchAlloCallMetricsByLine(
@@ -341,65 +337,15 @@ async function fetchAlloCallMetricsByLine(
     dateFrom: Date,
     dateTo: Date,
     apiKey: string
-): Promise<Record<string, { calls: number; connectedCalls: number }>> {
-    const byLine: Record<string, { calls: number; connectedCalls: number }> = {};
-    const fromIso = normalizeDay(dateFrom);
-    const toIso = normalizeDay(dateTo);
-
+): Promise<Record<string, { calls: number; connectedCalls: number; talkTimeSeconds: number }>> {
+    const byLine: Record<string, { calls: number; connectedCalls: number; talkTimeSeconds: number }> = {};
     for (const alloNumber of alloNumbers) {
-        let page = 0;
-        const totals = { calls: 0, connectedCalls: 0 };
-
-        while (page < ALLO_MAX_PAGES) {
-            const url = new URL(`${ALLO_BASE_URL}/v1/api/calls`);
-            url.searchParams.set('allo_number', alloNumber);
-            url.searchParams.set('size', '100');
-            url.searchParams.set('page', String(page));
-
-            const res = await fetch(url.toString(), {
-                headers: { Authorization: apiKey },
-                cache: 'no-store',
-            });
-            if (!res.ok) {
-                break;
-            }
-
-            const body = await res.json();
-            const parsed = parseAlloCallsListResponse(body);
-            if (!parsed.rawCalls.length) {
-                break;
-            }
-
-            let oldestCallDateOnPage: Date | null = null;
-            for (const call of parsed.rawCalls) {
-                const rawStart = call.start_date ?? call.start_time ?? call.created_at ?? call.date;
-                if (!rawStart) continue;
-                const start = new Date(String(rawStart));
-                if (Number.isNaN(start.getTime())) continue;
-
-                if (!oldestCallDateOnPage || start < oldestCallDateOnPage) {
-                    oldestCallDateOnPage = start;
-                }
-
-                const isoDay = normalizeDay(start);
-                if (isoDay < fromIso || isoDay > toIso) continue;
-
-                totals.calls += 1;
-                const result = typeof call.result === 'string' ? call.result.toUpperCase() : '';
-                if (ALLO_CONNECTED_RESULTS.has(result)) {
-                    totals.connectedCalls += 1;
-                }
-            }
-
-            if (oldestCallDateOnPage && oldestCallDateOnPage < dateFrom) {
-                break;
-            }
-
-            page += 1;
-        }
-
-        byLine[alloNumber] = totals;
+        const m = await fetchAlloMetricsForLine(alloNumber, dateFrom, dateTo, apiKey);
+        byLine[alloNumber] = {
+            calls: m.calls,
+            connectedCalls: m.connectedCalls,
+            talkTimeSeconds: m.talkTimeSeconds,
+        };
     }
-
     return byLine;
 }

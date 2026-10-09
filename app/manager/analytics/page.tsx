@@ -53,6 +53,15 @@ function toLocalISODate(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
+function formatSeconds(sec: number): string {
+    if (!sec || sec <= 0) return "0s";
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+    if (m > 0) return `${m}m`;
+    return `${sec}s`;
+}
+
 export default function AnalyticsPage() {
     // Filters State
     const [dateRange, setDateRange] = useState(() => {
@@ -1299,6 +1308,7 @@ export default function AnalyticsPage() {
                                 <th className="px-5 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100">SDR</th>
                                 <th className="px-5 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Appels (Allo)</th>
                                 <th className="px-5 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Connectés</th>
+                                <th className="px-5 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Temps (Allo)</th>
                                 <th className="px-5 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Actions CRM</th>
                                 <th className="px-5 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Rappels</th>
                                 <th className="px-5 py-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">Meetings</th>
@@ -1330,6 +1340,7 @@ export default function AnalyticsPage() {
                                         </td>
                                         <td className="px-5 py-4 text-center text-[13.5px] font-black text-slate-700">{s.alloCalls ?? 0}</td>
                                         <td className="px-5 py-4 text-center text-[13.5px] font-black text-primary-600">{s.connectedCalls ?? 0}</td>
+                                        <td className="px-5 py-4 text-center text-[12.5px] font-bold text-slate-600">{formatSeconds(s.talkTimeSeconds ?? 0)}</td>
                                         <td className="px-5 py-4 text-center text-[13.5px] font-black text-slate-700">{crmActions}</td>
                                         <td className="px-5 py-4 text-center text-[13.5px] font-bold text-amber-500">{s.callbacks}</td>
                                         <td className="px-5 py-4 text-center">

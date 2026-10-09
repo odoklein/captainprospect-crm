@@ -39,13 +39,7 @@ export async function findLineOwners(lineNumber: string, userEmail: string | nul
     });
 
     const byLine = lineKey ? users.filter((u) => phoneKey(u.alloPhoneNumber) === lineKey) : [];
-    if (byLine.length > 0 || !userEmail) return byLine;
-
-    const byEmail = await prisma.user.findFirst({
-        where: { isActive: true, email: { equals: userEmail, mode: "insensitive" } },
-        select: { id: true, name: true, alloPhoneNumber: true },
-    });
-    return byEmail ? [byEmail] : [];
+    return byLine;
 }
 
 // ============================================

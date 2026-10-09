@@ -1218,16 +1218,35 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
                     {/* Overview KPIs */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {[
-                            { label: "Total appels", value: data.overview.totalCalls, icon: Phone, color: "indigo" },
+                            {
+                                label: "Total appels",
+                                value: data.overview.totalCalls,
+                                subtext: data.overview.alloCalls && data.overview.qualifiedCalls && data.overview.alloCalls !== data.overview.qualifiedCalls
+                                    ? `${data.overview.qualifiedCalls} qualifiés CRM`
+                                    : undefined,
+                                icon: Phone,
+                                color: "indigo",
+                            },
                             { label: "RDV pris", value: data.overview.totalRdv, icon: Calendar, color: "emerald" },
                             { label: "Taux de conversion", value: `${data.overview.conversionRate}%`, icon: TrendingUp, color: "blue" },
-                            { label: "Temps de comm.", value: fmtDuration(data.overview.totalDuration), icon: Clock, color: "amber" },
+                            {
+                                label: "Temps de comm.",
+                                value: fmtDuration(data.overview.totalDuration),
+                                subtext: data.overview.alloAnswerRate != null && data.overview.alloAnswerRate > 0
+                                    ? `${data.overview.alloAnswerRate}% décrochés`
+                                    : undefined,
+                                icon: Clock,
+                                color: "amber",
+                            },
                         ].map((kpi) => (
                             <div key={kpi.label} className="bg-white rounded-2xl border border-slate-200 p-4">
                                 <div className="flex items-start justify-between">
                                     <div>
                                         <p className="text-xs font-medium text-slate-500 mb-1">{kpi.label}</p>
                                         <p className="text-3xl font-bold text-slate-900">{kpi.value}</p>
+                                        {kpi.subtext && (
+                                            <p className="text-[11px] text-slate-500 mt-1">{kpi.subtext}</p>
+                                        )}
                                     </div>
                                     <div className={cn(
                                         "w-10 h-10 rounded-xl flex items-center justify-center",

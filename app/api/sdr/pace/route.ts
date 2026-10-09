@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPaceConfig } from "@/lib/sdr-pace/config";
 import { computeEffectiveTime, computePace, type Interval } from "@/lib/sdr-pace/pace";
+import { fetchAlloMetricsForLine } from "@/lib/call-enrichment/allo-metrics";
 
 // ============================================
 // GET /api/sdr/pace
@@ -37,7 +38,7 @@ export async function GET() {
         const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
         const dayEnd = new Date(`${tomorrowKey}T00:00:00.000Z`);
 
-        const [config, calls, scheduleBlocks] = await Promise.all([
+        const [config, calls, scheduleBlocks, user] = await Promise.all([
             getPaceConfig(),
             prisma.action.findMany({
                 where: { sdrId, channel: "CALL", createdAt: { gte: startOfDay.toJSDate() } },
@@ -52,7 +53,21 @@ export async function GET() {
                 },
                 select: { startTime: true, endTime: true },
             }),
+            prisma.user.findUnique({
+                where: { id: sdrId },
+                select: { alloPhoneNumber: true },
+            }),
         ]);
+
+        let alloCallsCount = 0;
+        if (user?.alloPhoneNumber) {
+            const alloMetrics = await fetchAlloMetricsForLine(
+                user.alloPhoneNumber,
+                startOfDay.toJSDate(),
+                now.endOf("day").toJSDate()
+            );
+            alloCallsCount = alloMetrics.calls;
+        }
 
         const blocks: Interval[] = [];
         for (const b of scheduleBlocks) {
@@ -68,8 +83,9 @@ export async function GET() {
         const nowMinute = now.hour * 60 + now.minute + now.second / 60;
 
         const time = computeEffectiveTime({ blocks, callMinutes, nowMinute });
+        const effectiveCallsDone = Math.max(calls.length, alloCallsCount);
         const pace = computePace({
-            callsDone: calls.length,
+            callsDone: effectiveCallsDone,
             dailyQuota: config.dailyQuota,
             targetHours: config.targetHours,
             time,
