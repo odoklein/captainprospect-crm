@@ -33,6 +33,9 @@ import { searchMissions, getMission, searchMissionsParams } from "./services/mis
 import { searchClients, searchCampaigns, getCampaign, searchClientsParams, searchCampaignsParams } from "./services/campaigns";
 import { searchLists, getList, searchListsParams } from "./services/lists";
 import { getRdvOverview, searchExclusions, getDailyReports, getDataQuality, rdvOverviewParams, searchExclusionsParams, dailyReportsParams, dataQualityParams } from "./services/insights";
+import { searchTranscripts, getTranscript, getCallCoverage, searchTranscriptsParams, callCoverageParams } from "./services/transcripts";
+import { INTERNAL_TOOLS } from "./mcp-tools";
+import { VaultUnavailableError, type VaultCallDetail, type VaultReader, type VaultSearchItem, type VaultSearchParams } from "../call-vault-client";
 import type { Ctx } from "./serializers";
 
 // ============================================
@@ -87,9 +90,30 @@ const principal = (clientId: string, scopes: readonly Scope[] = READ_SCOPES, mis
   issuedById: "manager-1",
 });
 
+/** Stand-in for the call vault: records every request, answers with overrides or "nothing found". */
+function recordingVault(overrides: Partial<VaultReader> = {}) {
+  const calls: { method: keyof VaultReader; args: unknown[] }[] = [];
+  const vault: VaultReader = {
+    searchCalls: async (...args) => {
+      calls.push({ method: "searchCalls", args });
+      return overrides.searchCalls ? overrides.searchCalls(...args) : { items: [], nextCursor: null };
+    },
+    getCall: async (...args) => {
+      calls.push({ method: "getCall", args });
+      return overrides.getCall ? overrides.getCall(...args) : null;
+    },
+    coverage: async (...args) => {
+      calls.push({ method: "coverage", args });
+      return overrides.coverage ? overrides.coverage(...args) : {};
+    },
+  };
+  return { vault, calls };
+}
+
 const A = principal("tenant-A");
 const B = principal("tenant-B");
-const ctx = (p: Principal, db: any): Ctx => ({ p, db });
+const INTERNAL: Principal = { ...principal("unused"), keyId: "key-internal", clientId: null, allClients: true };
+const ctx = (p: Principal, db: any, vault: VaultReader = recordingVault().vault): Ctx => ({ p, db, vault });
 const json = (v: unknown) => JSON.stringify(v);
 const status = (s: number) => (e: unknown) => e instanceof ApiError && e.status === s;
 
@@ -528,7 +552,7 @@ test("report: period is bounded and totals fold the grouped counts", async () =>
 
 const REQUIRED_TOOLS = [
   "search_contacts", "get_contact", "get_contact_context", "search_companies", "get_company", "search_leads", "get_lead",
-  "search_calls", "get_call", "search_activities", "search_appointments", "get_team", "get_user", "get_sales_report",
+  "search_calls", "get_call", "search_transcripts", "get_transcript", "search_activities", "search_appointments", "get_team", "get_user", "get_sales_report",
   "whoami", "global_search",
   "list_clients", "list_campaigns", "get_campaign", "list_missions", "get_mission", "list_lists", "get_list", "get_rdv_overview", "list_exclusions", "get_daily_reports", "get_data_quality",
 ];
@@ -547,14 +571,18 @@ test("mcp: the required tools exist, are unique, read-only and map to a read sco
 test("mcp: every tool runs against the service layer and is scoped to the key's tenant", async () => {
   for (const t of TOOLS) {
     const { db, calls } = recordingDb();
+    const v = recordingVault();
     const args = t.idArg ? { [t.idArg]: "some-id" } : {};
     try {
-      await t.run(ctx(A, db), { ...args, query: "abc", clientId: "tenant-B" });
+      await t.run(ctx(A, db, v.vault), { ...args, query: "abc", clientId: "tenant-B" });
     } catch (e) {
       assert.ok(e instanceof ApiError && e.status === 404, `${t.name}: ${e}`);
     }
-    assert.ok(calls.length > 0, `${t.name} issued no query`);
+    assert.ok(calls.length + v.calls.length > 0, `${t.name} issued no query`);
     assert.ok(!calls.some((c) => json(c.args?.where ?? c.args?.values).includes("tenant-B")), `${t.name} leaked tenant B`);
+    // Vault-backed tools: the vault has no tenants of its own, so every request must carry the key's.
+    assert.ok(!v.calls.some((c) => json(c.args).includes("tenant-B")), `${t.name} leaked tenant B to the vault`);
+    assert.ok(v.calls.every((c) => json(c.args).includes("tenant-A")), `${t.name} called the vault without the key's tenant`);
   }
 });
 
@@ -577,7 +605,19 @@ test("mcp protocol: tools/list exposes JSON-schema'd tools, filtered by the key'
   assert.equal(ctxTool.annotations?.readOnlyHint, true);
 
   const limited = await connect(principal("tenant-A", ["calls:read"]), recordingDb().db);
-  assert.deepEqual((await limited.client.listTools()).tools.map((t) => t.name).sort(), ["get_call", "global_search", "search_calls", "whoami"]);
+  assert.deepEqual((await limited.client.listTools()).tools.map((t) => t.name).sort(), [
+    "get_call",
+    "get_transcript",
+    "global_search",
+    "search_calls",
+    "search_transcripts",
+    "whoami",
+  ]);
+  assert.ok(!tools.some((t) => INTERNAL_TOOLS.some((i) => i.name === t.name)), "internal tools hidden from client keys");
+
+  const internal = await connect(INTERNAL, recordingDb().db);
+  const internalNames = (await internal.client.listTools()).tools.map((t) => t.name);
+  for (const i of INTERNAL_TOOLS) assert.ok(internalNames.includes(i.name), `${i.name} listed for all-clients keys`);
 });
 
 test("mcp protocol: tool calls return compact JSON, errors are isError, and the audit trail has ids but no search text", async () => {
@@ -601,4 +641,171 @@ test("mcp protocol: tool calls return compact JSON, errors are isError, and the 
   assert.ok(endpoints.some((e) => e.startsWith("/mcp/search_contacts?params=")));
   assert.ok(!endpoints.join(" ").includes("confidential-term"));
   assert.equal(records.find((r) => r.endpoint === "/mcp/get_contact/ghost")!.status, 404);
+});
+
+// ============================================
+// Transcripts (call vault)
+// ============================================
+
+const vaultHit = (over: Partial<VaultSearchItem> = {}): VaultSearchItem => ({
+  id: "vc-1",
+  startedAt: "2026-10-09T14:35:00.000Z",
+  durationSec: 150,
+  direction: "OUTBOUND",
+  remoteNumber: "+33240000000",
+  status: null,
+  summary: "Refus, déjà chez Orpi",
+  hasTranscript: true,
+  hasRecording: true,
+  snippet: "et pour l'«alternance» ?",
+  actionId: "act-1",
+  contactId: "ct-1",
+  companyId: "co-1",
+  sdrUserId: "sdr-1",
+  missionId: "m-1",
+  clientId: "tenant-A",
+  result: "REFUS",
+  matchConfidence: "HIGH",
+  matchReason: "same SDR line, ended 1m before log, 150s",
+  ...over,
+});
+
+const vaultDetail = (over: Partial<VaultCallDetail> = {}): VaultCallDetail => ({
+  id: "vc-1",
+  startedAt: "2026-10-09T14:35:00.000Z",
+  endedAt: "2026-10-09T14:37:30.000Z",
+  durationSec: 150,
+  direction: "OUTBOUND",
+  remoteNumber: "+33240000000",
+  status: null,
+  summary: "Refus, déjà chez Orpi",
+  transcription: "EXTERNAL: Orpi bonjour\nUSER: Bonjour, je suis Adam",
+  transcriptSegments: [
+    { speaker: "PROSPECT", source: "EXTERNAL", text: "Orpi bonjour" },
+    { speaker: "SDR", source: "USER", text: "Bonjour, je suis Adam" },
+  ],
+  hasRecording: true,
+  sdrUserId: "sdr-1",
+  link: {
+    actionId: "act-1", contactId: "ct-1", companyId: "co-1", missionId: "m-1", clientId: "tenant-A",
+    result: "REFUS", loggedAt: "2026-10-09T14:38:00.000Z", confidence: "HIGH", reason: "same SDR line",
+  },
+  ...over,
+});
+
+test("transcripts: search sends the key's tenant to the vault and resolves names inside the tenant", async () => {
+  const v = recordingVault({ searchCalls: async () => ({ items: [vaultHit()], nextCursor: "next" }) });
+  const { db, calls } = recordingDb({
+    "contact.findMany": () => [{ id: "ct-1", firstName: "Jacques", lastName: "Lemaitre" }],
+    "user.findMany": () => [{ id: "sdr-1", name: "adam" }],
+  });
+  const r = await searchTranscripts(ctx(A, db, v.vault), parseInput(searchTranscriptsParams, { query: "alternance", period: "last_7_days" }));
+
+  const sent = v.calls[0].args[0] as VaultSearchParams;
+  assert.equal(sent.clientId, "tenant-A");
+  assert.equal(sent.q, "alternance");
+  assert.ok(sent.from && sent.to && sent.from < sent.to);
+  assert.equal(r.items[0].contact?.name, "Jacques Lemaitre");
+  assert.equal(r.items[0].user?.name, "adam");
+  assert.equal(r.items[0].company?.name, null, "unresolvable names stay null, ids stay");
+  assert.equal(r.items[0].result_label, "Refus");
+  assert.equal(r.items[0].link?.confidence, "HIGH");
+  assert.equal(r.items[0].excerpt, "et pour l'«alternance» ?");
+  assert.equal(r.next_cursor, "next");
+  for (const c of calls.filter((c) => c.model === "contact" || c.model === "company")) {
+    assert.ok(json(c.args.where).includes("tenant-A"), `${c.model} name lookup is tenant-scoped`);
+  }
+});
+
+test("transcripts: narrowing a client key to another client matches nothing — and never asks the vault", async () => {
+  const v = recordingVault();
+  const r = await searchTranscripts(ctx(A, recordingDb().db, v.vault), parseInput(searchTranscriptsParams, { client_id: "tenant-B" }));
+  assert.deepEqual(r.items, []);
+  assert.equal(v.calls.length, 0);
+
+  const missionKey = principal("tenant-A", READ_SCOPES, "m-1");
+  const v2 = recordingVault();
+  await searchTranscripts(ctx(missionKey, recordingDb().db, v2.vault), parseInput(searchTranscriptsParams, { mission_id: "m-2" }));
+  assert.equal(v2.calls.length, 0, "mission-bound key can't widen to another mission");
+});
+
+test("transcripts: an all-clients key searches everything, or narrows with client_id", async () => {
+  const v = recordingVault();
+  await searchTranscripts(ctx(INTERNAL, recordingDb().db, v.vault), parseInput(searchTranscriptsParams, {}));
+  await searchTranscripts(ctx(INTERNAL, recordingDb().db, v.vault), parseInput(searchTranscriptsParams, { client_id: "tenant-B" }));
+  assert.equal((v.calls[0].args[0] as VaultSearchParams).clientId, undefined);
+  assert.equal((v.calls[1].args[0] as VaultSearchParams).clientId, "tenant-B");
+});
+
+test("transcripts: get_transcript checks the CRM call in the tenant first, then reads its linked vault call", async () => {
+  const v = recordingVault({ getCall: async () => vaultDetail() });
+  const { db, calls } = recordingDb({
+    "action.findFirst": () => ({ id: "act-1", result: "REFUS", createdAt: new Date("2026-10-09T14:38:00Z"), callSummary: null, callTranscription: null }),
+  });
+  const r = await getTranscript(ctx(A, db, v.vault), "act-1");
+
+  assert.ok(json(calls.find((c) => c.model === "action")!.args.where).includes("tenant-A"));
+  assert.deepEqual(v.calls[0].args, ["act-1", { by: "action", clientId: "tenant-A", missionId: undefined }]);
+  assert.ok(r.in_vault);
+  assert.equal(r.call_id, "vc-1");
+  assert.deepEqual(r.transcript?.turns, [
+    { speaker: "PROSPECT", text: "Orpi bonjour" },
+    { speaker: "SDR", text: "Bonjour, je suis Adam" },
+  ]);
+  assert.equal(r.transcript?.truncated, false);
+  assert.equal(r.link?.confidence, "HIGH");
+});
+
+test("transcripts: a CRM call with no vault link says so and shows the action's own enrichment as unverified", async () => {
+  const v = recordingVault();
+  const { db } = recordingDb({
+    "action.findFirst": () => ({ id: "act-2", result: "RAPPEL", createdAt: new Date(), callSummary: "Rappeler lundi", callTranscription: "USER: allô" }),
+  });
+  const r = await getTranscript(ctx(A, db, v.vault), "act-2");
+  assert.ok(!r.in_vault);
+  assert.equal(r.call_id, null);
+  assert.equal(r.transcript?.text, "USER: allô");
+  assert.match(r.note, /unverified/);
+});
+
+test("transcripts: a vault id outside the tenant is a 404, asked with the key's tenant", async () => {
+  const v = recordingVault();
+  await assert.rejects(getTranscript(ctx(A, recordingDb().db, v.vault), "vc-of-tenant-B"), status(404));
+  assert.deepEqual(v.calls[0].args, ["vc-of-tenant-B", { clientId: "tenant-A", missionId: undefined }]);
+});
+
+test("transcripts: long conversations are cut on a turn boundary and flagged", async () => {
+  const long = "x".repeat(20_000);
+  const v = recordingVault({
+    getCall: async () =>
+      vaultDetail({
+        transcriptSegments: [
+          { speaker: "SDR", source: "USER", text: long },
+          { speaker: "PROSPECT", source: "EXTERNAL", text: long },
+        ],
+      }),
+  });
+  const r = await getTranscript(ctx(INTERNAL, recordingDb().db, v.vault), "vc-1");
+  assert.equal(r.transcript?.turns.length, 1);
+  assert.equal(r.transcript?.truncated, true);
+});
+
+test("transcripts: a vault outage is a 503, never an empty 'nothing was said'", async () => {
+  const fail = async (): Promise<never> => {
+    throw new VaultUnavailableError("call vault unreachable");
+  };
+  const down: VaultReader = { searchCalls: fail, getCall: fail, coverage: fail };
+  await assert.rejects(searchTranscripts(ctx(A, recordingDb().db, down), parseInput(searchTranscriptsParams, {})), status(503));
+  await assert.rejects(getTranscript(ctx(INTERNAL, recordingDb().db, down), "vc-1"), status(503));
+});
+
+test("coverage: internal keys only; SDR ids get names", async () => {
+  await assert.rejects(getCallCoverage(ctx(A, recordingDb().db), parseInput(callCoverageParams, {})), status(403));
+
+  const v = recordingVault({ coverage: async () => ({ bySdr: [{ sdrUserId: "sdr-1" }], sdrsWithoutLine: ["sdr-2"], lines: [] }) });
+  const { db } = recordingDb({ "user.findMany": () => [{ id: "sdr-1", name: "adam" }, { id: "sdr-2", name: "zoe" }] });
+  const r = await getCallCoverage(ctx(INTERNAL, db, v.vault), parseInput(callCoverageParams, { period: "last_7_days" }));
+  assert.deepEqual(r.user_names, { "sdr-1": "adam", "sdr-2": "zoe" });
+  const [from, to] = v.calls[0].args as string[];
+  assert.ok(new Date(from) < new Date(to));
 });

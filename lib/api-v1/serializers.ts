@@ -1,11 +1,14 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { Principal } from "./auth";
+import type { VaultReader } from "../call-vault-client";
 import { actionScope } from "./tenant";
 
 /** What every service receives: the authenticated principal and a DB handle. */
 export interface Ctx {
   p: Principal;
   db: PrismaClient;
+  /** Call-vault reader (transcripts). Defaults to the real HTTP client; tests inject a recorder. */
+  vault?: VaultReader;
 }
 
 /**

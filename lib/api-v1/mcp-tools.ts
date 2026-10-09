@@ -29,6 +29,13 @@ import {
   dailyReportsParams,
   dataQualityParams,
 } from "./services/insights";
+import {
+  searchTranscripts,
+  getTranscript,
+  getCallCoverage,
+  searchTranscriptsParams,
+  callCoverageParams,
+} from "./services/transcripts";
 import { parseInput } from "./input";
 
 export interface ToolDef {
@@ -145,6 +152,23 @@ export const TOOLS: ToolDef[] = [
     shape: { call_id: id("call") },
     idArg: "call_id",
     run: (ctx, a) => getCall(ctx, a.call_id),
+  }),
+  tool({
+    name: "search_transcripts",
+    description:
+      "Search what was SAID on calls: French full-text search over the transcripts and AI summaries of every recorded call (call vault), with highlighted excerpts («…»). Each hit gives the call, its CRM action and result, the contact, company and SDR, and how reliably the recording was linked to the CRM action. Filter by contact, company, SDR, mission, transcript presence and dates. Use get_transcript for the full conversation." + DATES + PAGING,
+    scope: "calls:read",
+    shape: searchTranscriptsParams,
+    run: (ctx, a) => searchTranscripts(ctx, a),
+  }),
+  tool({
+    name: "get_transcript",
+    description:
+      "The full conversation of one call, turn by turn (SDR / PROSPECT), with AI summary, duration, result, contact, company and SDR. `call_id` accepts a CRM call id (from search_calls, get_contact_context) or a vault call id (from search_transcripts).",
+    scope: "calls:read",
+    shape: { call_id: id("call (CRM call id or vault call id)") },
+    idArg: "call_id",
+    run: (ctx, a) => getTranscript(ctx, a.call_id),
   }),
   tool({
     name: "search_activities",
@@ -279,4 +303,16 @@ export const TOOLS: ToolDef[] = [
   }),
 ];
 
-export const toolByName = new Map(TOOLS.map((t) => [t.name, t]));
+/** Registered only for internal all-clients keys (like the admin DB tools): cross-client operations. */
+export const INTERNAL_TOOLS: ToolDef[] = [
+  tool({
+    name: "get_call_coverage",
+    description:
+      "INTERNAL. Are we missing any call, transcript or recording? Per SDR: CRM-logged calls vs calls in the vault, how many were linked, conversations, transcripts present / missing, conversations never logged in the CRM, failed recordings. Per phone line: last sync, errors, history backfill progress. Also lists SDRs whose calls are not synced at all." + DATES,
+    scope: null,
+    shape: callCoverageParams,
+    run: (ctx, a) => getCallCoverage(ctx, a),
+  }),
+];
+
+export const toolByName = new Map([...TOOLS, ...INTERNAL_TOOLS].map((t) => [t.name, t]));

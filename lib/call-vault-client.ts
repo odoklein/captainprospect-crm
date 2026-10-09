@@ -34,6 +34,139 @@ export function vaultRecordingProxyUrl(callId: string): string | null {
   return new URL(`/api/calls/${callId}/recording`, VAULT_API_URL).toString();
 }
 
+// ============================================
+// Transcript reads (MCP). Unlike fetchVaultCallMatches these THROW on failure: an MCP answer of
+// "no transcript found" during a vault outage would be a made-up fact, not a graceful degradation.
+// ============================================
+
+export class VaultUnavailableError extends Error {}
+
+export interface VaultSearchParams {
+  q?: string;
+  /** Tenant of the CRM principal — when set, the vault only returns calls linked to it. */
+  clientId?: string;
+  missionId?: string;
+  actionId?: string;
+  contactId?: string;
+  companyId?: string;
+  sdrUserId?: string;
+  phones?: string[];
+  from?: string;
+  to?: string;
+  hasTranscript?: boolean;
+  cursor?: string;
+  limit: number;
+}
+
+export interface VaultSearchItem {
+  id: string;
+  startedAt: string;
+  durationSec: number;
+  direction: "INBOUND" | "OUTBOUND";
+  remoteNumber: string | null;
+  status: string | null;
+  summary: string | null;
+  hasTranscript: boolean;
+  hasRecording: boolean;
+  snippet: string | null;
+  actionId: string | null;
+  contactId: string | null;
+  companyId: string | null;
+  sdrUserId: string | null;
+  missionId: string | null;
+  clientId: string | null;
+  result: string | null;
+  matchConfidence: "HIGH" | "MEDIUM" | "LOW" | null;
+  matchReason: string | null;
+}
+
+export interface VaultTranscriptSegment {
+  speaker: "SDR" | "PROSPECT" | "AGENT" | "UNKNOWN";
+  source: string;
+  text: string;
+  start?: number;
+  end?: number;
+}
+
+export interface VaultCallDetail {
+  id: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  durationSec: number;
+  direction: "INBOUND" | "OUTBOUND";
+  remoteNumber: string | null;
+  status: string | null;
+  summary: string | null;
+  transcription: string | null;
+  transcriptSegments: VaultTranscriptSegment[] | null;
+  hasRecording: boolean;
+  sdrUserId: string | null;
+  link: {
+    actionId: string;
+    contactId: string | null;
+    companyId: string | null;
+    missionId: string;
+    clientId: string;
+    result: string;
+    loggedAt: string;
+    confidence: "HIGH" | "MEDIUM" | "LOW" | null;
+    reason: string | null;
+  } | null;
+}
+
+/** What the MCP services need from the vault — injectable so tests can record the requests. */
+export interface VaultReader {
+  searchCalls(params: VaultSearchParams): Promise<{ items: VaultSearchItem[]; nextCursor: string | null }>;
+  /** null when the call doesn't exist or isn't visible to the given tenant. */
+  getCall(id: string, opts: { by?: "action"; clientId?: string; missionId?: string }): Promise<VaultCallDetail | null>;
+  coverage(from: string, to: string): Promise<unknown>;
+}
+
+async function vaultGet<T>(path: string, params: Record<string, string | string[] | undefined>, opts: { allow404?: boolean } = {}): Promise<T | null> {
+  if (!VAULT_API_URL || !VAULT_API_KEY) throw new VaultUnavailableError("call vault not configured (VAULT_API_URL / VAULT_API_KEY)");
+  const url = new URL(path, VAULT_API_URL);
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined) continue;
+    for (const one of Array.isArray(v) ? v : [v]) url.searchParams.append(k, one);
+  }
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${VAULT_API_KEY}` }, signal: AbortSignal.timeout(15_000) });
+  } catch (e) {
+    throw new VaultUnavailableError(`call vault unreachable: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  if (res.status === 404 && opts.allow404) return null;
+  if (!res.ok) throw new VaultUnavailableError(`call vault error status=${res.status} path=${url.pathname}`);
+  return (await res.json()) as T;
+}
+
+export const vaultReader: VaultReader = {
+  async searchCalls(p) {
+    const data = await vaultGet<{ items: VaultSearchItem[]; nextCursor: string | null }>("/api/calls/search", {
+      q: p.q,
+      crmClientId: p.clientId,
+      crmMissionId: p.missionId,
+      actionId: p.actionId,
+      contactId: p.contactId,
+      companyId: p.companyId,
+      sdrUserId: p.sdrUserId,
+      phone: p.phones,
+      from: p.from,
+      to: p.to,
+      hasTranscript: p.hasTranscript === undefined ? undefined : String(p.hasTranscript),
+      cursor: p.cursor,
+      limit: String(p.limit),
+    });
+    return data ?? { items: [], nextCursor: null };
+  },
+  getCall(id, o) {
+    return vaultGet<VaultCallDetail>(`/api/calls/${encodeURIComponent(id)}`, { by: o.by, crmClientId: o.clientId, crmMissionId: o.missionId }, { allow404: true });
+  },
+  async coverage(from, to) {
+    return vaultGet<unknown>("/api/calls/coverage", { from, to });
+  },
+};
+
 /**
  * Ranked call matches for one or more candidate phone numbers within a time window.
  * Never throws — a vault outage should degrade to "no match found", not break action creation.

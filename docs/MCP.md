@@ -21,6 +21,8 @@ Le serveur MCP est une route Next.js, `POST /api/mcp` (Streamable HTTP, sans ét
 | `search_companies` / `get_company` | `companies:read` | Recherche / fiche |
 | `search_leads` / `get_lead` | `leads:read` | Prospects travaillés par étape (`min_calls`, `no_appointment`, `callback_due_before`, `date_from`…) |
 | `search_calls` / `get_call` | `calls:read` | Appels ; `get_call` ajoute résumé IA et transcription |
+| `search_transcripts` | `calls:read` | **Ce qui a été dit** : recherche plein texte (français) dans les transcriptions et résumés de tous les appels enregistrés (call-vault), avec extraits surlignés « … », action CRM, contact, société, SDR et fiabilité du rapprochement appel ↔ action |
+| `get_transcript` | `calls:read` | La conversation complète d'un appel, tour par tour (SDR / PROSPECT). Accepte un id d'appel CRM ou un id call-vault |
 | `search_activities` | `activities:read` | Appels, emails, LinkedIn |
 | `search_appointments` | `appointments:read` | RDV (statut, confirmation, à venir, retour client) |
 | `list_teams` / `get_team` | `users:read` | Équipes (= missions) et performance 30 j |
@@ -40,6 +42,7 @@ Ces outils sont **exclusivement visibles et utilisables** par les clés internes
 
 | Outil | Rôle |
 |---|---|
+| `get_call_coverage` | **Rien ne manque ?** Par SDR : appels saisis dans le CRM vs appels dans le call-vault, rapprochements, conversations, transcriptions présentes / manquantes, conversations jamais saisies, enregistrements en échec. Par ligne : dernière synchro, erreurs, avancement du backfill. Liste les SDR dont les appels ne sont pas synchronisés du tout. |
 | `admin_db_overview` | Recensement complet des **138 tables de la base de données** avec volumétrie en direct, classées par domaine métier (CRM, facturation, IA, téléphonie, RH, planning, tickets, audit). |
 | `admin_db_inspect` | Inspection du schéma d'une table : colonnes, types, champs obligatoires, clés étrangères et index. |
 | `admin_db_query` | Moteur de requête universel sur **n'importe quelle table** : filtres WHERE, projections SELECT, jointures relationnelles INCLUDE, tris et pagination. |
@@ -56,9 +59,17 @@ Le serveur envoie aussi des **instructions** à l'agent à la connexion (appeler
 
 Les outils `search_*` / `list_*` partagent `limit` (20, max 100) et `cursor` (`next_cursor` de la page précédente).
 
+### Transcriptions (call-vault)
+
+Les transcriptions ne sont pas stockées dans le CRM : elles vivent dans le service **call-vault** (base séparée), qui synchronise tous les appels Allo de chaque SDR et rapproche chaque appel de l'action CRM qu'il documente (même ligne SDR + même numéro + appel terminé juste avant la saisie, un appel ↔ une action). Le CRM n'affiche rien de plus : seul le MCP les lit.
+
+- **Isolation** : le call-vault n'a pas de notion de client. `search_transcripts` / `get_transcript` lui transmettent toujours le client (et la mission) de la clé ; il ne renvoie alors **que les appels rapprochés d'une action de ce client**. Un appel non rapproché, ou trouvé seulement par numéro de téléphone (un standard peut figurer dans les fichiers de deux clients), n'est jamais visible d'une clé client.
+- **Panne du call-vault** : erreur `vault_unavailable` (503), jamais une réponse vide.
+- `get_transcript` sur un appel CRM sans appel call-vault rapproché renvoie `in_vault: false` et, le cas échéant, ce que l'enrichissement CRM avait stocké sur l'action (rapprochement non vérifié).
+
 ## Variables d'environnement
 
-**Côté serveur Captain Prospect : aucune.** Le MCP réutilise la base et les clés existantes.
+**Côté serveur Captain Prospect :** `VAULT_API_URL` et `VAULT_API_KEY` (déjà utilisées par l'enrichissement des appels) pour les outils de transcription. Rien d'autre : le MCP réutilise la base et les clés existantes.
 
 **Côté client MCP** (seulement si vous passez par un pont local type `mcp-remote`) :
 
