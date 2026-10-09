@@ -1,7 +1,7 @@
 /**
- * The tool-calling loop.
+ * The tool-calling loop powered by OpenAI low-cost models (default: gpt-4o-mini).
  *
- * Mistral Large decides which tool to call; this module decides whether the
+ * OpenAI decides which tool to call; this module decides whether the
  * call is allowed and what the model gets back. The model never sees Prisma, a
  * where-clause, or an id it did not receive from a scoped tool result.
  *
@@ -11,18 +11,19 @@
  */
 
 import {
-    MistralToolCall,
-    MistralToolMessage,
-    getMistralLargeModel,
-    mistralChat,
-} from "@/lib/ai/mistral";
+    OpenAIChatMessage,
+    OpenAIToolCall,
+    getOpenAILowCostModel,
+    openaiChat,
+} from "@/lib/ai/openai";
 import { AssistantContext, PendingActionCard } from "./types";
-import { getTool, toMistralTools } from "./registry";
+import { getTool, toOpenAITools } from "./registry";
 import {
     MAX_TOOL_CALLS_PER_REQUEST,
     executeToolCall,
     serializeToolResult,
 } from "./executor";
+import { calculateTokenCost } from "@/lib/ai/usage";
 
 /** Max model round-trips. Each round may contain several tool calls. */
 export const MAX_LOOP_ITERATIONS = 5;
@@ -47,7 +48,12 @@ export interface AssistantTurn {
     trace: ToolTraceEntry[];
     iterations: number;
     model: string;
-    usage: { promptTokens: number; completionTokens: number; totalTokens: number };
+    usage: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        costEur: number;
+    };
 }
 
 export interface ChatTurn {
@@ -64,11 +70,6 @@ function parseArgs(raw: string): Record<string, unknown> {
     } catch {
         return {};
     }
-}
-
-function toolCallId(call: MistralToolCall, index: number): string {
-    // Mistral requires a 9-character id when results are echoed back.
-    return call.id ?? `tc${String(index).padStart(7, "0")}`;
 }
 
 /** Guidance the model needs to use the catalogue correctly. */
@@ -104,42 +105,53 @@ export async function runAssistantTurn(input: {
     history: ChatTurn[];
     ctx: AssistantContext;
     apiKey: string;
+    model?: string;
 }): Promise<AssistantTurn> {
     const { ctx, apiKey } = input;
 
-    const messages: MistralToolMessage[] = [
+    const messages: OpenAIChatMessage[] = [
         { role: "system", content: input.systemPrompt },
-        ...input.history.map((m) => ({ role: m.role, content: m.content })),
+        ...input.history.map((m) => ({
+            role: m.role,
+            content: m.content,
+        })),
     ];
 
     const trace: ToolTraceEntry[] = [];
-    const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-    let model = getMistralLargeModel();
+    const rawUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    const selectedModel = input.model ?? getOpenAILowCostModel();
+    let model = selectedModel;
     let toolBudget = MAX_TOOL_CALLS_PER_REQUEST;
 
     for (let iteration = 1; iteration <= MAX_LOOP_ITERATIONS; iteration++) {
-        const result = await mistralChat(apiKey, {
+        const result = await openaiChat(apiKey, {
             messages,
             // Once the budget is spent the tools are withdrawn, which forces the
             // model to conclude with what it already has.
-            tools: toolBudget > 0 ? toMistralTools(ctx) : undefined,
+            tools: toolBudget > 0 ? toOpenAITools(ctx) : undefined,
+            model: selectedModel,
         });
 
         model = result.model ?? model;
-        usage.promptTokens += result.usage?.promptTokens ?? 0;
-        usage.completionTokens += result.usage?.completionTokens ?? 0;
-        usage.totalTokens += result.usage?.totalTokens ?? 0;
+        rawUsage.promptTokens += result.usage?.promptTokens ?? 0;
+        rawUsage.completionTokens += result.usage?.completionTokens ?? 0;
+        rawUsage.totalTokens += result.usage?.totalTokens ?? 0;
 
         const toolCalls = result.message.tool_calls ?? [];
 
         if (toolCalls.length === 0) {
+            const { costEur } = calculateTokenCost(
+                rawUsage.promptTokens,
+                rawUsage.completionTokens,
+                model
+            );
             return {
                 answer: (result.message.content || "").trim() || "Je n'ai pas de réponse à donner.",
                 proposedAction: null,
                 trace,
                 iterations: iteration,
                 model,
-                usage,
+                usage: { ...rawUsage, costEur },
             };
         }
 
@@ -151,19 +163,21 @@ export async function runAssistantTurn(input: {
             const args = parseArgs(call.function.arguments);
             let card: PendingActionCard;
             try {
-                // Resolved from the database, not echoed from the model — if it
-                // invented an id, this is where it fails, before anything is
-                // shown to the manager as actionable.
                 card = tool.describe
                     ? await tool.describe(args, ctx)
                     : {
-                        title: tool.label,
-                        details: [],
-                        warning: null,
-                        confirmLabel: "Confirmer",
-                        danger: false,
-                    };
+                          title: tool.label,
+                          details: [],
+                          warning: null,
+                          confirmLabel: "Confirmer",
+                          danger: false,
+                      };
             } catch (error) {
+                const { costEur } = calculateTokenCost(
+                    rawUsage.promptTokens,
+                    rawUsage.completionTokens,
+                    model
+                );
                 return {
                     answer:
                         (result.message.content?.trim() ? `${result.message.content.trim()}\n\n` : "") +
@@ -174,32 +188,36 @@ export async function runAssistantTurn(input: {
                     trace,
                     iterations: iteration,
                     model,
-                    usage,
+                    usage: { ...rawUsage, costEur },
                 };
             }
 
+            const { costEur } = calculateTokenCost(
+                rawUsage.promptTokens,
+                rawUsage.completionTokens,
+                model
+            );
             return {
                 answer: (result.message.content || "").trim(),
                 proposedAction: { tool: tool.name, args, card },
                 trace,
                 iterations: iteration,
                 model,
-                usage,
+                usage: { ...rawUsage, costEur },
             };
         }
 
         messages.push({
             role: "assistant",
-            content: result.message.content ?? "",
+            content: result.message.content,
             tool_calls: toolCalls,
         });
 
-        for (const [index, call] of toolCalls.entries()) {
+        for (const call of toolCalls) {
             if (toolBudget <= 0) {
                 messages.push({
                     role: "tool",
-                    name: call.function.name,
-                    tool_call_id: toolCallId(call, index),
+                    tool_call_id: call.id,
                     content: JSON.stringify({
                         error: {
                             code: "tool_budget_exhausted",
@@ -213,7 +231,7 @@ export async function runAssistantTurn(input: {
 
             const execution = await executeToolCall(
                 { id: call.id, name: call.function.name, arguments: call.function.arguments },
-                ctx,
+                ctx
             );
 
             trace.push({
@@ -226,13 +244,17 @@ export async function runAssistantTurn(input: {
 
             messages.push({
                 role: "tool",
-                name: call.function.name,
-                tool_call_id: toolCallId(call, index),
+                tool_call_id: call.id,
                 content: serializeToolResult(execution),
             });
         }
     }
 
+    const { costEur } = calculateTokenCost(
+        rawUsage.promptTokens,
+        rawUsage.completionTokens,
+        model
+    );
     return {
         answer:
             "Je n'ai pas réussi à aboutir après plusieurs recherches. Reformule en précisant ce que tu cherches.",
@@ -240,6 +262,6 @@ export async function runAssistantTurn(input: {
         trace,
         iterations: MAX_LOOP_ITERATIONS,
         model,
-        usage,
+        usage: { ...rawUsage, costEur },
     };
 }

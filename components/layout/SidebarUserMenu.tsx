@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
 import { UserAvatar, useMyAvatar } from "@/components/settings/Avatar";
 import { ROLE_LABEL } from "@/components/settings/roles";
+import { LogoutConfirmModal } from "@/components/auth/LogoutConfirmModal";
 
 /** Personal settings page per role; `sections` = it understands ?section=. */
 const SETTINGS: Partial<Record<UserRole, { path: string; sections: boolean }>> = {
@@ -36,6 +37,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
     const { data: avatar } = useMyAvatar();
     const { success: toastSuccess, error: toastError } = useToast();
     const [open, setOpen] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [loggingOutOthers, setLoggingOutOthers] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -183,7 +185,10 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     <button
                         type="button"
                         role="menuitem"
-                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        onClick={() => {
+                            setOpen(false);
+                            setShowLogoutConfirm(true);
+                        }}
                         className={cn(ITEM, "text-red-400 hover:text-red-300 hover:bg-red-500/[0.12] focus-visible:text-red-300 focus-visible:bg-red-500/[0.12]")}
                     >
                         <LogOut className="w-3.5 h-3.5" aria-hidden />
@@ -232,6 +237,11 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     </>
                 )}
             </button>
+
+            <LogoutConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+            />
         </div>
     );
 }

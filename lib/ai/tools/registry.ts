@@ -11,6 +11,7 @@
  */
 
 import type { MistralToolSpec } from "@/lib/ai/mistral";
+import type { OpenAIToolSpec } from "@/lib/ai/openai";
 import { AssistantContext, AnyToolDefinition } from "./types";
 import { listAccessibleTools } from "./guard";
 
@@ -120,6 +121,18 @@ export function getToolsForContext(ctx: AssistantContext): AnyToolDefinition[] {
 
 /** Mistral function-calling schema for the tools this caller may use. */
 export function toMistralTools(ctx: AssistantContext): MistralToolSpec[] {
+    return getToolsForContext(ctx).map((tool) => ({
+        type: "function" as const,
+        function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters as unknown as Record<string, unknown>,
+        },
+    }));
+}
+
+/** OpenAI function-calling schema for the tools this caller may use. */
+export function toOpenAITools(ctx: AssistantContext): OpenAIToolSpec[] {
     return getToolsForContext(ctx).map((tool) => ({
         type: "function" as const,
         function: {

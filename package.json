@@ -34,6 +34,8 @@
     "test:hr:all": "tsx --test lib/hr/hr-calculation-service.test.ts lib/hr/hr-integration.test.ts"
   },
   "dependencies": {
+    "@assistant-ui/react": "^0.15.25",
+    "@assistant-ui/react-markdown": "^0.14.19",
     "@aws-sdk/client-s3": "^3.968.0",
     "@aws-sdk/s3-request-presigner": "^3.968.0",
     "@hookform/resolvers": "^5.2.2",

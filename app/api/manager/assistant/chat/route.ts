@@ -21,7 +21,7 @@ import {
     withErrorHandler,
     NotFoundError,
 } from "@/lib/api-utils";
-import { MistralError } from "@/lib/ai/mistral";
+import { OpenAIError } from "@/lib/ai/openai";
 import { buildAssistantContext } from "@/lib/ai/tools/context";
 import { buildToolUsagePrompt, runAssistantTurn, type ChatTurn } from "@/lib/ai/tools/loop";
 import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
@@ -113,8 +113,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             apiKey: process.env.OPENAI_API_KEY,
         });
     } catch (error) {
-        if (error instanceof MistralError) {
-            console.error("[assistant.chat] mistral", error.code, error.message);
+        if (error instanceof OpenAIError) {
+            console.error("[assistant.chat] openai", error.code, error.message);
             return errorResponse(error.userMessage, error.status === 429 ? 429 : 502);
         }
         console.error("[assistant.chat] turn failed", error);
@@ -133,6 +133,11 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         }
         : null;
 
+    const traceData = {
+        entries: turn.trace,
+        usage: turn.usage,
+    };
+
     const [, assistantMessage] = await prisma.$transaction([
         prisma.assistantMessage.create({
             data: { conversationId: conversation.id, role: "USER", content: body.message },
@@ -142,7 +147,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 conversationId: conversation.id,
                 role: "ASSISTANT",
                 content: turn.answer || (action ? "Voici l'action que je propose :" : "—"),
-                trace: (turn.trace.length > 0 ? turn.trace : undefined) as unknown as Prisma.InputJsonValue,
+                trace: (traceData as unknown) as Prisma.InputJsonValue,
                 action: (action ?? undefined) as unknown as Prisma.InputJsonValue,
             },
             select: { id: true, content: true, createdAt: true },
