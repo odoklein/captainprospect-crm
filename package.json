@@ -57,7 +57,7 @@
     "dotenv": "^17.2.3",
     "googleapis": "^170.0.0",
     "imapflow": "^1.2.6",
-    "ioredis": "^5.9.2",
+    "ioredis": "^5.10.1",
     "juice": "^11.1.0",
     "libphonenumber-js": "^1.12.40",
     "lru-cache": "^11.1.0",
