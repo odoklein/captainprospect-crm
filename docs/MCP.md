@@ -26,6 +26,29 @@ Le serveur MCP est une route Next.js, `POST /api/mcp` (Streamable HTTP, sans ét
 | `list_teams` / `get_team` | `users:read` | Équipes (= missions) et performance 30 j |
 | `list_users` / `get_user` | `users:read` | SDR visibles (nom, rôle) et activité 30 j |
 | `get_sales_report` | `reports:read` | **L'outil des chiffres** : appels, **contacts et entreprises uniques appelés**, taux de joignabilité, résultats par catégorie, série par jour, par SDR / mission, comparaison avec la période précédente |
+| `list_missions` / `get_mission` | `missions:read` | Missions, campagnes, playbook, scripts et équipes |
+| `list_campaigns` / `get_campaign` | `missions:read` | Scripts, pitchs, ICP et règles de prospection |
+| `list_lists` / `get_list` | `lists:read` | Fichiers de prospection, taux de couverture et complétude |
+| `get_rdv_overview` | `appointments:read` | Bilan complet des RDV (tenus, annulés, no-shows, SAS) |
+| `list_exclusions` | `contacts:read` | Règles "ne plus contacter" (société, contact, motifs) |
+| `get_daily_reports` | `reports:read` | Retours terrain fin de journée des SDR (bloqueurs, pitch) |
+| `get_data_quality` | `contacts:read` | Santé des bases : doublons, manques d'emails/téléphones |
+
+### Outils Super-Administrateur (`flag:all_clients`)
+
+Ces outils sont **exclusivement visibles et utilisables** par les clés internes all-clients (managers de l'agence) :
+
+| Outil | Rôle |
+|---|---|
+| `admin_db_overview` | Recensement complet des **138 tables de la base de données** avec volumétrie en direct, classées par domaine métier (CRM, facturation, IA, téléphonie, RH, planning, tickets, audit). |
+| `admin_db_inspect` | Inspection du schéma d'une table : colonnes, types, champs obligatoires, clés étrangères et index. |
+| `admin_db_query` | Moteur de requête universel sur **n'importe quelle table** : filtres WHERE, projections SELECT, jointures relationnelles INCLUDE, tris et pagination. |
+| `admin_db_get_record` | Extraction chirurgicale d'un enregistrement par ID avec relations profondes. |
+| `admin_db_aggregate` | Calculs d'agrégation (sommes, moyennes, comptages, groupBy) sur toute la base. |
+| `admin_db_sql` | Exécution de requêtes SQL brutes en lecture seule (`SELECT` / `WITH`) sans restriction de tenant. Mutations (`DROP`, `DELETE`, etc.) strictement bloquées. |
+
+*Note de sécurité* : Les secrets cryptographiques (mots de passe hachés en bcrypt, tokens, clés secrètes) sont automatiquement caviardés (`[REDACTED_SECRET]`) sur l'ensemble des retours.
+
 
 Tous les outils de recherche et le rapport acceptent `period` (`today`, `yesterday`, `this_week`, `last_week`, `this_month`, `last_month`, `last_7_days`, `last_30_days`, `this_year`), calculé en heure de Paris : l'agent n'a pas à deviner les dates.
 
