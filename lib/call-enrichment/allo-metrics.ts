@@ -1,4 +1,5 @@
 import { parseAlloCallsListResponse } from "./allo-response";
+import { DateTime } from "luxon";
 
 export interface AlloLineMetrics {
     calls: number;
@@ -24,6 +25,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
+const dailyCache = new Map<string, { data: Map<string, number>; expiresAt: number }>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 
 function normalizeDay(date: Date): string {
@@ -180,3 +182,104 @@ export async function fetchAlloMetricsForLine(
 
     return totals;
 }
+
+/**
+ * Fetches daily call counts from WithAllo strictly partitioned by phone line.
+ * Returns a Map where the key is the Europe/Paris day 'YYYY-MM-DD' and value is the call count.
+ */
+export async function fetchAlloDailyCallsForLine(
+    alloPhoneNumber: string | null | undefined,
+    dateFrom: Date,
+    dateTo: Date,
+    apiKeyOverride?: string
+): Promise<Map<string, number>> {
+    const dailyMap = new Map<string, number>();
+
+    if (!alloPhoneNumber || !alloPhoneNumber.trim()) {
+        return dailyMap;
+    }
+
+    const apiKey = apiKeyOverride || process.env.ALLO_API_KEY;
+    if (!apiKey) {
+        return dailyMap;
+    }
+
+    const cleanNumber = cleanPhoneNumber(alloPhoneNumber);
+    const fromIso = normalizeDay(dateFrom);
+    const toIso = normalizeDay(dateTo);
+    const cacheKey = `${cleanNumber}:daily:${fromIso}:${toIso}`;
+
+    const cached = dailyCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+        return new Map(cached.data);
+    }
+
+    let page = 0;
+    while (page < ALLO_MAX_PAGES) {
+        const url = new URL(`${ALLO_BASE_URL}/v1/api/calls`);
+        url.searchParams.set("allo_number", cleanNumber);
+        url.searchParams.set("size", "100");
+        url.searchParams.set("page", String(page));
+
+        try {
+            const res = await fetch(url.toString(), {
+                headers: { Authorization: apiKey },
+                cache: "no-store",
+            });
+
+            if (!res.ok) break;
+
+            const body = await res.json();
+            const parsed = parseAlloCallsListResponse(body);
+            if (!parsed.rawCalls.length) break;
+
+            let oldestCallDateOnPage: Date | null = null;
+            for (const call of parsed.rawCalls) {
+                const rawStart =
+                    call.start_date ??
+                    call.start_time ??
+                    call.created_at ??
+                    call.date;
+                if (!rawStart) continue;
+
+                let start: Date;
+                if (typeof rawStart === "number") {
+                    start = new Date(rawStart > 1e12 ? rawStart : rawStart * 1000);
+                } else {
+                    start = new Date(String(rawStart));
+                }
+
+                if (Number.isNaN(start.getTime())) continue;
+
+                if (!oldestCallDateOnPage || start < oldestCallDateOnPage) {
+                    oldestCallDateOnPage = start;
+                }
+
+                if (start < dateFrom || start > dateTo) continue;
+
+                // Day key in Europe/Paris
+                const dayKey = DateTime.fromJSDate(start, { zone: "Europe/Paris" }).toISODate();
+                if (dayKey) {
+                    dailyMap.set(dayKey, (dailyMap.get(dayKey) || 0) + 1);
+                }
+            }
+
+            if (oldestCallDateOnPage && oldestCallDateOnPage < dateFrom) {
+                break;
+            }
+
+            page += 1;
+        } catch (err) {
+            console.error("[allo-metrics] Error querying daily WithAllo calls:", err);
+            break;
+        }
+    }
+
+    dailyCache.set(cacheKey, {
+        data: dailyMap,
+        expiresAt: Date.now() + CACHE_TTL_MS,
+    });
+
+    return dailyMap;
+}
+

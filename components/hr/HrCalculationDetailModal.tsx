@@ -312,7 +312,14 @@ export function HrCalculationDetailModal({
                           <td className="px-3 py-2">
                             <DayType d={d} />
                           </td>
-                          <td className="px-3 py-2 font-semibold tabular-nums text-slate-800">
+                          <td
+                            className="px-3 py-2 font-semibold tabular-nums text-slate-800"
+                            title={
+                              d.alloCallCount !== undefined
+                                ? `WithAllo : ${d.alloCallCount} appel(s) | Actions CRM : ${d.crmActionCount ?? 0}`
+                                : undefined
+                            }
+                          >
                             {d.callCount}
                             {d.isWorkingDay && !d.isAbsence && data.dailyQuota > 0 && (
                               <span className="font-normal text-slate-400"> / {data.dailyQuota}</span>

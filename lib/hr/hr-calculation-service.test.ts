@@ -121,6 +121,39 @@ describe("Monthly computation", () => {
     const r = computeMonth(input({ profile: { ...input().profile, dailyQuota: 0 } }));
     assert.equal(r.daysUnderQuotaCount, 0);
   });
+
+  it("prioritizes WithAllo calls and falls back to CRM actions when Allo is 0", () => {
+    const alloCalls = new Map([
+      ["2026-09-01", 85], // Allo has 85, CRM has 50 -> takes 85
+      ["2026-09-02", 0],  // Allo has 0, CRM has 40 -> falls back to 40
+      // 2026-09-03 has no Allo entry, CRM has 80 -> falls back to 80
+    ]);
+    const crmCalls = new Map([
+      ["2026-09-01", 50],
+      ["2026-09-02", 40],
+      ["2026-09-03", 80],
+    ]);
+    const r = computeMonth(
+      input({
+        alloCallsByDay: alloCalls,
+        crmCallsByDay: crmCalls,
+      })
+    );
+    const day1 = r.days.find((d) => d.date === "2026-09-01")!;
+    const day2 = r.days.find((d) => d.date === "2026-09-02")!;
+    const day3 = r.days.find((d) => d.date === "2026-09-03")!;
+
+    assert.equal(day1.callCount, 85);
+    assert.equal(day1.alloCallCount, 85);
+    assert.equal(day1.crmActionCount, 50);
+
+    assert.equal(day2.callCount, 40);
+    assert.equal(day2.alloCallCount, 0);
+    assert.equal(day2.crmActionCount, 40);
+
+    assert.equal(day3.callCount, 80);
+    assert.equal(day3.crmActionCount, 80);
+  });
 });
 
 describe("Status workflow", () => {

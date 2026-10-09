@@ -10,12 +10,14 @@ describe("HR Module Database & Service Integration", () => {
   const testMonth = "2026-09";
 
   before(async () => {
-    // Find or pick a test user
-    const user = await prisma.user.findFirst({
-      where: { role: "SDR" },
+    // Find or pick an active SDR user
+    let user = await prisma.user.findFirst({
+      where: { role: "SDR", isActive: true },
     });
     if (!user) {
-      throw new Error("No SDR user found for integration testing");
+      user = await prisma.user.findFirst({ where: { role: "SDR" } });
+      if (!user) throw new Error("No SDR user found for integration testing");
+      await prisma.user.update({ where: { id: user.id }, data: { isActive: true } });
     }
     testUserId = user.id;
   });

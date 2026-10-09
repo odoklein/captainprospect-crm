@@ -19,6 +19,7 @@ import {
   resolveStatusTransition,
   todayParisKey,
 } from "./hr-rules";
+import { fetchAlloDailyCallsForLine } from "@/lib/call-enrichment/allo-metrics";
 
 const HR_ROLES = ["SDR", "MANAGER"] as const;
 
@@ -27,6 +28,7 @@ type UserWithProfile = {
   name: string;
   email: string;
   role: string;
+  alloPhoneNumber: string | null;
   managerId: string | null;
   manager: { id: string; name: string } | null;
   hrProfile: {
@@ -44,6 +46,7 @@ const userSelect = {
   name: true,
   email: true,
   role: true,
+  alloPhoneNumber: true,
   managerId: true,
   manager: { select: { id: true, name: true } },
   hrProfile: true,
@@ -119,7 +122,7 @@ function buildMissionsByUserDay(callRows: MissionActionRow[], rdvRows: MissionAc
 async function loadMonthContext(userIds: string[], monthStr: string) {
   const b = bounds(monthStr);
 
-  const [holidays, absences, calls, rdvs, records] = await Promise.all([
+  const [holidays, absences, calls, rdvs, records, users] = await Promise.all([
     prisma.planningHoliday.findMany({
       where: { scope: "GLOBAL", date: { gte: b.dateStart, lte: b.dateEnd } },
     }),
@@ -167,15 +170,67 @@ async function loadMonthContext(userIds: string[], monthStr: string) {
       where: { userId: { in: userIds }, month: monthStr },
       include: { dayDecisions: true },
     }),
+    prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, alloPhoneNumber: true },
+    }),
   ]);
 
   const holidayMap = new Map<string, string>();
   holidays.forEach((h) => holidayMap.set(dateColumnKey(h.date), h.label || "Jour férié"));
 
+  const crmCallsByUser = countByUserDay(calls.map((c) => ({ sdrId: c.sdrId, day: c.createdAt })));
+
+  // Fetch WithAllo daily calls strictly partitioned by each user's alloPhoneNumber
+  const alloCallsByUser = new Map<string, Map<string, number>>();
+  await Promise.all(
+    users
+      .filter((u) => Boolean(u.alloPhoneNumber))
+      .map(async (u) => {
+        try {
+          const map = await fetchAlloDailyCallsForLine(
+            u.alloPhoneNumber,
+            b.activityStart,
+            b.activityEndExclusive
+          );
+          alloCallsByUser.set(u.id, map);
+        } catch (err) {
+          console.error(`[HR] Error fetching WithAllo calls for user ${u.id}:`, err);
+        }
+      })
+  );
+
+  // Combine effective calls per user per day:
+  // "dont forget on RH it should count firstly on appel allo if 0 push back to CRM actions"
+  const effectiveCallsByUser = new Map<string, Map<string, number>>();
+  for (const userId of userIds) {
+    const userEffective = new Map<string, number>();
+    const userAllo = alloCallsByUser.get(userId);
+    const userCrm = crmCallsByUser.get(userId);
+
+    const allDays = new Set<string>();
+    if (userAllo) {
+      for (const d of userAllo.keys()) allDays.add(d);
+    }
+    if (userCrm) {
+      for (const d of userCrm.keys()) allDays.add(d);
+    }
+
+    for (const day of allDays) {
+      const alloCount = userAllo?.get(day) ?? 0;
+      const crmCount = userCrm?.get(day) ?? 0;
+      userEffective.set(day, alloCount > 0 ? alloCount : crmCount);
+    }
+
+    effectiveCallsByUser.set(userId, userEffective);
+  }
+
   return {
     holidayMap,
     absences,
-    callsByUser: countByUserDay(calls.map((c) => ({ sdrId: c.sdrId, day: c.createdAt }))),
+    callsByUser: effectiveCallsByUser,
+    alloCallsByUser,
+    crmCallsByUser,
     rdvByUser: countByUserDay(rdvs.map((r) => ({ sdrId: r.sdrId, day: r.callbackDate ?? r.createdAt }))),
     missionsByUser: buildMissionsByUserDay(
       calls.map((c) => ({ sdrId: c.sdrId, day: c.createdAt, missionId: c.campaign?.missionId, missionName: c.campaign?.mission?.name })),
@@ -209,6 +264,8 @@ function computeForUser(user: UserWithProfile, monthStr: string, ctx: MonthConte
       .filter((a) => a.sdrId === user.id)
       .map((a) => ({ start: dateColumnKey(a.startDate), end: dateColumnKey(a.endDate), type: a.type })),
     callsByDay: ctx.callsByUser.get(user.id) ?? new Map(),
+    alloCallsByDay: ctx.alloCallsByUser.get(user.id),
+    crmCallsByDay: ctx.crmCallsByUser.get(user.id),
     rdvByDay: ctx.rdvByUser.get(user.id) ?? new Map(),
     missionsByDay: ctx.missionsByUser.get(user.id) ?? new Map(),
     decisions,

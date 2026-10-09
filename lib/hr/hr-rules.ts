@@ -62,6 +62,8 @@ export interface MonthComputationInput {
   holidays: Map<string, string>;
   absences: { start: string; end: string; type: string }[];
   callsByDay: Map<string, number>;
+  alloCallsByDay?: Map<string, number>;
+  crmCallsByDay?: Map<string, number>;
   rdvByDay: Map<string, number>;
   missionsByDay: Map<string, { missionId: string; missionName: string; calls: number; rdv: number }[]>;
   decisions: Map<string, { decision: HrDayDecision; reason: string; decidedAt?: string }>;
@@ -121,7 +123,12 @@ export function computeMonth(input: MonthComputationInput): MonthComputation {
     // Today and later can't be judged yet: the day isn't over.
     const isFuture = date >= input.todayKey;
 
-    const callCount = input.callsByDay.get(date) || 0;
+    const alloCallCount = input.alloCallsByDay?.get(date);
+    const crmActionCount = input.crmCallsByDay?.get(date);
+    const callCount =
+      input.alloCallsByDay !== undefined
+        ? (alloCallCount && alloCallCount > 0 ? alloCallCount : (crmActionCount ?? input.callsByDay.get(date) ?? 0))
+        : (input.callsByDay.get(date) || 0);
     const rdvCount = input.rdvByDay.get(date) || 0;
     totalCalls += callCount;
     totalRdv += rdvCount;
@@ -145,6 +152,8 @@ export function computeMonth(input: MonthComputationInput): MonthComputation {
       absenceType: absence?.type,
       isFuture,
       callCount,
+      alloCallCount,
+      crmActionCount,
       rdvCount,
       missions: input.missionsByDay.get(date) ?? [],
       isUnderQuota,
