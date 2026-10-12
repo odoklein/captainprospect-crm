@@ -136,6 +136,8 @@ async function vaultGet<T>(path: string, params: Record<string, string | string[
     throw new VaultUnavailableError(`call vault unreachable: ${e instanceof Error ? e.message : String(e)}`);
   }
   if (res.status === 404 && opts.allow404) return null;
+  if (res.status === 401) throw new VaultUnavailableError("call vault rejected VAULT_API_KEY (invalid, revoked or expired)");
+  if (res.status === 403) throw new VaultUnavailableError(`call vault refused ${url.pathname}: this needs an operator (non client-bound) VAULT_API_KEY`);
   if (!res.ok) throw new VaultUnavailableError(`call vault error status=${res.status} path=${url.pathname}`);
   return (await res.json()) as T;
 }
