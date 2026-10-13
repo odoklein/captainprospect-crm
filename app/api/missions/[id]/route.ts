@@ -14,6 +14,7 @@ import { canTransitionMissionStatus } from '@/lib/constants/missionStatus';
 import type { MissionStatusValue } from '@/lib/constants/missionStatus';
 import { isMissionInPortalLaunch } from '@/lib/portal-visibility';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
+import { getCooldownDisabledListIds } from '@/lib/sdr-queue/cooldown';
 
 // ============================================
 // SCHEMAS
@@ -326,9 +327,11 @@ export const GET = withErrorHandler(async (
         };
     };
 
+    const cooldownOffListIds = await getCooldownDisabledListIds(mission.lists.map((l) => l.id));
     const listsWithReadiness = mission.lists.map((l) => ({
         ...l,
         readiness: computeReadiness(l.campaign as LinkedCampaign),
+        queueCooldownEnabled: !cooldownOffListIds.has(l.id),
     }));
 
     const activeListsWithReadiness = listsWithReadiness.filter(

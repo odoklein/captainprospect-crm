@@ -51,6 +51,7 @@ import { AlreadyContactedModal, type AlreadyContactedInfo } from "@/components/s
 import { ActionQueueToolbar } from "@/components/sdr/ActionQueueToolbar";
 import { AbsentsToTreatButton, ABSENTS_TO_TREAT_QUERY_KEY, type AbsentToTreat } from "@/components/sdr/AbsentsToTreat";
 import { DEFAULT_QUEUE_FILTERS, hasAnyQueueFilter, matchesQueueFilters, prepareSearch, type QueueFilters } from "@/lib/sdr-queue/queue-filters";
+import type { PausedSummary } from "@/lib/sdr-queue/cooldown";
 import { useSidebar } from "@/components/layout/SidebarProvider";
 
 const UnifiedActionDrawer = dynamic(
@@ -329,6 +330,30 @@ const getInitials = (firstName?: string | null, lastName?: string | null, fallba
 };
 
 const TABLE_QUEUE_LIMIT = 120;
+
+/** "à 14:55", or "demain à 09:10" — a paused row comes back at most 24 h later. */
+function formatReturnTime(iso: string): string {
+    const d = new Date(iso);
+    const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return d.toDateString() === new Date().toDateString() ? `à ${time}` : `demain à ${time}`;
+}
+
+/** Why rows of one type are missing: called in the last 24 h, and when the first one is back. */
+function pausedSentence(paused: PausedSummary | null, type: "contact" | "company"): string | null {
+    if (!paused) return null;
+    const count = type === "contact" ? paused.contacts : paused.companies;
+    const nextAt = type === "contact" ? paused.nextContactAt : paused.nextCompanyAt;
+    if (count <= 0 || !nextAt) return null;
+    const when = formatReturnTime(nextAt);
+    if (type === "contact") {
+        return count > 1
+            ? `${count} contacts déjà appelés dans les dernières 24 h sont en pause : ils reviennent automatiquement, le premier ${when}.`
+            : `1 contact déjà appelé dans les dernières 24 h est en pause : il revient automatiquement ${when}.`;
+    }
+    return count > 1
+        ? `${count} sociétés déjà appelées dans les dernières 24 h sont en pause : elles reviennent automatiquement, la première ${when}.`
+        : `1 société déjà appelée dans les dernières 24 h est en pause : elle revient automatiquement ${when}.`;
+}
 const STATS_QUEUE_LIMIT = 250;
 
 const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
@@ -591,7 +616,7 @@ export default function SDRActionPage() {
             _searchNote: i.lastAction?.note ?? null,
         })), []);
     const {
-        data: queueItems = [],
+        data: queueData,
         isLoading: queueInitialLoading,
         error: queueFetchError,
     } = useQuery({
@@ -604,10 +629,16 @@ export default function SDRActionPage() {
             const res = await fetch(`/api/sdr/action-queue?${params.toString()}`);
             const json = await res.json();
             if (!json.success || !json.data?.items) throw new Error(json.error || "Impossible de charger la file d'actions");
-            return mapQueueItems(json.data.items as QueueItem[]);
+            return {
+                items: mapQueueItems(json.data.items as QueueItem[]),
+                // Rows held back by the 24 h pause, for the empty state.
+                paused: (json.data.paused ?? null) as PausedSummary | null,
+            };
         },
         enabled: viewMode === "table" && selectedMissionId !== null,
     });
+    const queueItems = useMemo(() => queueData?.items ?? [], [queueData]);
+    const queuePaused = queueData?.paused ?? null;
     const queueFetchErrorMsg = queueFetchError ? (queueFetchError as Error).message : null;
     const [submittingRowKey, setSubmittingRowKey] = useState<string | null>(null);
     // Table view multi-select for bulk delete (disqualify)
@@ -1035,7 +1066,8 @@ export default function SDRActionPage() {
     const clearTableFilters = () => setTableFilters({ ...DEFAULT_QUEUE_FILTERS, type: "" });
 
     // Why is the table empty? (so SDR/BD see a clear reason instead of a generic empty message)
-    const emptyTableReason = useMemo((): { title: string; description: string; icon: typeof AlertCircle } => {
+    // `switchToType`: the other tab (Contacts / Sociétés) has rows — the empty state offers to open it.
+    const emptyTableReason = useMemo((): { title: string; description: string; icon: typeof AlertCircle; switchToType?: { type: "contact" | "company"; count: number } } => {
         if (missions.length === 0) {
             return {
                 icon: AlertCircle,
@@ -1046,8 +1078,8 @@ export default function SDRActionPage() {
         if (selectableMissions.length === 0) {
             return {
                 icon: AlertCircle,
-                title: "Aucune mission planifiée",
-                description: "Vous ne pouvez travailler que sur vos missions planifiées (aujourd'hui ou cette semaine).",
+                title: "Aucune mission planifiée aujourd'hui",
+                description: "Vous ne pouvez travailler que sur les missions de votre planning du jour. Demandez à votre manager de vous ajouter un créneau.",
             };
         }
         if (!selectedMissionId) {
@@ -1071,11 +1103,35 @@ export default function SDRActionPage() {
                 description: `Aucun contact ou société ne correspond à « ${tableFilters.search.trim()} ». Modifiez la recherche ou les filtres, ou videz le champ pour voir toute la file.`,
             };
         }
+        // Only the Contacts / Sociétés tab hides everything: say why this tab is empty and point to the other one.
+        if (!hasAnyQueueFilter(tableFilters) && tableFilters.type !== "" && queueItems.length > 0 && filteredQueueItems.length === 0) {
+            const onContacts = tableFilters.type === "contact";
+            const otherCount = queueItems.filter((r) => (onContacts ? !r.contactId : !!r.contactId)).length;
+            const pause = pausedSentence(queuePaused, onContacts ? "contact" : "company");
+            const otherTab = onContacts
+                ? `${otherCount} société${otherCount > 1 ? "s" : ""} sans contact ${otherCount > 1 ? "sont disponibles" : "est disponible"} dans l'onglet Sociétés.`
+                : `${otherCount} contact${otherCount > 1 ? "s sont disponibles" : " est disponible"} dans l'onglet Contacts.`;
+            return {
+                icon: onContacts ? Clock : Building2,
+                title: onContacts ? "Aucun contact à appeler pour le moment" : "Aucune société à appeler pour le moment",
+                description: [pause ?? (onContacts ? "Il ne reste aucun contact à appeler." : "Il ne reste aucune société à appeler."), otherTab].join(" "),
+                switchToType: { type: onContacts ? "company" : "contact", count: otherCount },
+            };
+        }
         if (hasTableFiltersActive && queueItems.length > 0 && filteredQueueItems.length === 0) {
             return {
                 icon: Filter,
                 title: "Aucun contact ne correspond aux filtres",
                 description: "Les filtres (priorité, téléphone, statut, canal ou type) excluent tous les contacts. Réinitialisez-les pour tout réafficher.",
+            };
+        }
+        // Everything left was called in the last 24 h: not a data loss, it comes back by itself.
+        if (queueItems.length === 0 && queuePaused && queuePaused.total > 0) {
+            const parts = [pausedSentence(queuePaused, "contact"), pausedSentence(queuePaused, "company")].filter(Boolean);
+            return {
+                icon: Clock,
+                title: "Tout est en pause 24 h",
+                description: `Rien n'a disparu : toutes les lignes restantes ont déjà été appelées dans les dernières 24 h. ${parts.join(" ")} Les résultats finaux (RDV pris, refus, faux numéro…) ne reviennent pas. Actualisez la page pour voir les lignes revenues.`,
             };
         }
         if (queueItems.length === 0) {
@@ -1090,7 +1146,7 @@ export default function SDRActionPage() {
             title: "Aucun contact affiché",
             description: "Aucun contact ne correspond aux critères actuels. Réinitialisez les filtres ou la recherche.",
         };
-    }, [missions.length, selectableMissions.length, selectedMissionId, filteredLists.length, tableFilters.search, hasTableFiltersActive, queueItems.length, filteredQueueItems.length]);
+    }, [missions.length, selectableMissions.length, selectedMissionId, filteredLists.length, tableFilters, hasTableFiltersActive, queueItems, filteredQueueItems.length, queuePaused]);
 
     // Load next action
     const loadNextAction = useCallback(async () => {
@@ -2374,7 +2430,12 @@ export default function SDRActionPage() {
                             title={emptyTableReason.title}
                             description={emptyTableReason.description}
                             action={
-                                hasTableFiltersActive ? (
+                                emptyTableReason.switchToType ? (
+                                    <Button variant="primary" onClick={() => patchTableFilters({ type: emptyTableReason.switchToType!.type })} className="gap-2">
+                                        {emptyTableReason.switchToType.type === "company" ? <Building2 className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                                        {emptyTableReason.switchToType.type === "company" ? "Voir les sociétés" : "Voir les contacts"} ({emptyTableReason.switchToType.count})
+                                    </Button>
+                                ) : hasTableFiltersActive ? (
                                     <Button variant="secondary" onClick={clearTableFilters} className="gap-2">
                                         <RotateCcw className="w-4 h-4" />
                                         Réinitialiser les filtres
@@ -2637,7 +2698,7 @@ export default function SDRActionPage() {
                             missions.length === 0
                                 ? "Aucune mission active assignée. Contactez votre manager pour être assigné à une mission."
                                 : selectableMissions.length === 0
-                                    ? "Aucune mission planifiée (aujourd'hui ou cette semaine). Vous ne pouvez travailler que sur vos missions planifiées."
+                                    ? "Aucune mission dans votre planning du jour. Demandez à votre manager de vous ajouter un créneau."
                                 : !selectedMissionId
                                     ? "Sélectionnez une mission ci-dessus pour afficher le prochain contact à contacter."
                                     : (currentAction?.message || "Aucun contact disponible pour le moment (listes vides, contacts sans téléphone/email/LinkedIn, ou tous en cooldown 24h).")

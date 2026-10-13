@@ -110,6 +110,8 @@ interface Mission {
         type: string;
         isActive?: boolean;
         contactsViewEnabled?: boolean;
+        /** 24 h pause between two calls on this list's rows — on unless a manager switched it off. */
+        queueCooldownEnabled?: boolean;
         commercialInterlocuteurId?: string | null;
         secondaryCommercialIds?: string[];
         commercialInterlocuteur?: {
@@ -698,6 +700,9 @@ export function MissionWorkspace({
     const [isDeletingList, setIsDeletingList] = useState(false);
     const [togglingListId, setTogglingListId] = useState<string | null>(null);
     const [togglingContactsListId, setTogglingContactsListId] = useState<string | null>(null);
+    const [togglingCooldownListId, setTogglingCooldownListId] = useState<string | null>(null);
+    // Switching the 24 h pause off goes through a confirmation; switching it back on does not.
+    const [cooldownOffList, setCooldownOffList] = useState<Mission["lists"][0] | null>(null);
     const { position: listMenuPosition, contextData: listMenuData, handleContextMenu: handleListContextMenu, close: closeListMenu } = useContextMenu();
 
     // Email Templates
@@ -1807,6 +1812,36 @@ export function MissionWorkspace({
             showError("Erreur réseau", err instanceof Error ? err.message : "Impossible de modifier l'accès aux contacts");
         } finally {
             setTogglingContactsListId(null);
+        }
+    };
+
+    const setListQueueCooldown = async (list: Mission["lists"][0], enabled: boolean) => {
+        if (togglingCooldownListId === list.id) return;
+        setTogglingCooldownListId(list.id);
+        try {
+            const res = await fetch(`/api/lists/${list.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ queueCooldownEnabled: enabled }),
+            });
+            const json = await res.json();
+            if (!res.ok || !json.success) {
+                showError("Erreur", json.error || "Impossible de modifier la pause 24 h de cette liste");
+                return;
+            }
+            setCooldownOffList(null);
+            await fetchMission();
+            success(
+                enabled ? "Pause 24 h activée" : "Pause 24 h désactivée",
+                enabled
+                    ? `« ${list.name} » : une ligne appelée quitte la file pendant 24 h.`
+                    : `« ${list.name} » : les lignes appelées restent dans la file des SDR.`
+            );
+        } catch (err) {
+            console.error(err);
+            showError("Erreur réseau", err instanceof Error ? err.message : "Impossible de modifier la pause 24 h");
+        } finally {
+            setTogglingCooldownListId(null);
         }
     };
 
@@ -3059,6 +3094,31 @@ export function MissionWorkspace({
                                                         Contacts : {list.contactsViewEnabled ? "Activé" : "Désactivé"}
                                                     </span>
                                                 </button>
+                                                {(() => {
+                                                    const cooldownOn = list.queueCooldownEnabled !== false;
+                                                    return (
+                                                        <button
+                                                            type="button"
+                                                            disabled={togglingCooldownListId === list.id}
+                                                            onClick={() => (cooldownOn ? setCooldownOffList(list) : void setListQueueCooldown(list, true))}
+                                                            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${cooldownOn ? "text-slate-600 border-slate-200 bg-white hover:bg-slate-50" : "text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100"}`}
+                                                            title={
+                                                                cooldownOn
+                                                                    ? "Une ligne appelée quitte la file des SDR pendant 24 h (évite de rappeler un prospect plusieurs fois par jour). Cliquer pour désactiver sur cette liste."
+                                                                    : "Pause désactivée : une ligne appelée reste dans la file et peut être rappelée tout de suite. Cliquer pour réactiver."
+                                                            }
+                                                        >
+                                                            {togglingCooldownListId === list.id ? (
+                                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            ) : cooldownOn ? (
+                                                                <Clock3 className="w-3.5 h-3.5 text-slate-400" />
+                                                            ) : (
+                                                                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                                            )}
+                                                            <span>Pause 24 h : {cooldownOn ? "Activée" : "Désactivée"}</span>
+                                                        </button>
+                                                    );
+                                                })()}
                                                 <span className="text-xs font-medium text-slate-500 px-2 py-1 bg-slate-100 rounded">
                                                     {list.type}
                                                 </span>
@@ -4605,6 +4665,24 @@ export function MissionWorkspace({
                 confirmText="Supprimer"
                 variant="danger"
                 isLoading={isDeletingList}
+            />
+
+            {/* Switching the 24 h pause off on a list */}
+            <ConfirmModal
+                isOpen={!!cooldownOffList}
+                onClose={() => setCooldownOffList(null)}
+                onConfirm={() => {
+                    if (cooldownOffList) void setListQueueCooldown(cooldownOffList, false);
+                }}
+                title="Désactiver la pause 24 h ?"
+                message={
+                    cooldownOffList
+                        ? `Sur « ${cooldownOffList.name} », un contact ou une société déjà appelé restera dans la file des SDR et pourra être rappelé dans la même journée, y compris par un autre SDR. Les résultats finaux (RDV pris, refus, faux numéro…) restent retirés. À réactiver dès que possible pour ne pas harceler les prospects.`
+                        : ""
+                }
+                confirmText="Désactiver"
+                variant="danger"
+                isLoading={!!cooldownOffList && togglingCooldownListId === cooldownOffList.id}
             />
 
         </div>

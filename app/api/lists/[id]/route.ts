@@ -8,6 +8,7 @@ import {
     NotFoundError,
 } from '@/lib/api-utils';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
+import { isQueueCooldownEnabled, setQueueCooldownEnabled, QUEUE_COOLDOWN_HOURS } from '@/lib/sdr-queue/cooldown';
 
 // ============================================
 // GET /api/lists/[id] - Get list details
@@ -55,7 +56,7 @@ export const GET = withErrorHandler(async (
         throw new NotFoundError('Liste introuvable');
     }
 
-    return successResponse(list);
+    return successResponse({ ...list, queueCooldownEnabled: await isQueueCooldownEnabled(id) });
 });
 
 // ============================================
@@ -106,11 +107,11 @@ export const PATCH = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    await requireRole(['MANAGER'], request);
+    const session = await requireRole(['MANAGER'], request);
     const { id } = await params;
     const body = await request.json();
 
-    const { name, type, source, missionId, campaignId, isActive, isArchived, contactsViewEnabled } = body;
+    const { name, type, source, missionId, campaignId, isActive, isArchived, contactsViewEnabled, queueCooldownEnabled } = body;
     let { commercialInterlocuteurId } = body;
 
     // Several commercials per list: `commercialInterlocuteurIds` is the ordered set
@@ -235,6 +236,22 @@ export const PATCH = withErrorHandler(async (
         await prisma.$executeRaw`UPDATE "List" SET "contactsViewEnabled" = ${contactsViewEnabled} WHERE id = ${id}`;
     }
 
+    // queueCooldownEnabled: the 24 h pause between two calls on this list's rows (lib/sdr-queue/cooldown.ts)
+    if (typeof queueCooldownEnabled === 'boolean') {
+        const wasEnabled = await isQueueCooldownEnabled(id);
+        if (wasEnabled !== queueCooldownEnabled) {
+            await setQueueCooldownEnabled(id, queueCooldownEnabled);
+            audit(request, session, {
+                action: AUDIT_ACTIONS.UPDATE,
+                entityType: 'List',
+                entityId: id,
+                summary: `Liste "${existing.name}" — pause ${QUEUE_COOLDOWN_HOURS} h entre deux appels ${queueCooldownEnabled ? 'réactivée' : 'désactivée'}`,
+                before: { queueCooldownEnabled: wasEnabled },
+                after: { queueCooldownEnabled },
+            });
+        }
+    }
+
     const hasOtherUpdates =
         (name && name !== existing.name) ||
         (type && type !== existing.type) ||
@@ -313,5 +330,5 @@ export const PATCH = withErrorHandler(async (
         (updatedList as { contactsViewEnabled?: boolean }).contactsViewEnabled = contactsViewEnabled;
     }
 
-    return successResponse(updatedList!);
+    return successResponse({ ...updatedList!, queueCooldownEnabled: await isQueueCooldownEnabled(id) });
 });

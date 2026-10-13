@@ -61,6 +61,8 @@ Les outils `search_*` / `list_*` partagent `limit` (20, max 100) et `cursor` (`n
 
 ### Transcriptions (call-vault)
 
+**Flux CRM → call-vault.** Le call-vault lit lui-même, en lecture seule, les numéros Allo des SDR et les actions d'appel via `GET /api/v1/vault/sdr-numbers` et `GET /api/v1/vault/call-actions` (clé **interne all-clients** avec le scope `calls:read`, expiration ≤ 90 jours — à renouveler). Aucun accès direct à la base n'est nécessaire.
+
 Les transcriptions ne sont pas stockées dans le CRM : elles vivent dans le service **call-vault** (base séparée), qui synchronise tous les appels Allo de chaque SDR et rapproche chaque appel de l'action CRM qu'il documente (même ligne SDR + même numéro + appel terminé juste avant la saisie, un appel ↔ une action). Le CRM n'affiche rien de plus : seul le MCP les lit.
 
 - **Isolation** : le call-vault n'a pas de notion de client. `search_transcripts` / `get_transcript` lui transmettent toujours le client (et la mission) de la clé ; il ne renvoie alors **que les appels rapprochés d'une action de ce client**. Un appel non rapproché, ou trouvé seulement par numéro de téléphone (un standard peut figurer dans les fichiers de deux clients), n'est jamais visible d'une clé client.

@@ -35,6 +35,7 @@ import { searchLists, getList, searchListsParams } from "./services/lists";
 import { getRdvOverview, searchExclusions, getDailyReports, getDataQuality, rdvOverviewParams, searchExclusionsParams, dailyReportsParams, dataQualityParams } from "./services/insights";
 import { searchTranscripts, getTranscript, getCallCoverage, searchTranscriptsParams, callCoverageParams } from "./services/transcripts";
 import { INTERNAL_TOOLS } from "./mcp-tools";
+import { listSdrNumbers, listVaultCallActions, vaultCallActionsParams } from "./services/vault-sync";
 import { VaultUnavailableError, type VaultCallDetail, type VaultReader, type VaultSearchItem, type VaultSearchParams } from "../call-vault-client";
 import type { Ctx } from "./serializers";
 
@@ -808,4 +809,73 @@ test("coverage: internal keys only; SDR ids get names", async () => {
   assert.deepEqual(r.user_names, { "sdr-1": "adam", "sdr-2": "zoe" });
   const [from, to] = v.calls[0].args as string[];
   assert.ok(new Date(from) < new Date(to));
+});
+
+// ============================================
+// Vault feed (internal keys only)
+// ============================================
+
+const feedRow = (id: string, createdAt: string) => ({
+  id,
+  sdrId: "sdr-1",
+  contactId: "ct-1",
+  companyId: null,
+  campaignId: "k-1",
+  result: "REFUS",
+  createdAt: new Date(createdAt),
+  meetingPhone: "06 33 33 33 33",
+  campaign: { missionId: "m-1", mission: { clientId: "client-1" } },
+  contact: { companyId: "co-1", phone: "06 11 11 11 11", additionalPhones: ["+33 6 22 22 22 22"], company: { phone: "02 40 00 00 00", customData: { phones: ["02 40 99 99 99"] } } },
+  company: null,
+});
+
+test("vault feed: refused to client-bound keys, both endpoints", async () => {
+  await assert.rejects(listSdrNumbers(ctx(A, recordingDb().db)), status(403));
+  await assert.rejects(listVaultCallActions(ctx(A, recordingDb().db), parseInput(vaultCallActionsParams, { since: "2026-10-01" })), status(403));
+});
+
+test("vault feed: SDR numbers skip blanks and keep is_active", async () => {
+  const { db } = recordingDb({
+    "user.findMany": () => [
+      { id: "u1", alloPhoneNumber: "06 00 00 00 01", isActive: true },
+      { id: "u2", alloPhoneNumber: "   ", isActive: true },
+      { id: "u3", alloPhoneNumber: "+33600000003", isActive: false },
+    ],
+  });
+  assert.deepEqual(await listSdrNumbers(ctx(INTERNAL, db)), [
+    { id: "u1", allo_phone_number: "06 00 00 00 01", is_active: true },
+    { id: "u3", allo_phone_number: "+33600000003", is_active: false },
+  ]);
+});
+
+test("vault feed: call actions resolve company/mission/client and page by keyset cursor", async () => {
+  const rows = [feedRow("a1", "2026-10-09T14:38:00.000Z"), feedRow("a2", "2026-10-09T14:38:00.000Z"), feedRow("a3", "2026-10-09T14:44:00.000Z")];
+  const { db, calls } = recordingDb({ "action.findMany": () => rows });
+  const page1 = (await listVaultCallActions(ctx(INTERNAL, db), parseInput(vaultCallActionsParams, { since: "2026-10-09T00:00:00Z", limit: 2 }))) as {
+    items: { id: string; client_id: string; company_id: string | null; company_phone: string | null; logged_at: string }[];
+    next_cursor: string | null;
+  };
+
+  assert.deepEqual(page1.items.map((i) => i.id), ["a1", "a2"]);
+  assert.equal(page1.items[0].client_id, "client-1");
+  assert.equal(page1.items[0].company_id, "co-1", "company comes from the contact when the action has none");
+  assert.equal(page1.items[0].company_phone, "02 40 00 00 00");
+  assert.ok(page1.next_cursor);
+
+  const where = json(calls.find((c) => c.model === "action")!.args.where);
+  assert.ok(where.includes('"channel":"CALL"'));
+
+  const cur = decodeCursor<{ t: string; id: string }>(page1.next_cursor!)!;
+  assert.deepEqual(cur, { t: "2026-10-09T14:38:00.000Z", id: "a2" });
+
+  const { db: db2, calls: calls2 } = recordingDb({ "action.findMany": () => [rows[2]] });
+  const page2 = (await listVaultCallActions(ctx(INTERNAL, db2), parseInput(vaultCallActionsParams, { cursor: page1.next_cursor!, limit: 2 }))) as { items: { id: string }[]; next_cursor: string | null };
+  assert.deepEqual(page2.items.map((i) => i.id), ["a3"]);
+  assert.equal(page2.next_cursor, null);
+  const w2 = json(calls2.find((c) => c.model === "action")!.args.where);
+  assert.ok(w2.includes('"id":{"gt":"a2"}'), "ties on the same instant resume after the last id");
+});
+
+test("vault feed: needs since or cursor", async () => {
+  await assert.rejects(listVaultCallActions(ctx(INTERNAL, recordingDb().db), parseInput(vaultCallActionsParams, {})), status(400));
 });

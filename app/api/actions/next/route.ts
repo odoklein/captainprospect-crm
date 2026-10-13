@@ -9,6 +9,7 @@ import { statusConfigService } from '@/lib/services/StatusConfigService';
 import { getTodaySdrMissionIds } from '@/lib/sdr-today-missions';
 import { LAST_ACTION_CTES } from '@/lib/sdr-queue/last-action';
 import { findAbsentRdvRecalls } from '@/lib/sdr-queue/absent-rdv';
+import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from '@/lib/sdr-queue/cooldown';
 import { listCommercialIds } from '@/lib/lists/commercials';
 
 function buildCallbackResultCodes(config: { statuses: Array<{ code: string; label: string; triggersCallback?: boolean }> }) {
@@ -45,9 +46,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         ? `AND ('${channelParam}' = ANY(m.channels))`
         : '';
 
-    // Cooldown configuration (should move to env/config)
-    const COOLDOWN_HOURS = 24;
-    const cooldownDate = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000);
+    // 24 h pause — a manager can switch it off per list (lib/sdr-queue/cooldown.ts)
+    const cooldownDate = cooldownCutoff();
     const sdrId = session.user.id;
     const isBooker = session.user.role === "BOOKER";
     const isSdr = session.user.role === "SDR";
@@ -111,6 +111,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         mission_channel: string;
         client_id: string;
         client_booking_url: string | null;
+        list_id: string;
         last_action_result: string | null;
         last_action_note: string | null;
         last_action_created: Date | null;
@@ -148,7 +149,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 m.name as mission_name,
                 m.channel as mission_channel,
                 cl.id as client_id,
-                cl."bookingUrl" as client_booking_url
+                cl."bookingUrl" as client_booking_url,
+                l.id as list_id
             FROM "Contact" c
             INNER JOIN "Company" co ON c."companyId" = co.id
             INNER JOIN "List" l ON co."listId" = l.id
@@ -206,7 +208,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 m.name as mission_name,
                 m.channel as mission_channel,
                 cl.id as client_id,
-                cl."bookingUrl" as client_booking_url
+                cl."bookingUrl" as client_booking_url,
+                l.id as list_id
             FROM "Company" co
             INNER JOIN "List" l ON co."listId" = l.id
             INNER JOIN "Mission" m ON l."missionId" = m.id
@@ -291,7 +294,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const callbackResultCodes = buildCallbackResultCodes(config);
 
-    const { contactIds: absentContactIds, companyIds: absentCompanyIds } = await findAbsentRdvRecalls(result);
+    const [{ contactIds: absentContactIds, companyIds: absentCompanyIds }, cooldownOffListIds] = await Promise.all([
+        findAbsentRdvRecalls(result),
+        getCooldownDisabledListIds(result.map((r) => r.list_id)),
+    ]);
 
     const withPriority = result.map((row) => {
         const isAbsentRdv = row.contact_id
@@ -307,14 +313,17 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         );
         return { ...row, _priorityOrder: priorityOrder, _priorityLabel: priorityLabel };
     });
+    const pausedRows: typeof withPriority = [];
     const filtered = withPriority.filter((r) => {
         if (r._priorityLabel === "ABSENT_RDV") return true;
 
-        const isInCooldown = !!r.last_action_created && new Date(r.last_action_created).getTime() >= cooldownDate.getTime();
+        const isInCooldown = !cooldownOffListIds.has(r.list_id)
+            && !!r.last_action_created && new Date(r.last_action_created).getTime() >= cooldownDate.getTime();
         const isOwnedCallback = !!r.last_action_result && callbackResultCodes.has(r.last_action_result) && r.last_action_sdr_id === sdrId;
 
         if (r._priorityOrder >= 999) return false;
         if (!isInCooldown) return true;
+        if (!isOwnedCallback) pausedRows.push(r);
         return isOwnedCallback;
     });
     const sorted = filtered.sort(
@@ -329,13 +338,20 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const next = sorted[0];
 
     if (!next) {
+        const paused = summarizePaused(pausedRows);
+        const nextBack = [paused.nextContactAt, paused.nextCompanyAt].filter((t): t is string => !!t).sort()[0];
+        const scope = listId ? 'cette liste' : missionId ? 'cette mission' : 'vos missions';
+        const parisDay = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
+        const backAt = nextBack ? new Date(nextBack) : null;
+        const backLabel = backAt
+            ? `${parisDay(backAt) === parisDay(new Date()) ? '' : 'demain '}à ${backAt.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}`
+            : '';
         return successResponse({
             hasNext: false,
-            message: listId
-                ? 'Queue vide pour cette liste - aucun contact disponible ou tous en cooldown'
-                : missionId
-                    ? 'Queue vide pour cette mission - aucun contact disponible ou tous en cooldown'
-                    : 'Queue vide - aucun contact disponible ou tous en cooldown',
+            paused,
+            message: paused.total > 0 && backAt
+                ? `Rien à appeler pour le moment sur ${scope} : ${paused.total} ligne${paused.total > 1 ? 's' : ''} déjà appelée${paused.total > 1 ? 's' : ''} dans les dernières 24 h (pause 24 h). La prochaine revient ${backLabel}.`
+                : `Rien à appeler sur ${scope} : aucun contact ni société disponible.`,
         });
     }
 

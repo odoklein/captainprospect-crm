@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { LAST_ACTION_CTES } from "@/lib/sdr-queue/last-action";
 import { findAbsentRdvRecalls } from "@/lib/sdr-queue/absent-rdv";
+import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from "@/lib/sdr-queue/cooldown";
 import { successResponse, requireRole, withErrorHandler } from "@/lib/api-utils";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
 import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
@@ -61,8 +62,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             .slice(-9)
         : "";
     const hasPhoneSearch = phoneNeedle.length >= 3;
-    const COOLDOWN_HOURS = 24;
-    const cooldownDate = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000);
+    const cooldownDate = cooldownCutoff();
     const sdrId = session.user.id;
     const isBooker = session.user.role === "BOOKER";
     const isSdr = session.user.role === "SDR";
@@ -110,6 +110,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             contact_linkedin: string | null;
             contact_status: string;
             has_contact_info: boolean;
+            list_id: string;
             campaign_id: string;
             mission_name: string;
             mission_channel: string;
@@ -152,6 +153,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                     ('EMAIL' = ANY(m.channels) AND c.email IS NOT NULL AND c.email != '') OR
                     ('LINKEDIN' = ANY(m.channels) AND c.linkedin IS NOT NULL AND c.linkedin != '')
                 ) as has_contact_info,
+                l.id as list_id,
                 camp.id as campaign_id,
                 m.name as mission_name,
                 m.channel as mission_channel,
@@ -215,6 +217,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 NULL::text as contact_linkedin,
                 'INCOMPLETE'::text as contact_status,
                 ('CALL' = ANY(m.channels) AND ${COMPANY_PHONE_SQL} IS NOT NULL) as has_contact_info,
+                l.id as list_id,
                 camp.id as campaign_id,
                 m.name as mission_name,
                 m.channel as mission_channel,
@@ -306,7 +309,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const callbackResultCodes = buildCallbackResultCodes(config);
 
-    const { contactIds: absentContactIds, companyIds: absentCompanyIds } = await findAbsentRdvRecalls(rawResult);
+    const [{ contactIds: absentContactIds, companyIds: absentCompanyIds }, cooldownOffListIds] = await Promise.all([
+        findAbsentRdvRecalls(rawResult),
+        getCooldownDisabledListIds(rawResult.map((r) => r.list_id)),
+    ]);
 
     const withPriority = rawResult.map((row) => {
         const isAbsentRdv = row.contact_id
@@ -319,14 +325,18 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         const { priorityOrder, priorityLabel } = statusConfigService.getPriorityForResult(row.last_action_result, config);
         return { ...row, _priorityOrder: priorityOrder, _priorityLabel: priorityLabel };
     });
+    // Rows held back only by the 24 h pause: the empty state tells the SDR when they come back.
+    const pausedRows: typeof withPriority = [];
     const filtered = withPriority.filter((r) => {
         if (r._priorityLabel === "ABSENT_RDV") return true;
 
-        const isInCooldown = !!r.last_action_created && new Date(r.last_action_created).getTime() >= cooldownDate.getTime();
+        const isInCooldown = !cooldownOffListIds.has(r.list_id)
+            && !!r.last_action_created && new Date(r.last_action_created).getTime() >= cooldownDate.getTime();
         const isOwnedCallback = !!r.last_action_result && callbackResultCodes.has(r.last_action_result) && r.last_action_sdr_id === sdrId;
 
         if (r._priorityOrder >= 999) return false;
         if (!isInCooldown) return true;
+        if (!isOwnedCallback) pausedRows.push(r);
         return isOwnedCallback;
     });
     const sorted = filtered.sort(
@@ -396,5 +406,5 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         hasContactInfo: row.has_contact_info,
     }));
 
-    return successResponse({ items });
+    return successResponse({ items, paused: summarizePaused(pausedRows) });
 });

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { successResponse, requireRole, withErrorHandler } from "@/lib/api-utils";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
+import { cooldownCutoff, isQueueCooldownEnabled } from "@/lib/sdr-queue/cooldown";
 
 // ============================================
 // GET /api/manager/prospection/action-queue
@@ -38,8 +39,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             ? 0
             : Math.min(Math.max(1, parseInt(limitParam, 10) || 0), 50_000);
 
-    const COOLDOWN_HOURS = 24;
-    const cooldownDate = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000);
+    const cooldownDate = cooldownCutoff();
 
     const missionFilter = `AND m.id = '${missionId.replace(/'/g, "''")}'`;
     const listFilter = `AND l.id = '${listId.replace(/'/g, "''")}'`;
@@ -198,11 +198,14 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         ...(hasSearch ? [`%${escapeIlikePattern(search)}%`] : [])
     );
 
-    const config = await statusConfigService.getEffectiveStatusConfig({ missionId });
+    const [config, cooldownOn] = await Promise.all([
+        statusConfigService.getEffectiveStatusConfig({ missionId }),
+        isQueueCooldownEnabled(listId),
+    ]);
 
     const withPriority = rawResult.map((row) => {
         const inCooldown =
-            row.last_action_created && new Date(row.last_action_created) >= cooldownDate;
+            cooldownOn && row.last_action_created && new Date(row.last_action_created) >= cooldownDate;
         const { priorityOrder, priorityLabel } = inCooldown
             ? { priorityOrder: 999, priorityLabel: "SKIP" as const }
             : statusConfigService.getPriorityForResult(row.last_action_result, config);
