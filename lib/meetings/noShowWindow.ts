@@ -34,3 +34,22 @@ export function isNoShowReportWindowOpen(
 /** Message shown (UI) or returned (API) when the window has closed. */
 export const NO_SHOW_WINDOW_CLOSED_MESSAGE =
     `Ce rendez-vous a eu lieu il y a plus de ${NO_SHOW_REPORT_WINDOW_HOURS}h, ce signalement n'est plus possible depuis le portail. Contactez votre manager.`;
+
+/**
+ * A no-show can only be reported once the meeting has started: before that
+ * the prospect cannot have missed it. Without this guard an upcoming RDV could
+ * be flagged absent by mistake (wrong card), and the flag was then silently
+ * ignored as a stale absence. A meeting with no date is not blocked.
+ */
+export function hasMeetingStarted(
+    meetingDate: Date | string | null | undefined,
+    now: number = Date.now(),
+): boolean {
+    if (!meetingDate) return true;
+    const ts = meetingDate instanceof Date ? meetingDate.getTime() : new Date(meetingDate).getTime();
+    if (Number.isNaN(ts)) return true;
+    return ts <= now;
+}
+
+export const NO_SHOW_NOT_YET_MESSAGE =
+    "Ce rendez-vous n'a pas encore eu lieu : le signalement « Contact absent » sera possible à partir de son heure de début.";

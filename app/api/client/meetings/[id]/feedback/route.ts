@@ -6,15 +6,19 @@ import {
     withErrorHandler,
     NotFoundError,
     AuthError,
+    ValidationError,
 } from '@/lib/api-utils';
 import {
     notifyManagersClientSignal,
     notifyManagersClientFeedback,
 } from '@/lib/notifications';
 import {
+    hasMeetingStarted,
     isNoShowReportWindowOpen,
+    NO_SHOW_NOT_YET_MESSAGE,
     NO_SHOW_WINDOW_CLOSED_MESSAGE,
 } from '@/lib/meetings/noShowWindow';
+import { notifySdrOfAbsence } from '@/lib/meetings/absenceSdrAlert';
 
 export const GET = withErrorHandler(async (
     request: NextRequest,
@@ -103,6 +107,9 @@ export const POST = withErrorHandler(async (
         throw new AuthError('Not authorized to provide feedback for this meeting');
     }
 
+    if (outcome === 'NO_SHOW' && !hasMeetingStarted(action.callbackDate)) {
+        throw new ValidationError(NO_SHOW_NOT_YET_MESSAGE);
+    }
     if (outcome === 'NO_SHOW' && !isNoShowReportWindowOpen(action.callbackDate)) {
         throw new AuthError(NO_SHOW_WINDOW_CLOSED_MESSAGE, 403);
     }
@@ -147,6 +154,7 @@ export const POST = withErrorHandler(async (
         };
         if (outcome === "NO_SHOW") {
             notifyManagersClientSignal({ ...alertData, outcome, recontact, clientNote: clientNote || null }).catch(() => {});
+            void notifySdrOfAbsence(actionId, recontact, "client");
         } else {
             notifyManagersClientFeedback({ ...alertData, outcome, clientNote: clientNote || null }).catch(() => {});
         }

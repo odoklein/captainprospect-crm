@@ -155,7 +155,9 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         meetingPhone: data.meetingPhone,
     }, statusDef);
 
-    if (data.channel === 'CALL') {
+    // A re-booked absence reuses the first RDV's Action: its recording and
+    // fiche are that RDV's history, not this call's.
+    if (data.channel === 'CALL' && !action.rebookedAbsent) {
         after(() => enqueueActionCallEnrichment(action.id));
     }
 

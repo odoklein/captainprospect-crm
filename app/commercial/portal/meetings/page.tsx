@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
+  hasMeetingStarted,
   isNoShowReportWindowOpen,
   NO_SHOW_REPORT_WINDOW_HOURS,
 } from "@/lib/meetings/noShowWindow";
@@ -1284,6 +1285,13 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
   // feedback would be impossible without changing its outcome.
   const noShowOpen = isNoShowReportWindowOpen(m.callbackDate)
     || m.meetingFeedback?.outcome === "NO_SHOW";
+  // Nobody can be absent from a RDV that has not started yet.
+  const started = hasMeetingStarted(m.callbackDate);
+  const noShowLockReason = !started
+    ? "Le signalement « Absent » sera possible à partir de l'heure du rendez-vous."
+    : !noShowOpen
+      ? `Le signalement « Absent » est ouvert pendant ${NO_SHOW_REPORT_WINDOW_HOURS}h après le rendez-vous. Ce délai est dépassé : contactez votre manager, qui pourra le remonter manuellement.`
+      : null;
 
   if (done) return (
     <Modal title="Feedback enregistré" onClose={onClose}
@@ -1314,11 +1322,11 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
           {OUTCOME_OPTS.map(({value,label,Icon})=>{
             const sel=out===value; const meta=OM[value];
-            const locked = value==="NO_SHOW" && !noShowOpen;
+            const locked = value==="NO_SHOW" && !!noShowLockReason;
             return (
               <button key={value} type="button" aria-pressed={sel} onClick={()=>onOut(value)}
                 disabled={locked}
-                title={locked?`Délai de ${NO_SHOW_REPORT_WINDOW_HOURS}h dépassé`:undefined}
+                title={locked?noShowLockReason!:undefined}
                 className={cn("cp-outcome",sel&&"sel")}
                 style={{borderColor:sel?meta.color:tk.border,background:sel?meta.bg:tk.surface,color:sel?meta.color:tk.ink3,opacity:locked?0.45:1,cursor:locked?"not-allowed":"pointer"}}>
                 <div className="cp-outcome-ico" style={{background:sel?meta.iconBg:"var(--ds-surface-3)",color:sel?"#fff":tk.ink4}}>
@@ -1329,10 +1337,9 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
             );
           })}
         </div>
-        {!noShowOpen && (
+        {noShowLockReason && (
           <p style={{fontSize:11.5,lineHeight:1.5,color:tk.ink3,marginTop:10}}>
-            Le signalement « Absent » est ouvert pendant {NO_SHOW_REPORT_WINDOW_HOURS}h après le rendez-vous.
-            Ce délai est dépassé : contactez votre manager, qui pourra le remonter manuellement.
+            {noShowLockReason}
           </p>
         )}
       </Sec>
@@ -1346,6 +1353,16 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
             </button>
           ))}
         </div>
+        {/* An absence: say what the recontact choice triggers before it is sent. */}
+        {out==="NO_SHOW" && recontact && (
+          <p aria-live="polite" style={{fontSize:12,lineHeight:1.5,color:tk.ink2,marginTop:10}}>
+            {recontact==="YES"
+              ? "L'équipe rappelle le prospect pour replanifier le RDV. Dès qu'il est replanifié, il repasse « À venir »."
+              : recontact==="MAYBE"
+                ? "L'équipe reviendra vers vous avant de rappeler le prospect."
+                : "Le RDV est clôturé comme absent : le prospect ne sera pas rappelé."}
+          </p>
+        )}
       </Sec>
 
       <Sec label="Commentaire" last>

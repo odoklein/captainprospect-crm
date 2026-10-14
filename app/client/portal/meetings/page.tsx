@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { getMeetingCancellationLabel, MEETING_CANCELLATION_REASONS } from "@/lib/constants/meetingCancellationReasons";
 import { MeetingsSkeleton } from "@/components/client/skeletons";
 import {
+  hasMeetingStarted,
   isNoShowReportWindowOpen,
   NO_SHOW_REPORT_WINDOW_HOURS,
 } from "@/lib/meetings/noShowWindow";
@@ -686,6 +687,29 @@ function Pill({ label, color, bg, border, dot, Icon }: {
   );
 }
 
+/** What the client asked for on an absence, and what happens next — same terms as the form. */
+const RECONTACT_META: Record<string, { label:string; next:string; color:string; bg:string; border:string }> = {
+  YES:   { label:"À recontacter",      next:"Notre équipe rappelle le prospect pour replanifier le RDV. Dès qu'il est replanifié, il repasse « À venir ».", color:tk.redText, bg:tk.redLight, border:"#F5C2BE" },
+  MAYBE: { label:"Peut-être",          next:"Notre équipe reviendra vers vous avant de rappeler le prospect.", color:tk.amberText, bg:tk.amberLight, border:"#F3D9A4" },
+  NO:    { label:"Ne pas recontacter", next:"Le RDV est clôturé comme absent : le prospect ne sera pas rappelé.", color:tk.ink3, bg:"var(--ds-surface-3)", border:"rgba(0,0,0,0.07)" },
+};
+
+function AbsenceSummary({ fb, compact }: { fb:{ recontactRequested:string; clientNote?:string|null }; compact?:boolean }) {
+  const rc = RECONTACT_META[fb.recontactRequested] ?? RECONTACT_META.NO;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:6,padding:compact?"9px 11px":"12px 14px",borderRadius:10,background:tk.redLight,border:"1px solid #F5C2BE"}}>
+      <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:6}}>
+        <Pill label="Absent" Icon={XCircle} color={tk.redText} bg="#fff" border="#F5C2BE" />
+        <Pill label={rc.label} color={rc.color} bg="#fff" border={rc.border} />
+      </div>
+      <div style={{fontSize:12,lineHeight:1.5,color:tk.redText}}>{rc.next}</div>
+      {fb.clientNote && (
+        <div style={{fontSize:12.5,fontStyle:"italic",lineHeight:1.5,color:tk.ink2}}>&ldquo;{fb.clientNote}&rdquo;</div>
+      )}
+    </div>
+  );
+}
+
 function MeetingTypeTag({ type }: { type: keyof typeof MTY }) {
   const { label, Icon } = MTY[type];
   return (
@@ -965,8 +989,11 @@ export default function ClientPortalMeetingsPage() {
       const j=await r.json();
       if (j.success){
         setMeetings(p=>p.map(m=>m.id===mid?{...m,meetingFeedback:j.data}:m));
-        toast.success("Signalement envoyé","Le rendez-vous est marqué comme absent.");
+        toast.success("Signalement envoyé", sigRec==="YES"
+          ? "Le rendez-vous est marqué comme absent. Notre équipe va rappeler le prospect pour le replanifier."
+          : "Le rendez-vous est marqué comme absent.");
         setOpenSignalCard(null);
+        setSigType(null); setSigRec(""); setSigNote("");
       } else toast.error("Erreur",j.error??"Une erreur est survenue.");
     } catch { toast.error("Erreur","Impossible de soumettre."); }
     finally { setSigSub(false); }
@@ -1209,8 +1236,19 @@ function Card({
   // Past 48h the "Contact absent" signal is refused by the API, so the portal
   // stops offering it and points to the manager instead.
   const noShowOpen = isNoShowReportWindowOpen(m.callbackDate);
-  const sm     = S[st];
   const fb     = m.meetingFeedback;
+  // A prospect can only miss a RDV that has started, and only once.
+  const started      = hasMeetingStarted(m.callbackDate);
+  const alreadyAbsent = fb?.outcome==="NO_SHOW";
+  const noShowAllowed = started && noShowOpen && !alreadyAbsent && st!=="cancelled";
+  const noShowBlockedReason = alreadyAbsent
+    ? "Ce rendez-vous est déjà signalé « Contact absent ». Pour changer la demande de recontact, utilisez « Modifier l'avis »."
+    : !started
+      ? "Le signalement « Contact absent » sera possible à partir de l'heure du rendez-vous."
+      : !noShowOpen
+        ? `Le signalement « Contact absent » est ouvert pendant ${NO_SHOW_REPORT_WINDOW_HOURS}h après le rendez-vous. Ce délai est dépassé : contactez votre manager, qui pourra le remonter manuellement.`
+        : null;
+  const sm     = S[st];
   const up     = st==="upcoming";
   const dt     = m.callbackDate ? fmtCard(m.callbackDate) : null;
   const sigDis = sigSub||(sigType==="NO_SHOW"&&!sigRec);
@@ -1316,8 +1354,9 @@ function Card({
             </div>
           </div>
 
-          {/* Feedback badge */}
-          {fb && (
+          {/* Feedback badge — an absence says what was asked and what happens next */}
+          {fb && fb.outcome==="NO_SHOW" && <AbsenceSummary fb={fb} compact />}
+          {fb && fb.outcome!=="NO_SHOW" && (
             <div style={{display:"flex",alignItems:"center",gap:7}}>
               <span style={{fontSize:11.5,color:tk.ink4}}>Votre avis :</span>
               <Pill label={OM[fb.outcome]?.label??fb.outcome} color={OM[fb.outcome]?.color??tk.ink3} bg={OM[fb.outcome]?.bg??"var(--ds-surface-3)"} />
@@ -1335,8 +1374,16 @@ function Card({
               <MessageSquare style={{width:12,height:12}} />Mon avis
             </button>
           )}
-          {!up && fb && (
+          {/* An absence is edited in its own form (recontact + comment), not in
+              the outcome modal, which has no "Contact absent" option. */}
+          {!up && fb && !alreadyAbsent && (
             <button type="button" className="cp-action" onClick={onFeedback}>
+              <Edit3 style={{width:12,height:12}} />Modifier l&apos;avis
+            </button>
+          )}
+          {alreadyAbsent && noShowOpen && (
+            <button type="button" className="cp-action"
+              onClick={(e)=>{ e.stopPropagation(); onOpenSignalForm(); onSigRec(fb!.recontactRequested==="NO"?"NO":"YES"); onSigNote(fb!.clientNote??""); }}>
               <Edit3 style={{width:12,height:12}} />Modifier l&apos;avis
             </button>
           )}
@@ -1367,8 +1414,8 @@ function Card({
             </div>
             <div style={{display:"flex",gap:10}}>
               <button type="button" className={cn("cp-choice")} onClick={onOpenSignalForm} style={{flex:1}}
-                disabled={!noShowOpen}
-                title={noShowOpen?undefined:`Délai de ${NO_SHOW_REPORT_WINDOW_HOURS}h dépassé`}>
+                disabled={!noShowAllowed}
+                title={noShowBlockedReason ?? undefined}>
                 <span className="cp-choice-ico"><XCircle style={{width:18,height:18}} /></span>
                 Contact absent
               </button>
@@ -1377,10 +1424,9 @@ function Card({
                 Replanifier avec le prospect
               </button>
             </div>
-            {!noShowOpen && (
+            {noShowBlockedReason && (
               <div style={{marginTop:10,fontSize:11.5,lineHeight:1.5,color:tk.ink3}}>
-                Le signalement « Contact absent » est ouvert pendant {NO_SHOW_REPORT_WINDOW_HOURS}h après le rendez-vous.
-                Ce délai est dépassé : contactez votre manager, qui pourra le remonter manuellement.
+                {noShowBlockedReason}
               </div>
             )}
           </div>
@@ -1410,20 +1456,25 @@ function Card({
               <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:tk.ink4,marginBottom:8}}>
                 Souhaitez-vous que l&apos;on recontacte ce prospect ? <span style={{color:tk.red}}>*</span>
               </div>
-              <div style={{display:"flex",gap:8}}>
+              <div style={{display:"flex",gap:8}} role="radiogroup" aria-label="Recontacter ce prospect">
                 {[{v:"YES",l:"Oui, à recontacter"},{v:"NO",l:"Non, clôturer"}].map(({v,l})=>(
-                  <button key={v} type="button" aria-pressed={sigRec===v} onClick={()=>onSigRec(v)}
+                  <button key={v} type="button" role="radio" aria-checked={sigRec===v} onClick={()=>onSigRec(v)}
                     className={cn("cp-toggle",sigRec===v&&"sel")} style={{flex:1}}>
                     {l}
                   </button>
                 ))}
+              </div>
+              {/* Say what the choice triggers before it is sent. */}
+              <div aria-live="polite" style={{fontSize:12,lineHeight:1.5,color:sigRec?tk.ink2:tk.ink4,marginTop:-4}}>
+                {sigRec ? RECONTACT_META[sigRec]?.next : "Choisissez une option pour continuer."}
               </div>
               <div>
                 <div style={{fontSize:10.5,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",color:tk.ink4,marginBottom:8}}>
                   Commentaire
                   <span style={{color:tk.ink4,textTransform:"none",fontWeight:400}}> (optionnel)</span>
                 </div>
-                <input className="cp-input" type="text" value={sigNote} onChange={e=>onSigNote(e.target.value)} placeholder="Précisez la raison…" />
+                <textarea className="cp-textarea" value={sigNote} onChange={e=>onSigNote(e.target.value)} rows={2}
+                  maxLength={1000} placeholder="Précisez la raison…" style={{minHeight:60}} />
               </div>
               <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
                 <Btn variant="ghost" onClick={()=>{ onSigType(null); onCloseSignal(); }}>Annuler</Btn>
@@ -1613,7 +1664,12 @@ function DetailModal({ m, onClose, onFeedback, onCancel, onDelete }: {
       )}
 
       {/* Feedback */}
-      {fb && (
+      {fb && fb.outcome==="NO_SHOW" && (
+        <Sec label="Votre retour" last>
+          <AbsenceSummary fb={fb} />
+        </Sec>
+      )}
+      {fb && fb.outcome!=="NO_SHOW" && (
         <Sec label="Votre retour" last>
           <div style={{padding:16,borderRadius:12,background:tk.greenLight,border:"1px solid rgba(18,160,92,0.2)"}}>
             <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:fb.clientNote?10:0}}>

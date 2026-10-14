@@ -10,9 +10,12 @@ import {
 } from '@/lib/api-utils';
 import { notifyManagersCommercialAbsent, notifyManagersClientFeedback } from '@/lib/notifications';
 import {
+    hasMeetingStarted,
     isNoShowReportWindowOpen,
+    NO_SHOW_NOT_YET_MESSAGE,
     NO_SHOW_WINDOW_CLOSED_MESSAGE,
 } from '@/lib/meetings/noShowWindow';
+import { notifySdrOfAbsence } from '@/lib/meetings/absenceSdrAlert';
 
 async function verifyCommercialAccessToAction(actionId: string, interlocuteurId: string) {
     const interlocuteur = await prisma.clientInterlocuteur.findUnique({
@@ -107,6 +110,9 @@ export const POST = withErrorHandler(async (
 
     // Same 48h self-service window as the client portal: past it, the no-show
     // has to be raised by a manager from /manager/rdv-absences.
+    if (outcome === 'NO_SHOW' && !hasMeetingStarted(action.callbackDate)) {
+        throw new ValidationError(NO_SHOW_NOT_YET_MESSAGE);
+    }
     if (outcome === 'NO_SHOW' && !isNoShowReportWindowOpen(action.callbackDate)) {
         throw new AuthError(NO_SHOW_WINDOW_CLOSED_MESSAGE, 403);
     }
@@ -130,6 +136,7 @@ export const POST = withErrorHandler(async (
     const alertData = buildAlertData(action, interlocuteur);
     if (outcome === 'NO_SHOW') {
         notifyManagersCommercialAbsent({ ...alertData, recontact: recontactRequested, clientNote }).catch(() => {});
+        void notifySdrOfAbsence(actionId, recontactRequested, "commercial");
     } else {
         notifyManagersClientFeedback({ ...alertData, outcome, clientNote }).catch(() => {});
     }
@@ -174,6 +181,9 @@ export const PATCH = withErrorHandler(async (
 
     // Switching an existing feedback to NO_SHOW is a new no-show signal, so it
     // is bound by the same window as creating one.
+    if (outcome === 'NO_SHOW' && existing.outcome !== 'NO_SHOW' && !hasMeetingStarted(action.callbackDate)) {
+        throw new ValidationError(NO_SHOW_NOT_YET_MESSAGE);
+    }
     if (
         outcome === 'NO_SHOW' &&
         existing.outcome !== 'NO_SHOW' &&
@@ -201,6 +211,7 @@ export const PATCH = withErrorHandler(async (
             recontact: recontactRequested || existing.recontactRequested,
             clientNote: clientNote ?? existing.clientNote,
         }).catch(() => {});
+        void notifySdrOfAbsence(actionId, recontactRequested || existing.recontactRequested, "commercial");
     }
 
     return successResponse(updated);

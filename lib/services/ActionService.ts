@@ -4,6 +4,7 @@ import type { ActionResult } from '@prisma/client';
 import { parseDateFromNote } from '@/lib/utils/parseDateFromNote';
 import { createClientPortalNotification, sendNewRdvEmailNotification, createNotification } from '@/lib/notifications';
 import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from '@/lib/meetings/clientEmailGate';
+import { rebookAbsentRdvInPlace } from '@/lib/meetings/absentRebook';
 import type { EffectiveStatusDefinition } from './StatusConfigService';
 
 // ============================================
@@ -166,6 +167,31 @@ export class ActionService {
         const triggersCallback = statusDef?.triggersCallback ?? (resolvedResult === 'CALLBACK_REQUESTED');
  const triggersOpportunity = statusDef?.triggersOpportunity ??
  (resolvedResult === 'MEETING_BOOKED' || resolvedResult === 'INTERESTED');
+
+        // A prospect reported absent and booked again: the absent RDV is moved
+        // to the new slot instead of a second RDV being created (see absentRebook.ts).
+        if (resolvedResult === 'MEETING_BOOKED' && input.callbackDate) {
+            const rebooked = await rebookAbsentRdvInPlace({
+                contactId: input.contactId,
+                companyId: input.companyId,
+                campaignId: input.campaignId,
+                newCallbackDate: input.callbackDate,
+                note: input.note,
+                meetingType: input.meetingType,
+                meetingCategory: input.meetingCategory,
+                meetingAddress: input.meetingAddress,
+                meetingJoinUrl: input.meetingJoinUrl,
+                meetingPhone: input.meetingPhone,
+                actorId: input.sdrId,
+            });
+            if (rebooked) {
+                const record = await prisma.action.findUnique({
+                    where: { id: rebooked.actionId },
+                    include: { contact: { include: { company: true } }, company: true },
+                });
+                return { ...record, rebookedAbsent: true } as any;
+            }
+        }
 
  // Use transaction to ensure atomicity
  const actionRecord = await prisma.$transaction(async (tx) => {

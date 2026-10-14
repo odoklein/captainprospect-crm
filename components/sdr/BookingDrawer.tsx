@@ -770,7 +770,11 @@ export function BookingDrawer({
                 meetingPhone: phone,
                 interlocuteurName,
             });
-            success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
+            if (json.data?.rebookedAbsent) {
+                success("RDV replanifié", `L'absence de ${contactName} est levée : le RDV repasse « À venir »`);
+            } else {
+                success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
+            }
             trackMeetingBooked({
                 leadId: contactId || companyId || "",
                 companyName: contactInfo?.companyName || undefined,

@@ -11,6 +11,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole, withErrorHandler, validateRequest } from '@/lib/api-utils';
 import { z } from 'zod';
 import { autoEnrichAction } from '@/lib/call-enrichment/auto-enrichment';
+import { rebookAbsentRdvInPlace } from '@/lib/meetings/absentRebook';
 
 // ============================================
 // SCHEMAS
@@ -267,6 +268,32 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             ?? (mission as any).defaultInterlocuteurId
             ?? null;
 
+        // Prospect reported absent on this mission: the same RDV moves to the
+        // new slot, back to "À venir", without a second row or a SAS check.
+        const rebooked = await rebookAbsentRdvInPlace({
+            contactId: contact.id,
+            campaignId: campaign.id,
+            newCallbackDate: scheduledAt,
+            note: bookingNote,
+            meetingType: meetingType ?? null,
+            meetingCategory: meetingCategory ?? null,
+            meetingAddress: meetingAddress ?? null,
+            meetingJoinUrl: resolvedMeetingJoinUrl,
+            meetingPhone: meetingPhone ?? null,
+            interlocuteurId: resolvedInterlocuteurId,
+            actorId: session.user.id,
+        });
+        if (rebooked) {
+            return NextResponse.json({
+                success: true,
+                data: {
+                    actionId: rebooked.actionId,
+                    rebookedAbsent: true,
+                    message: `RDV replanifié pour ${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
+                },
+            });
+        }
+
         const action = await prisma.action.create({
             data: {
                 contactId: contact.id,
@@ -346,6 +373,30 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         ?? (company.list as any).commercialInterlocuteurId
         ?? (mission as any).defaultInterlocuteurId
         ?? null;
+
+    const rebooked = await rebookAbsentRdvInPlace({
+        companyId: company.id,
+        campaignId: campaign.id,
+        newCallbackDate: scheduledAt,
+        note: bookingNote,
+        meetingType: meetingType ?? null,
+        meetingCategory: meetingCategory ?? null,
+        meetingAddress: meetingAddress ?? null,
+        meetingJoinUrl: resolvedMeetingJoinUrl,
+        meetingPhone: meetingPhone ?? null,
+        interlocuteurId: resolvedInterlocuteurId,
+        actorId: session.user.id,
+    });
+    if (rebooked) {
+        return NextResponse.json({
+            success: true,
+            data: {
+                actionId: rebooked.actionId,
+                rebookedAbsent: true,
+                message: `RDV replanifié pour la société ${company.name}`,
+            },
+        });
+    }
 
     const action = await prisma.action.create({
         data: {

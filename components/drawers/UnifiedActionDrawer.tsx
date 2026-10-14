@@ -50,6 +50,7 @@ import {
 import { AiMark } from "@/components/ui/AiMark";
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
+import { AbsentRdvAlert, ABSENT_RDV_ALERT_QUERY_KEY } from "@/components/sdr/AbsentRdvAlert";
 import { ContactDrawer } from "./ContactDrawer";
 import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
 import { CompanyAiEnrichment } from "@/components/enrichment/CompanyAiEnrichment";
@@ -1369,9 +1370,12 @@ export function UnifiedActionDrawer({
             }
 
             const newActionId = json.data?.id as string | undefined;
+            // An absent RDV booked again is the first RDV moved in place: its call
+            // recording stays the first call's, so nothing is attached over it.
+            const rebookedAbsent = Boolean(json.data?.rebookedAbsent);
             const callToLink = linkedAlloCallRef.current;
             const missionChannel = (selectedCampaign?.mission?.channel ?? "CALL") as string;
-            if (newActionId && missionChannel === "CALL" && callToLink) {
+            if (newActionId && !rebookedAbsent && missionChannel === "CALL" && callToLink) {
                 const transcription =
                     callToLink.transcription ??
                     (callToLink.transcript?.length ?
@@ -1400,9 +1404,9 @@ export function UnifiedActionDrawer({
                 }
             }
 
-            return { andNext };
+            return { andNext, rebookedAbsent };
         },
-        onSuccess: ({ andNext }) => {
+        onSuccess: ({ andNext, rebookedAbsent }) => {
             trackActionLogged({
                 leadId: contactId || companyId,
                 channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : (campaigns[0]?.mission?.channel ?? "CALL"),
@@ -1412,13 +1416,18 @@ export function UnifiedActionDrawer({
                 callbackDate: newCallbackDateValue || rdvDate || undefined,
                 isMeetingBooked: newActionResult === "MEETING_BOOKED",
             });
-            success("Action enregistrée", "L'action a été ajoutée à l'historique");
+            if (rebookedAbsent) {
+                success("RDV replanifié", "L'absence est levée : le RDV repasse « À venir »");
+            } else {
+                success("Action enregistrée", "L'action a été ajoutée à l'historique");
+            }
             setNewActionNote("");
             setExclusionPanel(EMPTY_EXCLUSION_PANEL);
             setNewActionResult("");
             setNewCallbackDateValue("");
             setLinkedAlloCall(null);
             queryClient.invalidateQueries({ queryKey: actionsQueryKey });
+            if (rebookedAbsent) queryClient.invalidateQueries({ queryKey: ABSENT_RDV_ALERT_QUERY_KEY });
             onActionRecorded?.();
             if (andNext && onValidateAndNext) onValidateAndNext();
         },
@@ -2783,6 +2792,10 @@ export function UnifiedActionDrawer({
                         />
                     )}
 
+                    {/* Reported absent by the client: read before calling. The RDV
+                        view (summary) already shows the absence in full. */}
+                    {!summary && <AbsentRdvAlert contactId={contactId} companyId={companyId} />}
+
                     {summary && (
                         <div style={{ animation: "uadSectionIn 250ms cubic-bezier(0.16, 1, 0.3, 1)" }}>
                             {summary}
@@ -3794,6 +3807,7 @@ export function UnifiedActionDrawer({
                         setMeetingPhone("");
                         onActionRecorded?.();
                         queryClient.invalidateQueries({ queryKey: actionsQueryKey });
+                        queryClient.invalidateQueries({ queryKey: ABSENT_RDV_ALERT_QUERY_KEY });
                     }}
                 />
             )}
