@@ -2026,9 +2026,11 @@ export default function SDRActionPage() {
                         <div className="flex items-center gap-3">
                             <div className={cn(
                                 "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border transition-colors",
-                                row.contactId
-                                    ? "bg-primary-50 border-primary-100 text-primary-600"
-                                    : "bg-slate-50 border-slate-200 text-slate-500"
+                                row.priority === "ABSENT_RDV"
+                                    ? "bg-red-100/70 border-red-200 text-red-600"
+                                    : row.contactId
+                                        ? "bg-primary-50 border-primary-100 text-primary-600"
+                                        : "bg-slate-50 border-slate-200 text-slate-500"
                             )}>
                                 {row.contactId ? (
                                     <User className="w-4.5 h-4.5" />
@@ -2186,12 +2188,12 @@ export default function SDRActionPage() {
                 render: (_, row) => {
                     if (row.priority === "ABSENT_RDV") {
                         return (
-                            <div className="space-y-1">
-                                <Badge className="text-xs font-bold border bg-red-100 text-red-800 border-red-300 gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    RDV ABSENT
-                                </Badge>
-                                <p className="text-[10px] font-semibold text-red-600">A rappeler en priorité</p>
+                            <div className="flex flex-col items-start gap-1">
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                                    RDV absent
+                                </span>
+                                <p className="pl-1 text-[11px] font-medium text-red-700">À rappeler en priorité</p>
                             </div>
                         );
                     }
@@ -2466,6 +2468,11 @@ export default function SDRActionPage() {
                             getRowClassName={(row) => {
                                 if (recentlyUpdatedRowKeys.has(queueRowKey(row))) {
                                     return "!bg-emerald-50/80 border-l-4 border-l-emerald-500 animate-fade-in";
+                                }
+                                if (row.priority === "ABSENT_RDV") {
+                                    // Soft wash + a 3px accent bar drawn inside the first cell, so the
+                                    // row keeps its geometry (no border shift) and reads at a glance.
+                                    return "!bg-red-50/70 hover:!bg-red-50 [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-red-500)]";
                                 }
                                 const isCallbackRow = !!row.lastAction && isCallbackResult(row.lastAction.result);
                                 if (!isCallbackRow) return "";
