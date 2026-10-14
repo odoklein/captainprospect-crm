@@ -42,7 +42,8 @@ export interface Meeting {
     meetingFeedback?: MeetingFeedbackData | null;
     history?: RdvHistoryEntry[];
     contact: {
-        id: string;
+        /** null on a RDV booked on a company with no contact (stand-in built from the company). */
+        id: string | null;
         firstName: string | null;
         lastName: string | null;
         title: string | null;

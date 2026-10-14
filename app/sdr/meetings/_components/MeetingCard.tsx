@@ -157,7 +157,7 @@ export function MeetingCard({ meeting, onOpen, onReschedule, onCancel, onContext
                                 {getInitials(meeting)}
                             </div>
                             <div>
-                                <div className="font-bold text-slate-900">{meeting.contact.firstName} {meeting.contact.lastName}</div>
+                                <div className="font-bold text-slate-900">{[meeting.contact.firstName, meeting.contact.lastName].filter(Boolean).join(" ") || "Société (sans contact)"}</div>
                                 <div className="text-xs text-slate-500">{meeting.contact.title ?? ""}</div>
                                 <div className="flex flex-wrap gap-1.5 mt-1">
                                     {meeting.contact.email && (

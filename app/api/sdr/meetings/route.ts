@@ -123,6 +123,19 @@ export async function GET(request: NextRequest) {
                         },
                     },
                 },
+                // RDV booked on a company with no contact: the card is built from it.
+                company: {
+                    select: {
+                        id: true,
+                        name: true,
+                        phone: true,
+                        country: true,
+                        industry: true,
+                        website: true,
+                        size: true,
+                        list: { select: { id: true, name: true } },
+                    },
+                },
                 campaign: {
                     select: {
                         id: true,
@@ -178,7 +191,31 @@ export async function GET(request: NextRequest) {
         const { visible: meetings, historyByHead } = foldReplacedRdvs(listed, successors);
         const movedHistory = await loadAbsenceHistory(meetings.map((m) => m.id));
 
-        const transformedMeetings = meetings.map((meeting) => ({
+        // Every card reads meeting.contact: a company-only RDV gets a stand-in
+        // contact carrying its company (id null), instead of crashing the list.
+        const contactOf = (meeting: (typeof meetings)[number]) =>
+            meeting.contact ?? (meeting.company
+                ? {
+                      id: null,
+                      firstName: null,
+                      lastName: null,
+                      title: null,
+                      email: null,
+                      phone: meeting.company.phone ?? null,
+                      linkedin: null,
+                      company: {
+                          id: meeting.company.id,
+                          name: meeting.company.name,
+                          country: meeting.company.country,
+                          industry: meeting.company.industry,
+                          website: meeting.company.website,
+                          size: meeting.company.size,
+                          list: meeting.company.list,
+                      },
+                  }
+                : null);
+
+        const transformedMeetings = meetings.filter((meeting) => contactOf(meeting)).map((meeting) => ({
             id: meeting.id,
             createdAt: meeting.createdAt,
             result: meeting.result,
@@ -207,7 +244,7 @@ export async function GET(request: NextRequest) {
                     newDate: h.newCallbackDate.toISOString(),
                 })),
             ]),
-            contact: meeting.contact,
+            contact: contactOf(meeting)!,
             mission: meeting.campaign?.mission
                 ? {
                       id: meeting.campaign.mission.id,
@@ -215,10 +252,10 @@ export async function GET(request: NextRequest) {
                       client: meeting.campaign.mission.client,
                   }
                 : null,
-            list: meeting.contact.company.list
+            list: contactOf(meeting)!.company.list
                 ? {
-                      id: meeting.contact.company.list.id,
-                      name: meeting.contact.company.list.name,
+                      id: contactOf(meeting)!.company.list!.id,
+                      name: contactOf(meeting)!.company.list!.name,
                   }
                 : null,
         }));
