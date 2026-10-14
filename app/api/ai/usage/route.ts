@@ -5,13 +5,14 @@
 import { NextRequest } from "next/server";
 import { getUserAiUsage } from "@/lib/ai/usage";
 import {
-    requireAuth,
+    requireRole,
     successResponse,
     withErrorHandler,
 } from "@/lib/api-utils";
 
+// AI cost figures are internal: managers only.
 export const GET = withErrorHandler(async (request: NextRequest) => {
-    const session = await requireAuth(request);
+    const session = await requireRole(["MANAGER"], request);
     const usage = await getUserAiUsage(session.user.id);
     return successResponse(usage);
 });

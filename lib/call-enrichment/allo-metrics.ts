@@ -69,9 +69,9 @@ export async function fetchAlloMetricsForLine(
     }
 
     const cleanNumber = cleanPhoneNumber(alloPhoneNumber);
-    const fromIso = normalizeDay(dateFrom);
-    const toIso = normalizeDay(dateTo);
-    const cacheKey = `${cleanNumber}:${fromIso}:${toIso}`;
+    // Exact timestamps, not UTC day strings: Paris midnight is 22:00/23:00 UTC the
+    // day before, so a UTC-day filter pulled the whole previous day into "today".
+    const cacheKey = `${cleanNumber}:${dateFrom.getTime()}:${dateTo.getTime()}`;
 
     const cached = cache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
@@ -131,8 +131,7 @@ export async function fetchAlloMetricsForLine(
                     oldestCallDateOnPage = start;
                 }
 
-                const isoDay = normalizeDay(start);
-                if (isoDay < fromIso || isoDay > toIso) continue;
+                if (start < dateFrom || start > dateTo) continue;
 
                 totals.calls += 1;
 

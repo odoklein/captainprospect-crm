@@ -42,7 +42,8 @@
       "Bash(xargs grep -l \"deploy\\\\|Vercel\")",
       "Bash(sort -t: -k2 -nr)",
       "Bash(npm ls *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(node \"C:/Users/dell/AppData/Local/Temp/claude/C--Users-dell-Desktop-Desktop-CP-captainprospect-crm/6c70cf69-3cf0-4070-9a7b-1a78b60a0ed5/scratchpad/allo-check.mjs\" \"C:/Users/dell/Desktop/Desktop/CP/captainprospect-crm/.env\")"
     ]
   }
 }

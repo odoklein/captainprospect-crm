@@ -43,8 +43,16 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
+    const role = session?.user?.role as UserRole | undefined;
+    // AI token/cost figures are internal: managers only.
+    const showAiUsage = role === "MANAGER";
+
     // Fetch user AI usage on mount
     useEffect(() => {
+        if (!showAiUsage) {
+            setUsage(null);
+            return;
+        }
         let active = true;
         fetch("/api/ai/usage")
             .then((res) => (res.ok ? res.json() : null))
@@ -57,9 +65,8 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
         return () => {
             active = false;
         };
-    }, []);
+    }, [showAiUsage]);
 
-    const role = session?.user?.role as UserRole | undefined;
     const name = session?.user?.name ?? "";
     const email = session?.user?.email ?? "";
     const roleLabel = role ? ROLE_LABEL[role] ?? role : "Utilisateur";
@@ -194,7 +201,8 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                         </>
                     )}
 
-                    {/* AI Consumption (small text area) */}
+                    {/* AI Consumption (small text area) — managers only */}
+                    {showAiUsage && (
                     <div className="mx-1 my-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px]">
                         <div className="flex items-center justify-between text-slate-300">
                             <span className="flex items-center gap-1.5 font-medium">
@@ -216,6 +224,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                             </div>
                         )}
                     </div>
+                    )}
 
                     <button type="button" role="menuitem" onClick={logoutOtherDevices} disabled={loggingOutOthers} className={ITEM}>
                         <ShieldOff className="w-3.5 h-3.5 text-slate-400" aria-hidden />
@@ -265,7 +274,7 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                                 <span className="text-slate-500"> · </span>
                                 <span className="group-hover:text-accent-300 transition-colors">Mon compte</span>
                             </span>
-                            {usage && (
+                            {showAiUsage && usage && (
                                 <span className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5 leading-tight truncate">
                                     <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
                                     <span>IA : <strong className="text-emerald-400 font-medium">{formatTokens(usage.today.tokens)}</strong> tok.</span>
