@@ -2,49 +2,51 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Card, Badge, Button, Select, ConfirmModal, ContextMenu, useContextMenu, useToast } from "@/components/ui";
 import {
-    List,
-    Building2,
-    Users,
-    Activity,
-    Plus,
-    Upload,
-    Search,
-    Filter,
-    MoreVertical,
-    Eye,
-    Trash2,
-    RefreshCw,
-    Download,
-    Database, // newly added for search tab
-    Edit,
     Archive,
     ArchiveRestore,
-    AlertTriangle,
+    Building2,
+    Database,
+    Download,
+    Edit,
+    Eye,
+    HeartPulse,
+    LayoutList,
+    List as ListIcon,
+    MoreHorizontal,
+    Plus,
+    ScanSearch,
+    Search,
+    Trash2,
+    TriangleAlert,
+    Upload,
+    Users,
+    X,
 } from "lucide-react";
-import Link from "next/link";
-import { ListingSearchTab } from "@/components/listing/ListingSearchTab";
-import type { ListingResult } from "@/components/listing/ListingSearchTab";
-import { ImportToListModal } from "@/components/listing/ImportToListModal";
-import { ListHealthDashboard } from "@/components/lists/ListHealthDashboard";
 import {
-    ProspectionHealthBadge,
-    ActivityScoreBar,
-    VelocityTrendBadge,
-} from "@/components/lists/ProspectionHealthBadge";
-import type { ListHealthSummary } from "@/lib/types/health";
-
-// Coverage near 100% = list nearing exhaustion (rose), low = lots of work still (emerald)
-function getCoverageColor(rate: number): string {
-    if (rate >= 70) return "text-rose-600";
-    if (rate >= 50) return "text-amber-600";
-    return "text-emerald-600";
-}
+    Button,
+    ConfirmModal,
+    ContextMenu,
+    KpiCard,
+    PageHeader,
+    SegmentedControl,
+    Select,
+    StatusDot,
+    useContextMenu,
+    useToast,
+} from "@/components/ui";
+import { FOCUS_RING } from "@/components/ui/recipes";
+import type { Tone } from "@/components/ui/recipes";
+import { cn } from "@/lib/utils";
+import { ListHealthDashboard } from "@/components/lists/ListHealthDashboard";
+import type { HealthStatus, ListHealthSummary } from "@/lib/types/health";
 
 // ============================================
-// TYPES
+// /manager/lists — the list library.
+// One question per row: is this file worth calling, and is anyone calling it?
+// Lead finding lives on /manager/lists/sourcing, CSV on /manager/lists/import.
 // ============================================
 
 interface ListData {
@@ -55,38 +57,28 @@ interface ListData {
     createdAt: string;
     isArchived?: boolean;
     archivedAt?: string | null;
-    mission?: {
-        id: string;
-        name: string;
-    };
-    _count: {
-        companies: number;
-    };
+    mission?: { id: string; name: string };
+    _count: { companies: number };
     stats?: {
         companyCount: number;
         contactCount: number;
-        completeness: {
-            INCOMPLETE: number;
-            PARTIAL: number;
-            ACTIONABLE: number;
-        };
+        completeness: { INCOMPLETE: number; PARTIAL: number; ACTIONABLE: number };
     };
 }
 
+type View = "active" | "watch" | "archived";
+type Mode = "lists" | "health";
+type Sort = "recent" | "attention" | "name" | "size";
 
-// ============================================
-// TYPE STYLES
-// ============================================
+const TYPE_LABEL: Record<ListData["type"], string> = { SUZALI: "Interne", CLIENT: "Client", MIXED: "Mixte" };
 
-const TYPE_STYLES = {
-    SUZALI: { label: "Suzali", color: "bg-primary-50 text-primary-700 border-primary-200" },
-    CLIENT: { label: "Client", color: "bg-amber-50 text-amber-700 border-amber-200" },
-    MIXED: { label: "Mixte", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+const HEALTH: Record<HealthStatus, { label: string; tone: Tone; rank: number }> = {
+    STALLED: { label: "À l'arrêt", tone: "danger", rank: 0 },
+    AT_RISK: { label: "À risque", tone: "warning", rank: 1 },
+    IN_PROGRESS: { label: "En cours", tone: "success", rank: 2 },
+    FULLY_PROSPECTED: { label: "Épuisée", tone: "info", rank: 3 },
+    INSUFFICIENT_DATA: { label: "Trop petite", tone: "neutral", rank: 4 },
 };
-
-// ============================================
-// LISTS PAGE
-// ============================================
 
 const LISTS_QUERY_KEY = ["manager", "lists"] as const;
 
@@ -94,26 +86,18 @@ async function fetchListsApi(): Promise<ListData[]> {
     const pageSize = 200;
     let page = 1;
     let hasMore = true;
-    const allLists: ListData[] = [];
-
+    const all: ListData[] = [];
     while (hasMore) {
         const res = await fetch(`/api/lists?page=${page}&limit=${pageSize}`);
         const json = await res.json();
         if (!json.success) throw new Error(json.error || "Impossible de charger les listes");
-
         const batch = Array.isArray(json.data) ? (json.data as ListData[]) : [];
-        allLists.push(...batch);
-
+        all.push(...batch);
         hasMore = Boolean(json.pagination?.hasMore);
         page += 1;
-
-        // Defensive guard in case pagination metadata is missing
-        if (!json.pagination && batch.length < pageSize) {
-            hasMore = false;
-        }
+        if (!json.pagination && batch.length < pageSize) hasMore = false;
     }
-
-    return allLists;
+    return all;
 }
 
 async function fetchHealthByListIds(listIds: string[]): Promise<Map<string, ListHealthSummary>> {
@@ -123,706 +107,531 @@ async function fetchHealthByListIds(listIds: string[]): Promise<Map<string, List
     const res = await fetch(`/api/lists/health?${params.toString()}`);
     const json = await res.json();
     if (!json.success) throw new Error(json.error || "Impossible de charger la santé des listes");
-    const map = new Map<string, ListHealthSummary>();
-    for (const item of (json.data as ListHealthSummary[])) {
-        map.set(item.listId, item);
-    }
-    return map;
+    return new Map((json.data as ListHealthSummary[]).map((h) => [h.listId, h]));
 }
+
+const actionablePct = (l: ListData) => {
+    const total = l.stats?.contactCount || 0;
+    return total > 0 ? Math.round(((l.stats?.completeness?.ACTIONABLE || 0) / total) * 100) : null;
+};
+
+const needsWatch = (h?: ListHealthSummary) => h?.status === "AT_RISK" || h?.status === "STALLED";
+
+const relDate = (iso: string) => {
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+    if (days < 1) return "aujourd'hui";
+    if (days < 2) return "hier";
+    if (days < 30) return `il y a ${days} j`;
+    return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "2-digit" });
+};
 
 export default function ListsPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
-    const { data: lists = [], isLoading, isFetching, refetch } = useQuery({
-        queryKey: LISTS_QUERY_KEY,
-        queryFn: fetchListsApi,
-    });
-    const [searchQuery, setSearchQuery] = useState("");
-    const [sizeFilter, setSizeFilter] = useState<string>("all");
-    const [qualityFilter, setQualityFilter] = useState<string>("all");
-    const [showArchived, setShowArchived] = useState(false);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deletingList, setDeletingList] = useState<ListData | null>(null);
+    const { data: lists = [], isLoading, isFetching, refetch } = useQuery({ queryKey: LISTS_QUERY_KEY, queryFn: fetchListsApi });
+
+    const [mode, setMode] = useState<Mode>("lists");
+    const [view, setView] = useState<View>("active");
+    const [search, setSearch] = useState("");
+    const [missionId, setMissionId] = useState("");
+    const [sort, setSort] = useState<Sort>("recent");
+    const [deleting, setDeleting] = useState<ListData | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const { position, contextData, handleContextMenu, close: closeMenu } = useContextMenu();
 
-    // ============================================
-    // TABS (Lists vs Search)
-    // ============================================
-    const [activeTab, setActiveTab] = useState<"lists" | "search" | "health">("lists");
-    const [importModalOpen, setImportModalOpen] = useState(false);
-    const [resultsToImport, setResultsToImport] = useState<ListingResult[]>([]);
-    const visibleListIds = lists.filter((l) => !l.isArchived).map((l) => l.id);
-    const { data: healthByListId = new Map<string, ListHealthSummary>() } = useQuery({
-        queryKey: ["manager", "lists-health", visibleListIds],
-        queryFn: () => fetchHealthByListIds(visibleListIds),
-        enabled: (activeTab === "lists" || activeTab === "health") && visibleListIds.length > 0,
+    const activeIds = useMemo(() => lists.filter((l) => !l.isArchived).map((l) => l.id), [lists]);
+    const { data: health = new Map<string, ListHealthSummary>(), isLoading: healthLoading } = useQuery({
+        queryKey: ["manager", "lists-health", activeIds],
+        queryFn: () => fetchHealthByListIds(activeIds),
+        enabled: activeIds.length > 0,
         staleTime: 2 * 60 * 1000,
     });
 
-    const handleImportRequest = (results: ListingResult[]) => {
-        setResultsToImport(results);
-        setImportModalOpen(true);
-    };
-
-    const handleImportComplete = () => {
-        setImportModalOpen(false);
-        setResultsToImport([]);
-        setActiveTab("lists");
-        queryClient.invalidateQueries({ queryKey: LISTS_QUERY_KEY });
-    };
-
-
     // ============================================
-    // DELETE LIST
+    // ACTIONS
     // ============================================
 
-    const handleDeleteList = async () => {
-        if (!deletingList) return;
-
+    const handleDelete = async () => {
+        if (!deleting) return;
         setIsDeleting(true);
         try {
-            const res = await fetch(`/api/lists/${deletingList.id}`, {
-                method: "DELETE",
-            });
+            const res = await fetch(`/api/lists/${deleting.id}`, { method: "DELETE" });
             const json = await res.json();
-
             if (json.success) {
-                success("Liste supprimée", `${deletingList.name} a été supprimée`);
+                success("Liste supprimée", `${deleting.name} a été supprimée`);
                 queryClient.invalidateQueries({ queryKey: LISTS_QUERY_KEY });
-            } else {
-                showError("Erreur", json.error || "Impossible de supprimer");
-            }
-        } catch (err) {
+            } else showError("Erreur", json.error || "Impossible de supprimer");
+        } catch {
             showError("Erreur", "Impossible de supprimer la liste");
         } finally {
             setIsDeleting(false);
-            setShowDeleteModal(false);
-            setDeletingList(null);
+            setDeleting(null);
         }
     };
 
-    // ============================================
-    // CONTEXT MENU ITEMS
-    // ============================================
-
-    const handleArchiveToggle = async (list: ListData) => {
-        const newArchivedState = !list.isArchived;
-        
-        // Optimistic update
-        queryClient.setQueryData<ListData[]>(LISTS_QUERY_KEY, (old) => {
-            if (!old) return old;
-            return old.map((l) =>
-                l.id === list.id
-                    ? { ...l, isArchived: newArchivedState, archivedAt: newArchivedState ? new Date().toISOString() : null }
-                    : l
+    const toggleArchive = async (list: ListData) => {
+        const archived = !list.isArchived;
+        const patch = (value: boolean, at: string | null | undefined) =>
+            queryClient.setQueryData<ListData[]>(LISTS_QUERY_KEY, (old) =>
+                old?.map((l) => (l.id === list.id ? { ...l, isArchived: value, archivedAt: at } : l)),
             );
-        });
-
+        patch(archived, archived ? new Date().toISOString() : null);
         try {
             const res = await fetch(`/api/lists/${list.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isArchived: newArchivedState }),
+                body: JSON.stringify({ isArchived: archived }),
             });
             const json = await res.json();
-
-            if (json.success) {
-                success(
-                    newArchivedState ? "Liste archivée" : "Liste désarchivée",
-                    `${list.name} a été ${newArchivedState ? "archivée" : "désarchivée"}`
-                );
-            } else {
-                // Rollback on error
-                queryClient.setQueryData<ListData[]>(LISTS_QUERY_KEY, (old) => {
-                    if (!old) return old;
-                    return old.map((l) =>
-                        l.id === list.id ? { ...l, isArchived: list.isArchived, archivedAt: list.archivedAt } : l
-                    );
-                });
-                showError("Erreur", json.error || "Impossible de modifier la liste");
-            }
-        } catch (err) {
-            // Rollback on error
-            queryClient.setQueryData<ListData[]>(LISTS_QUERY_KEY, (old) => {
-                if (!old) return old;
-                return old.map((l) =>
-                    l.id === list.id ? { ...l, isArchived: list.isArchived, archivedAt: list.archivedAt } : l
-                );
-            });
-            showError("Erreur", "Impossible de modifier la liste");
+            if (!json.success) throw new Error(json.error);
+            success(archived ? "Liste archivée" : "Liste désarchivée", list.name);
+        } catch (e) {
+            patch(!!list.isArchived, list.archivedAt);
+            showError("Erreur", (e instanceof Error && e.message) || "Impossible de modifier la liste");
         }
     };
 
-    const getContextMenuItems = (list: ListData) => [
-        {
-            label: "Voir les détails",
-            icon: <Eye className="w-4 h-4" />,
-            onClick: () => router.push(`/manager/lists/${list.id}`),
-        },
-        {
-            label: "Modifier",
-            icon: <Edit className="w-4 h-4" />,
-            onClick: () => router.push(`/manager/lists/${list.id}/edit`),
-        },
-        {
-            label: "Exporter CSV",
-            icon: <Download className="w-4 h-4" />,
-            onClick: () => window.open(`/api/lists/${list.id}/export`, "_blank"),
-        },
+    const menuItems = (list: ListData) => [
+        { label: "Ouvrir", icon: <Eye className="size-4" />, onClick: () => router.push(`/manager/lists/${list.id}`) },
+        { label: "Modifier", icon: <Edit className="size-4" />, onClick: () => router.push(`/manager/lists/${list.id}/edit`) },
+        { label: "Exporter CSV", icon: <Download className="size-4" />, onClick: () => window.open(`/api/lists/${list.id}/export`, "_blank") },
         {
             label: list.isArchived ? "Désarchiver" : "Archiver",
-            icon: list.isArchived ? <ArchiveRestore className="w-4 h-4" /> : <Archive className="w-4 h-4" />,
-            onClick: () => handleArchiveToggle(list),
+            icon: list.isArchived ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />,
+            onClick: () => toggleArchive(list),
             variant: "default" as const,
             divider: true,
         },
-        {
-            label: "Supprimer",
-            icon: <Trash2 className="w-4 h-4" />,
-            onClick: () => {
-                setDeletingList(list);
-                setShowDeleteModal(true);
-            },
-            variant: "danger" as const,
-        },
+        { label: "Supprimer", icon: <Trash2 className="size-4" />, onClick: () => setDeleting(list), variant: "danger" as const },
     ];
 
     // ============================================
-    // FILTER LISTS
+    // DERIVED
     // ============================================
 
-    const filteredLists = lists.filter(list => {
-        const matchesSearch = !searchQuery ||
-            list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            list.mission?.name.toLowerCase().includes(searchQuery.toLowerCase());
-
-        // Size filter based on contact count
-        const contactCount = list.stats?.contactCount || 0;
-        let matchesSize = true;
-        if (sizeFilter === "small") matchesSize = contactCount < 50;
-        else if (sizeFilter === "medium") matchesSize = contactCount >= 50 && contactCount < 200;
-        else if (sizeFilter === "large") matchesSize = contactCount >= 200;
-
-        // Quality filter based on actionable %
-        const totalContacts = list.stats?.contactCount || 0;
-        const actionablePercent = totalContacts > 0
-            ? Math.round(((list.stats?.completeness?.ACTIONABLE || 0) / totalContacts) * 100)
-            : 0;
-        let matchesQuality = true;
-        if (qualityFilter === "low") matchesQuality = actionablePercent < 50;
-        else if (qualityFilter === "medium") matchesQuality = actionablePercent >= 50 && actionablePercent < 80;
-        else if (qualityFilter === "high") matchesQuality = actionablePercent >= 80;
-
-        // Archived: when ON show only archived, when OFF show only non-archived
-        const matchesArchived = showArchived ? !!list.isArchived : !list.isArchived;
-
-        return matchesSearch && matchesSize && matchesQuality && matchesArchived;
-    });
-
-    // ============================================
-    // STATS
-    // ============================================
-
-    const stats = useMemo(() => {
-        const visibleLists = lists.filter((l) => !l.isArchived);
-        const total = visibleLists.length;
-        const companies = visibleLists.reduce((acc, l) => acc + (l._count?.companies || 0), 0);
-        const contacts = visibleLists.reduce((acc, l) => acc + (l.stats?.contactCount || 0), 0);
+    const kpis = useMemo(() => {
+        const active = lists.filter((l) => !l.isArchived);
         let atRisk = 0;
         let stalled = 0;
-        for (const health of healthByListId.values()) {
-            if (health.status === "AT_RISK") atRisk++;
-            else if (health.status === "STALLED") stalled++;
+        for (const h of health.values()) {
+            if (h.status === "AT_RISK") atRisk++;
+            else if (h.status === "STALLED") stalled++;
         }
-        return { total, companies, contacts, atRisk, stalled, toWatch: atRisk + stalled };
-    }, [lists, healthByListId]);
+        return {
+            active: active.length,
+            archived: lists.length - active.length,
+            companies: active.reduce((n, l) => n + (l._count?.companies || 0), 0),
+            contacts: active.reduce((n, l) => n + (l.stats?.contactCount || 0), 0),
+            actionable: active.reduce((n, l) => n + (l.stats?.completeness?.ACTIONABLE || 0), 0),
+            atRisk,
+            stalled,
+            watch: atRisk + stalled,
+        };
+    }, [lists, health]);
+
+    const missionOptions = useMemo(() => {
+        const m = new Map<string, string>();
+        lists.forEach((l) => l.mission && m.set(l.mission.id, l.mission.name));
+        return [
+            { value: "", label: "Toutes les missions" },
+            ...[...m].sort((a, b) => a[1].localeCompare(b[1], "fr")).map(([value, label]) => ({ value, label })),
+        ];
+    }, [lists]);
+
+    const rows = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        const out = lists.filter((l) => {
+            if (view === "archived" ? !l.isArchived : l.isArchived) return false;
+            if (view === "watch" && !needsWatch(health.get(l.id))) return false;
+            if (missionId && l.mission?.id !== missionId) return false;
+            if (q && !`${l.name} ${l.mission?.name ?? ""} ${l.source ?? ""}`.toLowerCase().includes(q)) return false;
+            return true;
+        });
+        const rank = (l: ListData) => {
+            const h = health.get(l.id);
+            return h ? HEALTH[h.status].rank : 9;
+        };
+        out.sort((a, b) => {
+            if (sort === "name") return a.name.localeCompare(b.name, "fr");
+            if (sort === "size") return (b.stats?.contactCount || 0) - (a.stats?.contactCount || 0);
+            if (sort === "attention") return rank(a) - rank(b) || (health.get(b.id)?.daysSinceLastAction ?? 0) - (health.get(a.id)?.daysSinceLastAction ?? 0);
+            return +new Date(b.createdAt) - +new Date(a.createdAt);
+        });
+        return out;
+    }, [lists, health, view, missionId, search, sort]);
+
+    const filtered = !!search || !!missionId;
 
     return (
         <div className="space-y-6">
-            {/* Premium Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Listes & Prospection</h1>
-                    <p className="text-sm text-slate-500 mt-1">
-                        Gérez vos listes de sociétés et recherchez de nouveaux leads
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 shadow-inner mr-2">
-                        <button
-                            onClick={() => setActiveTab("lists")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${activeTab === "lists"
-                                ? "bg-white text-primary-700 shadow border-b border-primary-100"
-                                : "text-slate-500 hover:text-slate-700"
-                                }`}
-                        >
-                            <List className={`w-4 h-4 ${activeTab === "lists" ? "text-primary-500" : "text-slate-400"}`} />
-                            Mes Listes
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("search")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${activeTab === "search"
-                                ? "bg-white text-primary-700 shadow border-b border-primary-100"
-                                : "text-slate-500 hover:text-slate-700"
-                                }`}
-                        >
-                            <Database className={`w-4 h-4 ${activeTab === "search" ? "text-primary-500" : "text-slate-400"}`} />
-                            Recherche de Leads
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("health")}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${activeTab === "health"
-                                ? "bg-white text-primary-700 shadow border-b border-primary-100"
-                                : "text-slate-500 hover:text-slate-700"
-                                }`}
-                        >
-                            <Activity className={`w-4 h-4 ${activeTab === "health" ? "text-primary-500" : "text-slate-400"}`} />
-                            Santé Prospection
-                        </button>
-                    </div>
+            <PageHeader
+                title="Listes"
+                subtitle="Les fichiers de prospection, leur qualité et leur avancement"
+                icon={<Database />}
+                onRefresh={() => refetch()}
+                isRefreshing={isFetching}
+                actions={
+                    <>
+                        <Link href="/manager/lists/import">
+                            <Button variant="secondary">
+                                <Upload className="size-4" /> Importer un CSV
+                            </Button>
+                        </Link>
+                        <Link href="/manager/lists/sourcing">
+                            <Button>
+                                <ScanSearch className="size-4" /> Sourcer des leads
+                            </Button>
+                        </Link>
+                    </>
+                }
+            />
 
-                    {activeTab === "lists" && (
-                        <>
-                            <button
-                                onClick={() => refetch()}
-                                className="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors tooltip-trigger"
-                                title="Rafraîchir les listes"
-                            >
-                                <RefreshCw className={`w-4 h-4 text-slate-500 ${isFetching ? "animate-spin" : ""}`} />
-                            </button>
-                            <Link
-                                href="/manager/lists/import"
-                                className="flex items-center gap-2 h-10 px-5 text-sm font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-primary-600 rounded-lg transition-colors shadow-sm"
-                            >
-                                <Upload className="w-4 h-4" />
-                                Importer CSV
-                            </Link>
-                        </>
-                    )}
-                </div>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <KpiCard label="Listes actives" value={kpis.active} icon={ListIcon} tone="primary" loading={isLoading} hint={kpis.archived ? `${kpis.archived} archivée${kpis.archived > 1 ? "s" : ""}` : "Aucune archivée"} />
+                <KpiCard label="Sociétés" value={kpis.companies.toLocaleString("fr-FR")} icon={Building2} tone="info" loading={isLoading} hint="Dans les listes actives" />
+                <KpiCard label="Contacts" value={kpis.contacts.toLocaleString("fr-FR")} icon={Users} tone="accent" loading={isLoading} hint={`${kpis.actionable.toLocaleString("fr-FR")} joignables`} />
+                <button
+                    type="button"
+                    disabled={kpis.watch === 0}
+                    onClick={() => {
+                        setMode("lists");
+                        setView("watch");
+                        setSort("attention");
+                    }}
+                    className={cn("rounded-card text-left", FOCUS_RING, kpis.watch > 0 && "transition-transform hover:-translate-y-px")}
+                >
+                    <KpiCard
+                        className="h-full"
+                        label="À surveiller"
+                        value={kpis.watch}
+                        icon={TriangleAlert}
+                        tone={kpis.watch > 0 ? "danger" : "neutral"}
+                        loading={isLoading || (activeIds.length > 0 && healthLoading)}
+                        hint={kpis.watch > 0 ? `${kpis.atRisk} à risque · ${kpis.stalled} à l'arrêt` : "Rien à signaler"}
+                    />
+                </button>
             </div>
 
-            {activeTab === "lists" ? (
-                <>
-                    {/* Premium Stats Cards */}
-                    {isLoading ? (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                            <div className="mgr-stat-card animate-pulse"><div className="h-16 bg-slate-100 rounded-xl" /></div>
-                            <div className="mgr-stat-card animate-pulse"><div className="h-16 bg-slate-100 rounded-xl" /></div>
-                            <div className="mgr-stat-card animate-pulse"><div className="h-16 bg-slate-100 rounded-xl" /></div>
-                            <div className="mgr-stat-card animate-pulse"><div className="h-16 bg-slate-100 rounded-xl" /></div>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                            <div className="mgr-stat-card">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-primary-100 flex items-center justify-center">
-                                        <List className="w-6 h-6 text-primary-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
-                                        <p className="text-sm font-medium text-slate-500">Listes actives</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="mgr-stat-card">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                        <Building2 className="w-6 h-6 text-emerald-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-bold text-slate-900">{stats.companies}</p>
-                                        <p className="text-sm font-medium text-slate-500">Sociétés couvertes</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="mgr-stat-card">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-                                        <Users className="w-6 h-6 text-amber-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-2xl font-bold text-slate-900">{stats.contacts}</p>
-                                        <p className="text-sm font-medium text-slate-500">Contacts individuels</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (stats.toWatch > 0) setActiveTab("health");
-                                }}
-                                className={`mgr-stat-card text-left transition-shadow ${
-                                    stats.toWatch > 0 ? "cursor-pointer hover:shadow-md" : "cursor-default"
-                                }`}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                        stats.toWatch > 0 ? "bg-rose-100" : "bg-slate-100"
-                                    }`}>
-                                        <AlertTriangle className={`w-6 h-6 ${
-                                            stats.toWatch > 0 ? "text-rose-600" : "text-slate-400"
-                                        }`} />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-2xl font-bold text-slate-900">{stats.toWatch}</p>
-                                        <p className="text-sm font-medium text-slate-500 truncate">
-                                            À surveiller
-                                            {stats.toWatch > 0 && (
-                                                <span className="ml-1 text-[11px] text-slate-400 font-normal">
-                                                    · {stats.atRisk} à risque
-                                                    {stats.stalled > 0 && <>, {stats.stalled} stagnantes</>}
-                                                </span>
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                            </button>
-                        </div>
-                    )}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <SegmentedControl<Mode>
+                    ariaLabel="Affichage"
+                    value={mode}
+                    onChange={setMode}
+                    options={[
+                        { value: "lists", label: "Listes", icon: LayoutList },
+                        { value: "health", label: "Santé de la prospection", icon: HeartPulse },
+                    ]}
+                />
+                {mode === "lists" && (
+                    <SegmentedControl<View>
+                        ariaLabel="Filtre de statut"
+                        size="sm"
+                        value={view}
+                        onChange={setView}
+                        options={[
+                            { value: "active", label: "Actives", count: kpis.active },
+                            { value: "watch", label: "À surveiller", count: kpis.watch, alert: kpis.watch > 0 },
+                            { value: "archived", label: "Archivées", count: kpis.archived },
+                        ]}
+                    />
+                )}
+            </div>
 
-                    {/* Compact Filter Bar */}
-                    <div className="bg-white border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2">
-                        <div className="relative flex-1 max-w-xs">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Rechercher..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-8 pl-9 pr-8 text-xs font-medium text-slate-900 bg-slate-50 border border-transparent focus:bg-white focus:border-primary-500 focus:ring-1 focus:ring-primary-500/10 rounded-md transition-all"
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery("")}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-200 rounded transition-colors"
-                                >
-                                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            )}
-                        </div>
-
-                        <div className="h-5 w-px bg-slate-200" />
-
-                        {/* Size filter */}
-                        <div className="flex items-center gap-1">
-                            {[
-                                { value: "all", label: "Toutes tailles" },
-                                { value: "small", label: "< 50" },
-                                { value: "medium", label: "50–200" },
-                                { value: "large", label: "200+" },
-                            ].map((s) => (
-                                <button
-                                    key={s.value}
-                                    onClick={() => setSizeFilter(s.value)}
-                                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                                        sizeFilter === s.value
-                                            ? "bg-primary-50 text-primary-700 border border-primary-200"
-                                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50 border border-transparent"
-                                    }`}
-                                >
-                                    {s.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="h-5 w-px bg-slate-200" />
-
-                        {/* Quality filter — based on actionable % */}
-                        <div className="flex items-center gap-1">
-                            {[
-                                { value: "all", label: "Qualité" },
-                                { value: "low", label: "< 50%" },
-                                { value: "medium", label: "50–80%" },
-                                { value: "high", label: "80%+" },
-                            ].map((q) => (
-                                <button
-                                    key={q.value}
-                                    onClick={() => setQualityFilter(q.value)}
-                                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                                        qualityFilter === q.value
-                                            ? "bg-primary-50 text-primary-700 border border-primary-200"
-                                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50 border border-transparent"
-                                    }`}
-                                    title={
-                                        q.value === "all"
-                                            ? "Toutes les listes"
-                                            : `Contacts ACTIONABLE ${q.label}`
-                                    }
-                                >
-                                    {q.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="h-5 w-px bg-slate-200" />
-
-                        {/* Archive toggle — shows ONLY archived when active */}
-                        <button
-                            onClick={() => setShowArchived(p => !p)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
-                                showArchived
-                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                    : "text-slate-500 hover:text-slate-700 hover:bg-slate-50 border border-transparent"
-                            }`}
-                        >
-                            <Archive className="w-3.5 h-3.5" />
-                            Archivées
-                        </button>
-
-                        {/* Spacer */}
-                        <div className="flex-1" />
-
-                        {/* Result count */}
-                        <span className="text-xs font-medium text-slate-400">
-                            {filteredLists.length} liste{filteredLists.length !== 1 ? "s" : ""}
-                        </span>
-
-                        {(searchQuery || sizeFilter !== "all" || qualityFilter !== "all" || showArchived) && (
-                            <button
-                                onClick={() => { setSearchQuery(""); setSizeFilter("all"); setQualityFilter("all"); setShowArchived(false); }}
-                                className="text-xs font-medium text-slate-400 hover:text-rose-500 transition-colors"
-                            >
-                                Réinitialiser
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Table View */}
-                    {isLoading && lists.length === 0 ? (
-                        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                            <div className="divide-y divide-slate-100">
-                                {[1, 2, 3, 4, 5, 6].map(i => (
-                                    <div key={i} className="flex items-center gap-4 px-5 py-3.5 animate-pulse">
-                                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex-shrink-0" />
-                                        <div className="flex-1 space-y-1.5">
-                                            <div className="h-3.5 bg-slate-100 rounded w-1/3" />
-                                            <div className="h-2.5 bg-slate-100 rounded w-1/5" />
-                                        </div>
-                                        <div className="h-3 bg-slate-100 rounded w-12" />
-                                        <div className="h-3 bg-slate-100 rounded w-16" />
-                                        <div className="h-3 bg-slate-100 rounded w-10" />
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : filteredLists.length === 0 ? (
-                        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-                            <div className="w-14 h-14 rounded-xl bg-primary-50 border border-primary-100/50 flex items-center justify-center mx-auto mb-4">
-                                <List className="w-7 h-7 text-primary-400" />
-                            </div>
-                            <h3 className="text-base font-bold text-slate-900 mb-1">
-                                {searchQuery || sizeFilter !== "all" || qualityFilter !== "all" || showArchived
-                                    ? "Aucune liste ne correspond"
-                                    : "Aucune liste de contacts"}
-                            </h3>
-                            <p className="text-xs text-slate-500 mb-6 max-w-sm mx-auto">
-                                {searchQuery || sizeFilter !== "all" || qualityFilter !== "all"
-                                    ? "Modifiez vos filtres."
-                                    : "Importez une base de données ou créez une nouvelle liste."}
-                            </p>
-                            {!searchQuery && sizeFilter === "all" && qualityFilter === "all" && !showArchived && (
-                                <Link href="/manager/lists/import" className="inline-flex items-center gap-2 h-9 px-5 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-primary-600 rounded-lg transition-colors shadow-sm">
-                                    <Upload className="w-3.5 h-3.5" />
-                                    Importer un CSV
-                                </Link>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                            {/* Table header */}
-                            <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_70px_65px_65px_190px_90px_36px] gap-3 px-5 py-2.5 bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                                <span>Nom</span>
-                                <span>Mission</span>
-                                <span className="text-center">Type</span>
-                                <span className="text-center">Sociétés</span>
-                                <span className="text-center">Contacts</span>
-                                <span className="text-center">Santé &amp; activité</span>
-                                <span className="text-center">Source</span>
-                                <span></span>
-                            </div>
-                            {/* Table rows */}
-                            <div className="divide-y divide-slate-100">
-                                {filteredLists.map((list) => {
-                                    const totalContacts = list.stats?.contactCount || 0;
-                                    const actionablePercent = totalContacts > 0
-                                        ? Math.round(((list.stats?.completeness?.ACTIONABLE || 0) / totalContacts) * 100)
-                                        : 0;
-
-                                    const health = healthByListId.get(list.id);
-
-                                    return (
-                                        <div
-                                            key={list.id}
-                                            onClick={() => router.push(`/manager/lists/${list.id}`)}
-                                            onContextMenu={(e) => handleContextMenu(e, list)}
-                                            className={`group grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_70px_65px_65px_190px_90px_36px] gap-3 px-5 py-3 cursor-pointer transition-colors hover:bg-primary-50/40 ${list.isArchived ? "opacity-60" : ""}`}
-                                        >
-                                            {/* Name + badges */}
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 group-hover:border-primary-200 transition-colors">
-                                                    <List className="w-4 h-4 text-slate-400 group-hover:text-primary-500 transition-colors" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <span className="text-sm font-semibold text-slate-900 group-hover:text-primary-600 transition-colors truncate">{list.name}</span>
-                                                        {list.isArchived && (
-                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200 flex-shrink-0">
-                                                                Archivée
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {totalContacts > 0 && (
-                                                        <p className="text-[10px] font-medium text-slate-400 mt-0.5 truncate">
-                                                            {actionablePercent}% actionnable
-                                                            {health && health.actions7d > 0 && (
-                                                                <> · {health.actions7d} action{health.actions7d > 1 ? "s" : ""} 7j</>
-                                                            )}
-                                                            {health && health.daysSinceLastAction !== null && health.daysSinceLastAction >= 7 && (
-                                                                <span className="text-amber-600"> · {health.daysSinceLastAction}j sans action</span>
-                                                            )}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Mission */}
-                                            <div className="flex items-center min-w-0">
-                                                <span className="text-xs font-medium text-slate-500 truncate">
-                                                    {list.mission?.name || "—"}
-                                                </span>
-                                            </div>
-
-                                            {/* Type */}
-                                            <div className="flex items-center justify-center">
-                                                <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full border ${TYPE_STYLES[list.type].color}`}>
-                                                    {TYPE_STYLES[list.type].label}
-                                                </span>
-                                            </div>
-
-                                            {/* Companies */}
-                                            <div className="flex items-center justify-center">
-                                                <span className="text-sm font-semibold text-slate-700">{list._count?.companies || 0}</span>
-                                            </div>
-
-                                            {/* Contacts */}
-                                            <div className="flex items-center justify-center">
-                                                <span className="text-sm font-semibold text-slate-700">{totalContacts}</span>
-                                            </div>
-
-                                            {/* Health + activity mini-dashboard */}
-                                            <div
-                                                className="flex items-center min-w-0"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                {!health ? (
-                                                    <div className="w-full flex items-center justify-center">
-                                                        <span className="text-[11px] text-slate-400">—</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col gap-1 w-full min-w-0">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <ProspectionHealthBadge
-                                                                status={health.status}
-                                                                statusLabel={health.statusLabel}
-                                                                compact
-                                                            />
-                                                            <VelocityTrendBadge
-                                                                trend={health.velocity.trend}
-                                                                explanation={health.velocity.trendExplanation}
-                                                            />
-                                                        </div>
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            <div className="flex-1 min-w-0">
-                                                                <ActivityScoreBar
-                                                                    score={health.activityScore}
-                                                                    size="sm"
-                                                                    explanation={`Score composite 0–100`}
-                                                                />
-                                                            </div>
-                                                            {health.coverageRate !== null && (
-                                                                <span
-                                                                    className={`text-[10px] font-bold tabular-nums flex-shrink-0 ${getCoverageColor(health.coverageRate)}`}
-                                                                    title={`Couverture: ${health.coverageRate.toFixed(1)}%`}
-                                                                >
-                                                                    {Math.round(health.coverageRate)}%
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Source */}
-                                            <div className="flex items-center justify-center">
-                                                <span className="text-[11px] font-medium text-slate-400 truncate">{list.source || "—"}</span>
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="flex items-center justify-center">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleContextMenu(e, list);
-                                                    }}
-                                                    className="p-1 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                                                >
-                                                    <MoreVertical className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                </>
-            ) : activeTab === "search" ? (
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm min-h-[600px] flex flex-col">
-                    <ListingSearchTab onImport={handleImportRequest} />
+            {mode === "health" ? (
+                <div className="rounded-card border border-line bg-surface p-5 shadow-card">
+                    <ListHealthDashboard />
                 </div>
             ) : (
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm p-5">
-                    <ListHealthDashboard />
+                <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
+                    {/* Toolbar */}
+                    <div className="flex flex-wrap items-center gap-2 border-b border-line p-3">
+                        <div className="relative w-full sm:w-72">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-4" />
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Rechercher une liste, une mission…"
+                                className="h-9 w-full rounded-control border border-line bg-surface pl-9 pr-8 text-sm text-ink shadow-2xs outline-none placeholder:text-ink-4 focus:border-primary-400 focus:ring-4 focus:ring-primary-500/12"
+                            />
+                            {search && (
+                                <button type="button" aria-label="Effacer" onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-4 hover:text-ink">
+                                    <X className="size-3.5" />
+                                </button>
+                            )}
+                        </div>
+                        <div className="w-full sm:w-60">
+                            <Select searchable value={missionId} onChange={setMissionId} options={missionOptions} />
+                        </div>
+                        <div className="ml-auto flex items-center gap-2">
+                            <span className="text-xs text-ink-4 tabular-nums">
+                                {rows.length} liste{rows.length > 1 ? "s" : ""}
+                            </span>
+                            <div className="w-48">
+                                <Select
+                                    value={sort}
+                                    onChange={(v) => setSort(v as Sort)}
+                                    options={[
+                                        { value: "recent", label: "Plus récentes" },
+                                        { value: "attention", label: "À traiter d'abord" },
+                                        { value: "size", label: "Plus de contacts" },
+                                        { value: "name", label: "Nom A→Z" },
+                                    ]}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {isLoading && lists.length === 0 ? (
+                        <TableSkeleton />
+                    ) : rows.length === 0 ? (
+                        <EmptyLists view={view} filtered={filtered} onReset={() => { setSearch(""); setMissionId(""); }} />
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[920px] border-collapse text-left">
+                                <thead>
+                                    <tr className="border-b border-line bg-surface-2 text-2xs font-semibold uppercase tracking-[0.06em] text-ink-3">
+                                        <th className="py-2.5 pl-5 pr-3">Liste</th>
+                                        <th className="py-2.5 pr-3">Mission</th>
+                                        <th className="w-24 py-2.5 pr-3 text-right">Sociétés</th>
+                                        <th className="w-24 py-2.5 pr-3 text-right">Contacts</th>
+                                        <th className="w-40 py-2.5 pr-3">Joignables</th>
+                                        <th className="w-44 py-2.5 pr-3">Avancement</th>
+                                        <th className="w-36 py-2.5 pr-3">Activité</th>
+                                        <th className="w-12 py-2.5 pr-3" />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((list) => (
+                                        <ListRow
+                                            key={list.id}
+                                            list={list}
+                                            health={health.get(list.id)}
+                                            healthLoading={healthLoading}
+                                            onOpen={() => router.push(`/manager/lists/${list.id}`)}
+                                            onMenu={(e) => handleContextMenu(e, list)}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             )}
 
-            <ImportToListModal
-                isOpen={importModalOpen}
-                onClose={() => {
-                    setImportModalOpen(false);
-                    setResultsToImport([]);
-                }}
-                results={resultsToImport}
-                onImportComplete={handleImportComplete}
-            />
+            <ContextMenu items={contextData ? menuItems(contextData) : []} position={position} onClose={closeMenu} />
 
-            {/* Context Menu */}
-            <ContextMenu
-                items={contextData ? getContextMenuItems(contextData) : []}
-                position={position}
-                onClose={closeMenu}
-            />
-
-            {/* Delete Confirmation */}
             <ConfirmModal
-                isOpen={showDeleteModal}
-                onClose={() => {
-                    setShowDeleteModal(false);
-                    setDeletingList(null);
-                }}
-                onConfirm={handleDeleteList}
+                isOpen={!!deleting}
+                onClose={() => setDeleting(null)}
+                onConfirm={handleDelete}
                 title="Supprimer la liste ?"
-                message={`Êtes-vous sûr de vouloir supprimer "${deletingList?.name}" ? Cette action supprimera également toutes les sociétés et contacts associés.`}
+                message={`« ${deleting?.name} » sera supprimée avec toutes ses sociétés et contacts. Pour la retirer sans rien perdre, archivez-la plutôt.`}
                 confirmText="Supprimer"
                 variant="danger"
                 isLoading={isDeleting}
             />
+        </div>
+    );
+}
 
+// ============================================
+// ROW
+// ============================================
+
+function ListRow({
+    list,
+    health,
+    healthLoading,
+    onOpen,
+    onMenu,
+}: {
+    list: ListData;
+    health?: ListHealthSummary;
+    healthLoading: boolean;
+    onOpen: () => void;
+    onMenu: (e: React.MouseEvent) => void;
+}) {
+    const pct = actionablePct(list);
+    const contacts = list.stats?.contactCount || 0;
+    const h = health ? HEALTH[health.status] : null;
+    const coverage = health?.coverageRate ?? null;
+
+    return (
+        <tr
+            onClick={onOpen}
+            onContextMenu={onMenu}
+            className={cn("group cursor-pointer border-b border-line-subtle transition-colors last:border-0 hover:bg-surface-2", list.isArchived && "opacity-60")}
+        >
+            <td className="max-w-0 py-3 pl-5 pr-3">
+                <Link
+                    href={`/manager/lists/${list.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="block truncate text-sm font-semibold text-ink outline-none group-hover:text-primary-700 focus-visible:underline"
+                >
+                    {list.name}
+                </Link>
+                <div className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-ink-3">
+                    <span>{TYPE_LABEL[list.type]}</span>
+                    {list.source && (
+                        <>
+                            <span className="text-ink-4">·</span>
+                            <span className="truncate">{list.source}</span>
+                        </>
+                    )}
+                    <span className="text-ink-4">·</span>
+                    <span className="shrink-0">{relDate(list.createdAt)}</span>
+                </div>
+            </td>
+            <td className="max-w-0 py-3 pr-3">
+                <span className="block truncate text-[13px] text-ink-2">{list.mission?.name ?? "—"}</span>
+            </td>
+            <td className="py-3 pr-3 text-right text-[13px] font-medium text-ink tabular-nums">
+                {(list._count?.companies || 0).toLocaleString("fr-FR")}
+            </td>
+            <td className="py-3 pr-3 text-right text-[13px] font-medium text-ink tabular-nums">{contacts.toLocaleString("fr-FR")}</td>
+            <td className="py-3 pr-3">
+                {pct === null ? (
+                    <span className="text-xs text-ink-4">—</span>
+                ) : (
+                    <Meter
+                        value={pct}
+                        tone={pct >= 80 ? "success" : pct >= 50 ? "warning" : "neutral"}
+                        title={`${list.stats?.completeness.ACTIONABLE ?? 0} contacts actionnables sur ${contacts}`}
+                    />
+                )}
+            </td>
+            <td className="py-3 pr-3">
+                {health && h ? (
+                    <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-2" title={health.statusLabel}>
+                                <StatusDot tone={h.tone} />
+                                {h.label}
+                            </span>
+                            {coverage !== null && <span className="text-2xs text-ink-3 tabular-nums">{Math.round(coverage)}% traité</span>}
+                        </div>
+                        {coverage !== null && (
+                            <div className="h-1 overflow-hidden rounded-full bg-surface-3">
+                                <div className="h-full rounded-full bg-primary-600" style={{ width: `${Math.min(100, coverage)}%` }} />
+                            </div>
+                        )}
+                    </div>
+                ) : healthLoading && !list.isArchived ? (
+                    <div className="h-3 w-24 animate-pulse rounded bg-surface-3" />
+                ) : (
+                    <span className="text-xs text-ink-4">—</span>
+                )}
+            </td>
+            <td className="py-3 pr-3 text-xs tabular-nums">
+                {!health ? (
+                    <span className="text-ink-4">—</span>
+                ) : health.daysSinceLastAction === null ? (
+                    <span className="text-ink-4">Jamais appelée</span>
+                ) : (
+                    <div>
+                        <div className={cn(health.daysSinceLastAction >= 7 ? "font-medium text-warning-ink" : "text-ink-2")}>
+                            {health.daysSinceLastAction === 0 ? "Aujourd'hui" : `Il y a ${health.daysSinceLastAction} j`}
+                        </div>
+                        <div className="text-ink-4">
+                            {health.actions7d} action{health.actions7d > 1 ? "s" : ""} / 7 j
+                        </div>
+                    </div>
+                )}
+            </td>
+            <td className="py-3 pr-3 text-right">
+                <button
+                    type="button"
+                    aria-label={`Actions pour ${list.name}`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onMenu(e);
+                    }}
+                    className={cn(
+                        "inline-flex size-8 items-center justify-center rounded-lg text-ink-4 opacity-0 transition hover:bg-surface-3 hover:text-ink group-hover:opacity-100 focus-visible:opacity-100",
+                        FOCUS_RING,
+                    )}
+                >
+                    <MoreHorizontal className="size-4" />
+                </button>
+            </td>
+        </tr>
+    );
+}
+
+function Meter({ value, tone, title }: { value: number; tone: Tone; title?: string }) {
+    const fill = { success: "bg-success", warning: "bg-warning", neutral: "bg-ink-4" }[tone as "success" | "warning" | "neutral"] ?? "bg-ink-4";
+    return (
+        <div className="flex items-center gap-2" title={title}>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
+                <div className={cn("h-full rounded-full", fill)} style={{ width: `${value}%` }} />
+            </div>
+            <span className="w-9 text-right text-xs font-medium text-ink-2 tabular-nums">{value}%</span>
+        </div>
+    );
+}
+
+function TableSkeleton() {
+    return (
+        <div className="divide-y divide-line-subtle">
+            {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-6 px-5 py-4">
+                    <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 w-1/3 animate-pulse rounded bg-surface-3" />
+                        <div className="h-2.5 w-1/5 animate-pulse rounded bg-surface-3" />
+                    </div>
+                    <div className="h-3 w-28 animate-pulse rounded bg-surface-3" />
+                    <div className="h-3 w-12 animate-pulse rounded bg-surface-3" />
+                    <div className="h-3 w-32 animate-pulse rounded bg-surface-3" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function EmptyLists({ view, filtered, onReset }: { view: View; filtered: boolean; onReset: () => void }) {
+    if (filtered) {
+        return (
+            <div className="px-6 py-14 text-center">
+                <p className="text-sm font-semibold text-ink">Aucune liste ne correspond</p>
+                <Button variant="link" size="sm" onClick={onReset} className="mt-1">
+                    Effacer la recherche
+                </Button>
+            </div>
+        );
+    }
+    if (view === "watch") {
+        return (
+            <div className="px-6 py-14 text-center">
+                <p className="text-sm font-semibold text-ink">Aucune liste à surveiller</p>
+                <p className="mt-1 text-sm text-ink-3">Toutes les listes actives sont travaillées régulièrement.</p>
+            </div>
+        );
+    }
+    if (view === "archived") {
+        return <div className="px-6 py-14 text-center text-sm text-ink-3">Aucune liste archivée.</div>;
+    }
+    return (
+        <div className="px-6 py-16 text-center">
+            <span className="mx-auto mb-4 inline-flex size-12 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-100">
+                <Plus className="size-5" />
+            </span>
+            <p className="text-base font-semibold text-ink">Aucune liste pour l&apos;instant</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-ink-3">
+                Trouvez des sociétés sur Google Maps et le registre officiel, ou importez un fichier existant.
+            </p>
+            <div className="mt-5 flex justify-center gap-2">
+                <Link href="/manager/lists/import">
+                    <Button variant="secondary">
+                        <Upload className="size-4" /> Importer un CSV
+                    </Button>
+                </Link>
+                <Link href="/manager/lists/sourcing">
+                    <Button>
+                        <ScanSearch className="size-4" /> Sourcer des leads
+                    </Button>
+                </Link>
+            </div>
         </div>
     );
 }
