@@ -8,7 +8,7 @@ type BadgeVariant = "default" | "primary" | "accent" | "success" | "warning" | "
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
     variant?: BadgeVariant;
     status?: CompletenessStatus;
-    size?: "sm" | "md";
+    size?: "xs" | "sm" | "md";
     /** Solid fill instead of the soft tint (counters, strong states). */
     solid?: boolean;
     /** Leading coloured dot. */
@@ -32,8 +32,9 @@ const VARIANT_TONE: Record<Exclude<BadgeVariant, "outline">, Tone> = {
 };
 
 const SIZES = {
-    sm: "h-5 px-1.5 text-3xs gap-1",
-    md: "h-6 px-2.5 text-xs gap-1.5",
+    xs: "h-4 px-1.5 text-[10px] gap-1 leading-none font-medium",
+    sm: "h-5 px-1.5 text-[11px] gap-1 leading-none",
+    md: "h-5.5 px-2 text-xs gap-1.5 leading-none",
 };
 
 const Badge = forwardRef<HTMLSpanElement, BadgeProps>(

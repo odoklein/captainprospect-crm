@@ -207,15 +207,15 @@ export function NotificationBell() {
                         if (next) loadNotifications();
                     }}
                     className={cn(
-                        "relative w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200",
-                        "border focus:outline-none",
+                        "relative w-7.5 h-7.5 rounded-lg flex items-center justify-center transition-all duration-200",
+                        "border focus:outline-none shadow-2xs",
                         isOpen
                             ? "bg-accent-100 border-accent-200 text-accent-600 shadow-sm"
-                            : "bg-surface border-line text-ink-3 hover:border-accent-200 hover:text-accent-600 hover:bg-accent-50 hover:shadow-sm"
+                            : "bg-surface border-line text-ink-3 hover:border-line-strong hover:text-ink hover:bg-surface-2"
                     )}
                     aria-label="Notifications"
                 >
-                    <Bell className={cn("w-4 h-4 transition-transform duration-200", isOpen && "scale-90")} />
+                    <Bell className={cn("w-3.5 h-3.5 transition-transform duration-200", isOpen && "scale-90")} />
 
                     {/* Unread badge */}
                     {unreadCount > 0 && (

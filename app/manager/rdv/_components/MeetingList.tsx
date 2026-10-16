@@ -124,9 +124,9 @@ const MeetingRow = memo(function MeetingRow({
 
       {/* Contact */}
       <div style={{ flex: 2, minWidth: 140, display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-        <Avatar name={meeting.contact ? contactName(meeting.contact) : (meeting.company?.name ?? "—")} size={28} />
+        <Avatar name={meeting.contact ? contactName(meeting.contact) : (meeting.company?.name ?? "—")} size={24} />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {meeting.contact ? contactName(meeting.contact) : (meeting.company ? "Société seule" : "—")}
           </div>
           <div style={{ fontSize: 11, color: "var(--ink3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -137,7 +137,7 @@ const MeetingRow = memo(function MeetingRow({
 
       {/* Company */}
       <div style={{ flex: 2, minWidth: 120, display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--accentLight)", border: "1px solid color-mix(in oklab, var(--accent) 14%, transparent)", display: "grid", placeContent: "center", fontFamily: "var(--font-display)", fontSize: 12, fontWeight: 700, color: "var(--accentInk)", flexShrink: 0 }}>
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: "var(--accentLight)", border: "1px solid color-mix(in oklab, var(--accent) 14%, transparent)", display: "grid", placeContent: "center", fontFamily: "var(--font-display)", fontSize: 11, fontWeight: 700, color: "var(--accentInk)", flexShrink: 0 }}>
           {(meeting.company?.name || "?")[0]}
         </div>
         <div style={{ minWidth: 0 }}>
@@ -163,7 +163,7 @@ const MeetingRow = memo(function MeetingRow({
 
       {/* SDR */}
       <div style={{ width: 95, display: "flex", alignItems: "center", gap: 5, overflow: "hidden" }}>
-        <Avatar name={meeting.sdr.name} size={20} />
+        <Avatar name={meeting.sdr.name} size={18} />
         <span style={{ fontSize: 11, color: "var(--ink2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {meeting.sdr.name}
         </span>
@@ -175,7 +175,7 @@ const MeetingRow = memo(function MeetingRow({
           <>
             <Avatar
               name={[meeting.interlocuteur.firstName, meeting.interlocuteur.lastName].filter(Boolean).join(" ") || "Commercial"}
-              size={20}
+              size={18}
             />
             <span style={{ fontSize: 11, color: "var(--ink2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {[meeting.interlocuteur.firstName, meeting.interlocuteur.lastName].filter(Boolean).join(" ") || "Assigné"}
@@ -253,7 +253,7 @@ const MeetingRow = memo(function MeetingRow({
               }}
               className="rdv-icon-btn"
               data-active={audioPopupOpen}
-              style={{ width: 24, height: 24 }}
+              style={{ width: 22, height: 22 }}
               title="Audio et transcription"
             >
               <Mic size={12} />
@@ -307,7 +307,7 @@ const MeetingRow = memo(function MeetingRow({
                 onClick={handleInlineConfirm}
                 className="rdv-icon-btn"
                 data-tone="success"
-                style={{ width: 24, height: 24 }}
+                style={{ width: 22, height: 22 }}
                 title="Confirmer immédiatement"
               >
                 <Check size={11} />
@@ -316,7 +316,7 @@ const MeetingRow = memo(function MeetingRow({
                 onClick={handleInlineCancel}
                 className="rdv-icon-btn"
                 data-tone="danger"
-                style={{ width: 24, height: 24 }}
+                style={{ width: 22, height: 22 }}
                 title="Annuler le RDV"
               >
                 <X size={11} />
@@ -327,7 +327,7 @@ const MeetingRow = memo(function MeetingRow({
             <button
               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(meeting.contact!.email!); }}
               className="rdv-icon-btn"
-              style={{ width: 24, height: 24 }}
+              style={{ width: 22, height: 22 }}
               title="Copier email"
             >
               <Copy size={11} />
@@ -340,7 +340,7 @@ const MeetingRow = memo(function MeetingRow({
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}
               className="rdv-icon-btn"
-              style={{ width: 24, height: 24 }}
+              style={{ width: 22, height: 22 }}
               title="LinkedIn"
             >
               <Linkedin size={11} />
@@ -463,7 +463,7 @@ export function MeetingList({
 
         {loading ? (
           Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 10, borderBottom: "1px solid var(--border)", height: 56 }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", padding: "10px 16px", gap: 10, borderBottom: "1px solid var(--border)", height: 44 }}>
               <Skeleton w={16} h={16} r={4} />
               <Skeleton w={60} h={26} r={6} />
               <Skeleton w={70} h={26} r={6} />

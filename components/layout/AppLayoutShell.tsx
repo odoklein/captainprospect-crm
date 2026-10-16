@@ -227,13 +227,13 @@ function InnerLayout({
                         />
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         {isSdrArea && dailyReport.status && (
                             <button
                                 type="button"
                                 onClick={dailyReport.open}
                                 className={cn(
-                                    "inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border text-[12px] font-semibold transition-colors duration-150",
+                                    "inline-flex items-center gap-1.5 h-7.5 px-2.5 rounded-lg border text-[11.5px] font-semibold transition-colors duration-150",
                                     dailyReport.submitted
                                         ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/80"
                                         : dailyReport.mustFill
@@ -257,7 +257,7 @@ function InnerLayout({
                         <button
                             type="button"
                             onClick={() => router.refresh()}
-                            className="w-8 h-8 rounded-lg border border-line flex items-center justify-center text-ink-3 hover:text-ink hover:border-line-strong transition-colors duration-150"
+                            className="w-7.5 h-7.5 rounded-lg border border-line bg-white flex items-center justify-center text-ink-3 hover:text-ink hover:border-line-strong hover:bg-surface-2 transition-colors duration-150 shadow-2xs"
                             title="Rafraîchir"
                         >
                             <RefreshCw className="w-3.5 h-3.5" />
@@ -268,12 +268,12 @@ function InnerLayout({
 
                 {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
-                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 56px)' }}>
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px)' }}>
                         {children}
                     </div>
                 ) : (
                     <div className="cp-content">
-                        <div className="max-w-[1440px] mx-auto w-full">
+                        <div className="max-w-[1680px] 2xl:max-w-[1800px] mx-auto w-full">
                             {children}
                         </div>
                     </div>

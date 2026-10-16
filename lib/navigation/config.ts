@@ -40,6 +40,8 @@ import {
   Wallet,
   CalendarCheck,
   CalendarDays,
+  CalendarClock,
+  CalendarRange,
   MessagesSquare,
   Settings2,
   Tag,
@@ -232,7 +234,7 @@ export const SDR_NAV: NavSection[] = [
     ],
   },
   {
-    title: "Actions",
+    title: "Activité",
     items: [
       {
         href: "/sdr/action",
@@ -242,13 +244,19 @@ export const SDR_NAV: NavSection[] = [
       },
       {
         href: "/sdr/callbacks",
-        icon: Calendar,
+        icon: CalendarClock,
         label: "Rappels",
         permission: "pages.action",
       },
       {
+        href: "/sdr/meetings",
+        icon: CalendarCheck,
+        label: "Mes RDV",
+        permission: "pages.opportunities",
+      },
+      {
         href: "/sdr/calendar",
-        icon: Calendar,
+        icon: CalendarDays,
         label: "Calendrier",
         permission: "pages.action",
       },
@@ -258,16 +266,10 @@ export const SDR_NAV: NavSection[] = [
         label: "Historique",
         permission: "pages.action",
       },
-      {
-        href: "/sdr/meetings",
-        icon: Calendar,
-        label: "Mes RDV",
-        permission: "pages.opportunities",
-      },
     ],
   },
   {
-    title: "Communication",
+    title: "Espace de travail",
     items: [
       {
         href: "/sdr/emails",
@@ -275,22 +277,17 @@ export const SDR_NAV: NavSection[] = [
         label: "Email Hub",
         permission: "pages.email",
       },
-    ],
-  },
-  {
-    title: "Organisation",
-    items: [
+      {
+        href: "/sdr/planning",
+        icon: CalendarRange,
+        label: "Planning",
+        permission: "pages.planning",
+      },
       {
         href: "/sdr/projects",
         icon: FolderKanban,
         label: "Projets",
         permission: "pages.projects",
-      },
-      {
-        href: "/sdr/planning",
-        icon: Calendar,
-        label: "Planning",
-        permission: "pages.planning",
       },
       {
         href: "/sdr/support-technique",
@@ -341,7 +338,7 @@ export const BOOKER_NAV: NavSection[] = [
     items: [
       {
         href: "/sdr/callbacks",
-        icon: Calendar,
+        icon: CalendarClock,
         label: "Rappels",
         permission: "pages.action",
       },
@@ -353,7 +350,7 @@ export const BOOKER_NAV: NavSection[] = [
       },
       {
         href: "/sdr/meetings",
-        icon: Calendar,
+        icon: CalendarCheck,
         label: "Mes RDV",
         permission: "pages.opportunities",
       },
@@ -406,7 +403,7 @@ export const BD_NAV: NavSection[] = [
       },
       {
         href: "/sdr/callbacks",
-        icon: Calendar,
+        icon: CalendarClock,
         label: "Rappels",
         permission: "pages.action",
       },
@@ -518,7 +515,7 @@ export const CLIENT_NAV: NavSection[] = [
       },
       {
         href: "/client/portal/meetings",
-        icon: Calendar,
+        icon: CalendarCheck,
         label: "Mes RDV",
         permission: "pages.dashboard",
       },
@@ -534,28 +531,23 @@ export const CLIENT_NAV: NavSection[] = [
         label: "Base de données",
         permission: "pages.dashboard",
       },
-    ],
-  },
-  {
-    title: "Suivi",
-    items: [
       {
         href: "/client/portal/reporting",
         icon: FileDown,
         label: "Rapports",
         permission: "pages.dashboard",
       },
-      {
-        href: "/client/portal/exclusions",
-        icon: Ban,
-        label: "Ne plus contacter",
-        permission: "pages.dashboard",
-      },
     ],
   },
   {
-    title: "Outils",
+    title: "Campagne & Outils",
     items: [
+      {
+        href: "/client/portal/sales-playbook",
+        icon: Target,
+        label: "Sales Playbook",
+        permission: "pages.dashboard",
+      },
       {
         href: "/client/portal/emailing",
         icon: Send,
@@ -575,14 +567,15 @@ export const CLIENT_NAV: NavSection[] = [
         permission: "pages.dashboard",
       },
       {
-        href: "/client/portal/sales-playbook",
-        icon: Target,
-        label: "Sales Playbook",
+        href: "/client/portal/exclusions",
+        icon: Ban,
+        label: "Ne plus contacter",
         permission: "pages.dashboard",
       },
     ],
   },
   {
+    dividerBefore: true,
     title: "Votre espace",
     items: [
       {
@@ -626,7 +619,7 @@ export const COMMERCIAL_NAV: NavSection[] = [
     items: [
       {
         href: "/commercial/portal/meetings",
-        icon: Calendar,
+        icon: CalendarCheck,
         label: "Mes RDV",
       },
       {

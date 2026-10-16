@@ -1859,14 +1859,13 @@ textarea::placeholder {
     transition: margin-left 160ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* Margins equal the sidebar widths (.cp-sidebar-expanded / -collapsed):
-   at 220/56 the sidebar covered the first 8px of every page. */
+/* Margins equal the sidebar widths (.cp-sidebar-expanded / -collapsed): */
 .cp-main-expanded {
-    margin-left: 228px;
+    margin-left: 224px;
 }
 
 .cp-main-collapsed {
-    margin-left: 58px;
+    margin-left: 56px;
 }
 
 @media (max-width: 1023px) {
@@ -1884,9 +1883,9 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1.5rem;
-    min-height: 56px;
-    height: 56px;
+    padding: 0 1.25rem;
+    min-height: 48px;
+    height: 48px;
     background: #fff;
     border-bottom: 1px solid var(--ds-line);
 }
@@ -1914,7 +1913,13 @@ textarea::placeholder {
 
 .cp-content {
     flex: 1;
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.25rem;
+}
+
+@media (min-width: 1024px) {
+    .cp-content {
+        padding: 1.25rem 1.5rem;
+    }
 }
 
 .cp-spinner {
@@ -1946,15 +1951,15 @@ textarea::placeholder {
 }
 
 .cp-sidebar-expanded {
-    width: 228px;
+    width: 224px;
 }
 
 .cp-sidebar-collapsed {
-    width: 58px;
+    width: 56px;
 }
 
 .cp-sidebar-hover-expanded {
-    width: 240px;
+    width: 236px;
     box-shadow: 12px 0 36px -4px rgba(0, 0, 0, 0.45),
         4px 0 12px -2px rgba(0, 0, 0, 0.25);
     z-index: 60;
@@ -1999,8 +2004,8 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 18px 14px;
-    min-height: 52px;
+    padding: 12px 14px 8px;
+    min-height: 48px;
     flex-shrink: 0;
 }
 
@@ -2097,9 +2102,9 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 4px 12px 8px;
-    padding: 7px 10px;
-    border-radius: 8px;
+    margin: 2px 10px 6px;
+    padding: 6px 9px;
+    border-radius: 7px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.04);
     cursor: pointer;
@@ -2114,7 +2119,7 @@ textarea::placeholder {
 
 .cp-search-text {
     flex: 1;
-    font-size: 12.5px;
+    font-size: 12px;
     color: var(--ds-inverse-ink-2);
     text-align: left;
     white-space: nowrap;
@@ -2124,8 +2129,8 @@ textarea::placeholder {
     display: inline-flex;
     align-items: center;
     gap: 1px;
-    padding: 2px 5px;
-    font-size: 10px;
+    padding: 1.5px 4.5px;
+    font-size: 9.5px;
     font-weight: 600;
     color: var(--ds-inverse-ink-3);
     background: rgba(255, 255, 255, 0.08);
@@ -2139,10 +2144,10 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
-    margin: 4px auto 8px;
-    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    margin: 2px auto 6px;
+    border-radius: 7px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.04);
     color: var(--ds-inverse-ink-2);
@@ -2162,7 +2167,7 @@ textarea::placeholder {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 2px 8px 8px;
+    padding: 2px 6px 6px;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.09) transparent;
 }
@@ -2191,15 +2196,15 @@ textarea::placeholder {
 .cp-section-divider {
     height: 1px;
     background: rgba(255, 255, 255, 0.07);
-    margin: 10px 10px 4px;
+    margin: 8px 8px 3px;
 }
 
 .cp-section-title {
-    padding: 12px 10px 4px;
-    font-size: 10px;
+    padding: 9px 8px 3px;
+    font-size: 9.5px;
     font-weight: 700;
     color: var(--ds-inverse-ink-3);
-    letter-spacing: 0.09em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
     overflow: hidden;
@@ -2240,9 +2245,9 @@ textarea::placeholder {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 7px 12px;
-    border-radius: 8px;
+    gap: 9px;
+    padding: 6px 10px;
+    border-radius: 7px;
     font-size: 13px;
     font-weight: 500;
     color: var(--ds-inverse-ink-2);
@@ -2252,7 +2257,7 @@ textarea::placeholder {
     user-select: none;
     overflow: visible;
     white-space: nowrap;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
 }
 
 .cp-nav-item:hover {
@@ -2266,13 +2271,13 @@ textarea::placeholder {
 
 .cp-nav-item-active {
     color: #ffffff;
-    background: color-mix(in oklab, var(--brand-accent) 14%, transparent);
+    background: rgba(255, 255, 255, 0.08);
     font-weight: 600;
 }
 
 .cp-nav-item-active:hover {
     color: #ffffff;
-    background: color-mix(in oklab, var(--brand-accent) 18%, transparent);
+    background: rgba(255, 255, 255, 0.11);
 }
 
 /* Active indicator bar */
@@ -2283,8 +2288,8 @@ textarea::placeholder {
     top: 50%;
     transform: translateY(-50%);
     width: 3px;
-    height: 18px;
-    border-radius: 0 3px 3px 0;
+    height: 16px;
+    border-radius: 0 2px 2px 0;
     background: var(--ds-accent);
 }
 
@@ -2511,11 +2516,11 @@ textarea::placeholder {
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 28px;
-    padding: 0 9px;
+    height: 26px;
+    padding: 0 8px;
     margin: 1px 0;
-    border-radius: 7px;
-    font-size: 12.5px;
+    border-radius: 6px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--ds-inverse-ink-2);
     text-decoration: none;
@@ -2531,7 +2536,7 @@ textarea::placeholder {
 .cp-nav-child-active {
     color: #ffffff;
     font-weight: 600;
-    background: color-mix(in oklab, var(--brand-accent) 14%, transparent);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 /* Marker sitting on the guide line, level with the current page */
@@ -2574,7 +2579,7 @@ textarea::placeholder {
 .cp-sidebar-footer {
     position: relative;
     flex-shrink: 0;
-    padding: 8px 12px 14px;
+    padding: 6px 10px 10px;
     border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
 
@@ -2583,14 +2588,14 @@ textarea::placeholder {
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 32px;
+    height: 28px;
     border-radius: 6px;
     border: none;
     background: transparent;
     color: var(--ds-inverse-ink-2);
     cursor: pointer;
     transition: all 120ms ease;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .cp-expand-btn:hover {
@@ -2602,10 +2607,10 @@ textarea::placeholder {
 .cp-user-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     width: 100%;
-    padding: 7px 8px;
-    border-radius: 8px;
+    padding: 5px 7px;
+    border-radius: 7px;
     border: none;
     background: transparent;
     cursor: pointer;
@@ -2619,13 +2624,13 @@ textarea::placeholder {
 
 .cp-user-btn-collapsed {
     justify-content: center;
-    padding: 6px;
+    padding: 5px;
 }
 
 .cp-avatar {
     position: relative;
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: var(--ds-accent);
     display: flex;

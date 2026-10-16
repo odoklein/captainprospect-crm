@@ -839,16 +839,16 @@ export default function CommercialPortalMeetingsPage() {
   ];
 
   return (
-    <div className="cp-page min-h-full bg-slate-50 px-7 pt-7 pb-14">
+    <div className="space-y-6 pb-12">
       <style dangerouslySetInnerHTML={{__html:GLOBAL_CSS}} />
 
       {/* ── Header ─────────────────────────────────────────── */}
-      <header className="cp-enter flex flex-wrap items-start justify-between gap-4 mb-8">
+      <header className="cp-enter flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold text-slate-900 tracking-tight leading-tight m-0">
+          <h1 className="text-2xl sm:text-[26px] font-bold text-slate-900 tracking-tight leading-tight m-0">
             Mes rendez-vous
           </h1>
-          <p className="text-sm text-slate-500 mt-1.5 leading-normal">
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-normal">
             Consultez vos rendez-vous assignés et donnez votre feedback.
           </p>
         </div>

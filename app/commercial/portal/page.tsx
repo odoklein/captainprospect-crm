@@ -126,12 +126,10 @@ export default function CommercialPortal() {
 
     if (isLoading) {
         return (
-            <div className="min-h-full bg-surface-2 p-4 md:p-6">
-                <div className="animate-pulse space-y-6">
-                    <div className="h-8 w-48 bg-gray-200 rounded-lg" />
-                    <div className="h-40 bg-gray-200 rounded-2xl" />
-                    <div className="h-64 bg-gray-200 rounded-2xl" />
-                </div>
+            <div className="animate-pulse space-y-6">
+                <div className="h-8 w-48 bg-gray-200 rounded-lg" />
+                <div className="h-40 bg-gray-200 rounded-2xl" />
+                <div className="h-64 bg-gray-200 rounded-2xl" />
             </div>
         );
     }
@@ -141,18 +139,18 @@ export default function CommercialPortal() {
     }
 
     return (
-        <div className="min-h-full bg-surface-2 p-4 md:p-6 space-y-6">
+        <div className="space-y-6">
             {/* ── Greeting ── */}
             <div
                 className="flex flex-wrap items-center justify-between gap-4"
                 style={{ animation: "dashFadeUp 0.4s ease both" }}
             >
                 <div>
-                    <h1 className="text-2xl md:text-[28px] font-bold text-ink tracking-tight leading-tight">
+                    <h1 className="text-2xl md:text-[26px] font-bold text-ink tracking-tight leading-tight">
                         Bonjour, {userName}
                     </h1>
-                    <div className="flex items-center gap-2 mt-1.5">
-                        <p className="text-sm text-ink-3">{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs sm:text-sm text-ink-3">{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</p>
                         {profile?.client?.name && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-[2px] rounded-full">
                                 <TrendingUp className="w-3 h-3" />{profile.client.name}
@@ -163,10 +161,10 @@ export default function CommercialPortal() {
                 <button
                     onClick={() => fetchData(true)}
                     disabled={isRefreshing}
-                    className="w-10 h-10 rounded-xl border border-line flex items-center justify-center text-ink-3 hover:text-primary hover:border-line-strong transition-all duration-200 disabled:opacity-50 bg-white hover:shadow-sm"
+                    className="w-8.5 h-8.5 rounded-lg border border-line flex items-center justify-center text-ink-3 hover:text-primary hover:border-line-strong transition-all duration-200 disabled:opacity-50 bg-white hover:shadow-2xs"
                     title="Rafraîchir"
                 >
-                    <RefreshCw className={cn("w-4 h-4 transition-transform duration-200", isRefreshing && "animate-spin")} />
+                    <RefreshCw className={cn("w-3.5 h-3.5 transition-transform duration-200", isRefreshing && "animate-spin")} />
                 </button>
             </div>
 

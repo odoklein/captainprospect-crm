@@ -8,6 +8,8 @@ import { usePermissions } from "@/lib/permissions/PermissionProvider";
 import type { NavItem, NavSection } from "@/lib/navigation/config";
 import { findActiveNav, writeLastTab } from "@/lib/navigation/active";
 
+import { ChevronRight } from "lucide-react";
+
 interface SectionTabsProps {
     navigation: NavSection[];
     /** Shown when the page is not in the navigation (e.g. a mission detail page). */
@@ -15,9 +17,9 @@ interface SectionTabsProps {
 }
 
 /**
- * Lives in the top bar, where the breadcrumb was: the current hub and its
- * pages as tabs. It takes no height from the page — full-screen boards like
- * the planning keep every pixel.
+ * Lives in the top bar: when inside a multi-page hub, it displays the hub title
+ * and sleek tabs for each page. When on a standalone page, it shows a clean,
+ * unobtrusive breadcrumb (avoiding loud redundant headers).
  */
 export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
     const pathname = usePathname();
@@ -34,10 +36,10 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
 
     if (!active) {
         return (
-            <nav className="cp-breadcrumb" aria-label="Breadcrumb">
-                <span className="cp-breadcrumb-root">{fallback.root}</span>
-                <span className="cp-breadcrumb-sep">/</span>
-                <span className="cp-breadcrumb-current">{fallback.current}</span>
+            <nav className="flex items-center gap-1.5 text-[13px]" aria-label="Breadcrumb">
+                <span className="text-slate-400 font-medium">{fallback.root}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" aria-hidden />
+                <span className="text-slate-800 font-semibold truncate">{fallback.current}</span>
             </nav>
         );
     }
@@ -46,66 +48,83 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
     const tabs = (item.children ?? []).filter((c: NavItem) => !c.permission || hasPermission(c.permission));
     const Icon = item.icon;
 
+    // Single standalone page: clean breadcrumb hierarchy
+    if (tabs.length <= 1) {
+        return (
+            <nav className="flex items-center gap-1.5 text-[13px]" aria-label="Breadcrumb">
+                <span className="text-slate-400 font-medium">{fallback.root}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" aria-hidden />
+                <span className="text-slate-800 font-semibold truncate">{item.label}</span>
+            </nav>
+        );
+    }
+
+    // Multi-page hub: compact hub header + seamless 48px tabs
     return (
-        <div className="flex min-w-0 items-center gap-3">
-            <div className="flex shrink-0 items-center gap-2.5" title={item.description}>
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-600 text-white">
-                    <Icon className="h-[15px] w-[15px]" strokeWidth={2} />
+        <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex shrink-0 items-center gap-2" title={item.description}>
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-600 border border-slate-200/80">
+                    <Icon className="h-3.5 w-3.5" strokeWidth={2} />
                 </span>
-                <span className="text-[14px] font-semibold tracking-tight text-slate-900">{item.label}</span>
+                <span className="text-[13px] font-semibold tracking-tight text-slate-900">{item.label}</span>
             </div>
 
-            {tabs.length > 1 && (
-                <>
-                    <span className="h-5 w-px shrink-0 bg-slate-200" aria-hidden />
-                    <nav
-                        className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                        aria-label={`${item.label} : pages`}
-                    >
-                        {tabs.map((tab) => {
-                            const current = tab === child;
-                            const TabIcon = tab.icon;
-                            return (
-                                <Link
-                                    key={tab.href}
-                                    href={tab.href}
-                                    title={tab.description}
-                                    aria-current={current ? "page" : undefined}
+            <span className="h-4 w-px shrink-0 bg-slate-200" aria-hidden />
+
+            <nav
+                className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                aria-label={`${item.label} : pages`}
+            >
+                {tabs.map((tab) => {
+                    const current = tab === child;
+                    const TabIcon = tab.icon;
+                    return (
+                        <Link
+                            key={tab.href}
+                            href={tab.href}
+                            title={tab.description}
+                            aria-current={current ? "page" : undefined}
+                            className={cn(
+                                "group relative flex h-12 shrink-0 items-center gap-1.5 px-2 text-[12.5px] font-medium transition-colors",
+                                current ? "text-primary-700 font-semibold" : "text-slate-500 hover:text-slate-900",
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    "flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors",
+                                    !current && "group-hover:bg-slate-100/70",
+                                )}
+                            >
+                                <TabIcon
                                     className={cn(
-                                        "group relative flex h-14 shrink-0 items-center gap-1.5 px-2.5 text-[13px] font-medium transition-colors",
-                                        current ? "text-primary-700" : "text-slate-500 hover:text-slate-900",
+                                        "h-3.5 w-3.5 shrink-0",
+                                        current ? "text-primary-600" : "text-slate-400 group-hover:text-slate-600"
                                     )}
-                                >
-                                    <span
-                                        className={cn(
-                                            "flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors",
-                                            !current && "group-hover:bg-slate-100",
-                                        )}
-                                    >
-                                        <TabIcon
-                                            className={cn("h-3.5 w-3.5", current ? "text-primary-600" : "text-slate-400 group-hover:text-slate-500")}
-                                            strokeWidth={current ? 2.2 : 1.8}
-                                        />
-                                        {tab.label}
-                                        {tab.badge != null && tab.badge !== "" && (
-                                            <span className="rounded-full bg-primary-600 px-1.5 text-[10px] font-semibold leading-4 text-white">
-                                                {tab.badge}
-                                            </span>
-                                        )}
+                                    strokeWidth={current ? 2.2 : 1.8}
+                                />
+                                <span className="truncate">{tab.label}</span>
+                                {tab.badge != null && tab.badge !== "" && (
+                                    <span className={cn(
+                                        "rounded-full px-1.5 text-[10px] font-semibold leading-4",
+                                        current
+                                            ? "bg-primary-600 text-white"
+                                            : "bg-slate-200 text-slate-700"
+                                    )}>
+                                        {tab.badge}
                                     </span>
-                                    <span
-                                        className={cn(
-                                            "absolute inset-x-2.5 bottom-0 h-[2px] rounded-t-full transition-opacity",
-                                            current ? "bg-primary-600 opacity-100" : "opacity-0",
-                                        )}
-                                        aria-hidden
-                                    />
-                                </Link>
-                            );
-                        })}
-                    </nav>
-                </>
-            )}
+                                )}
+                            </span>
+                            <span
+                                className={cn(
+                                    "absolute inset-x-2 bottom-0 h-[2px] rounded-t-full transition-opacity",
+                                    current ? "bg-primary-600 opacity-100" : "opacity-0",
+                                )}
+                                aria-hidden
+                            />
+                        </Link>
+                    );
+                })}
+            </nav>
         </div>
     );
 }
