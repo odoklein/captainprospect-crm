@@ -180,9 +180,21 @@ interface SerperPlace {
     phoneNumber?: string;
     cid?: string;
     placeId?: string;
+    latitude?: number;
+    longitude?: number;
 }
 
 const SERPER_PAGE_SIZE = 20;
+
+/** "@lat,lng,zoomz" centred on page 1's places (median, so one outlier can't drag it). */
+function viewportOf(places: SerperPlace[], zoom: number): string | undefined {
+    const pts = places.filter((p) => typeof p.latitude === "number" && typeof p.longitude === "number");
+    if (pts.length === 0) return undefined;
+    const median = (xs: number[]) => xs.sort((a, b) => a - b)[Math.floor(xs.length / 2)];
+    const lat = median(pts.map((p) => p.latitude!));
+    const lng = median(pts.map((p) => p.longitude!));
+    return `@${lat.toFixed(6)},${lng.toFixed(6)},${zoom}z`;
+}
 
 /** One activity × location search, paged until perSearch places or Maps runs dry. */
 export async function searchSerperMaps(params: {
@@ -192,21 +204,33 @@ export async function searchSerperMaps(params: {
 }): Promise<SourcedLead[]> {
     const key = SERPER_KEY();
     if (!key) throw new Error("Google Maps n'est pas configuré (SERPER_API_KEY)");
-    const { place, iso } = placeForMaps(params.location);
+    const { place, iso, zoom } = placeForMaps(params.location);
     const q = `${params.activity.label} ${place}`;
     const pages = Math.ceil(params.perSearch / SERPER_PAGE_SIZE);
     const seen = new Set<string>();
     const out: SourcedLead[] = [];
+    // Serper only paginates maps searches with a GPS viewport ("ll"); page 1
+    // geocodes the query itself, so later pages reuse the area it landed on.
+    let ll: string | undefined;
 
     for (let page = 1; page <= pages; page++) {
+        if (page > 1 && !ll) break;
         const res = await fetch("https://google.serper.dev/maps", {
             method: "POST",
             headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-            body: JSON.stringify({ q, gl: iso.toLowerCase(), hl: "fr", page }),
+            body: JSON.stringify({ q, gl: iso.toLowerCase(), hl: "fr", page, ...(page > 1 ? { ll } : {}) }),
             cache: "no-store",
         });
-        if (!res.ok) throw new Error(`Serper ${res.status}: ${(await res.text()).slice(0, 200)}`);
-        const { places = [] } = (await res.json()) as { places?: SerperPlace[] };
+        if (!res.ok) {
+            const message = `Serper ${res.status}: ${(await res.text()).slice(0, 200)}`;
+            // A later page failing must not throw away what page 1 found.
+            if (page === 1) throw new Error(message);
+            console.warn(`[sourcing] ${q} page ${page}: ${message}`);
+            break;
+        }
+        const json = (await res.json()) as { places?: SerperPlace[]; ll?: string; searchParameters?: { ll?: string } };
+        const places = json.places ?? [];
+        if (page === 1) ll = json.ll ?? json.searchParameters?.ll ?? viewportOf(places, zoom);
         for (const p of places) {
             if (!p.title) continue;
             const lead = normalizeSerper(p, iso);

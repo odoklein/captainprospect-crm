@@ -166,25 +166,28 @@ export function parseLocation(location: string): ParsedLocation {
     return { kind: "libre", name: v };
 }
 
-/** Google Maps search area + country for a location chip. */
-export function placeForMaps(location: string): { place: string; iso: string } {
+/**
+ * Google Maps search area + country for a location chip, plus the map zoom
+ * that roughly frames that area (Serper needs a GPS viewport past page 1).
+ */
+export function placeForMaps(location: string): { place: string; iso: string; zoom: number } {
     const p = parseLocation(location);
     switch (p.kind) {
         // Several département names are also towns or rivers (Vienne, Nord, Lot, Var).
         case "departement":
-            return { place: `département ${p.name}, France`, iso: "FR" };
+            return { place: `département ${p.name}, France`, iso: "FR", zoom: 10 };
         case "ville":
-            return { place: `${p.name} ${p.deptCode}, France`, iso: "FR" };
+            return { place: `${p.name} ${p.deptCode}, France`, iso: "FR", zoom: 13 };
         case "region":
-            return { place: `région ${p.name}, France`, iso: "FR" };
+            return { place: `région ${p.name}, France`, iso: "FR", zoom: 8 };
         case "pays":
-            return { place: p.name, iso: p.iso };
+            return { place: p.name, iso: p.iso, zoom: 6 };
         default: {
             // Bare "33" / "2A" typed as free text: still a département for Maps.
             const code = p.name.toUpperCase();
-            if (DEPT_NAME[code]) return { place: `département ${DEPT_NAME[code]}, France`, iso: "FR" };
-            if (/^\d{5}$/.test(p.name)) return { place: `${p.name}, France`, iso: "FR" };
-            return { place: p.name, iso: "FR" };
+            if (DEPT_NAME[code]) return { place: `département ${DEPT_NAME[code]}, France`, iso: "FR", zoom: 10 };
+            if (/^\d{5}$/.test(p.name)) return { place: `${p.name}, France`, iso: "FR", zoom: 13 };
+            return { place: p.name, iso: "FR", zoom: 12 };
         }
     }
 }
