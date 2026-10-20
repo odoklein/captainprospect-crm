@@ -71,7 +71,7 @@ export function RunStrip({
                                     )}
                                 </div>
                             </div>
-                            {id === "gmaps" && r.status === "running" && (
+                            {id === "gmaps" && r.status === "running" && r.runId && (
                                 <button
                                     type="button"
                                     onClick={onCancelGmaps}

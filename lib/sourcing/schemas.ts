@@ -11,7 +11,8 @@ export const activitySchema = z.object({
 
 export const querySchema = z.object({
     activities: z.array(activitySchema).min(1, "Ajoutez au moins une activité").max(10),
-    locations: z.array(z.string().trim().min(1).max(80)).min(1, "Ajoutez au moins une localisation").max(10),
+    // 101 départements = "toute la France" picked département by département.
+    locations: z.array(z.string().trim().min(1).max(80)).min(1, "Ajoutez au moins une localisation").max(150),
     perSearch: z.number().int().min(5).max(200).default(50),
     activeOnly: z.boolean().default(true),
     headcount: z.array(z.string().regex(/^\d{2}$/)).max(12).optional(),

@@ -2,8 +2,9 @@ import { parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js"
 import { config } from "@/lib/config";
 import { searchFromApollo } from "@/lib/listing/apollo-service";
 import { ACTIVITIES, HEADCOUNT_LABEL } from "./catalog";
+import { placeForMaps, placeName, parseLocation } from "./france";
 import { cleanDomain } from "./merge";
-import type { ActivityTerm, ProvidersStatus, SourcedContact, SourcedLead } from "./types";
+import type { ActivityTerm, ProviderStatus, ProvidersStatus, SourcedContact, SourcedLead } from "./types";
 
 // ============================================
 // SOURCING — provider adapters (server only).
@@ -12,12 +13,31 @@ import type { ActivityTerm, ProvidersStatus, SourcedContact, SourcedLead } from 
 // ============================================
 
 const APIFY_TOKEN = () => process.env.APIFY_API_TOKEN;
+const SERPER_KEY = () => process.env.SERPER_API_KEY;
 const GMAPS_ACTOR = "compass~crawler-google-places";
+
+/** Serper answers in seconds, so it wins over the Apify actor when both are set. */
+export function gmapsEngine(): "serper" | "apify" | null {
+    if (SERPER_KEY()) return "serper";
+    if (APIFY_TOKEN()) return "apify";
+    return null;
+}
+
+function gmapsStatus(): ProviderStatus {
+    switch (gmapsEngine()) {
+        case "serper":
+            return { configured: true, engine: "serper", speed: "Quelques secondes", cost: "Crédits Serper" };
+        case "apify":
+            return { configured: true, engine: "apify" };
+        default:
+            return { configured: false, reason: "SERPER_API_KEY (ou APIFY_API_TOKEN) manquant" };
+    }
+}
 
 export function providersStatus(): ProvidersStatus {
     const apolloOn = config.integrations.apollo.enabled && !!config.integrations.apollo.apiKey;
     return {
-        gmaps: APIFY_TOKEN() ? { configured: true } : { configured: false, reason: "APIFY_API_TOKEN manquant" },
+        gmaps: gmapsStatus(),
         annuaire: { configured: true },
         apollo: apolloOn ? { configured: true } : { configured: false, reason: "Apollo désactivé ou clé API manquante" },
     };
@@ -78,7 +98,7 @@ export async function startGmapsRun(params: {
     perSearch: number;
     activeOnly: boolean;
 }): Promise<{ runId: string; searches: number }> {
-    const searchStringsArray = params.activities.flatMap((a) => params.locations.map((l) => `${a.label} ${l}`));
+    const searchStringsArray = params.activities.flatMap((a) => params.locations.map((l) => `${a.label} ${placeForMaps(l).place}`));
     const { data } = await apify<{ data: { id: string } }>(`/acts/${GMAPS_ACTOR}/runs`, {
         method: "POST",
         body: JSON.stringify({
@@ -145,23 +165,128 @@ function normalizeGmaps(i: GmapsItem): SourcedLead {
 }
 
 // ============================================
+// GOOGLE MAPS (Serper.dev /maps, sync, 20 places per page)
+// ============================================
+
+interface SerperPlace {
+    title?: string;
+    address?: string;
+    rating?: number;
+    ratingCount?: number;
+    type?: string;
+    types?: string[];
+    category?: string;
+    website?: string;
+    phoneNumber?: string;
+    cid?: string;
+    placeId?: string;
+}
+
+const SERPER_PAGE_SIZE = 20;
+
+/** One activity × location search, paged until perSearch places or Maps runs dry. */
+export async function searchSerperMaps(params: {
+    activity: ActivityTerm;
+    location: string;
+    perSearch: number;
+}): Promise<SourcedLead[]> {
+    const key = SERPER_KEY();
+    if (!key) throw new Error("Google Maps n'est pas configuré (SERPER_API_KEY)");
+    const { place, iso } = placeForMaps(params.location);
+    const q = `${params.activity.label} ${place}`;
+    const pages = Math.ceil(params.perSearch / SERPER_PAGE_SIZE);
+    const seen = new Set<string>();
+    const out: SourcedLead[] = [];
+
+    for (let page = 1; page <= pages; page++) {
+        const res = await fetch("https://google.serper.dev/maps", {
+            method: "POST",
+            headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+            body: JSON.stringify({ q, gl: iso.toLowerCase(), hl: "fr", page }),
+            cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`Serper ${res.status}: ${(await res.text()).slice(0, 200)}`);
+        const { places = [] } = (await res.json()) as { places?: SerperPlace[] };
+        for (const p of places) {
+            if (!p.title) continue;
+            const lead = normalizeSerper(p, iso);
+            if (seen.has(lead.id)) continue;
+            seen.add(lead.id);
+            out.push(lead);
+        }
+        if (places.length < SERPER_PAGE_SIZE || out.length >= params.perSearch) break;
+    }
+    return out.slice(0, params.perSearch);
+}
+
+/** "12 Rue X, 69002 Lyon, France" → street / postcode / city. */
+function splitAddress(address?: string): Pick<SourcedLead, "address" | "postalCode" | "city"> {
+    if (!address) return {};
+    const m = address.match(/^(.*?),?\s*(\d{5})\s+([^,]+)/);
+    if (!m) return { address };
+    return { address: m[1].trim() || undefined, postalCode: m[2], city: m[3].trim() };
+}
+
+function normalizeSerper(p: SerperPlace, iso: string): SourcedLead {
+    const ref = p.placeId ?? p.cid ?? `${p.title}|${p.address ?? ""}`;
+    const mapsUrl = p.placeId
+        ? `https://www.google.com/maps/place/?q=place_id:${p.placeId}`
+        : p.cid
+          ? `https://maps.google.com/?cid=${p.cid}`
+          : undefined;
+    return {
+        id: `gmaps:${ref}`,
+        sources: ["gmaps"],
+        name: p.title!.trim(),
+        industry: p.type ?? p.types?.[0] ?? p.category,
+        website: cleanDomain(p.website),
+        phone: toE164(p.phoneNumber, iso),
+        ...splitAddress(p.address),
+        country: iso,
+        rating: p.rating ?? undefined,
+        reviews: p.ratingCount ?? undefined,
+        mapsUrl,
+        contacts: [],
+    };
+}
+
+// ============================================
 // ANNUAIRE DES ENTREPRISES (recherche-entreprises.api.gouv.fr, free, no key)
 // ============================================
 
-type AreaFilter = { code_postal: string } | { departement: string };
+/** Empty filter = all of France (the activity filter alone narrows the search). */
+type AreaFilter = { code_postal: string } | { departement: string } | Record<string, never>;
 
-/** "Lyon" → its 9 postcodes; "69" → département; "69003" → that postcode. */
-export async function resolveFrenchArea(text: string): Promise<AreaFilter | null> {
-    const v = text.trim();
-    if (/^\d{5}$/.test(v)) return { code_postal: v };
-    if (/^(\d{2}|2[AB]|97\d)$/i.test(v)) return { departement: v.toUpperCase() };
-    const res = await fetch(
-        `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(v.replace(/,.*$/, ""))}&fields=codesPostaux&boost=population&limit=1`,
-        { next: { revalidate: 86400 } },
-    );
+async function communePostcodes(name: string, deptCode?: string): Promise<AreaFilter | null> {
+    const qs = new URLSearchParams({ nom: name.replace(/,.*$/, ""), fields: "codesPostaux", boost: "population", limit: "1" });
+    if (deptCode) qs.set("codeDepartement", deptCode);
+    const res = await fetch(`https://geo.api.gouv.fr/communes?${qs}`, { next: { revalidate: 86400 } });
     if (!res.ok) return null;
     const [commune] = (await res.json()) as { codesPostaux?: string[] }[];
     return commune?.codesPostaux?.length ? { code_postal: commune.codesPostaux.join(",") } : null;
+}
+
+/**
+ * Location chip → registry filter. "Lyon" → its 9 postcodes; "69" or
+ * "Rhône (69)" → département; "Bretagne (région)" → its départements;
+ * "France (pays)" → no area filter; another country → null.
+ */
+export async function resolveFrenchArea(text: string): Promise<AreaFilter | null> {
+    const loc = parseLocation(text);
+    switch (loc.kind) {
+        case "departement":
+            return { departement: loc.code };
+        case "region":
+            return { departement: loc.region.departements.map((x) => x.code).join(",") };
+        case "pays":
+            return loc.iso === "FR" ? {} : null;
+        case "ville":
+            return communePostcodes(loc.name, loc.deptCode);
+    }
+    const v = loc.name;
+    if (/^\d{5}$/.test(v)) return { code_postal: v };
+    if (/^(\d{2}|2[AB]|97\d)$/i.test(v)) return { departement: v.toUpperCase() };
+    return communePostcodes(v);
 }
 
 interface RegistryEtab {
@@ -266,7 +391,7 @@ function normalizeRegistry(r: RegistryItem): SourcedLead {
 export async function searchApollo(params: { activity: ActivityTerm; location: string; perSearch: number }): Promise<SourcedLead[]> {
     const { results } = await searchFromApollo({
         keywords: params.activity.label,
-        country: params.location,
+        country: placeName(params.location),
         limit: Math.min(params.perSearch, 100),
     });
     return results

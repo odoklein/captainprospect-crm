@@ -11,6 +11,9 @@ import type { SourcedLead } from "@/lib/sourcing/types";
 // warning per pair that failed, so a bad city never sinks the whole search.
 // ============================================
 
+// A whole-France registry pass is ~100 départements × a few pages.
+export const maxDuration = 300;
+
 const bodySchema = z.object({
     source: z.enum(["annuaire", "apollo"]),
     query: querySchema,
@@ -30,7 +33,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         if (source === "annuaire") {
             const area = await resolveFrenchArea(location);
             if (!area) {
-                warnings.push(`« ${location} » introuvable dans le référentiel des communes françaises`);
+                warnings.push(`« ${location} » introuvable en France (le registre ne couvre que la France)`);
                 continue;
             }
             for (const activity of query.activities) {

@@ -6,6 +6,7 @@ import { Button, SegmentedControl, Switch } from "@/components/ui";
 import { FOCUS_RING, EYEBROW } from "@/components/ui/recipes";
 import { cn } from "@/lib/utils";
 import { ACTIVITIES, HEADCOUNT_BANDS, SOURCES, parseNaf } from "@/lib/sourcing/catalog";
+import { LocationPicker } from "./LocationPicker";
 import type { ActivityTerm, ProvidersStatus, SourceId, SourcingQuery } from "@/lib/sourcing/types";
 
 // ============================================
@@ -28,6 +29,10 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
     const searches = query.activities.length * query.locations.length;
     const usable = sources.filter((s) => providers?.[s]?.configured !== false);
     const canRun = searches > 0 && usable.length > 0 && !isRunning;
+    // Serper bills one credit per page of 20 places.
+    const serperCalls =
+        usable.includes("gmaps") && providers?.gmaps?.engine === "serper" ? searches * Math.ceil(query.perSearch / 20) : 0;
+    const heavy = searches > 150;
 
     const toggleSource = (id: SourceId) =>
         onSourcesChange(sources.includes(id) ? sources.filter((s) => s !== id) : [...sources, id]);
@@ -42,8 +47,12 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
                     />
                 </Block>
 
-                <Block step={2} title="Où" hint="Ville, code postal ou numéro de département.">
-                    <LocationInput value={query.locations} onChange={(locations) => onQueryChange({ locations })} />
+                <Block step={2} title="Où" hint="Pays, région, département, ville ou code postal. Chaque zone = une recherche.">
+                    <LocationPicker
+                        value={query.locations}
+                        onChange={(locations) => onQueryChange({ locations })}
+                        mapsSelected={usable.includes("gmaps")}
+                    />
                 </Block>
 
                 <Block step={3} title="Sources" hint="Cochez-en plusieurs : les résultats sont fusionnés.">
@@ -80,7 +89,7 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
                                     <span className="min-w-0 flex-1">
                                         <span className="flex items-baseline justify-between gap-2">
                                             <span className="text-sm font-semibold text-ink">{s.label}</span>
-                                            <span className="shrink-0 text-2xs font-medium text-ink-3">{s.cost}</span>
+                                            <span className="shrink-0 text-2xs font-medium text-ink-3">{status?.cost ?? s.cost}</span>
                                         </span>
                                         <span className="mt-0.5 block text-xs text-ink-3">
                                             {disabled ? status?.reason : s.tagline}
@@ -95,7 +104,7 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
                                                         {y}
                                                     </span>
                                                 ))}
-                                                <span className="px-1 py-0.5 text-2xs text-ink-4">· {s.speed}</span>
+                                                <span className="px-1 py-0.5 text-2xs text-ink-4">· {status?.speed ?? s.speed}</span>
                                                 {s.franceOnly && <span className="py-0.5 text-2xs text-ink-4">· France</span>}
                                             </span>
                                         )}
@@ -174,6 +183,18 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
                                 {(searches * query.perSearch).toLocaleString("fr-FR")}
                             </span>{" "}
                             sociétés par source
+                            {serperCalls > 0 && (
+                                <span className="mt-1 block text-ink-4">
+                                    Google Maps : jusqu&apos;à{" "}
+                                    <span className="font-medium text-ink-3 tabular-nums">{serperCalls.toLocaleString("fr-FR")}</span>{" "}
+                                    crédit{serperCalls > 1 ? "s" : ""} Serper
+                                </span>
+                            )}
+                            {heavy && (
+                                <span className="mt-1 block font-medium text-warning-ink">
+                                    Recherche lourde : comptez plusieurs minutes. Réduisez les activités ou les zones si possible.
+                                </span>
+                            )}
                         </>
                     )}
                 </p>
@@ -402,44 +423,5 @@ function Option({ active, onPick, children }: { active: boolean; onPick: () => v
         >
             {children}
         </li>
-    );
-}
-
-function LocationInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
-    const [text, setText] = useState("");
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const commit = () => {
-        const parts = text
-            .split(/[;\n]/)
-            .map((p) => p.trim().replace(/,$/, ""))
-            .filter(Boolean);
-        const next = [...value];
-        for (const p of parts) if (!next.some((v) => v.toLowerCase() === p.toLowerCase())) next.push(p);
-        onChange(next);
-        setText("");
-    };
-
-    return (
-        <ChipField
-            icon={MapPin}
-            chips={value.map((v) => ({ key: v, label: v }))}
-            placeholder="Lyon, 69003, 33…"
-            inputValue={text}
-            onInputChange={setText}
-            onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === "Tab" || e.key === ";") {
-                    if (text.trim()) {
-                        e.preventDefault();
-                        commit();
-                    }
-                } else if (e.key === "Backspace" && !text && value.length) {
-                    onChange(value.slice(0, -1));
-                }
-            }}
-            onBlur={() => text.trim() && commit()}
-            onRemove={(k) => onChange(value.filter((v) => v !== k))}
-            inputRef={inputRef}
-        />
     );
 }

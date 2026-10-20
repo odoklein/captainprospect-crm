@@ -7,7 +7,7 @@ import type { CrmMatch, SourcedLead, SourceId, SourcingQuery } from "@/lib/sourc
 // ============================================
 // Sourcing session: query, per-source runs, merged leads, CRM matches.
 // Kept in sessionStorage so leaving the page (or a reload) during a
-// 2-minute Google Maps run does not lose the run or its results.
+// 2-minute Google Maps run (Apify engine) does not lose the run or its results.
 // ============================================
 
 export type RunStatus = "running" | "done" | "error";
@@ -178,10 +178,26 @@ export function useSourcing() {
             sources.map(async (source) => {
                 try {
                     if (source === "gmaps") {
-                        const { runId, searches } = await api<{ runId: string; searches: number }>("/api/prospects/sourcing/gmaps", {
+                        const res = await api<
+                            | { runId: string; searches: number }
+                            | { leads: SourcedLead[]; warnings: string[]; searches: number }
+                        >("/api/prospects/sourcing/gmaps", {
                             method: "POST",
                             body: JSON.stringify(query),
                         });
+                        // Serper engine: the results come back in the same response.
+                        if ("leads" in res) {
+                            patchRun("gmaps", {
+                                status: "done",
+                                found: res.leads.length,
+                                searches: res.searches,
+                                warnings: res.warnings,
+                                finishedAt: Date.now(),
+                            });
+                            addLeads(res.leads);
+                            return;
+                        }
+                        const { runId, searches } = res;
                         const gmaps = { ...stateRef.current.runs.gmaps!, runId, searches };
                         stateRef.current = { ...stateRef.current, runs: { ...stateRef.current.runs, gmaps } };
                         setState((st) => ({ ...st, runs: { ...st.runs, gmaps: { ...st.runs.gmaps!, runId, searches } } }));

@@ -19,9 +19,9 @@ import type { ProvidersStatus, SourcingQuery } from "@/lib/sourcing/types";
 // ============================================
 
 const EXAMPLES: { title: string; query: Partial<SourcingQuery> }[] = [
-    { title: "Experts-comptables à Lyon", query: { activities: [{ label: "Expert-comptable", naf: "69.20Z" }], locations: ["Lyon"] } },
-    { title: "Plombiers et chauffagistes en Gironde", query: { activities: [{ label: "Plombier", naf: "43.22A" }, { label: "Chauffagiste", naf: "43.22B" }], locations: ["33"] } },
-    { title: "Agences immobilières à Nantes et Rennes", query: { activities: [{ label: "Agence immobilière", naf: "68.31Z" }], locations: ["Nantes", "Rennes"] } },
+    { title: "Experts-comptables à Lyon", query: { activities: [{ label: "Expert-comptable", naf: "69.20Z" }], locations: ["Lyon (69)"] } },
+    { title: "Plombiers et chauffagistes en Gironde", query: { activities: [{ label: "Plombier", naf: "43.22A" }, { label: "Chauffagiste", naf: "43.22B" }], locations: ["Gironde (33)"] } },
+    { title: "Agences immobilières à Nantes et Rennes", query: { activities: [{ label: "Agence immobilière", naf: "68.31Z" }], locations: ["Nantes (44)", "Rennes (35)"] } },
 ];
 
 export default function SourcingPage() {
@@ -168,8 +168,8 @@ function RunningPlaceholder() {
     return (
         <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
             <div className="border-b border-line px-5 py-4 text-sm text-ink-3">
-                Les résultats s&apos;affichent dès qu&apos;une source répond. Google Maps prend en général 1 à 3 minutes :
-                vous pouvez quitter la page, la recherche reprendra au retour.
+                Les résultats s&apos;affichent dès qu&apos;une source répond. Une recherche longue peut être quittée :
+                elle reprendra au retour sur la page.
             </div>
             <div className="divide-y divide-line-subtle">
                 {Array.from({ length: 6 }).map((_, i) => (

@@ -24,6 +24,7 @@ export const SOURCES: SourceMeta[] = [
         short: "Maps",
         tagline: "Commerces et entreprises locales, tels qu'affichés sur Maps",
         yields: ["Téléphone", "Site web", "Adresse", "Note & avis"],
+        // Apify defaults; the Serper engine overrides both via providersStatus().
         speed: "1 à 3 min",
         cost: "Usage Apify",
     },

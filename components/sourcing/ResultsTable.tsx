@@ -16,6 +16,7 @@ import { Checkbox, SegmentedControl, Select } from "@/components/ui";
 import { FOCUS_RING } from "@/components/ui/recipes";
 import { cn } from "@/lib/utils";
 import { SOURCE_BY_ID } from "@/lib/sourcing/catalog";
+import { DEPT_NAME, deptFromPostcode } from "@/lib/sourcing/france";
 import type { CrmMatch, SourcedLead, SourceId } from "@/lib/sourcing/types";
 
 // ============================================
@@ -63,6 +64,19 @@ export function ResultsTable({
     const [sort, setSort] = useState<Sort>("relevance");
     const [expanded, setExpanded] = useState<string | null>(null);
     const [limit, setLimit] = useState(PAGE);
+    const [dept, setDept] = useState("");
+    const [minRating, setMinRating] = useState(0);
+
+    // Département facet: only worth showing when results span several.
+    const depts = useMemo(() => {
+        const byCode = new Map<string, number>();
+        for (const l of leads) {
+            const code = deptFromPostcode(l.postalCode);
+            if (code) byCode.set(code, (byCode.get(code) ?? 0) + 1);
+        }
+        return Array.from(byCode, ([code, n]) => ({ code, n })).sort((a, b) => a.code.localeCompare(b.code));
+    }, [leads]);
+    const hasRatings = useMemo(() => leads.some((l) => l.rating != null), [leads]);
 
     const counts = useMemo(
         () => ({
@@ -86,6 +100,8 @@ export function ResultsTable({
             if (facets.has("website") && !l.website) return false;
             if (facets.has("contact") && !l.contacts.length) return false;
             if (facets.has("multi") && l.sources.length < 2) return false;
+            if (dept && deptFromPostcode(l.postalCode) !== dept) return false;
+            if (minRating && (l.rating ?? 0) < minRating) return false;
             if (q && !`${l.name} ${l.city ?? ""} ${l.industry ?? ""} ${l.postalCode ?? ""}`.toLowerCase().includes(q)) return false;
             return true;
         });
@@ -97,7 +113,7 @@ export function ResultsTable({
                   : relevance(b) - relevance(a),
         );
         return out;
-    }, [leads, matches, crm, facets, hideClosed, text, sort]);
+    }, [leads, matches, crm, facets, hideClosed, text, sort, dept, minRating]);
 
     const visible = rows.slice(0, limit);
     const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -123,7 +139,7 @@ export function ResultsTable({
         setLimit(PAGE);
     };
 
-    const filtersActive = crm !== "all" || facets.size > 0 || !!text;
+    const filtersActive = crm !== "all" || facets.size > 0 || !!text || !!dept || minRating > 0;
 
     return (
         <div className="overflow-hidden rounded-card border border-line bg-surface shadow-card">
@@ -163,6 +179,43 @@ export function ResultsTable({
                             </button>
                         )}
                     </div>
+                    {depts.length > 1 && (
+                        <div className="w-48">
+                            <Select
+                                searchable={depts.length > 8}
+                                maxHeight={320}
+                                value={dept}
+                                onChange={(v) => {
+                                    setDept(v);
+                                    setLimit(PAGE);
+                                }}
+                                options={[
+                                    { value: "", label: `Tous départements (${depts.length})` },
+                                    ...depts.map((d) => ({
+                                        value: d.code,
+                                        label: `${d.code} · ${DEPT_NAME[d.code] ?? "?"} (${d.n})`,
+                                    })),
+                                ]}
+                            />
+                        </div>
+                    )}
+                    {hasRatings && (
+                        <div className="w-36">
+                            <Select
+                                value={String(minRating)}
+                                onChange={(v) => {
+                                    setMinRating(Number(v));
+                                    setLimit(PAGE);
+                                }}
+                                options={[
+                                    { value: "0", label: "Toutes notes" },
+                                    { value: "3.5", label: "Note ≥ 3,5" },
+                                    { value: "4", label: "Note ≥ 4" },
+                                    { value: "4.5", label: "Note ≥ 4,5" },
+                                ]}
+                            />
+                        </div>
+                    )}
                     <div className="w-40">
                         <Select
                             value={sort}
@@ -201,6 +254,8 @@ export function ResultsTable({
                                 setCrm("all");
                                 setFacets(new Set());
                                 setText("");
+                                setDept("");
+                                setMinRating(0);
                             }}
                             className="text-xs font-medium text-ink-3 hover:text-ink"
                         >

@@ -63,7 +63,15 @@ export interface SourcingQuery {
     headcount?: string[];
 }
 
-export type ProviderStatus = { configured: boolean; reason?: string };
+export type ProviderStatus = {
+    configured: boolean;
+    reason?: string;
+    /** Google Maps backend actually used by this deployment. */
+    engine?: "serper" | "apify";
+    /** Override the catalog's speed / cost line for this engine. */
+    speed?: string;
+    cost?: string;
+};
 export type ProvidersStatus = Record<SourceId, ProviderStatus>;
 
 /** CRM duplicate found for a sourced lead. */
