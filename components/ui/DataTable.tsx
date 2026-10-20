@@ -45,7 +45,7 @@ interface DataTableProps<T> {
     keyField: keyof T | ((row: T) => string);
     searchable?: boolean;
     searchPlaceholder?: string;
-    searchFields?: (keyof T)[];
+    searchFields?: (keyof T | string)[];
     pagination?: boolean;
     pageSize?: number;
     loading?: boolean;

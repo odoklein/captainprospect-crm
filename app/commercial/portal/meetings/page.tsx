@@ -100,13 +100,13 @@ const GLOBAL_CSS = `
 .cp-stat {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
+  gap: 10px;
+  padding: 10px 14px;
   text-align: left;
   cursor: pointer;
   font-family: inherit;
   border: 1px solid ${tk.border};
-  border-radius: 14px;
+  border-radius: 12px;
   background: ${tk.surface};
   transition: all 0.2s cubic-bezier(0.16,1,0.3,1);
   outline: none;
@@ -278,7 +278,7 @@ const GLOBAL_CSS = `
 /* ── Date block ── */
 .cp-date-block {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  width: 70px; flex-shrink: 0; padding: 16px 6px;
+  width: 68px; flex-shrink: 0; padding: 10px 6px;
   border-right: 1px solid ${tk.border};
 }
 
@@ -876,12 +876,12 @@ export default function CommercialPortalMeetingsPage() {
                 background: active?`color-mix(in oklab, ${stripe} 2.5%, transparent)`:tk.surface,
                 boxShadow: active?"0 4px 20px -6px rgba(0,0,0,0.12)":"none",
               }}>
-              <div style={{width:3,height:38,borderRadius:2,background:stripe,opacity:active?1:0.3,flexShrink:0,transition:"opacity 0.2s ease"}} />
+              <div style={{width:3,height:28,borderRadius:2,background:stripe,opacity:active?1:0.3,flexShrink:0,transition:"opacity 0.2s ease"}} />
               <div>
-                <div style={{fontSize:30,fontWeight:800,color:active?stripe:tk.ink,lineHeight:1,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.04em",animation:"cp-count-in 0.4s ease"}}>
+                <div style={{fontSize:22,fontWeight:800,color:active?stripe:tk.ink,lineHeight:1,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.03em",animation:"cp-count-in 0.4s ease"}}>
                   {stats[key]}
                 </div>
-                <div style={{fontSize:11.5,color:tk.ink3,marginTop:3,fontWeight:500}}>{label}</div>
+                <div style={{fontSize:11,color:tk.ink3,marginTop:2,fontWeight:500}}>{label}</div>
               </div>
             </button>
           );
@@ -970,13 +970,13 @@ function Card({
         <div className="cp-date-block">
           {dt ? (
             <>
-              <span style={{fontSize:30,fontWeight:800,color:tk.ink,lineHeight:1,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.04em"}}>
+              <span style={{fontSize:22,fontWeight:800,color:tk.ink,lineHeight:1,fontVariantNumeric:"tabular-nums",letterSpacing:"-0.03em"}}>
                 {dt.day}
               </span>
-              <span style={{fontSize:10,fontWeight:700,color:tk.ink4,letterSpacing:"0.1em",marginTop:3}}>
+              <span style={{fontSize:9.5,fontWeight:700,color:tk.ink4,letterSpacing:"0.08em",marginTop:2}}>
                 {dt.month}
               </span>
-              <div style={{marginTop:10,fontSize:11.5,fontWeight:700,color:tk.accentText,background:tk.accentLight,padding:"3px 7px",borderRadius:99,whiteSpace:"nowrap"}}>
+              <div style={{marginTop:6,fontSize:10.5,fontWeight:700,color:tk.accentText,background:tk.accentLight,padding:"2px 6px",borderRadius:6,whiteSpace:"nowrap"}}>
                 {dt.time}
               </div>
             </>
@@ -988,7 +988,7 @@ function Card({
         </div>
 
         {/* Content */}
-        <div style={{flex:1,padding:"14px 16px",display:"flex",flexDirection:"column",gap:9,minWidth:0}}>
+        <div style={{flex:1,padding:"10px 14px",display:"flex",flexDirection:"column",gap:7,minWidth:0}}>
           {/* Badges */}
           <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:5}}>
             <Pill label={sm.label} color={sm.pill.color} bg={sm.pill.bg} border={sm.pill.border} dot={sm.dot} />
@@ -1060,7 +1060,7 @@ function Card({
         </div>
 
         {/* Actions */}
-        <div style={{width:160,flexShrink:0,display:"flex",flexDirection:"column",justifyContent:"center",gap:6,padding:"14px 12px",borderLeft:`1px solid ${tk.border}`}}>
+        <div style={{width:145,flexShrink:0,display:"flex",flexDirection:"column",justifyContent:"center",gap:5,padding:"10px 10px",borderLeft:`1px solid ${tk.border}`}}>
           <button type="button" className="cp-action" onClick={onDetail}>
             <Eye style={{width:12,height:12}} />Voir la fiche
           </button>

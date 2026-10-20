@@ -218,8 +218,9 @@ export default function SDRHistoryPage() {
         {
             key: "createdAt",
             header: "Date / Heure",
+            width: "125px",
             render: (_, row) => (
-                <span className="text-sm text-slate-700 font-medium whitespace-nowrap">
+                <span className="text-xs text-slate-700 font-medium whitespace-nowrap">
                     {formatActionDateTime(row.createdAt)}
                 </span>
             ),
@@ -230,23 +231,25 @@ export default function SDRHistoryPage() {
             render: (_, row) => {
                 const name = row.contactName || row.companyName || "—";
                 return (
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
                         <div
                             className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border",
+                                "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 border",
                                 row.contactId ? "bg-primary-50 border-primary-100 text-primary-600" : "bg-slate-50 border-slate-200 text-slate-500"
                             )}
                         >
-                            {row.contactId ? <User className="w-4.5 h-4.5" /> : <Building2 className="w-4.5 h-4.5" />}
+                            {row.contactId ? <User className="w-3.5 h-3.5" /> : <Building2 className="w-3.5 h-3.5" />}
                         </div>
                         <div className="min-w-0">
-                            <p className="font-semibold text-slate-900 truncate max-w-[200px]">{name}</p>
-                            {row.companyName && row.contactName && (
-                                <p className="text-xs text-slate-500 truncate max-w-[180px]">{row.companyName}</p>
-                            )}
-                            {row.phone && (
-                                <p className="text-xs text-slate-400 truncate max-w-[180px]">{row.phone}</p>
-                            )}
+                            <p className="font-semibold text-slate-900 text-xs truncate max-w-[180px]">{name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500">
+                                {row.companyName && row.contactName && (
+                                    <span className="truncate max-w-[130px]">{row.companyName}</span>
+                                )}
+                                {row.phone && (
+                                    <span className="text-slate-400 font-mono text-[10px] truncate max-w-[110px]">· {row.phone}</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 );
@@ -255,10 +258,12 @@ export default function SDRHistoryPage() {
         {
             key: "result",
             header: "Statut",
+            width: "130px",
             render: (_, row) => (
                 <Badge
+                    size="xs"
                     className={cn(
-                        "text-xs font-semibold border",
+                        "font-medium border whitespace-nowrap",
                         RESULT_BADGE_COLORS[row.result] ?? "bg-slate-100 text-slate-600 border-slate-200"
                     )}
                 >
@@ -269,12 +274,13 @@ export default function SDRHistoryPage() {
         {
             key: "channel",
             header: "Canal",
+            width: "90px",
             render: (_, row) => {
                 const Icon = CHANNEL_ICONS[row.channel as Channel] ?? Phone;
                 const label = CHANNEL_LABELS[row.channel as Channel] ?? row.channel;
                 return (
-                    <span className="inline-flex items-center gap-1.5 text-sm text-slate-600">
-                        <Icon className="w-4 h-4 text-slate-400" />
+                    <span className="inline-flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap">
+                        <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         {label}
                     </span>
                 );
@@ -284,7 +290,7 @@ export default function SDRHistoryPage() {
             key: "mission",
             header: "Mission / Campagne",
             render: (_, row) => (
-                <span className="text-sm text-slate-600 truncate max-w-[160px] block" title={row.missionName || row.campaignName || ""}>
+                <span className="text-xs text-slate-600 truncate max-w-[140px] block" title={row.missionName || row.campaignName || ""}>
                     {row.missionName || row.campaignName || "—"}
                 </span>
             ),
@@ -298,7 +304,7 @@ export default function SDRHistoryPage() {
                     return <span className="text-xs text-slate-300">—</span>;
                 }
                 return (
-                    <div className="max-w-[200px]">
+                    <div className="max-w-[180px]">
                         <p className="text-xs text-slate-500 truncate italic" title={displayNote}>
                             &quot;{displayNote}&quot;
                         </p>
@@ -309,30 +315,35 @@ export default function SDRHistoryPage() {
         {
             key: "callbackDate",
             header: "Rappel",
+            width: "120px",
             render: (_, row) =>
                 row.callbackDate ? (
-                    <span className="text-sm text-slate-700">{formatCallbackDateTime(row.callbackDate)}</span>
+                    <span className="text-xs text-slate-700 whitespace-nowrap">{formatCallbackDateTime(row.callbackDate)}</span>
                 ) : (
-                    <span className="text-xs text-slate-400">—</span>
+                    <span className="text-xs text-slate-300">—</span>
                 ),
         },
         {
             key: "duration",
             header: "Durée",
+            align: "right",
+            width: "70px",
             render: (_, row) =>
                 row.duration != null ? (
-                    <span className="text-sm text-slate-600">{formatDuration(row.duration)}</span>
+                    <span className="text-xs text-slate-600 font-mono">{formatDuration(row.duration)}</span>
                 ) : (
-                    <span className="text-xs text-slate-400">—</span>
+                    <span className="text-xs text-slate-300">—</span>
                 ),
         },
         {
             key: "actions",
             header: "",
+            align: "right",
+            width: "48px",
             render: (_, row) => {
                 if (!row.companyId) {
                     return (
-                        <span className="text-xs text-slate-400" title="Fiche non disponible (sans société)">
+                        <span className="text-xs text-slate-300" title="Fiche non disponible (sans société)">
                             —
                         </span>
                     );
@@ -345,9 +356,9 @@ export default function SDRHistoryPage() {
                             openDrawer(row);
                         }}
                         title="Voir la fiche"
-                        className="w-9 h-9 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-all duration-200"
+                        className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-colors ml-auto"
                     >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5" />
                     </button>
                 );
             },
@@ -365,63 +376,56 @@ export default function SDRHistoryPage() {
 
     return (
         <div className="space-y-6 animate-fade-in p-2">
-            <div className="relative overflow-hidden bg-slate-900 rounded-2xl p-6 shadow-xl">
-                <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
-                            <History className="w-6 h-6 text-white" />
+            <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center">
+                            <History className="w-5 h-5 text-primary-600" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-white">Historique des actions</h1>
-                            <p className="text-sm text-white/60">
-                                Consultez toutes vos actions (appels, emails, statuts) et ouvrez les fiches contact/société
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-lg font-bold text-slate-900 tracking-tight">Historique des actions</h1>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/60">
+                                    {actions.length}
+                                </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Suivi de vos appels, emails et qualifications avec accès direct aux fiches
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="secondary"
+                            size="sm"
                             onClick={() => fetchHistory()}
                             disabled={isLoading}
-                            className="rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white gap-2"
+                            className="rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 gap-1.5 h-8 text-xs font-medium"
                         >
-                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                             Actualiser
                         </Button>
-                        <div className="px-3 py-2 rounded-xl bg-white/10 border border-white/10">
-                            <span className="text-sm font-semibold text-white">{actions.length}</span>
-                            <span className="text-xs text-white/60 ml-1">actions</span>
-                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm">
-                <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-primary-600 flex items-center justify-center">
-                                <Filter className="w-4 h-4 text-white" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-semibold text-slate-900">Filtres</h3>
-                                <p className="text-xs text-slate-500">Affinez l&apos;historique</p>
-                            </div>
-                        </div>
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-2xs p-3 sm:px-4 sm:py-3">
+                <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-xs font-semibold text-slate-700">
+                        <Filter className="w-3.5 h-3.5 text-primary-600" />
+                        <span>Filtres de recherche</span>
                     </div>
-                </div>
-                <div className="p-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                        <div className="relative" ref={dateFilterRef}>
-                            <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">Période</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                        <div className="relative space-y-1" ref={dateFilterRef}>
+                            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Période</label>
                             <button
                                 type="button"
                                 onClick={() => setDateFilterOpen((o) => !o)}
-                                className="flex items-center gap-2 w-full h-10 px-3 text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-xl hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400"
+                                className="flex items-center gap-2 w-full h-8 px-2.5 text-xs font-medium text-slate-900 bg-white border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-400"
                             >
-                                <Calendar className="w-4 h-4 text-primary-500" />
+                                <Calendar className="w-3.5 h-3.5 text-primary-500 shrink-0" />
                                 <span className="truncate">{dateRange.preset ? PRESET_LABELS[dateRange.preset] : "Plage de dates"}</span>
-                                <ChevronDown className={cn("w-3.5 h-3.5 text-slate-400 ml-auto shrink-0", dateFilterOpen && "rotate-180")} />
+                                <ChevronDown className={cn("w-3 h-3 text-slate-400 ml-auto shrink-0", dateFilterOpen && "rotate-180")} />
                             </button>
                             {dateFilterOpen && (
                                 <>
@@ -437,14 +441,14 @@ export default function SDRHistoryPage() {
                                 </>
                             )}
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Mission</label>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Mission</label>
                             <select
                                 value={selectedMissionId}
                                 onChange={(e) => setSelectedMissionId(e.target.value)}
-                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400 cursor-pointer"
+                                className="w-full h-8 px-2.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-400 cursor-pointer"
                             >
-                                <option value="">Toutes</option>
+                                <option value="">Toutes les missions</option>
                                 {missions.map((m) => (
                                     <option key={m.id} value={m.id}>
                                         {m.name}
@@ -452,14 +456,14 @@ export default function SDRHistoryPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Statut</label>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Statut</label>
                             <select
                                 value={selectedResult}
                                 onChange={(e) => setSelectedResult(e.target.value)}
-                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400 cursor-pointer"
+                                className="w-full h-8 px-2.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-400 cursor-pointer"
                             >
-                                <option value="">Tous</option>
+                                <option value="">Tous les statuts</option>
                                 {(Object.entries(ACTION_RESULT_LABELS) as [ActionResult, string][]).map(([value, label]) => (
                                     <option key={value} value={value}>
                                         {label}
@@ -467,14 +471,14 @@ export default function SDRHistoryPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wider">Canal</label>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Canal</label>
                             <select
                                 value={selectedChannel}
                                 onChange={(e) => setSelectedChannel(e.target.value)}
-                                className="w-full h-10 px-3 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400 cursor-pointer"
+                                className="w-full h-8 px-2.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-400 cursor-pointer"
                             >
-                                <option value="">Tous</option>
+                                <option value="">Tous les canaux</option>
                                 {(Object.entries(CHANNEL_LABELS) as [Channel, string][]).map(([value, label]) => (
                                     <option key={value} value={value}>
                                         {label}
@@ -511,6 +515,7 @@ export default function SDRHistoryPage() {
             ) : (
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
                     <DataTable
+                        density="compact"
                         data={actions}
                         columns={tableColumns}
                         keyField={(row) => row.id}
@@ -521,7 +526,7 @@ export default function SDRHistoryPage() {
                         pageSize={20}
                         emptyMessage="Aucune action avec ces filtres."
                         onRowClick={(row) => row.companyId && openDrawer(row)}
-                        getRowClassName={() => "cursor-pointer hover:bg-primary-50/50"}
+                        getRowClassName={() => "cursor-pointer hover:bg-slate-50/80"}
                     />
                 </div>
             )}

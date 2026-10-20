@@ -102,40 +102,40 @@ function CompanyCard({
     const [isOpen, setIsOpen] = useState(true);
 
     return (
-        <div className="bg-white border border-line rounded-2xl shadow-sm overflow-hidden transition-all duration-200">
+        <div className="bg-white border border-line rounded-xl shadow-2xs overflow-hidden transition-all duration-200">
             {/* Header */}
             <div
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center justify-between p-4 cursor-pointer hover:bg-surface-2 transition-colors select-none gap-4"
+                className="flex items-center justify-between p-2.5 sm:px-3.5 sm:py-2.5 cursor-pointer hover:bg-surface-2 transition-colors select-none gap-3"
             >
-                <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-primary-50 border border-primary-200/60 flex items-center justify-center shrink-0">
-                        <Building2 className="w-5 h-5 text-primary-600" />
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-primary-50 border border-primary-200/60 flex items-center justify-center shrink-0">
+                        <Building2 className="w-3.5 h-3.5 text-primary-600" />
                     </div>
                     <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-sm font-bold text-ink truncate">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="text-xs font-semibold text-ink truncate">
                                 {company.name}
                             </h3>
                             {company.list?.name && (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary-700 bg-primary-50 border border-primary-200/80 px-2 py-0.5 rounded-full">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary-700 bg-primary-50 border border-primary-200/80 px-1.5 py-0.2 rounded-md">
                                     <Database className="w-2.5 h-2.5" />
                                     {company.list.name}
                                 </span>
                             )}
                         </div>
-                        <div className="flex items-center gap-3 mt-1 flex-wrap text-xs text-ink-3">
+                        <div className="flex items-center gap-2.5 mt-0.5 flex-wrap text-[11px] text-ink-3">
                             {company.industry && <span>{company.industry}</span>}
                             {company.country && (
                                 <span className="inline-flex items-center gap-1">
-                                    <Globe className="w-3 h-3 text-ink-4" />
+                                    <Globe className="w-2.5 h-2.5 text-ink-4" />
                                     {company.country}
                                 </span>
                             )}
                             {company.size && <span>{company.size}</span>}
                             {company.phone && (
-                                <span className="inline-flex items-center gap-1 text-slate-600 font-mono text-[11px]">
-                                    <Phone className="w-3 h-3 text-slate-400" />
+                                <span className="inline-flex items-center gap-1 text-slate-600 font-mono text-[10px]">
+                                    <Phone className="w-2.5 h-2.5 text-slate-400" />
                                     {company.phone}
                                 </span>
                             )}
@@ -143,8 +143,8 @@ function CompanyCard({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[11px] font-semibold text-ink-3 bg-surface-2 border border-line px-2.5 py-1 rounded-full">
+                <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="text-[10px] font-semibold text-ink-3 bg-surface-2 border border-line px-2 py-0.5 rounded-md tabular-nums">
                         {contacts.length} contact{contacts.length > 1 ? "s" : ""}
                     </span>
                     {company.website && (
@@ -153,52 +153,52 @@ function CompanyCard({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium hover:underline"
+                            className="inline-flex items-center gap-1 text-[11px] text-primary-600 hover:text-primary-700 font-medium hover:underline"
                         >
                             <span>Site web</span>
-                            <ExternalLink className="w-3 h-3" />
+                            <ExternalLink className="w-2.5 h-2.5" />
                         </a>
                     )}
                     <button
                         type="button"
-                        className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                        className="p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                         aria-label={isOpen ? "Fermer" : "Ouvrir"}
                     >
-                        {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
                 </div>
             </div>
 
             {/* Contacts list */}
             {isOpen && (
-                <div className="border-t border-line-subtle divide-y divide-line-subtle">
+                <div className="border-t border-line-subtle divide-y divide-line-subtle bg-slate-50/30">
                     {contacts.map((c) => {
                         const fullName = [c.firstName, c.lastName].filter(Boolean).join(" ") || "Contact sans nom";
                         return (
                             <div
                                 key={c.id}
-                                className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-surface-2 transition-colors flex-wrap sm:flex-nowrap"
+                                className="flex items-center justify-between gap-3 px-3.5 py-1.5 hover:bg-surface-2 transition-colors flex-wrap sm:flex-nowrap"
                             >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200/70 flex items-center justify-center shrink-0">
-                                        <User className="w-4 h-4 text-emerald-600" />
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-6 h-6 rounded-full bg-emerald-50 border border-emerald-200/70 flex items-center justify-center shrink-0">
+                                        <User className="w-3 h-3 text-emerald-600" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-[13px] font-bold text-ink truncate">
+                                        <p className="text-xs font-semibold text-ink truncate">
                                             {fullName}
                                         </p>
                                         {c.title && (
-                                            <p className="text-[11.5px] text-ink-3 truncate">
+                                            <p className="text-[11px] text-ink-3 truncate">
                                                 {c.title}
                                             </p>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-4 text-xs shrink-0 flex-wrap">
+                                <div className="flex items-center gap-2 text-xs shrink-0 flex-wrap">
                                     {c.email && (
-                                        <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
-                                            <Mail className="w-3.5 h-3.5 text-primary-500" />
+                                        <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-0.5 rounded-md text-[11px]">
+                                            <Mail className="w-3 h-3 text-primary-500" />
                                             <a
                                                 href={`mailto:${c.email}`}
                                                 className="text-slate-700 hover:text-primary-600 hover:underline"
@@ -209,11 +209,11 @@ function CompanyCard({
                                         </div>
                                     )}
                                     {c.phone && (
-                                        <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
-                                            <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                                        <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-0.5 rounded-md text-[11px]">
+                                            <Phone className="w-3 h-3 text-emerald-600" />
                                             <a
                                                 href={`tel:${c.phone}`}
-                                                className="text-slate-700 font-mono text-[11px] hover:text-emerald-700 hover:underline"
+                                                className="text-slate-700 font-mono text-[10.5px] hover:text-emerald-700 hover:underline"
                                             >
                                                 {c.phone}
                                             </a>
@@ -403,7 +403,7 @@ export default function CommercialContactsPage() {
 
                     {/* Content Section */}
                     {isLoading ? (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {[1, 2, 3, 4].map((i) => (
                                 <div
                                     key={i}
@@ -436,7 +436,7 @@ export default function CommercialContactsPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {companiesMap.map(({ company, contacts: companyContacts }) => (
                                 <CompanyCard
                                     key={company.id}

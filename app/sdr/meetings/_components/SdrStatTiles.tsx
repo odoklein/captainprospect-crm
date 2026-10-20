@@ -31,6 +31,7 @@ export function SdrStatTiles({ stats, statusFilter, onSelect }: SdrStatTilesProp
                 return (
                     <button key={t.key} type="button" onClick={() => onSelect(t.key)} aria-pressed={isActive} aria-label={`Filtrer : ${t.label} (${stats[t.key]})`} className="w-full text-left">
                         <StatCard
+                            density="compact"
                             label={t.label}
                             value={stats[t.key]}
                             icon={t.icon}
