@@ -78,3 +78,16 @@ export function groupOutcomes(byResult: Record<string, number>): { slices: Outco
     });
     return { slices, total };
 }
+
+/** Every raw code that has an explicit family; anything else falls into "other". */
+export const KNOWN_RESULT_CODES: string[] = Object.keys(OUTCOME_OF);
+
+/** The raw codes of an explicit family ("other" has none: it is "every unknown code"). */
+export function codesOfFamily(key: OutcomeKey): string[] {
+    return KNOWN_RESULT_CODES.filter((code) => OUTCOME_OF[code] === key);
+}
+
+/** Display label of a raw result code, falling back to a readable form of the code. */
+export function prettyResult(code: string, labels?: Record<string, string>): string {
+    return labels?.[code] ?? code.charAt(0) + code.slice(1).toLowerCase().replace(/_/g, " ");
+}

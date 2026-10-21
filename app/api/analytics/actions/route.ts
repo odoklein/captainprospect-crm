@@ -1,86 +1,108 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
-    successResponse,
     requireRole,
     withErrorHandler,
     getPaginationParams,
     paginatedResponse,
+    errorResponse,
 } from '@/lib/api-utils';
 import { Prisma } from '@prisma/client';
+import { parsePeriodRange } from '@/lib/manager-home/rules';
+import { KNOWN_RESULT_CODES, OUTCOME_ORDER, codesOfFamily, type OutcomeKey } from '@/lib/manager-home/outcomes';
+
+// GET /api/analytics/actions — the Journal of the Statistiques page.
+//   startDate / endDate  Paris days (inclusive), same as /api/analytics/overview
+//   sdrIds[] missionIds[] clientIds[] listIds[]   scope filters
+//   families[]           outcome families (meeting, interested, callback, refusal,
+//                        noReach, dataIssue, other) — not raw codes, so the filter
+//                        matches the families the rest of the page speaks
+//   q                    free text: contact, company or note
+//   page / limit         server-side pagination
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
-    const session = await requireRole(['MANAGER', 'DEVELOPER'], request);
+    await requireRole(['MANAGER', 'DEVELOPER'], request);
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = getPaginationParams(searchParams);
 
-    const from = searchParams.get('from');
-    const to = searchParams.get('to');
+    const range = parsePeriodRange(searchParams.get('startDate'), searchParams.get('endDate'));
+    if (!range) return errorResponse('Période invalide', 400);
+
     const sdrIds = searchParams.getAll('sdrIds[]');
     const missionIds = searchParams.getAll('missionIds[]');
     const clientIds = searchParams.getAll('clientIds[]');
     const listIds = searchParams.getAll('listIds[]');
-    const results = searchParams.getAll('results[]');
+    const families = searchParams.getAll('families[]').filter((f): f is OutcomeKey => (OUTCOME_ORDER as string[]).includes(f));
+    const q = (searchParams.get('q') || '').trim();
 
-    const dateTo = to ? new Date(to) : new Date();
-    dateTo.setHours(23, 59, 59, 999);
+    const and: Prisma.ActionWhereInput[] = [];
 
-    const dateFrom = from ? new Date(from) : new Date(dateTo);
-    if (!from) {
-        dateFrom.setDate(dateFrom.getDate() - 30);
+    if (listIds.length > 0) {
+        and.push({
+            OR: [
+                { company: { listId: { in: listIds } } },
+                { contact: { company: { listId: { in: listIds } } } },
+            ],
+        });
     }
-    dateFrom.setHours(0, 0, 0, 0);
+
+    if (families.length > 0) {
+        const explicit = families.filter((f) => f !== 'other').flatMap(codesOfFamily);
+        const clauses: Prisma.ActionWhereInput[] = [];
+        if (explicit.length) clauses.push({ result: { in: explicit as never[] } });
+        // "other" = every code that has no explicit family.
+        if (families.includes('other')) clauses.push({ result: { notIn: KNOWN_RESULT_CODES as never[] } });
+        and.push({ OR: clauses });
+    }
+
+    if (q) {
+        and.push({
+            OR: [
+                { note: { contains: q, mode: 'insensitive' } },
+                { contact: { firstName: { contains: q, mode: 'insensitive' } } },
+                { contact: { lastName: { contains: q, mode: 'insensitive' } } },
+                { contact: { company: { name: { contains: q, mode: 'insensitive' } } } },
+                { company: { name: { contains: q, mode: 'insensitive' } } },
+            ],
+        });
+    }
 
     const where: Prisma.ActionWhereInput = {
         channel: 'CALL',
-        createdAt: {
-            gte: dateFrom,
-            lte: dateTo,
-        },
+        createdAt: { gte: range.from, lt: range.to },
+        ...(sdrIds.length > 0 && { sdrId: { in: sdrIds } }),
+        ...((missionIds.length > 0 || clientIds.length > 0) && {
+            campaign: {
+                mission: {
+                    ...(missionIds.length > 0 && { id: { in: missionIds } }),
+                    ...(clientIds.length > 0 && { clientId: { in: clientIds } }),
+                },
+            },
+        }),
+        ...(and.length > 0 && { AND: and }),
     };
-
-    if (sdrIds.length > 0) {
-        where.sdrId = { in: sdrIds };
-    }
-
-    if (missionIds.length > 0 || clientIds.length > 0) {
-        where.campaign = {
-            mission: {
-                ...(missionIds.length > 0 && { id: { in: missionIds } }),
-                ...(clientIds.length > 0 && { clientId: { in: clientIds } }),
-            }
-        };
-    }
-
-    if (listIds.length > 0) {
-        where.OR = [
-            { company: { listId: { in: listIds } } },
-            { contact: { company: { listId: { in: listIds } } } },
-        ];
-    }
-
-    if (results.length > 0) {
-        where.result = { in: { in: results } as any }; // Zod/Prisma type dance
-    }
 
     const [actions, total] = await Promise.all([
         prisma.action.findMany({
             where,
-            include: {
+            select: {
+                id: true,
+                createdAt: true,
+                result: true,
+                duration: true,
+                note: true,
+                callbackDate: true,
                 sdr: { select: { id: true, name: true } },
                 contact: {
                     select: {
-                        id: true,
                         firstName: true,
                         lastName: true,
-                        company: { select: { name: true } }
-                    }
+                        title: true,
+                        company: { select: { name: true } },
+                    },
                 },
-                campaign: {
-                    select: {
-                        mission: { select: { id: true, name: true } }
-                    }
-                }
+                company: { select: { name: true } },
+                campaign: { select: { mission: { select: { id: true, name: true } } } },
             },
             orderBy: { createdAt: 'desc' },
             skip,
@@ -89,17 +111,25 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         prisma.action.count({ where }),
     ]);
 
-    const items = actions.map(a => ({
-        id: a.id,
-        createdAt: a.createdAt,
-        sdrName: a.sdr.name,
-        contactName: a.contact ? `${a.contact.firstName} ${a.contact.lastName}` : 'N/A',
-        companyName: a.contact?.company?.name || 'N/A',
-        missionName: a.campaign?.mission?.name || 'N/A',
-        result: a.result,
-        duration: a.duration,
-        note: a.note,
-    }));
+    const items = actions.map((a) => {
+        const contactName = a.contact
+            ? [a.contact.firstName, a.contact.lastName].filter(Boolean).join(' ').trim() || null
+            : null;
+        return {
+            id: a.id,
+            createdAt: a.createdAt,
+            sdrId: a.sdr.id,
+            sdrName: a.sdr.name,
+            contactName,
+            contactTitle: a.contact?.title ?? null,
+            companyName: a.contact?.company?.name ?? a.company?.name ?? null,
+            missionName: a.campaign?.mission?.name ?? null,
+            result: a.result,
+            duration: a.duration,
+            callbackDate: a.callbackDate,
+            note: a.note,
+        };
+    });
 
     return paginatedResponse(items, total, page, limit);
 });

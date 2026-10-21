@@ -1,0 +1,47 @@
+[    1336ms] [WARNING] A preload for 'https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute. @ https://cdn.jsdelivr.net/npm/systemjs@6.4.0/dist/system.min.js:3
+[    2932ms] [WARNING] LogRocket: Session quota exceeded. Please upgrade your plan. Disabling ... @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    3902ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://app.cognism.com/api/users?force=true&tsp=1792573212280:0
+[    3905ms] [ERROR] ERROR jp @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    3907ms] [WARNING] single-spa minified message #30: See https://single-spa.js.org/error/?code=30&arg=SKIP_BECAUSE_BROKEN&arg=@cognism/app-nav @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    3918ms] Uncaught Error: application '@cognism/app-nav' died in status SKIP_BECAUSE_BROKEN: {"headers":{"normalizedNames":{},"lazyUpdate":null},"status":401,"statusText":"OK","url":"https://app.cognism.com/api/users?force=true&tsp=1792573212280","ok":false,"name":"HttpErrorResponse","message":"Http failure response for https://app.cognism.com/api/users?force=true&tsp=1792573212280: 401 OK","error":"Your API Key does not appear to be valid"}
+    at l (https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js:1:3247)
+    at a (https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js:1:2463)
+    at r (https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js:1:5738)
+    at e.invoke (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:7269)
+    at t.run (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:2369)
+    at <anonymous> (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:27:2766)
+    at e.invokeTask (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:7953)
+    at t.runTask (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:3032)
+    at _ (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:10269)
+    at t.invokeTask (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:9114)
+    at p (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:43:732)
+    at h (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:43:1038)
+    at c (https://app.cognism.com/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js:0:9404)
+[    4011ms] [WARNING] The resource https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://app.cognism.com/:0
+[    4029ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://app.cognism.com/api/users?force=true&tsp=1792573212652:0
+[    4032ms] [ERROR] zt @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    4034ms] [LOG] 401  @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    4065ms] [ERROR] ERROR zt @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    4066ms] [WARNING] single-spa minified message #30: See https://single-spa.js.org/error/?code=30&arg=SKIP_BECAUSE_BROKEN&arg=@cognism/app-search @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    4084ms] Uncaught Error: application '@cognism/app-search' died in status SKIP_BECAUSE_BROKEN: {"headers":{"normalizedNames":{},"lazyUpdate":null},"status":401,"statusText":"OK","url":"https://app.cognism.com/api/users?force=true&tsp=1792573212652","ok":false,"name":"HttpErrorResponse","message":"Http failure response for https://app.cognism.com/api/users?force=true&tsp=1792573212652: 401 OK","error":"Your API Key does not appear to be valid"}
+    at l (https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js:1:3247)
+    at a (https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js:1:2463)
+    at r (https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js:1:5738)
+    at e.invoke (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:7269)
+    at t.run (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:2369)
+    at <anonymous> (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:27:2766)
+    at e.invokeTask (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:7953)
+    at t.runTask (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:3032)
+    at _ (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:10269)
+    at t.invokeTask (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:5:9114)
+    at p (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:43:732)
+    at h (https://cdn.jsdelivr.net/npm/zone.js@0.11.4/dist/zone.min.js:43:1038)
+    at c (https://app.cognism.com/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js:0:9404)
+[    4266ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://app.cognism.com/auth/sign-in:0
+[    4587ms] [WARNING] A preload for 'https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js' is found, but is not used because the request credentials mode does not match. Consider taking a look at crossorigin attribute. @ https://cdn.jsdelivr.net/npm/systemjs@6.4.0/dist/system.min.js:3
+[    4766ms] [WARNING] LogRocket: Session quota exceeded. Please upgrade your plan. Disabling ... @ https://cdn.lr-in.com/LogRocket.min.js:1
+[    6262ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://app.cognism.com/api/users?force=true&tsp=1792573214725:0
+[    6387ms] [VERBOSE] [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o @ https://app.cognism.com/auth/sign-in:0
+[    8977ms] [WARNING] The resource https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://app.cognism.com/auth/sign-in:0
+[   15089ms] [WARNING] The resource https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://app.cognism.com/auth/sign-in:0
+[   19333ms] [WARNING] The resource https://cdn.jsdelivr.net/npm/single-spa@5.5.5/lib/system/single-spa.min.js was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ https://app.cognism.com/auth/sign-in:0
