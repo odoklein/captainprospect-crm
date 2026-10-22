@@ -151,6 +151,13 @@ interface NextActionData {
         sdrId?: string | null;
         sdrName?: string | null;
     } | null;
+    /** Same number already dialed for another contact of this company (lib/sdr-queue/shared-phone). */
+    sharedPhoneCall?: {
+        calledAt: string;
+        sdrId: string | null;
+        sdrName: string | null;
+        contactName: string | null;
+    } | null;
 }
 
 interface Mission {
@@ -183,6 +190,7 @@ interface QueueItem {
     lastAction: NextActionData["lastAction"] | null;
     lastActionBy?: { id: string; name: string | null } | null;
     companyLastAction?: NextActionData["companyLastAction"] | null;
+    sharedPhoneCall?: NextActionData["sharedPhoneCall"];
     priority: string;
     hasContactInfo?: boolean;
     _displayName?: string;
@@ -354,6 +362,43 @@ function pausedSentence(paused: PausedSummary | null, type: "contact" | "company
         ? `${count} sociétés déjà appelées dans les dernières 24 h sont en pause : elles reviennent automatiquement, la première ${when}.`
         : `1 société déjà appelée dans les dernières 24 h est en pause : elle revient automatiquement ${when}.`;
 }
+/** Orange warning: this number was already dialed for another contact of the company. */
+function sharedPhoneLabel(call: NonNullable<NextActionData["sharedPhoneCall"]>, currentUserId?: string): string {
+    const when = new Date(call.calledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+    const who = call.sdrId && call.sdrId === currentUserId ? "par vous" : call.sdrName ? `par ${call.sdrName}` : "";
+    const via = call.contactName ? ` via ${call.contactName}` : " (appel entreprise)";
+    return `Numéro déjà appelé${via} le ${when}${who ? ` ${who}` : ""}`;
+}
+
+function SharedPhoneBadge({
+    call,
+    currentUserId,
+    compact = false,
+}: {
+    call: NonNullable<NextActionData["sharedPhoneCall"]>;
+    currentUserId?: string;
+    compact?: boolean;
+}) {
+    const label = sharedPhoneLabel(call, currentUserId);
+    if (compact) {
+        return (
+            <span
+                title={label}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-orange-300 bg-orange-100 text-[10px] font-semibold uppercase tracking-wide text-orange-800"
+            >
+                <AlertTriangle className="w-2.5 h-2.5" />
+                Déjà appelé
+            </span>
+        );
+    }
+    return (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-100 border border-orange-300 text-[11px] font-semibold text-orange-800">
+            <AlertTriangle className="w-3.5 h-3.5 text-orange-600 shrink-0" />
+            <span className="truncate">{label}</span>
+        </div>
+    );
+}
+
 const STATS_QUEUE_LIMIT = 250;
 
 const PRIORITY_LABELS: Record<string, { label: string; color: string }> = {
@@ -2103,6 +2148,9 @@ export default function SDRActionPage() {
                                     Standard
                                 </span>
                             )}
+                            {row.sharedPhoneCall && (
+                                <SharedPhoneBadge call={row.sharedPhoneCall} currentUserId={session?.user?.id} compact />
+                            )}
                             <button
                                 type="button"
                                 onClick={() => copyToClipboard(phone, callContext)}
@@ -2916,6 +2964,9 @@ export default function SDRActionPage() {
 
                                         return (
                                             <div className="space-y-1.5">
+                                                {currentAction.sharedPhoneCall && (
+                                                    <SharedPhoneBadge call={currentAction.sharedPhoneCall} currentUserId={session?.user?.id} />
+                                                )}
                                                 {isAlreadyContacted && warning.lastAction && (
                                                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-800">
                                                         <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
@@ -3096,6 +3147,9 @@ export default function SDRActionPage() {
 
                                             return (
                                                 <div className="space-y-1.5">
+                                                    {currentAction.sharedPhoneCall && (
+                                                        <SharedPhoneBadge call={currentAction.sharedPhoneCall} currentUserId={session?.user?.id} />
+                                                    )}
                                                     {isAlreadyContacted && effectiveLastAction && (
                                                         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[11px] font-medium text-amber-800">
                                                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />

@@ -9,6 +9,7 @@ import { statusConfigService } from '@/lib/services/StatusConfigService';
 import { getTodaySdrMissionIds } from '@/lib/sdr-today-missions';
 import { LAST_ACTION_CTES } from '@/lib/sdr-queue/last-action';
 import { findAbsentRdvRecalls } from '@/lib/sdr-queue/absent-rdv';
+import { findSharedPhoneCalls, sharedPhoneRowKey } from '@/lib/sdr-queue/shared-phone';
 import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from '@/lib/sdr-queue/cooldown';
 import { listCommercialIds } from '@/lib/lists/commercials';
 
@@ -457,6 +458,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         return null;
     })();
 
+    const sharedPhoneCalls = await findSharedPhoneCalls([
+        { contactId: next.contact_id, companyId: next.company_id, phone: next.contact_phone || next.company_phone },
+    ]);
+
     return successResponse({
         hasNext: true,
         priority: next._priorityLabel,
@@ -510,5 +515,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             sdrId: next.company_last_action_sdr_id,
             sdrName: next.company_last_action_sdr_name ?? null,
         } : null,
+        sharedPhoneCall: sharedPhoneCalls.get(sharedPhoneRowKey(next.contact_id, next.company_id)) ?? null,
     });
 });

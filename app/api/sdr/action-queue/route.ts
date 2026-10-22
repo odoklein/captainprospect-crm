@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { LAST_ACTION_CTES } from "@/lib/sdr-queue/last-action";
 import { findAbsentRdvRecalls } from "@/lib/sdr-queue/absent-rdv";
+import { findSharedPhoneCalls, sharedPhoneRowKey } from "@/lib/sdr-queue/shared-phone";
 import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from "@/lib/sdr-queue/cooldown";
 import { successResponse, requireRole, withErrorHandler } from "@/lib/api-utils";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
@@ -351,6 +352,14 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     );
     const result = sorted;
 
+    const sharedPhoneCalls = await findSharedPhoneCalls(
+        result.map((row) => ({
+            contactId: row.contact_id,
+            companyId: row.company_id,
+            phone: row.contact_phone || row.company_phone,
+        }))
+    );
+
     const items = result.map((row) => ({
         contactId: row.contact_id,
         companyId: row.company_id,
@@ -402,6 +411,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 sdrName: row.company_last_action_sdr_name || null,
             }
             : null,
+        sharedPhoneCall: sharedPhoneCalls.get(sharedPhoneRowKey(row.contact_id, row.company_id)) ?? null,
         priority: row._priorityLabel,
         hasContactInfo: row.has_contact_info,
     }));
