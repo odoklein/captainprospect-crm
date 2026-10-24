@@ -6,6 +6,7 @@ import {
   computeHealthStatus,
   computeVelocityTrend,
   generateHints,
+  bulkHealthSql,
 } from "./ListHealthService";
 
 describe("ListHealthService pure computations", () => {
@@ -87,5 +88,39 @@ describe("ListHealthService pure computations", () => {
 
     assert.ok(hints.some((h) => h.type === "WARNING" && h.message.includes("invalides")));
     assert.ok(hints.some((h) => h.type === "WARNING" && h.message.includes("Cadence en baisse")));
+  });
+});
+
+describe("bulkHealthSql", () => {
+  const now = new Date("2026-10-24T12:00:00Z");
+
+  it("reads time from the now parameter, never from the DB clock", () => {
+    const sql = bulkHealthSql(["L1"], [], now);
+    assert.ok(!/NOW\(\)/i.test(sql.text));
+    const dates = sql.values.filter((v): v is Date => v instanceof Date).map((d) => d.toISOString());
+    assert.ok(dates.includes("2026-10-17T12:00:00.000Z"), "7-day cutoff");
+    assert.ok(dates.includes("2026-09-24T12:00:00.000Z"), "30-day cutoff");
+  });
+
+  it("drives the scan from list members through the contactId / companyId joins", () => {
+    const { text } = bulkHealthSql(["L1"], [], now);
+    assert.match(text, /INNER JOIN "Action" a ON a."contactId" = lc.id/);
+    assert.match(text, /INNER JOIN "Action" a ON a."companyId" = co.id AND a."contactId" IS NULL/);
+    assert.ok(!/ OR a."companyId"/.test(text), "no OR across both columns (defeats the indexes)");
+  });
+
+  it("counts new contacts on their first action, not on any action in the window", () => {
+    const { text } = bulkHealthSql(["L1"], [], now);
+    assert.match(text, /MIN\("createdAt"\)\s+AS first_at/);
+    assert.match(text, /is_contact AND first_at >= \$\d+\)\s+AS new_contacts_7d/);
+  });
+
+  it("binds list and SDR ids as parameters, and only filters SDRs when asked", () => {
+    const without = bulkHealthSql(["L1", "L2"], [], now);
+    assert.ok(!without.text.includes('"sdrId" IN'));
+    const withSdr = bulkHealthSql(["L1"], ["u1'; DROP TABLE x;--"], now);
+    assert.equal((withSdr.text.match(/a."sdrId" IN/g) ?? []).length, 2, "both member branches");
+    assert.ok(!withSdr.text.includes("DROP TABLE"));
+    assert.ok(withSdr.values.includes("u1'; DROP TABLE x;--"));
   });
 });

@@ -802,6 +802,28 @@ export default function CommercialPortalMeetingsPage() {
   };
   const closeModal = useCallback(()=>setModal(null),[]);
 
+  // « Mon avis » reminder: ?avis=<actionId> (or its event when already on this page) opens that feedback.
+  useEffect(()=>{
+    if (loading) return;
+    const openById = (id:string)=>{
+      const m = meetings.find(x=>x.id===id);
+      if (m) openModal(m,"feedback"); else toast.error("Rendez-vous introuvable");
+    };
+    const params = new URLSearchParams(window.location.search);
+    const avis = params.get("avis");
+    if (avis){
+      params.delete("avis");
+      const qs = params.toString();
+      window.history.replaceState(window.history.state,"",`${window.location.pathname}${qs?`?${qs}`:""}${window.location.hash}`);
+      openById(avis);
+    }
+    const onOpen = (e:Event)=>{ const id=(e as CustomEvent<{actionId?:string}>).detail?.actionId; if (id) openById(id); };
+    window.addEventListener("cp:open-meeting-feedback",onOpen);
+    return ()=>window.removeEventListener("cp:open-meeting-feedback",onOpen);
+    // openModal / toast only call setters; re-subscribing on every render is pointless.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[loading,meetings]);
+
   const submitFeedback = async ()=>{
     if (!sel||!fbOut||!fbRecontact) return;
     setFbSub(true);
@@ -818,6 +840,7 @@ export default function CommercialPortalMeetingsPage() {
         setMeetings(p=>p.map(m=>m.id===sel.id?{...m,meetingFeedback:j.data}:m));
         toast.success("Feedback enregistré","Votre retour a été enregistré.");
         setTimeout(closeModal,1400);
+        window.dispatchEvent(new Event("cp:meeting-feedback-saved"));
       }
       else toast.error("Erreur",j.error??"Une erreur est survenue.");
     } catch { toast.error("Erreur","Impossible de soumettre votre retour."); }

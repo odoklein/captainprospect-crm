@@ -28,6 +28,10 @@ import {
 } from "./_inline/InlineField";
 import { ClientCalCredentials } from "./_sections/ClientCalCredentials";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
+import { OnboardingChecklist, onboardingChecklistKey } from "@/components/onboarding/OnboardingChecklist";
+import { AccessLinksCard } from "@/components/onboarding/AccessLinksCard";
+import { WeeklyBilanModal } from "@/components/reporting/WeeklyBilanModal";
+import type { ChecklistView } from "@/lib/onboarding/checklist-service";
 import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
 import { DailyReportBody, type DailyReportLike } from "@/components/sdr/DailyReportView";
 import {
@@ -76,6 +80,7 @@ import {
     Receipt,
     ChevronUp,
     Mic,
+    ListChecks,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -228,7 +233,7 @@ interface ClientDrawerProps {
     onMissionTabChange?: (tab: string) => void;
 }
 
-type TabId = "apercu" | "missions" | "acces" | "activite" | "avis-sdr" | "sessions";
+type TabId = "apercu" | "missions" | "onboarding" | "acces" | "activite" | "avis-sdr" | "sessions";
 
 const DRAWER_EXPANDED_KEY = "cp:clientDrawerExpanded";
 
@@ -555,6 +560,19 @@ export function ClientDrawer({
         enabled: isOpen && !!client?.id,
     });
 
+    // Onboarding checklist progress (tab badge; same cache as the tab itself)
+    const { data: onboardingChecklist } = useQuery<ChecklistView | null>({
+        queryKey: onboardingChecklistKey(client?.id ?? ""),
+        queryFn: async () => {
+            const res = await fetch(`/api/clients/${client!.id}/onboarding-checklist`);
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error);
+            return json.data;
+        },
+        enabled: isOpen && !!client?.id,
+        staleTime: 30_000,
+    });
+
     // Mailboxes list (loaded once while drawer is open)
     const { data: mailboxes = [] } = useQuery({
         queryKey: ["manager", "mailboxes"],
@@ -565,6 +583,7 @@ export function ClientDrawer({
 
     // Sessions & CRs (compact read-only view)
     const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+    const [bilanOpen, setBilanOpen] = useState(false);
     const [sessionCrTab, setSessionCrTab] = useState<"cr" | "email">("cr");
     const { data: sessions = [] } = useQuery<ClientSessionLite[]>({
         queryKey: ["client-sessions", client?.id],
@@ -1535,6 +1554,14 @@ export function ClientDrawer({
         { id: "apercu", label: "Aperçu", icon: <Building2 className="w-3.5 h-3.5" /> },
         { id: "missions", label: "Missions", icon: <Target className="w-3.5 h-3.5" />, badge: missions.length || undefined },
         {
+            id: "onboarding",
+            label: "Onboarding",
+            icon: <ListChecks className="w-3.5 h-3.5" />,
+            badge: onboardingChecklist?.progress.total
+                ? `${onboardingChecklist.progress.done}/${onboardingChecklist.progress.total}`
+                : undefined,
+        },
+        {
             id: "acces",
             label: "Accès et interlocuteurs",
             icon: <ShieldCheck className="w-3.5 h-3.5" />,
@@ -1550,14 +1577,31 @@ export function ClientDrawer({
             <div className="flex items-center justify-between">
                 <h3 className="text-base font-bold text-slate-900">CR & Sessions</h3>
                 {client && (
+                    <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setBilanOpen(true)}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-surface-2"
+                    >
+                        <FileText className="w-3.5 h-3.5" aria-hidden /> Bilan de la semaine
+                    </button>
                     <Link
                         href={`/manager/clients/${client.id}?tab=sessions`}
                         className="text-xs font-semibold text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
                     >
                         Gérer les sessions <ChevronRight className="w-3.5 h-3.5" />
                     </Link>
+                    </div>
                 )}
             </div>
+            {client && (
+                <WeeklyBilanModal
+                    clientId={client.id}
+                    clientName={client.name}
+                    isOpen={bilanOpen}
+                    onClose={() => setBilanOpen(false)}
+                />
+            )}
             {sessions.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
                     <Mic className="w-8 h-8 text-slate-300 mx-auto mb-2" />
@@ -1799,6 +1843,12 @@ export function ClientDrawer({
                             {activeTab === "activite" && ActivityTab}
                             {activeTab === "avis-sdr" && SdrFeedbackTab}
                             {activeTab === "sessions" && SessionsTab}
+                            {activeTab === "onboarding" && client && (
+                                <div className="space-y-4">
+                                    <OnboardingChecklist clientId={client.id} />
+                                    <AccessLinksCard clientId={client.id} />
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

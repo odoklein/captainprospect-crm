@@ -10,6 +10,8 @@ const RECENT_MEETINGS = 12;
 
 function actionWhere(from: Date, to: Date, missionId: string | null): Prisma.ActionWhereInput {
     return {
+        // Calls only, like every other dashboard figure.
+        channel: "CALL",
         createdAt: { gte: from, lt: to },
         ...(missionId ? { campaign: { is: { missionId } } } : {}),
     };
@@ -17,7 +19,8 @@ function actionWhere(from: Date, to: Date, missionId: string | null): Prisma.Act
 
 async function totals(from: Date, to: Date, missionId: string | null): Promise<PeriodTotals> {
     const rows = await prisma.action.groupBy({
-        by: ["result"],
+        // Status too: a RDV cancelled by confirmationStatus is not MEETING_CANCELLED yet.
+        by: ["result", "confirmationStatus"],
         where: actionWhere(from, to, missionId),
         _count: { _all: true },
     });
@@ -26,6 +29,7 @@ async function totals(from: Date, to: Date, missionId: string | null): Promise<P
         const n = row._count._all;
         const family = outcomeOf(row.result);
         actions += n;
+        if (row.result === "MEETING_CANCELLED" || row.confirmationStatus === "CANCELLED") continue;
         if (family === "meeting") meetings += n;
         // Same definition as the dashboard's "Leads chauds": interested + callback families.
         if (family === "interested" || family === "callback") hotLeads += n;
@@ -45,9 +49,12 @@ async function rawCounts(range: PeriodRange, missionId: string | null): Promise<
     const rows = await prisma.$queryRaw<{ at: Date; actions: number; meetings: number }[]>`
         SELECT date_trunc(${unit}, a."createdAt") AS at,
                COUNT(*)::int AS actions,
-               COUNT(*) FILTER (WHERE a."result" = 'MEETING_BOOKED')::int AS meetings
+               COUNT(*) FILTER (
+                   WHERE a."result" = 'MEETING_BOOKED' AND a."confirmationStatus" <> 'CANCELLED'
+               )::int AS meetings
         FROM "Action" a
-        WHERE a."createdAt" >= ${range.from} AND a."createdAt" < ${range.to}
+        WHERE a."channel" = 'CALL'
+          AND a."createdAt" >= ${range.from} AND a."createdAt" < ${range.to}
         ${missionFilter}
         GROUP BY 1
     `;
@@ -56,7 +63,11 @@ async function rawCounts(range: PeriodRange, missionId: string | null): Promise<
 
 async function recentMeetings(range: PeriodRange, missionId: string | null): Promise<RecentMeeting[]> {
     const rows = await prisma.action.findMany({
-        where: { ...actionWhere(range.from, range.to, missionId), result: "MEETING_BOOKED" },
+        where: {
+            ...actionWhere(range.from, range.to, missionId),
+            result: "MEETING_BOOKED",
+            confirmationStatus: { not: "CANCELLED" },
+        },
         orderBy: { createdAt: "desc" },
         take: RECENT_MEETINGS,
         select: {

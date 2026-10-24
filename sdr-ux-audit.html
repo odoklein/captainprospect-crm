@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SDR Workspace — Interface Audit & Radical Redesign · Captain Prospect CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1b2850; --navy-deep:#111a36; --navy-ink:#0c1327;
+    --magenta:#c64b8b; --magenta-soft:#f6e7ef; --magenta-ink:#a8376f;
+    --ink:#15171d; --ink-2:#4a4e58; --ink-3:#626771;
+    --line:#e2dfd8; --line-soft:#efede7;
+    --paper:#ffffff; --canvas:#e9e6df;
+    --good:#177a5b; --warn:#a9681a; --bad:#b3384a;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --serif:"Instrument Serif",Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--canvas);color:var(--ink);
+    font-family:var(--sans);font-size:10.4pt;line-height:1.55;
+    font-feature-settings:"ss01" on,"cv05" on;
+  }
+  .page{
+    position:relative;width:210mm;min-height:297mm;margin:0 auto 10mm;
+    background:var(--paper);padding:18mm 20mm;overflow:visible;
+    box-shadow:0 1px 2px rgba(15,20,35,.12),0 18px 40px -20px rgba(15,20,35,.35);
+  }
+  .page--dark{background:var(--navy-deep);color:#eef0f6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page--dark .k{color:rgba(238,240,246,.74)}
+  .mark,.swatch,.wire .box.dark{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media print{
+    @page{size:A4;margin:0}
+    body{background:#fff}
+    .page{margin:0;box-shadow:none;break-after:page;page-break-after:always}
+    .page:last-child{break-after:auto;page-break-after:auto}
+  }
+  h1,h2,h3,h4{margin:0;line-height:1.12;letter-spacing:-.02em;font-weight:600}
+  p{margin:0 0 .7em}
+  .k{font-family:var(--mono);font-size:8.2pt;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+  .rule{height:1px;background:var(--line);border:0;margin:6mm 0}
+  .runhead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:2.6mm;margin-bottom:9mm}
+  .runhead .k{font-size:8pt}
+  .folio{position:absolute;left:20mm;right:20mm;bottom:8mm;display:flex;justify-content:space-between;font-family:var(--mono);font-size:8pt;color:var(--ink-3);letter-spacing:.1em}
+
+  .cover{display:flex;flex-direction:column;min-height:259mm}
+  .brandrow{display:flex;align-items:center;gap:4mm;margin-bottom:auto}
+  .mark{width:11mm;height:11mm;border-radius:3mm;background:var(--magenta);display:grid;place-items:center;color:#fff;font-weight:700;font-size:5.4mm;letter-spacing:-.04em}
+  .brandrow b{font-weight:600;letter-spacing:-.01em;font-size:11pt;display:block;line-height:1.2}
+  .brandrow span{font-family:var(--mono);font-size:8pt;letter-spacing:.14em;text-transform:uppercase;color:rgba(238,240,246,.76)}
+  .cover h1{font-size:47pt;letter-spacing:-.045em;line-height:.98;margin:0 0 8mm;max-width:160mm;font-weight:600}
+  .cover h1 em{font-family:var(--serif);font-style:italic;font-weight:400;color:#e9a8c9;letter-spacing:-.02em}
+  .cover .lede{font-size:13.4pt;line-height:1.45;color:rgba(238,240,246,.78);max-width:132mm;letter-spacing:-.01em}
+  .cover .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm;border-top:1px solid rgba(255,255,255,.16);padding-top:6mm;margin-top:14mm}
+  .cover .meta b{display:block;font-size:10pt;font-weight:500;color:#fff;margin-top:1.4mm}
+  .cover .meta .k{color:rgba(238,240,246,.74)}
+  .bigstat{display:flex;gap:14mm;margin-top:12mm}
+  .bigstat div span{font-family:var(--mono);font-size:8pt;letter-spacing:.14em;text-transform:uppercase;color:rgba(238,240,246,.74);display:block}
+  .bigstat div b{font-size:26pt;font-weight:500;letter-spacing:-.04em;line-height:1;display:block;margin-top:2mm;color:#fff}
+  .bigstat div small{font-size:8.8pt;color:rgba(238,240,246,.8);display:block;margin-top:1.5mm;max-width:44mm;line-height:1.35}
+
+  h2.sec{font-size:23pt;letter-spacing:-.035em;margin:0 0 3mm;max-width:150mm}
+  .secnum{font-family:var(--mono);font-size:8.2pt;letter-spacing:.18em;color:var(--magenta-ink);text-transform:uppercase;margin-bottom:3.5mm;display:flex;align-items:center;gap:3mm}
+  .secnum:after{content:"";height:1px;flex:1;background:var(--line);max-width:60mm}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9mm}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6mm}
+  .grid-8-4{display:grid;grid-template-columns:1.55fr 1fr;gap:9mm}
+  .grid-4-8{display:grid;grid-template-columns:1fr 1.55fr;gap:9mm}
+  .lead{font-size:12pt;line-height:1.5;letter-spacing:-.012em;color:var(--ink-2)}
+  .lead b{color:var(--ink);font-weight:600}
+  .pull{font-family:var(--serif);font-size:18pt;line-height:1.22;letter-spacing:-.015em;color:var(--navy);border-left:2px solid var(--magenta);padding-left:6mm;margin:6mm 0}
+  .note{background:#f8f6f2;border:1px solid var(--line-soft);border-radius:2.4mm;padding:4.5mm 5mm;font-size:9.2pt;line-height:1.5}
+  .note b{font-weight:600}
+  .tag{display:inline-block;font-family:var(--mono);font-size:8pt;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:1.4mm;padding:1mm 1.8mm;color:var(--ink-2);background:#fff;white-space:nowrap}
+
+  .finding{border-top:2px solid var(--ink);padding-top:4mm;margin-top:7mm;break-inside:avoid}
+  .finding:first-of-type{margin-top:0}
+  .finding .fhead{display:flex;justify-content:space-between;align-items:baseline;gap:5mm;margin-bottom:2.5mm}
+  .finding h3{font-size:13.6pt;letter-spacing:-.025em;max-width:130mm}
+  .finding .fn{font-family:var(--mono);font-size:8.2pt;color:var(--magenta-ink);letter-spacing:.12em}
+  .finding p{font-size:9.5pt;color:var(--ink-2);line-height:1.5;margin-bottom:2mm}
+  .ev{font-family:var(--mono);font-size:8.2pt;color:var(--ink-3);border-left:1px solid var(--line);padding-left:3mm;margin-top:2.5mm;line-height:1.55}
+  .ev b{color:var(--ink-2);font-weight:500}
+
+  table{width:100%;border-collapse:collapse;font-size:8.8pt;line-height:1.4}
+  th{text-align:left;font-family:var(--mono);font-size:8pt;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);font-weight:500;border-bottom:1px solid var(--ink);padding:2mm 2mm 2mm 0}
+  td{border-bottom:1px solid var(--line-soft);padding:2.1mm 2mm 2.1mm 0;vertical-align:top}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;padding-right:0}
+
+  .moves{counter-reset:mv;margin-top:2mm}
+  .move{display:grid;grid-template-columns:9mm 1fr;gap:4mm;padding:3.2mm 0;border-bottom:1px solid var(--line-soft);break-inside:avoid}
+  .move .n{font-family:var(--mono);font-size:8.2pt;color:var(--magenta-ink);padding-top:.6mm}
+  .move b{font-weight:600;letter-spacing:-.01em}
+  .move p{margin:.6mm 0 0;font-size:9pt;color:var(--ink-2);line-height:1.45}
+
+  .wire{border:1px solid var(--line);border-radius:2.4mm;background:#fbfaf7;padding:3mm;font-family:var(--mono);font-size:8pt;letter-spacing:.04em;color:var(--ink-3);text-transform:uppercase}
+  .wire .bar{height:2.4mm;border-radius:1mm;background:#e8e4dc;margin-bottom:2mm}
+  .wire .row{display:flex;gap:2mm;margin-bottom:2mm}
+  .wire .box{border:1px solid #ddd8ce;border-radius:1.4mm;background:#fff;padding:2mm;line-height:1.4}
+  .wire .box.dark{background:var(--navy);border-color:var(--navy);color:#cfd5e6}
+  .wire .box.accent{background:var(--magenta-soft);border-color:#ecc9dd;color:#8c2f60}
+  .wire .h{height:6mm}
+  .wire .tall{height:20mm}
+  .wire .full{flex:1}
+  .wirecap{font-family:var(--mono);font-size:8pt;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-top:2mm;display:flex;justify-content:space-between}
+
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:7mm;margin-top:3mm}
+  .ba h4{font-family:var(--mono);font-size:8pt;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:500;margin-bottom:2mm}
+  .ba ul{margin:0;padding-left:4mm;font-size:9pt;color:var(--ink-2);line-height:1.45}
+  .ba li{margin-bottom:1.2mm}
+  .ba .after ul{color:var(--ink)}
+
+  .kpi{display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);padding:2.6mm 0;font-size:9pt;gap:5mm}
+  .kpi b{font-family:var(--mono);font-size:8.6pt;font-variant-numeric:tabular-nums;color:var(--navy);font-weight:500;white-space:nowrap}
+  .swatch{height:13mm;border-radius:1.8mm;display:flex;align-items:flex-end;padding:2mm;font-family:var(--mono);font-size:8.2pt;font-weight:600;color:#fff}
+  .spec{font-family:var(--mono);font-size:8.2pt;line-height:1.7;color:var(--ink-2)}
+  .spec span{color:var(--ink-3)}
+  .footnote{font-size:8.5pt;color:var(--ink-3);line-height:1.45}
+  .phase{display:grid;grid-template-columns:14mm 1fr;gap:5mm;padding:3.4mm 0;border-bottom:1px solid var(--line-soft)}
+  .phase .p{font-family:var(--mono);font-size:8pt;letter-spacing:.1em;color:var(--magenta-ink);text-transform:uppercase;padding-top:.8mm}
+  .phase b{font-weight:600}
+  .phase p{margin:.8mm 0 0;font-size:9pt;color:var(--ink-2)}
+  .route{display:flex;justify-content:space-between;gap:4mm;border-bottom:1px dotted var(--line);padding:1.6mm 0;font-size:8.6pt}
+  .route code{font-family:var(--mono);font-size:8.2pt;color:var(--navy)}
+  .label{font-size:8.6pt;color:var(--ink-3)}
+  @media (max-width:820px){
+    body{background:#fff}
+    .page{width:100%;min-height:0;padding:8mm 6mm 12mm;margin:0;box-shadow:none}
+    .cover{min-height:0}
+    .cover h1{font-size:30pt}
+    .grid2,.grid-8-4,.grid-4-8,.grid3,.ba,.cover .meta{grid-template-columns:1fr}
+    .folio{position:static;margin-top:8mm}
+    .bigstat{flex-wrap:wrap;gap:8mm}
+  }
+</style>
+</head>
+<body>
+
+<!-- 01 COVER -->
+<section class="page page--dark">
+  <div class="cover">
+    <div class="brandrow">
+      <div class="mark">CP</div>
+      <div>
+        <b>Captain Prospect</b>
+        <span>CRM · SDR workspace</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="k" style="color:#e9a8c9;margin-bottom:6mm">Interface audit &amp; redesign proposal · October 2026</div>
+      <h1>The shift,<br>not the <em>pages.</em></h1>
+      <p class="lede">The SDR area is a well-stocked set of pages. It is not yet a place to work. This proposal replaces page-thinking with shift-thinking: one surface, three modes, and a call that survives navigation.</p>
+    </div>
+
+    <div class="bigstat">
+      <div><span>Routes inventoried</span><b>22</b><small>every route under <span style="font-family:var(--mono);font-size:8.2pt">/sdr</span>, plus the shared shell and design tokens</small></div>
+      <div><span>Largest screen</span><b>3,811</b><small>lines in a single client component, <span style="font-family:var(--mono);font-size:8.2pt">sdr/action</span></small></div>
+      <div><span>Radical moves</span><b>5</b><small>each one shippable on the existing API and data model</small></div>
+    </div>
+
+    <div class="meta">
+      <div><span class="k">Prepared for</span><b>Product &amp; engineering</b></div>
+      <div><span class="k">Prepared by</span><b>Design direction</b></div>
+      <div><span class="k">Deliverables</span><b>This document + clickable prototype</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 EXEC SUMMARY -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">01 — Summary</span></div>
+  <div class="secnum">01 · Executive summary</div>
+  <h2 class="sec">A cockpit pretending to be a dashboard.</h2>
+
+  <div class="grid-8-4">
+    <div>
+      <p class="lead">An SDR does one thing, hundreds of times a day: <b>decide who to call next, call them, capture what happened, move on.</b> Every screen should shorten that loop. Today the loop is interrupted by navigation, duplicated information and controls that are louder than the call itself.</p>
+      <p class="lead" style="margin-top:4mm">The audit found no missing feature. It found <b>a missing centre of gravity.</b> The home page reports on the work; the call page performs it; the callback page re-lists what the home page already lists. Nothing in the shell knows that a call is in progress.</p>
+      <div class="pull">“Everything the SDR needs exists. Nothing tells them where to look.”</div>
+      <p>The proposal is radical in structure, not in technology: one persistent <b>Shift</b> surface that changes mode — <i>Brief, Call, Follow-up</i> — a <b>call bar</b> that stays alive across routes, and a queue that becomes the only list of truth. No API rewrite. No data migration.</p>
+    </div>
+    <div>
+      <div class="note">
+        <b>Five moves</b>
+        <div class="moves">
+          <div class="move"><span class="n">01</span><div><b>Fold the dashboard into the shift.</b><p>Pacing, mission, queue health and follow-ups become one screen state, not four modules.</p></div></div>
+          <div class="move"><span class="n">02</span><div><b>Make the call a mode, not a page.</b><p>A focus stage with the dossier, the script and the outcome dock in one eyeline.</p></div></div>
+          <div class="move"><span class="n">03</span><div><b>One follow-up list.</b><p>Overdue callbacks, today’s promises and RDV to confirm live in one timeline.</p></div></div>
+          <div class="move"><span class="n">04</span><div><b>A call bar that persists.</b><p>Timer, lead, mute and result stay reachable while the SDR reads a fiche or a note.</p></div></div>
+          <div class="move"><span class="n">05</span><div><b>One design language.</b><p>Semantic tokens only, one 7-step type scale, one radius family, two densities.</p></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule">
+  <div class="grid3">
+    <div>
+      <div class="k" style="margin-bottom:2mm">What improves for the SDR</div>
+      <p style="font-size:9.2pt;margin:0">Fewer decisions before dialling; the next action is always the largest object on screen.</p>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">What improves for the manager</div>
+      <p style="font-size:9.2pt;margin:0">The shift log becomes a by-product of the work instead of a form filled at 18:00.</p>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">What does not change</div>
+      <p style="font-size:9.2pt;margin:0">Routes stay reachable, permissions stay enforced, the queue contract and result codes stay identical.</p>
+    </div>
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>02</span></div>
+</section>
+
+<!-- 03 DIAGNOSIS A -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">02 — Diagnosis</span></div>
+  <div class="secnum">02 · Diagnosis</div>
+  <h2 class="sec">Six failures, all visible from the first minute of a shift.</h2>
+  <p class="lead" style="max-width:150mm;margin-bottom:2mm">Ordered by cost to the SDR, not by implementation effort. Every finding is tied to the code that produces it.</p>
+
+  <div class="finding">
+    <div class="fhead"><h3>F1 — The app is organised by page, the job is organised by shift</h3><span class="fn">F1</span></div>
+    <p>Ten destinations across three sections compete with the one action that matters. The two most important screens — home and call — both claim to be the starting point, and both offer a “start calling” button. The SDR must choose an entrance before doing any work.</p>
+    <div class="ev"><b>lib/navigation/config.ts:224–300</b> — SDR_NAV: 10 entries, 3 groups. <b>app/sdr/page.tsx:531</b> “Démarrer les appels”, repeated at <b>:726</b> “Ouvrir la session d’appel” — two identical intents on the same screen.</div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><h3>F2 — The home page reports; it does not launch</h3><span class="fn">F2</span></div>
+    <p>Seven blocks before the first dial: greeting, four KPI cards, mission hero, callbacks panel, activity feed, battlecards and pacing. The callbacks list alone is a 480 px scroll container that duplicates the dedicated <i>Rappels</i> page. The most-used surface spends its first screen on numbers the SDR cannot act on.</p>
+    <div class="ev"><b>app/sdr/page.tsx</b> (1,238 lines) — KPI row :543–637, mission card :648–734, callbacks hub :737–1010, battlecards below. <b>app/sdr/callbacks/page.tsx</b> is a second, 1,319-line implementation of the same list.</div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><h3>F3 — The call screen is a monolith with two mental models</h3><span class="fn">F3</span></div>
+    <p>3,811 lines, more than 60 useState hooks, 11 effects and three modals in one client component. A “Carte / Tableau” toggle switches between a single-lead workspace and a data table — two different products behind one switch, each with its own keyboard behaviour. Seven controls sit in the header at 13 px.</p>
+    <div class="ev"><b>app/sdr/action/page.tsx</b> — 3,811 lines, more than 60 useState, 11 useEffect, 3 &lt;Modal&gt;, header controls :2792–2837. Shortcuts bound only in card view (:1939–1982), while the home page advertises them as globally active (:724).</div>
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>03</span></div>
+</section>
+
+<!-- 03 DIAGNOSIS B -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">02 — Diagnosis, continued</span></div>
+  <div class="secnum">02 · Diagnosis · continued</div>
+  <h2 class="sec" style="font-size:19pt;margin-bottom:5mm">Three more failures, all in the same direction: the interface accumulated instead of deciding.</h2>
+
+  <div class="finding">
+    <div class="fhead"><h3>F4 — Three design systems in one product</h3><span class="fn">F4</span></div>
+    <p>A semantic token layer exists (<span style="font-family:var(--mono);font-size:8pt">--ds-*</span>, Tailwind <span style="font-family:var(--mono);font-size:8pt">ink / line / surface</span>) and is partly respected by the pace card and the call header. The home page and the call page bypass it with raw palettes and three radii. Headings swing from 9 px labels to 30 px black type; the call page never uses a weight above medium.</p>
+    <div class="ev"><b>Measured:</b> home — 88 <span style="font-family:var(--mono);font-size:8.2pt">zinc-</span> + 64 <span style="font-family:var(--mono);font-size:8.2pt">slate-</span> classes, 10 × <span style="font-family:var(--mono);font-size:8.2pt">rounded-3xl</span>, 19 × <span style="font-family:var(--mono);font-size:8.2pt">font-black</span>, nine 10 px labels. Action — 159 <span style="font-family:var(--mono);font-size:8.2pt">slate-</span> + 57 <span style="font-family:var(--mono);font-size:8.2pt">neutral-</span>, 21 × <span style="font-family:var(--mono);font-size:8.2pt">text-[13px]</span>, zero <span style="font-family:var(--mono);font-size:8.2pt">font-black</span>. Same product, two voices. <i>Counts are raw class-token occurrences, taken with a text search over each page file.</i></div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><h3>F5 — Feedback is loud, state is fragmented</h3><span class="fn">F5</span></div>
+    <p>Saving an action replaces the whole screen with a white 80% overlay. The company name on the call screen opens a “coming soon” modal — a dead end in the primary workflow, and the same modal ships unused in the home page. Callbacks are polled globally every 30 seconds by the layout and fetched again by the page, and the follow-up surfaces (Rappels, Mes RDV, Historique) never share a timeline.</p>
+    <div class="ev"><b>components/layout/AppLayoutShell.tsx:83–133</b> — 30 s polling of <span style="font-family:var(--mono);font-size:8.2pt">/api/sdr/callbacks?limit=500</span>. <b>action/page.tsx:3775–3808</b> — “Bientôt disponible” modal behind the company name. <b>app/sdr/page.tsx:224–260</b> — a second copy of that modal, declared but never mounted. <b>action/page.tsx:2776–2786</b> — full-screen success overlay.</div>
+  </div>
+
+  <div class="finding">
+    <div class="fhead"><h3>F6 — Placeholder routes and role drift</h3><span class="fn">F6</span></div>
+    <p>Some destinations are thin wrappers, others are missing from the menu while present in the codebase. A Booker sees <i>Listes</i>; an SDR does not, though both call from the same queue. <i>Opportunités</i> is in the BD menu, not the SDR one. The information architecture is not a decision; it is an accumulation.</p>
+    <div class="ev"><b>app/sdr/meetings/page.tsx</b> — 7 lines, delegates to a shell. <b>BOOKER_NAV:307–365</b> includes <span style="font-family:var(--mono);font-size:8.2pt">/sdr/lists</span>; <b>SDR_NAV</b> does not. <span style="font-family:var(--mono);font-size:8.2pt">/sdr/opportunities</span> exists (14 KB) and is absent from SDR_NAV.</div>
+  </div>
+
+  <hr class="rule" style="margin-top:9mm">
+  <p class="footnote">The common denominator: each page was designed for itself. None of them was designed for the transition between two calls — which is where the SDR actually spends the shift.</p>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>04</span></div>
+</section>
+
+<!-- 04 REFRAME -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">03 — Reframe</span></div>
+  <div class="secnum">03 · The reframe</div>
+  <h2 class="sec">Stop designing screens. Design the next thirty seconds.</h2>
+
+  <div class="grid-4-8">
+    <div>
+      <p class="lead">Three questions run through an SDR’s day. Every screen should answer exactly one of them, and never all three at once.</p>
+      <div class="note" style="margin-top:4mm">
+        <div class="k" style="margin-bottom:2mm">The three questions</div>
+        <p style="margin:0 0 2.5mm"><b>1 · Who now?</b><br><span style="font-size:9pt;color:var(--ink-2)">What is the single best next action, and why?</span></p>
+        <p style="margin:0 0 2.5mm"><b>2 · What do I say?</b><br><span style="font-size:9pt;color:var(--ink-2)">Context, objection, proof — in the eyeline of the call.</span></p>
+        <p style="margin:0"><b>3 · What did I promise?</b><br><span style="font-size:9pt;color:var(--ink-2)">Capture the outcome and the next date in one gesture.</span></p>
+      </div>
+    </div>
+    <div>
+      <div class="pull" style="margin-top:0">“The unit of design is not the page. It is the call, and the ten seconds after it.”</div>
+      <div class="k" style="margin:5mm 0 2mm">Principles</div>
+      <div class="kpi"><span><b style="font-family:var(--sans);font-size:9.4pt;color:var(--ink)">One primary object</b> — the next action occupies more space than everything else combined.</span><b>Space</b></div>
+      <div class="kpi"><span><b style="font-family:var(--sans);font-size:9.4pt;color:var(--ink)">The call never leaves</b> — navigation cannot interrupt an active call without an explicit decision.</span><b>Continuity</b></div>
+      <div class="kpi"><span><b style="font-family:var(--sans);font-size:9.4pt;color:var(--ink)">One list of truth</b> — a callback exists once, and every surface reads the same record.</span><b>Truth</b></div>
+      <div class="kpi"><span><b style="font-family:var(--sans);font-size:9.4pt;color:var(--ink)">Keyboard is a first-class input</b> — the hand on the mouse is a hand off the phone.</span><b>Speed</b></div>
+      <div class="kpi"><span><b style="font-family:var(--sans);font-size:9.4pt;color:var(--ink)">Calm by default</b> — colour marks state, never decoration; no pulsing, no all-caps shouting.</span><b>Tone</b></div>
+    </div>
+  </div>
+
+  <hr class="rule">
+  <h3 style="font-size:14pt;margin-bottom:3mm">The new shape: one surface, three modes</h3>
+  <div class="grid3">
+    <div class="wire">
+      <div class="bar" style="width:45%"></div>
+      <div class="row"><div class="box dark full tall">NEXT CALL<br><span style="opacity:.6">lead · company · reason</span></div></div>
+      <div class="row"><div class="box full h">TODAY STRIP</div></div>
+      <div class="row"><div class="box full h">FOLLOW-UPS (3)</div></div>
+    </div>
+    <div class="wire">
+      <div class="bar" style="width:45%"></div>
+      <div class="row"><div class="box full tall">DOSSIER<br><span style="opacity:.6">left third</span></div><div class="box accent full tall">SCRIPT<br><span style="opacity:.6">centre</span></div><div class="box full tall">OUTCOME<br><span style="opacity:.6">right</span></div></div>
+      <div class="row"><div class="box dark full h">CALL BAR · 04:12</div></div>
+    </div>
+    <div class="wire">
+      <div class="bar" style="width:45%"></div>
+      <div class="row"><div class="box full h">OVERDUE · 2</div></div>
+      <div class="row"><div class="box full h">TODAY · 5</div></div>
+      <div class="row"><div class="box full h">RDV TO CONFIRM · 3</div></div>
+      <div class="row"><div class="box full h">THIS WEEK · 8</div></div>
+    </div>
+  </div>
+  <div class="wirecap" style="margin-bottom:6mm"><span>Mode 1 · Brief</span><span>Mode 2 · Call</span><span>Mode 3 · Follow-up</span></div>
+
+  <table>
+    <thead><tr><th style="width:26%">Today</th><th style="width:37%">Becomes</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Accueil (dashboard)</td><td>Shift · Brief</td><td>Numbers become a strip; the next action becomes the page.</td></tr>
+      <tr><td>Appeler (card + table)</td><td>Shift · Call + Queue sheet</td><td>One focus stage; the table survives as a secondary mode.</td></tr>
+      <tr><td>Rappels + Mes RDV</td><td>Follow-up timeline</td><td>One record, one chronological surface, no duplication.</td></tr>
+      <tr><td>Historique</td><td>Shift log (same timeline, past filter)</td><td>Activity is a view of the same data, not a separate page.</td></tr>
+      <tr><td>10 nav entries</td><td>4 destinations + ⌘K palette</td><td>Reduce choice; keep reachability.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>05</span></div>
+</section>
+
+<!-- 05 CALL BAR -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">04 — The radical move</span></div>
+  <div class="secnum">04 · The radical move</div>
+  <h2 class="sec">The call bar: a call that cannot be lost.</h2>
+
+  <div class="grid-8-4">
+    <div>
+      <p class="lead">Today the call exists inside a page. Open a fiche, a script drawer or a booking modal and the timer, the lead and the result dock disappear behind overlays. The SDR navigates back into the call — or, worse, forgets it is running.</p>
+      <p class="lead">The call bar fixes this with a persistent, 60 px region docked to the bottom of the shell. It exists only while a call is active, and it is the same object on every route: lead name, elapsed time, mute, hang up, and a one-key path to the result dock. It is the single strongest signal that the product understands the job.</p>
+      <div class="pull">“A call is not a page you visit. It is a state the application holds.”</div>
+      <p>Behaviour: starting a call from any surface raises the bar; navigating keeps it; ending opens the outcome dock as a sheet over the current screen, not a new page; the result is written optimistically and the queue advances behind it.</p>
+      <div class="note" style="margin-top:4mm">
+        <b>Non-negotiable:</b> the bar never covers the primary action of the screen behind it. Screens reserve 64 px at the bottom when a call is active — the same contract the current pages attempt with <span style="font-family:var(--mono);font-size:8pt">pb-28</span>, but driven by state rather than guessed.
+      </div>
+    </div>
+    <div>
+      <div class="wire" style="background:var(--navy);border-color:var(--navy)">
+        <div class="bar" style="background:rgba(255,255,255,.14);width:40%"></div>
+        <div class="row" style="margin-bottom:3mm"><div class="box" style="flex:1;background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);color:#cfd5e6;height:34mm">LEAD DOSSIER<br><span style="opacity:.55">scrollable · stays behind the bar</span></div></div>
+        <div class="row" style="margin-bottom:0"><div class="box" style="flex:1;background:#fff;border-color:#fff;color:var(--navy);display:flex;justify-content:space-between;align-items:center"><span>● CAMILLE ROUSSEAU · 04:12</span><span style="color:var(--magenta)">MUTE · END</span></div></div>
+      </div>
+      <div class="wirecap"><span>Call bar · persistent state</span><span>60 px</span></div>
+
+      <div class="k" style="margin:6mm 0 2mm">What it removes</div>
+      <div class="kpi"><span>Full-screen success overlay</span><b>−1 interruption</b></div>
+      <div class="kpi"><span>Re-entering the call page after a fiche</span><b>−1 navigation</b></div>
+      <div class="kpi"><span>“Is the timer still running?”</span><b>−1 doubt</b></div>
+      <div class="kpi"><span>Lost notes on accidental navigation</span><b>−1 data loss</b></div>
+    </div>
+  </div>
+
+  <hr class="rule">
+  <div class="grid3">
+    <div><div class="k" style="margin-bottom:2mm">Idle</div><p style="font-size:9pt;margin:0">No bar. Screens use the full height; nothing is reserved.</p></div>
+    <div><div class="k" style="margin-bottom:2mm">Active</div><p style="font-size:9pt;margin:0">Bar raised, timer running, Escape returns focus to the script, not the browser.</p></div>
+    <div><div class="k" style="margin-bottom:2mm">Wrapping up</div><p style="font-size:9pt;margin:0">Bar turns into the outcome dock: eight result keys, note, next date, advance.</p></div>
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>06</span></div>
+</section>
+
+<!-- 06 SCREENS -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">05 — Screens</span></div>
+  <div class="secnum">05 · Screen by screen</div>
+  <h2 class="sec">What changes, and what deliberately stays.</h2>
+
+  <div class="ba">
+    <div class="before">
+      <h4>Shift · Brief — before</h4>
+      <ul>
+        <li>Four KPI cards, one mission hero, a callback list, an activity feed and battlecards.</li>
+        <li>Two “start calling” buttons on the same screen.</li>
+        <li>Pacing is re-implemented inline while a dedicated component already exists.</li>
+        <li>The company name opens a “coming soon” modal instead of the fiche.</li>
+      </ul>
+    </div>
+    <div class="after">
+      <h4>Shift · Brief — after</h4>
+      <ul>
+        <li>One hero: the next lead, why now, the number, and <b>Call</b> (Enter).</li>
+        <li>A 72 px pacing strip: done / expected / delta, no ring, no gradient.</li>
+        <li>“À suivre” list of the next three actions, then the follow-up timeline.</li>
+        <li>Mission and script in a right rail that follows the call, not the page.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ba" style="margin-top:6mm">
+    <div class="before">
+      <h4>Call — before</h4>
+      <ul>
+        <li>Two-column layout where the left column carries company, contact, channels, warnings, booking and phone.</li>
+        <li>Script hidden in a drawer; result capture at the bottom of a long column.</li>
+        <li>Table view is a different product, with different shortcuts.</li>
+        <li>Success overlay hides the next lead for a beat.</li>
+      </ul>
+    </div>
+    <div class="after">
+      <h4>Call — after</h4>
+      <ul>
+        <li>Three zones: dossier (facts only) · script (steps, objections, proof) · outcome (keys 1–8 + note).</li>
+        <li>One vertical scroll per zone; the call action never moves.</li>
+        <li>Table becomes a sheet over the same data, not a parallel workspace.</li>
+        <li>Save is a 900 ms inline confirmation on the bar; the next lead is already loaded.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="ba" style="margin-top:6mm">
+    <div class="before">
+      <h4>Follow-up — before</h4>
+      <ul>
+        <li>Rappels, Mes RDV and Historique are three pages with three fetch shapes.</li>
+        <li>Callbacks are split by client-side date maths in two places.</li>
+        <li>No shared notion of “a promise made to a prospect”.</li>
+      </ul>
+    </div>
+    <div class="after">
+      <h4>Follow-up — after</h4>
+      <ul>
+        <li>One timeline: <b>Overdue · Today · RDV to confirm · This week</b>.</li>
+        <li>Every row carries the promise, the channel and the last words said.</li>
+        <li>Inline actions: call, reschedule, mark done, hand to BD — no page change.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:7mm">
+    <b>Kept on purpose:</b> the card/table distinction is not deleted — it becomes a density control inside the queue. The battlecards survive as contextual script objects keyed to the objection stage. The daily report stays where it is, in the top bar, because it is a compliance artefact, not a work surface.
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>07</span></div>
+</section>
+
+<!-- 07 DESIGN LANGUAGE -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">06 — Design language</span></div>
+  <div class="secnum">06 · Design language</div>
+  <h2 class="sec">One scale. One radius. Two densities.</h2>
+
+  <div class="grid-8-4">
+    <div>
+      <div class="k" style="margin-bottom:2mm">Product type scale — seven steps</div>
+      <table>
+        <thead><tr><th>Role</th><th class="num">Size / line</th><th>Weight · use</th></tr></thead>
+        <tbody>
+          <tr><td>Display</td><td class="num">30 / 34</td><td>600 · lead name on the call stage</td></tr>
+          <tr><td>Title</td><td class="num">22 / 28</td><td>600 · screen title, one per screen</td></tr>
+          <tr><td>Section</td><td class="num">16 / 22</td><td>600 · card and panel headings</td></tr>
+          <tr><td>Body</td><td class="num">14 / 21</td><td>400 · everything readable</td></tr>
+          <tr><td>Body strong</td><td class="num">14 / 21</td><td>500 · values, lead names in rows</td></tr>
+          <tr><td>Meta</td><td class="num">12 / 16</td><td>400 · timestamps, missions, counts</td></tr>
+          <tr><td>Micro</td><td class="num">11 / 14</td><td>500 · uppercase only for keyboard keys</td></tr>
+        </tbody>
+      </table>
+      <p class="footnote" style="margin-top:3mm">Today the product range runs from 9 px weekday labels to 30 px black headings, with 10, 11, 13, 18 and 22 px in between. Removing the middle values is the cheapest quality gain. This document uses 8–9 pt only for print annotations.</p>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">Colour roles</div>
+      <div class="swatch" style="background:#1b2850">Navy · structure, call stage</div>
+      <div class="swatch" style="background:#a8376f;margin-top:2mm">Magenta · selection, AI, focus</div>
+      <div class="swatch" style="background:#177a5b;margin-top:2mm">Green · completed, on pace</div>
+      <div class="swatch" style="background:#8a530f;margin-top:2mm">Amber · waiting, callback due</div>
+      <div class="swatch" style="background:#b3384a;margin-top:2mm">Red · overdue, blocked</div>
+      <p class="footnote" style="margin-top:3mm">State colour is always paired with a label or an icon. No pulsing dots; no colour as the only signal.</p>
+    </div>
+  </div>
+
+  <hr class="rule">
+  <div class="grid3">
+    <div>
+      <div class="k" style="margin-bottom:2mm">Radius &amp; elevation</div>
+      <p style="font-size:9pt">One radius family: 8 px for controls, 14 px for cards, 20 px for the call stage. Two shadows only: resting (0 1px 2px) and lifted (0 12px 32px, navy 8%). No <span style="font-family:var(--mono);font-size:8pt">rounded-3xl</span>, no coloured glows.</p>
+      <div class="k" style="margin:4mm 0 2mm">Density</div>
+      <p style="font-size:9pt"><b>Comfort</b> by default: 44 px targets, 12 px vertical rhythm. <b>Compact</b> for the queue: 32 px rows. One toggle, remembered per user; the type scale does not change.</p>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">Layout</div>
+      <p style="font-size:9pt">12-column grid, 1,440 px max width inside the shell, 24 px gutters. The call stage uses a fixed 320 / fluid / 360 split so the outcome dock never moves between leads.</p>
+      <div class="k" style="margin:4mm 0 2mm">Motion</div>
+      <p style="font-size:9pt">Two durations: 120 ms for state, 240 ms for panels. No entrance animations on data. The timer is the only continuously moving element on screen.</p>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">Accessibility</div>
+      <p style="font-size:9pt">4.5:1 minimum for all text, 3:1 for focus rings. Focus order follows the call: dossier → script → outcome. Every shortcut has a visible equivalent. The bar is a landmark region with an accessible name, not a floating div.</p>
+      <div class="k" style="margin:4mm 0 2mm">Copy</div>
+      <p style="font-size:9pt">Sentence case. Verbs on buttons (“Appeler”, “Enregistrer le résultat”), not nouns. No “Bientôt disponible” in a live workflow: hide it or ship it.</p>
+    </div>
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>08</span></div>
+</section>
+
+<!-- 08 INTERACTION -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">07 — Interaction</span></div>
+  <div class="secnum">07 · Interaction spec</div>
+  <h2 class="sec">The keyboard is the instrument. The mouse is the exception.</h2>
+
+  <div class="grid-8-4">
+    <div>
+      <table>
+        <thead><tr><th style="width:22%">Key</th><th>Action</th><th style="width:26%">Context</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag">Enter</span></td><td>Start the call on the focused lead</td><td>Brief, queue, follow-up</td></tr>
+          <tr><td><span class="tag">1 – 8</span></td><td>Capture the result and advance</td><td>Call stage, outcome dock</td></tr>
+          <tr><td><span class="tag">N</span></td><td>Focus the note field</td><td>Call stage</td></tr>
+          <tr><td><span class="tag">⌘ ↵</span></td><td>Save the outcome and load the next lead</td><td>Call stage</td></tr>
+          <tr><td><span class="tag">B</span></td><td>Open booking, date prefilled</td><td>Call stage, follow-up</td></tr>
+          <tr><td><span class="tag">⌘ / Ctrl + K</span></td><td>Command palette: any lead, mission, screen</td><td>Everywhere</td></tr>
+          <tr><td><span class="tag">Esc</span></td><td>Close sheet / return focus to the script</td><td>Everywhere</td></tr>
+          <tr><td><span class="tag">?</span></td><td>Shortcut map, contextual to the screen</td><td>Everywhere</td></tr>
+        </tbody>
+      </table>
+      <p class="footnote" style="margin-top:3mm">Shortcuts declare themselves: each result key shows its number in the dock; the brief shows “Enter” on the call button. No hidden superpowers.</p>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">States to design, not discover</div>
+      <div class="kpi"><span>Queue empty because of cooldown</span><b>Explain + next unlock</b></div>
+      <div class="kpi"><span>No phone number</span><b>Skip with reason, not a dead button</b></div>
+      <div class="kpi"><span>Already contacted (24 h)</span><b>Inline warning before dial</b></div>
+      <div class="kpi"><span>Shared phone in use</span><b>Name + countdown</b></div>
+      <div class="kpi"><span>Save failed</span><b>Bar turns red, retry keeps the note</b></div>
+      <div class="kpi"><span>Callback polling offline</span><b>Stale badge, no modal</b></div>
+    </div>
+  </div>
+
+  <hr class="rule">
+  <h3 style="font-size:14pt;margin-bottom:3mm">Optimistic by default</h3>
+  <div class="grid3">
+    <div><p style="font-size:9pt"><b>Result capture.</b> The dock closes immediately; the row updates in the queue; a 900 ms inline confirmation appears on the bar; the request reconciles in the background and rolls back with the note intact.</p></div>
+    <div><p style="font-size:9pt"><b>Next lead.</b> Prefetch the next two queue items when the call starts, not when it ends. The gap between calls is where the rhythm is lost.</p></div>
+    <div><p style="font-size:9pt"><b>Follow-ups.</b> Reschedule moves the row between groups without a refetch; the timeline is derived from one record, not three endpoints.</p></div>
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>09</span></div>
+</section>
+
+<!-- 09 PATH -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">08 — Path</span></div>
+  <div class="secnum">08 · Technical path</div>
+  <h2 class="sec">Decompose the monolith without pausing the team.</h2>
+  <p class="lead" style="max-width:150mm">The redesign is compatible with the existing endpoints. The work is mostly extraction: four surfaces, one call state, one design layer. Each phase leaves a shippable product.</p>
+
+  <div class="phase"><div class="p">Phase 1</div><div><b>Design layer &amp; shell</b><p>Tokens only (<span style="font-family:var(--mono);font-size:8pt">ink / line / surface / primary</span>) on the four SDR surfaces; type scale and radius normalisation; remove the “coming soon” modal; make the company name open the real drawer. No behaviour change.</p></div></div>
+  <div class="phase"><div class="p">Phase 2</div><div><b>Shift surface</b><p>Replace the home stack with Brief: hero next action, pacing strip, next three, follow-up timeline. Keep the old components behind a flag for one sprint.</p></div></div>
+  <div class="phase"><div class="p">Phase 3</div><div><b>Call state &amp; bar</b><p>Extract the call lifecycle into <span style="font-family:var(--mono);font-size:8pt">useCallSession</span> (context + timer + result mutation). Add the bar to the shell; move the outcome dock from the page bottom to the bar sheet.</p></div></div>
+  <div class="phase"><div class="p">Phase 4</div><div><b>Call stage</b><p>Split <span style="font-family:var(--mono);font-size:8pt">action/page.tsx</span> into <span style="font-family:var(--mono);font-size:8pt">CallStage</span>, <span style="font-family:var(--mono);font-size:8pt">LeadDossier</span>, <span style="font-family:var(--mono);font-size:8pt">ScriptRail</span>, <span style="font-family:var(--mono);font-size:8pt">OutcomeDock</span>, <span style="font-family:var(--mono);font-size:8pt">QueueSheet</span>. Target: no file above 400 lines.</p></div></div>
+  <div class="phase"><div class="p">Phase 5</div><div><b>Follow-up unification</b><p>One derivation over callbacks + meetings + actions; retire the duplicate callback logic in the home page; keep the legacy routes as redirects.</p></div></div>
+
+  <hr class="rule">
+  <div class="grid2">
+    <div>
+      <div class="k" style="margin-bottom:2mm">Component inventory (new)</div>
+      <div class="spec" style="line-height:1.9">
+        ShiftHeader <span>· pacing strip + session state</span><br>
+        NextActionCard <span>· the one hero</span><br>
+        CallBar <span>· persistent state</span><br>
+        CallStage <span>· three-zone layout</span><br>
+        LeadDossier <span>· facts, channels, warnings</span><br>
+        ScriptRail <span>· steps, objections, proof</span><br>
+        OutcomeDock <span>· keys 1–8, note, next date</span><br>
+        FollowUpTimeline <span>· grouped, inline actions</span><br>
+        QueueSheet <span>· table mode as a sheet</span><br>
+        CommandPalette <span>· ⌘K</span>
+      </div>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">Measurement — instrument, don’t guess</div>
+      <p style="font-size:9pt">No target numbers are proposed here: the baseline does not exist yet. Instrument these five events first, then set thresholds with the team.</p>
+      <div class="spec" style="line-height:1.85">
+        call.started <span>· lead, mission, source surface</span><br>
+        call.outcome_saved <span>· result, seconds, note length</span><br>
+        call.abandoned <span>· reason, elapsed</span><br>
+        followup.promise_created <span>· date, channel</span><br>
+        shift.gap <span>· seconds between calls</span>
+      </div>
+      <p class="footnote" style="margin-top:3mm">The north-star candidate is <b>time between two saved outcomes</b>, not calls per hour: it captures speed and quality in one number.</p>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:6mm">
+    <b>Risks.</b> A persistent bar can hide content on small laptops — solve with the reserved 64 px, not with a dismiss button. Removing the dashboard may unsettle managers — keep a read-only shift summary for them, fed by the same events. The queue contract is the most sensitive part: do not change its filters or cooldown rules during the redesign; move the UI around the contract, never the contract around the UI.
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>10</span></div>
+</section>
+
+<!-- 10 APPENDIX -->
+<section class="page">
+  <div class="runhead"><span class="k">SDR workspace · audit</span><span class="k">09 — Appendix</span></div>
+  <div class="secnum">09 · Appendix</div>
+  <h2 class="sec">Route inventory, as found.</h2>
+  <p class="lead" style="max-width:150mm">Read from the filesystem. “In menu” refers to <span style="font-family:var(--mono);font-size:9pt">SDR_NAV</span>; a route can be reachable by URL and still be absent from the interface.</p>
+
+  <div class="grid2" style="margin-top:5mm">
+    <div>
+      <div class="k" style="margin-bottom:2mm">Reachable &amp; listed</div>
+      <div class="route"><span><code>/sdr</code> Accueil</span><span class="label">1,238 lines</span></div>
+      <div class="route"><span><code>/sdr/action</code> Appeler</span><span class="label">3,811 lines</span></div>
+      <div class="route"><span><code>/sdr/callbacks</code> Rappels</span><span class="label">1,319 lines</span></div>
+      <div class="route"><span><code>/sdr/meetings</code> Mes RDV</span><span class="label">7-line wrapper</span></div>
+      <div class="route"><span><code>/sdr/calendar</code> Calendrier</span><span class="label">24 KB</span></div>
+      <div class="route"><span><code>/sdr/history</code> Historique</span><span class="label">549 lines</span></div>
+      <div class="route"><span><code>/sdr/emails</code> Email Hub</span><span class="label">shell-owned scroll</span></div>
+      <div class="route"><span><code>/sdr/planning</code> Planning</span><span class="label">manager board</span></div>
+      <div class="route"><span><code>/sdr/projects</code> Projets</span><span class="label">30 KB</span></div>
+      <div class="route"><span><code>/sdr/support-technique</code></span><span class="label">9.5 KB</span></div>
+    </div>
+    <div>
+      <div class="k" style="margin-bottom:2mm">Present but not in the SDR menu</div>
+      <div class="route"><span><code>/sdr/lists</code></span><span class="label">Booker only</span></div>
+      <div class="route"><span><code>/sdr/opportunities</code></span><span class="label">BD menu</span></div>
+      <div class="route"><span><code>/sdr/comms</code></span><span class="label">36 KB</span></div>
+      <div class="route"><span><code>/sdr/notifications</code></span><span class="label">26 KB</span></div>
+      <div class="route"><span><code>/sdr/settings</code></span><span class="label">1.9 KB</span></div>
+      <div class="route"><span><code>/sdr/tasks</code></span><span class="label">373 B</span></div>
+      <div class="route"><span><code>/sdr/email</code></span><span class="label">legacy, 419 B</span></div>
+      <div class="route"><span><code>/sdr/contacts/[id]</code></span><span class="label">contact detail</span></div>
+      <div class="route"><span><code>/sdr/companies/[id]</code></span><span class="label">company detail</span></div>
+      <div class="route"><span><code>/sdr/projects/[id]</code></span><span class="label">project detail</span></div>
+      <div class="route"><span><code>/sdr/lists/[id]</code></span><span class="label">list detail</span></div>
+      <div class="route"><span><code>/sdr/emails/sent</code></span><span class="label">sent mail</span></div>
+      <div class="k" style="margin:6mm 0 2mm">Files read for this audit</div>
+      <p class="footnote" style="margin:0">
+        <span style="font-family:var(--mono)">app/sdr/layout.tsx</span> · <span style="font-family:var(--mono)">page.tsx</span> · <span style="font-family:var(--mono)">action/page.tsx</span> · <span style="font-family:var(--mono)">callbacks</span> · <span style="font-family:var(--mono)">history</span> · <span style="font-family:var(--mono)">meetings</span> · <span style="font-family:var(--mono)">planning</span> · <span style="font-family:var(--mono)">opportunities</span> · <span style="font-family:var(--mono)">components/layout/AppLayoutShell</span> · <span style="font-family:var(--mono)">lib/navigation/config</span> · <span style="font-family:var(--mono)">components/sdr/*</span> · <span style="font-family:var(--mono)">app/globals.css</span> · <span style="font-family:var(--mono)">lib/brand/*</span>.
+      </p>
+    </div>
+  </div>
+
+  <hr class="rule">
+  <div class="grid-8-4">
+    <div>
+      <div class="k" style="margin-bottom:2mm">What this document is not</div>
+      <p style="font-size:9pt">It is not a usability test. No user session, recording or survey was analysed; the findings are structural, from the interface as built. It does not estimate development cost, and it proposes no metric targets, because no baseline exists. Where a judgement is aesthetic — radius, weight, colour — it is argued, not measured.</p>
+    </div>
+    <div class="note">
+      <b>Next artefact</b>
+      <p style="margin:1.5mm 0 0;font-size:9pt">The clickable prototype accompanying this document (<span style="font-family:var(--mono);font-size:8pt">sdr-workspace-prototype.html</span>) implements Brief, Call, Follow-up, the persistent bar and the command palette, with keyboard capture and realistic French copy from the existing product.</p>
+    </div>
+  </div>
+
+  <div class="folio"><span>Captain Prospect CRM · SDR UX</span><span>11</span></div>
+</section>
+</body>
+</html>

@@ -1,6 +1,8 @@
 import { foldPortalAbsences } from "@/lib/meetings/portalAbsence";
 import { NextRequest } from 'next/server';
+import { DateTime } from 'luxon';
 import { prisma } from '@/lib/prisma';
+import { APP_TIMEZONE } from '@/lib/stats/metrics';
 import {
     successResponse,
     requireRole,
@@ -69,19 +71,18 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         where.interlocuteurId = interlocuteurId;
     }
 
+    // Paris days over the meeting date, [from, to) — same boundaries as every dashboard.
     if (startDateParam || endDateParam) {
-        const dateFilter: { gte?: Date; lte?: Date } = {};
+        const dateFilter: { gte?: Date; lt?: Date } = {};
         if (startDateParam) {
-            const from = new Date(startDateParam);
-            from.setHours(0, 0, 0, 0);
-            dateFilter.gte = from;
+            const from = DateTime.fromISO(startDateParam, { zone: APP_TIMEZONE }).startOf('day');
+            if (from.isValid) dateFilter.gte = from.toJSDate();
         }
         if (endDateParam) {
-            const to = new Date(endDateParam);
-            to.setHours(23, 59, 59, 999);
-            dateFilter.lte = to;
+            const to = DateTime.fromISO(endDateParam, { zone: APP_TIMEZONE }).startOf('day');
+            if (to.isValid) dateFilter.lt = to.plus({ days: 1 }).toJSDate();
         }
-        where.callbackDate = dateFilter;
+        if (Object.keys(dateFilter).length > 0) where.callbackDate = dateFilter;
     }
 
     if (search) {

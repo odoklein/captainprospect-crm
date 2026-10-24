@@ -9,10 +9,11 @@ import {
     Phone,
     Calendar,
     Clock,
-    Briefcase,
     Target,
     ChevronRight,
     TrendingUp,
+    TrendingDown,
+    Minus,
     Lightbulb,
     Users,
     Mail,
@@ -219,14 +220,19 @@ export default function BDDashboardPage() {
 
     return (
         <div className="space-y-6 animate-fade-in">
-            {/* Welcome Header — BD variant */}
-            <div className="text-center py-4">
-                <h1 className="text-2xl font-bold text-slate-900">
-                    {getGreeting()}, {session?.user?.name?.split(" ")[0] ?? "vous"}
-                </h1>
-                <p className="text-slate-500 mt-1">
-                    Vue d'ensemble de votre journée et de votre portfolio
-                </p>
+            {/* Welcome Header — aligned with the rest of the app */}
+            <div className="flex flex-wrap items-end justify-between gap-3 py-2">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">
+                        {getGreeting()}, {session?.user?.name?.split(" ")[0] ?? "vous"}
+                    </h1>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Votre prospection du jour et l&apos;état de votre portfolio
+                    </p>
+                </div>
+                <Link href="/bd/clients" className="text-sm font-medium text-primary hover:text-primary-hover">
+                    Voir mon portfolio
+                </Link>
             </div>
 
             {/* Stats Grid — BD mix: prospection + portfolio */}
@@ -238,7 +244,7 @@ export default function BDDashboardPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-slate-900">{sdrStats?.actionsToday || 0}</p>
-                            <p className="text-xs text-slate-500">Actions aujourd'hui</p>
+                            <p className="text-xs text-slate-500">Appels aujourd&apos;hui</p>
                         </div>
                     </div>
                 </Card>
@@ -250,7 +256,7 @@ export default function BDDashboardPage() {
                         </div>
                         <div>
                             <p className="text-2xl font-bold text-accent">{sdrStats?.meetingsBooked || 0}</p>
-                            <p className="text-xs text-slate-500">RDV pris</p>
+                            <p className="text-xs text-slate-500">RDV cette semaine</p>
                         </div>
                     </div>
                 </Card>
@@ -261,8 +267,9 @@ export default function BDDashboardPage() {
                             <Building2 className="w-5 h-5 text-primary-700" />
                         </div>
                         <div>
-                            <p className="text-2xl font-bold text-primary-700">{bdStats?.totalClients || 0}</p>
-                            <p className="text-xs text-slate-500">Clients portfolio</p>
+                            <p className="text-2xl font-bold text-primary-700">{bdStats?.activeClients ?? bdStats?.totalClients ?? 0}</p>
+                            <p className="text-xs text-slate-500">Clients actifs</p>
+                            <p className="text-[11px] text-slate-400">{bdStats?.totalClients ?? 0} au portfolio</p>
                         </div>
                     </div>
                 </Card>
@@ -275,6 +282,7 @@ export default function BDDashboardPage() {
                         <div>
                             <p className="text-2xl font-bold text-amber-600">{bdStats?.pendingOnboarding || 0}</p>
                             <p className="text-xs text-slate-500">Onboardings en cours</p>
+                            <p className="text-[11px] text-slate-400">{bdStats?.totalMissions ?? 0} missions suivies</p>
                         </div>
                     </div>
                 </Card>
@@ -376,9 +384,10 @@ export default function BDDashboardPage() {
                             .map((mission) => {
                                 const Icon = CHANNEL_ICONS[mission.channel];
                                 return (
-                                    <Card
+                                    <button
                                         key={mission.id}
-                                        className="!p-3 hover:border-primary-300 cursor-pointer transition-all"
+                                        type="button"
+                                        className="w-full text-left rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                                         onClick={() => {
                                             setSelectedMissionId(mission.id);
                                             if (typeof window !== "undefined") {
@@ -386,6 +395,9 @@ export default function BDDashboardPage() {
                                                 window.dispatchEvent(new CustomEvent("sdr_mission_changed", { detail: mission.id }));
                                             }
                                         }}
+                                    >
+                                    <Card
+                                        className="!p-3 hover:border-primary-300 cursor-pointer transition-all"
                                     >
                                         <div className="flex items-center gap-3">
                                             <div
@@ -403,6 +415,7 @@ export default function BDDashboardPage() {
                                             <ChevronRight className="w-5 h-5 text-slate-400" />
                                         </div>
                                     </Card>
+                                    </button>
                                 );
                             })}
                     </div>
@@ -421,19 +434,19 @@ export default function BDDashboardPage() {
                             type="button"
                             onClick={() => setActionsPeriod("today")}
                             className={cn(
-                                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                 actionsPeriod === "today"
                                     ? "bg-white text-primary font-semibold shadow-sm"
                                     : "text-slate-600 hover:text-slate-900"
                             )}
                         >
-                            Aujourd'hui
+                            Aujourd&apos;hui
                         </button>
                         <button
                             type="button"
                             onClick={() => setActionsPeriod("all")}
                             className={cn(
-                                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                                "px-3 py-1.5 text-sm font-medium rounded-md transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                 actionsPeriod === "all"
                                     ? "bg-white text-emerald-600 shadow-sm"
                                     : "text-slate-600 hover:text-slate-900"
@@ -517,31 +530,43 @@ export default function BDDashboardPage() {
             {/* Weekly Progress */}
             {sdrStats && (
                 <Card className="!p-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between gap-3 mb-4">
                         <h3 className="font-medium text-slate-900">Évolution vs semaine dernière</h3>
-                        <div className="flex items-center gap-1 text-emerald-600 text-sm">
-                            <TrendingUp className="w-4 h-4" />
-                            <span>
-                                {sdrStats.weeklyProgress != null && sdrStats.weeklyProgress >= 0
-                                    ? "Bon rythme"
-                                    : "À toi de jouer"}
-                            </span>
-                        </div>
+                        <span
+                            className={cn(
+                                "inline-flex items-center gap-1 text-sm font-semibold tabular-nums",
+                                sdrStats.weeklyProgress > 0
+                                    ? "text-emerald-600"
+                                    : sdrStats.weeklyProgress < 0
+                                      ? "text-rose-600"
+                                      : "text-slate-500",
+                            )}
+                        >
+                            {sdrStats.weeklyProgress > 0 ? (
+                                <TrendingUp className="w-4 h-4" />
+                            ) : sdrStats.weeklyProgress < 0 ? (
+                                <TrendingDown className="w-4 h-4" />
+                            ) : (
+                                <Minus className="w-4 h-4" />
+                            )}
+                            {sdrStats.weeklyProgress > 0 ? "+" : ""}{sdrStats.weeklyProgress} %
+                        </span>
                     </div>
                     <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                            style={{
-                                width: `${Math.min(Math.max(sdrStats.weeklyProgress ?? 0, 0), 100)}%`,
-                            }}
+                            className={cn(
+                                "h-full rounded-full transition-all duration-500",
+                                sdrStats.weeklyProgress < 0 ? "bg-rose-400" : "bg-emerald-500",
+                            )}
+                            style={{ width: `${Math.min(Math.abs(sdrStats.weeklyProgress), 100)}%` }}
                         />
                     </div>
                     <p className="text-xs text-slate-500 mt-2">
-                        {sdrStats.weeklyProgress != null && sdrStats.weeklyProgress > 0
-                            ? "Tu as fait plus d'actions cette semaine que la précédente."
+                        {sdrStats.weeklyProgress > 0
+                            ? "Plus d'appels cette semaine que la semaine précédente."
                             : sdrStats.weeklyProgress === 0
-                              ? "Même rythme que la semaine dernière."
-                              : "Moins d'actions que la semaine précédente."}
+                              ? "Même volume d'appels que la semaine dernière."
+                              : "Moins d'appels que la semaine précédente."}
                     </p>
                 </Card>
             )}

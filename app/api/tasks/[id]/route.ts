@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createTaskReassignmentNotification } from "@/lib/notifications";
+import { syncSectionStatus } from "@/lib/onboarding/checklist-service";
 
 // GET /api/tasks/[id] - Get task details
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -145,6 +146,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
                 _count: { select: { comments: true, subtasks: true, files: true } },
             },
         });
+
+        // Onboarding checklist: a step ticked from the Kanban or the home keeps its section in sync.
+        if (status !== undefined && updated.parentTaskId && task.labels.includes("onboarding")) {
+            await syncSectionStatus(updated.parentTaskId);
+        }
 
         // Log activity for significant changes
         const activities: any[] = [];

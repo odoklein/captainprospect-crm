@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDR — Shift · Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy-950:#0a1020;
+  --navy-900:#101a33;
+  --navy-800:#1b2850;
+  --navy-700:#263460;
+  --navy-600:#33456f;
+  --magenta:#c64b8b;
+  --magenta-100:#f7e8f0;
+  --magenta-200:#eec9dd;
+  --magenta-600:#a8376f;
+  --paper:#f5f4ef;
+  --surface:#ffffff;
+  --surface-2:#faf9f5;
+  --line:#e4e1d8;
+  --line-strong:#d3cfc2;
+  --ink:#14171f;
+  --ink-2:#4d515b;
+  --ink-3:#656a75;
+  --ink-4:#6f737d;
+  --green:#177a5b;
+  --green-soft:#e8f4ee;
+  --amber:#8a530f;
+  --amber-soft:#fbf1e3;
+  --red:#b3384a;
+  --red-soft:#fbecee;
+  --radius-s:8px;
+  --radius-m:14px;
+  --radius-l:20px;
+  --shadow-1:0 1px 2px rgba(16,26,51,.06);
+  --shadow-2:0 12px 32px -12px rgba(16,26,51,.22);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,monospace;
+  --sans:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sidebar-w:248px;
+  --topbar-h:60px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:14px;line-height:1.5;letter-spacing:-.005em;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4,p{margin:0}
+ul{margin:0;padding:0;list-style:none}
+::selection{background:var(--magenta-200);color:var(--navy-900)}
+:focus-visible{outline:2px solid var(--magenta);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.muted{color:var(--ink-2)}
+.tiny{font-size:12px}
+
+/* ---------- shell ---------- */
+.app{min-height:100vh}
+.sidebar{
+  position:fixed;inset:0 auto 0 0;width:var(--sidebar-w);background:var(--navy-900);color:#e9ecf5;
+  display:flex;flex-direction:column;padding:18px 14px 14px;z-index:60;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 22px}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--magenta);display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;letter-spacing:-.04em;flex:none}
+.brand-txt strong{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em}
+.brand-txt span{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(233,236,245,.7);margin-top:2px}
+.nav-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(233,236,245,.7);padding:8px 10px 8px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{
+  display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:8px;
+  color:rgba(233,236,245,.8);font-size:14px;font-weight:500;position:relative;transition:background .12s,color .12s;
+}
+.nav a svg{width:17px;height:17px;opacity:.75;flex:none}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav a.active{background:rgba(255,255,255,.09);color:#fff}
+.nav a.active:before{content:"";position:absolute;left:-14px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--magenta)}
+.nav a .count{margin-left:auto;font-family:var(--mono);font-size:10.5px;background:rgba(198,75,139,.22);color:#f4c9de;border-radius:20px;min-width:20px;height:18px;display:grid;place-items:center;padding:0 5px}
+.nav a.active .count{background:var(--magenta);color:#fff}
+.sidebar-foot{margin-top:auto;border-top:1px solid rgba(255,255,255,.1);padding-top:12px}
+.goal{padding:12px;border-radius:10px;background:rgba(255,255,255,.05);margin-bottom:12px}
+.goal-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.goal-top span{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:rgba(233,236,245,.7)}
+.goal-top b{font-family:var(--mono);font-size:11px;font-weight:500;color:#fff}
+.goal-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.12);overflow:hidden}
+.goal-bar i{display:block;height:100%;width:40%;background:var(--magenta);border-radius:4px}
+.goal small{display:block;font-size:11px;color:rgba(233,236,245,.72);margin-top:7px}
+.me{display:flex;align-items:center;gap:9px;padding:6px 4px 2px}
+.avatar{width:30px;height:30px;border-radius:50%;background:#3a4a78;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:600;flex:none}
+.me strong{display:block;font-size:14px;font-weight:500}
+.me span{display:block;font-size:11px;color:rgba(233,236,245,.72)}
+
+.main{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column}
+.topbar{
+  height:var(--topbar-h);position:sticky;top:0;z-index:40;background:rgba(245,244,239,.9);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 26px;
+}
+.hamb{display:none;width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:#fff;align-items:center;justify-content:center}
+.mission-chip{display:flex;align-items:center;gap:9px;padding:5px 10px 5px 6px;border:1px solid var(--line);border-radius:99px;background:#fff;box-shadow:var(--shadow-1);font-size:12.5px;font-weight:500}
+.mission-dot{width:20px;height:20px;border-radius:50%;background:var(--navy-800);color:#fff;display:grid;place-items:center;font-size:8.5px;font-weight:600}
+.mission-chip svg{width:12px;height:12px;color:var(--ink-3)}
+.topbar .spacer{flex:1}
+.searchbtn{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink-3);font-size:12.5px;box-shadow:var(--shadow-1)}
+.searchbtn svg{width:14px;height:14px}
+.searchbtn kbd{margin-left:8px;font-family:var(--mono);font-size:10px;background:var(--paper);border:1px solid var(--line);border-radius:4px;padding:2px 5px;color:var(--ink-3)}
+.iconbtn{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--ink-2);box-shadow:var(--shadow-1);transition:background .12s,color .12s}
+.iconbtn:hover{background:var(--surface-2);color:var(--ink)}
+.iconbtn svg{width:15px;height:15px}
+.report-btn{display:flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid #e6d3a8;background:#fdf5e6;color:#7a4d0e;border-radius:8px;font-size:12px;font-weight:500}
+.report-btn svg{width:14px;height:14px}
+.clock-chip{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.clock-chip i{width:6px;height:6px;border-radius:50%;background:var(--green);display:block}
+.avatar-sm{width:30px;height:30px;border-radius:50%;background:var(--navy-800);color:#fff;display:grid;place-items:center;font-size:10.5px;font-weight:600}
+
+.content{flex:1;padding:26px 26px 40px;max-width:1480px;width:100%;margin:0 auto}
+.view{display:none}
+.view.active{display:block;animation:fade .18s ease-out}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- generic ---------- */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px;flex-wrap:wrap}
+.page-head h1{font-size:24px;line-height:1.1;letter-spacing:-.035em;font-weight:600}
+.page-head .sub{font-size:12.5px;color:var(--ink-3);margin-top:5px;display:flex;align-items:center;gap:8px}
+.dot{width:3px;height:3px;border-radius:50%;background:var(--ink-4);display:inline-block}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 14px;border-radius:var(--radius-s);border:1px solid var(--line);background:#fff;font-size:14px;font-weight:500;color:var(--ink);box-shadow:var(--shadow-1);transition:background .12s,border-color .12s,transform .06s;white-space:nowrap}
+.btn:hover{background:var(--surface-2);border-color:var(--line-strong)}
+.btn:active{transform:translateY(1px)}
+.btn svg{width:15px;height:15px}
+.btn-primary{background:var(--navy-800);border-color:var(--navy-800);color:#fff;box-shadow:0 2px 6px rgba(16,26,51,.18)}
+.btn-primary:hover{background:var(--navy-700);border-color:var(--navy-700)}
+.btn-magenta{background:var(--magenta);border-color:var(--magenta);color:#fff}
+.btn-magenta:hover{background:var(--magenta-600);border-color:var(--magenta-600)}
+.btn-ghost{background:transparent;border-color:transparent;box-shadow:none;color:var(--ink-2)}
+.btn-ghost:hover{background:rgba(16,26,51,.05);border-color:transparent}
+.btn-lg{height:46px;padding:0 20px;font-size:14px;border-radius:10px}
+.btn-sm{height:30px;padding:0 10px;font-size:12px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.kbd{font-family:var(--mono);font-size:10px;font-weight:500;border:1px solid rgba(255,255,255,.28);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:rgba(255,255,255,.85);line-height:1.4}
+.kbd--dark{border-color:var(--line-strong);color:var(--ink-3);background:#fff}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-m);box-shadow:var(--shadow-1)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.card-head h2,.card-head h3{font-size:16px;font-weight:600;letter-spacing:-.015em}
+.card-body{padding:18px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:99px;font-size:11px;font-weight:500;background:var(--paper);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.chip svg{width:11px;height:11px}
+.chip--green{background:var(--green-soft);border-color:#cfe7dc;color:var(--green)}
+.chip--amber{background:var(--amber-soft);border-color:#eed9b5;color:var(--amber)}
+.chip--red{background:var(--red-soft);border-color:#efcfd4;color:var(--red)}
+.chip--magenta{background:var(--magenta-100);border-color:var(--magenta-200);color:var(--magenta-600)}
+.chip--navy{background:#eaeef7;border-color:#d5dcee;color:var(--navy-700)}
+.grid-shift{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(300px,1fr);gap:18px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* ---------- hero next action ---------- */
+.hero{
+  position:relative;background:var(--navy-800);color:#fff;border-radius:var(--radius-l);
+  padding:26px 28px 24px;overflow:hidden;box-shadow:0 18px 40px -24px rgba(16,26,51,.55);
+}
+.hero:before{content:"";position:absolute;right:-90px;top:-120px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(198,75,139,.32),transparent 65%);pointer-events:none}
+.hero:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:56px 56px;mask-image:linear-gradient(120deg,transparent 35%,#000 130%);pointer-events:none}
+.hero>*{position:relative;z-index:1}
+.hero-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#f0b6d2}
+.hero-eyebrow i{width:5px;height:5px;border-radius:50%;background:var(--magenta);display:block}
+.hero-pill{font-size:11px;padding:4px 9px;border-radius:99px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.8)}
+.hero h2{font-size:30px;line-height:1.08;letter-spacing:-.04em;font-weight:600;margin-bottom:4px}
+.hero .role{font-size:14px;color:rgba(255,255,255,.78)}
+.hero .why{
+  margin:16px 0 18px;padding:12px 14px;border-left:2px solid var(--magenta);
+  background:rgba(255,255,255,.055);border-radius:0 8px 8px 0;font-size:14px;line-height:1.5;color:rgba(255,255,255,.86);max-width:62ch;
+}
+.hero .why b{color:#fff;font-weight:500}
+.hero-tags{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:20px}
+.hero-tags span{font-size:11px;padding:4px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.16);color:rgba(255,255,255,.75);background:rgba(255,255,255,.04)}
+.hero-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.call-btn{
+  display:inline-flex;align-items:center;gap:11px;height:50px;padding:0 18px;border-radius:10px;
+  background:#fff;color:var(--navy-900);border:0;font-size:14px;font-weight:600;letter-spacing:-.01em;
+  box-shadow:0 8px 24px -12px rgba(0,0,0,.6);transition:transform .08s,background .12s;
+}
+.call-btn:hover{background:#f7f5ef}
+.call-btn:active{transform:translateY(1px)}
+.call-btn .num{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--navy-700);padding-left:11px;margin-left:2px;border-left:1px solid var(--line)}
+.call-btn .kbd{color:var(--navy-700);border-color:#c9c3b4;margin-left:2px}
+.hero .btn-line{height:50px;border-radius:10px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:#fff;box-shadow:none}
+.hero .btn-line:hover{background:rgba(255,255,255,.12)}
+.hero-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 14px;margin-top:20px;padding-top:14px;border-top:1px solid rgba(255,255,255,.12);font-size:12px;color:rgba(255,255,255,.75)}
+.hero-foot button{background:none;border:0;color:rgba(255,255,255,.85);font-size:12px;display:inline-flex;align-items:center;gap:5px;padding:0}
+.hero-foot button:hover{color:#fff}
+
+/* ---------- pacing card ---------- */
+.pace .card-body{padding:16px 18px}
+.pace-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.pace-head h3{font-size:16px;font-weight:600}
+.pace-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:var(--amber);background:var(--amber-soft);border:1px solid #eed9b5;padding:3px 8px;border-radius:99px}
+.pace-status i{width:5px;height:5px;border-radius:50%;background:var(--amber)}
+.pace-nums{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.pace-nums span{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+.pace-nums b{font-family:var(--mono);font-size:22px;font-weight:500;letter-spacing:-.03em;line-height:1}
+.pace-nums b small{font-size:12px;color:var(--ink-3);font-weight:400}
+.pace-nums .neg b{color:var(--red)}
+.pace-track{position:relative;height:6px;border-radius:6px;background:#eceae3;overflow:visible;margin:16px 0 8px}
+.pace-track i{display:block;height:100%;width:40%;border-radius:6px;background:var(--navy-800)}
+.pace-track .marker{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:2px;left:46.6%}
+.pace-track .marker:after{content:"attendu";position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+.pace-foot{font-size:11px;color:var(--ink-3);line-height:1.45}
+
+/* ---------- next list ---------- */
+.next-list{display:flex;flex-direction:column}
+.next-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 18px;border-bottom:1px solid var(--line);text-align:left;background:none;border-left:0;border-right:0;border-top:0;width:100%;transition:background .12s}
+.next-row:last-child{border-bottom:0}
+.next-row:hover{background:var(--surface-2)}
+.next-time{font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.next-time small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);margin-top:1px}
+.next-main{min-width:0}
+.next-main b{display:block;font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.next-main span{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.next-row .go{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink-3);background:#fff}
+.next-row:hover .go{border-color:var(--navy-800);color:var(--navy-800)}
+.next-row .go svg{width:13px;height:13px}
+
+/* ---------- brief rail ---------- */
+.brief-rail .card-body{padding:16px 18px}
+.brief-client{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.brief-client .logo{width:36px;height:36px;border-radius:9px;background:#eef1f7;border:1px solid #dfe4ef;display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--navy-700);flex:none}
+.brief-client b{display:block;font-size:13px;font-weight:600}
+.brief-client span{display:block;font-size:11.5px;color:var(--ink-3)}
+.brief-line{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:12px}
+.brief-line span{color:var(--ink-3);width:74px;flex:none}
+.brief-line b{font-weight:500;color:var(--ink)}
+.brief-script{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:11px 12px;border-radius:9px;background:var(--magenta-100);border:1px solid var(--magenta-200)}
+.brief-script p{font-size:11.5px;color:var(--magenta-600);line-height:1.4}
+.brief-script b{display:block;font-size:12px;color:#7d2a51;font-weight:600}
+.brief-script svg{width:16px;height:16px;color:var(--magenta-600);flex:none}
+
+/* ---------- timeline ---------- */
+.timeline-group{padding:0}
+.tl-head{display:flex;align-items:center;gap:8px;padding:12px 18px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.tl-head h3{font-size:12px;font-weight:600;letter-spacing:.01em}
+.tl-head .n{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);background:#fff;border:1px solid var(--line);border-radius:99px;padding:1px 6px}
+.tl-head .warn{color:var(--red);background:var(--red-soft);border-color:#efcfd4}
+.tl-row{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;padding:13px 18px;border-bottom:1px solid var(--line);align-items:start}
+.tl-row:last-child{border-bottom:0}
+.tl-row:hover{background:var(--surface-2)}
+.tl-time{font-family:var(--mono);font-size:11.5px;color:var(--ink);padding-top:1px}
+.tl-time.late{color:var(--red)}
+.tl-time small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);margin-top:2px}
+.tl-body{min-width:0}
+.tl-body b{font-size:14px;font-weight:500;display:block}
+.tl-body .co{font-size:12px;color:var(--ink-3);display:block;margin-top:1px}
+.tl-quote{font-size:12px;color:var(--ink-2);margin-top:6px;line-height:1.45;padding-left:9px;border-left:1px solid var(--line-strong);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tl-actions{display:flex;gap:6px;align-items:center}
+.tl-actions .btn{height:30px;font-size:12px;padding:0 10px}
+.row-icon{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--paper);border:1px solid var(--line);color:var(--ink-3);flex:none}
+.row-icon svg{width:13px;height:13px}
+
+/* ---------- call stage ---------- */
+.call-stage{display:grid;grid-template-columns:320px minmax(0,1fr) 344px;gap:16px;align-items:start}
+.stage-col{min-width:0}
+.stage-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:12px 16px;background:var(--navy-900);color:#fff;border-radius:12px;box-shadow:var(--shadow-2)}
+.stage-bar .left{display:flex;align-items:center;gap:12px;min-width:0}
+.live{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#f3b3d0}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--magenta);display:block}
+.stage-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stage-timer{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stage-bar .right{display:flex;gap:6px;align-items:center}
+.stage-bar .iconbtn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#fff;box-shadow:none}
+.stage-bar .iconbtn:hover{background:rgba(255,255,255,.16)}
+.stage-bar .end{height:32px;padding:0 12px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(220,60,80,.18);color:#ffd9df;font-size:12px}
+
+.lead-card .card-body{padding:18px}
+.lead-id{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.lead-avatar{width:44px;height:44px;border-radius:50%;background:#e7eaf3;color:var(--navy-700);display:grid;place-items:center;font-size:14px;font-weight:600;flex:none}
+.lead-id h2{font-size:19px;line-height:1.15;letter-spacing:-.03em;font-weight:600}
+.lead-id .title{font-size:12px;color:var(--ink-3);margin-top:2px}
+.lead-id .co{font-size:12.5px;color:var(--ink-2);margin-top:6px;display:flex;align-items:center;gap:6px}
+.lead-id .co svg{width:12px;height:12px;color:var(--ink-4)}
+.lead-phone{display:flex;gap:8px;margin:14px 0 12px}
+.lead-phone a{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;height:42px;border-radius:9px;background:var(--navy-800);color:#fff;font-family:var(--mono);font-size:13px;font-weight:500;border:1px solid var(--navy-800)}
+.lead-phone a:hover{background:var(--navy-700)}
+.lead-phone button{width:42px;height:42px;border-radius:9px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--ink-3)}
+.facts{border-top:1px solid var(--line);margin-top:6px;padding-top:6px}
+.fact{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:12px}
+.fact span{color:var(--ink-3)}
+.fact b{font-weight:500;text-align:right}
+.note-box{background:var(--amber-soft);border:1px solid #eed9b5;border-radius:9px;padding:10px 11px;font-size:11.5px;line-height:1.45;color:#6d470f;margin:10px 0 0;display:flex;gap:8px}
+.note-box svg{width:14px;height:14px;flex:none;margin-top:1px}
+.prev{border-top:1px solid var(--line);margin-top:14px;padding-top:12px}
+.prev h3{font-size:11px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;font-weight:500}
+.prev-row{display:flex;gap:8px;font-size:11.5px;color:var(--ink-2);padding:5px 0}
+.prev-row time{font-family:var(--mono);font-size:10.5px;color:var(--ink-4);flex:none;width:46px;padding-top:1px}
+.prev-row span{line-height:1.35}
+
+.script-card .card-body{padding:0}
+.script-tabs{display:flex;border-bottom:1px solid var(--line);padding:0 10px;overflow-x:auto;scrollbar-width:none}
+.script-tabs::-webkit-scrollbar{display:none}
+.script-tabs button{border:0;background:none;padding:13px 11px 11px;font-size:12.5px;font-weight:500;color:var(--ink-3);border-bottom:2px solid transparent;white-space:nowrap}
+.script-tabs button.on{color:var(--navy-800);border-bottom-color:var(--magenta)}
+.script-panel{display:none;padding:20px}
+.script-panel.on{display:block}
+.script-step{margin-bottom:18px}
+.script-step:last-child{margin-bottom:0}
+.script-step .step-label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4);margin-bottom:5px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.script-step .step-label button{background:none;border:0;font-family:var(--sans);font-size:11px;color:var(--ink-3);letter-spacing:0;text-transform:none;display:inline-flex;gap:4px;align-items:center;padding:0}
+.script-step .step-label button:hover{color:var(--magenta-600)}
+.script-step p{font-size:14px;line-height:1.55;letter-spacing:-.01em}
+.script-step p em{font-style:normal;background:#fff3c9;padding:0 2px;border-radius:2px}
+.script-step .hint{font-size:11.5px;color:var(--ink-3);margin-top:5px;line-height:1.45}
+.script-foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:11px 20px;border-top:1px solid var(--line);background:var(--surface-2);font-size:11px;color:var(--ink-3);border-radius:0 0 var(--radius-m) var(--radius-m)}
+.script-foot kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--line-strong);border-bottom-width:2px;background:#fff;border-radius:4px;padding:1px 4px;margin-right:4px}
+.objection{border:1px solid var(--line);border-radius:9px;margin-bottom:8px;overflow:hidden;background:#fff}
+.objection summary{list-style:none;cursor:pointer;padding:11px 12px;font-size:13px;font-weight:500;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.objection summary::-webkit-details-marker{display:none}
+.objection summary svg{width:14px;height:14px;color:var(--ink-3);transition:transform .15s}
+.objection[open] summary svg{transform:rotate(90deg)}
+.objection .obj-body{padding:0 12px 12px;font-size:12.5px;color:var(--ink-2);line-height:1.5;border-top:1px solid var(--line);padding-top:10px;margin:0 12px 0}
+.objection .obj-body b{color:var(--ink);font-weight:500}
+
+.outcome-card{position:sticky;top:calc(var(--topbar-h) + 16px)}
+.outcome-head{padding:14px 16px;border-bottom:1px solid var(--line)}
+.outcome-head h2{font-size:13.5px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.outcome-head p{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.results{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:14px 16px}
+.result{position:relative;display:flex;align-items:center;gap:8px;height:44px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:500;text-align:left;transition:border-color .12s,background .12s;min-width:0}
+.result:hover{border-color:var(--line-strong);background:var(--surface-2)}
+.result .k{font-family:var(--mono);font-size:11px;color:var(--ink-4);border:1px solid var(--line);border-radius:4px;width:18px;height:18px;display:grid;place-items:center;flex:none}
+.result .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.result.on{border-color:var(--navy-800);background:#eef1f8;box-shadow:inset 0 0 0 1px var(--navy-800)}
+.result.on .k{border-color:var(--navy-800);background:var(--navy-800);color:#fff}
+.result[data-tone="win"]:hover{border-color:#bcdccd;background:var(--green-soft)}
+.result[data-tone="stop"]:hover{border-color:#efcfd4;background:var(--red-soft)}
+.outcome-note{padding:0 16px 12px}
+.outcome-note label{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.outcome-note textarea{width:100%;min-height:64px;resize:vertical;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:12.5px;background:var(--surface-2);outline:none}
+.outcome-note textarea:focus{border-color:var(--navy-700);background:#fff;box-shadow:0 0 0 3px rgba(38,52,96,.09)}
+.outcome-next{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 16px 12px}
+.field label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:4px}
+.field input,.field select{width:100%;height:34px;border:1px solid var(--line);border-radius:7px;background:#fff;padding:0 9px;font-size:12px;outline:none}
+.field input:focus,.field select:focus{border-color:var(--navy-700);box-shadow:0 0 0 3px rgba(38,52,96,.09)}
+.outcome-submit{padding:0 16px 16px}
+.outcome-submit .btn{width:100%;height:44px;justify-content:center;gap:8px}
+.outcome-submit p{text-align:center;font-size:11px;color:var(--ink-4);margin-top:7px}
+
+/* ---------- call bar ---------- */
+.callbar{
+  position:fixed;left:var(--sidebar-w);right:0;bottom:0;height:60px;z-index:70;
+  background:var(--navy-950);color:#fff;display:flex;align-items:center;gap:14px;padding:0 20px;
+  border-top:1px solid rgba(255,255,255,.1);box-shadow:0 -10px 30px -18px rgba(0,0,0,.6);
+  transform:translateY(110%);visibility:hidden;transition:transform .22s ease,visibility .22s;
+}
+.callbar.up{transform:none;visibility:visible}
+.callbar .dot-live{width:7px;height:7px;border-radius:50%;background:var(--magenta);flex:none;box-shadow:0 0 0 3px rgba(198,75,139,.18)}
+.callbar .who{font-size:13px;font-weight:500;white-space:nowrap}
+.callbar .who span{display:block;font-size:11px;color:rgba(255,255,255,.72);font-weight:400}
+.callbar .time{font-family:var(--mono);font-size:15px;letter-spacing:-.02em}
+.callbar .sep{width:1px;height:26px;background:rgba(255,255,255,.14)}
+.callbar .spacer{flex:1}
+.callbar button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;height:34px;border-radius:8px;padding:0 11px;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+.callbar button:hover{background:rgba(255,255,255,.16)}
+.callbar button svg{width:14px;height:14px}
+.callbar .hang{background:rgba(220,60,80,.2);border-color:rgba(220,60,80,.35);color:#ffd9df}
+body.has-call .content{padding-bottom:120px}
+
+/* ---------- queue ---------- */
+.toolbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.seg{display:inline-flex;padding:2px;border:1px solid var(--line);background:#fff;border-radius:8px;box-shadow:var(--shadow-1)}
+.seg button{border:0;background:none;height:28px;padding:0 10px;border-radius:6px;font-size:12px;color:var(--ink-3);font-weight:500}
+.seg button.on{background:var(--navy-800);color:#fff}
+.select{height:32px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:0 28px 0 10px;font-size:12.5px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237d818c' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;box-shadow:var(--shadow-1)}
+.search-field{display:flex;align-items:center;gap:7px;height:32px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:0 9px;box-shadow:var(--shadow-1);flex:1;min-width:180px;max-width:320px}
+.search-field svg{width:13px;height:13px;color:var(--ink-3)}
+.search-field input{border:0;outline:none;background:none;font-size:12.5px;width:100%}
+.table-wrap{overflow:hidden}
+table.q{width:100%;border-collapse:collapse}
+table.q th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);font-weight:500;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
+table.q th:first-child,table.q td:first-child{padding-left:18px}
+table.q th:last-child,table.q td:last-child{padding-right:18px;text-align:right}
+table.q td{padding:12px 12px;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:middle}
+table.q tr:last-child td{border-bottom:0}
+table.q tbody tr{transition:background .1s}
+table.q tbody tr:hover{background:var(--surface-2)}
+.q-person{display:flex;gap:9px;align-items:center;min-width:190px}
+.q-person .av{width:28px;height:28px;border-radius:50%;background:#e7eaf3;color:var(--navy-700);display:grid;place-items:center;font-size:10px;font-weight:600;flex:none}
+.q-person b{display:block;font-size:14px;font-weight:500;line-height:1.25}
+.q-person span{display:block;font-size:11px;color:var(--ink-3);line-height:1.3}
+.q-why{max-width:260px;font-size:12px;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.q-miss{font-size:11.5px;color:var(--ink-3)}
+.q-actions{display:flex;gap:5px;justify-content:flex-end}
+.q-actions .btn{height:30px;font-size:12px;padding:0 10px}
+table.q.compact td{padding:7px 12px}
+table.q.compact .q-person .av{width:24px;height:24px;font-size:9px}
+table.q.compact .q-person b{font-size:12px}
+table.q.compact .q-why{-webkit-line-clamp:1}
+.table-foot{display:flex;justify-content:space-between;align-items:center;padding:11px 18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3);background:var(--surface-2)}
+.empty-row{padding:46px 20px;text-align:center;color:var(--ink-3);font-size:13px}
+
+/* ---------- follow-ups ---------- */
+.follow-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+.filter-chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px}
+.filter-chips button{height:30px;padding:0 11px;border-radius:99px;border:1px solid var(--line);background:#fff;font-size:12px;color:var(--ink-2)}
+.filter-chips button.on{background:var(--navy-800);border-color:var(--navy-800);color:#fff}
+.legend{padding:16px 18px}
+.legend h3{font-size:13px;font-weight:600;margin-bottom:9px}
+.legend p{font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.legend .line{display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--ink-2);padding:5px 0}
+.legend .line i{width:6px;height:6px;border-radius:50%;flex:none}
+.legend .line b{margin-left:auto;font-family:var(--mono);font-weight:500;font-size:11px}
+
+/* ---------- brief page ---------- */
+.brief-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:18px;align-items:start}
+.brief-hero{background:var(--navy-800);color:#fff;border-radius:var(--radius-l);padding:26px 28px;position:relative;overflow:hidden}
+.brief-hero:after{content:"";position:absolute;right:-60px;bottom:-100px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,rgba(198,75,139,.25),transparent 70%)}
+.brief-hero h2{font-size:26px;letter-spacing:-.035em;font-weight:600;position:relative}
+.brief-hero p{font-size:13px;color:rgba(255,255,255,.65);margin-top:6px;position:relative;max-width:56ch;line-height:1.5}
+.brief-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:20px;position:relative}
+.brief-kpis div{padding:12px;border-radius:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)}
+.brief-kpis span{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:5px}
+.brief-kpis b{font-family:var(--mono);font-size:18px;font-weight:500}
+.brief-item{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px}
+.brief-item:last-child{border-bottom:0}
+.brief-item .num{font-family:var(--mono);font-size:10px;color:var(--magenta);padding-top:2px}
+.brief-item b{display:block;font-size:13px;font-weight:500}
+.brief-item p{font-size:12px;color:var(--ink-2);line-height:1.5;margin-top:2px}
+
+/* ---------- mobile nav ---------- */
+.mobile-nav{display:none;position:fixed;left:0;right:0;bottom:0;height:58px;background:#fff;border-top:1px solid var(--line);z-index:65;padding-bottom:env(safe-area-inset-bottom)}
+.mobile-nav ul{display:grid;grid-template-columns:repeat(4,1fr);height:100%}
+.mobile-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;color:var(--ink-3);font-weight:500}
+.mobile-nav a svg{width:19px;height:19px}
+.mobile-nav a.active{color:var(--navy-800)}
+.mobile-nav a.active svg{color:var(--magenta-600)}
+.scrim{display:none;position:fixed;inset:0;background:rgba(10,16,32,.42);z-index:55}
+
+/* ---------- palette ---------- */
+.palette{position:fixed;inset:0;z-index:100;display:none;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(10,16,32,.38);backdrop-filter:blur(3px)}
+.palette.open{display:flex}
+.palette-box{width:min(620px,calc(100vw - 28px));background:#fff;border-radius:14px;border:1px solid var(--line);box-shadow:0 30px 80px -20px rgba(10,16,32,.5);overflow:hidden}
+.palette-input{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.palette-input svg{width:17px;height:17px;color:var(--ink-3)}
+.palette-input input{flex:1;border:0;outline:none;font-size:15px;background:none}
+.palette-input kbd{font-family:var(--mono);font-size:10px;border:1px solid var(--line);border-radius:4px;padding:2px 5px;color:var(--ink-3)}
+.palette-list{max-height:380px;overflow-y:auto;padding:6px}
+.palette-group{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:9px 10px 4px}
+.palette-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;font-size:13px;cursor:pointer}
+.palette-item svg{width:15px;height:15px;color:var(--ink-3)}
+.palette-item span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.palette-item small{font-size:11px;color:var(--ink-4)}
+.palette-item.sel{background:var(--magenta-100);box-shadow:inset 0 0 0 1px var(--magenta-600)}
+.palette-item.sel svg{color:var(--magenta-600)}
+.palette-foot{display:flex;gap:14px;padding:9px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-3);background:var(--surface-2)}
+.palette-foot kbd{font-family:var(--mono);font-size:9.5px;border:1px solid var(--line);border-radius:3px;padding:0 4px;background:#fff}
+
+/* ---------- modal ---------- */
+.modal{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,16,32,.4);backdrop-filter:blur(3px)}
+.modal.open{display:flex}
+.modal-box{width:min(480px,100%);background:#fff;border-radius:14px;border:1px solid var(--line);box-shadow:0 30px 80px -20px rgba(10,16,32,.5);overflow:hidden;animation:pop .16s ease-out}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
+.modal-head{padding:18px 20px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.modal-head h2{font-size:16px;font-weight:600;letter-spacing:-.02em}
+.modal-head p{font-size:12px;color:var(--ink-3);margin-top:3px}
+.modal-body{padding:18px 20px}
+.modal-foot{padding:0 20px 18px;display:flex;gap:8px;justify-content:flex-end}
+.modal-foot .btn{min-width:90px}
+
+.toast{
+  position:fixed;left:50%;bottom:84px;transform:translate(-50%,20px);z-index:110;
+  background:var(--navy-950);color:#fff;border-radius:10px;padding:11px 15px;display:flex;align-items:center;gap:9px;
+  font-size:12.5px;box-shadow:0 16px 40px -16px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  max-width:calc(100vw - 30px);
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast svg{width:15px;height:15px;color:#8fe0bf;flex:none}
+.toast b{font-weight:500}
+
+.demo-tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);display:flex;align-items:center;gap:5px}
+.demo-tag i{width:5px;height:5px;border-radius:50%;background:var(--ink-4)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1399px){
+  .call-stage{grid-template-columns:290px minmax(0,1fr);}
+  .outcome-card{grid-column:1 / -1;position:static}
+  .results{grid-template-columns:repeat(4,1fr)}
+}
+@media (max-width:1080px){
+  .grid-shift{grid-template-columns:1fr}
+  .brief-grid{grid-template-columns:1fr}
+  .follow-grid{grid-template-columns:1fr}
+  .hero h2{font-size:27px}
+}
+@media (max-width:980px){
+  :root{--sidebar-w:0px}
+  .sidebar{transform:translateX(-100%);visibility:hidden;transition:transform .22s ease,visibility .22s;width:248px}
+  .sidebar.open{transform:none;visibility:visible}
+  .scrim.show{display:block}
+  .main{margin-left:0}
+  .hamb{display:flex}
+  .callbar{left:0}
+  .mobile-nav{display:block}
+  body.has-call .content{padding-bottom:180px}
+  .callbar{bottom:58px}
+  .toast{bottom:130px}
+  .topbar{padding:0 16px;gap:10px}
+  .content{padding:20px 16px 90px}
+  .mission-chip .mname{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .report-btn span,.clock-chip{display:none}
+}
+@media (max-width:600px){
+  .topbar{gap:7px;padding:0 12px}
+  .searchbtn{padding:0;width:34px;justify-content:center}
+  .searchbtn span,.searchbtn kbd{display:none}
+  .report-btn,.topbar [aria-label="Aide"]{display:none}
+  .mission-chip{padding:4px 8px 4px 5px;min-width:0}
+  .mission-chip .mname{max-width:92px}
+  .stage-bar .stage-name{max-width:150px}
+  .content{padding:16px 12px 88px}
+  .outcome-submit .btn{font-size:13px}
+}
+@media (max-width:760px){
+  .call-stage{grid-template-columns:1fr}
+  .lead-card{order:1}
+  .script-card{order:2}
+  .outcome-card{order:3;position:static;z-index:12;box-shadow:0 12px 30px -14px rgba(10,16,32,.35)}
+  .outcome-card .card-body{max-height:none}
+  .results{grid-template-columns:1fr 1fr}
+  .page-head h1{font-size:22px}
+  .hero{padding:20px}
+  .hero h2{font-size:26px}
+  .hero-top{flex-wrap:wrap}
+  .page-head .sub{flex-wrap:wrap}
+  .hero .why{font-size:12.5px}
+  .call-btn{width:100%;justify-content:center;font-size:13.5px}
+  .hero .btn-line{width:100%;justify-content:center}
+  .hero .call-btn .kbd{display:none}
+  .stage-bar{flex-wrap:wrap;gap:8px;padding:10px 12px}
+  .stage-bar .stage-timer{font-size:17px}
+  .pace-nums b{font-size:19px}
+  .callbar .who span{display:none}
+  .callbar .sep{display:none}
+  .callbar{padding:0 12px;gap:9px}
+  .callbar button{padding:0 9px}
+  .callbar .btn-label{display:none}
+  .tl-row{grid-template-columns:48px minmax(0,1fr);gap:10px}
+  .tl-actions{grid-column:2;justify-content:flex-start}
+  .tl-quote{-webkit-line-clamp:3}
+  .table-wrap{overflow-x:auto}
+  table.q{min-width:0}
+  table.q th:nth-child(3),table.q td:nth-child(3),table.q th:nth-child(5),table.q td:nth-child(5){display:none}
+  table.q th,table.q td{padding-left:8px;padding-right:8px}
+  table.q th:first-child,table.q td:first-child{padding-left:12px}
+  table.q th:last-child,table.q td:last-child{padding-right:12px}
+  .q-person{min-width:0}
+  .q-why{max-width:none}
+  .script-tabs{flex-wrap:wrap;overflow:visible;padding:0 6px}
+  .script-tabs button{padding:11px 8px 9px;font-size:12px}
+  .toolbar .search-field{max-width:none;flex-basis:100%}
+  .brief-kpis{grid-template-columns:1fr 1fr}
+  .modal-foot{flex-direction:column-reverse}
+  .modal-foot .btn{width:100%}
+}
+@media (max-width:600px){
+  .hero-foot{flex-direction:column;align-items:flex-start}
+  .page-head .sub{display:block;line-height:1.6}
+  .page-head .sub .dot{display:none}
+}
+.search-field input:focus-visible,.palette-input input:focus-visible,.outcome-note textarea:focus-visible{outline:2px solid var(--magenta);outline-offset:2px;border-radius:6px}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2Z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-chevron-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 12 5 5L20 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></symbol>
+  <symbol id="i-mic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V5a3 3 0 0 0-5.8-1M5 10a7 7 0 0 0 11 5.7M19 10a7 7 0 0 1-.5 2.6M12 17v5M2 2l20 20"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5Z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 17.4A2 2 0 0 0 4.1 20.4h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></symbol>
+  <symbol id="i-linkedin" viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 8.5H3V21h3.5V8.5ZM4.8 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM21 13.4c0-3.8-2-5.6-4.7-5.6-2.2 0-3.2 1.2-3.7 2V8.5H9.1V21h3.5v-7c0-1.6.8-2.6 2.2-2.6 1.3 0 2 .9 2 2.6v7H21v-7.6Z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15Z"/></symbol>
+  <symbol id="i-skip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 4 10 8-10 8V4ZM20 4v16"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></symbol>
+  <symbol id="i-command" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 6 0 3 3 0 0 0-3-3H6a3 3 0 0 0 0 6 3 3 0 0 0 3-3V6a3 3 0 0 0-6 0 3 3 0 0 0 3 3h12"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">CP</div>
+      <div class="brand-txt"><strong>Captain Prospect</strong><span>SDR workspace</span></div>
+    </div>
+
+    <div class="nav-label">Shift</div>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="#/shift" data-nav="shift"><svg><use href="#i-layers"/></svg>Shift</a>
+      <a href="#/queue" data-nav="queue"><svg><use href="#i-phone"/></svg>File d’appel<span class="count">48</span></a>
+      <a href="#/followups" data-nav="followups"><svg><use href="#i-calendar"/></svg>Suivi<span class="count" id="navFollowCount">10</span></a>
+      <a href="#/brief" data-nav="brief"><svg><use href="#i-book"/></svg>Brief mission</a>
+    </nav>
+
+    <div class="nav-label" style="margin-top:18px">Repères</div>
+    <nav class="nav" aria-label="Navigation secondaire">
+      <a href="#/history" data-nav="history"><svg><use href="#i-history"/></svg>Historique</a>
+      <a href="#" data-open-palette><svg><use href="#i-command"/></svg>Commandes <span class="mono" style="margin-left:auto;font-size:10px;opacity:.5">⌘K</span></a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="goal">
+        <div class="goal-top"><span>Objectif du jour</span><b>18 / 45</b></div>
+        <div class="goal-bar"><i style="width:40%"></i></div>
+        <small>3 appels de retard · 2 h 10 d’appel</small>
+      </div>
+      <div class="me">
+        <div class="avatar">YB</div>
+        <div><strong>Yanis Belkacem</strong><span>SDR · Nova Solar</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="scrim" id="scrim"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="hamb" id="hamb" aria-label="Ouvrir le menu"><svg width="17" height="17"><use href="#i-menu"/></svg></button>
+      <button class="mission-chip" data-open-palette>
+        <span class="mission-dot">NS</span>
+        <span class="mname">Nova Solar — B2B</span>
+        <svg><use href="#i-chevron"/></svg>
+      </button>
+      <span class="clock-chip"><i></i>Créneau 09:00 – 12:30</span>
+      <span class="spacer"></span>
+      <button class="searchbtn" data-open-palette aria-label="Rechercher">
+        <svg><use href="#i-search"/></svg><span>Rechercher</span><kbd>⌘K</kbd>
+      </button>
+      <button class="report-btn" aria-label="Bilan de la journée"><svg><use href="#i-note"/></svg><span>Bilan de la journée</span></button>
+      <button class="iconbtn" aria-label="Aide" title="Raccourcis clavier"><span style="font-family:var(--mono);font-size:12px">?</span></button>
+      <div class="avatar-sm">YB</div>
+    </header>
+
+    <div class="content">
+
+      <!-- ================= SHIFT ================= -->
+      <section class="view active" id="view-shift" data-view="shift">
+        <div class="page-head">
+          <div>
+            <h1>Bonjour Yanis</h1>
+            <div class="sub">Jeudi 22 octobre <span class="dot"></span> 18 appels <span class="dot"></span> 3 RDV cette semaine <span class="dot"></span> <span class="demo-tag"><i></i>données de démo</span></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn"><svg><use href="#i-clock"/></svg>Prendre une pause</button>
+            <a class="btn btn-primary" href="#/queue"><svg><use href="#i-phone"/></svg>Ouvrir la file</a>
+          </div>
+        </div>
+
+        <div class="grid-shift">
+          <div class="stack">
+            <article class="hero">
+              <div class="hero-top">
+                <div class="hero-eyebrow" id="heroEyebrow"><i></i>Prochaine action · rappel promis hier</div>
+                <span class="hero-pill">Prête dans 12 min</span>
+              </div>
+              <h2 id="heroName">Camille Rousseau</h2>
+              <p class="role" id="heroRole">Directrice des opérations · Groupe Delmas · 240 salariés</p>
+              <div class="why" id="heroWhy">« Rappelez-moi jeudi matin, je compare avec notre prestataire actuel avant le comité du <b>4 novembre</b>. » <span style="color:rgba(255,255,255,.5)">— hier, 16:10</span></div>
+              <div class="hero-tags" id="heroTags"><span>Rappel promis</span><span>Décisionnaire</span><span>Budget 25–40 k€</span><span>Île-de-France</span></div>
+              <div class="hero-actions">
+                <button class="call-btn" data-start-call>
+                  <svg width="17" height="17"><use href="#i-phone"/></svg>
+                  Appeler
+                  <span class="num" id="heroPhone">01 84 60 22 18</span>
+                  <span class="kbd">↵</span>
+                </button>
+                <a class="btn btn-line" href="#/call"><svg><use href="#i-note"/></svg>Ouvrir le dossier</a>
+                <button class="btn btn-line" data-skip><svg><use href="#i-skip"/></svg>Passer</button>
+              </div>
+              <div class="hero-foot">
+                <span id="heroFoot">Dernier contact : hier 16:10 · Rappel demandé · par toi</span>
+                <button data-open-palette>Voir les 3 autres actions <svg width="11" height="11"><use href="#i-arrow"/></svg></button>
+              </div>
+            </article>
+
+            <div class="card">
+              <div class="card-head">
+                <h2>À suivre</h2>
+                <span class="eyebrow">Les 3 prochaines</span>
+              </div>
+              <div class="next-list">
+                <button class="next-row" data-open-lead="Marc Thibault">
+                  <div class="next-time">09:40<small>email</small></div>
+                  <div class="next-main"><b>Marc Thibault</b><span>Atelier Verne · Demande un devis, dossier incomplet</span></div>
+                  <span class="go"><svg><use href="#i-chevron-r"/></svg></span>
+                </button>
+                <button class="next-row" data-open-lead="Sofia Benali">
+                  <div class="next-time">11:00<small>appel</small></div>
+                  <div class="next-main"><b>Sofia Benali</b><span>Kaïros Conseil · Budget validé, attend une date</span></div>
+                  <span class="go"><svg><use href="#i-chevron-r"/></svg></span>
+                </button>
+                <button class="next-row" data-open-lead="Julien Marchand">
+                  <div class="next-time">11:45<small>appel</small></div>
+                  <div class="next-main"><b>Julien Marchand</b><span>Helios Ingénierie · Premier contact, jamais appelé</span></div>
+                  <span class="go"><svg><use href="#i-chevron-r"/></svg></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h2>Promesses du jour</h2>
+                <a href="#/followups" class="btn btn-ghost btn-sm">Tout voir <svg><use href="#i-arrow"/></svg></a>
+              </div>
+              <div class="timeline-group">
+                <div class="tl-head"><svg width="13" height="13" style="color:var(--red)"><use href="#i-alert"/></svg><h3>En retard</h3><span class="n warn">2</span></div>
+                <div class="tl-row">
+                  <div class="tl-time late">09:15<small>hier</small></div>
+                  <div class="tl-body"><b>Nadia Fournier</b><span class="co">Vignal &amp; Associés · 01 45 22 08 74</span><div class="tl-quote">« Je vous rappelle demain matin, avant ma réunion de 10 h. »</div></div>
+                  <div class="tl-actions"><button class="btn btn-primary btn-sm" data-call-name="Nadia Fournier">Appeler</button><button class="btn btn-sm" data-reschedule>Reporter</button></div>
+                </div>
+                <div class="tl-head" style="border-top:1px solid var(--line);background:#fff"><svg width="13" height="13" style="color:var(--ink-3)"><use href="#i-clock"/></svg><h3>Aujourd’hui</h3><span class="n">4</span></div>
+                <div class="tl-row">
+                  <div class="tl-time">10:30<small>appel</small></div>
+                  <div class="tl-body"><b>Camille Rousseau</b><span class="co">Groupe Delmas · rappel promis</span></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-call-name="Camille Rousseau">Appeler</button></div>
+                </div>
+                <div class="tl-row">
+                  <div class="tl-time">14:00<small>rdv</small></div>
+                  <div class="tl-body"><b>Thomas Klein</b><span class="co">Klein &amp; Fils · RDV visio à confirmer</span></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-confirm>Confirmer</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="card pace">
+              <div class="card-body">
+                <div class="pace-head">
+                  <div><h3>Rythme du jour</h3><div class="tiny muted" style="margin-top:2px">09:42 · créneau jusqu’à 12:30</div></div>
+                  <span class="pace-status"><i></i>En retard</span>
+                </div>
+                <div class="pace-nums">
+                  <div><span>Réalisés</span><b>18<small> / 45</small></b></div>
+                  <div><span>Attendu</span><b>21</b></div>
+                  <div class="neg"><span>Écart</span><b>−3</b></div>
+                </div>
+                <div class="pace-track"><i style="width:40%"></i><span class="marker" style="left:46.6%"></span></div>
+                <p class="pace-foot">Tiens 12 appels/h pour repasser devant d’ici 11:00. <b style="color:var(--ink-2);font-weight:500">Pause déjeuner non comptée.</b></p>
+              </div>
+            </div>
+
+            <div class="card brief-rail">
+              <div class="card-body">
+                <div class="eyebrow" style="margin-bottom:10px">Brief mission</div>
+                <div class="brief-client">
+                  <div class="logo">NS</div>
+                  <div><b>Nova Solar</b><span>Audit solaire B2B · vague 3</span></div>
+                </div>
+                <div class="brief-line"><span>Offre</span><b>Audit gratuit 30 min</b></div>
+                <div class="brief-line"><span>Cible</span><b>Dir. technique · 50–500 sal.</b></div>
+                <div class="brief-line"><span>Argument</span><b>−18 % sur la facture</b></div>
+                <a class="brief-script" href="#/brief">
+                  <div><b>Accroche Nova v3</b><p>Validée le 14 oct. · 2 objections récentes</p></div>
+                  <svg><use href="#i-arrow"/></svg>
+                </a>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><h3>Dernier résultat</h3><span class="eyebrow">09:36</span></div>
+              <div class="card-body" style="padding:14px 18px">
+                <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+                  <span class="chip chip--green"><svg><use href="#i-check"/></svg>RDV pris</span>
+                  <b style="font-size:13px;font-weight:500">Élodie Faure</b>
+                </div>
+                <p class="tiny muted">Mercredi 28 octobre, 11:00 · visio · confirmé par email</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= CALL ================= -->
+      <section class="view" id="view-call" data-view="call">
+        <div class="stage-bar">
+          <div class="left">
+            <span class="live"><i></i><span id="stageLive">Prêt à appeler</span></span>
+            <span class="sep" style="width:1px;height:22px;background:rgba(255,255,255,.16)"></span>
+            <span class="stage-name" id="stageName">Camille Rousseau · Groupe Delmas</span>
+          </div>
+          <div class="right">
+            <span class="stage-timer" id="stageTimer">00:00</span>
+            <button class="iconbtn" id="stageMute" aria-label="Couper le micro" title="Mute"><svg><use href="#i-mic"/></svg></button>
+            <button class="iconbtn" id="stageNote" aria-label="Note rapide" title="Note (N)"><svg><use href="#i-note"/></svg></button>
+            <button class="end" id="stageEnd">Terminer</button>
+            <button class="btn btn-magenta" id="stageStart" style="height:32px;font-size:12px;padding:0 12px"><svg><use href="#i-play"/></svg>Démarrer</button>
+          </div>
+        </div>
+
+        <div class="call-stage">
+          <div class="stage-col">
+            <div class="card lead-card">
+              <div class="card-body">
+                <div class="lead-id">
+                  <div class="lead-avatar">CR</div>
+                  <div>
+                    <h2 id="leadName">Camille Rousseau</h2>
+                    <p class="title" id="leadTitle">Directrice des opérations</p>
+                    <p class="co"><svg><use href="#i-building"/></svg><span id="leadCompany">Groupe Delmas · BTP · 240 salariés</span></p>
+                  </div>
+                </div>
+                <div class="lead-phone">
+                  <a href="tel:0184602218" id="leadPhone"><svg width="14" height="14"><use href="#i-phone"/></svg>01 84 60 22 18</a>
+                  <button aria-label="Copier le numéro" data-copy="01 84 60 22 18"><svg width="14" height="14"><use href="#i-copy"/></svg></button>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="leadTags">
+                  <span class="chip chip--magenta">Rappel promis</span>
+                  <span class="chip chip--navy">Décideuse</span>
+                  <span class="chip">Île-de-France</span>
+                </div>
+                <div class="note-box"><svg><use href="#i-note"/></svg><span>« Rappelez-moi jeudi matin, je compare avec notre prestataire actuel avant le comité du 4 novembre. »<br><span style="opacity:.7">— hier 16:10, par toi</span></span></div>
+                <div class="facts">
+                  <div class="fact"><span>Effectif</span><b id="factSize">240 salariés</b></div>
+                  <div class="fact"><span>Secteur</span><b id="factSector">BTP · rénovation</b></div>
+                  <div class="fact"><span>Source</span><b id="factSource">Apollo · 12 oct.</b></div>
+                  <div class="fact"><span>Dernier contact</span><b id="factLast">Hier, 16:10</b></div>
+                  <div class="fact"><span>Statut</span><b id="factStatus" style="color:var(--green)">Qualifiée</b></div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:12px">
+                  <a class="btn btn-sm" href="mailto:camille.rousseau@groupe-delmas.fr" id="leadEmail" style="flex:1"><svg><use href="#i-mail"/></svg>Email</a>
+                  <button class="btn btn-sm" data-demo="Profil LinkedIn de Camille Rousseau" style="flex:1"><svg><use href="#i-linkedin"/></svg>LinkedIn</button>
+                  <button class="btn btn-sm" data-demo="Site de Groupe Delmas" style="flex:1"><svg><use href="#i-globe"/></svg>Site</button>
+                </div>
+                <div class="prev">
+                  <h3>Échanges précédents</h3>
+                  <div id="prevList">
+                    <div class="prev-row"><time>Hier</time><span>Rappel demandé · 16:10 · 2 min 40</span></div>
+                    <div class="prev-row"><time>14 oct.</time><span>Gatekeeper passé · ligne directe obtenue</span></div>
+                    <div class="prev-row"><time>12 oct.</time><span>Email envoyé · ouvert 2 fois</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage-col">
+            <div class="card script-card">
+              <div class="script-tabs" role="tablist" aria-label="Script d’appel">
+                <button class="on" data-script="accroche" role="tab" aria-selected="true">Accroche</button>
+                <button data-script="qualif" role="tab" aria-selected="false">Qualification</button>
+                <button data-script="objections" role="tab" aria-selected="false">Objections <span style="color:var(--magenta-600)">·</span></button>
+                <button data-script="preuve" role="tab" aria-selected="false">Preuve</button>
+              </div>
+              <div class="script-panel on" data-panel="accroche">
+                <div class="script-step">
+                  <div class="step-label"><span>01 · Reprendre la promesse</span><button data-copy-step>Copier <svg width="11" height="11"><use href="#i-copy"/></svg></button></div>
+                  <p>« Bonjour <span id="scriptFirstName">Camille</span>, Yanis de Nova Solar. Vous m’avez demandé de vous rappeler ce matin, <em>avant votre prochaine échéance</em> — c’est bien le bon moment ? »</p>
+                  <p class="hint">Ne pas re-présenter l’offre : elle l’a déjà entendue. Rendre la parole en moins de 12 secondes.</p>
+                </div>
+                <div class="script-step">
+                  <div class="step-label"><span>02 · Le sujet du rappel</span><button data-copy-step>Copier <svg width="11" height="11"><use href="#i-copy"/></svg></button></div>
+                  <p>« Vous vouliez comparer avec votre prestataire actuel. Sur quoi voulez-vous être rassurée : le prix, le délai, ou la réalité des 18 % d’économie ? »</p>
+                  <p class="hint">Une seule question à la fois. Laisser 3 secondes de silence.</p>
+                </div>
+                <div class="script-step">
+                  <div class="step-label"><span>03 · Obtenir la date</span><button data-copy-step>Copier <svg width="11" height="11"><use href="#i-copy"/></svg></button></div>
+                  <p>« Je vous propose 30 minutes avec notre ingénieur, <em>mardi 27 à 9 h ou jeudi 29 à 14 h</em>. Laquelle tient dans votre agenda ? »</p>
+                </div>
+              </div>
+              <div class="script-panel" data-panel="qualif">
+                <div class="script-step">
+                  <div class="step-label"><span>Décideur</span></div>
+                  <p>« Qui signe l’engagement, vous ou la direction générale ? »</p>
+                </div>
+                <div class="script-step">
+                  <div class="step-label"><span>Besoin</span></div>
+                  <p>« Aujourd’hui, qu’est-ce qui vous coûte le plus : la facture, ou le temps passé à suivre les relevés ? »</p>
+                </div>
+                <div class="script-step">
+                  <div class="step-label"><span>Échéance</span></div>
+                  <p>« Le comité du 4 novembre, c’est une décision ou une étape ? »</p>
+                </div>
+                <div class="script-step">
+                  <div class="step-label"><span>Budget</span></div>
+                  <p>« Vous avez une enveloppe posée, ou c’est à construire ? »</p>
+                  <p class="hint">Noter la fourchette dans la note, pas dans le champ « résultat ».</p>
+                </div>
+              </div>
+              <div class="script-panel" data-panel="objections">
+                <details class="objection" open>
+                  <summary>« On a déjà un prestataire » <svg><use href="#i-chevron-r"/></svg></summary>
+                  <div class="obj-body"><b>Réponse :</b> « C’est une bonne nouvelle : vous avez déjà un point de comparaison. Je ne viens pas remplacer, je viens chiffrer ce que vous laissez sur la table. »<br><br><b>Puis :</b> « Qu’est-ce qui vous ferait changer, concrètement ? »</div>
+                </details>
+                <details class="objection">
+                  <summary>« Pas le temps cette semaine » <svg><use href="#i-chevron-r"/></svg></summary>
+                  <div class="obj-body"><b>Réponse :</b> « Je comprends. 30 secondes : je vous dis ce que j’ai préparé pour Delmas, et vous décidez si ça mérite 30 minutes. »</div>
+                </details>
+                <details class="objection">
+                  <summary>« Envoyez-moi un email » <svg><use href="#i-chevron-r"/></svg></summary>
+                  <div class="obj-body"><b>Réponse :</b> « Volontiers — pour qu’il soit utile, dites-moi juste qui d’autre doit le lire. Je l’envoie à vous deux. »</div>
+                </details>
+                <details class="objection">
+                  <summary>« C’est trop cher » <svg><use href="#i-chevron-r"/></svg></summary>
+                  <div class="obj-body"><b>Réponse :</b> « Sur quel poste : l’audit, ou la mise en œuvre ? » Puis ramener au coût actuel : « Combien vous coûte une facture non optimisée par mois ? »</div>
+                </details>
+              </div>
+              <div class="script-panel" data-panel="preuve">
+                <div class="script-step">
+                  <div class="step-label"><span>Référence sectorielle</span></div>
+                  <p>« Sur un site de 240 personnes comme Delmas, on a sorti <em>31 400 € d’économies annuelles</em> chez un façadier de Lyon, sans changer de fournisseur. »</p>
+                  <p class="hint">Chiffre issu de la fiche client Nova Solar — ne pas l’étendre à un autre secteur.</p>
+                </div>
+                <div class="script-step">
+                  <div class="step-label"><span>Ce qui rassure</span></div>
+                  <p>« L’audit est gratuit, sans engagement, et vous repartez avec le rapport même si vous ne signez pas. »</p>
+                </div>
+                <div class="script-step">
+                  <div class="step-label"><span>Prochaine étape</span></div>
+                  <p>« Je bloque 30 minutes avec notre ingénieur, et je vous envoie l’invitation pendant qu’on est en ligne. »</p>
+                </div>
+              </div>
+              <div class="script-foot">
+                <span><kbd>N</kbd>note · <kbd>1–8</kbd>résultat · <kbd>⌘</kbd><kbd>↵</kbd>enregistrer</span>
+                <span style="color:var(--ink-4)">Script Nova v3 · 14 oct.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stage-col">
+            <div class="card outcome-card">
+              <div class="outcome-head">
+                <h2>Résultat de l’appel <span class="eyebrow" style="font-size:9px">1 – 8</span></h2>
+                <p id="outcomeHint">Démarrez l’appel pour enregistrer.</p>
+              </div>
+              <div class="results" id="results">
+                <button class="result" data-result="RDV pris" data-tone="win"><span class="k">1</span><span class="lbl">RDV pris</span></button>
+                <button class="result" data-result="Intéressé" data-tone="win"><span class="k">2</span><span class="lbl">Intéressé</span></button>
+                <button class="result" data-result="Rappel demandé"><span class="k">3</span><span class="lbl">Rappel</span></button>
+                <button class="result" data-result="Pas décideur"><span class="k">4</span><span class="lbl">Pas décideur</span></button>
+                <button class="result" data-result="Déjà équipé" data-tone="stop"><span class="k">5</span><span class="lbl">Déjà équipé</span></button>
+                <button class="result" data-result="Refus" data-tone="stop"><span class="k">6</span><span class="lbl">Refus</span></button>
+                <button class="result" data-result="Injoignable"><span class="k">7</span><span class="lbl">Injoignable</span></button>
+                <button class="result" data-result="Rappeler plus tard"><span class="k">8</span><span class="lbl">Plus tard</span></button>
+              </div>
+              <div class="outcome-note">
+                <label for="noteField">Note d’appel</label>
+                <textarea id="noteField" placeholder="Ce qui a été dit, en une phrase…"></textarea>
+              </div>
+              <div class="outcome-next">
+                <div class="field"><label for="nextDate">Prochaine date</label><input type="date" id="nextDate" value="2026-10-27"></div>
+                <div class="field"><label for="nextTime">Heure</label><input type="time" id="nextTime" value="09:00"></div>
+              </div>
+              <div class="outcome-submit">
+                <button class="btn btn-primary" id="saveOutcome"><svg><use href="#i-check"/></svg>Enregistrer &amp; suivant <span class="kbd kbd--dark">⌘ ↵</span></button>
+                <p>Le contact suivant est déjà chargé.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= QUEUE ================= -->
+      <section class="view" id="view-queue" data-view="queue">
+        <div class="page-head">
+          <div><h1>File d’appel</h1><div class="sub">48 contacts <span class="dot"></span> 3 listes <span class="dot"></span> Mission Nova Solar — vague 3</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" id="exportQueue"><svg><use href="#i-list"/></svg>Exporter</button>
+            <button class="btn btn-primary" data-start-call><svg><use href="#i-play"/></svg>Démarrer la session</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="seg" id="density"><button class="on" data-density="comfort">Confort</button><button data-density="compact">Compact</button></div>
+          <select class="select" id="queueList" aria-label="Liste"><option>Toutes les listes</option><option>Renovation BTP — IDF</option><option>Dir. techniques — 100+</option><option>Rappels du mois</option></select>
+          <select class="select" id="queuePriority" aria-label="Priorité"><option>Toutes priorités</option><option>Rappels promis</option><option>Contacts chauds</option><option>Jamais appelés</option></select>
+          <label class="search-field"><svg><use href="#i-search"/></svg><input id="queueSearch" placeholder="Nom, société, ville…" aria-label="Rechercher dans la file"></label>
+          <span style="flex:1"></span>
+          <span class="tiny muted mono" id="queueCount">48 contacts</span>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="q" id="queueTable">
+            <thead><tr><th>Contact</th><th>Raison de l’appel</th><th>Canal</th><th>Dernier contact</th><th>Mission</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr data-search="camille rousseau groupe delmas rappel">
+                <td><div class="q-person"><span class="av">CR</span><div><b>Camille Rousseau</b><span>Groupe Delmas · Paris</span></div></div></td>
+                <td><div class="q-why">Rappel promis hier 16:10 · compare avant le comité du 4 nov.</div></td>
+                <td><span class="chip chip--navy"><svg><use href="#i-phone"/></svg>Appel</span></td>
+                <td class="q-miss">Hier</td>
+                <td class="q-miss">Nova · vague 3</td>
+                <td><div class="q-actions"><button class="btn btn-primary btn-sm" data-call-name="Camille Rousseau"><svg><use href="#i-phone"/></svg>Appeler</button></div></td>
+              </tr>
+              <tr data-search="marc thibault atelier verne devis">
+                <td><div class="q-person"><span class="av">MT</span><div><b>Marc Thibault</b><span>Atelier Verne · Lyon</span></div></div></td>
+                <td><div class="q-why">Demande un devis, dossier incomplet — email du 20 oct.</div></td>
+                <td><span class="chip"><svg><use href="#i-mail"/></svg>Email</span></td>
+                <td class="q-miss">Il y a 2 j</td>
+                <td class="q-miss">Nova · vague 3</td>
+                <td><div class="q-actions"><button class="btn btn-sm" data-call-name="Marc Thibault">Appeler</button></div></td>
+              </tr>
+              <tr data-search="sofia benali kairos conseil budget">
+                <td><div class="q-person"><span class="av">SB</span><div><b>Sofia Benali</b><span>Kaïros Conseil · Paris</span></div></div></td>
+                <td><div class="q-why">Budget validé, attend une date pour l’audit.</div></td>
+                <td><span class="chip chip--navy"><svg><use href="#i-phone"/></svg>Appel</span></td>
+                <td class="q-miss">Avant-hier</td>
+                <td class="q-miss">Nova · vague 3</td>
+                <td><div class="q-actions"><button class="btn btn-sm" data-call-name="Sofia Benali">Appeler</button></div></td>
+              </tr>
+              <tr data-search="julien marchand helios ingenierie premier contact jamais">
+                <td><div class="q-person"><span class="av">JM</span><div><b>Julien Marchand</b><span>Helios Ingénierie · Nantes</span></div></div></td>
+                <td><div class="q-why">Premier contact · liste enrichie le 18 oct.</div></td>
+                <td><span class="chip chip--navy"><svg><use href="#i-phone"/></svg>Appel</span></td>
+                <td class="q-miss">Jamais</td>
+                <td class="q-miss">Nova · vague 3</td>
+                <td><div class="q-actions"><button class="btn btn-sm" data-call-name="Julien Marchand">Appeler</button></div></td>
+              </tr>
+              <tr data-search="nadia fournier vignal associes rappel retard">
+                <td><div class="q-person"><span class="av">NF</span><div><b>Nadia Fournier</b><span>Vignal &amp; Associés · Paris</span></div></div></td>
+                <td><div class="q-why" style="color:var(--red)">Rappel en retard de 27 min.</div></td>
+                <td><span class="chip chip--navy"><svg><use href="#i-phone"/></svg>Appel</span></td>
+                <td class="q-miss">Hier</td>
+                <td class="q-miss">Nova · vague 3</td>
+                <td><div class="q-actions"><button class="btn btn-primary btn-sm" data-call-name="Nadia Fournier">Appeler</button></div></td>
+              </tr>
+              <tr data-search="thomas klein klein fils rdv visio">
+                <td><div class="q-person"><span class="av">TK</span><div><b>Thomas Klein</b><span>Klein &amp; Fils · Strasbourg</span></div></div></td>
+                <td><div class="q-why">RDV visio aujourd’hui 14:00 — à confirmer.</div></td>
+                <td><span class="chip"><svg><use href="#i-calendar"/></svg>RDV</span></td>
+                <td class="q-miss">Lun. 20</td>
+                <td class="q-miss">Nova · vague 3</td>
+                <td><div class="q-actions"><button class="btn btn-sm" data-confirm>Confirmer</button></div></td>
+              </tr>
+              <tr data-search="amelie pons brasserie pons jamais appele">
+                <td><div class="q-person"><span class="av">AP</span><div><b>Amélie Pons</b><span>Brasserie Pons · Lille</span></div></div></td>
+                <td><div class="q-why">Jamais appelée · site sans adresse email.</div></td>
+                <td><span class="chip"><svg><use href="#i-phone"/></svg>Appel</span></td>
+                <td class="q-miss">Jamais</td>
+                <td class="q-miss">Nova · vague 3</td>
+                <td><div class="q-actions"><button class="btn btn-sm" data-call-name="Amélie Pons">Appeler</button></div></td>
+              </tr>
+              <tr data-search="karim hadj atelier bois clair cooldown">
+                <td><div class="q-person"><span class="av">KH</span><div><b>Karim Hadj</b><span>Atelier Bois Clair · Marseille</span></div></div></td>
+                <td><div class="q-why">Déjà contacté il y a 6 h — cooldown jusqu’à demain 9:00.</div></td>
+                <td><span class="chip chip--amber"><svg><use href="#i-clock"/></svg>En attente</span></td>
+                <td class="q-miss">Aujourd’hui</td>
+                <td class="q-miss">Nova · vague 2</td>
+                <td><div class="q-actions"><button class="btn btn-sm" disabled>Appeler</button></div></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="table-foot"><span id="queueFoot">8 contacts affichés sur 48</span><span>Tri : rappel promis, puis ancienneté</span></div>
+        </div>
+      </section>
+
+      <!-- ================= FOLLOWUPS ================= -->
+      <section class="view" id="view-followups" data-view="followups">
+        <div class="page-head">
+          <div><h1>Suivi</h1><div class="sub">Rappels, promesses et RDV à confirmer <span class="dot"></span> une seule chronologie</div></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn"><svg><use href="#i-calendar"/></svg>Voir le calendrier</button>
+          </div>
+        </div>
+
+        <div class="filter-chips" id="followFilters">
+          <button class="on" data-filter="all">Tout · 10</button>
+          <button data-filter="callback">Rappels · 5</button>
+          <button data-filter="meeting">RDV · 3</button>
+          <button data-filter="later">Relances · 2</button>
+        </div>
+
+        <div class="follow-grid">
+          <div class="stack">
+            <div class="card">
+              <div class="timeline-group" id="fGroupLate">
+                <div class="tl-head"><svg width="13" height="13" style="color:var(--red)"><use href="#i-alert"/></svg><h3>En retard</h3><span class="n warn">2</span><span style="margin-left:auto;font-size:11px;color:var(--ink-3)">Action attendue maintenant</span></div>
+                <div class="tl-row" data-kind="callback">
+                  <div class="tl-time late">09:15<small>hier</small></div>
+                  <div class="tl-body"><b>Nadia Fournier</b><span class="co">Vignal &amp; Associés · 01 45 22 08 74</span><div class="tl-quote">« Je vous rappelle demain matin, avant ma réunion de 10 h. » — hier 17:02</div></div>
+                  <div class="tl-actions"><button class="btn btn-primary btn-sm" data-call-name="Nadia Fournier">Appeler</button><button class="btn btn-sm" data-reschedule>Reporter</button><button class="btn btn-ghost btn-sm" data-done>Fait</button></div>
+                </div>
+                <div class="tl-row" data-kind="callback">
+                  <div class="tl-time late">Hier<small>16:30</small></div>
+                  <div class="tl-body"><b>Olivier Senn</b><span class="co">Senn Énergie · 06 12 44 90 31</span><div class="tl-quote">« Recontactez-moi après le 21, je rentre de déplacement. »</div></div>
+                  <div class="tl-actions"><button class="btn btn-primary btn-sm" data-call-name="Olivier Senn">Appeler</button><button class="btn btn-sm" data-reschedule>Reporter</button><button class="btn btn-ghost btn-sm" data-done>Fait</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="timeline-group" id="fGroupToday">
+                <div class="tl-head"><svg width="13" height="13" style="color:var(--ink-3)"><use href="#i-clock"/></svg><h3>Aujourd’hui</h3><span class="n" id="todayCount">3</span><span style="margin-left:auto;font-size:11px;color:var(--ink-3)">Jeudi 22 octobre</span></div>
+                <div class="tl-row" data-kind="callback">
+                  <div class="tl-time">10:30<small>appel</small></div>
+                  <div class="tl-body"><b>Camille Rousseau</b><span class="co">Groupe Delmas · rappel promis</span><div class="tl-quote">« Je compare avec notre prestataire actuel avant le comité du 4 novembre. »</div></div>
+                  <div class="tl-actions"><button class="btn btn-primary btn-sm" data-call-name="Camille Rousseau">Appeler</button><button class="btn btn-sm" data-reschedule>Reporter</button></div>
+                </div>
+                <div class="tl-row" data-kind="meeting">
+                  <div class="tl-time">14:00<small>visio</small></div>
+                  <div class="tl-body"><b>Thomas Klein</b><span class="co">Klein &amp; Fils · RDV avec l’ingénieur Nova</span><div class="tl-quote">Lien envoyé lundi · pas encore accepté par le prospect.</div></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-confirm>Confirmer</button><button class="btn btn-ghost btn-sm" data-cancel>Annuler</button></div>
+                </div>
+                <div class="tl-row" data-kind="callback">
+                  <div class="tl-time">16:15<small>appel</small></div>
+                  <div class="tl-body"><b>Sofia Benali</b><span class="co">Kaïros Conseil · budget validé</span><div class="tl-quote">« Appelez-moi jeudi après 16 h, je saurai pour la date. »</div></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-call-name="Sofia Benali">Appeler</button><button class="btn btn-sm" data-reschedule>Reporter</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="timeline-group">
+                <div class="tl-head"><svg width="13" height="13" style="color:var(--ink-3)"><use href="#i-calendar"/></svg><h3>RDV à confirmer</h3><span class="n" id="confirmCount">2</span><span style="margin-left:auto;font-size:11px;color:var(--ink-3)">Avant envoi au client</span></div>
+                <div class="tl-row" data-kind="meeting">
+                  <div class="tl-time">Mer. 28<small>11:00</small></div>
+                  <div class="tl-body"><b>Élodie Faure</b><span class="co">Faure Habitat · audit 30 min</span><div class="tl-quote">Pris hier 09:36 · email de confirmation ouvert.</div></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-confirm>Confirmer</button><button class="btn btn-ghost btn-sm" data-cancel>Annuler</button></div>
+                </div>
+                <div class="tl-row" data-kind="meeting">
+                  <div class="tl-time">Mer. 28<small>11:00</small></div>
+                  <div class="tl-body"><b>Pierre Vasseur</b><span class="co">Vasseur &amp; Cie · visio</span><div class="tl-quote">Lien envoyé ce matin · en attente.</div></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-confirm>Confirmer</button><button class="btn btn-ghost btn-sm" data-cancel>Annuler</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="fGroupWeek">
+              <div class="timeline-group">
+                <div class="tl-head"><svg width="13" height="13" style="color:var(--ink-3)"><use href="#i-calendar"/></svg><h3>Cette semaine</h3><span class="n" id="weekCount">4</span><span style="margin-left:auto;font-size:11px;color:var(--ink-3)">Rappels et relances planifiés</span></div>
+                <div class="tl-row" data-kind="callback">
+                  <div class="tl-time">Ven. 23<small>09:00</small></div>
+                  <div class="tl-body"><b>Karim Hadj</b><span class="co">Atelier Bois Clair · cooldown terminé</span><div class="tl-quote">A demandé « pas avant vendredi ». </div></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-call-name="Karim Hadj">Appeler</button><button class="btn btn-ghost btn-sm" data-done>Fait</button></div>
+                </div>
+                <div class="tl-row" data-kind="later">
+                  <div class="tl-time">Lun. 26<small>email</small></div>
+                  <div class="tl-body"><b>Marc Thibault</b><span class="co">Atelier Verne · relance devis</span><div class="tl-quote">Devis envoyé le 20 · sans réponse.</div></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-call-name="Marc Thibault">Appeler</button><button class="btn btn-ghost btn-sm" data-done>Fait</button></div>
+                </div>
+                <div class="tl-row" data-kind="later">
+                  <div class="tl-time">Mar. 27<small>email</small></div>
+                  <div class="tl-body"><b>Julien Marchand</b><span class="co">Helios Ingénierie · relance après email</span><div class="tl-quote">Email ouvert 2 fois, pas de réponse.</div></div>
+                  <div class="tl-actions"><button class="btn btn-sm" data-call-name="Julien Marchand">Appeler</button><button class="btn btn-ghost btn-sm" data-done>Fait</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="card legend">
+              <h3>Ce que dit cette liste</h3>
+              <p>Chaque ligne est une promesse faite à un prospect. Une seule source, une seule date, quel que soit le canal.</p>
+              <div style="margin-top:10px">
+                <div class="line"><i style="background:var(--red)"></i>En retard<b id="legLate">2</b></div>
+                <div class="line"><i style="background:var(--amber)"></i>Aujourd’hui<b id="legToday">3</b></div>
+                <div class="line"><i style="background:var(--navy-700)"></i>À confirmer<b id="legConfirm">2</b></div>
+                <div class="line"><i style="background:var(--ink-4)"></i>Cette semaine<b id="legWeek">3</b></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Prochain créneau libre</h3></div>
+              <div class="card-body" style="padding:14px 18px">
+                <p class="tiny muted" style="margin-bottom:10px">Pour un audit de 30 min avec l’ingénieur Nova.</p>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <button class="btn" style="justify-content:space-between" data-slot>Mardi 27 · 09:00 <span class="mono tiny">libre</span></button>
+                  <button class="btn" style="justify-content:space-between" data-slot>Mardi 27 · 14:30 <span class="mono tiny">libre</span></button>
+                  <button class="btn" style="justify-content:space-between" data-slot>Jeudi 29 · 11:00 <span class="mono tiny">libre</span></button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Rappel automatique</h3></div>
+              <div class="card-body" style="padding:14px 18px">
+                <p class="tiny muted">Un rappel arrive 5 min avant l’heure promise, dans l’app et sur le bureau. Aucun modal bloquant.</p>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:10px"><span class="chip chip--green"><svg><use href="#i-check"/></svg>Actif</span><span class="tiny muted">05:00 avant</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= BRIEF ================= -->
+      <section class="view" id="view-brief" data-view="brief">
+        <div class="page-head">
+          <div><h1>Brief mission</h1><div class="sub">Nova Solar <span class="dot"></span> Vague 3 <span class="dot"></span> 48 fiches restantes</div></div>
+          <button class="btn" id="copyBrief"><svg><use href="#i-copy"/></svg>Copier le brief</button>
+        </div>
+
+        <div class="brief-grid">
+          <div class="stack">
+            <div class="brief-hero">
+              <div class="eyebrow" style="color:#e9a8c9;position:relative">Client · Nova Solar</div>
+              <h2 style="margin-top:8px">Faire accepter un audit solaire de 30 minutes aux directions techniques.</h2>
+              <p>Objectif de la vague : 12 audits qualifiés sur 480 fiches. Le prospect ne signe rien pendant l’appel — la seule victoire est une date.</p>
+              <div class="brief-kpis">
+                <div><span>Fiches</span><b>48 restantes</b></div>
+                <div><span>Audits</span><b>7 / 12</b></div>
+                <div><span>Taux</span><b>2,9 %</b></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><h2>Objections de la semaine</h2><span class="eyebrow">Extraites de 34 appels</span></div>
+              <details class="objection" open>
+                <summary>« On a déjà un prestataire » — 11 fois <svg><use href="#i-chevron-r"/></svg></summary>
+                <div class="obj-body"><b>Ce qui marche :</b> valider le choix, puis demander « qu’est-ce qui vous ferait changer ? ». <b>Ce qui échoue :</b> attaquer le prestataire en place.</div>
+              </details>
+              <details class="objection">
+                <summary>« Envoyez un email » — 9 fois <svg><use href="#i-chevron-r"/></svg></summary>
+                <div class="obj-body">Proposer d’envoyer à deux personnes nommées. Si le nom manque, l’email ne sera pas lu.</div>
+              </details>
+              <details class="objection">
+                <summary>« Pas le temps » — 7 fois <svg><use href="#i-chevron-r"/></svg></summary>
+                <div class="obj-body">Micro-cadre de 30 secondes, puis une question fermée sur le comité du 4 novembre.</div>
+              </details>
+              <details class="objection">
+                <summary>« C’est trop cher » — 4 fois <svg><use href="#i-chevron-r"/></svg></summary>
+                <div class="obj-body">Ramener au coût de la facture non optimisée. Ne jamais donner un prix pendant le premier appel.</div>
+              </details>
+            </div>
+
+            <div class="card">
+              <div class="card-head"><h2>Ce qu’il faut savoir avant d’appeler</h2></div>
+              <div>
+                <div class="brief-item"><span class="num">01</span><div><b>La cible</b><p>Directions techniques et opérations, 50 à 500 salariés, bâtiment et rénovation. Pas de site de production.</p></div></div>
+                <div class="brief-item"><span class="num">02</span><div><b>L’offre</b><p>Audit gratuit de 30 minutes avec un ingénieur, rapport remis même sans signature. Mise en œuvre ensuite, hors périmètre SDR.</p></div></div>
+                <div class="brief-item"><span class="num">03</span><div><b>La preuve</b><p>31 400 € d’économies annuelles chez un façadier de 240 personnes, sans changement de fournisseur.</p></div></div>
+                <div class="brief-item"><span class="num">04</span><div><b>La règle</b><p>Ne jamais promettre un chiffre d’économie précis. La seule promesse autorisée est la date de l’audit.</p></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stack">
+            <div class="card">
+              <div class="card-head"><h3>Fiche client</h3><button class="btn btn-ghost btn-sm" data-demo="Fiche client Nova Solar">Ouvrir</button></div>
+              <div class="card-body" style="padding:14px 18px">
+                <div class="brief-client"><div class="logo">NS</div><div><b>Nova Solar</b><span>Énergie solaire B2B · Lyon</span></div></div>
+                <div class="brief-line"><span>Contact</span><b>Claire Mercier</b></div>
+                <div class="brief-line"><span>Référente</span><b>Manager · Léa</b></div>
+                <div class="brief-line"><span>Démarrage</span><b>6 octobre 2026</b></div>
+                <div class="brief-line"><span>Canal</span><b>Téléphone + email</b></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Scripts</h3></div>
+              <div class="card-body" style="padding:12px 18px">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <a class="btn" href="#/call" style="justify-content:space-between">Accroche Nova v3 <span class="chip chip--green">Actif</span></a>
+                  <a class="btn" href="#/call" style="justify-content:space-between">Qualification <span class="chip">v2</span></a>
+                  <a class="btn" href="#/call" style="justify-content:space-between">Passer le standard <span class="chip">Standard</span></a>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h3>Notes du manager</h3></div>
+              <div class="card-body" style="padding:14px 18px">
+                <p style="font-size:12.5px;line-height:1.5;color:var(--ink-2)">« Les directions techniques répondent mieux le matin. Évitez de commencer par le prix. »</p>
+                <p class="tiny muted" style="margin-top:8px">Léa · 20 octobre</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= HISTORY ================= -->
+      <section class="view" id="view-history" data-view="history">
+        <div class="page-head">
+          <div><h1>Historique</h1><div class="sub">Le journal du shift, alimenté par les résultats d’appel</div></div>
+          <div class="seg" id="historySeg"><button class="on" data-range="1">Aujourd’hui</button><button data-range="7">7 jours</button><button data-range="30">30 jours</button></div>
+        </div>
+        <div class="card">
+          <div class="timeline-group">
+            <div class="tl-head"><h3 id="historyTitle">Aujourd’hui · 4 actions</h3><span class="n" id="historyCount">4</span></div>
+            <div class="tl-row" data-age="1"><div class="tl-time">09:36</div><div class="tl-body"><b>Élodie Faure</b><span class="co">Faure Habitat · RDV pris · mercredi 28, 11:00</span></div><div class="tl-actions"><span class="chip chip--green">RDV</span></div></div>
+            <div class="tl-row" data-age="1"><div class="tl-time">09:28</div><div class="tl-body"><b>Vincent Cordier</b><span class="co">Cordier Frères · Injoignable · 2 tentatives</span></div><div class="tl-actions"><span class="chip">Injoignable</span></div></div>
+            <div class="tl-row" data-age="1"><div class="tl-time">09:12</div><div class="tl-body"><b>Nadia Fournier</b><span class="co">Vignal &amp; Associés · Rappel demandé · aujourd’hui 09:15</span></div><div class="tl-actions"><span class="chip chip--amber">Rappel</span></div></div>
+            <div class="tl-row" data-age="1"><div class="tl-time">08:54</div><div class="tl-body"><b>Hugo Petit</b><span class="co">Petit &amp; Fils · Pas décideur · orienté vers la DG</span></div><div class="tl-actions"><span class="chip">Pas décideur</span></div></div>
+            <div class="tl-row" data-age="3"><div class="tl-time">Lun. 19</div><div class="tl-body"><b>Sophie Lambert</b><span class="co">Lambert &amp; Co · Intéressé · documentation envoyée</span></div><div class="tl-actions"><span class="chip chip--green">Intéressé</span></div></div>
+            <div class="tl-row" data-age="6"><div class="tl-time">Ven. 16</div><div class="tl-body"><b>Antoine Mercier</b><span class="co">Mercier BTP · Rappel demandé · lundi 09:00</span></div><div class="tl-actions"><span class="chip chip--amber">Rappel</span></div></div>
+            <div class="tl-row" data-age="20"><div class="tl-time">Jeu. 2</div><div class="tl-body"><b>Claire Dubois</b><span class="co">Dubois Conseil · Refus · moment mal choisi</span></div><div class="tl-actions"><span class="chip">Refus</span></div></div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ================= CALL BAR ================= -->
+<div class="callbar" id="callbar" role="region" aria-label="Appel en cours">
+  <span class="dot-live"></span>
+  <span class="who" id="barWho">Camille Rousseau<span>Groupe Delmas · 01 84 60 22 18</span></span>
+  <span class="sep"></span>
+  <span class="time" id="barTimer">00:00</span>
+  <span class="spacer"></span>
+  <button id="barMute" aria-label="Couper le micro"><svg><use href="#i-mic"/></svg><span class="btn-label">Micro</span></button>
+  <button id="barResult" aria-label="Enregistrer le résultat"><svg><use href="#i-check"/></svg><span class="btn-label">Résultat</span></button>
+  <button id="barHang" class="hang" aria-label="Terminer l’appel"><svg><use href="#i-phone"/></svg><span class="btn-label">Terminer</span></button>
+</div>
+
+<!-- ================= MOBILE NAV ================= -->
+<nav class="mobile-nav" aria-label="Navigation mobile">
+  <ul>
+    <li><a href="#/shift" data-nav="shift"><svg><use href="#i-layers"/></svg>Shift</a></li>
+    <li><a href="#/queue" data-nav="queue"><svg><use href="#i-phone"/></svg>File</a></li>
+    <li><a href="#/followups" data-nav="followups"><svg><use href="#i-calendar"/></svg>Suivi</a></li>
+    <li><a href="#/brief" data-nav="brief"><svg><use href="#i-book"/></svg>Brief</a></li>
+  </ul>
+</nav>
+
+<!-- ================= PALETTE ================= -->
+<div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Commandes">
+  <div class="palette-box">
+    <div class="palette-input">
+      <svg><use href="#i-search"/></svg>
+      <input id="paletteInput" placeholder="Aller à un contact, une mission, une action…" aria-label="Rechercher une commande">
+      <kbd>esc</kbd>
+    </div>
+    <div class="palette-list" id="paletteList">
+      <div class="palette-group">Actions</div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="call" data-keywords="appeler téléphone prochain contact"><svg><use href="#i-phone"/></svg><span>Appeler le contact suivant</span><small>Camille Rousseau</small></div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="outcome" data-keywords="résultat enregistrer"><svg><use href="#i-check"/></svg><span>Enregistrer un résultat</span><small>⌘↵</small></div>
+      <div class="palette-group">Aller à</div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="go:shift" data-keywords="shift accueil tableau"><svg><use href="#i-layers"/></svg><span>Shift</span><small>Accueil</small></div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="go:queue" data-keywords="file appel queue"><svg><use href="#i-list"/></svg><span>File d’appel</span><small>48 contacts</small></div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="go:followups" data-keywords="suivi rappels rdv"><svg><use href="#i-calendar"/></svg><span>Suivi</span><small>10 promesses</small></div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="go:brief" data-keywords="brief mission script"><svg><use href="#i-book"/></svg><span>Brief mission</span><small>Nova Solar</small></div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="go:history" data-keywords="historique journal"><svg><use href="#i-history"/></svg><span>Historique</span><small>18 actions</small></div>
+      <div class="palette-group">Contacts</div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="lead:Sofia Benali" data-keywords="sofia benali kairos"><svg><use href="#i-building"/></svg><span>Sofia Benali</span><small>Kaïros Conseil</small></div>
+      <div class="palette-item" role="button" tabindex="0" data-cmd="lead:Nadia Fournier" data-keywords="nadia fournier vignal"><svg><use href="#i-building"/></svg><span>Nadia Fournier</span><small>Vignal &amp; Associés</small></div>
+    </div>
+    <div class="palette-foot"><span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span><span><kbd>↵</kbd> ouvrir</span><span><kbd>esc</kbd> fermer</span><span style="margin-left:auto">Prototype · données fictives</span></div>
+  </div>
+</div>
+
+<!-- ================= OUTCOME MODAL ================= -->
+<div class="modal" id="outcomeModal" role="dialog" aria-modal="true" aria-label="Résultat de l’appel">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h2>Résultat de l’appel</h2><p id="modalWho">Camille Rousseau · 04:12</p></div>
+      <button class="iconbtn" data-close-modal aria-label="Fermer"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="results" style="padding:0;grid-template-columns:1fr 1fr;margin-bottom:14px">
+        <button class="result" data-result="RDV pris" data-tone="win"><span class="k">1</span><span class="lbl">RDV pris</span></button>
+        <button class="result" data-result="Intéressé" data-tone="win"><span class="k">2</span><span class="lbl">Intéressé</span></button>
+        <button class="result" data-result="Rappel demandé"><span class="k">3</span><span class="lbl">Rappel demandé</span></button>
+        <button class="result" data-result="Pas décideur"><span class="k">4</span><span class="lbl">Pas décideur</span></button>
+        <button class="result" data-result="Déjà équipé" data-tone="stop"><span class="k">5</span><span class="lbl">Déjà équipé</span></button>
+        <button class="result" data-result="Refus" data-tone="stop"><span class="k">6</span><span class="lbl">Refus</span></button>
+        <button class="result" data-result="Injoignable"><span class="k">7</span><span class="lbl">Injoignable</span></button>
+        <button class="result" data-result="Rappeler plus tard"><span class="k">8</span><span class="lbl">Plus tard</span></button>
+      </div>
+      <div class="field" style="margin-bottom:10px">
+        <label for="modalNote">Note</label>
+        <textarea id="modalNote" rows="3" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:12.5px;background:var(--surface-2);resize:vertical" placeholder="Ce qui a été dit…"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="field"><label for="modalDate">Prochaine date</label><input type="date" id="modalDate" value="2026-10-27"></div>
+        <div class="field"><label for="modalTime">Heure</label><input type="time" id="modalTime" value="09:00"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>Annuler</button>
+      <button class="btn btn-primary" id="modalSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= RESCHEDULE MODAL ================= -->
+<div class="modal" id="rescheduleModal" role="dialog" aria-modal="true" aria-label="Reporter le rappel">
+  <div class="modal-box" style="width:min(420px,100%)">
+    <div class="modal-head">
+      <div><h2>Reporter le rappel</h2><p id="rescheduleWho">Nadia Fournier</p></div>
+      <button class="iconbtn" data-close-modal aria-label="Fermer"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="field"><label for="resDate">Nouvelle date</label><input type="date" id="resDate" value="2026-10-23"></div>
+        <div class="field"><label for="resTime">Heure</label><input type="time" id="resTime" value="09:00"></div>
+      </div>
+      <div class="field" style="margin-top:9px"><label for="resWhy">Raison</label>
+        <select id="resWhy"><option>Demandé par le prospect</option><option>Pas disponible</option><option>Report interne</option></select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close-modal>Annuler</button>
+      <button class="btn btn-primary" id="resSave">Reporter</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg><use href="#i-check"/></svg><span id="toastText">Enregistré</span></div>
+<style>
+  .hide{display:none!important}
+  .results.locked .result{opacity:.45;cursor:not-allowed}
+  body.modal-open{overflow:hidden}
+</style>
+<script>
+(function(){
+  "use strict";
+
+  const $  = (s,r)=> (r||document).querySelector(s);
+  const $$ = (s,r)=> Array.from((r||document).querySelectorAll(s));
+  const app = { current: "shift", callActive:false, seconds:0, timer:null, leadIndex:0, selected:null, rescheduling:null };
+
+  const leads = [
+    { name:"Camille Rousseau", initials:"CR", title:"Directrice des opérations", company:"Groupe Delmas · BTP · 240 salariés", phone:"01 84 60 22 18", tel:"0184602218", note:"« Rappelez-moi jeudi matin, je compare avec notre prestataire actuel avant le comité du 4 novembre. » — hier 16:10, par toi", who:"Groupe Delmas · 01 84 60 22 18" },
+    { name:"Sofia Benali", initials:"SB", title:"Directrice administrative et financière", company:"Kaïros Conseil · conseil · 85 salariés", phone:"01 44 08 31 20", tel:"0144083120", note:"« Appelez-moi jeudi après 16 h, je saurai pour la date. » — mardi 20, 11:20", who:"Kaïros Conseil · 01 44 08 31 20" },
+    { name:"Nadia Fournier", initials:"NF", title:"Associée gérante", company:"Vignal & Associés · architecture · 40 salariés", phone:"01 45 22 08 74", tel:"0145220874", note:"« Je vous rappelle demain matin, avant ma réunion de 10 h. » — hier 17:02", who:"Vignal & Associés · 01 45 22 08 74" },
+    { name:"Julien Marchand", initials:"JM", title:"Responsable technique", company:"Helios Ingénierie · ingénierie · 120 salariés", phone:"02 40 18 77 03", tel:"0240187703", note:"Premier contact — liste enrichie le 18 octobre. Aucun échange précédent.", who:"Helios Ingénierie · 02 40 18 77 03" },
+    { name:"Marc Thibault", initials:"MT", title:"Gérant", company:"Atelier Verne · menuiserie · 32 salariés", phone:"04 78 22 61 09", tel:"0478226109", note:"« Envoyez-moi le devis, je regarde cette semaine. » — lundi 20, 09:05", who:"Atelier Verne · 04 78 22 61 09" },
+    { name:"Olivier Senn", initials:"OS", title:"Directeur général", company:"Senn Énergie · énergie · 70 salariés", phone:"06 12 44 90 31", tel:"0612449031", note:"« Recontactez-moi après le 21, je rentre de déplacement. » — lundi 20, 11:40", who:"Senn Énergie · 06 12 44 90 31" },
+    { name:"Karim Hadj", initials:"KH", title:"Gérant", company:"Atelier Bois Clair · menuiserie · 24 salariés", phone:"04 91 55 12 08", tel:"0491551208", note:"« Pas avant vendredi, je suis en chantier. » — aujourd’hui 08:20", who:"Atelier Bois Clair · 04 91 55 12 08" },
+    { name:"Élodie Faure", initials:"EF", title:"Directrice du développement", company:"Faure Habitat · promotion · 58 salariés", phone:"05 56 12 44 09", tel:"0556124409", note:"RDV pris hier 09:36 · audit de 30 min, confirmé par email.", who:"Faure Habitat · 05 56 12 44 09" },
+    { name:"Amélie Pons", initials:"AP", title:"Gérante", company:"Brasserie Pons · agroalimentaire · 45 salariés", phone:"03 20 18 44 62", tel:"0320184462", note:"Jamais appelée · site sans adresse email, numéro direct trouvé sur la fiche.", who:"Brasserie Pons · 03 20 18 44 62" },
+    { name:"Thomas Klein", initials:"TK", title:"Directeur technique", company:"Klein & Fils · industrie · 130 salariés", phone:"03 88 21 76 40", tel:"0388217640", note:"RDV visio aujourd’hui 14:00 · lien envoyé lundi, pas encore accepté.", who:"Klein & Fils · 03 88 21 76 40" },
+    { name:"Pierre Vasseur", initials:"PV", title:"Président", company:"Vasseur & Cie · BTP · 95 salariés", phone:"02 40 55 09 21", tel:"0240550921", note:"RDV à confirmer mercredi 28, 11:00 · visio.", who:"Vasseur & Cie · 02 40 55 09 21" }
+  ];
+
+  /* ---------- routing ---------- */
+  function route(){
+    const hash = location.hash.replace(/^#\/?/,"") || "shift";
+    const name = ["shift","call","queue","followups","brief","history"].includes(hash) ? hash : "shift";
+    app.current = name;
+    $$(".view").forEach(v => v.classList.toggle("active", v.dataset.view === name));
+    $$("[data-nav]").forEach(a => a.classList.toggle("active", a.dataset.nav === name));
+    window.scrollTo({top:0, behavior:"instant"});
+    closeSidebar();
+    if(name === "call") refreshStage();
+  }
+  function go(path){ if(location.hash === "#/"+path){ route(); } else { location.hash = "#/"+path; } }
+  window.addEventListener("hashchange", route);
+
+  /* ---------- sidebar ---------- */
+  const sidebar = $("#sidebar"), scrim = $("#scrim");
+  function closeSidebar(){ sidebar.classList.remove("open"); scrim.classList.remove("show"); }
+  $("#hamb").addEventListener("click", ()=>{ sidebar.classList.add("open"); scrim.classList.add("show"); });
+  scrim.addEventListener("click", closeSidebar);
+
+  /* ---------- toast ---------- */
+  let toastTimer;
+  function toast(msg){
+    const t = $("#toast");
+    $("#toastText").textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+  }
+
+  /* ---------- timer ---------- */
+  function fmt(s){
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    const p = n => String(n).padStart(2,"0");
+    return (h ? p(h)+":" : "") + p(m) + ":" + p(sec);
+  }
+  function paintTime(){ const v = fmt(app.seconds); $("#stageTimer").textContent = v; $("#barTimer").textContent = v; }
+  function startTimer(){
+    clearInterval(app.timer);
+    app.timer = setInterval(()=>{ app.seconds++; paintTime(); }, 1000);
+  }
+  function stopTimer(){ clearInterval(app.timer); app.timer = null; }
+
+  /* ---------- lead ---------- */
+  function current(){ return leads[app.leadIndex % leads.length]; }
+  function slug(s){ return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,""); }
+  function renderLead(){
+    const l = current();
+    const parts = l.company.split(" · ");
+    const coName = parts[0] || l.company;
+    const sector = parts[1] || "services";
+    const size = parts[2] || "—";
+    const first = l.name.split(" ")[0];
+    const last = l.name.split(" ").slice(-1)[0];
+    const when = (l.note.split("—").pop() || "").trim() || "premier contact";
+    const isMeeting = /RDV|rendez/i.test(l.note);
+    $("#leadName").textContent = l.name;
+    $("#leadTitle").textContent = l.title;
+    $("#leadCompany").textContent = l.company;
+    const ph = $("#leadPhone");
+    ph.setAttribute("href","tel:"+l.tel);
+    ph.innerHTML = '<svg width="14" height="14"><use href="#i-phone"/></svg>' + l.phone;
+    $(".lead-avatar").textContent = l.initials;
+    $(".lead-id .co span").textContent = l.company;
+    $(".note-box span").innerHTML = l.note;
+    const copyBtn = $("[data-copy]"); if(copyBtn) copyBtn.dataset.copy = l.phone;
+    $("#stageName").textContent = l.name + " · " + l.company.split(" · ")[0];
+    $("#barWho").innerHTML = l.name + "<span>" + l.who + "</span>";
+    $("#modalWho").textContent = l.name + " · " + fmt(app.seconds);
+
+    $("#heroName").textContent = l.name;
+    $("#heroRole").textContent = l.title + " · " + coName + " · " + size;
+    $("#heroWhy").textContent = l.note;
+    const quote = l.note.split("—")[0].trim();
+    const tail = l.note.split("—").slice(1).join("—").trim();
+    $("#heroWhy").innerHTML = quote + (tail ? ' <span style="color:rgba(255,255,255,.7)">— ' + tail + '</span>' : '');
+    $("#heroTags").innerHTML = '<span>' + (isMeeting ? "RDV planifié" : "Rappel promis") + '</span><span>Décisionnaire</span><span>' + sector + '</span>';
+    $("#heroPhone").textContent = l.phone;
+    $("#heroEyebrow").innerHTML = '<i></i>Prochaine action · ' + (isMeeting ? "RDV à confirmer" : "rappel promis");
+    $("#heroFoot").textContent = "Dernier contact : " + when + " · " + (isMeeting ? "RDV pris" : "Rappel demandé");
+
+    $("#leadTags").innerHTML = '<span class="chip chip--magenta">' + (isMeeting ? "RDV planifié" : "Rappel promis") + '</span><span class="chip chip--navy">Décisionnaire</span><span class="chip">' + sector + '</span>';
+    $("#factSize").textContent = size;
+    $("#factSector").textContent = sector;
+    $("#factSource").textContent = "Apollo · 12 oct.";
+    $("#factLast").textContent = when;
+    $("#factStatus").textContent = isMeeting ? "RDV confirmé" : "Qualifié·e";
+    const mail = slug(first) + "." + slug(last) + "@" + slug(coName) + ".fr";
+    $("#leadEmail").setAttribute("href", "mailto:" + mail);
+    $("#scriptFirstName").textContent = first;
+    const prev = $("#prevList");
+    prev.innerHTML = '<div class="prev-row"><time>Aujourd’hui</time><span>' + (l.note.length > 90 ? l.note.slice(0,90) + "…" : l.note) + '</span></div>' +
+      '<div class="prev-row"><time>14 oct.</time><span>Email envoyé · ouvert 2 fois</span></div>' +
+      '<div class="prev-row"><time>12 oct.</time><span>Fiche ajoutée à la liste Nova · vague 3</span></div>';
+  }
+  function setLeadByName(name){
+    const i = leads.findIndex(l => l.name.toLowerCase() === String(name).toLowerCase());
+    if(i > -1){ app.leadIndex = i; renderLead(); return true; }
+    return false;
+  }
+
+  /* ---------- call session ---------- */
+  function refreshStage(){
+    const active = app.callActive;
+    $("#stageStart").classList.toggle("hide", active);
+    $("#stageEnd").classList.toggle("hide", !active);
+    $("#stageLive").textContent = active ? "Appel en cours" : "Prêt à appeler";
+    $("#results").classList.toggle("locked", !active);
+    $("#outcomeHint").style.color = "";
+    $("#outcomeHint").textContent = active ? "Choisissez un résultat (touches 1 – 8)." : "Démarrez l’appel pour enregistrer.";
+    $("#callbar").classList.toggle("up", active);
+    $("#callbar").setAttribute("aria-hidden", active ? "false" : "true");
+    document.body.classList.toggle("has-call", active);
+    if(!active) clearSelection();
+  }
+  function startCall(name){
+    if(name && !setLeadByName(name)){ toast("Contact introuvable dans la file · " + name); return; }
+    clearSelection();
+    $("#outcomeHint").style.color = "";
+    app.callActive = true;
+    app.seconds = 0;
+    paintTime(); startTimer();
+    refreshStage();
+    go("call");
+    toast("Appel démarré · " + current().name);
+  }
+  function endCall(){
+    if(!app.callActive){ toast("Aucun appel en cours"); return; }
+    $("#modalWho").textContent = current().name + " · " + fmt(app.seconds);
+    openModal("#outcomeModal");
+  }
+  function clearSelection(){
+    app.selected = null;
+    $$(".result").forEach(b => b.classList.remove("on"));
+  }
+  function selectResult(btn){
+    if(!btn) return;
+    const scope = btn.closest(".results");
+    $$(".result", scope).forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    app.selected = btn.dataset.result;
+    $("#outcomeHint").style.color = "";
+    if(app.callActive) $("#outcomeHint").textContent = "Résultat sélectionné : " + app.selected + ". Enregistrez pour passer au suivant.";
+  }
+  function saveOutcome(fromModal){
+    if(!app.callActive){ toast("Démarrez l’appel d’abord"); return; }
+    if(!app.selected){
+      $("#outcomeHint").textContent = "Choisissez un résultat avant d’enregistrer.";
+      $("#outcomeHint").style.color = "var(--red)";
+      toast("Sélectionnez un résultat (touches 1 – 8)");
+      return;
+    }
+    const result = app.selected;
+    const lead = current();
+    const note = fromModal ? $("#modalNote").value : $("#noteField").value;
+    const date = fromModal ? $("#modalDate").value : $("#nextDate").value;
+    const time = fromModal ? $("#modalTime").value : $("#nextTime").value;
+    stopTimer();
+    app.callActive = false;
+    addHistory(result, lead, note);
+    if(result === "RDV pris" || result === "Rappel demandé" || result === "Rappeler plus tard"){
+      addFollowup(result, lead, date, time, note);
+    }
+    closeModal();
+    refreshStage();
+    app.leadIndex = (app.leadIndex + 1) % leads.length;
+    clearSelection();
+    $("#noteField").value = ""; $("#modalNote").value = "";
+    renderLead();
+    $("#stageTimer").textContent = "00:00"; $("#barTimer").textContent = "00:00";
+    app.seconds = 0;
+    go("call");
+    const nextDate = result === "RDV pris" || result === "Rappel demandé" ? " · " + date + " " + time : "";
+    toast(result + " — " + lead.name + " enregistré" + nextDate + " · contact suivant chargé");
+  }
+  function addHistory(result, lead, note){
+    const group = $("#view-history .timeline-group");
+    if(!group) return;
+    const time = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    const tone = result === "RDV pris" ? "chip--green" : (result === "Rappel demandé" ? "chip--amber" : "");
+    const row = document.createElement("div");
+    row.className = "tl-row";
+    const timeEl = document.createElement("div");
+    timeEl.className = "tl-time"; timeEl.textContent = time;
+    const bodyEl = document.createElement("div");
+    bodyEl.className = "tl-body";
+    const nameEl = document.createElement("b"); nameEl.textContent = lead.name;
+    const coEl = document.createElement("span"); coEl.className = "co";
+    coEl.textContent = lead.company.split(" · ")[0] + " · " + result + (note ? " · " + note.slice(0,60) : "");
+    bodyEl.appendChild(nameEl); bodyEl.appendChild(coEl);
+    const actionsEl = document.createElement("div");
+    actionsEl.className = "tl-actions";
+    const chip = document.createElement("span");
+    chip.className = "chip " + tone; chip.textContent = result;
+    actionsEl.appendChild(chip);
+    row.dataset.age = "1";
+    row.appendChild(timeEl); row.appendChild(bodyEl); row.appendChild(actionsEl);
+    group.insertBefore(row, group.children[1] || null);
+    const n = group.querySelector(".n");
+    if(n){
+      const total = parseInt(n.textContent,10) + 1;
+      n.textContent = String(total);
+      const count = $("#historyCount");
+      if(count) count.textContent = String(total);
+      const title = $("#historyTitle");
+      if(title) title.textContent = "Aujourd’hui · " + total + " actions";
+    }
+  }
+  function addFollowup(result, lead, date, time, note){
+    const d = new Date(date + "T00:00:00");
+    const today = new Date(2026, 9, 22);
+    let group = $("#fGroupWeek .timeline-group");
+    if(!isNaN(d)){
+      const diff = Math.round((d - today) / 86400000);
+      if(diff < 0) group = $("#fGroupLate");
+      else if(diff === 0) group = $("#fGroupToday");
+    }
+    if(!group) return;
+    const isMeeting = result === "RDV pris";
+    const row = document.createElement("div");
+    row.className = "tl-row";
+    row.dataset.kind = isMeeting ? "meeting" : "callback";
+    const timeEl = document.createElement("div");
+    timeEl.className = "tl-time";
+    const label = isNaN(d) ? "À venir" : d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});
+    timeEl.innerHTML = label + "<small>" + time + "</small>";
+    const bodyEl = document.createElement("div");
+    bodyEl.className = "tl-body";
+    const nameEl = document.createElement("b"); nameEl.textContent = lead.name;
+    const coEl = document.createElement("span"); coEl.className = "co";
+    coEl.textContent = lead.company.split(" · ")[0] + " · " + result + (note ? " · " + note.slice(0,50) : "");
+    bodyEl.appendChild(nameEl); bodyEl.appendChild(coEl);
+    const actionsEl = document.createElement("div");
+    actionsEl.className = "tl-actions";
+    const call = document.createElement("button");
+    call.className = "btn btn-sm"; call.dataset.callName = lead.name; call.textContent = "Appeler";
+    const done = document.createElement("button");
+    done.className = "btn btn-ghost btn-sm"; done.dataset.done = ""; done.textContent = "Fait";
+    actionsEl.appendChild(call); actionsEl.appendChild(done);
+    row.appendChild(timeEl); row.appendChild(bodyEl); row.appendChild(actionsEl);
+    group.appendChild(row);
+    updateFollowCounts();
+  }
+
+  /* ---------- modals ---------- */
+  function openModal(sel){
+    $(sel).classList.add("open");
+    document.body.classList.add("modal-open");
+    setTimeout(()=>{ const f = $(sel).querySelector("textarea,input"); if(f) f.focus(); }, 80);
+  }
+  function closeModal(){
+    $$(".modal").forEach(m=>m.classList.remove("open"));
+    document.body.classList.remove("modal-open");
+    app.rescheduling = null;
+  }
+  $$("[data-close-modal]").forEach(b=>b.addEventListener("click", closeModal));
+  $$(".modal").forEach(m=>m.addEventListener("click", e=>{ if(e.target === m) closeModal(); }));
+
+  /* ---------- global click handling ---------- */
+  document.addEventListener("click", function(e){
+    const t = e.target.closest("button,a,div");
+    if(!t) return;
+
+    if(e.target.closest("[data-open-palette]")){ e.preventDefault(); openPalette(); return; }
+    if(e.target.closest("[data-start-call]")){ e.preventDefault(); startCall(); return; }
+    if(e.target.closest("[data-skip]")){
+      e.preventDefault();
+      const wasActive = app.callActive;
+      if(wasActive){ stopTimer(); app.callActive = false; app.seconds = 0; paintTime(); }
+      app.leadIndex=(app.leadIndex+1)%leads.length; renderLead(); clearSelection(); refreshStage();
+      toast((wasActive ? "Appel interrompu" : "Contact passé") + " · " + current().name); return;
+    }
+    if(e.target.closest("[data-open-lead]")){
+      const n = e.target.closest("[data-open-lead]").dataset.openLead;
+      if(app.callActive){ toast("Terminez l’appel en cours avant d’ouvrir un autre dossier"); return; }
+      setLeadByName(n); go("call"); return;
+    }
+    if(e.target.closest("[data-call-name]")){ startCall(e.target.closest("[data-call-name]").dataset.callName); return; }
+    if(e.target.closest("[data-result]")){
+      const btn = e.target.closest("[data-result]");
+      if($("#results").classList.contains("locked") && btn.closest("#results")){ toast("Démarrez l’appel pour enregistrer un résultat"); return; }
+      selectResult(btn); return;
+    }
+    if(e.target.closest("[data-demo]")){ e.preventDefault(); toast("Action simulée · " + e.target.closest("[data-demo]").dataset.demo); return; }
+    if(e.target.closest("[data-copy]")){ const v=e.target.closest("[data-copy]").dataset.copy; navigator.clipboard && navigator.clipboard.writeText(v); toast("Numéro copié · " + v); return; }
+    if(e.target.closest("[data-copy-step]")){ const step=e.target.closest(".script-step"); const txt = step ? step.querySelector("p").innerText : ""; navigator.clipboard && navigator.clipboard.writeText(txt); toast("Formulation copiée"); return; }
+    if(e.target.closest("[data-confirm]")){
+      const btn = e.target.closest("[data-confirm]");
+      const tr = btn.closest("tr");
+      if(tr && btn.parentElement){ btn.parentElement.innerHTML = '<span class="chip chip--green">Confirmé</span>'; }
+      const row = btn.closest(".tl-row");
+      if(row){ row.style.opacity="0"; row.style.transition="opacity .2s"; setTimeout(()=>{ row.remove(); updateFollowCounts(); },220); }
+      toast("RDV confirmé · invitation envoyée au prospect"); return;
+    }
+    if(e.target.closest("[data-cancel]")){
+      const row = e.target.closest(".tl-row");
+      if(row){ row.style.opacity="0"; row.style.transition="opacity .2s"; setTimeout(()=>{ row.remove(); updateFollowCounts(); },220); }
+      toast("Rappel ou RDV annulé · retiré du suivi"); return;
+    }
+    if(e.target.closest("[data-done]")){
+      const row = e.target.closest(".tl-row");
+      if(row){ row.style.opacity="0"; row.style.transition="opacity .2s"; setTimeout(()=>{ row.remove(); updateFollowCounts(); },220); }
+      toast("Traité · sorti de la liste de suivi"); return;
+    }
+    if(e.target.closest("[data-slot]")){ toast("Créneau proposé au prospect · " + e.target.closest("[data-slot]").textContent.trim().split("libre")[0].trim()); return; }
+    if(e.target.closest("[data-reschedule]")){
+      const row = e.target.closest(".tl-row");
+      app.rescheduling = row;
+      const name = row ? row.querySelector(".tl-body b").textContent : "Contact";
+      $("#rescheduleWho").textContent = name;
+      openModal("#rescheduleModal"); return;
+    }
+    if(e.target.closest("[data-script]")){
+      const b = e.target.closest("[data-script]");
+      $$("[data-script]").forEach(x=>{ x.classList.toggle("on", x===b); x.setAttribute("aria-selected", x===b ? "true":"false"); });
+      $$("[data-panel]").forEach(p=>p.classList.toggle("on", p.dataset.panel === b.dataset.script));
+      return;
+    }
+    if(e.target.closest("[data-density]")){
+      const b = e.target.closest("[data-density]");
+      $$("[data-density]").forEach(x=>x.classList.toggle("on", x===b));
+      $("#queueTable").classList.toggle("compact", b.dataset.density === "compact");
+      return;
+    }
+  });
+
+  function applyQueueFilters(){
+    const q = $("#queueSearch").value.toLowerCase().trim();
+    const list = $("#queueList").value;
+    const prio = $("#queuePriority").value;
+    let shown = 0;
+    $$("#queueTable tbody tr").forEach(tr=>{
+      const text = tr.dataset.search || "";
+      const name = (tr.querySelector(".q-person b") || {}).textContent || "";
+      const listOK = list === "Toutes les listes" ||
+        (list === "Rappels du mois" && text.includes("rappel")) ||
+        (list === "Renovation BTP — IDF" && /Camille|Julien|Amélie/.test(name)) ||
+        (list === "Dir. techniques — 100+" && /Marc|Sofia|Thomas/.test(name));
+      const prioOK = prio === "Toutes priorités" ||
+        (prio === "Rappels promis" && text.includes("rappel")) ||
+        (prio === "Contacts chauds" && /devis|budget/.test(text)) ||
+        (prio === "Jamais appelés" && text.includes("jamais"));
+      const ok = listOK && prioOK && (!q || text.includes(q));
+      tr.style.display = ok ? "" : "none";
+      if(ok) shown++;
+    });
+    $("#queueCount").textContent = shown + " contact" + (shown>1?"s":"");
+    $("#queueFoot").textContent = shown + " contact" + (shown>1?"s":"") + " affiché" + (shown>1?"s":"") + " sur 48";
+  }
+  $("#queueSearch").addEventListener("input", applyQueueFilters);
+  $("#queueList").addEventListener("change", applyQueueFilters);
+  $("#queuePriority").addEventListener("change", applyQueueFilters);
+
+  /* follow-up counts and filters */
+  function updateFollowCounts(){
+    $$("#followFilters [data-filter]").forEach(b=>{
+      const f = b.dataset.filter;
+      const n = f === "all" ? $$("#view-followups .tl-row").length : $$('#view-followups .tl-row[data-kind="' + f + '"]').length;
+      const label = {all:"Tout", callback:"Rappels", meeting:"RDV", later:"Relances"}[f];
+      b.textContent = label + " · " + n;
+    });
+    const late = $$("#fGroupLate .tl-row").length;
+    const today = $$("#fGroupToday .tl-row").length;
+    const confirm = $$("#view-followups .card").filter(c=>/RDV à confirmer/.test(c.textContent))[0];
+    const confirmN = confirm ? $$(".tl-row", confirm).length : 0;
+    const week = $$("#fGroupWeek .tl-row").length;
+    const total = $$("#view-followups .tl-row").length;
+    const set = (sel, val) => { const el = $(sel); if(el) el.textContent = String(val); };
+    set("#fGroupLate .n", late); set("#todayCount", today); set("#confirmCount", confirmN); set("#weekCount", week);
+    set("#legLate", late); set("#legToday", today); set("#legConfirm", confirmN); set("#legWeek", week);
+    set("#navFollowCount", total);
+  }
+  $$("#followFilters [data-filter]").forEach(b=>{
+    b.addEventListener("click", ()=>{
+      $$("#followFilters [data-filter]").forEach(x=>x.classList.toggle("on", x===b));
+      const f = b.dataset.filter;
+      $$("#view-followups .tl-row").forEach(row=>{
+        row.style.display = (f === "all" || row.dataset.kind === f) ? "" : "none";
+      });
+    });
+  });
+
+  /* ---------- call controls ---------- */
+  $("#stageStart").addEventListener("click", ()=> startCall());
+  $("#stageEnd").addEventListener("click", endCall);
+  $("#stageNote").addEventListener("click", ()=>{ $("#noteField").focus(); });
+  $("#saveOutcome").addEventListener("click", ()=> saveOutcome(false));
+  $("#modalSave").addEventListener("click", ()=>{ saveOutcome(true); });
+  $("#exportQueue").addEventListener("click", ()=>{
+    const rows = [["Contact","Société","Raison","Canal","Dernier contact"]].concat($$("#queueTable tbody tr").filter(tr=>tr.style.display!=="none").map(tr=>{
+      const cells = $$("td",tr);
+      const company = cells[0].querySelector(".q-person div span");
+      return [cells[0].querySelector("b").textContent, company ? company.textContent : "", cells[1].textContent.trim(), cells[2].textContent.trim(), cells[3].textContent.trim()];
+    }));
+    const csv = rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+    a.download = "file-appel-nova.csv"; a.click(); URL.revokeObjectURL(a.href);
+    toast("Export CSV · " + (rows.length-1) + " contacts");
+  });
+  $("#copyBrief").addEventListener("click", ()=>{
+    const brief = "Brief Nova Solar — vague 3\nObjectif : 12 audits qualifiés.\nCible : directions techniques et opérations, 50 à 500 salariés.\nAccroche : audit gratuit de 30 minutes, rapport remis même sans signature.\nRègle : ne jamais promettre un chiffre d’économie, seule la date compte.";
+    if(navigator.clipboard) navigator.clipboard.writeText(brief);
+    toast("Brief mission copié · 5 lignes");
+  });
+  $$("#historySeg button").forEach(b=>b.addEventListener("click", ()=>{
+    $$("#historySeg button").forEach(x=>x.classList.toggle("on", x===b));
+    const range = Number(b.dataset.range);
+    let visible = 0;
+    $$("#view-history .tl-row").forEach(row=>{
+      const age = Number(row.dataset.age || 1);
+      const ok = age <= range;
+      row.style.display = ok ? "" : "none";
+      if(ok) visible++;
+    });
+    const title = $("#historyTitle"), count = $("#historyCount");
+    if(title) title.textContent = (range === 1 ? "Aujourd’hui" : range + " derniers jours") + " · " + visible + " actions affichées";
+    if(count) count.textContent = String(visible);
+    toast("Vue historique · " + b.textContent.trim());
+  }));
+  $("#resSave").addEventListener("click", saveReschedule);
+  document.querySelector(".report-btn").addEventListener("click", ()=> toast("Bilan de la journée · pré-rempli avec les actions du jour"));
+  const helpBtn = document.querySelector('.topbar [title="Raccourcis clavier"]');
+  if(helpBtn) helpBtn.addEventListener("click", ()=> toast("↵ appeler · 1–8 résultat · N note · ⌘K commandes"));
+  $$(".page-head .btn").forEach(b=>{
+    if(b.id === "exportQueue" || b.id === "copyBrief") return;
+    if(!b.hasAttribute("data-start-call") && !b.getAttribute("href")){
+      b.addEventListener("click", ()=> toast("Action simulée · « " + b.textContent.trim() + " »"));
+    }
+  });
+  $("#barHang").addEventListener("click", endCall);
+  $("#barResult").addEventListener("click", ()=>{ if(app.callActive) endCall(); else openModal("#outcomeModal"); });
+  $("#barMute").addEventListener("click", toggleMute);
+  $("#stageMute").addEventListener("click", toggleMute);
+  function toggleMute(){
+    const on = document.body.classList.toggle("muted");
+    const icon = on ? "#i-mic-off" : "#i-mic";
+    [$("#stageMute"),$("#barMute")].forEach(b=>{ if(b) b.innerHTML = '<svg><use href="'+icon+'"/></svg>' + (b.id==="barMute" ? '<span class="btn-label">'+(on?"Muet":"Micro")+'</span>' : ''); });
+    if($("#stageMute")) $("#stageMute").setAttribute("aria-label", on ? "Réactiver le micro" : "Couper le micro");
+    toast(on ? "Micro coupé" : "Micro réactivé");
+  }
+
+  /* reschedule */
+  function saveReschedule(){
+    const row = app.rescheduling;
+    const date = $("#resDate").value, time = $("#resTime").value, reason = $("#resWhy").value;
+    if(row){
+      const d = new Date(date+"T00:00:00");
+      const today = new Date(2026, 9, 22);
+      let target = $("#fGroupWeek .timeline-group");
+      if(!isNaN(d)){
+        const diff = Math.round((d - today) / 86400000);
+        if(diff < 0) target = $("#fGroupLate");
+        else if(diff === 0) target = $("#fGroupToday");
+      }
+      const label = isNaN(d) ? "À venir" : d.toLocaleDateString("fr-FR",{weekday:"short",day:"numeric"});
+      row.querySelector(".tl-time").innerHTML = label + "<small>" + time + "</small>";
+      row.querySelector(".tl-time").classList.remove("late");
+      target.appendChild(row);
+      updateFollowCounts();
+    }
+    app.rescheduling = null;
+    closeModal();
+    toast("Rappel reporté au " + date + " à " + time + " · " + reason);
+  }
+
+  /* ---------- palette ---------- */
+  const palette = $("#palette"), pInput = $("#paletteInput");
+  let pIndex = 0, pItems = [];
+  function paletteItems(){ return $$("#paletteList .palette-item"); }
+  function filterPalette(q){
+    q = q.toLowerCase().trim();
+    pItems = paletteItems();
+    pItems.forEach(it=>{
+      const text = (it.textContent + " " + (it.dataset.keywords||"")).toLowerCase();
+      it.style.display = (!q || text.includes(q)) ? "" : "none";
+    });
+    $$("#paletteList .palette-group").forEach(g=>{
+      let n = g.nextElementSibling, any = false;
+      while(n && n.classList.contains("palette-item")){ if(n.style.display !== "none") any = true; n = n.nextElementSibling; }
+      g.style.display = any ? "" : "none";
+    });
+    pIndex = 0;
+    paintPalette();
+  }
+  function paintPalette(){
+    pItems = paletteItems().filter(it=>it.style.display !== "none");
+    pItems.forEach((it,i)=>it.classList.toggle("sel", i===pIndex));
+    const sel = pItems[pIndex];
+    if(sel) sel.scrollIntoView({block:"nearest"});
+  }
+  function openPalette(){
+    palette.classList.add("open");
+    pInput.value = "";
+    filterPalette("");
+    setTimeout(()=>pInput.focus(),50);
+  }
+  function closePalette(){ palette.classList.remove("open"); }
+  pInput.addEventListener("input", ()=> filterPalette(pInput.value));
+  palette.addEventListener("click", e=>{ if(e.target === palette) closePalette(); });
+  $("#paletteList").addEventListener("click", e=>{
+    const it = e.target.closest(".palette-item");
+    if(it) runCommand(it.dataset.cmd);
+  });
+  $("#paletteList").addEventListener("keydown", e=>{
+    const it = e.target.closest(".palette-item");
+    if(it && (e.key === "Enter" || e.key === " ")){ e.preventDefault(); e.stopPropagation(); runCommand(it.dataset.cmd); }
+  });
+  function runCommand(cmd){
+    closePalette();
+    if(cmd === "call"){ startCall(); return; }
+    if(cmd === "outcome"){ if(!app.callActive) startCall(); endCall(); return; }
+    if(cmd && cmd.indexOf("go:") === 0){ go(cmd.slice(3)); return; }
+    if(cmd && cmd.indexOf("lead:") === 0){
+      if(app.callActive){ toast("Terminez l’appel en cours avant d’ouvrir un autre dossier"); return; }
+      clearSelection(); setLeadByName(cmd.slice(5)); refreshStage(); go("call"); return;
+    }
+  }
+
+  /* ---------- keyboard ---------- */
+  document.addEventListener("keydown", function(e){
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+
+    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"){
+      e.preventDefault();
+      palette.classList.contains("open") ? closePalette() : openPalette();
+      return;
+    }
+    if(e.key === "Escape"){
+      if(palette.classList.contains("open")) closePalette();
+      else if($(".modal.open")) closeModal();
+      return;
+    }
+    if(palette.classList.contains("open")){
+      if(e.key === "ArrowDown"){ e.preventDefault(); pIndex = Math.min(pIndex+1, pItems.length-1); paintPalette(); }
+      else if(e.key === "ArrowUp"){ e.preventDefault(); pIndex = Math.max(pIndex-1, 0); paintPalette(); }
+      else if(e.key === "Enter"){ e.preventDefault(); if(pItems[pIndex]) runCommand(pItems[pIndex].dataset.cmd); }
+      return;
+    }
+    if($(".modal.open")){
+      if((e.metaKey || e.ctrlKey) && e.key === "Enter"){ e.preventDefault(); $("#modalSave").click(); }
+      return;
+    }
+    if($("#view-call").classList.contains("active") && app.callActive && !typing){
+      if(/^[1-8]$/.test(e.key)){
+        const btn = $$("#results [data-result]")[parseInt(e.key,10)-1];
+        if(btn) selectResult(btn);
+        e.preventDefault(); return;
+      }
+      if(e.key.toLowerCase() === "n"){ $("#noteField").focus(); e.preventDefault(); return; }
+      if((e.metaKey || e.ctrlKey) && e.key === "Enter"){ e.preventDefault(); saveOutcome(false); return; }
+    }
+    if(e.key === "Enter" && !typing && app.current === "shift" && !e.metaKey && !e.ctrlKey && !e.altKey){
+      const el = e.target instanceof Element ? e.target : null;
+      if(!el || !el.closest("button,a,input,textarea,select")) startCall();
+    }
+  });
+
+  /* ---------- init ---------- */
+  renderLead();
+  refreshStage();
+  paintTime();
+  updateFollowCounts();
+  applyQueueFilters();
+  route();
+})();
+</script>
+</body>
+</html>
+>

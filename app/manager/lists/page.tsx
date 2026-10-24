@@ -40,7 +40,7 @@ import {
 import { FOCUS_RING } from "@/components/ui/recipes";
 import type { Tone } from "@/components/ui/recipes";
 import { cn } from "@/lib/utils";
-import { ListHealthDashboard } from "@/components/lists/ListHealthDashboard";
+import { ListHealthDashboard, fetchBulkHealth, listsHealthBulkKey } from "@/components/lists/ListHealthDashboard";
 import type { HealthStatus, ListHealthSummary } from "@/lib/types/health";
 
 // ============================================
@@ -100,16 +100,6 @@ async function fetchListsApi(): Promise<ListData[]> {
     return all;
 }
 
-async function fetchHealthByListIds(listIds: string[]): Promise<Map<string, ListHealthSummary>> {
-    if (listIds.length === 0) return new Map();
-    const params = new URLSearchParams();
-    listIds.forEach((id) => params.append("listIds[]", id));
-    const res = await fetch(`/api/lists/health?${params.toString()}`);
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error || "Impossible de charger la santé des listes");
-    return new Map((json.data as ListHealthSummary[]).map((h) => [h.listId, h]));
-}
-
 const actionablePct = (l: ListData) => {
     const total = l.stats?.contactCount || 0;
     return total > 0 ? Math.round(((l.stats?.completeness?.ACTIONABLE || 0) / total) * 100) : null;
@@ -140,13 +130,17 @@ export default function ListsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const { position, contextData, handleContextMenu, close: closeMenu } = useContextMenu();
 
-    const activeIds = useMemo(() => lists.filter((l) => !l.isArchived).map((l) => l.id), [lists]);
-    const { data: health = new Map<string, ListHealthSummary>(), isLoading: healthLoading } = useQuery({
-        queryKey: ["manager", "lists-health", activeIds],
-        queryFn: () => fetchHealthByListIds(activeIds),
-        enabled: activeIds.length > 0,
-        staleTime: 2 * 60 * 1000,
+    // Health of every non-archived list, picked server-side: runs alongside the
+    // lists load, and the « Santé de la prospection » tab reuses the same cache.
+    const { data: healthRows, isLoading: healthLoading } = useQuery({
+        queryKey: listsHealthBulkKey(),
+        queryFn: () => fetchBulkHealth(),
+        staleTime: 3 * 60 * 1000,
     });
+    const health = useMemo(
+        () => new Map<string, ListHealthSummary>((healthRows ?? []).map((h) => [h.listId, h])),
+        [healthRows],
+    );
 
     // ============================================
     // ACTIONS
@@ -161,6 +155,7 @@ export default function ListsPage() {
             if (json.success) {
                 success("Liste supprimée", `${deleting.name} a été supprimée`);
                 queryClient.invalidateQueries({ queryKey: LISTS_QUERY_KEY });
+                queryClient.invalidateQueries({ queryKey: listsHealthBulkKey().slice(0, 1) });
             } else showError("Erreur", json.error || "Impossible de supprimer");
         } catch {
             showError("Erreur", "Impossible de supprimer la liste");
@@ -185,6 +180,7 @@ export default function ListsPage() {
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error);
+            queryClient.invalidateQueries({ queryKey: listsHealthBulkKey().slice(0, 1) });
             success(archived ? "Liste archivée" : "Liste désarchivée", list.name);
         } catch (e) {
             patch(!!list.isArchived, list.archivedAt);
@@ -307,7 +303,7 @@ export default function ListsPage() {
                         value={kpis.watch}
                         icon={TriangleAlert}
                         tone={kpis.watch > 0 ? "danger" : "neutral"}
-                        loading={isLoading || (activeIds.length > 0 && healthLoading)}
+                        loading={isLoading || healthLoading}
                         hint={kpis.watch > 0 ? `${kpis.atRisk} à risque · ${kpis.stalled} à l'arrêt` : "Rien à signaler"}
                     />
                 </button>

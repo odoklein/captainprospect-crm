@@ -184,6 +184,8 @@ function InnerLayout({
     // columns to the space it gets, so it must get all of it.
     const isPlanningBoard =
         pathname === "/manager/planning" || pathname === "/sdr/planning";
+    // The assistant is a chat app: history rail + thread + pinned composer.
+    const isAssistantChat = pathname === "/manager/assistant";
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";
@@ -266,7 +268,7 @@ function InnerLayout({
                     </div>
                 </header>
 
-                {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard ? (
+                {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
                     <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px)' }}>
                         {children}

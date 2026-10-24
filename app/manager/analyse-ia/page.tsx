@@ -14,6 +14,8 @@ import {
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
 import { Tabs } from "@/components/ui/Tabs";
+import { defaultWeekOffset, parisWeekBounds } from "@/lib/analyse-ia/week";
+import { WeeklyBilanModal } from "@/components/reporting/WeeklyBilanModal";
 
 // ============================================
 // TYPES
@@ -104,6 +106,9 @@ interface WeeklyAnalysis {
     weekEnd: string;
     label: string | null;
     status: "running" | "completed" | "failed";
+    clientIds?: string[];
+    errorMessage?: string | null;
+    friendlyError?: { title: string; detail: string; raw: string | null } | null;
     executiveSummary: string;
     confidenceScore: number;
     dataQualityScore: number;
@@ -134,20 +139,6 @@ interface WeeklyAnalysis {
 // ============================================
 // HELPERS
 // ============================================
-
-function getWeekBounds(offset = 0) {
-    const now = new Date();
-    const day = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((day + 6) % 7) + offset * 7);
-    monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
-    // Local calendar days: toISOString() would shift them back a day east of UTC.
-    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    return { weekStart: iso(monday), weekEnd: iso(sunday) };
-}
 
 function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString("fr-FR", {
@@ -863,42 +854,92 @@ const FIELD = "h-9 rounded-control border border-line bg-surface px-3 text-[13px
 
 export default function AnalyseIAPage() {
     const qc = useQueryClient();
-    const [weekOffset, setWeekOffset] = useState(0);
+    // Monday/Tuesday open on last week: the current one holds almost nothing yet.
+    const [weekOffset, setWeekOffset] = useState(() => defaultWeekOffset());
+    const [clientId, setClientId] = useState("");
+    const [bilanOpen, setBilanOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<TabKey>("synthese");
     const [picked, setPicked] = useState<WeeklyAnalysis | null>(null);
     const [runLabel, setRunLabel] = useState("");
 
-    const { weekStart, weekEnd } = getWeekBounds(weekOffset);
+    const { start: weekStart, end: weekEnd } = parisWeekBounds(weekOffset);
 
-    const { data: historyData, isLoading: historyLoading } = useQuery({
+    const { data: clientOptions = [] } = useQuery<Array<{ id: string; name: string }>>({
+        queryKey: ["analytics-filters", "clients"],
+        queryFn: async () => {
+            const res = await fetch("/api/analytics/filters");
+            const json = await res.json();
+            return json.success ? json.data.clients : [];
+        },
+        staleTime: 5 * 60_000,
+    });
+    const clientName = clientOptions.find((c) => c.id === clientId)?.name ?? "";
+
+    const {
+        data: historyData,
+        isLoading: historyLoading,
+        isError: historyError,
+        refetch: refetchHistory,
+    } = useQuery({
         queryKey: ["analyse-ia-history"],
         queryFn: async () => {
-            const res = await fetch("/api/analyse-ia/history?limit=20&status=completed");
+            // Failed runs come back too: hiding them is what made the page look empty.
+            const res = await fetch("/api/analyse-ia/history?limit=40");
             const json = await res.json();
+            if (!res.ok || !json.success) throw new Error(json.error || "Historique indisponible");
             return json.data as { analyses: WeeklyAnalysis[]; pagination: unknown };
         },
         staleTime: 30_000,
+        // While a run is going, poll until it lands (it runs after the request returns).
+        refetchInterval: (query) =>
+            (query.state.data as { analyses: WeeklyAnalysis[] } | undefined)?.analyses?.some((a) => a.status === "running")
+                ? 3000
+                : false,
     });
-    const analyses = historyData?.analyses || [];
 
-    // What is shown: the analysis picked by hand, else the one of the selected week,
-    // else the latest one — never an empty page while analyses exist.
-    const ofWeek = analyses.find((a) => a.weekStart.slice(0, 10) === weekStart) ?? null;
-    const displayed = picked ?? ofWeek ?? analyses[0] ?? null;
+    // Only analyses of the selected scope (all clients, or the picked client).
+    const sameScope = (a: WeeklyAnalysis) => {
+        const ids = a.clientIds ?? [];
+        return clientId ? ids.length === 1 && ids[0] === clientId : ids.length === 0;
+    };
+    const runs = (historyData?.analyses || []).filter(sameScope);
+    const analyses = runs.filter((a) => a.status !== "running");
+    const completed = runs.filter((a) => a.status === "completed");
+
+    // What is shown: the analysis picked by hand; else this week's — its latest
+    // completed run, unless a newer run failed (then say why); else the latest
+    // completed one — never an empty page while analyses exist.
+    const weekRuns = runs.filter((a) => a.weekStart.slice(0, 10) === weekStart);
+    const ofWeekCompleted = weekRuns.find((a) => a.status === "completed") ?? null;
+    const latestOfWeek = [...weekRuns].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
+    const ofWeek =
+        latestOfWeek?.status === "failed" &&
+        (!ofWeekCompleted || latestOfWeek.createdAt > ofWeekCompleted.createdAt)
+            ? latestOfWeek
+            : ofWeekCompleted;
+    const displayed = picked ?? ofWeek ?? completed[0] ?? null;
+    const runningRun = runs.find((a) => a.status === "running") ?? null;
 
     const runMutation = useMutation({
         mutationFn: async () => {
             const res = await fetch("/api/analyse-ia/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ weekStart, weekEnd, label: runLabel || undefined, missionIds: [], clientIds: [], sdrIds: [] }),
+                body: JSON.stringify({
+                    weekStart,
+                    weekEnd,
+                    label: runLabel || (clientName ? `${clientName} — ${formatWeekLabel(weekStart, weekEnd)}` : undefined),
+                    missionIds: [],
+                    clientIds: clientId ? [clientId] : [],
+                    sdrIds: [],
+                }),
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error || "Erreur lors de l'analyse");
-            return json.data.analysis as WeeklyAnalysis;
+            return json.data.analysisId as string;
         },
-        onSuccess: (analysis) => {
-            setPicked(analysis);
+        onSuccess: () => {
+            setPicked(null);
             setActiveTab("synthese");
             qc.invalidateQueries({ queryKey: ["analyse-ia-history"] });
         },
@@ -936,7 +977,7 @@ export default function AnalyseIAPage() {
         [displayed, feedbackMutation],
     );
 
-    const isRunning = runMutation.isPending;
+    const isRunning = runMutation.isPending || !!runningRun;
     const priorities = (displayed?.recommendations ?? [])
         .filter((r) => r.priority === "P1" || r.priority === "P2")
         .sort((a, b) => a.priority.localeCompare(b.priority))
@@ -986,6 +1027,26 @@ export default function AnalyseIAPage() {
                     </button>
                 </div>
 
+                <label className="flex items-center gap-2 text-xs font-semibold text-ink-3">
+                    <span className="sr-only">Client</span>
+                    <select
+                        value={clientId}
+                        onChange={(e) => {
+                            setClientId(e.target.value);
+                            setPicked(null);
+                        }}
+                        className={cn(FIELD, "max-w-[220px]")}
+                        aria-label="Client analysé"
+                    >
+                        <option value="">Tous les clients</option>
+                        {clientOptions.map((c) => (
+                            <option key={c.id} value={c.id}>
+                                {c.name}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
                 {analyses.length > 0 && (
                     <label className="flex items-center gap-2 text-xs font-semibold text-ink-3">
                         <History className="size-3.5" aria-hidden />
@@ -998,6 +1059,7 @@ export default function AnalyseIAPage() {
                             {analyses.map((a) => (
                                 <option key={a.id} value={a.id}>
                                     {a.label || formatWeekLabel(a.weekStart, a.weekEnd)}
+                                    {a.status === "failed" ? " (échouée)" : ""}
                                 </option>
                             ))}
                         </select>
@@ -1005,6 +1067,15 @@ export default function AnalyseIAPage() {
                 )}
 
                 <div className="ml-auto flex flex-wrap items-center gap-2">
+                    {clientId && (
+                        <button
+                            type="button"
+                            onClick={() => setBilanOpen(true)}
+                            className="inline-flex h-9 items-center gap-2 rounded-control border border-line bg-surface px-3 text-[13px] font-bold text-ink-2 shadow-2xs transition-colors hover:border-line-strong hover:text-ink"
+                        >
+                            <FileText className="size-4" aria-hidden /> Préparer le bilan client
+                        </button>
+                    )}
                     <input
                         type="text"
                         placeholder="Nom de l'analyse (facultatif)"
@@ -1048,7 +1119,20 @@ export default function AnalyseIAPage() {
                 </div>
             )}
 
-            {!historyLoading && !displayed && !isRunning && (
+            {historyError && (
+                <div className="mb-5 rounded-3xl border border-danger-line bg-danger-soft p-6 text-center" role="alert">
+                    <p className="text-sm font-bold text-danger-ink">Impossible de charger l&apos;historique des analyses</p>
+                    <button
+                        type="button"
+                        onClick={() => refetchHistory()}
+                        className="mt-3 inline-flex h-8 items-center gap-1.5 rounded-control border border-danger-line bg-surface px-3 text-xs font-bold text-danger-ink"
+                    >
+                        <RefreshCw className="size-3.5" aria-hidden /> Réessayer
+                    </button>
+                </div>
+            )}
+
+            {!historyLoading && !historyError && !displayed && !isRunning && (
                 <div className={cn(CARD, "px-6 py-14 text-center")}>
                     <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-accent-50 text-accent-700"><AiMark className="size-6" aria-hidden /></span>
                     <h2 className="mt-4 text-base font-extrabold text-ink">Aucune analyse pour le moment</h2>
@@ -1061,8 +1145,23 @@ export default function AnalyseIAPage() {
             {displayed?.status === "failed" && (
                 <div className="rounded-3xl border border-danger-line bg-danger-soft p-6 text-center" role="alert">
                     <XCircle className="mx-auto size-8 text-danger" aria-hidden />
-                    <p className="mt-2 text-sm font-bold text-danger-ink">Analyse échouée</p>
-                    <p className="mt-1 text-xs text-danger-ink">{(displayed as unknown as { errorMessage?: string }).errorMessage || "Erreur inconnue"}</p>
+                    <p className="mt-2 text-sm font-bold text-danger-ink">
+                        Analyse échouée{displayed.friendlyError ? ` : ${displayed.friendlyError.title}` : ""}
+                    </p>
+                    <p className="mx-auto mt-1 max-w-lg text-xs text-danger-ink">
+                        {displayed.friendlyError?.detail || displayed.errorMessage || "Erreur inconnue"}
+                    </p>
+                    {displayed.friendlyError?.raw && (
+                        <p className="mx-auto mt-2 max-w-lg break-words text-[11px] text-danger-ink opacity-70">{displayed.friendlyError.raw}</p>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => runMutation.mutate()}
+                        disabled={isRunning}
+                        className="mt-4 inline-flex h-9 items-center gap-2 rounded-control bg-primary px-4 text-[13px] font-bold text-primary-fg shadow-primary transition-colors hover:bg-primary-hover disabled:opacity-60"
+                    >
+                        <RefreshCw className="size-4" aria-hidden /> Relancer
+                    </button>
                 </div>
             )}
 
@@ -1158,6 +1257,15 @@ export default function AnalyseIAPage() {
                         {activeTab === "evolution" && <TrendSection analysis={displayed} />}
                     </div>
                 </div>
+            )}
+            {clientId && (
+                <WeeklyBilanModal
+                    clientId={clientId}
+                    clientName={clientName}
+                    initialWeekStart={weekStart}
+                    isOpen={bilanOpen}
+                    onClose={() => setBilanOpen(false)}
+                />
             )}
         </div>
     );

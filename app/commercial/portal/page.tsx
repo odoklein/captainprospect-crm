@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ComponentType } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui";
@@ -120,6 +120,13 @@ export default function CommercialPortal() {
     const upcomingMeetings = [...futureByDate("MEETING_BOOKED", 5), ...futureByDate("MEETING_CANCELLED", 3)]
         .sort((a, b) => new Date(a.callbackDate!).getTime() - new Date(b.callbackDate!).getTime());
 
+    const bookedUpcoming = upcomingMeetings.filter((m) => m.result === "MEETING_BOOKED").length;
+    const meetingTotal = confirmedMeetings.length + cancelledMeetings.length;
+    const cancelRate = meetingTotal > 0 ? Math.round((cancelledMeetings.length / meetingTotal) * 100) : null;
+    const missionCount = new Set(
+        allMeetings.map((m) => m.campaign?.mission?.name).filter((n): n is string => !!n),
+    ).size;
+
     const userName = profile
         ? `${profile.firstName} ${profile.lastName}`
         : session?.user?.name?.split(" ")[0] ?? "Commercial";
@@ -150,7 +157,7 @@ export default function CommercialPortal() {
                         Bonjour, {userName}
                     </h1>
                     <div className="flex items-center gap-2 mt-1">
-                        <p className="text-xs sm:text-sm text-ink-3">{MONTH_NAMES[now.getMonth()]} {now.getFullYear()}</p>
+                        <p className="text-xs sm:text-sm text-ink-3">{currentMonthLabel}</p>
                         {profile?.client?.name && (
                             <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-[2px] rounded-full">
                                 <TrendingUp className="w-3 h-3" />{profile.client.name}
@@ -161,8 +168,9 @@ export default function CommercialPortal() {
                 <button
                     onClick={() => fetchData(true)}
                     disabled={isRefreshing}
-                    className="w-8.5 h-8.5 rounded-lg border border-line flex items-center justify-center text-ink-3 hover:text-primary hover:border-line-strong transition-all duration-200 disabled:opacity-50 bg-white hover:shadow-2xs"
+                    className="w-8.5 h-8.5 rounded-lg border border-line flex items-center justify-center text-ink-3 hover:text-primary hover:border-line-strong transition-all duration-200 disabled:opacity-50 bg-white hover:shadow-2xs outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                     title="Rafraîchir"
+                    aria-label="Rafraîchir les données"
                 >
                     <RefreshCw className={cn("w-3.5 h-3.5 transition-transform duration-200", isRefreshing && "animate-spin")} />
                 </button>
@@ -204,7 +212,8 @@ export default function CommercialPortal() {
                             <div className="flex items-center rounded-lg bg-white/[0.08] border border-white/[0.12] p-0.5">
                                 <button
                                     onClick={() => setMonthOffset((o) => o - 1)}
-                                    className="w-8 h-8 rounded-md flex items-center justify-center text-inverse-ink-2 hover:bg-white/[0.12] hover:text-white transition-all"
+                                    className="w-8 h-8 rounded-md flex items-center justify-center text-inverse-ink-2 hover:bg-white/[0.12] hover:text-white transition-all outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                                    aria-label="Mois précédent"
                                 >
                                     <ChevronLeft className="w-4 h-4" />
                                 </button>
@@ -214,7 +223,8 @@ export default function CommercialPortal() {
                                 <button
                                     onClick={() => setMonthOffset((o) => Math.min(o + 1, 0))}
                                     disabled={monthOffset >= 0}
-                                    className="w-8 h-8 rounded-md flex items-center justify-center text-inverse-ink-2 hover:bg-white/[0.12] hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="w-8 h-8 rounded-md flex items-center justify-center text-inverse-ink-2 hover:bg-white/[0.12] hover:text-white transition-all outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    aria-label="Mois suivant"
                                 >
                                     <ChevronRight className="w-4 h-4" />
                                 </button>
@@ -222,6 +232,41 @@ export default function CommercialPortal() {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* ── KPI strip — every figure derived from the month loaded above ── */}
+            <div
+                className="grid grid-cols-2 lg:grid-cols-4 gap-3"
+                style={{ animation: "dashFadeUp 0.4s ease both", animationDelay: "90ms" }}
+            >
+                <SummaryTile
+                    icon={CalendarCheck}
+                    accent="bg-emerald-50 text-emerald-600 ring-emerald-100"
+                    label="RDV ce mois"
+                    value={confirmedMeetings.length}
+                    hint="confirmés au SAS"
+                />
+                <SummaryTile
+                    icon={Calendar}
+                    accent="bg-primary-50 text-primary ring-primary-100"
+                    label="À venir"
+                    value={bookedUpcoming}
+                    hint="dans le mois sélectionné"
+                />
+                <SummaryTile
+                    icon={CalendarX}
+                    accent="bg-red-50 text-red-600 ring-red-100"
+                    label="Annulés"
+                    value={cancelledMeetings.length}
+                    hint={cancelRate !== null ? `${cancelRate} % des RDV du mois` : "aucun RDV sur le mois"}
+                />
+                <SummaryTile
+                    icon={TrendingUp}
+                    accent="bg-surface-2 text-ink-2 ring-line"
+                    label="Missions"
+                    value={missionCount}
+                    hint="missions représentées"
+                />
             </div>
 
             {/* ── Upcoming Meetings ── */}
@@ -349,6 +394,28 @@ export default function CommercialPortal() {
                     to { opacity: 1; transform: none; }
                 }
             `}</style>
+        </div>
+    );
+}
+
+/** Compact KPI tile of the commercial home; all values come from the loaded month. */
+function SummaryTile({ icon: Icon, accent, label, value, hint }: {
+    icon: ComponentType<{ className?: string }>;
+    accent: string;
+    label: string;
+    value: number;
+    hint: string;
+}) {
+    return (
+        <div className="premium-card p-4 flex items-start gap-3 min-w-0">
+            <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ring-1 ring-inset", accent)}>
+                <Icon className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-ink-3 uppercase tracking-wider truncate">{label}</p>
+                <p className="text-xl font-bold text-ink tabular-nums leading-tight">{value}</p>
+                <p className="text-[11px] text-ink-4 truncate">{hint}</p>
+            </div>
         </div>
     );
 }

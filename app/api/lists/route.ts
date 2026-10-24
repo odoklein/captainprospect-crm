@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import {
     successResponse,
     paginatedResponse,
@@ -43,12 +44,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             include: {
                 mission: { select: { id: true, name: true, client: { select: { name: true } } } },
                 _count: { select: { companies: true } },
-                companies: {
-                    select: {
-                        status: true,
-                        _count: { select: { contacts: true } },
-                    },
-                },
             },
             orderBy: { createdAt: 'desc' },
             skip,
@@ -57,21 +52,35 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         prisma.list.count({ where }),
     ]);
 
-    // Calculate completeness stats
+    // Completeness stats, counted in SQL — never load every company of the page.
+    const listIds = lists.map((l) => l.id);
+    const [statusRows, contactRows] = listIds.length === 0 ? [[], []] : await Promise.all([
+        prisma.company.groupBy({
+            by: ['listId', 'status'],
+            where: { listId: { in: listIds } },
+            _count: { _all: true },
+        }),
+        prisma.$queryRaw<{ list_id: string; contacts: bigint }[]>`
+            SELECT co."listId" AS list_id, COUNT(*)::bigint AS contacts
+            FROM "Contact" c
+            INNER JOIN "Company" co ON co.id = c."companyId"
+            WHERE co."listId" IN (${Prisma.join(listIds)})
+            GROUP BY co."listId"
+        `,
+    ]);
+    const contactsByList = new Map(contactRows.map((r) => [r.list_id, Number(r.contacts)]));
+
     const listsWithStats = lists.map((list) => {
         const statusCounts = { INCOMPLETE: 0, PARTIAL: 0, ACTIONABLE: 0 };
-        let totalContacts = 0;
-
-        list.companies.forEach((company) => {
-            statusCounts[company.status]++;
-            totalContacts += company._count.contacts;
-        });
+        for (const row of statusRows) {
+            if (row.listId === list.id) statusCounts[row.status] += row._count._all;
+        }
 
         return {
             ...list,
             stats: {
                 companyCount: list._count.companies,
-                contactCount: totalContacts,
+                contactCount: contactsByList.get(list.id) ?? 0,
                 completeness: statusCounts,
             },
         };

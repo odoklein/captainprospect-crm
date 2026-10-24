@@ -428,95 +428,31 @@ export function generateHints(params: {
 }
 
 // ============================================
-// RAW DB QUERY (single list)
+// RAW DB QUERY
 // ============================================
 
-async function fetchRawMetrics(
-    listId: string,
-    options: HealthQueryOptions = {}
-): Promise<RawListHealthRow | null> {
-    const { sdrIds = [] } = options;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-    const sdrFilter = sdrIds.length > 0
-        ? Prisma.sql`AND a."sdrId" IN (${Prisma.join(sdrIds)})`
-        : Prisma.empty;
+/**
+ * Health aggregation for a set of lists, as one parameterised query.
+ *
+ * The scan starts from the lists' members, never from the whole Action table:
+ *   • contact actions — list contacts ⋈ Action on "contactId"
+ *   • company actions — list companies ⋈ Action on "companyId", no contact
+ * so Postgres walks the (contactId, createdAt) / (companyId, createdAt) indexes.
+ * An action that names a contact belongs to that contact's list only.
+ *
+ * Actions are rolled up per contact/company first (first & last touch, counts
+ * per result family), then per list. "New contacts" over 7 / 30 days are the
+ * contacts whose FIRST action falls in the window — re-calls don't count, so
+ * the ETA pace isn't inflated.
+ *
+ * Pure: `now` is a parameter, nothing reads the clock.
+ */
+export function bulkHealthSql(listIds: string[], sdrIds: string[], now: Date): Prisma.Sql {
+    const since7d = new Date(now.getTime() - 7 * DAY_MS);
+    const since30d = new Date(now.getTime() - 30 * DAY_MS);
 
-    const positiveList = Prisma.join(POSITIVE_RESULTS);
-    const badContactList = Prisma.join(BAD_CONTACT_RESULTS);
-    const negativeList = Prisma.join(NEGATIVE_RESULTS);
-
-    const rows = await prisma.$queryRaw<RawListHealthRow[]>`
-        WITH list_companies AS (
-            SELECT id FROM "Company" WHERE "listId" = ${listId}
-        ),
-        list_contacts AS (
-            SELECT c.id
-            FROM "Contact" c
-            INNER JOIN list_companies co ON c."companyId" = co.id
-        ),
-        list_actions AS (
-            SELECT
-                a.id,
-                a.result,
-                a."createdAt",
-                a."sdrId",
-                a."contactId",
-                a."companyId"
-            FROM "Action" a
-            WHERE (
-                a."contactId" IN (SELECT id FROM list_contacts)
-                OR a."companyId" IN (SELECT id FROM list_companies)
-            )
-            ${sdrFilter}
-        )
-        SELECT
-            ${listId}::text                                                                      AS list_id,
-            (SELECT COUNT(*) FROM list_contacts)                                                AS total_contacts,
-            (SELECT COUNT(*) FROM list_companies)                                               AS total_companies,
-            COUNT(*)                                                                            AS total_actions,
-            COUNT(*) FILTER (WHERE la."createdAt" >= NOW() - INTERVAL '7 days')                AS actions_7d,
-            COUNT(*) FILTER (WHERE la."createdAt" >= NOW() - INTERVAL '30 days')               AS actions_30d,
-            MAX(la."createdAt")                                                                 AS last_action_at,
-            COUNT(DISTINCT la."sdrId")                                                          AS unique_sdrs,
-            COUNT(DISTINCT la."contactId") FILTER (WHERE la."contactId" IS NOT NULL)           AS contacted_contacts,
-            COUNT(DISTINCT COALESCE(la."companyId", c."companyId")) FILTER (
-                WHERE COALESCE(la."companyId", c."companyId") IS NOT NULL
-            )                                                                                   AS contacted_companies,
-            COUNT(DISTINCT la."contactId") FILTER (
-                WHERE la."contactId" IS NOT NULL
-                AND la."createdAt" >= NOW() - INTERVAL '7 days'
-            )                                                                                   AS new_contacts_7d,
-            COUNT(DISTINCT la."contactId") FILTER (
-                WHERE la."contactId" IS NOT NULL
-                AND la."createdAt" >= NOW() - INTERVAL '30 days'
-            )                                                                                   AS new_contacts_30d,
-            COUNT(*) FILTER (WHERE CAST(la.result AS TEXT) IN (${positiveList}))              AS positive_count,
-            COUNT(*) FILTER (WHERE CAST(la.result AS TEXT) = 'MEETING_BOOKED')                AS meetings_count,
-            COUNT(*) FILTER (WHERE CAST(la.result AS TEXT) IN (${badContactList}))            AS bad_contact_count,
-            COUNT(*) FILTER (WHERE CAST(la.result AS TEXT) IN (${negativeList}))              AS negative_count,
-            COUNT(*) FILTER (
-                WHERE CAST(la.result AS TEXT) NOT IN (${positiveList})
-                AND CAST(la.result AS TEXT) NOT IN (${badContactList})
-                AND CAST(la.result AS TEXT) NOT IN (${negativeList})
-            )                                                                                   AS neutral_count
-        FROM list_actions la
-        LEFT JOIN "Contact" c ON c.id = la."contactId"
-    `;
-
-    return rows[0] ?? null;
-}
-
-// ============================================
-// BULK RAW DB QUERY (multiple lists at once)
-// ============================================
-
-async function fetchBulkRawMetrics(
-    listIds: string[],
-    options: HealthQueryOptions = {}
-): Promise<Map<string, RawListHealthRow>> {
-    if (listIds.length === 0) return new Map();
-
-    const { sdrIds = [] } = options;
     const sdrFilter = sdrIds.length > 0
         ? Prisma.sql`AND a."sdrId" IN (${Prisma.join(sdrIds)})`
         : Prisma.empty;
@@ -526,7 +462,7 @@ async function fetchBulkRawMetrics(
     const negativeList = Prisma.join(NEGATIVE_RESULTS);
     const listIdList = Prisma.join(listIds);
 
-    const rows = await prisma.$queryRaw<RawListHealthRow[]>`
+    return Prisma.sql`
         WITH target_lists AS (
             SELECT id AS list_id FROM "List" WHERE id IN (${listIdList})
         ),
@@ -536,7 +472,7 @@ async function fetchBulkRawMetrics(
             WHERE "listId" IN (${listIdList})
         ),
         list_contacts AS (
-            SELECT c.id, co.list_id
+            SELECT c.id, c."companyId" AS company_id, co.list_id
             FROM "Contact" c
             INNER JOIN list_companies co ON c."companyId" = co.id
         ),
@@ -550,79 +486,128 @@ async function fetchBulkRawMetrics(
             FROM list_companies
             GROUP BY list_id
         ),
-        list_actions AS (
+        member_actions AS (
             SELECT
-                a.id,
-                a.result,
-                a."createdAt",
+                lc.list_id,
+                TRUE                    AS is_contact,
+                lc.id                   AS entity_id,
+                lc.company_id,
                 a."sdrId",
-                a."contactId",
-                a."companyId",
-                ct."companyId" AS contact_company_id,
-                CASE
-                    WHEN a."contactId" IS NOT NULL THEN lc.list_id
-                    ELSE co.list_id
-                END AS list_id
-            FROM "Action" a
-            LEFT JOIN list_contacts lc ON a."contactId" = lc.id
-            LEFT JOIN list_companies co ON a."companyId" = co.id
-            LEFT JOIN "Contact" ct ON ct.id = a."contactId"
-            WHERE (lc.id IS NOT NULL OR co.id IS NOT NULL)
-            ${sdrFilter}
+                a."createdAt",
+                CAST(a.result AS TEXT)  AS result
+            FROM list_contacts lc
+            INNER JOIN "Action" a ON a."contactId" = lc.id
+            WHERE TRUE ${sdrFilter}
+            UNION ALL
+            SELECT
+                co.list_id,
+                FALSE                   AS is_contact,
+                co.id                   AS entity_id,
+                co.id                   AS company_id,
+                a."sdrId",
+                a."createdAt",
+                CAST(a.result AS TEXT)  AS result
+            FROM list_companies co
+            INNER JOIN "Action" a ON a."companyId" = co.id AND a."contactId" IS NULL
+            WHERE TRUE ${sdrFilter}
         ),
-        action_agg AS (
+        entity_agg AS (
             SELECT
                 list_id,
-                COUNT(*)                                                                            AS total_actions,
-                COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '7 days')                  AS actions_7d,
-                COUNT(*) FILTER (WHERE "createdAt" >= NOW() - INTERVAL '30 days')                 AS actions_30d,
-                MAX("createdAt")                                                                    AS last_action_at,
-                COUNT(DISTINCT "sdrId")                                                            AS unique_sdrs,
-                COUNT(DISTINCT "contactId") FILTER (WHERE "contactId" IS NOT NULL)                AS contacted_contacts,
-                COUNT(DISTINCT COALESCE("companyId", contact_company_id)) FILTER (
-                    WHERE COALESCE("companyId", contact_company_id) IS NOT NULL
-                )                                                                                   AS contacted_companies,
-                COUNT(DISTINCT "contactId") FILTER (
-                    WHERE "contactId" IS NOT NULL AND "createdAt" >= NOW() - INTERVAL '7 days'
-                )                                                                                   AS new_contacts_7d,
-                COUNT(DISTINCT "contactId") FILTER (
-                    WHERE "contactId" IS NOT NULL AND "createdAt" >= NOW() - INTERVAL '30 days'
-                )                                                                                   AS new_contacts_30d,
-                COUNT(*) FILTER (WHERE CAST(result AS TEXT) IN (${positiveList}))                AS positive_count,
-                COUNT(*) FILTER (WHERE CAST(result AS TEXT) = 'MEETING_BOOKED')                  AS meetings_count,
-                COUNT(*) FILTER (WHERE CAST(result AS TEXT) IN (${badContactList}))              AS bad_contact_count,
-                COUNT(*) FILTER (WHERE CAST(result AS TEXT) IN (${negativeList}))                AS negative_count,
+                is_contact,
+                entity_id,
+                company_id,
+                COUNT(*)                                                            AS n,
+                COUNT(*) FILTER (WHERE "createdAt" >= ${since7d})                   AS n_7d,
+                COUNT(*) FILTER (WHERE "createdAt" >= ${since30d})                  AS n_30d,
+                MIN("createdAt")                                                    AS first_at,
+                MAX("createdAt")                                                    AS last_at,
+                COUNT(*) FILTER (WHERE result IN (${positiveList}))                 AS positive_count,
+                COUNT(*) FILTER (WHERE result = 'MEETING_BOOKED')                   AS meetings_count,
+                COUNT(*) FILTER (WHERE result IN (${badContactList}))               AS bad_contact_count,
+                COUNT(*) FILTER (WHERE result IN (${negativeList}))                 AS negative_count,
                 COUNT(*) FILTER (
-                    WHERE CAST(result AS TEXT) NOT IN (${positiveList})
-                    AND CAST(result AS TEXT) NOT IN (${badContactList})
-                    AND CAST(result AS TEXT) NOT IN (${negativeList})
-                )                                                                                   AS neutral_count
-            FROM list_actions
+                    WHERE result NOT IN (${positiveList})
+                    AND result NOT IN (${badContactList})
+                    AND result NOT IN (${negativeList})
+                )                                                                   AS neutral_count
+            FROM member_actions
+            GROUP BY list_id, is_contact, entity_id, company_id
+        ),
+        list_agg AS (
+            SELECT
+                list_id,
+                SUM(n)                                                              AS total_actions,
+                SUM(n_7d)                                                           AS actions_7d,
+                SUM(n_30d)                                                          AS actions_30d,
+                MAX(last_at)                                                        AS last_action_at,
+                COUNT(*) FILTER (WHERE is_contact)                                  AS contacted_contacts,
+                COUNT(DISTINCT company_id)                                          AS contacted_companies,
+                COUNT(*) FILTER (WHERE is_contact AND first_at >= ${since7d})       AS new_contacts_7d,
+                COUNT(*) FILTER (WHERE is_contact AND first_at >= ${since30d})      AS new_contacts_30d,
+                SUM(positive_count)                                                 AS positive_count,
+                SUM(meetings_count)                                                 AS meetings_count,
+                SUM(bad_contact_count)                                              AS bad_contact_count,
+                SUM(negative_count)                                                 AS negative_count,
+                SUM(neutral_count)                                                  AS neutral_count
+            FROM entity_agg
+            GROUP BY list_id
+        ),
+        sdr_agg AS (
+            SELECT list_id, COUNT(DISTINCT "sdrId") AS unique_sdrs
+            FROM member_actions
             GROUP BY list_id
         )
         SELECT
             tl.list_id,
-            COALESCE(cc.total_contacts, 0)      AS total_contacts,
-            COALESCE(co2.total_companies, 0)    AS total_companies,
-            COALESCE(aa.total_actions, 0)       AS total_actions,
-            COALESCE(aa.actions_7d, 0)          AS actions_7d,
-            COALESCE(aa.actions_30d, 0)         AS actions_30d,
-            aa.last_action_at                   AS last_action_at,
-            COALESCE(aa.unique_sdrs, 0)         AS unique_sdrs,
-            COALESCE(aa.contacted_contacts, 0)  AS contacted_contacts,
-            COALESCE(aa.contacted_companies, 0) AS contacted_companies,
-            COALESCE(aa.new_contacts_7d, 0)     AS new_contacts_7d,
-            COALESCE(aa.new_contacts_30d, 0)    AS new_contacts_30d,
-            COALESCE(aa.positive_count, 0)      AS positive_count,
-            COALESCE(aa.meetings_count, 0)      AS meetings_count,
-            COALESCE(aa.bad_contact_count, 0)   AS bad_contact_count,
-            COALESCE(aa.negative_count, 0)      AS negative_count,
-            COALESCE(aa.neutral_count, 0)       AS neutral_count
+            COALESCE(cc.total_contacts, 0)                  AS total_contacts,
+            COALESCE(co2.total_companies, 0)                AS total_companies,
+            COALESCE(la.total_actions, 0)::bigint           AS total_actions,
+            COALESCE(la.actions_7d, 0)::bigint              AS actions_7d,
+            COALESCE(la.actions_30d, 0)::bigint             AS actions_30d,
+            la.last_action_at                               AS last_action_at,
+            COALESCE(sa.unique_sdrs, 0)                     AS unique_sdrs,
+            COALESCE(la.contacted_contacts, 0)              AS contacted_contacts,
+            COALESCE(la.contacted_companies, 0)             AS contacted_companies,
+            COALESCE(la.new_contacts_7d, 0)                 AS new_contacts_7d,
+            COALESCE(la.new_contacts_30d, 0)                AS new_contacts_30d,
+            COALESCE(la.positive_count, 0)::bigint          AS positive_count,
+            COALESCE(la.meetings_count, 0)::bigint          AS meetings_count,
+            COALESCE(la.bad_contact_count, 0)::bigint       AS bad_contact_count,
+            COALESCE(la.negative_count, 0)::bigint          AS negative_count,
+            COALESCE(la.neutral_count, 0)::bigint           AS neutral_count
         FROM target_lists tl
         LEFT JOIN contact_counts cc ON tl.list_id = cc.list_id
         LEFT JOIN company_counts co2 ON tl.list_id = co2.list_id
-        LEFT JOIN action_agg aa ON tl.list_id = aa.list_id
+        LEFT JOIN list_agg la ON tl.list_id = la.list_id
+        LEFT JOIN sdr_agg sa ON tl.list_id = sa.list_id
     `;
+}
+
+/** Single list — same query as the bulk one, so the detail view and the table agree. */
+async function fetchRawMetrics(
+    listId: string,
+    options: HealthQueryOptions = {}
+): Promise<RawListHealthRow | null> {
+    const rows = await prisma.$queryRaw<RawListHealthRow[]>(
+        bulkHealthSql([listId], options.sdrIds ?? [], new Date())
+    );
+    return rows[0] ?? null;
+}
+
+// ============================================
+// BULK RAW DB QUERY (multiple lists at once)
+// ============================================
+
+async function fetchBulkRawMetrics(
+    listIds: string[],
+    options: HealthQueryOptions = {}
+): Promise<Map<string, RawListHealthRow>> {
+    if (listIds.length === 0) return new Map();
+
+    const rows = await prisma.$queryRaw<RawListHealthRow[]>(
+        bulkHealthSql(listIds, options.sdrIds ?? [], new Date())
+    );
 
     const map = new Map<string, RawListHealthRow>();
     for (const row of rows) {

@@ -11,7 +11,8 @@ import { ClientHomeSkeleton, ClientHomeView, type ClientHomeMeeting } from "@/co
 interface DashboardStats {
     totalActions: number;
     meetingsBooked: number;
-    monthlyObjective: number;
+    meetingsConfirmed?: number;
+    monthlyObjective: number | null;
     activeMissions: number;
 }
 
@@ -115,10 +116,12 @@ export default function ClientPortal() {
                     })
                     .slice(0, 5);
                 setUpcomingMeetings(upcoming);
-                const nonCancelledCount = allMeetings.filter(
-                    (m) => m.result !== "MEETING_CANCELLED"
+                // The hero counts a RDV only once it is confirmed and still booked:
+                // a cancelled one is not a meeting the client got.
+                const confirmedCount = allMeetings.filter(
+                    (m) => m.result !== "MEETING_CANCELLED" && m.confirmationStatus !== "CANCELLED"
                 ).length;
-                setTotalMeetingsCount(nonCancelledCount);
+                setTotalMeetingsCount(confirmedCount);
             }
             if (settingsJson?.success) {
                 setPortalSettings(settingsJson.data);
@@ -151,7 +154,9 @@ export default function ClientPortal() {
         return <LaunchWarmupScreen missions={launchMissions} userName={userName} />;
     }
 
-    const meetingsBooked = totalMeetingsCount || stats?.meetingsBooked || 0;
+    // No fallback to stats.meetingsBooked: that number is all booked RDV (pending and
+    // cancelled included) and would silently contradict the confirmed count.
+    const meetingsBooked = totalMeetingsCount;
 
     const callsMonth = new Date(now.getFullYear(), now.getMonth() + callsMonthOffset, 1);
 

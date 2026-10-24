@@ -8,6 +8,7 @@ import {
   validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { findOrCreateClientProject } from '@/lib/projects/client-project';
 
 // ============================================
 // GET /api/clients/[id]/sessions
@@ -147,29 +148,11 @@ export const POST = withErrorHandler(
     if ((body.tasks ?? []).length > 0) {
       const userId = sessionUser.user.id;
 
-      let project = await prisma.project.findFirst({
-        where: {
-          clientId,
-          name: client.name,
-          status: 'ACTIVE',
-        },
+      const project = await findOrCreateClientProject(clientId, userId, {
+        description: body.type
+          ? `Projet créé automatiquement à partir des sessions client (${body.type}).`
+          : 'Projet créé automatiquement à partir des sessions client.',
       });
-
-      if (!project) {
-        project = await prisma.project.create({
-          data: {
-            name: client.name,
-            description: body.type
-              ? `Projet créé automatiquement à partir des sessions client (${body.type}).`
-              : 'Projet créé automatiquement à partir des sessions client.',
-            clientId,
-            ownerId: userId,
-            members: {
-              create: { userId, role: 'owner' },
-            },
-          },
-        });
-      }
 
       projectId = project.id;
 

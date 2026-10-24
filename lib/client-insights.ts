@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { DateTime } from "luxon";
 import { prisma } from "@/lib/prisma";
+import { getFirstCallAtByClient } from "@/lib/clients/first-call";
 
 export interface ClientProductionInsight {
     month: string;
@@ -62,7 +63,7 @@ export async function getClientProductionInsights(
 
     if (uniqueClientIds.length === 0) return insights;
 
-    const [planRows, firstCallRows, totalWorkedRows, monthRows] = await Promise.all([
+    const [planRows, firstCallByClient, totalWorkedRows, monthRows] = await Promise.all([
         prisma.mission.findMany({
             where: { clientId: { in: uniqueClientIds } },
             select: {
@@ -81,15 +82,7 @@ export async function getClientProductionInsights(
                 },
             },
         }),
-        prisma.$queryRaw<Array<{ clientId: string; firstCallAt: Date | null }>>(Prisma.sql`
-            SELECT m."clientId" AS "clientId", MIN(a."createdAt") AS "firstCallAt"
-            FROM "Action" a
-            INNER JOIN "Campaign" c ON c."id" = a."campaignId"
-            INNER JOIN "Mission" m ON m."id" = c."missionId"
-            WHERE m."clientId" IN (${Prisma.join(uniqueClientIds)})
-              AND a."channel"::text = 'CALL'
-            GROUP BY m."clientId"
-        `),
+        getFirstCallAtByClient(uniqueClientIds),
         prisma.$queryRaw<Array<{ clientId: string; workedDays: bigint | number }>>(Prisma.sql`
             SELECT m."clientId" AS "clientId",
                    COUNT(DISTINCT c."missionId" || ':' || a."sdrId" || ':' || to_char(a."createdAt" AT TIME ZONE 'Europe/Paris', 'YYYY-MM-DD')) AS "workedDays"
@@ -146,9 +139,9 @@ export async function getClientProductionInsights(
         }
     }
 
-    for (const row of firstCallRows) {
-        const current = insights.get(row.clientId);
-        if (current) current.firstCallAt = row.firstCallAt;
+    for (const [clientId, firstCallAt] of firstCallByClient) {
+        const current = insights.get(clientId);
+        if (current) current.firstCallAt = firstCallAt;
     }
 
     for (const row of totalWorkedRows) {

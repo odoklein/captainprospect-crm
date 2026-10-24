@@ -101,6 +101,8 @@ export function PortalAccessGate() {
         setLeaving(true);
         await pause(350);
         setVisible(false);
+        // Lets the next modal (MeetingFeedbackReminder) open only once this screen is gone.
+        window.dispatchEvent(new Event("cp:portal-access-ready"));
     }, []);
 
     useEffect(() => {

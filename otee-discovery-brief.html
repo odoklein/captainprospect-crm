@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Otee — Discovery Brief · Captain Prospect</title>
+<style>
+  :root{
+    --navy:#263460;
+    --navy-2:#1b2547;
+    --accent:#C64B8B;
+    --accent-soft:#fbeef5;
+    --ink:#151a2d;
+    --muted:#5b6478;
+    --line:#e2e5ee;
+    --paper:#ffffff;
+    --wash:#f6f7fb;
+    --amber:#8a5a12;
+    --accent-ink:#a83f76;
+    --amber-soft:#fdf3e2;
+    --red:#a8323c;
+    --red-soft:#fbeceb;
+    --green:#1f6b4f;
+    --green-soft:#e9f4ef;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--wash);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{
+    max-width:960px;
+    margin:0 auto;
+    background:var(--paper);
+    padding:56px 64px 64px;
+  }
+
+  /* ---------- masthead ---------- */
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    font-weight:700;
+    color:var(--accent-ink);
+  }
+  h1{
+    font-size:44px;
+    line-height:1.05;
+    letter-spacing:-.025em;
+    margin:10px 0 6px;
+    font-weight:800;
+    color:var(--navy);
+  }
+  .deck{
+    font-size:19px;
+    line-height:1.4;
+    color:var(--muted);
+    margin:0 0 26px;
+    max-width:620px;
+  }
+  .meta{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    border-top:2px solid var(--navy);
+    border-bottom:1px solid var(--line);
+    padding:14px 0;
+    margin:0 0 34px;
+  }
+  .meta dt{
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:700;
+    margin:0 0 3px;
+  }
+  .meta dd{margin:0;font-size:13px;font-weight:600}
+
+  /* ---------- sections ---------- */
+  section{margin:0 0 38px}
+  h2{
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--navy);
+    font-weight:800;
+    margin:0 0 14px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:12px;
+    align-items:baseline;
+  }
+  h2 .num{
+    color:var(--accent-ink);
+    font-size:12px;
+    font-variant-numeric:tabular-nums;
+  }
+  h3{
+    font-size:15px;
+    margin:0 0 6px;
+    color:var(--navy);
+    letter-spacing:-.01em;
+  }
+  p{margin:0 0 10px}
+  .lede{font-size:16px;line-height:1.55}
+  strong{font-weight:650}
+  em{color:var(--muted);font-style:normal}
+
+  /* ---------- callout ---------- */
+  .tldr{
+    background:var(--navy);
+    color:#fff;
+    padding:26px 28px 22px;
+    border-radius:2px;
+    margin:0 0 38px;
+  }
+  .tldr h2{color:#fff;border-bottom:1px solid rgba(255,255,255,.22);margin-bottom:14px}
+  .tldr h2 .num{color:#f0a8cb}
+  .tldr p{color:#dfe3ef;font-size:15px;line-height:1.6;margin:0 0 10px}
+  .tldr p:last-child{margin-bottom:0}
+  .tldr strong{color:#fff}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+  .card{
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:16px 18px;
+    background:#fff;
+  }
+  .card .tag{
+    display:inline-block;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:3px 7px;
+    border-radius:2px;
+    margin-bottom:8px;
+  }
+  .tag.no{background:var(--red-soft);color:var(--red)}
+  .tag.yes{background:var(--green-soft);color:var(--green)}
+  .tag.maybe{background:var(--amber-soft);color:var(--amber)}
+  .card p{font-size:13.5px;line-height:1.5;margin:0;color:#3d4557}
+  .card p + p{margin-top:7px}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:0 0 6px}
+  thead th{
+    text-align:left;
+    font-size:10px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:800;
+    border-bottom:1.5px solid var(--navy);
+    padding:0 10px 8px 0;
+    vertical-align:bottom;
+  }
+  tbody td{
+    padding:11px 10px 11px 0;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+    line-height:1.45;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.claim{font-weight:650;width:26%;color:var(--navy)}
+  td.evidence{width:38%;color:#3d4557}
+  .verdict{
+    display:inline-block;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    padding:2px 6px;
+    border-radius:2px;
+    white-space:nowrap;
+  }
+  .verdict.v1{background:var(--red-soft);color:var(--red)}
+  .verdict.v2{background:var(--amber-soft);color:var(--amber)}
+  .verdict.v3{background:var(--green-soft);color:var(--green)}
+
+  /* ---------- questions ---------- */
+  .qblock{margin:0 0 22px}
+  .qblock h3{
+    font-size:12px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--accent-ink);
+    margin:0 0 9px;
+  }
+  ul.questions{list-style:none;margin:0;padding:0;columns:2;column-gap:34px}
+  ul.questions li{
+    position:relative;
+    padding:0 0 9px 22px;
+    font-size:13.5px;
+    line-height:1.45;
+    break-inside:avoid;
+    color:#232a3d;
+  }
+  ul.questions li::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:3px;
+    width:11px;
+    height:11px;
+    border:1.5px solid #b9bfd0;
+    border-radius:2px;
+  }
+  ul.questions li b{font-weight:650;color:var(--navy)}
+
+  /* ---------- lists ---------- */
+  ul.plain{margin:0 0 12px;padding:0 0 0 18px}
+  ul.plain li{font-size:14px;line-height:1.55;margin-bottom:7px;color:#2b3244}
+  ul.plain li::marker{color:var(--accent)}
+
+  .phrases{display:grid;grid-template-columns:1fr 1fr;gap:0 30px}
+  .phrase{
+    border-left:2px solid var(--accent);
+    padding:2px 0 2px 14px;
+    margin-bottom:14px;
+  }
+  .phrase q{
+    display:block;
+    font-size:14px;
+    font-weight:600;
+    color:var(--navy);
+    quotes:none;
+    margin-bottom:3px;
+  }
+  .phrase span{font-size:12.5px;color:var(--muted);line-height:1.45;display:block}
+
+  .stance{
+    background:var(--accent-soft);
+    border-left:3px solid var(--accent);
+    padding:18px 22px;
+  }
+  .stance h3{margin-bottom:8px}
+  .stance ul{margin:0;padding-left:18px}
+  .stance li{font-size:13.5px;margin-bottom:6px;line-height:1.5}
+
+  .walkaway{
+    border:1px solid #e9c9c6;
+    background:var(--red-soft);
+    padding:16px 20px;
+    margin-top:16px;
+  }
+  .walkaway h3{color:var(--red);margin-bottom:6px;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+  .walkaway p{font-size:13.5px;margin:0;color:#5d2b2f}
+
+  /* ---------- scorecard ---------- */
+  .score td.crit{font-weight:600;width:38%}
+  .score td.w{width:12%;color:var(--muted);font-variant-numeric:tabular-nums}
+  .score td.box{width:9%;border-bottom:1px solid var(--line)}
+  .score td.box div{width:26px;height:22px;border:1.2px solid #c3c8d8;border-radius:2px}
+  .score tfoot td{
+    padding-top:12px;
+    font-size:12px;
+    color:var(--muted);
+    border-top:1.5px solid var(--navy);
+  }
+
+  /* ---------- agenda ---------- */
+  .agenda{list-style:none;margin:0;padding:0;counter-reset:ag}
+  .agenda li{
+    counter-increment:ag;
+    display:grid;
+    grid-template-columns:64px 1fr;
+    gap:14px;
+    padding:9px 0;
+    border-bottom:1px dashed var(--line);
+    font-size:13.5px;
+  }
+  .agenda li:last-child{border-bottom:none}
+  .agenda .t{
+    font-weight:700;
+    color:var(--accent-ink);
+    font-variant-numeric:tabular-nums;
+    font-size:12px;
+    letter-spacing:.03em;
+    padding-top:2px;
+  }
+  .agenda b{color:var(--navy)}
+
+  .footer{
+    margin-top:44px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:11.5px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+  .footer b{color:var(--ink);font-weight:650}
+
+  .kicker{
+    font-size:13px;
+    color:var(--muted);
+    margin:-4px 0 18px;
+  }
+  .flag-inline{
+    display:inline-block;
+    font-size:10.5px;
+    font-weight:800;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--red);
+    background:var(--red-soft);
+    padding:2px 6px;
+    border-radius:2px;
+    vertical-align:1px;
+  }
+
+  /* ---------- print ---------- */
+  @page{size:A4;margin:14mm 13mm}
+  @media print{
+    body{background:#fff;font-size:9.6pt;line-height:1.42}
+    .page{max-width:none;padding:0;margin:0}
+    h1{font-size:30pt}
+    .deck{font-size:12pt;margin-bottom:14px}
+    section{margin-bottom:16px;break-inside:avoid}
+    .tldr{padding:14px 18px;margin-bottom:18px;background:var(--navy) !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .tldr p{font-size:9.4pt}
+    table{font-size:8.4pt}
+    ul.questions li{font-size:8.8pt;padding-bottom:5px}
+    ul.questions{columns:2}
+    .card p{font-size:8.8pt}
+    .meta{margin-bottom:16px;padding:8px 0}
+    .meta dd{font-size:9pt}
+    h2{font-size:9pt;margin-bottom:8px}
+    .phrases{gap:0 20px}
+    .phrase{margin-bottom:8px}
+    .phrase q{font-size:9pt}
+    .phrase span{font-size:8.2pt}
+    .footer{font-size:7.8pt;margin-top:18px}
+    .pagebreak{break-before:page;break-inside:auto}
+    .tag,.verdict,.flag-inline,.stance,.walkaway,.tldr{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+  @media (max-width:760px){
+    .page{padding:30px 22px 40px}
+    h1{font-size:32px}
+    .deck{font-size:16px}
+    .meta{grid-template-columns:1fr 1fr;gap:14px}
+    .grid-2,.grid-3,.phrases{grid-template-columns:1fr}
+    ul.questions{columns:1}
+    table{font-size:13px}
+    thead th{font-size:9px}
+    /* stacked cards instead of 4 cramped columns */
+    .footprint thead,.claims thead,.score thead{display:none}
+    .footprint tbody tr,.claims tbody tr,.score tbody tr{
+      display:block;
+      border:1px solid var(--line);
+      border-radius:2px;
+      padding:13px 15px;
+      margin-bottom:11px;
+    }
+    .footprint tbody tr:last-child,.claims tbody tr:last-child,.score tbody tr:last-child{margin-bottom:0}
+    .footprint tbody td,.claims tbody td,.score tbody td{
+      display:block;
+      width:auto;
+      padding:0 0 7px;
+      border:0;
+    }
+    .footprint tbody td:last-child,.claims tbody td:last-child,.score tbody td:last-child{padding-bottom:0}
+    .footprint td:nth-child(2)::before,
+    .claims td:nth-child(2)::before,
+    .claims td:nth-child(3)::before,
+    .claims td:nth-child(4)::before,
+    .score td:nth-child(2)::before,
+    .score td:nth-child(3)::before{
+      display:block;
+      font-size:9.5px;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-bottom:1px;
+    }
+    .footprint td:nth-child(2)::before{content:"Found"}
+    .footprint td:nth-child(3)::before{content:"What it tells us"}
+    .claims td:nth-child(2)::before{content:"The question"}
+    .claims td:nth-child(3)::before{content:"Evidence we accept"}
+    .claims td:nth-child(4)::before{content:"Risk if unproven"}
+    .score td:nth-child(1){font-size:15px;color:var(--navy);padding-bottom:9px}
+    .score td:nth-child(2)::before{content:"Weight"}
+    .score td:nth-child(3)::before{content:"Score, 1 to 5"}
+    .score td.box div{width:32px;height:26px;margin-top:2px}
+    .score tfoot td{padding-top:6px}
+    td.claim{width:auto;font-size:14.5px}
+    .verdict{white-space:normal}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">Discovery brief · Confidential · Internal</div>
+  <h1>Otee: supplier, partner,<br>or distraction?</h1>
+  <p class="deck">What they actually sell, where it touches our stack, and the seven claims to break before we sign anything.</p>
+
+  <dl class="meta">
+    <div><dt>Meeting</dt><dd>Discovery call with the founding team</dd></div>
+    <div><dt>Our side</dt><dd>Captain Prospect / Suzali</dd></div>
+    <div><dt>Prepared</dt><dd>23 October 2026</dd></div>
+    <div><dt>Goal</dt><dd>Qualify or disqualify in 45 min</dd></div>
+  </dl>
+
+  <div class="tldr">
+    <h2><span class="num">00</span> In sixty seconds</h2>
+    <p><strong>Otee is not an app. It is the layer under the app:</strong> a self-hosted platform that installs open-source models (Mistral, Llama, Qwen, Gemma, DeepSeek, Phi) on infrastructure you control, routes each request to a right-sized model (S 7B / M 32B / L 120B), and gives one screen for models, teams, quotas and audit. It exposes an OpenAI-compatible API and is sold as one fixed licence — no tokens, no seats.</p>
+    <p><strong>Their pitch is cost and sovereignty.</strong> 70% of requests supposedly run on an oversized model, so bills are 10–30× too high; and with Otee no byte leaves your perimeter, no US provider, no CLOUD Act.</p>
+    <p><strong>The catch for us:</strong> cost is not our problem. Our AI spend is a rounding error at current volumes, and our margins are already 94–96%. <strong>The real reasons to care are commercial</strong> — being able to say "our AI inference runs in France, on our own servers" to agency and public-sector prospects, and being able to sell AI inside the CRM at a flat cost per workspace instead of metering tokens.</p>
+    <p><strong>So the meeting is not "is it cheaper".</strong> It is: can they prove quality on our real French call recordings, do they hand us a platform we can operate and leave, and is the price a licence or a lock-in with a nicer name.</p>
+  </div>
+
+  <section>
+    <h2><span class="num">01</span> What they actually sell</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Their words</h3>
+        <p style="font-size:14px">"Le bon modèle open source pour chaque tâche, déployé chez vous. Sans dépendance, sans surprise sur la facture." Three principles: sovereign, optimal (right-sized model per task), plug &amp; play (deployed and updated automatically, no AI expertise needed).</p>
+        <p style="font-size:14px">Product surface: <strong>Optimizer</strong> (live routing by complexity), <strong>control screen</strong> (models, access, quotas, audit, chargeback export), <strong>one-click deployment</strong> on OVHcloud, Scaleway, Outscale, SecNumCloud clouds, your own GPU servers or Kubernetes.</p>
+      </div>
+      <div>
+        <h3>What it means in practice</h3>
+        <ul class="plain" style="font-size:13.5px">
+          <li>They are <strong>infrastructure, not a feature.</strong> Their own FAQ: "Otee est la couche en dessous" — it does not replace your AI apps, your tools plug into it.</li>
+          <li>They do not train or own models. Value is in routing + deployment + governance.</li>
+          <li>Someone still runs GPUs, and someone still pays for them. The question is who.</li>
+          <li>Positioning is enterprise IT (DSI, Finance, Legal), not sales teams. We are not their obvious buyer — which is leverage.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span> Public footprint: read this before you trust the slide</h2>
+    <table class="footprint">
+      <thead><tr><th>What we checked</th><th>What we found</th><th>What it tells us</th></tr></thead>
+      <tbody>
+        <tr><td class="claim">Pricing</td><td class="evidence">No price anywhere. FAQ says "software licence, no tokens, no seats". No pricing page, no tiers, no floor.</td><td>Price is negotiated per deal. Anchor low and make them put a number on the table first.</td></tr>
+        <tr><td class="claim">Legal &amp; company</td><td class="evidence">No legal notice, no company registration, no address, no DPA, no sub-processor list on the site.</td><td>Expected at seed stage, but it means GDPR paperwork starts from zero — weeks, not days.</td></tr>
+        <tr><td class="claim">Team &amp; references</td><td class="evidence">Only "the founding team". No names, no LinkedIn, no customers, no case study, no blog.</td><td>No social proof to verify. Ask for two reference customers you can call, and their names before the call.</td></tr>
+        <tr><td class="claim">Product proof</td><td class="evidence">console.otee.ai does not resolve. The 48,210 requests/day and 99.9% uptime figures are a marketing mock on the page, not a status page.</td><td>The demo will be a controlled environment. Insist on a live test on our data, not theirs.</td></tr>
+        <tr><td class="claim">Search footprint</td><td class="evidence">No third-party mentions found in a general web search.</td><td>Very early. Good for price leverage, bad for continuity risk.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span> Why we are even talking: the fit map</h2>
+    <p class="kicker">Four angles. Only two of them are real for us today.</p>
+    <div class="grid-2" style="gap:16px">
+      <div class="card">
+        <span class="tag no">Weak</span>
+        <h3>Token cost</h3>
+        <p>Their headline. It does not survive contact with our numbers: the "Fiche de RDV" is 150–2,500 generations a month against an all-in infrastructure cost of a few euros per workspace. Even at 10× volume this is not a line that moves the P&amp;L.</p>
+        <p><em>If they open with savings, say so plainly and watch how they recover.</em></p>
+      </div>
+      <div class="card">
+        <span class="tag yes">Real</span>
+        <h3>Sovereignty as a sales argument</h3>
+        <p>We already sell single-tenant, data-in-EU, private S3 vault. "Inference runs on our own servers, no US API, no CLOUD Act" is a stronger version of a story we already tell — and it matters to agency clients reselling to public-sector-adjacent buyers.</p>
+        <p>That is a positioning gain, not a cost gain. Value it that way.</p>
+      </div>
+      <div class="card">
+        <span class="tag maybe">Maybe</span>
+        <h3>AI inside the CRM at flat cost</h3>
+        <p>Today every AI call is metered and quota'd per pack. If inference becomes a fixed cost, AI features can be "included" in the white-label Pack 3 and priced per workspace — simpler to sell, easier to defend in a renewal.</p>
+        <p><em>Blocked by one question: is the platform multi-tenant with per-workspace quotas?</em></p>
+      </div>
+      <div class="card">
+        <span class="tag no">New burden</span>
+        <h3>Operating GPU inference</h3>
+        <p>We are a CRM team, not an MLOps team. Someone must size GPUs, patch, watch latency, handle model deprecation and explain to a client why a summary was slow at 9am.</p>
+        <p>Either they operate it (then data leaves our perimeter and the sovereignty story dies) or we do (then it is a new on-call surface). Pin them on this.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Seven claims to break — and the evidence to demand</h2>
+    <p class="kicker">Not traps for the sake of it: each one is a sentence that, if it fails under your data, changes the deal.</p>
+    <table class="claims">
+      <thead><tr><th style="width:24%">Their claim</th><th style="width:26%">The question that tests it</th><th style="width:38%">Evidence you accept</th><th>Risk if unproven</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="claim">"One fixed licence, no tokens, no seats."</td>
+          <td>What exactly is the number, what is metered, and what happens at 10× our usage?</td>
+          <td>The actual contract page, with a usage ceiling (or fair-use clause) in writing, plus the overage rule.</td>
+          <td><span class="verdict v1">Deal-breaker</span></td>
+        </tr>
+        <tr>
+          <td class="claim">"No hardware to buy."</td>
+          <td>Then which GPUs run it, rented from whom, at what monthly cost, paid by whom?</td>
+          <td>A written BOM: GPU model, count, €/month at our volume, who holds the cloud account.</td>
+          <td><span class="verdict v1">Deal-breaker</span></td>
+        </tr>
+        <tr>
+          <td class="claim">"Same answer quality, smaller model."</td>
+          <td>On French B2B phone calls with accents, company names and numbers — measured how?</td>
+          <td>A blind test on 20 of our real recordings, scored against our current Mistral output by our own team.</td>
+          <td><span class="verdict v1">Deal-breaker</span></td>
+        </tr>
+        <tr>
+          <td class="claim">"70% of requests are oversized."</td>
+          <td>Whose measurement, on which workloads, and what is it for our prompt mix?</td>
+          <td>A method, not a percentage. Then they run 50 of our real prompts and show the routing decisions.</td>
+          <td><span class="verdict v2">Marketing</span></td>
+        </tr>
+        <tr>
+          <td class="claim">"Zero lock-in, open source, standard API."</td>
+          <td>Is the router, control plane and deployment tooling open source? Can we run without you?</td>
+          <td>Export of routing config, standard vLLM/Helm artefacts, and a source-escrow or exit runbook.</td>
+          <td><span class="verdict v1">Deal-breaker</span></td>
+        </tr>
+        <tr>
+          <td class="claim">"Otee keeps no data."</td>
+          <td>No data at all — including logs, telemetry, support access and model evaluation runs?</td>
+          <td>DPA, sub-processor list, hosting region of their control plane, log retention stated in days.</td>
+          <td><span class="verdict v1">Deal-breaker</span></td>
+        </tr>
+        <tr>
+          <td class="claim">"99.9% uptime."</td>
+          <td>Is that a contractual SLA with service credits, or a figure in a dashboard mock?</td>
+          <td>Status page, last 12 months of incidents, and the SLA clause in the contract.</td>
+          <td><span class="verdict v2">Verify</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="pagebreak">
+    <h2><span class="num">05</span> Question bank</h2>
+    <p class="kicker">Ask in this order. Each block ends with a question that closes the previous one.</p>
+
+    <div class="qblock">
+      <h3>A · Commercial — get the number first</h3>
+      <ul class="questions">
+        <li>What is the <b>annual licence price</b>, all-in, for a deployment of our size?</li>
+        <li>What is the <b>unit</b> — per instance, per workspace, per company, per model?</li>
+        <li>Is there a <b>floor commitment</b> or minimum term? What is the smallest deal you sign?</li>
+        <li>What is <b>metered</b> if nothing is billed per token? Requests, GPU hours, seats, support?</li>
+        <li>What happens at <b>3× and 10× our volume</b> — new invoice line, or "unlimited"?</li>
+        <li>What is included in <b>onboarding</b>, and what is charged as a project?</li>
+        <li>Do we get <b>OEM / white-label rights</b> to resell this inside our product to our clients?</li>
+        <li>Is the price <b>fixed for 12 or 36 months</b>, and indexed on what?</li>
+        <li>What are the <b>pilot terms</b>: duration, price, data, and who owns the benchmark results?</li>
+        <li>Walk us through the <b>exit clause</b>. What do we keep on day one after termination?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>B · Technical — the part their slide deck will avoid</h3>
+      <ul class="questions">
+        <li>Exact <b>GPU footprint</b> for the S/M/L tiers: model, VRAM, count, and minimum viable setup.</li>
+        <li>Full <b>model list with licences</b> — Llama community licence, Qwen, Gemma: commercial use cleared?</li>
+        <li>How does <b>routing</b> actually decide? Classifier, heuristics, eval scores, learned policy?</li>
+        <li>Can we <b>pin a model per task</b> and bypass the Optimizer when we need determinism?</li>
+        <li>What is <b>p95 latency</b> for 7B and 32B on your reference hardware, at our concurrency?</li>
+        <li><b>Tool calling and JSON mode</b> reliability — we drive a strict tool loop with schema validation.</li>
+        <li>Which <b>OpenAI endpoints</b> are truly compatible: chat, embeddings, audio transcription, vision, streaming?</li>
+        <li><b>Failover</b> when a model OOMs or a node dies — automatic, and how fast?</li>
+        <li>"Updated automatically and continuously": <b>who approves</b> a model version change in production?</li>
+        <li>Is the platform <b>multi-tenant</b> with per-workspace quotas we can map to our clients?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>C · Security, compliance, data</h3>
+      <ul class="questions">
+        <li>Where does inference physically run — <b>which region, which provider</b>, and can we see it in writing?</li>
+        <li>The <b>control plane</b>: hosted by you or by us? If by you, what telemetry leaves our perimeter?</li>
+        <li>Do you have a <b>DPA</b>, a sub-processor list, and a GDPR record of processing we can attach to ours?</li>
+        <li>Any <b>ISO 27001 / SOC 2</b>, or a recent <b>pen test report</b> we can read?</li>
+        <li>Who at Otee can technically access <b>our infrastructure and prompts</b>, under what process?</li>
+        <li><b>Audit log</b>: what is recorded, where is it stored, how long, and can we export it?</li>
+        <li><b>Incident notification</b>: within how many hours, and who writes the client communication?</li>
+        <li>Confirm in writing: <b>our data is never used to train or evaluate</b> any model.</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>D · Operations and continuity — the question nobody asks</h3>
+      <ul class="questions">
+        <li>Who is <b>on call</b> when inference breaks at 8am on a Monday — us or you?</li>
+        <li>Who plans <b>GPU capacity</b> when our usage doubles?</li>
+        <li>What happens when a model is <b>deprecated upstream</b>? Who migrates, how long, at what cost?</li>
+        <li>Is there a <b>runbook</b> we can hold, and deployment artefacts (Helm, Terraform) we can keep?</li>
+        <li>If Otee <b>shuts down</b>, what do we own and what stops working the next day?</li>
+        <li>Support: hours, languages, channel, <b>response SLA</b>, and who escalates to the founders?</li>
+        <li>How many <b>production deployments</b> are live today, and for how long?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>E · Fit with our product — the only questions that decide the deal</h3>
+      <ul class="questions">
+        <li>Can we <b>provision a workspace via API</b> when we onboard a new client, automatically?</li>
+        <li>Can we <b>meter usage per client</b> and export it for our own chargeback?</li>
+        <li>Can the control screen be <b>white-labelled</b> for our Pack 3 agency clients?</li>
+        <li>How do you handle <b>prompt injection</b> in content our prospects and clients write?</li>
+        <li>What do you do that a <b>single vLLM container plus LiteLLM</b> does not? Be specific.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span> Phrases that should worry you</h2>
+    <div class="phrases">
+      <div class="phrase"><q>"It's automatic, you don't need to think about it."</q><span>Automatic routing means invisible decisions. Ask for the routing log per request.</span></div>
+      <div class="phrase"><q>"It's open source, so there's no lock-in."</q><span>The models are open. The router and the control plane are the lock-in. Different sentence.</span></div>
+      <div class="phrase"><q>"We'll handle the infrastructure for you."</q><span>Then your data sits in their account, and the sovereignty argument disappears. Pick one.</span></div>
+      <div class="phrase"><q>"It's unlimited."</q><span>GPUs are never unlimited. Someone pays later, usually at renewal, usually you.</span></div>
+      <div class="phrase"><q>"That's on the roadmap."</q><span>Ask: "live today, or roadmap?" then write the answer down next to the feature name.</span></div>
+      <div class="phrase"><q>"Our licence is bespoke."</q><span>Means the price depends on how much they think you can pay. Give them your frame first.</span></div>
+      <div class="phrase"><q>"Small models are just as good now."</q><span>For summarising a clean document, often yes. For accented French call audio and BANT extraction, prove it.</span></div>
+      <div class="phrase"><q>"We're SecNumCloud."</q><span>Ask which provider, which qualification, and whether your deployment is actually inside it.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">07</span> Our stance in the room</h2>
+    <div class="stance">
+      <h3>Frame the deal before they frame it</h3>
+      <ul>
+        <li><strong>Open with our problem, not their product:</strong> "We sell a sovereign, single-tenant CRM to agencies. Our question is whether AI inference can sit inside that promise without adding an ops team." That makes the conversation about their weakest point, not their strongest slide.</li>
+        <li><strong>Never quote our volumes or margins.</strong> Say "a few thousand AI operations a month" and let them price blind.</li>
+        <li><strong>Make the pilot the deliverable of the meeting:</strong> 30 days, 20 real recordings, blind scoring, written success criteria, one fixed price.</li>
+        <li><strong>Ask for the OEM angle early.</strong> If they say no to white-label resale, the product opportunity dies and only the sovereignty story remains — a much smaller deal.</li>
+        <li><strong>Do not commit to anything verbal.</strong> "We'll send the benchmark protocol" is the only correct exit line.</li>
+      </ul>
+    </div>
+    <div class="walkaway">
+      <h3>Walk away if, by the end of the call</h3>
+      <p>there is no number · no DPA or hosting answer · no named reference customer · no acceptance of a blind test on our recordings · or "we operate the infrastructure" combined with "your data never leaves your perimeter". Any one of these is enough to stop.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">08</span> Scorecard — fill it in on the call, not after</h2>
+    <table class="score">
+      <thead>
+        <tr><th>Criterion</th><th>Weight</th><th>Score 1–5</th><th>What a 5 looks like</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="crit">Quality on our real tasks</td><td class="w">30%</td><td class="box"><div></div></td><td>Blind test on 20 recordings matches or beats current output.</td></tr>
+        <tr><td class="crit">Total cost at 12 months, GPU included</td><td class="w">20%</td><td class="box"><div></div></td><td>Fixed, written, with a ceiling — no per-token exposure.</td></tr>
+        <tr><td class="crit">Sovereignty and compliance evidence</td><td class="w">20%</td><td class="box"><div></div></td><td>Region, DPA, sub-processors, audit export, in writing.</td></tr>
+        <tr><td class="crit">Operational burden on us</td><td class="w">15%</td><td class="box"><div></div></td><td>They run day-2 ops without taking the data out of our perimeter.</td></tr>
+        <tr><td class="crit">Exit and lock-in</td><td class="w">10%</td><td class="box"><div></div></td><td>Standard API, exportable config, runbook, escrow.</td></tr>
+        <tr><td class="crit">Commercial flexibility / OEM rights</td><td class="w">5%</td><td class="box"><div></div></td><td>White-label resale allowed, per-workspace pricing.</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="4">Go if the weighted average is 3.5 or more <em>and</em> no deal-breaker from section 04 is still open. Anything between 2.5 and 3.5 is a second meeting with a technical deep-dive, not a signature.</td></tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="num">09</span> 45-minute agenda</h2>
+    <ul class="agenda">
+      <li><span class="t">0–5</span><span><b>Them first.</b> "Walk us through a real deployment, end to end, on a customer that is live." Listen for what they skip: GPUs, ops, price.</span></li>
+      <li><span class="t">5–15</span><span><b>Our context, ten minutes max.</b> Sovereign single-tenant CRM, agency clients, AI on call recordings. No volumes, no margins.</span></li>
+      <li><span class="t">15–25</span><span><b>Section 04 claims.</b> Take the three deal-breakers: price unit, GPU BOM, quality proof. Do not move on until each gets a concrete answer.</span></li>
+      <li><span class="t">25–35</span><span><b>Live routing test.</b> Hand them five of our real prompts and a call transcript; ask them to route and show the log. Watch the screen, not the slide.</span></li>
+      <li><span class="t">35–42</span><span><b>Commercial frame.</b> OEM rights, pilot terms, contract length, exit. Anchor: fixed annual licence, pilot before signature.</span></li>
+      <li><span class="t">42–45</span><span><b>Close with a request, not a feeling.</b> "Send the DPA, the model/licence list, two references and a written BOM by Friday."</span></li>
+    </ul>
+  </section>
+
+  <div class="footer">
+    <b>What we read:</b> otee.app (French and English versions of the home page, product, comparison and FAQ sections), checked 23 October 2026. No pricing page, legal notice, blog, sitemap or customer reference is published; console.otee.ai did not resolve at the time of checking; no third-party mentions surfaced in a general web search. Figures quoted as theirs (70% oversized, 10–30× bills, 48,210 requests/day, 99.9% uptime) appear only as marketing claims or interface mock-ups — none is independently verified.<br>
+    <b>Internal note:</b> this document is a preparation aid. Nothing in it is a commitment, and no figure about our own volumes, margins or clients should be shared in the meeting.
+  </div>
+
+</div>
+</body>
+</html>

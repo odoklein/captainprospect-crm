@@ -97,6 +97,15 @@ async function hasEffectivePermission(
     return Boolean(roleGranted);
 }
 
+/** Non-throwing variant of requirePermission, to show or hide a part of a page. */
+export async function userHasPermission(permissionCode: string, userId: string, userRole: string): Promise<boolean> {
+    try {
+        return await hasEffectivePermission(permissionCode, userId, userRole);
+    } catch {
+        return false;
+    }
+}
+
 /**
  * Enforces the effective permission for the logged-in user.
  * Uses RolePermission + UserPermission overrides.

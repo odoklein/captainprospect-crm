@@ -2561,6 +2561,14 @@ export default function SDRActionPage() {
                                 }
                                 refreshQueue();
                             }}
+                            onProspectAdded={() => {
+                                queryClient.invalidateQueries({ queryKey: queueQueryKey });
+                                refreshQueue();
+                            }}
+                            onOpenCompany={(companyId, contactId) => {
+                                setUnifiedDrawerCompanyId(companyId);
+                                setUnifiedDrawerContactId(contactId ?? null);
+                            }}
                             onValidateAndNext={() => {
                                 if (!drawerRow) return;
                                 const key = queueRowKey(drawerRow);
@@ -3699,6 +3707,12 @@ export default function SDRActionPage() {
                         const rowKey = unifiedDrawerContactId ?? unifiedDrawerCompanyId ?? "";
                         if (rowKey) setActionsCompleted((c) => c + 1);
                         loadNextAction();
+                    }}
+                    // Card mode: an added contact/company must not skip the prospect on screen.
+                    onProspectAdded={() => {}}
+                    onOpenCompany={(companyId, contactId) => {
+                        setUnifiedDrawerCompanyId(companyId);
+                        setUnifiedDrawerContactId(contactId ?? null);
                     }}
                     onValidateAndNext={() => {
                         closeUnifiedDrawer();

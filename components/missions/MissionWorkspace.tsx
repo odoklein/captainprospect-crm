@@ -47,6 +47,7 @@ import { EditMissionDialog } from "./EditMissionDialog";
 import { ReadinessPanel } from "./ReadinessPanel";
 import { StrategyByListTab } from "./StrategyByListTab";
 import { ListCommercialsPicker } from "./ListCommercialsPicker";
+import { ProspectCreationSettingsCard } from "@/components/prospect-submissions/ProspectCreationSettingsCard";
 import { MailboxManagerDialog } from "@/components/email/inbox/MailboxManagerDialog";
 import { PitchBlockEditor, ScriptBlockEditor, StrategyArtifactViewer } from "@/components/strategy";
 import {
@@ -3580,6 +3581,8 @@ export function MissionWorkspace({
                                 </button>
                             </div>
                         </div>
+
+                        <ProspectCreationSettingsCard missionId={missionId} />
 
                         {/* Danger zone — destructive actions, kept away from daily controls */}
                         <div className="rounded-2xl border border-red-200 bg-red-50/40 p-6">

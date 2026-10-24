@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, after } from 'next/server';
 import { z } from 'zod';
 import {
     successResponse,
@@ -8,6 +8,9 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { prisma } from '@/lib/prisma';
+import { AiCallError, callJsonModel } from '@/lib/ai/json-call';
+import { friendlyAiError } from '@/lib/analyse-ia/errors';
+import { addDay, parisMidnight } from '@/lib/manager-home/today-rules';
 
 // ============================================
 // SCHEMA
@@ -23,35 +26,6 @@ const runAnalysisSchema = z.object({
 });
 
 // ============================================
-// OpenAI Config
-// ============================================
-
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const OPENAI_MODEL = 'gpt-4o';
-
-function safeParseJsonFromModel(content: string): any {
-    const trimmed = content.trim();
-    try {
-        return JSON.parse(trimmed);
-    } catch {
-        // Handle fenced markdown: ```json ... ```
-        const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-        if (fenced?.[1]) {
-            return JSON.parse(fenced[1].trim());
-        }
-
-        // Last resort: parse between first "{" and last "}"
-        const firstBrace = trimmed.indexOf('{');
-        const lastBrace = trimmed.lastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace) {
-            const candidate = trimmed.slice(firstBrace, lastBrace + 1);
-            return JSON.parse(candidate);
-        }
-        throw new Error('INVALID_JSON');
-    }
-}
-
-// ============================================
 // DATA INGESTION — pull all context for the period
 // ============================================
 
@@ -65,7 +39,11 @@ async function ingestData(
     const actionWhere: any = {
         createdAt: { gte: weekStart, lte: weekEnd },
     };
-    if (missionIds.length > 0) actionWhere.campaign = { missionId: { in: missionIds } };
+    // Mission and client scopes combine: a client analysis covers all its missions.
+    const missionScope: any = {};
+    if (missionIds.length > 0) missionScope.id = { in: missionIds };
+    if (clientIds.length > 0) missionScope.clientId = { in: clientIds };
+    if (Object.keys(missionScope).length > 0) actionWhere.campaign = { mission: missionScope };
     if (sdrIds.length > 0) actionWhere.sdrId = { in: sdrIds };
 
     // Fetch actions with enrichment data
@@ -95,7 +73,7 @@ async function ingestData(
     });
 
     // Mission context (ICP, scripts, pitch)
-    const missionQuery = missionIds.length > 0 ? { id: { in: missionIds } } : {};
+    const missionQuery = missionScope;
     const missions = await prisma.mission.findMany({
         where: missionQuery,
         include: {
@@ -433,22 +411,101 @@ Important:
 - Ne génère QUE le JSON, sans texte avant ou après`;
 }
 
+/** "YYYY-MM-DD" bounds are Paris calendar days; ISO instants are kept as sent. */
+function weekInstants(weekStart: string, weekEnd: string): { start: Date; end: Date } {
+    const isDay = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+    const start = isDay(weekStart) ? parisMidnight(weekStart) : new Date(weekStart);
+    const end = isDay(weekEnd) ? new Date(parisMidnight(addDay(weekEnd, 1)).getTime() - 1) : new Date(weekEnd);
+    return { start, end };
+}
+
+const SYSTEM_PROMPT = `Tu es un analyste stratégique expert en prospection commerciale B2B.
+Tu analyses des données de terrain (notes, transcriptions, métriques) et produis des recommandations actionnables avec preuves.
+Tu raisonnes en plusieurs étapes avant de conclure. Tu es précis, factuel et tu signales explicitement tes incertitudes.
+Tu réponds toujours en JSON valide strictement conformé au format demandé.`;
+
+/**
+ * The slow part (data + model, 15–30 s) runs after the response, so a reverse
+ * proxy timeout can't leave the run stuck and the page simply polls the row.
+ */
+async function generate(analysisId: string, body: z.infer<typeof runAnalysisSchema>, weekStart: Date, weekEnd: Date) {
+    try {
+        const startTime = Date.now();
+        const ingestedData = await ingestData(weekStart, weekEnd, body.missionIds, body.clientIds, body.sdrIds);
+
+        // Trend comparison only against an analysis of the same scope.
+        const priorAnalysis = await prisma.weeklyAnalysis.findFirst({
+            where: {
+                status: 'completed',
+                id: { not: analysisId },
+                weekEnd: { lt: weekStart },
+                clientIds: { equals: body.clientIds },
+                missionIds: { equals: body.missionIds },
+            },
+            orderBy: { weekEnd: 'desc' },
+        });
+
+        const priorSummary = priorAnalysis
+            ? `Executive Summary: ${priorAnalysis.executiveSummary.slice(0, 400)}\n` +
+              `Recommandations clés: ${JSON.stringify((priorAnalysis.recommendations as any[]).slice(0, 3).map((r: any) => r.title))}\n` +
+              `Confidence score: ${priorAnalysis.confidenceScore}`
+            : undefined;
+
+        const { parsed, tokens, model } = await callJsonModel({
+            system: SYSTEM_PROMPT,
+            user: buildAnalysisPrompt(ingestedData, priorSummary),
+            maxTokens: 6000,
+            timeoutMs: 180_000,
+        });
+
+        await prisma.weeklyAnalysis.update({
+            where: { id: analysisId },
+            data: {
+                status: 'completed',
+                dataSnapshot: ingestedData.dataSnapshot as any,
+                executiveSummary: parsed.executiveSummary || '',
+                confidenceScore: Math.min(1, Math.max(0, parsed.confidenceScore || 0.5)),
+                dataQualityScore: Math.min(1, Math.max(0, parsed.dataQualityScore || 0.5)),
+                uncertainties: Array.isArray(parsed.uncertainties) ? parsed.uncertainties : [],
+                topInsights: parsed.topInsights || [],
+                rootCauses: parsed.rootCauses || [],
+                scriptImprovements: parsed.scriptImprovements || [],
+                icpRefinements: parsed.icpRefinements || [],
+                objectionHandling: parsed.objectionHandling || [],
+                sdrCoachingActions: parsed.sdrCoachingActions || [],
+                recommendations: parsed.recommendations || [],
+                expectedImpacts: parsed.expectedImpacts || [],
+                priorAnalysisId: priorAnalysis?.id || null,
+                deltaInsights: parsed.deltaInsights || null,
+                trendAlerts: parsed.trendAlerts || null,
+                modelUsed: model,
+                tokensUsed: tokens,
+                durationMs: Date.now() - startTime,
+            },
+        });
+    } catch (error: any) {
+        const stored = error instanceof AiCallError ? error.toStored() : `UNKNOWN: ${error?.message || 'Erreur inconnue'}`;
+        console.error('[analyse-ia] run failed', analysisId, stored);
+        await prisma.weeklyAnalysis
+            .update({ where: { id: analysisId }, data: { status: 'failed', errorMessage: stored } })
+            .catch((e) => console.error('[analyse-ia] could not mark run as failed', e));
+    }
+}
+
 // ============================================
-// POST /api/analyse-ia/run
+// POST /api/analyse-ia/run → 202 { analysisId }; the page polls the history.
 // ============================================
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return errorResponse('OPENAI_API_KEY non configurée', 503);
+    if (!process.env.OPENAI_API_KEY) {
+        const friendly = friendlyAiError('MISSING_KEY: OPENAI_API_KEY non configurée');
+        return errorResponse(`${friendly.title} — ${friendly.detail}`, 503);
+    }
 
     const body = await validateRequest(request, runAnalysisSchema);
+    const { start: weekStart, end: weekEnd } = weekInstants(body.weekStart, body.weekEnd);
 
-    const weekStart = new Date(body.weekStart);
-    const weekEnd = new Date(body.weekEnd);
-    weekEnd.setHours(23, 59, 59, 999);
-
-    // Create a "running" placeholder
     const placeholder = await prisma.weeklyAnalysis.create({
         data: {
             weekStart,
@@ -475,112 +532,6 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         },
     });
 
-    try {
-        const startTime = Date.now();
-
-        // 1. Ingest data
-        const ingestedData = await ingestData(weekStart, weekEnd, body.missionIds, body.clientIds, body.sdrIds);
-
-        // 2. Find prior analysis for trend comparison
-        const priorAnalysis = await prisma.weeklyAnalysis.findFirst({
-            where: {
-                status: 'completed',
-                id: { not: placeholder.id },
-                weekEnd: { lt: weekStart },
-            },
-            orderBy: { weekEnd: 'desc' },
-        });
-
-        const priorSummary = priorAnalysis
-            ? `Executive Summary: ${priorAnalysis.executiveSummary.slice(0, 400)}\n` +
-              `Recommendations clés: ${JSON.stringify((priorAnalysis.recommendations as any[]).slice(0, 3).map((r: any) => r.title))}\n` +
-              `Confidence score: ${priorAnalysis.confidenceScore}`
-            : undefined;
-
-        // 3. Build prompt
-        const userPrompt = buildAnalysisPrompt(ingestedData, priorSummary);
-
-        // 4. Call OpenAI
-        const openAiResponse = await fetch(OPENAI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-                model: OPENAI_MODEL,
-                messages: [
-                    {
-                        role: 'system',
-                        content: `Tu es un analyste stratégique expert en prospection commerciale B2B.
-Tu analyses des données de terrain (notes, transcriptions, métriques) et produis des recommandations actionnables avec preuves.
-Tu raisonnes en plusieurs étapes avant de conclure. Tu es précis, factuel et tu signales explicitement tes incertitudes.
-Tu réponds toujours en JSON valide strictement conformé au format demandé.`,
-                    },
-                    { role: 'user', content: userPrompt },
-                ],
-                temperature: 0.3,
-                max_tokens: 6000,
-                response_format: { type: 'json_object' },
-            }),
-        });
-
-        if (!openAiResponse.ok) {
-            const err = await openAiResponse.json().catch(() => ({}));
-            throw new Error(`OpenAI API error: ${err?.error?.message || openAiResponse.statusText}`);
-        }
-
-        const openAiResult = await openAiResponse.json();
-        const content = openAiResult.choices?.[0]?.message?.content;
-        if (!content) throw new Error('Réponse vide de OpenAI');
-
-        let parsed: any;
-        try {
-            parsed = safeParseJsonFromModel(content);
-        } catch {
-            throw new Error('Impossible de parser la réponse JSON de OpenAI');
-        }
-
-        const durationMs = Date.now() - startTime;
-
-        // 5. Persist the full analysis
-        const analysis = await prisma.weeklyAnalysis.update({
-            where: { id: placeholder.id },
-            data: {
-                status: 'completed',
-                dataSnapshot: ingestedData.dataSnapshot as any,
-                executiveSummary: parsed.executiveSummary || '',
-                confidenceScore: Math.min(1, Math.max(0, parsed.confidenceScore || 0.5)),
-                dataQualityScore: Math.min(1, Math.max(0, parsed.dataQualityScore || 0.5)),
-                uncertainties: Array.isArray(parsed.uncertainties) ? parsed.uncertainties : [],
-                topInsights: parsed.topInsights || [],
-                rootCauses: parsed.rootCauses || [],
-                scriptImprovements: parsed.scriptImprovements || [],
-                icpRefinements: parsed.icpRefinements || [],
-                objectionHandling: parsed.objectionHandling || [],
-                sdrCoachingActions: parsed.sdrCoachingActions || [],
-                recommendations: parsed.recommendations || [],
-                expectedImpacts: parsed.expectedImpacts || [],
-                priorAnalysisId: priorAnalysis?.id || null,
-                deltaInsights: parsed.deltaInsights || null,
-                trendAlerts: parsed.trendAlerts || null,
-                modelUsed: OPENAI_MODEL,
-                tokensUsed: openAiResult.usage?.total_tokens || null,
-                durationMs,
-            },
-        });
-
-        return successResponse({ analysis });
-
-    } catch (error: any) {
-        // Mark as failed
-        await prisma.weeklyAnalysis.update({
-            where: { id: placeholder.id },
-            data: {
-                status: 'failed',
-                errorMessage: error?.message || 'Erreur inconnue',
-            },
-        });
-        throw error;
-    }
+    after(() => generate(placeholder.id, body, weekStart, weekEnd));
+    return successResponse({ analysisId: placeholder.id, status: 'running' }, 202);
 });

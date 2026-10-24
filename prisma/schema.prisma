@@ -1232,6 +1232,9 @@ model Action {
   @@index([contactId, createdAt])
   @@index([companyId, createdAt])
   @@index([sdrId, createdAt])
+  // Health / client intelligence: date-range scans (optional, see 20261024120000_action_created_idx).
+  @@index([createdAt])
+  @@index([campaignId, createdAt])
 }
 
 // ============================================

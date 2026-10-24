@@ -13,6 +13,7 @@ import {
     type MissionSummaryItem,
 } from "@/components/accueil/ManagerDashboardView";
 import type { ManagerHomePeriod } from "@/lib/manager-home/types";
+import { TodayTasksCard } from "@/components/accueil/TodayTasksCard";
 
 /* ─── Constants ─── */
 const PRESET_LABELS: Record<DateRangePreset, string> = {
@@ -118,6 +119,8 @@ export default function ManagerDashboard() {
         : `Du ${new Date(`${start}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} au ${new Date(`${end}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
 
     return (
+        <div className="space-y-6">
+        <TodayTasksCard />
         <ManagerDashboardView
             firstName={session?.user?.name?.split(" ")[0] ?? "Manager"}
             stats={main.data?.stats ?? null}
@@ -137,5 +140,6 @@ export default function ManagerDashboard() {
             missionFilter={missionFilter}
             onMissionFilterChange={setMissionFilter}
         />
+        </div>
     );
 }

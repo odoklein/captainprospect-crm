@@ -19,6 +19,7 @@ export interface ClientHomeMeeting {
     callbackDate?: string | null;
     note?: string | null;
     result?: string;
+    confirmationStatus?: string;
     contact: {
         firstName?: string | null;
         lastName?: string | null;
@@ -86,7 +87,7 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                                 <span className="max-w-[260px] truncate">{missionName}</span>
                             </StatusPill>
                         )}
-                        <StatusPill tone="slate" icon={Calendar}>{monthLabel}</StatusPill>
+                        <StatusPill tone="slate" icon={Calendar}>Mois en cours · {monthLabel}</StatusPill>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
                         {greeting}, {userName}
@@ -109,7 +110,7 @@ export function ClientHomeView(props: ClientHomeViewProps) {
 
             {/* ═══ 2. Hero — RDV cumulés & appels du mois ═══ */}
             <HeroCard className="space-y-6">
-                <HeroPill icon={CalendarCheck}>Rendez-vous cumulés</HeroPill>
+                <HeroPill icon={CalendarCheck}>Rendez-vous confirmés</HeroPill>
 
                 <div className="flex items-baseline gap-2">
                     <AnimatedNumber
@@ -118,6 +119,9 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                     />
                     <span className="text-2xl font-black text-inverse-ink-3">RDV</span>
                 </div>
+                <p className="text-[11px] font-semibold text-inverse-ink-3 -mt-3">
+                    Confirmés au SAS, annulations exclues · depuis le début de la mission
+                </p>
 
                 <div className="pt-5 border-t border-inverse-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex flex-wrap items-center gap-3">

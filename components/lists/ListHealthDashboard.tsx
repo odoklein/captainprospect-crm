@@ -7,9 +7,10 @@ import {
     AlertTriangle, TrendingDown, TrendingUp,
     Search, Loader2,
     Target, Activity, PieChart, CalendarCheck,
-    Clock, ChevronRight, Info, ChevronDown,
+    Clock, ChevronRight, Info, ChevronDown, RotateCw,
 } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui";
 import {
     type ListHealthSummary,
     type ClientListsIntelligence,
@@ -29,18 +30,29 @@ import {
 // ============================================
 
 
-async function fetchBulkHealth(params: {
+/** Query key of the bulk health call. Shared with /manager/lists so the table
+ *  and this tab read the same cached result instead of computing it twice. */
+export const listsHealthBulkKey = (clientId?: string, missionId = '', sdrId = '') =>
+    ['lists-health-bulk', clientId, missionId, sdrId] as const;
+
+/** No list ids: the server picks the non-archived lists of the scope. */
+export async function fetchBulkHealth(params: {
     clientId?: string;
     missionId?: string;
     sdrIds?: string[];
-}): Promise<ListHealthSummary[]> {
+} = {}): Promise<ListHealthSummary[]> {
     const sp = new URLSearchParams();
     if (params.clientId) sp.set('clientId', params.clientId);
     if (params.missionId) sp.set('missionId', params.missionId);
     params.sdrIds?.forEach(id => sp.append('sdrIds[]', id));
     const res = await fetch(`/api/lists/health?${sp}`);
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error);
+    // A gateway timeout comes back as HTML, not JSON.
+    const json = await res.json().catch(() => null);
+    if (!json?.success) {
+        throw new Error(json?.error || (res.status === 504
+            ? 'Le calcul a pris trop de temps.'
+            : `Erreur serveur (${res.status}).`));
+    }
     return json.data as ListHealthSummary[];
 }
 
@@ -518,7 +530,7 @@ export function ListHealthDashboard({
 
 
     const bulkHealthQuery = useQuery({
-        queryKey: ['lists-health-bulk', clientId, filters.missionId, filters.sdrId],
+        queryKey: listsHealthBulkKey(clientId, filters.missionId, filters.sdrId),
         queryFn: () => fetchBulkHealth({
             clientId,
             missionId: filters.missionId || undefined,
@@ -534,6 +546,14 @@ export function ListHealthDashboard({
 
 
     const isLoading = intelligenceQuery.isLoading || bulkHealthQuery.isLoading;
+    // The bulk call is the fallback when intelligence fails, so only its
+    // failure (or intelligence's, while no bulk data exists) is final.
+    const loadError = bulkHealthQuery.error
+        ?? (intelligenceQuery.error && !bulkHealthQuery.data && !bulkHealthQuery.isFetching ? intelligenceQuery.error : null);
+    const retry = () => {
+        if (useIntelligence) void intelligenceQuery.refetch();
+        void bulkHealthQuery.refetch();
+    };
 
 
     // ── Aggregate stats derived locally when no client intelligence is loaded
@@ -702,6 +722,32 @@ export function ListHealthDashboard({
                 <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
                 <p className="text-sm text-slate-500">Calcul des métriques de santé…</p>
                 <p className="text-xs text-slate-400">Analyse des actions et contacts en cours</p>
+            </div>
+        );
+    }
+
+
+    if (allSummaries.length === 0 && loadError) {
+        const retrying = intelligenceQuery.isFetching || bulkHealthQuery.isFetching;
+        return (
+            <div role="alert" className="text-center py-16">
+                <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center mx-auto mb-3">
+                    <AlertTriangle className="w-6 h-6 text-rose-500" />
+                </div>
+                <p className="text-sm font-semibold text-slate-700">Impossible de calculer la santé des listes</p>
+                <p className="text-xs text-slate-400 mt-1">
+                    {loadError.message || 'Une erreur est survenue.'}
+                </p>
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-4"
+                    onClick={retry}
+                    isLoading={retrying}
+                    leftIcon={<RotateCw className="w-3.5 h-3.5" />}
+                >
+                    Réessayer
+                </Button>
             </div>
         );
     }

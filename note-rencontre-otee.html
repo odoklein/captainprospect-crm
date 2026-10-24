@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Otee — Note de préparation · Captain Prospect</title>
+<style>
+  :root{
+    --navy:#263460;
+    --navy-2:#1b2547;
+    --accent:#C64B8B;
+    --accent-soft:#fbeef5;
+    --ink:#151a2d;
+    --muted:#5b6478;
+    --line:#e2e5ee;
+    --paper:#ffffff;
+    --wash:#f6f7fb;
+    --amber:#8a5a12;
+    --accent-ink:#a83f76;
+    --amber-soft:#fdf3e2;
+    --red:#a8323c;
+    --red-soft:#fbeceb;
+    --green:#1f6b4f;
+    --green-soft:#e9f4ef;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:var(--wash);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{
+    max-width:960px;
+    margin:0 auto;
+    background:var(--paper);
+    padding:56px 64px 64px;
+  }
+
+  /* ---------- masthead ---------- */
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    font-weight:700;
+    color:var(--accent-ink);
+  }
+  h1{
+    font-size:44px;
+    line-height:1.05;
+    letter-spacing:-.025em;
+    margin:10px 0 6px;
+    font-weight:800;
+    color:var(--navy);
+  }
+  .deck{
+    font-size:19px;
+    line-height:1.4;
+    color:var(--muted);
+    margin:0 0 26px;
+    max-width:620px;
+  }
+  .meta{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    border-top:2px solid var(--navy);
+    border-bottom:1px solid var(--line);
+    padding:14px 0;
+    margin:0 0 34px;
+  }
+  .meta dt{
+    font-size:10px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:700;
+    margin:0 0 3px;
+  }
+  .meta dd{margin:0;font-size:13px;font-weight:600}
+
+  /* ---------- sections ---------- */
+  section{margin:0 0 38px}
+  h2{
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--navy);
+    font-weight:800;
+    margin:0 0 14px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:12px;
+    align-items:baseline;
+  }
+  h2 .num{
+    color:var(--accent-ink);
+    font-size:12px;
+    font-variant-numeric:tabular-nums;
+  }
+  h3{
+    font-size:15px;
+    margin:0 0 6px;
+    color:var(--navy);
+    letter-spacing:-.01em;
+  }
+  p{margin:0 0 10px}
+  .lede{font-size:16px;line-height:1.55}
+  strong{font-weight:650}
+  em{color:var(--muted);font-style:normal}
+
+  /* ---------- callout ---------- */
+  .tldr{
+    background:var(--navy);
+    color:#fff;
+    padding:26px 28px 22px;
+    border-radius:2px;
+    margin:0 0 38px;
+  }
+  .tldr h2{color:#fff;border-bottom:1px solid rgba(255,255,255,.22);margin-bottom:14px}
+  .tldr h2 .num{color:#f0a8cb}
+  .tldr p{color:#dfe3ef;font-size:15px;line-height:1.6;margin:0 0 10px}
+  .tldr p:last-child{margin-bottom:0}
+  .tldr strong{color:#fff}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+
+  .card{
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:16px 18px;
+    background:#fff;
+  }
+  .card .tag{
+    display:inline-block;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:3px 7px;
+    border-radius:2px;
+    margin-bottom:8px;
+  }
+  .tag.no{background:var(--red-soft);color:var(--red)}
+  .tag.yes{background:var(--green-soft);color:var(--green)}
+  .tag.maybe{background:var(--amber-soft);color:var(--amber)}
+  .card p{font-size:13.5px;line-height:1.5;margin:0;color:#3d4557}
+  .card p + p{margin-top:7px}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:0 0 6px}
+  thead th{
+    text-align:left;
+    font-size:10px;
+    letter-spacing:.09em;
+    text-transform:uppercase;
+    color:var(--muted);
+    font-weight:800;
+    border-bottom:1.5px solid var(--navy);
+    padding:0 10px 8px 0;
+    vertical-align:bottom;
+  }
+  tbody td{
+    padding:11px 10px 11px 0;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+    line-height:1.45;
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.claim{font-weight:650;width:26%;color:var(--navy)}
+  td.evidence{width:38%;color:#3d4557}
+  .verdict{
+    display:inline-block;
+    font-size:10px;
+    font-weight:800;
+    letter-spacing:.07em;
+    text-transform:uppercase;
+    padding:2px 6px;
+    border-radius:2px;
+    white-space:nowrap;
+  }
+  .verdict.v1{background:var(--red-soft);color:var(--red)}
+  .verdict.v2{background:var(--amber-soft);color:var(--amber)}
+  .verdict.v3{background:var(--green-soft);color:var(--green)}
+
+  /* ---------- questions ---------- */
+  .qblock{margin:0 0 22px}
+  .qblock h3{
+    font-size:12px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--accent-ink);
+    margin:0 0 9px;
+  }
+  ul.questions{list-style:none;margin:0;padding:0;columns:2;column-gap:34px}
+  ul.questions li{
+    position:relative;
+    padding:0 0 9px 22px;
+    font-size:13.5px;
+    line-height:1.45;
+    break-inside:avoid;
+    color:#232a3d;
+  }
+  ul.questions li::before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:3px;
+    width:11px;
+    height:11px;
+    border:1.5px solid #b9bfd0;
+    border-radius:2px;
+  }
+  ul.questions li b{font-weight:650;color:var(--navy)}
+
+  /* ---------- lists ---------- */
+  ul.plain{margin:0 0 12px;padding:0 0 0 18px}
+  ul.plain li{font-size:14px;line-height:1.55;margin-bottom:7px;color:#2b3244}
+  ul.plain li::marker{color:var(--accent)}
+
+  .phrases{display:grid;grid-template-columns:1fr 1fr;gap:0 30px}
+  .phrase{
+    border-left:2px solid var(--accent);
+    padding:2px 0 2px 14px;
+    margin-bottom:14px;
+  }
+  .phrase q{
+    display:block;
+    font-size:14px;
+    font-weight:600;
+    color:var(--navy);
+    quotes:none;
+    margin-bottom:3px;
+  }
+  .phrase span{font-size:12.5px;color:var(--muted);line-height:1.45;display:block}
+
+  .stance{
+    background:var(--accent-soft);
+    border-left:3px solid var(--accent);
+    padding:18px 22px;
+  }
+  .stance h3{margin-bottom:8px}
+  .stance ul{margin:0;padding-left:18px}
+  .stance li{font-size:13.5px;margin-bottom:6px;line-height:1.5}
+
+  .walkaway{
+    border:1px solid #e9c9c6;
+    background:var(--red-soft);
+    padding:16px 20px;
+    margin-top:16px;
+  }
+  .walkaway h3{color:var(--red);margin-bottom:6px;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+  .walkaway p{font-size:13.5px;margin:0;color:#5d2b2f}
+
+  /* ---------- scorecard ---------- */
+  .score td.crit{font-weight:600;width:38%}
+  .score td.w{width:12%;color:var(--muted);font-variant-numeric:tabular-nums}
+  .score td.box{width:9%;border-bottom:1px solid var(--line)}
+  .score td.box div{width:26px;height:22px;border:1.2px solid #c3c8d8;border-radius:2px}
+  .score tfoot td{
+    padding-top:12px;
+    font-size:12px;
+    color:var(--muted);
+    border-top:1.5px solid var(--navy);
+  }
+
+  /* ---------- agenda ---------- */
+  .agenda{list-style:none;margin:0;padding:0;counter-reset:ag}
+  .agenda li{
+    counter-increment:ag;
+    display:grid;
+    grid-template-columns:64px 1fr;
+    gap:14px;
+    padding:9px 0;
+    border-bottom:1px dashed var(--line);
+    font-size:13.5px;
+  }
+  .agenda li:last-child{border-bottom:none}
+  .agenda .t{
+    font-weight:700;
+    color:var(--accent-ink);
+    font-variant-numeric:tabular-nums;
+    font-size:12px;
+    letter-spacing:.03em;
+    padding-top:2px;
+  }
+  .agenda b{color:var(--navy)}
+
+  .footer{
+    margin-top:44px;
+    padding-top:16px;
+    border-top:1px solid var(--line);
+    font-size:11.5px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+  .footer b{color:var(--ink);font-weight:650}
+
+  .kicker{
+    font-size:13px;
+    color:var(--muted);
+    margin:-4px 0 18px;
+  }
+  .flag-inline{
+    display:inline-block;
+    font-size:10.5px;
+    font-weight:800;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--red);
+    background:var(--red-soft);
+    padding:2px 6px;
+    border-radius:2px;
+    vertical-align:1px;
+  }
+
+  /* ---------- print ---------- */
+  @page{size:A4;margin:14mm 13mm}
+  @media print{
+    body{background:#fff;font-size:9.6pt;line-height:1.42}
+    .page{max-width:none;padding:0;margin:0}
+    h1{font-size:30pt}
+    .deck{font-size:12pt;margin-bottom:14px}
+    section{margin-bottom:16px;break-inside:avoid}
+    .tldr{padding:14px 18px;margin-bottom:18px;background:var(--navy) !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .tldr p{font-size:9.4pt}
+    table{font-size:8.4pt}
+    ul.questions li{font-size:8.8pt;padding-bottom:5px}
+    ul.questions{columns:2}
+    .card p{font-size:8.8pt}
+    .meta{margin-bottom:16px;padding:8px 0}
+    .meta dd{font-size:9pt}
+    h2{font-size:9pt;margin-bottom:8px}
+    .phrases{gap:0 20px}
+    .phrase{margin-bottom:8px}
+    .phrase q{font-size:9pt}
+    .phrase span{font-size:8.2pt}
+    .footer{font-size:7.8pt;margin-top:18px}
+    .pagebreak{break-before:page;break-inside:auto}
+    .tag,.verdict,.flag-inline,.stance,.walkaway,.tldr{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+  @media (max-width:760px){
+    .page{padding:30px 22px 40px}
+    h1{font-size:32px}
+    .deck{font-size:16px}
+    .meta{grid-template-columns:1fr 1fr;gap:14px}
+    .grid-2,.grid-3,.phrases{grid-template-columns:1fr}
+    ul.questions{columns:1}
+    table{font-size:13px}
+    thead th{font-size:9px}
+    /* stacked cards instead of 4 cramped columns */
+    .footprint thead,.claims thead,.score thead{display:none}
+    .footprint tbody tr,.claims tbody tr,.score tbody tr{
+      display:block;
+      border:1px solid var(--line);
+      border-radius:2px;
+      padding:13px 15px;
+      margin-bottom:11px;
+    }
+    .footprint tbody tr:last-child,.claims tbody tr:last-child,.score tbody tr:last-child{margin-bottom:0}
+    .footprint tbody td,.claims tbody td,.score tbody td{
+      display:block;
+      width:auto;
+      padding:0 0 7px;
+      border:0;
+    }
+    .footprint tbody td:last-child,.claims tbody td:last-child,.score tbody td:last-child{padding-bottom:0}
+    .footprint td:nth-child(2)::before,
+    .claims td:nth-child(2)::before,
+    .claims td:nth-child(3)::before,
+    .claims td:nth-child(4)::before,
+    .score td:nth-child(2)::before,
+    .score td:nth-child(3)::before{
+      display:block;
+      font-size:9.5px;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:var(--muted);
+      margin-bottom:1px;
+    }
+    .footprint td:nth-child(2)::before{content:"Constaté"}
+    .footprint td:nth-child(3)::before{content:"Ce que ça nous dit"}
+    .claims td:nth-child(2)::before{content:"La question"}
+    .claims td:nth-child(3)::before{content:"Preuve acceptée"}
+    .claims td:nth-child(4)::before{content:"Risque si non prouvé"}
+    .score td:nth-child(1){font-size:15px;color:var(--navy);padding-bottom:9px}
+    .score td:nth-child(2)::before{content:"Poids"}
+    .score td:nth-child(3)::before{content:"Note, de 1 à 5"}
+    .score td.box div{width:32px;height:26px;margin-top:2px}
+    .score tfoot td{padding-top:6px}
+    td.claim{width:auto;font-size:14.5px}
+    .verdict{white-space:normal}
+  }
+</style>
+</head>
+<div class="page">
+
+  <div class="eyebrow">Note de préparation · Confidentiel · Interne</div>
+  <h1>Otee : fournisseur, partenaire,<br>ou distraction ?</h1>
+  <p class="deck">Ce qu'ils vendent réellement, où ça touche notre stack, et les sept affirmations à casser avant de signer quoi que ce soit.</p>
+
+  <dl class="meta">
+    <div><dt>Rencontre</dt><dd>Découverte avec l'équipe fondatrice</dd></div>
+    <div><dt>De notre côté</dt><dd>Captain Prospect / Suzali</dd></div>
+    <div><dt>Préparé le</dt><dd>23 octobre 2026</dd></div>
+    <div><dt>Objectif</dt><dd>Qualifier ou écarter en 45 min</dd></div>
+  </dl>
+
+  <div class="tldr">
+    <h2><span class="num">00</span> En soixante secondes</h2>
+    <p><strong>Otee n'est pas une application. C'est la couche sous l'application :</strong> une plateforme auto-hébergée qui installe des modèles open source (Mistral, Llama, Qwen, Gemma, DeepSeek, Phi) sur une infrastructure que vous contrôlez, aiguille chaque requête vers un modèle à la bonne taille (S 7B / M 32B / L 120B), et donne un seul écran pour les modèles, les équipes, les quotas et l'audit. Elle expose une API compatible OpenAI et se vend comme une licence fixe — ni tokens, ni sièges.</p>
+    <p><strong>Leur argument, c'est le coût et la souveraineté.</strong> 70 % des requêtes tourneraient sur un modèle surdimensionné, donc les factures seraient 10 à 30 fois trop élevées ; et avec Otee aucun octet ne sort du périmètre, pas de fournisseur américain, pas de CLOUD Act.</p>
+    <p><strong>Le hic, pour nous :</strong> le coût n'est pas notre problème. Notre dépense IA est une ligne négligeable aux volumes actuels, et nos marges sont déjà à 94–96 %. <strong>Les vraies raisons de s'y intéresser sont commerciales</strong> — pouvoir dire « notre inférence IA tourne en France, sur nos propres serveurs » à des agences et à des prospects du secteur public, et pouvoir vendre de l'IA incluse dans le CRM à coût fixe par workspace au lieu de compter des tokens.</p>
+    <p><strong>Donc la réunion n'est pas « est-ce moins cher ».</strong> Elle est : peuvent-ils prouver la qualité sur nos vrais enregistrements d'appels en français, nous remettent-ils une plateforme qu'on peut exploiter et quitter, et le prix est-il une licence ou un verrou avec un plus joli nom.</p>
+  </div>
+
+  <section>
+    <h2><span class="num">01</span> Ce qu'ils vendent réellement</h2>
+    <div class="grid-2">
+      <div>
+        <h3>Leurs mots</h3>
+        <p style="font-size:14px">« Le bon modèle open source pour chaque tâche, déployé chez vous. Sans dépendance, sans surprise sur la facture. » Trois principes : souverain, optimal (le bon modèle par tâche), plug &amp; play (déployé et mis à jour automatiquement, sans expertise IA).</p>
+        <p style="font-size:14px">Surface produit : <strong>Optimizer</strong> (routage en temps réel selon la complexité), <strong>écran de contrôle</strong> (modèles, accès, quotas, audit, export pour refacturation interne), <strong>déploiement en un clic</strong> sur OVHcloud, Scaleway, Outscale, clouds SecNumCloud, vos propres serveurs GPU ou Kubernetes.</p>
+      </div>
+      <div>
+        <h3>Ce que ça veut dire en pratique</h3>
+        <ul class="plain" style="font-size:13.5px">
+          <li>Ils sont une <strong>infrastructure, pas une fonctionnalité.</strong> Leur propre FAQ : « Otee est la couche en dessous » — il ne remplace pas vos applications d'IA, vos outils s'y branchent.</li>
+          <li>Ils n'entraînent ni ne possèdent de modèles. La valeur est dans le routage, le déploiement et la gouvernance.</li>
+          <li>Quelqu'un fait quand même tourner des GPU, et quelqu'un les paie. La question est : qui.</li>
+          <li>Le positionnement est DSI / Finance / Juridique, pas équipe commerciale. Nous ne sommes pas leur acheteur évident — c'est un levier.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span> Empreinte publique : à lire avant de croire la slide</h2>
+    <table class="footprint">
+      <thead><tr><th>Ce qu'on a vérifié</th><th>Ce qu'on a trouvé</th><th>Ce que ça nous dit</th></tr></thead>
+      <tbody>
+        <tr><td class="claim">Prix</td><td class="evidence">Aucun prix nulle part. La FAQ dit « licence logicielle, sans tokens ni sièges ». Pas de page tarifs, pas de paliers, pas de plancher.</td><td>Le prix se négocie au cas par cas. Ancrez bas et faites-leur poser un chiffre en premier.</td></tr>
+        <tr><td class="claim">Mentions légales &amp; société</td><td class="evidence">Aucune mention légale, aucun numéro d'immatriculation, aucune adresse, aucun DPA, aucune liste de sous-traitants sur le site.</td><td>Normal en amorçage, mais le dossier RGPD part de zéro — des semaines, pas des jours.</td></tr>
+        <tr><td class="claim">Équipe &amp; références</td><td class="evidence">Seulement « l'équipe fondatrice ». Aucun nom, aucun LinkedIn, aucun client, aucune étude de cas, aucun blog.</td><td>Aucune preuve sociale vérifiable. Demandez deux clients référents à appeler, et leurs noms avant l'appel.</td></tr>
+        <tr><td class="claim">Preuve produit</td><td class="evidence">console.otee.ai ne résout pas. Les 48 210 requêtes/jour et les 99,9 % de disponibilité sont une maquette marketing sur la page, pas une page de statut.</td><td>La démo sera un environnement contrôlé. Exigez un test en direct sur nos données, pas sur les leurs.</td></tr>
+        <tr><td class="claim">Présence sur le web</td><td class="evidence">Aucune mention tierce trouvée en recherche générale.</td><td>Très tôt. Bon pour le prix, mauvais pour la continuité de service.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span> Pourquoi on en parle : la carte de l'adéquation</h2>
+    <p class="kicker">Quatre angles. Deux seulement sont réels pour nous aujourd'hui.</p>
+    <div class="grid-2" style="gap:16px">
+      <div class="card">
+        <span class="tag no">Faible</span>
+        <h3>Le coût des tokens</h3>
+        <p>Leur argument principal. Il ne survit pas à nos chiffres : la Fiche de RDV, c'est 150 à 2 500 générations par mois pour un coût d'infrastructure total de quelques euros par workspace. Même à 10× le volume, ce n'est pas une ligne qui bouge le P&amp;L.</p>
+        <p><em>S'ils ouvrent sur les économies, dites-le clairement et regardez comment ils rebondissent.</em></p>
+      </div>
+      <div class="card">
+        <span class="tag yes">Réel</span>
+        <h3>La souveraineté comme argument de vente</h3>
+        <p>On vend déjà du single-tenant, données en UE, coffre S3 privé. « L'inférence tourne sur nos propres serveurs, sans API américaine, sans CLOUD Act » est une version plus forte d'une histoire qu'on raconte déjà — et ça compte pour les agences qui revendent à des acheteurs proches du secteur public.</p>
+        <p>C'est un gain de positionnement, pas un gain de coût. Valorisez-le comme tel.</p>
+      </div>
+      <div class="card">
+        <span class="tag maybe">Peut-être</span>
+        <h3>De l'IA incluse à coût fixe</h3>
+        <p>Aujourd'hui chaque appel IA est compté et plafonné par pack. Si l'inférence devient un coût fixe, les fonctions IA peuvent être « incluses » dans l'offre marque blanche et facturées par workspace — plus simple à vendre, plus facile à défendre en renouvellement.</p>
+        <p><em>Bloqué par une question : la plateforme est-elle multi-tenant avec des quotas par workspace ?</em></p>
+      </div>
+      <div class="card">
+        <span class="tag no">Charge nouvelle</span>
+        <h3>Exploiter de l'inférence GPU</h3>
+        <p>Nous sommes une équipe CRM, pas une équipe MLOps. Il faut dimensionner les GPU, patcher, surveiller la latence, gérer la dépréciation des modèles et expliquer à un client pourquoi un résumé a été lent à 9 h.</p>
+        <p>Soit ils l'exploitent (et les données sortent du périmètre, l'histoire de souveraineté meurt), soit c'est nous (et c'est une nouvelle astreinte). Coinçez-les là-dessus.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Sept affirmations à casser — et les preuves à exiger</h2>
+    <p class="kicker">Pas des pièges pour le plaisir : chacune est une phrase qui, si elle tombe sur nos données, change l'accord.</p>
+    <table class="claims">
+      <thead><tr><th style="width:24%">Leur affirmation</th><th style="width:26%">La question qui la teste</th><th style="width:38%">La preuve qu'on accepte</th><th>Risque si non prouvé</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="claim">« Une licence fixe, sans tokens, sans sièges. »</td>
+          <td>Quel est exactement le montant, qu'est-ce qui est compté, et que se passe-t-il à 10× notre usage ?</td>
+          <td>La page de contrat réelle, avec un plafond d'usage (ou une clause d'usage raisonnable) écrite noir sur blanc, et la règle de dépassement.</td>
+          <td><span class="verdict v1">Rédhibitoire</span></td>
+        </tr>
+        <tr>
+          <td class="claim">« Aucun matériel à acheter. »</td>
+          <td>Alors quels GPU le font tourner, loués à qui, à quel coût mensuel, payés par qui ?</td>
+          <td>Un BOM écrit : modèle de GPU, quantité, €/mois à notre volume, qui détient le compte cloud.</td>
+          <td><span class="verdict v1">Rédhibitoire</span></td>
+        </tr>
+        <tr>
+          <td class="claim">« Même qualité de réponse, modèle plus petit. »</td>
+          <td>Sur des appels B2B français avec accents, noms d'entreprises et chiffres — mesuré comment ?</td>
+          <td>Un test à l'aveugle sur 20 de nos vrais enregistrements, noté contre la sortie Mistral actuelle par notre équipe.</td>
+          <td><span class="verdict v1">Rédhibitoire</span></td>
+        </tr>
+        <tr>
+          <td class="claim">« 70 % des requêtes sont surdimensionnées. »</td>
+          <td>Mesure de qui, sur quelles charges, et combien pour notre mix de prompts ?</td>
+          <td>Une méthode, pas un pourcentage. Puis ils font passer 50 de nos vrais prompts et montrent les décisions de routage.</td>
+          <td><span class="verdict v2">Marketing</span></td>
+        </tr>
+        <tr>
+          <td class="claim">« Zéro verrou, open source, API standard. »</td>
+          <td>Le routeur, le plan de contrôle et l'outillage de déploiement sont-ils open source ? Peut-on tourner sans vous ?</td>
+          <td>Export de la configuration de routage, artefacts vLLM/Helm standards, et un séquestre du code ou un runbook de sortie.</td>
+          <td><span class="verdict v1">Rédhibitoire</span></td>
+        </tr>
+        <tr>
+          <td class="claim">« Otee ne conserve aucune donnée. »</td>
+          <td>Aucune — y compris logs, télémétrie, accès support et exécutions d'évaluation de modèles ?</td>
+          <td>DPA, liste des sous-traitants, région d'hébergement de leur plan de contrôle, durée de conservation des logs en jours.</td>
+          <td><span class="verdict v1">Rédhibitoire</span></td>
+        </tr>
+        <tr>
+          <td class="claim">« 99,9 % de disponibilité. »</td>
+          <td>C'est un SLA contractuel avec pénalités, ou un chiffre dans une maquette de tableau de bord ?</td>
+          <td>Page de statut, 12 derniers mois d'incidents, et la clause de SLA dans le contrat.</td>
+          <td><span class="verdict v2">À vérifier</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="pagebreak">
+    <h2><span class="num">05</span> Banque de questions</h2>
+    <p class="kicker">Dans cet ordre. Chaque bloc se termine par une question qui ferme le précédent.</p>
+
+    <div class="qblock">
+      <h3>A · Commercial — obtenir le chiffre d'abord</h3>
+      <ul class="questions">
+        <li>Quel est le <b>prix annuel de la licence</b>, tout compris, pour un déploiement de notre taille ?</li>
+        <li>Quelle est l'<b>unité</b> — par instance, par workspace, par société, par modèle ?</li>
+        <li>Y a-t-il un <b>engagement minimum</b> ou une durée plancher ? Quel est le plus petit contrat que vous signez ?</li>
+        <li>Qu'est-ce qui est <b>compté</b> si rien n'est facturé au token ? Requêtes, heures GPU, sièges, support ?</li>
+        <li>Que se passe-t-il à <b>3× et 10× notre volume</b> — nouvelle ligne de facture, ou « illimité » ?</li>
+        <li>Qu'est-ce qui est inclus dans l'<b>onboarding</b>, et qu'est-ce qui est facturé en projet ?</li>
+        <li>A-t-on des <b>droits OEM / marque blanche</b> pour revendre ça dans notre produit à nos clients ?</li>
+        <li>Le prix est-il <b>fixe sur 12 ou 36 mois</b>, et indexé sur quoi ?</li>
+        <li>Quelles sont les <b>conditions du pilote</b> : durée, prix, données, et qui possède les résultats du benchmark ?</li>
+        <li>Décrivez-nous la <b>clause de sortie</b>. Que garde-t-on le premier jour après résiliation ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>B · Technique — la partie que leur deck va éviter</h3>
+      <ul class="questions">
+        <li><b>Empreinte GPU</b> exacte des paliers S/M/L : modèle, VRAM, quantité, et setup minimum viable.</li>
+        <li><b>Liste complète des modèles et de leurs licences</b> — Llama community, Qwen, Gemma : usage commercial autorisé ?</li>
+        <li>Comment le <b>routage</b> décide-t-il réellement ? Classifieur, heuristiques, scores d'éval, politique apprise ?</li>
+        <li>Peut-on <b>épingler un modèle par tâche</b> et contourner l'Optimizer quand on a besoin de déterminisme ?</li>
+        <li><b>Latence p95</b> pour un 7B et un 32B sur votre matériel de référence, à notre concurrence ?</li>
+        <li><b>Appel d'outils et mode JSON</b> : quelle fiabilité ? On pilote une boucle d'outils stricte avec validation de schéma.</li>
+        <li>Quels <b>endpoints OpenAI</b> sont vraiment compatibles : chat, embeddings, transcription audio, vision, streaming ?</li>
+        <li><b>Bascule</b> quand un modèle sature la VRAM ou qu'un nœud tombe — automatique, et en combien de temps ?</li>
+        <li>« Mis à jour automatiquement et en continu » : <b>qui valide</b> un changement de version de modèle en production ?</li>
+        <li>La plateforme est-elle <b>multi-tenant</b> avec des quotas par workspace qu'on peut faire correspondre à nos clients ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>C · Sécurité, conformité, données</h3>
+      <ul class="questions">
+        <li>Où tourne physiquement l'inférence — <b>quelle région, quel fournisseur</b>, et peut-on le voir par écrit ?</li>
+        <li>Le <b>plan de contrôle</b> : hébergé chez vous ou chez nous ? Si chez vous, quelle télémétrie sort de notre périmètre ?</li>
+        <li>Avez-vous un <b>DPA</b>, une liste de sous-traitants et un registre RGPD qu'on peut annexer au nôtre ?</li>
+        <li>Une <b>ISO 27001 / SOC 2</b>, ou un <b>rapport de pentest</b> récent qu'on peut lire ?</li>
+        <li>Qui, chez Otee, peut accéder techniquement à <b>notre infrastructure et à nos prompts</b>, selon quel processus ?</li>
+        <li><b>Journal d'audit</b> : qu'est-ce qui est enregistré, où, pendant combien de temps, et peut-on l'exporter ?</li>
+        <li><b>Notification d'incident</b> : sous combien d'heures, et qui rédige la communication au client ?</li>
+        <li>Confirmez par écrit : <b>nos données ne servent jamais à entraîner ou évaluer</b> un modèle.</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>D · Exploitation et continuité — la question que personne ne pose</h3>
+      <ul class="questions">
+        <li>Qui est <b>d'astreinte</b> quand l'inférence casse un lundi à 8 h — nous ou vous ?</li>
+        <li>Qui planifie la <b>capacité GPU</b> quand notre usage double ?</li>
+        <li>Que se passe-t-il quand un modèle est <b>déprécié en amont</b> ? Qui migre, en combien de temps, à quel coût ?</li>
+        <li>Existe-t-il un <b>runbook</b> qu'on peut conserver, et des artefacts de déploiement (Helm, Terraform) qu'on garde ?</li>
+        <li>Si Otee <b>ferme</b>, que possède-t-on et qu'est-ce qui s'arrête le lendemain ?</li>
+        <li>Support : horaires, langues, canal, <b>SLA de réponse</b>, et qui escalade jusqu'aux fondateurs ?</li>
+        <li>Combien de <b>déploiements en production</b> sont en service aujourd'hui, et depuis combien de temps ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>E · Adéquation avec notre produit — les seules questions qui décident</h3>
+      <ul class="questions">
+        <li>Peut-on <b>provisionner un workspace par API</b> quand on onboarde un nouveau client, automatiquement ?</li>
+        <li>Peut-on <b>mesurer l'usage par client</b> et l'exporter pour notre propre refacturation ?</li>
+        <li>L'écran de contrôle peut-il être en <b>marque blanche</b> pour les clients agence de notre offre haute ?</li>
+        <li>Comment gérez-vous l'<b>injection de prompt</b> dans les contenus que nos prospects et clients écrivent ?</li>
+        <li>Qu'apportez-vous qu'un <b>simple conteneur vLLM plus LiteLLM</b> n'apporte pas ? Soyez précis.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span> Les phrases qui doivent vous alerter</h2>
+    <div class="phrases">
+      <div class="phrase"><q>C'est automatique, vous n'avez pas à y penser.</q><span>Routage automatique veut dire décisions invisibles. Demandez le journal de routage par requête.</span></div>
+      <div class="phrase"><q>C'est open source, donc il n'y a aucun verrou.</q><span>Les modèles sont ouverts. Le routeur et le plan de contrôle sont le verrou. Ce n'est pas la même phrase.</span></div>
+      <div class="phrase"><q>On gère l'infrastructure pour vous.</q><span>Alors vos données sont dans leur compte, et l'argument de souveraineté disparaît. Choisissez l'un des deux.</span></div>
+      <div class="phrase"><q>C'est illimité.</q><span>Des GPU ne sont jamais illimités. Quelqu'un paie plus tard, en général au renouvellement, en général vous.</span></div>
+      <div class="phrase"><q>C'est sur la roadmap.</q><span>Répondez : « en production aujourd'hui, ou sur la roadmap ? » et notez la réponse à côté de la fonctionnalité.</span></div>
+      <div class="phrase"><q>Notre licence est sur mesure.</q><span>Comprendre : le prix dépend de ce qu'ils pensent que vous pouvez payer. Donnez-leur votre cadre d'abord.</span></div>
+      <div class="phrase"><q>Les petits modèles sont aussi bons maintenant.</q><span>Pour résumer un document propre, souvent oui. Pour de l'audio d'appel français avec accents et de l'extraction BANT, prouvez-le.</span></div>
+      <div class="phrase"><q>Nous sommes SecNumCloud.</q><span>Demandez quel fournisseur, quelle qualification, et si votre déploiement est réellement dedans.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">07</span> Notre position dans la salle</h2>
+    <div class="stance">
+      <h3>Cadrer l'accord avant qu'ils ne le cadrent</h3>
+      <ul>
+        <li><strong>Ouvrez sur notre problème, pas sur leur produit :</strong> « On vend un CRM souverain et single-tenant à des agences. Notre question, c'est de savoir si l'inférence IA peut tenir dans cette promesse sans ajouter une équipe d'exploitation. » Ça met la conversation sur leur point faible, pas sur leur meilleure slide.</li>
+        <li><strong>Ne citez jamais nos volumes ni nos marges.</strong> Dites « quelques milliers d'opérations IA par mois » et laissez-les chiffrer à l'aveugle.</li>
+        <li><strong>Faites du pilote le livrable de la réunion :</strong> 30 jours, 20 vrais enregistrements, notation à l'aveugle, critères de succès écrits, un prix fixe.</li>
+        <li><strong>Posez la question OEM tôt.</strong> S'ils refusent la revente en marque blanche, l'opportunité produit meurt et il ne reste que l'histoire de souveraineté — un accord bien plus petit.</li>
+        <li><strong>Ne vous engagez sur rien à l'oral.</strong> « On vous envoie le protocole de benchmark » est la seule bonne phrase de sortie.</li>
+      </ul>
+    </div>
+    <div class="walkaway">
+      <h3>On part si, à la fin de l'appel</h3>
+      <p>il n'y a pas de chiffre · pas de réponse DPA ni d'hébergement · pas de client référent nommé · pas d'accord pour un test à l'aveugle sur nos enregistrements · ou « on exploite l'infrastructure » dit en même temps que « vos données ne quittent jamais votre périmètre ». Un seul de ces points suffit pour arrêter.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">08</span> Grille de notation — à remplir pendant l'appel, pas après</h2>
+    <table class="score">
+      <thead>
+        <tr><th>Critère</th><th>Poids</th><th>Note 1–5</th><th>À quoi ressemble un 5</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="crit">Qualité sur nos vraies tâches</td><td class="w">30 %</td><td class="box"><div></div></td><td>Le test à l'aveugle sur 20 enregistrements égale ou dépasse la sortie actuelle.</td></tr>
+        <tr><td class="crit">Coût total sur 12 mois, GPU inclus</td><td class="w">20 %</td><td class="box"><div></div></td><td>Fixe, écrit, avec un plafond — aucune exposition au token.</td></tr>
+        <tr><td class="crit">Preuves de souveraineté et de conformité</td><td class="w">20 %</td><td class="box"><div></div></td><td>Région, DPA, sous-traitants, export d'audit, par écrit.</td></tr>
+        <tr><td class="crit">Charge d'exploitation pour nous</td><td class="w">15 %</td><td class="box"><div></div></td><td>Ils assurent l'exploitation au quotidien sans sortir les données du périmètre.</td></tr>
+        <tr><td class="crit">Sortie et verrouillage</td><td class="w">10 %</td><td class="box"><div></div></td><td>API standard, configuration exportable, runbook, séquestre.</td></tr>
+        <tr><td class="crit">Souplesse commerciale / droits OEM</td><td class="w">5 %</td><td class="box"><div></div></td><td>Revente en marque blanche autorisée, tarification par workspace.</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="4">On y va si la moyenne pondérée atteint 3,5 <em>et</em> qu'aucun point rédhibitoire de la section 04 n'est encore ouvert. Entre 2,5 et 3,5, c'est une deuxième réunion technique, pas une signature.</td></tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="num">09</span> Ordre du jour, 45 minutes</h2>
+    <ul class="agenda">
+      <li><span class="t">0–5</span><span><b>Eux d'abord.</b> « Racontez-nous un déploiement réel, de bout en bout, chez un client en production. » Écoutez ce qu'ils sautent : GPU, exploitation, prix.</span></li>
+      <li><span class="t">5–15</span><span><b>Notre contexte, dix minutes maximum.</b> CRM souverain single-tenant, clients agences, IA sur les enregistrements d'appels. Aucun volume, aucune marge.</span></li>
+      <li><span class="t">15–25</span><span><b>Les affirmations de la section 04.</b> Prenez les trois rédhibitoires : unité de prix, BOM GPU, preuve de qualité. Ne passez pas à la suite tant que chacune n'a pas de réponse concrète.</span></li>
+      <li><span class="t">25–35</span><span><b>Test de routage en direct.</b> Donnez-leur cinq de nos vrais prompts et une transcription d'appel ; demandez-leur de router et de montrer le journal. Regardez l'écran, pas la slide.</span></li>
+      <li><span class="t">35–42</span><span><b>Cadre commercial.</b> Droits OEM, conditions du pilote, durée du contrat, sortie. Ancre : licence annuelle fixe, pilote avant signature.</span></li>
+      <li><span class="t">42–45</span><span><b>Fermez par une demande, pas par une impression.</b> « Envoyez le DPA, la liste des modèles et licences, deux références et un BOM écrit avant vendredi. »</span></li>
+    </ul>
+  </section>
+
+  <div class="footer">
+    <b>Ce qu'on a lu :</b> otee.app (versions française et anglaise de la page d'accueil, sections produit, comparatif et FAQ), consulté le 23 octobre 2026. Aucune page tarifs, mention légale, blog, sitemap ou référence client n'est publiée ; console.otee.ai ne résolvait pas au moment de la vérification ; aucune mention tierce n'est ressortie d'une recherche web générale. Les chiffres cités comme les leurs (70 % surdimensionné, factures 10 à 30×, 48 210 requêtes/jour, 99,9 % de disponibilité) n'apparaissent que comme arguments marketing ou maquettes d'interface — aucun n'est vérifié indépendamment.<br>
+    <b>Note interne :</b> ce document est une aide à la préparation. Rien ici n'est un engagement, et aucun chiffre sur nos volumes, nos marges ou nos clients ne doit être partagé en réunion.
+  </div>
+
+</div>
+</body>
+</html>

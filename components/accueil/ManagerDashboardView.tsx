@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DateRangeFilter, type DateRangeValue } from "@/components/dashboard/DateRangeFilter";
 import { groupOutcomes } from "@/lib/manager-home/outcomes";
-import { prorateWeeklyGoal, relativeChange } from "@/lib/manager-home/rules";
+import { relativeChange } from "@/lib/manager-home/rules";
 import type { ManagerHomePeriod } from "@/lib/manager-home/types";
 import {
     BADGE, CARD, ChartTooltip, Delta, EmptyBlock, FOCUS, HeroCard, HeroPill, HeroTile, ICON_BUTTON, IconTile, Initials,
@@ -28,8 +28,11 @@ import {
 
 export interface ManagerDashboardStats {
     totalActions: number;
+    joinedCalls?: number;
     meetingsBooked: number;
     conversionRate: number;
+    reachRate?: number | null;
+    rdvPer100Calls?: number | null;
     resultBreakdown: Record<string, number>;
     leaderboard: { id: string; name: string; calls: number; connectedCalls: number; actions: number }[];
     rdvLeaderboard: { id: string; name: string; rdv: number; actions: number }[];
@@ -46,10 +49,9 @@ export interface MissionSummaryItem {
     lastActionAt: string | null;
 }
 
-/** Team goal, unchanged from the previous dashboard — now prorated to the selected period. */
-export const RDV_WEEKLY_GOAL = 30;
-/** Per-mission RDV target of "Missions proches de l'objectif" (no numeric objective exists in the schema). */
-export const MISSION_RDV_GOAL = 20;
+// No numeric RDV objective exists in the schema, so the home compares real data
+// (current period vs the period before, missions vs each other) instead of
+// inventing a goal. Add a goal field to Mission before showing one.
 
 export interface ManagerDashboardViewProps {
     firstName: string;
@@ -107,10 +109,6 @@ function pct1(n: number): string {
     return `${n.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`;
 }
 
-function rate(meetings: number, actions: number): number {
-    return actions > 0 ? (meetings / actions) * 100 : 0;
-}
-
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function ManagerDashboardView(props: ManagerDashboardViewProps) {
@@ -123,10 +121,11 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
 
     const meetings = stats?.meetingsBooked ?? 0;
     const actions = stats?.totalActions ?? 0;
+    // Canonical: RDV / joints (see lib/stats/metrics), not RDV / every action.
     const conversion = stats?.conversionRate ?? 0;
-
-    const goal = prorateWeeklyGoal(RDV_WEEKLY_GOAL, rangeDays);
-    const goalPct = Math.min(100, (meetings / goal) * 100);
+    const reach = stats?.reachRate ?? null;
+    const joinedCalls = stats?.joinedCalls ?? 0;
+    const callsPerRdv = meetings > 0 ? Math.round(actions / meetings) : null;
 
     // Comparison: both sides from /api/manager/home/period so they share one definition.
     const cur = period?.current;
@@ -135,9 +134,6 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
         meetings: cur && prev ? relativeChange(cur.meetings, prev.meetings) : null,
         actions: cur && prev ? relativeChange(cur.actions, prev.actions) : null,
         hotLeads: cur && prev ? relativeChange(cur.hotLeads, prev.hotLeads) : null,
-        conversion: cur && prev && prev.actions > 0
-            ? Math.round((rate(cur.meetings, cur.actions) - rate(prev.meetings, prev.actions)) * 10) / 10
-            : null,
     };
 
     const outcomes = useMemo(() => groupOutcomes(stats?.resultBreakdown ?? {}), [stats?.resultBreakdown]);
@@ -254,11 +250,14 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
                 <RdvHero
                     className="xl:col-span-8"
                     meetings={meetings}
+                    actions={actions}
+                    joinedCalls={joinedCalls}
+                    callsPerRdv={callsPerRdv}
                     conversion={conversion}
-                    goal={goal}
-                    goalPct={goalPct}
                     periodLabel={periodLabel}
                     delta={deltas.meetings}
+                    previousMeetings={prev?.meetings ?? null}
+                    rangeDays={rangeDays}
                     period={period}
                 />
                 <div className="xl:col-span-4 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
@@ -277,8 +276,12 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
                     />
                     <KpiCard
                         label="Taux de conversion"
-                        value={pct1(Math.round(conversion * 10) / 10)}
-                        sub={<Delta value={deltas.conversion} unit="pt" suffix="vs période préc." />}
+                        value={pct1(conversion)}
+                        sub={
+                            <span className="tabular-nums">
+                                RDV / joints · {reach !== null ? `${pct1(reach)} de joints` : "pas encore de joints"}
+                            </span>
+                        }
                         visual={<IconTile icon={TrendingUp} tone="teal" size="lg" />}
                     />
                 </div>
@@ -292,11 +295,11 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
                         <FollowUpCard callbacks={callbackCount} interested={interestedCount} />
                     </div>
                     <MissionsCard missions={missionsNearGoal} />
-                    <ProgressionCard period={period} goal={goal} meetings={meetings} />
+                    <ProgressionCard period={period} meetings={meetings} previousMeetings={prev?.meetings ?? null} />
                 </div>
 
                 <div className="xl:col-span-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 gap-6 min-w-0">
-                    <LeaderboardCard stats={stats} goalPct={goalPct} />
+                    <LeaderboardCard stats={stats} delta={deltas.meetings} />
                     <RecentRdvCard period={period} />
                 </div>
             </div>
@@ -311,20 +314,23 @@ function CountUp({ value }: { value: number }) {
 
 // ─── Hero: RDV décrochés ────────────────────────────────────────────────────
 
-function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, delta, period }: {
+function RdvHero({ className, meetings, actions, joinedCalls, callsPerRdv, conversion, periodLabel, delta, previousMeetings, rangeDays, period }: {
     className?: string;
     meetings: number;
+    actions: number;
+    joinedCalls: number;
+    callsPerRdv: number | null;
     conversion: number;
-    goal: number;
-    goalPct: number;
     periodLabel: string;
     delta: number | null;
+    previousMeetings: number | null;
+    rangeDays: number;
     period: ManagerHomePeriod | null;
 }) {
     const count = useCountUp(meetings);
-    const remaining = Math.max(0, goal - meetings);
     const series = period?.series ?? [];
     const unit = period?.range.granularity === "week" ? "semaine" : "jour";
+    const perDay = rangeDays > 0 ? Math.round((meetings / rangeDays) * 10) / 10 : 0;
 
     return (
         <HeroCard className={cn("flex flex-col justify-between gap-5", className)}>
@@ -349,7 +355,9 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Delta value={delta} onDark suffix="vs période préc." />
                         <span className="text-xs text-inverse-ink-2 font-medium">
-                            sur un objectif de {formatInt(goal)} ({RDV_WEEKLY_GOAL} / semaine)
+                            {previousMeetings !== null
+                                ? `contre ${formatInt(previousMeetings)} RDV sur la période précédente`
+                                : "pas de période de comparaison"}
                         </span>
                     </div>
                 </div>
@@ -384,34 +392,22 @@ function RdvHero({ className, meetings, conversion, goal, goalPct, periodLabel, 
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-                <HeroTile label="Objectif">{formatInt(goal)}</HeroTile>
-                <HeroTile label="Atteint">
-                    <span className="text-accent-300">{Math.round(goalPct)} %</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <HeroTile label="Période préc.">
+                    {previousMeetings !== null ? formatInt(previousMeetings) : "—"}
                 </HeroTile>
-                <HeroTile label={remaining > 0 ? "Restant" : "Statut"}>
-                    {remaining > 0 ? `${formatInt(remaining)} RDV` : "Atteint"}
+                <HeroTile label="Rythme">
+                    <span className="text-accent-300">{perDay.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}</span>
+                    <span className="text-[10px] font-bold text-inverse-ink-3 ml-1">/ jour</span>
+                </HeroTile>
+                <HeroTile label="Rendement">
+                    {callsPerRdv ? `1 RDV / ${formatInt(callsPerRdv)} appels` : "—"}
                 </HeroTile>
             </div>
 
-            <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-semibold">
-                    <span className="text-inverse-ink-2">Objectif de la période</span>
-                    <span className="text-inverse-ink-2 tabular-nums">{formatInt(meetings)} / {formatInt(goal)}</span>
-                </div>
-                <div
-                    className="h-2 w-full bg-inverse-raised rounded-full overflow-hidden"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(goalPct)}
-                    aria-label="Objectif de la période"
-                >
-                    <div
-                        className="h-full bg-accent rounded-full motion-safe:transition-[width] motion-safe:duration-700"
-                        style={{ width: `${goalPct}%` }}
-                    />
-                </div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[11px] font-semibold text-inverse-ink-2 tabular-nums">
+                <span>{formatInt(actions)} appels · {formatInt(joinedCalls)} joints</span>
+                <span>RDV / joints : {pct1(conversion)}</span>
             </div>
         </HeroCard>
     );
@@ -512,7 +508,7 @@ function FollowUpCard({ callbacks, interested }: { callbacks: number; interested
     );
 }
 
-// ─── Missions proches de l'objectif ─────────────────────────────────────────
+// ─── Missions qui produisent des RDV ────────────────────────────────────────
 
 function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
     return (
@@ -520,8 +516,8 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
             <SectionHeader
                 icon={Target}
                 tone="emerald"
-                title="Missions proches de l'objectif"
-                subtitle={`Missions actives classées par RDV · objectif ${MISSION_RDV_GOAL} RDV`}
+                title="Missions qui produisent des RDV"
+                subtitle="Missions actives classées par RDV sur la période"
                 right={<TextLink href="/manager/clients">Voir toutes</TextLink>}
             />
             {missions.length === 0 ? (
@@ -529,8 +525,10 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
             ) : (
                 <ul className="divide-y divide-slate-100">
                     {missions.map((m) => {
-                        const pct = Math.min(100, Math.round((m.meetingsThisPeriod / MISSION_RDV_GOAL) * 100));
-                        const tone: AccueilTone = pct >= 80 ? "emerald" : pct >= 60 ? "amber" : "slate";
+                        // Bar relative to the best mission: a ranking, not an invented target.
+                        const best = missions[0]?.meetingsThisPeriod || 1;
+                        const pct = Math.min(100, Math.round((m.meetingsThisPeriod / best) * 100));
+                        const tone: AccueilTone = pct >= 80 ? "emerald" : pct >= 50 ? "amber" : "slate";
                         return (
                             <li key={m.id}>
                                 <Link
@@ -547,13 +545,13 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
                                         </div>
                                         <div className="flex items-center gap-2 flex-shrink-0">
                                             <span className="text-sm font-black text-zinc-900 tabular-nums">
-                                                {m.meetingsThisPeriod}
-                                                <span className="text-xs font-bold text-zinc-400">/{MISSION_RDV_GOAL}</span>
+                                                {formatInt(m.meetingsThisPeriod)}
+                                                <span className="text-[10px] font-bold text-zinc-400 ml-0.5">RDV</span>
                                             </span>
                                             <span className={cn("text-[10px] font-extrabold px-2 py-0.5 rounded-full tabular-nums", BADGE[tone])}>{pct} %</span>
                                         </div>
                                     </div>
-                                    <ProgressBar percent={pct} tone={tone} label={`${m.name} : ${pct} % de l'objectif`} />
+                                    <ProgressBar percent={pct} tone={tone} label={`${m.name} : ${pct} % du meilleur résultat`} />
                                 </Link>
                             </li>
                         );
@@ -569,14 +567,14 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
 // Top-3 rank colours (gold, silver, bronze) — flat text, no medal emoji.
 const RANK_TEXT = ["text-amber-600", "text-slate-500", "text-orange-700"];
 
-function LeaderboardCard({ stats, goalPct }: { stats: ManagerDashboardStats | null; goalPct: number }) {
+function LeaderboardCard({ stats, delta }: { stats: ManagerDashboardStats | null; delta: number | null }) {
     const rows = stats?.rdvLeaderboard ?? [];
     const max = rows[0]?.rdv || 1;
-    const status: { text: string; tone: AccueilTone } = goalPct >= 100
-        ? { text: "Objectif atteint", tone: "emerald" }
-        : goalPct >= 80
-            ? { text: "En avance", tone: "emerald" }
-            : { text: `${Math.round(100 - goalPct)} % restant`, tone: "amber" };
+    const status: { text: string; tone: AccueilTone } = delta === null
+        ? { text: "Vs période préc.", tone: "slate" }
+        : delta >= 0
+            ? { text: `+${pct1(delta)}`, tone: "emerald" }
+            : { text: pct1(delta), tone: "amber" };
 
     return (
         <section className={cn(CARD, "p-6 space-y-3 min-w-0")}>
@@ -649,20 +647,22 @@ function MiniTag({ tone, children }: { tone: AccueilTone; children: ReactNode })
     );
 }
 
-// ─── Progression (cumul réel vs objectif) ───────────────────────────────────
+// ─── Progression (cumul réel vs période précédente) ─────────────────────────
 
-function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod | null; goal: number; meetings: number }) {
+function ProgressionCard({ period, meetings, previousMeetings }: { period: ManagerHomePeriod | null; meetings: number; previousMeetings: number | null }) {
     const data = useMemo(() => {
         const series = period?.series ?? [];
-        return series.reduce<{ label: string; cumul: number; objectif: number }[]>((acc, b, i) => [
+        // Repère = the previous period's pace, projected on this period's buckets.
+        const pace = previousMeetings !== null && series.length > 0 ? previousMeetings / series.length : null;
+        return series.reduce<{ label: string; cumul: number; repere: number | null }[]>((acc, b, i) => [
             ...acc,
             {
                 label: b.label,
                 cumul: (acc[i - 1]?.cumul ?? 0) + b.meetings,
-                objectif: Math.round((goal * (i + 1)) / series.length),
+                repere: pace !== null ? Math.round(pace * (i + 1)) : null,
             },
         ], []);
-    }, [period, goal]);
+    }, [period, previousMeetings]);
 
     return (
         <section className={cn(CARD, "p-6 space-y-3 min-w-0")}>
@@ -670,11 +670,13 @@ function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod
                 icon={TrendingUp}
                 tone="teal"
                 title="Progression"
-                subtitle="Cumul des RDV face à l'objectif"
+                subtitle={previousMeetings !== null ? "Cumul des RDV vs rythme de la période précédente" : "Cumul des RDV sur la période"}
                 right={
                     <span className="text-xs font-black text-zinc-900 tabular-nums whitespace-nowrap">
                         {formatInt(meetings)}
-                        <span className="text-zinc-400 font-bold"> / {formatInt(goal)} RDV</span>
+                        {previousMeetings !== null && (
+                            <span className="text-zinc-400 font-bold"> / {formatInt(previousMeetings)} RDV préc.</span>
+                        )}
                     </span>
                 }
             />
@@ -682,7 +684,7 @@ function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod
                 <Shimmer className="h-[184px] rounded-2xl" />
             ) : (
                 <>
-                    <div className="h-[184px] -ml-2" role="img" aria-label="Cumul des RDV face à l'objectif">
+                    <div className="h-[184px] -ml-2" role="img" aria-label="Cumul des RDV face à la période précédente">
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                                 <CartesianGrid vertical={false} stroke="var(--ds-line-subtle)" />
@@ -706,7 +708,7 @@ function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod
                                     cursor={{ stroke: "var(--ds-line)", strokeWidth: 1 }}
                                     content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} />}
                                 />
-                                <Line type="monotone" dataKey="objectif" name="Objectif" stroke="var(--ds-line-strong)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
+                                <Line type="monotone" dataKey="repere" name="Période précédente" stroke="var(--ds-line-strong)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
                                 <Line
                                     type="monotone"
                                     dataKey="cumul"
@@ -726,7 +728,7 @@ function ProgressionCard({ period, goal, meetings }: { period: ManagerHomePeriod
                             <span className="w-3 h-0.5 rounded-full bg-emerald-500" aria-hidden /> Réalisé
                         </span>
                         <span className="flex items-center gap-1.5">
-                            <span className="w-3 border-t-[1.5px] border-dashed border-slate-300" aria-hidden /> Objectif
+                            <span className="w-3 border-t-[1.5px] border-dashed border-slate-300" aria-hidden /> Période précédente
                         </span>
                     </div>
                 </>

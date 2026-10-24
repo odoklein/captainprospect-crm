@@ -54,6 +54,7 @@ import { EditMissionDialog } from "@/components/missions/EditMissionDialog";
 import { MISSION_STATUS_CONFIG } from "@/lib/constants/missionStatus";
 import type { MissionStatusValue } from "@/lib/constants/missionStatus";
 import { brand } from "@/lib/brand";
+import { WeeklyBilanFromUrl } from "@/components/reporting/WeeklyBilanFromUrl";
 
 // ============================================================
 // TYPES
@@ -1597,6 +1598,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
     return (
         <div className="max-w-[1440px] mx-auto pb-16 space-y-8">
+            <WeeklyBilanFromUrl clientId={client.id} clientName={client.name} />
 
             {/* ── HEADER ── */}
             <div className="relative">

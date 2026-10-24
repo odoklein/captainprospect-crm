@@ -1,7 +1,9 @@
 import { NextRequest } from 'next/server';
+import { DateTime } from 'luxon';
 import { prisma } from '@/lib/prisma';
 import { portalVisibleMissionWhere } from '@/lib/portal-visibility';
 import type { Prisma } from '@prisma/client';
+import { APP_TIMEZONE, addResult, conversionRate as tallyConversion, emptyTally, reachRate as tallyReach, yieldPer100 } from '@/lib/stats/metrics';
 import {
     successResponse,
     requireRole,
@@ -64,43 +66,58 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const endDateParam = searchParams.get('endDate');
     const period = searchParams.get('period') || 'month';
 
-    let dateFrom: Date;
-    let dateTo: Date;
+    // Europe/Paris days, [from, to) instants — the same boundaries as the
+    // Statistiques page and the manager home. Local-time setHours() shifted every
+    // total by the machine's UTC offset (and by one hour around DST changes).
+    let rangeFrom: DateTime;
+    let rangeTo: DateTime;
+    const parseDay = (value: string) => DateTime.fromISO(value, { zone: APP_TIMEZONE }).startOf('day');
 
     if (fromParam && toParam) {
-        dateFrom = new Date(fromParam);
-        dateFrom.setHours(0, 0, 0, 0);
-        dateTo = new Date(toParam);
-        dateTo.setHours(23, 59, 59, 999);
+        const parsedFrom = parseDay(fromParam);
+        const parsedTo = parseDay(toParam);
+        if (!parsedFrom.isValid || !parsedTo.isValid || parsedTo < parsedFrom) {
+            return errorResponse('Période invalide', 400);
+        }
+        rangeFrom = parsedFrom;
+        rangeTo = parsedTo.plus({ days: 1 });
     } else if (startDateParam && endDateParam) {
-        dateFrom = new Date(startDateParam);
-        dateFrom.setHours(0, 0, 0, 0);
-        dateTo = new Date(endDateParam);
-        dateTo.setHours(23, 59, 59, 999);
+        const parsedFrom = parseDay(startDateParam);
+        const parsedTo = parseDay(endDateParam);
+        if (!parsedFrom.isValid || !parsedTo.isValid || parsedTo < parsedFrom) {
+            return errorResponse('Période invalide', 400);
+        }
+        rangeFrom = parsedFrom;
+        rangeTo = parsedTo.plus({ days: 1 });
     } else {
-        dateTo = new Date();
-        dateTo.setHours(23, 59, 59, 999);
-        dateFrom = new Date();
-        dateFrom.setHours(0, 0, 0, 0);
+        const today = DateTime.now().setZone(APP_TIMEZONE).startOf('day');
+        rangeFrom = today;
+        rangeTo = today.plus({ days: 1 });
         switch (period) {
             case 'today':
                 break;
             case 'week':
-                dateFrom.setDate(dateFrom.getDate() - 7);
+                rangeFrom = today.minus({ days: 7 });
                 break;
             case 'month':
-                dateFrom.setMonth(dateFrom.getMonth() - 1);
+                rangeFrom = today.minus({ months: 1 });
                 break;
             case 'quarter':
-                dateFrom.setDate(dateFrom.getDate() - 90);
+                rangeFrom = today.minus({ days: 90 });
                 break;
             default:
-                dateFrom.setMonth(dateFrom.getMonth() - 1);
+                rangeFrom = today.minus({ months: 1 });
         }
     }
 
+    const dateFrom = rangeFrom.toJSDate();
+    const dateTo = rangeTo.toJSDate();
+
+    // Every dashboard number is a CALL number: email/LinkedIn actions must not
+    // dilute call volume, reach or conversion.
     const actionWhere: Prisma.ActionWhereInput = {
-        createdAt: { gte: dateFrom, lte: dateTo },
+        channel: 'CALL',
+        createdAt: { gte: dateFrom, lt: dateTo },
     };
     const campaignWhere: Prisma.CampaignWhereInput = {};
 
@@ -139,6 +156,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         totalActions,
         actionsByResult,
         meetingsBooked,
+        meetingsConfirmed,
         opportunities,
         activeMissions,
         topSDRs,
@@ -151,8 +169,21 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             where: actionWhere,
             _count: true,
         }),
+        // RDV pris = booked and not cancelled. Cancellations can be recorded either
+        // as a new MEETING_CANCELLED action or by flipping confirmationStatus.
         prisma.action.count({
-            where: { ...actionWhere, result: 'MEETING_BOOKED' },
+            where: {
+                ...actionWhere,
+                result: 'MEETING_BOOKED',
+                confirmationStatus: { not: 'CANCELLED' },
+            },
+        }),
+        prisma.action.count({
+            where: {
+                ...actionWhere,
+                result: 'MEETING_BOOKED',
+                confirmationStatus: 'CONFIRMED',
+            },
         }),
         prisma.opportunity.count({
             where: {
@@ -210,6 +241,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             where: {
                 ...actionWhere,
                 result: 'MEETING_BOOKED',
+                confirmationStatus: { not: 'CANCELLED' },
             },
             select: { sdrId: true },
         });
@@ -238,14 +270,24 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     actionsByResult.forEach((item) => {
         resultBreakdown[item.result] = item._count;
     });
+    // The raw groupBy cannot see confirmationStatus: make the "RDV obtenu" slice
+    // equal the hero count instead of adding back RDV cancelled by status.
+    resultBreakdown.MEETING_BOOKED = meetingsBooked;
 
-    const conversionRate = totalActions > 0
-        ? ((meetingsBooked / totalActions) * 100).toFixed(2)
-        : '0.00';
+    // One tally, built with the same rules as the Statistiques page: joints,
+    // leads chauds and RDV come from outcome families, never from one raw code.
+    const tally = emptyTally();
+    for (const item of actionsByResult) addResult(tally, item.result, item._count);
+    tally.seconds = totalTalkTimeAgg._sum.duration ?? 0;
+    // Same RDV population as the hero: a cancelled-by-status RDV is not a RDV.
+    tally.meetings = meetingsBooked;
 
-    const interestedCount = resultBreakdown.INTERESTED ?? 0;
+    const conversionRate = tallyConversion(tally) ?? 0;
+    const reachRate = tallyReach(tally);
+    const rdvPer100Calls = yieldPer100(tally);
+
     const interestRate = totalActions > 0
-        ? Number((((meetingsBooked + interestedCount) / totalActions) * 100).toFixed(2))
+        ? Math.round(((tally.meetings + tally.hot) / totalActions) * 1000) / 10
         : 0;
 
     const uniqueContacts = uniqueContactsById.length;
@@ -301,7 +343,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     let lastActivityDate: string | null = null;
     let contactsReached = 0;
-    let monthlyObjective = 10;
+    // No objective in the schema means no objective: keep null instead of a made-up 10.
+    let monthlyObjective: number | null = null;
     if (userRole === 'CLIENT') {
         const lastAction = await prisma.action.findFirst({
             where: actionWhere,
@@ -325,11 +368,17 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const response = successResponse({
         period,
         totalActions,
-        totalCalls: totalActions,
+        totalCalls: tally.calls,
+        joinedCalls: tally.joined,
         meetingsBooked,
+        meetingsConfirmed,
+        meetingsCancelled: resultBreakdown.MEETING_CANCELLED ?? 0,
         opportunities,
         activeMissions,
-        conversionRate: parseFloat(conversionRate),
+        // RDV / joints, the same rate the Statistiques page shows.
+        conversionRate,
+        reachRate,
+        rdvPer100Calls,
         interestRate,
         uniqueContacts,
         talkTimeSeconds,

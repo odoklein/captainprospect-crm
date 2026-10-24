@@ -11,12 +11,16 @@ import { computeBulkHealthSummaries } from '@/lib/services/ListHealthService';
 // Query params:
 //   missionId       — filter to a single mission
 //   clientId        — filter to all missions of a client
-//   listIds[]       — filter to specific list IDs
+//   listIds[]       — filter to specific list IDs (at most MAX_LIST_IDS are read).
+//                     Omit it to get every non-archived list in the scope: the
+//                     server picks them, so callers never build a giant URL.
 //   sdrIds[]        — scope actions to specific SDRs
 //   includeArchived — include archived lists (default: false)
 //
 // Response: ListHealthSummary[]
 // Roles: MANAGER, DEVELOPER
+
+const MAX_LIST_IDS = 200;
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     await requireRole(['MANAGER', 'DEVELOPER'], request);
@@ -24,7 +28,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const missionId = searchParams.get('missionId') ?? undefined;
     const clientId = searchParams.get('clientId') ?? undefined;
-    const listIds = searchParams.getAll('listIds[]');
+    const listIds = [...new Set(searchParams.getAll('listIds[]'))].slice(0, MAX_LIST_IDS);
     const sdrIds = searchParams.getAll('sdrIds[]');
     const includeArchived = searchParams.get('includeArchived') === 'true';
 

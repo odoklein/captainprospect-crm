@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Annexe IA — nos workflows et les questions à poser à Otee</title>
+<style>
+  :root{
+    --navy:#263460;--navy-2:#1b2547;--accent:#C64B8B;--accent-ink:#a83f76;
+    --ink:#151a2d;--muted:#5b6478;--line:#e2e5ee;--wash:#f6f7fb;
+    --amber:#8a5a12;--amber-soft:#fdf3e2;--red:#a8323c;--red-soft:#fbeceb;
+    --green:#1f6b4f;--green-soft:#e9f4ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--wash);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .page{max-width:980px;margin:0 auto;background:#fff;padding:56px 64px 64px}
+  .eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--accent-ink)}
+  h1{font-size:42px;line-height:1.06;letter-spacing:-.025em;margin:10px 0 8px;font-weight:800;color:var(--navy)}
+  .deck{font-size:18px;line-height:1.45;color:var(--muted);margin:0 0 24px;max-width:660px}
+  .meta{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;
+    border-top:2px solid var(--navy);border-bottom:1px solid var(--line);padding:13px 0;margin:0 0 30px}
+  .meta dt{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 3px}
+  .meta dd{margin:0;font-size:13px;font-weight:600}
+  section{margin:0 0 34px}
+  h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);font-weight:800;
+    margin:0 0 13px;padding-bottom:8px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:baseline}
+  h2 .num{color:var(--accent-ink);font-size:12px;font-variant-numeric:tabular-nums}
+  h3{font-size:15px;margin:0 0 6px;color:var(--navy)}
+  p{margin:0 0 10px}
+  .kicker{font-size:13px;color:var(--muted);margin:-4px 0 16px}
+  strong{font-weight:650}
+  .tldr{background:var(--navy);color:#fff;padding:24px 26px 20px;border-radius:2px;margin:0 0 32px}
+  .tldr h2{color:#fff;border-bottom:1px solid rgba(255,255,255,.22);margin-bottom:12px}
+  .tldr h2 .num{color:#f0a8cb}
+  .tldr p{color:#dfe3ef;font-size:14.5px;margin:0 0 9px}
+  .tldr p:last-child{margin-bottom:0}
+  .tldr strong{color:#fff}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:0 0 8px}
+  .stat{border:1px solid var(--line);border-radius:2px;padding:14px 16px}
+  .stat .n{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1.1}
+  .stat .l{font-size:11.5px;color:var(--muted);line-height:1.35;margin-top:3px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin:0 0 6px}
+  thead th{text-align:left;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    font-weight:800;border-bottom:1.5px solid var(--navy);padding:0 9px 8px 0;vertical-align:bottom}
+  tbody td{padding:10px 9px 10px 0;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.42}
+  tbody tr:last-child td{border-bottom:none}
+  td.wf{font-weight:650;color:var(--navy);width:17%}
+  td.code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10.5px;color:var(--muted);width:20%}
+  .pill{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+    padding:2px 6px;border-radius:2px;white-space:nowrap}
+  .p-high{background:var(--red-soft);color:var(--red)}
+  .p-mid{background:var(--amber-soft);color:var(--amber)}
+  .p-low{background:var(--green-soft);color:var(--green)}
+  .qblock{margin:0 0 18px;break-inside:avoid}
+  .qblock h3{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 7px}
+  ul.q{list-style:none;margin:0;padding:0}
+  ul.q li{position:relative;padding:0 0 7px 20px;font-size:13.5px;line-height:1.45;color:#232a3d}
+  ul.q li::before{content:"";position:absolute;left:0;top:3px;width:10px;height:10px;border:1.5px solid #b9bfd0;border-radius:2px}
+  ul.plain{margin:0 0 10px;padding-left:18px}
+  ul.plain li{font-size:14px;line-height:1.5;margin-bottom:6px}
+  ul.plain li::marker{color:var(--accent)}
+  .note{background:#f8f9fd;border-left:3px solid var(--navy);padding:14px 18px;margin:0 0 14px}
+  .note p{font-size:13.5px;margin:0}
+  .note p + p{margin-top:6px}
+  .warn{background:var(--red-soft);border-left:3px solid var(--red);padding:14px 18px;margin:0 0 16px}
+  .warn p{font-size:13.5px;margin:0;color:#5d2b2f}
+  .ok{background:var(--green-soft);border-left:3px solid var(--green);padding:14px 18px}
+  .ok p{font-size:13.5px;margin:0;color:#1c4636}
+  .footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);line-height:1.6}
+  .footer b{color:var(--ink);font-weight:650}
+  @page{size:A4;margin:14mm 13mm}
+  @media print{
+    body{background:#fff;font-size:9.4pt;line-height:1.4}
+    .page{max-width:none;padding:0}
+    h1{font-size:28pt}.deck{font-size:11.5pt;margin-bottom:12px}
+    section{margin-bottom:15px;break-inside:avoid}
+    .tldr{padding:13px 16px;margin-bottom:16px}
+    .tldr p{font-size:9pt}
+    table{font-size:8pt} tbody td{padding:7px 7px 7px 0}
+    ul.q li{font-size:8.8pt;padding-bottom:4px}
+    .stat .n{font-size:16pt}
+    .footer{font-size:7.6pt}
+    .tldr,.pill,.warn,.ok,.note{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
+  @media (max-width:760px){
+    .page{padding:30px 22px 40px}
+    h1{font-size:31px}.deck{font-size:16px}
+    .meta{grid-template-columns:1fr 1fr;gap:13px}
+    .stats{grid-template-columns:1fr 1fr}
+    table{font-size:13.5px}
+    thead{display:none}
+    tbody tr{display:block;border:1px solid var(--line);border-radius:2px;padding:12px 14px;margin-bottom:11px}
+    tbody td{display:block;width:auto!important;border:0;padding:0 0 7px}
+    tbody td:last-child{padding-bottom:0}
+    tbody td::before{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:1px}
+    td.wf{font-size:15px;padding-bottom:8px}
+    .flows td:nth-child(1)::before{content:"Workflow"}
+    .flows td:nth-child(2)::before{content:"Déclencheur"}
+    .flows td:nth-child(3)::before{content:"Modèle actuel"}
+    .flows td:nth-child(4)::before{content:"Sensibilité"}
+    .flows td:nth-child(5)::before{content:"Volume"}
+    .tests td:nth-child(1)::before{content:"Test"}
+    .tests td:nth-child(2)::before{content:"Ce qu'on envoie"}
+    .tests td:nth-child(3)::before{content:"Ce qu'on regarde"}
+    .metrics td:nth-child(1)::before{content:"Indicateur"}
+    .metrics td:nth-child(2)::before{content:"Aujourd'hui"}
+    .metrics td:nth-child(3)::before{content:"Cible pilote"}
+    .metrics td:nth-child(4)::before{content:"Où on le lit"}
+    .pill{white-space:normal}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="eyebrow">Annexe technique · Confidentiel · Interne</div>
+  <h1>Notre IA, workflow par workflow</h1>
+  <p class="deck">Ce qui tourne réellement aujourd'hui, ce que ça coûte, et les questions précises à poser à Otee sur chaque brique — pas des questions génériques sur la souveraineté.</p>
+
+  <dl class="meta">
+    <div><dt>Objet</dt><dd>Préparer la réunion Otee</dd></div>
+    <div><dt>Périmètre</dt><dd>Routes IA du CRM</dd></div>
+    <div><dt>Date</dt><dd>23 octobre 2026</dd></div>
+    <div><dt>Usage</dt><dd>Interne, non partageable</dd></div>
+  </dl>
+
+  <div class="tldr">
+    <h2><span class="num">01</span> En une minute</h2>
+    <p><strong>Nous ne sommes pas mono-fournisseur, mais nous sommes majoritairement OpenAI :</strong> <em>gpt-4o-mini</em> pour l'extraction et l'assistant léger, <em>gpt-4.1-mini</em> pour la rédaction et le raisonnement, <em>gpt-4o-mini-transcribe</em> pour l'audio, plus <em>gemini-2.0-flash</em> sur quelques routes et <em>mistral-small</em> dans une chaîne de repli. Un sidecar <em>faster-whisper</em> local sert de première tentative en transcription.</p>
+    <p><strong>Trois familles de charge, très différentes :</strong> du texte court et structuré (fiches, tâches, emails), du texte long (transcriptions d'appels, rapports), et du tool calling multi-tours (assistant manager, 34 outils). Otee ne les traite pas de la même façon — c'est là qu'il faut les interroger.</p>
+    <p><strong>Ce qu'ils doivent prouver :</strong> que leur routeur tient le <em>tool calling</em> et le <em>JSON strict</em> sur un 32B, que leur compatibilité OpenAI couvre aussi l'<em>audio</em> et l'<em>API responses</em> (recherche web), et qu'ils savent servir plusieurs workspaces avec des quotas séparés.</p>
+    <p><strong>Ce qu'on ne dit pas :</strong> nos volumes exacts, nos marges, nos clients. On parle en familles de charge, pas en chiffres.</p>
+  </div>
+
+  <section>
+    <h2><span class="num">02</span> La stack réelle, en quatre chiffres</h2>
+    <div class="stats">
+      <div class="stat"><div class="n">3 + 1</div><div class="l">Fournisseurs : OpenAI, Gemini, Mistral en repli, plus un sidecar whisper local</div></div>
+      <div class="stat"><div class="n">4</div><div class="l">Modèles réellement appelés : gpt-4o-mini, gpt-4.1-mini, gpt-4o-mini-transcribe, gemini-2.0-flash</div></div>
+      <div class="stat"><div class="n">1 clé</div><div class="l">Par fournisseur, côté serveur uniquement, jamais exposée au client</div></div>
+      <div class="stat"><div class="n">0</div><div class="l">Plafond IA bloquant : on mesure les coûts, on ne coupe pas</div></div>
+    </div>
+    <div class="note">
+      <p><strong>À savoir avant la réunion :</strong> les fichiers s'appellent encore <em>mistral-*</em> mais appellent OpenAI. Ne dites jamais « on tourne sur Mistral » en réunion : c'est faux, et ils le verront dans la démo.</p>
+      <p>Les coûts sont calculés en euros à partir des tokens (table de prix interne), agrégés par utilisateur. Les volumes exacts ne sont pas instrumentés par workflow aujourd'hui : c'est justement une des choses à demander à Otee de fournir.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span> Les workflows, un par un</h2>
+    <p class="kicker">Sept familles, treize points d'entrée. La colonne « volume » est qualitative tant que la mesure par route n'est pas branchée.</p>
+    <table class="flows">
+      <thead><tr><th>Workflow</th><th>Déclencheur</th><th>Modèle actuel</th><th>Sensibilité</th><th>Volume</th></tr></thead>
+      <tbody>
+        <tr><td class="wf">Assistant manager projet</td><td>Question d'un manager sur un client / une mission</td><td>gpt-4.1-mini, tool calling, 34 outils</td><td><span class="pill p-mid">Moyen</span></td><td>Élevé, multi-tours</td></tr>
+        <tr><td class="wf">Aide produit (SDR / client)</td><td>Question « comment faire » dans le CRM</td><td>gpt-4o-mini</td><td><span class="pill p-low">Faible</span></td><td>Moyen</td></tr>
+        <tr><td class="wf">Fiche RDV</td><td>Transcription d'appel collée ou uploadée</td><td>gpt-4o-mini, JSON strict</td><td><span class="pill p-high">Élevé</span></td><td>Élevé</td></tr>
+        <tr><td class="wf">Transcription audio</td><td>Upload d'un enregistrement d'appel</td><td>whisper local, puis gpt-4o-mini-transcribe</td><td><span class="pill p-high">Élevé</span></td><td>Élevé, fichiers longs</td></tr>
+        <tr><td class="wf">Emails (brouillon, modèle, récap)</td><td>Action d'un SDR ou d'un manager</td><td>gpt-4.1-mini</td><td><span class="pill p-mid">Moyen</span></td><td>Élevé</td></tr>
+        <tr><td class="wf">Rapports projet et comptes rendus</td><td>Fin de mission / revue client</td><td>gpt-4.1-mini, chaîne Gemini / OpenAI / Mistral</td><td><span class="pill p-mid">Moyen</span></td><td>Faible, textes longs</td></tr>
+        <tr><td class="wf">Tâches (extraction, découpage, estimation)</td><td>Note ou réunion transformée en tâches</td><td>gemini-2.0-flash + gpt-4o-mini, puis gpt-4.1-mini</td><td><span class="pill p-mid">Moyen</span></td><td>Moyen</td></tr>
+        <tr><td class="wf">Scripts et pitchs</td><td>Création d'un script d'appel ou d'un pitch</td><td>gpt-4.1-mini</td><td><span class="pill p-low">Faible</span></td><td>Faible</td></tr>
+        <tr><td class="wf">Onboarding commercial</td><td>Nouvel arrivant sur une mission</td><td>gpt-4.1-mini</td><td><span class="pill p-mid">Moyen</span></td><td>Faible</td></tr>
+        <tr><td class="wf">Enrichissement entreprise</td><td>Fiche société à compléter</td><td>gpt-4o-mini + recherche web (API responses)</td><td><span class="pill p-low">Faible</span></td><td>Moyen à élevé</td></tr>
+        <tr><td class="wf">Analyse d'email entrant</td><td>Réponse d'un prospect reçue</td><td>gpt-4o-mini</td><td><span class="pill p-high">Élevé</span></td><td>Moyen</td></tr>
+        <tr><td class="wf">Amélioration de note</td><td>Reformulation d'une note SDR</td><td>gpt-4.1-mini</td><td><span class="pill p-mid">Moyen</span></td><td>Moyen</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Les questions à poser, workflow par workflow</h2>
+    <p class="kicker">Une question par point de rupture réel. Si la réponse est floue, le workflow ne passe pas chez eux.</p>
+
+    <div class="qblock">
+      <h3>Assistant manager — le tool calling</h3>
+      <ul class="q">
+        <li>Quel modèle open source tient un <b>tool calling fiable sur 34 outils</b> avec des schémas JSON imbriqués, et quel est son taux d'appel valide mesuré ?</li>
+        <li>Comment gérez-vous un <b>appel d'outil malformé</b> : nouvelle tentative, réparation du JSON, ou échec rendu au modèle ?</li>
+        <li>Le routeur peut-il <b>changer de modèle au milieu d'une conversation</b> à outils, sans perdre l'historique des appels ?</li>
+        <li>Un 7B suffit-il pour choisir entre 34 outils, ou faut-il le 32B sur toute la boucle ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>Fiche RDV — le JSON strict</h3>
+      <ul class="q">
+        <li>Quel est le <b>taux de JSON parsable du premier coup</b> sur un modèle 32B, avec une transcription française de 20 minutes ?</li>
+        <li>Comment garantissez-vous le <b>respect du schéma</b> (5 champs obligatoires, chaînes uniquement) : grammaire contrainte, validation, ou simple prompt ?</li>
+        <li>Que se passe-t-il sur une transcription de <b>40 000 caractères</b> : fenêtre dépassée, découpage, ou refus ?</li>
+        <li>Sur un appel avec accents, noms propres et chiffres, quel est le <b>taux d'erreur sur les entités</b> par rapport à gpt-4o-mini ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>Transcription — la brique qu'ils oublient</h3>
+      <ul class="q">
+        <li>Proposez-vous un <b>modèle audio open source</b> (Whisper, Voxtral) déployé chez nous, ou seulement du texte ?</li>
+        <li>Si oui, sur quel <b>GPU</b>, avec quel temps de traitement pour un appel de 20 minutes, et en français ?</li>
+        <li>Votre <b>API compatible OpenAI</b> couvre-t-elle <em>/audio/transcriptions</em>, ou seulement <em>/chat/completions</em> ?</li>
+        <li>Un sidecar whisper local <b>cohabite-t-il</b> avec votre plateforme, ou faut-il passer par votre passerelle ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>Emails, rapports, scripts — la génération longue</h3>
+      <ul class="q">
+        <li>Quelle <b>latence p95</b> sur une génération de 800 à 1 500 tokens avec un 32B, à notre concurrence ?</li>
+        <li>Gérez-vous le <b>streaming</b> sur tous les modèles, ou seulement certains ?</li>
+        <li>Comment tenez-vous le <b>style et la charte</b> d'un client sur des générations répétées : prompt système, fine-tuning, exemples ?</li>
+        <li>Quel est le <b>coût réel par génération</b> chez vous, GPU inclus, comparé à un modèle API au token ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>Recherche web et enrichissement</h3>
+      <ul class="q">
+        <li>Proposez-vous une <b>recherche web</b> souveraine, ou faut-il garder un fournisseur externe pour ça ?</li>
+        <li>Si un outil doit sortir du périmètre, votre <b>blocage par défaut</b> casse-t-il le workflow ou le dégrade-t-il proprement ?</li>
+        <li>Votre compatibilité couvre-t-elle l'<b>API responses</b>, utilisée pour la recherche avec citations ?</li>
+        <li>Comment facturez-vous une requête qui appelle un outil externe <b>en plus</b> du modèle ?</li>
+      </ul>
+    </div>
+
+    <div class="qblock">
+      <h3>Multi-tenant et refacturation</h3>
+      <ul class="q">
+        <li>Peut-on créer un <b>workspace par client d'agence</b> par API, avec un quota et un modèle dédiés ?</li>
+        <li>L'<b>export de consommation</b> est-il par workspace, par utilisateur, par modèle, et à quelle granularité ?</li>
+        <li>Un client peut-il <b>épingler un modèle</b> différent du nôtre, sans impact sur les autres ?</li>
+        <li>Que se passe-t-il si un workspace <b>dépasse son quota</b> : blocage, dégradation vers un modèle plus petit, ou facturation ?</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span> Les cinq tests à leur faire passer en démo</h2>
+    <p class="kicker">Sur nos données, pas sur leur jeu de démonstration. Chacun prend moins de cinq minutes.</p>
+    <table class="tests">
+      <thead><tr><th style="width:26%">Test</th><th style="width:37%">Ce qu'on envoie</th><th>Ce qu'on regarde</th></tr></thead>
+      <tbody>
+        <tr><td class="wf">1. JSON strict</td><td>Une transcription réelle de 15 minutes, avec le schéma fiche RDV à 5 champs.</td><td>Parsable du premier coup, champs exacts, aucun texte hors JSON.</td></tr>
+        <tr><td class="wf">2. Tool calling</td><td>Une question manager qui exige trois outils enchaînés (projet, RDV, métriques).</td><td>Trois appels valides, aucun outil inventé, réponse cohérente.</td></tr>
+        <tr><td class="wf">3. Routage</td><td>Cinquante de nos prompts réels, mélangeant court, long et raisonnement.</td><td>Le journal de routage : quel modèle, pourquoi, et le coût par requête.</td></tr>
+        <tr><td class="wf">4. Audio</td><td>Un enregistrement d'appel de 20 minutes, en français, avec accents.</td><td>Temps de traitement, qualité de la transcription, gestion des noms propres.</td></tr>
+        <tr><td class="wf">5. Panne</td><td>On coupe un modèle ou on sature la file pendant l'appel.</td><td>Bascule automatique, message d'erreur propre, aucune perte de données.</td></tr>
+      </tbody>
+    </table>
+    <div class="warn">
+      <p><strong>Refus à opposer :</strong> pas de test sur des enregistrements clients non anonymisés, pas de test sur une base de production, pas de démonstration « on vous montrera après signature ». Un pilote sans données réelles anonymisées ne prouve rien.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span> Ce qu'on mesure avant et après</h2>
+    <table class="metrics">
+      <thead><tr><th style="width:30%">Indicateur</th><th style="width:26%">Aujourd'hui</th><th style="width:22%">Cible pilote</th><th>Où on le lit</th></tr></thead>
+      <tbody>
+        <tr><td class="wf">Coût mensuel IA</td><td>Tokens × prix, calculé en euros</td><td>Licence fixe + GPU, plafonné</td><td>Table de prix interne, export Otee</td></tr>
+        <tr><td class="wf">Latence p95</td><td>Non mesurée par route</td><td>À instrumenter sur 3 routes</td><td>Journal applicatif</td></tr>
+        <tr><td class="wf">Qualité fiche RDV</td><td>Non mesurée</td><td>Comparaison à l'aveugle, 20 appels</td><td>Grille de notation interne</td></tr>
+        <tr><td class="wf">Taux d'appel d'outil valide</td><td>Non mesuré</td><td>Mesuré sur 50 questions</td><td>Trace des conversations</td></tr>
+        <tr><td class="wf">Incidents fournisseur</td><td>Retries et backoff seulement</td><td>SLA contractuel et crédits</td><td>Contrat Otee</td></tr>
+      </tbody>
+    </table>
+    <div class="ok">
+      <p><strong>La phrase de sortie :</strong> « On vous donne trois routes, un schéma, vingt appels anonymisés. Vous nous rendez un rapport de mesure, pas une démo. »</p>
+    </div>
+  </section>
+
+  <div class="footer">
+    <b>Sources internes :</b> <em>lib/ai/</em> (clients OpenAI, Gemini, transcription, fiche RDV, recherche web, mesure d'usage), <em>app/api/ai/</em> et <em>app/api/manager/assistant/</em> (points d'entrée), <em>lib/ai/tools/</em> (registre, garde, caviardage, boucle), <em>AI_ASSISTANT_ARCHITECTURE.md</em>. Relevé effectué sur le code au 23 octobre 2026.<br>
+    <b>Limite :</b> les volumes par workflow ne sont pas instrumentés aujourd'hui ; les colonnes correspondantes sont qualitatives et doivent être confirmées avant toute comparaison chiffrée avec Otee. Les prix et engagements Otee ne figurent pas ici : ils ne sont pas publics.
+  </div>
+
+</div>
+</body>
+</html>

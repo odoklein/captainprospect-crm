@@ -52,6 +52,8 @@ import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { AbsentRdvAlert, ABSENT_RDV_ALERT_QUERY_KEY } from "@/components/sdr/AbsentRdvAlert";
 import { ContactDrawer } from "./ContactDrawer";
+import { NewProspectDialog, type ProspectSubmissionContext } from "@/components/prospect-submissions/NewProspectDialog";
+import { PROSPECT_SOURCE_LABELS, type ProspectOrigin } from "@/lib/prospect-submissions/types";
 import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
 import { CompanyAiEnrichment } from "@/components/enrichment/CompanyAiEnrichment";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -146,6 +148,10 @@ interface UnifiedActionDrawerProps {
     /** Result preselected when the drawer opens (e.g. "MEETING_BOOKED" from a callback's "RDV pris"). */
     initialResult?: string;
     onActionRecorded?: () => void;
+    /** A contact/company was added from the drawer: refresh the queue without counting an action. */
+    onProspectAdded?: () => void;
+    /** Open another company's sheet (e.g. the existing row a duplicate check points to). */
+    onOpenCompany?: (companyId: string, contactId?: string | null) => void;
     onValidateAndNext?: () => void;
     onContactSelect?: (contactId: string) => void;
     onBookingDialogOpenChange?: (isOpen: boolean) => void;
@@ -466,6 +472,8 @@ export function UnifiedActionDrawer({
     preferredInterlocuteurIds,
     initialResult,
     onActionRecorded,
+    onProspectAdded,
+    onOpenCompany,
     onValidateAndNext,
     onContactSelect,
     onBookingDialogOpenChange,
@@ -732,6 +740,27 @@ export function UnifiedActionDrawer({
     }, [isOpen, onAlloDialogOpenChange]);
 
     const [showAddContact, setShowAddContact] = useState(false);
+    const [showNewProspect, setShowNewProspect] = useState(false);
+
+    // Can SDRs add companies on this mission (per-mission setting), and was this
+    // company itself added by an SDR? See lib/prospect-submissions.
+    const { data: prospectContext = null } = useQuery<
+        (ProspectSubmissionContext & { origin: ProspectOrigin | null }) | null
+    >({
+        queryKey: ["prospect-submission-context", companyId, contactId],
+        queryFn: async () => {
+            const params = new URLSearchParams({ companyId });
+            if (contactId) params.set("contactId", contactId);
+            const r = await fetch(`/api/sdr/prospect-submissions/context?${params}`);
+            const j = await r.json();
+            return j.success ? j.data : null;
+        },
+        enabled: isOpen && !!companyId,
+        staleTime: 60_000,
+    });
+    const canAddProspect = !!prospectContext && prospectContext.mode !== "OFF" && prospectContext.lists.length > 0;
+    const prospectOrigin = prospectContext?.origin ?? null;
+
     const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
     const notesDefaultInitializedForKeyRef = useRef<string | null>(null);
     const [historyExpanded, setHistoryExpanded] = useState(true);
@@ -2301,15 +2330,28 @@ export function UnifiedActionDrawer({
                                     </p>
                                 </div>
                             </div>
-                            <Button
-                                type="button"
-                                variant="primary"
-                                onClick={() => setShowAddContact(true)}
-                                className="gap-2 shrink-0"
-                            >
-                                <Plus className="w-4 h-4" aria-hidden="true" />
-                                Ajouter
-                            </Button>
+                            <div className="flex flex-wrap gap-2 shrink-0">
+                                {canAddProspect && (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => setShowNewProspect(true)}
+                                        className="gap-2"
+                                    >
+                                        <Building2 className="w-4 h-4" aria-hidden="true" />
+                                        Nouvelle société
+                                    </Button>
+                                )}
+                                <Button
+                                    type="button"
+                                    variant="primary"
+                                    onClick={() => setShowAddContact(true)}
+                                    className="gap-2"
+                                >
+                                    <Plus className="w-4 h-4" aria-hidden="true" />
+                                    Ajouter
+                                </Button>
+                            </div>
                         </div>
                     )}
 
@@ -2356,6 +2398,17 @@ export function UnifiedActionDrawer({
                                     <div className="mt-1.5">
                                         <StatusPill status={company.status} />
                                     </div>
+                                    {prospectOrigin && (
+                                        <p className="mt-1.5 text-xs text-ink-3">
+                                            Ajoutée par {prospectOrigin.addedByName} le{" "}
+                                            {new Date(prospectOrigin.at).toLocaleDateString("fr-FR")}
+                                            {" · "}
+                                            {prospectOrigin.source === "REFERRAL" && prospectOrigin.referrer
+                                                ? `Recommandée par ${prospectOrigin.referrer.label}`
+                                                : PROSPECT_SOURCE_LABELS[prospectOrigin.source]}
+                                            {prospectOrigin.note ? ` — ${prospectOrigin.note}` : ""}
+                                        </p>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -2714,6 +2767,16 @@ export function UnifiedActionDrawer({
                                     <Plus className="w-4 h-4" aria-hidden="true" />
                                     Ajouter un nouveau contact
                                 </button>
+                                {canAddProspect && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewProspect(true)}
+                                        className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-line text-ink-2 hover:bg-surface-2 text-sm font-medium transition-colors"
+                                    >
+                                        <Building2 className="w-4 h-4" aria-hidden="true" />
+                                        Nouvelle société (recommandation, lead entrant)
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -3747,10 +3810,30 @@ export function UnifiedActionDrawer({
                     onCreate={async (newContact) => {
                         setShowAddContact(false);
                         setActiveTab("contact");
-                        onActionRecorded?.();
+                        // Adding a contact is not a call: refresh without bumping the action counter when the page allows it.
+                        (onProspectAdded ?? onActionRecorded)?.();
                         queryClient.invalidateQueries({ queryKey: sdrUnifiedDrawerCompanyKey(companyId) });
                         queryClient.invalidateQueries({ queryKey: sdrUnifiedDrawerContactKey((newContact as Contact).id) });
                         queryClient.invalidateQueries({ queryKey: actionsQueryKey });
+                    }}
+                />
+            )}
+
+            {canAddProspect && prospectContext && (
+                <NewProspectDialog
+                    isOpen={showNewProspect}
+                    onClose={() => setShowNewProspect(false)}
+                    context={prospectContext}
+                    fromCompanyId={companyId}
+                    fromContactId={contactId}
+                    onOpenCompany={onOpenCompany}
+                    onSubmitted={(result) => {
+                        if (result.outcome === "CREATED") {
+                            (onProspectAdded ?? onActionRecorded)?.();
+                            if (result.companyId === companyId) {
+                                queryClient.invalidateQueries({ queryKey: sdrUnifiedDrawerCompanyKey(companyId) });
+                            }
+                        }
                     }}
                 />
             )}

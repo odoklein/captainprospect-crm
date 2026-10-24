@@ -1,6 +1,8 @@
 import { isClientCountableMeeting } from "@/lib/meetings/clientVisibility";
 import { NextRequest } from "next/server";
+import { DateTime } from "luxon";
 import { prisma } from "@/lib/prisma";
+import { APP_TIMEZONE } from "@/lib/stats/metrics";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
 import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 
@@ -44,12 +46,15 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    const createdAtFilter: { gte?: Date; lte?: Date } = {};
-    if (startDate) createdAtFilter.gte = new Date(startDate);
+    // Paris days, [from, to) — the client's numbers must match the other dashboards.
+    const createdAtFilter: { gte?: Date; lt?: Date } = {};
+    if (startDate) {
+        const from = DateTime.fromISO(startDate, { zone: APP_TIMEZONE }).startOf("day");
+        if (from.isValid) createdAtFilter.gte = from.toJSDate();
+    }
     if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        createdAtFilter.lte = end;
+        const end = DateTime.fromISO(endDate, { zone: APP_TIMEZONE }).startOf("day");
+        if (end.isValid) createdAtFilter.lt = end.plus({ days: 1 }).toJSDate();
     }
 
     const campaignIds = await prisma.campaign

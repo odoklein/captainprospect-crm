@@ -169,6 +169,7 @@ export const MANAGER_NAV: NavSection[] = [
         label: "Facturation",
         children: [
           { href: "/manager/billing", icon: LayoutDashboard, label: "Vue d'ensemble", permission: "pages.billing", description: "Encours, échéances et alertes" },
+          { href: "/manager/billing/echeancier", icon: CalendarClock, label: "Échéancier", permission: "pages.billing", description: "Cycles mensuels depuis le premier appel : à facturer, payés, en retard" },
           { href: "/manager/billing/invoices", icon: FileText, label: "Factures", permission: "pages.billing", description: "Factures émises et brouillons" },
           { href: "/manager/billing/clients", icon: Building2, label: "Clients", permission: "pages.billing", description: "Coordonnées de facturation" },
           { href: "/manager/billing/offres", icon: Tag, label: "Offres & tarifs", permission: "pages.billing", description: "Catalogue d'offres et prix" },

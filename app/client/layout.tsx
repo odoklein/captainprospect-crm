@@ -4,6 +4,7 @@ import { AppLayoutShell } from "@/components/layout/AppLayoutShell";
 import { CLIENT_NAV } from "@/lib/navigation/config";
 import ClientSupportRoot from "@/components/support/ClientSupportRoot";
 import { PortalAccessGate } from "@/components/client/PortalAccessGate";
+import { MeetingFeedbackReminder } from "@/components/portal/MeetingFeedbackReminder";
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -13,6 +14,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         >
             {/* Entry screen "Vérification de votre accès" — real checks, once per session. */}
             <PortalAccessGate />
+            {/* « Mon avis » owed on past RDVs: modal once per session + banner. */}
+            <MeetingFeedbackReminder portal="client" />
             {children}
             {/* Global floating support launcher — available on every /client/* route. */}
             <ClientSupportRoot />

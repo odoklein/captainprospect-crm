@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
+import { DateTime } from 'luxon';
 import { prisma } from '@/lib/prisma';
+import { APP_TIMEZONE } from '@/lib/stats/metrics';
 import {
     successResponse,
     requireRole,
@@ -20,7 +22,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     
     // Try API key auth first
     const apiKey = extractApiKey(request);
-    let session;
     let authType: 'session' | 'apikey' = 'session';
     let apiKeyId: string | undefined;
 
@@ -29,16 +30,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         if (!validation.valid) {
             return errorResponse(validation.error || 'Unauthorized', validation.statusCode || 401);
         }
-        
-        // Build session from API key data
-        session = {
-            user: {
-                id: `apikey:${validation.key!.id}`,
-                role: validation.key!.role,
-                clientId: validation.key!.clientId,
-                missionId: validation.key!.missionId,
-            }
-        };
         authType = 'apikey';
         apiKeyId = validation.key!.id;
     } else {
@@ -52,29 +43,38 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const endDateParam = searchParams.get('endDate');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10) || 20, 50);
 
-    let dateFrom: Date;
+    // Europe/Paris days, [from, to) — identical to /api/stats and the manager home.
+    const today = DateTime.now().setZone(APP_TIMEZONE).startOf('day');
+    let rangeFrom = today;
+    let rangeTo = today.plus({ days: 1 });
+
     if (startDateParam && endDateParam) {
-        dateFrom = new Date(startDateParam);
-        dateFrom.setHours(0, 0, 0, 0);
+        const parsedFrom = DateTime.fromISO(startDateParam, { zone: APP_TIMEZONE }).startOf('day');
+        const parsedTo = DateTime.fromISO(endDateParam, { zone: APP_TIMEZONE }).startOf('day');
+        if (parsedFrom.isValid && parsedTo.isValid && parsedTo >= parsedFrom) {
+            rangeFrom = parsedFrom;
+            rangeTo = parsedTo.plus({ days: 1 });
+        }
     } else {
-        dateFrom = new Date();
-        dateFrom.setHours(0, 0, 0, 0);
         switch (period) {
             case 'today':
                 break;
             case 'week':
-                dateFrom.setDate(dateFrom.getDate() - 7);
+                rangeFrom = today.minus({ days: 7 });
                 break;
             case 'month':
-                dateFrom.setMonth(dateFrom.getMonth() - 1);
+                rangeFrom = today.minus({ months: 1 });
                 break;
             case 'quarter':
-                dateFrom.setDate(dateFrom.getDate() - 90);
+                rangeFrom = today.minus({ days: 90 });
                 break;
             default:
-                dateFrom.setMonth(dateFrom.getMonth() - 1);
+                rangeFrom = today.minus({ months: 1 });
         }
     }
+
+    const dateFrom = rangeFrom.toJSDate();
+    const rangeToDate = rangeTo.toJSDate();
 
     const [missions, actionsInPeriod] = await Promise.all([
         prisma.mission.findMany({
@@ -91,13 +91,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         }),
         prisma.action.findMany({
             where: {
-                createdAt: {
-                    gte: dateFrom,
-                    ...(endDateParam ? { lte: new Date(new Date(endDateParam).setHours(23, 59, 59, 999)) } : {}),
-                },
+                channel: 'CALL',
+                createdAt: { gte: dateFrom, lt: rangeToDate },
             },
             select: {
                 result: true,
+                confirmationStatus: true,
                 createdAt: true,
                 campaign: { select: { missionId: true } },
             },
@@ -118,7 +117,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         const row = byMission[missionId];
         if (!row) continue;
         row.actionsCount += 1;
-        if (a.result === 'MEETING_BOOKED') row.meetingsCount += 1;
+        // Cancelled RDV (either a MEETING_CANCELLED row or a CANCELLED status) are
+        // not "meetings this period"; they are counted on the RDV screen instead.
+        if (a.result === 'MEETING_BOOKED' && a.confirmationStatus !== 'CANCELLED') row.meetingsCount += 1;
         if (!row.lastActionAt || a.createdAt > row.lastActionAt) {
             row.lastActionAt = a.createdAt;
         }

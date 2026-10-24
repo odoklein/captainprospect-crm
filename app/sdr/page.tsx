@@ -575,11 +575,11 @@ export default function SDRDashboardPage() {
                                 {stats?.meetingsBooked ?? 0}
                             </span>
                             <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                Validés
+                                Hors annulés
                             </span>
                         </div>
                         <span className="text-[11px] font-semibold text-zinc-500 block">
-                            Directement dans l'agenda
+                            Cette semaine · annulés exclus
                         </span>
                     </div>
                     <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-[0_4px_14px_rgba(16,185,129,0.35)]">
