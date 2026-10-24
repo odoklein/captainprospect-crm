@@ -56,6 +56,7 @@ import {
     searchAcrossProjects,
 } from "./definitions/agency";
 import { searchHelp } from "./definitions/knowledge";
+import { CRM_DATA_TOOLS } from "./definitions/crm";
 
 export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     // ── READ — no side effects, run automatically ────────────────────────────
@@ -88,6 +89,9 @@ export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     listDrafts,
     readDraft,
     listTasks,
+    // Données CRM — contacts, appels, transcriptions, RDV, listes, retours SDR.
+    // Scoped to the bound project; agency-wide when none is bound.
+    ...CRM_DATA_TOOLS,
 
     // ── SAFE WRITE — automatic, budgeted, logged, undone in one click ────────
     draftEmail,

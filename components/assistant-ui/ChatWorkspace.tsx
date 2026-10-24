@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ArrowDown,
     ArrowUp,
+    Brain,
     Check,
     ChevronDown,
     Coins,
@@ -108,6 +109,9 @@ export function ChatWorkspace() {
     const [busyMessageId, setBusyMessageId] = useState<string | null>(null);
     const [copiedId, setCopiedId] = useState<string | null>(null);
     const [atBottom, setAtBottom] = useState(true);
+    // Deep mode costs more per message (stronger model, bigger tool budget),
+    // so it is a per-message choice, off by default.
+    const [deep, setDeep] = useState(false);
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -254,7 +258,11 @@ export function ChatWorkspace() {
                 const res = await fetch("/api/manager/assistant/chat", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ conversationId: id, message: prompt }),
+                    body: JSON.stringify({
+                        conversationId: id,
+                        message: prompt,
+                        depth: deep ? "deep" : "standard",
+                    }),
                     signal: controller.signal,
                 });
                 const payload = await res.json();
@@ -290,7 +298,7 @@ export function ChatWorkspace() {
                 }
             }
         },
-        [input, isSending, conversationId, clientId, missionId, loadHistory]
+        [input, isSending, conversationId, clientId, missionId, deep, loadHistory]
     );
 
     // Stop only stops waiting: the server may still finish the turn, and the
@@ -512,7 +520,7 @@ export function ChatWorkspace() {
                     )}
 
                     <span className="ml-auto hidden rounded-md border border-slate-200 px-1.5 py-0.5 font-mono text-[10.5px] text-slate-500 sm:inline">
-                        gpt-4o-mini
+                        {deep ? "gpt-4.1 · approfondi" : "gpt-4o-mini"}
                     </span>
                 </header>
 
@@ -595,7 +603,7 @@ export function ChatWorkspace() {
                                     <AiMark className="h-4 w-4 animate-pulse" />
                                 </span>
                                 <span className="pt-1.5 text-sm text-slate-500">
-                                    Réflexion… {(elapsedMs / 1000).toFixed(1)} s
+                                    {deep ? "Analyse approfondie" : "Réflexion"}… {(elapsedMs / 1000).toFixed(1)} s
                                 </span>
                             </div>
                         )}
@@ -656,6 +664,21 @@ export function ChatWorkspace() {
                             placeholder="Envoyer un message…"
                             className="block max-h-[220px] min-h-[72px] w-full resize-none bg-transparent px-4 pb-11 pt-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         />
+                        <button
+                            type="button"
+                            onClick={() => setDeep((v) => !v)}
+                            aria-pressed={deep}
+                            title="Modèle plus puissant et enquête plus longue : réponse plus lente et plus coûteuse"
+                            className={cn(
+                                "absolute bottom-2 left-2 flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400",
+                                deep
+                                    ? "border-accent-300 bg-accent-50 text-accent-700"
+                                    : "border-slate-200 bg-white text-slate-500 hover:text-slate-900"
+                            )}
+                        >
+                            <Brain className="h-3.5 w-3.5" />
+                            Réflexion approfondie
+                        </button>
                         <div className="absolute bottom-2 right-2">
                             {isSending ? (
                                 <button

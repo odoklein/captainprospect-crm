@@ -16,6 +16,10 @@ export const OPENAI_PRICING: Record<string, { inputPerMillion: number; outputPer
         inputPerMillion: 0.20,
         outputPerMillion: 0.80,
     },
+    "gpt-4.1": {
+        inputPerMillion: 2.00,
+        outputPerMillion: 8.00,
+    },
     "gpt-4o": {
         inputPerMillion: 2.50,
         outputPerMillion: 10.00,

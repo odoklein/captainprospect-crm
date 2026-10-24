@@ -19,9 +19,6 @@ import { authorizeToolCall } from "./guard";
 import { getTool } from "./registry";
 import { wrapToolPayload } from "./redact";
 
-/** Hard cap on tool calls per assistant request. */
-export const MAX_TOOL_CALLS_PER_REQUEST = 8;
-
 export interface ToolCallRequest {
     id?: string;
     name: string;

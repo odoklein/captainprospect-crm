@@ -23,12 +23,21 @@ import {
 } from "@/lib/api-utils";
 import { OpenAIError } from "@/lib/ai/openai";
 import { buildAssistantContext } from "@/lib/ai/tools/context";
-import { buildToolUsagePrompt, runAssistantTurn, type ChatTurn } from "@/lib/ai/tools/loop";
+import {
+    buildReasoningPrompt,
+    buildToolUsagePrompt,
+    describePastTrace,
+    runAssistantTurn,
+    type ChatTurn,
+    type ToolTraceEntry,
+} from "@/lib/ai/tools/loop";
 import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
 
 const ChatBody = z.object({
     conversationId: z.string().min(1),
     message: z.string().min(1).max(4000),
+    /** "deep" = stronger model + bigger tool budget, chosen per message by the manager. */
+    depth: z.enum(["standard", "deep"]).optional(),
 });
 
 /** First user message becomes the thread title, so history is scannable. */
@@ -75,7 +84,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         where: { conversationId: conversation.id },
         orderBy: { createdAt: "desc" },
         take: 20,
-        select: { role: true, content: true, action: true },
+        select: { role: true, content: true, action: true, trace: true },
     });
 
     const history: ChatTurn[] = previous
@@ -90,18 +99,27 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                     : action?.state === "cancelled"
                         ? "\n[Action refusée par le manager]"
                         : "";
+            // Which records the earlier turn looked at, with their ids, so a
+            // follow-up ("et ses appels ?") can dig into the same record.
+            const rawTrace = m.trace as { entries?: ToolTraceEntry[] } | ToolTraceEntry[] | null;
+            const pastTools =
+                m.role === "ASSISTANT"
+                    ? describePastTrace(Array.isArray(rawTrace) ? rawTrace : rawTrace?.entries)
+                    : "";
             return {
                 role: m.role === "USER" ? ("user" as const) : ("assistant" as const),
-                content: `${m.content}${suffix}`.trim() || "(vide)",
+                content: `${m.content}${suffix}${pastTools}`.trim() || "(vide)",
             };
         })
         .filter((m) => m.content.length > 0);
 
     history.push({ role: "user", content: body.message });
 
+    const depth = body.depth ?? "standard";
     const systemPrompt = [
         getAssistantSystemPrompt(ctx),
-        buildToolUsagePrompt(ctx),
+        buildToolUsagePrompt(ctx, depth),
+        buildReasoningPrompt(depth),
     ].join("\n\n");
 
     let turn;
@@ -111,6 +129,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             history,
             ctx,
             apiKey: process.env.OPENAI_API_KEY,
+            depth,
         });
     } catch (error) {
         if (error instanceof OpenAIError) {
@@ -133,9 +152,12 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         }
         : null;
 
+    // The model travels with the usage, or the cost summary prices a deep
+    // turn as if it had run on the cheap model.
     const traceData = {
         entries: turn.trace,
-        usage: turn.usage,
+        usage: { ...turn.usage, model: turn.model },
+        depth,
     };
 
     const [, assistantMessage] = await prisma.$transaction([
