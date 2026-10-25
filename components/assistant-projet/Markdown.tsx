@@ -6,7 +6,10 @@
  * Why not react-markdown (which this project already ships): everything here is
  * built as React nodes, so model output can never inject markup — there is no
  * `dangerouslySetInnerHTML` anywhere in the path. The model emits a small
- * subset anyway: headings, lists, bold, italic, inline code, links.
+ * subset anyway: headings, lists, tables, bold, italic, inline code, links.
+ *
+ * Presentation only: a table or a "label : value" list renders the exact text
+ * the model wrote, never recomputed or reordered.
  */
 
 import { memo, useMemo } from "react";
@@ -82,7 +85,77 @@ type Block =
     | { kind: "p"; lines: string[] }
     | { kind: "h"; level: number; text: string }
     | { kind: "ul"; items: string[] }
-    | { kind: "ol"; items: string[]; start: number };
+    | { kind: "ol"; items: string[]; start: number }
+    | { kind: "tbl"; lines: string[] }
+    | { kind: "table"; head: string[]; rows: string[][]; numeric: boolean[] };
+
+/** Lines of a pipe table are collected as "tbl" and validated when the block ends. */
+const TABLE_LINE = /^\s*\|.*\|\s*$/;
+const TABLE_RULE_CELL = /^:?-+:?$/;
+
+function splitRow(line: string): string[] {
+    return line
+        .trim()
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((cell) => cell.trim());
+}
+
+/**
+ * A figure, optionally with a % / € / short unit: "52", "79 %", "1 240 €".
+ * `\s` also covers the non-breaking spaces French number formatting uses.
+ */
+const NUMERIC_CELL = /^[-+−~]?\d[\d\s.,]*\s?(%|€|k€|j|h|min|s)?$/i;
+
+function buildTable(lines: string[]): Block | null {
+    if (lines.length < 2) return null;
+    const head = splitRow(lines[0]);
+    const rule = splitRow(lines[1]);
+    if (head.length < 2 || rule.length !== head.length || !rule.every((c) => TABLE_RULE_CELL.test(c))) return null;
+
+    const rows = lines.slice(2).map((l) => {
+        const cells = splitRow(l).slice(0, head.length);
+        while (cells.length < head.length) cells.push("");
+        return cells;
+    });
+    // Right-align a column when the model said so, or when every value is a figure.
+    const numeric = head.map((_, c) => {
+        if (rule[c].endsWith(":") && !rule[c].startsWith(":")) return true;
+        const values = rows.map((r) => r[c].replace(/\*\*/g, "").trim()).filter(Boolean);
+        return values.length > 0 && values.every((v) => NUMERIC_CELL.test(v));
+    });
+    return { kind: "table", head, rows, numeric };
+}
+
+/**
+ * "- **Armel** : 52" style lists read better as a two-column table. Only when
+ * every item is exactly label + figure (+ a short unit), so no sentence is lost.
+ */
+const KEY_VALUE = /^(?:\*\*)?([^:*|]{1,60}?)(?:\*\*)?\s*(?::|—|–)\s*(?:\*\*)?(\d[\d\s.,]*\s?(?:%|€|k€)?(?:\s[a-zà-ÿ]{2,12})?)(?:\*\*)?\s*$/i;
+
+/** A bare count ("52", "1 240"), the only kind of value that gets a bar. */
+const COUNT = /^\d{1,3}(?:\s?\d{3})*$|^\d+$/;
+
+interface KeyValueList {
+    pairs: Array<{ label: string; value: string; count: number | null }>;
+    /** Largest count when every value is a count, so bars share one scale. */
+    max: number | null;
+}
+
+function toKeyValue(items: string[]): KeyValueList | null {
+    if (items.length < 3) return null;
+    const pairs: KeyValueList["pairs"] = [];
+    for (const item of items) {
+        const m = KEY_VALUE.exec(item.trim());
+        if (!m) return null;
+        const value = m[2].trim();
+        pairs.push({ label: m[1].trim(), value, count: COUNT.test(value) ? Number(value.replace(/\s/g, "")) : null });
+    }
+    const counts = pairs.map((p) => p.count);
+    const max = counts.every((c) => c !== null) ? Math.max(...(counts as number[])) : null;
+    return { pairs, max: max && max > 0 ? max : null };
+}
 
 const HEADING = /^(#{1,4})\s+(.*)$/;
 const BULLET = /^\s*[-*•]\s+(.*)$/;
@@ -93,7 +166,11 @@ function parseBlocks(content: string): Block[] {
     let current: Block | null = null;
 
     const flush = () => {
-        if (current) blocks.push(current);
+        if (current?.kind === "tbl") {
+            blocks.push(buildTable(current.lines) ?? { kind: "p", lines: current.lines });
+        } else if (current) {
+            blocks.push(current);
+        }
         current = null;
     };
 
@@ -102,6 +179,15 @@ function parseBlocks(content: string): Block[] {
 
         if (!line.trim()) {
             flush();
+            continue;
+        }
+
+        if (TABLE_LINE.test(line)) {
+            if (current?.kind !== "tbl") {
+                flush();
+                current = { kind: "tbl", lines: [] };
+            }
+            current.lines.push(line);
             continue;
         }
 
@@ -160,7 +246,59 @@ function Markdown({ content }: { content: string }) {
                         </p>
                     );
                 }
+                if (block.kind === "table") {
+                    return (
+                        <div key={key} className="ap-md-table-wrap">
+                            <table className="ap-md-table">
+                                <thead>
+                                    <tr>
+                                        {block.head.map((cell, c) => (
+                                            <th key={`${key}-h${c}`} scope="col" data-num={block.numeric[c] || undefined}>
+                                                {renderInline(cell, `${key}-h${c}`)}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {block.rows.map((row, r) => (
+                                        <tr key={`${key}-r${r}`}>
+                                            {row.map((cell, c) => (
+                                                <td key={`${key}-r${r}c${c}`} data-num={block.numeric[c] || undefined}>
+                                                    {renderInline(cell, `${key}-r${r}c${c}`)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    );
+                }
+                if (block.kind === "tbl") return null;
                 if (block.kind === "ul") {
+                    const list = toKeyValue(block.items);
+                    if (list) {
+                        const { pairs, max } = list;
+                        return (
+                            <div key={key} className="ap-md-table-wrap">
+                                <table className="ap-md-table ap-md-kv">
+                                    <tbody>
+                                        {pairs.map((pair, i) => (
+                                            <tr key={`${key}-${i}`}>
+                                                <th scope="row">{pair.label}</th>
+                                                <td data-num>{pair.value}</td>
+                                                {max !== null && (
+                                                    <td className="ap-md-bar" aria-hidden>
+                                                        <span style={{ width: `${((pair.count ?? 0) / max) * 100}%` }} />
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        );
+                    }
                     return (
                         <ul key={key} className="ap-md-ul">
                             {block.items.map((item, i) => (

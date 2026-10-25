@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { AiMark } from "@/components/ui/AiMark";
+import { Loader2 } from "lucide-react";
 
 const STEP_MS = 2200;
 
@@ -73,33 +73,10 @@ export function ThinkingStatus({
     const label = longWait ? "Analyse en profondeur, encore quelques secondes…" : steps[index];
 
     return (
-        <div className="flex gap-3" role="status" aria-live="polite">
-            <span className="cp-ai-orb cp-ai-orb-busy flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white">
-                <AiMark className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 pt-1">
-                <p
-                    key={label}
-                    className="cp-ai-shimmer animate-in fade-in-0 slide-in-from-bottom-1 text-sm font-medium duration-300"
-                >
-                    {label}
-                </p>
-                <div className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-400">
-                    <span className="flex gap-1" aria-hidden>
-                        {steps.map((_, i) => (
-                            <span
-                                key={i}
-                                className={
-                                    i <= index
-                                        ? "h-1 w-3 rounded-full bg-accent-500 transition-colors"
-                                        : "h-1 w-3 rounded-full bg-slate-200 transition-colors"
-                                }
-                            />
-                        ))}
-                    </span>
-                    <span className="tabular-nums">{(elapsedMs / 1000).toFixed(1)} s</span>
-                </div>
-            </div>
+        <div className="flex items-center gap-2 text-sm text-slate-500" role="status" aria-live="polite">
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin text-slate-400" aria-hidden />
+            <span key={label}>{label}</span>
+            <span className="text-xs tabular-nums text-slate-400">{(elapsedMs / 1000).toFixed(0)} s</span>
         </div>
     );
 }

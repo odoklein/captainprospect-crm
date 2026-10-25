@@ -13,20 +13,17 @@ import {
     ArrowDown,
     ArrowRight,
     ArrowUp,
-    Brain,
     Check,
     ChevronDown,
-    Coins,
     Copy,
     Loader2,
     PanelLeft,
     Plus,
+    Search,
     Square,
     Trash2,
-    Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AiMark } from "@/components/ui/AiMark";
 import Markdown from "@/components/assistant-projet/Markdown";
 import { SecretCard, type RevealedSecret } from "@/components/vault/SecretCard";
 import { ToolTrace } from "./ToolTrace";
@@ -43,6 +40,7 @@ interface Message {
     action?: StoredAction | null;
     secret?: RevealedSecret | null;
     failed?: boolean;
+    at?: string;
 }
 
 const PROJECT_SUGGESTIONS = [
@@ -81,8 +79,21 @@ function toMessage(m: any): Message {
         content: m.content,
         trace: Array.isArray(rawTrace) ? rawTrace : rawTrace?.entries ?? null,
         action: m.action ?? null,
+        at: m.createdAt ?? undefined,
     };
 }
+
+/** "10:24" today, "12 oct. · 10:24" before. */
+function formatMessageTime(iso: string): string {
+    const date = new Date(iso);
+    const time = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    if (date.toDateString() === new Date().toDateString()) return time;
+    return `${date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · ${time}`;
+}
+
+/** Case- and accent-insensitive, so "creer" finds « créer ». */
+const normalizeSearch = (text: string) =>
+    text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 const formatTokens = (num: number) => new Intl.NumberFormat("fr-FR").format(num);
 const formatEuros = (cost: number) => {
@@ -118,10 +129,14 @@ export function ChatWorkspace() {
     // Deep mode costs more per message (stronger model, bigger tool budget),
     // so it is a per-message choice, off by default.
     const [deep, setDeep] = useState(false);
+    const [historyQuery, setHistoryQuery] = useState("");
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortRef = useRef<AbortController | null>(null);
+    // Set when an answer lands: the next scroll puts its question at the top
+    // of the view, so a long answer is read from its first line.
+    const anchorAnswerRef = useRef(false);
 
     const activeClient = useMemo(
         () => clients.find((c) => c.id === clientId) ?? null,
@@ -163,13 +178,15 @@ export function ChatWorkspace() {
     }, [loadHistory]);
 
     const grouped = useMemo(() => {
+        const needle = normalizeSearch(historyQuery.trim());
         const map = new Map<string, ConversationSummary[]>();
         for (const conv of conversations) {
+            if (needle && !normalizeSearch(conv.title || "").includes(needle)) continue;
             const group = historyGroup(conv.lastMessageAt ?? conv.updatedAt);
             map.set(group, [...(map.get(group) ?? []), conv]);
         }
         return HISTORY_GROUPS.filter((g) => map.has(g)).map((g) => ({ label: g, items: map.get(g)! }));
-    }, [conversations]);
+    }, [conversations, historyQuery]);
 
     // ---- Opening a thread ----------------------------------------------------
 
@@ -242,7 +259,10 @@ export function ChatWorkspace() {
             setPendingPrompt(prompt);
             setIsSending(true);
             setAtBottom(true);
-            setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "USER", content: prompt }]);
+            setMessages((prev) => [
+                ...prev,
+                { id: `local-${Date.now()}`, role: "USER", content: prompt, at: new Date().toISOString() },
+            ]);
 
             try {
                 let id = conversationId;
@@ -276,6 +296,7 @@ export function ChatWorkspace() {
                 if (!res.ok) throw new Error(payload?.error ?? "L'assistant n'a pas pu répondre");
 
                 const data = payload.data;
+                anchorAnswerRef.current = true;
                 setMessages((prev) => [
                     ...prev,
                     {
@@ -374,6 +395,16 @@ export function ChatWorkspace() {
     };
 
     useEffect(() => {
+        const el = scrollRef.current;
+        if (anchorAnswerRef.current && el) {
+            anchorAnswerRef.current = false;
+            const questions = el.querySelectorAll<HTMLElement>("[data-role='USER']");
+            const question = questions[questions.length - 1];
+            if (question) {
+                el.scrollTo({ top: Math.max(0, question.offsetTop - 16), behavior: "smooth" });
+                return;
+            }
+        }
         if (atBottom) scrollToBottom();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [messages, isSending]);
@@ -397,7 +428,12 @@ export function ChatWorkspace() {
     // ---- Render --------------------------------------------------------------
 
     return (
-        <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-white">
+        <div
+            className="relative flex h-full min-h-0 w-full overflow-hidden bg-white"
+            onKeyDown={(e) => {
+                if (e.key === "Escape" && isSending) stopWaiting();
+            }}
+        >
             {/* Mobile backdrop */}
             {sidebarOpen && (
                 <div
@@ -410,52 +446,66 @@ export function ChatWorkspace() {
             {/* History rail */}
             <aside
                 className={cn(
-                    "z-30 flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-gradient-to-b from-accent-50/60 via-slate-50/80 to-slate-50/80 transition-[margin,transform] duration-200",
+                    "z-30 flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[margin,transform] duration-200",
                     "absolute inset-y-0 left-0 md:relative",
                     sidebarOpen ? "translate-x-0 md:ml-0" : "-translate-x-full md:translate-x-0 md:-ml-64"
                 )}
                 aria-label="Historique des conversations"
             >
-                <div className="flex h-12 items-center justify-between px-3">
-                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                        <span className="cp-ai-orb flex h-6 w-6 items-center justify-center rounded-md text-white">
-                            <AiMark className="h-3.5 w-3.5" />
-                        </span>
-                        Captain AI
-                    </span>
+                <div className="px-2 pb-1 pt-2">
                     <button
                         type="button"
                         onClick={startNewChat}
-                        title="Nouvelle conversation"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-accent-700 hover:bg-accent-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+                        className="flex h-8 w-full items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 text-[13px] font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-4 w-4 text-slate-500" />
+                        Nouvelle conversation
                     </button>
+                    {conversations.length > 6 && (
+                        <label className="relative mt-1.5 block">
+                            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="search"
+                                value={historyQuery}
+                                onChange={(e) => setHistoryQuery(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") setHistoryQuery("");
+                                }}
+                                placeholder="Rechercher"
+                                aria-label="Rechercher dans l'historique"
+                                className="h-8 w-full rounded-md bg-transparent pl-8 pr-2 text-[13px] text-slate-700 placeholder:text-slate-400 hover:bg-slate-100 focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 [&::-webkit-search-cancel-button]:hidden"
+                            />
+                        </label>
+                    )}
                 </div>
 
                 <nav className="flex-1 overflow-y-auto px-2 pb-2">
                     {grouped.length === 0 ? (
                         <p className="px-2 py-6 text-center text-xs text-slate-400">
-                            Vos conversations apparaîtront ici.
+                            {historyQuery.trim()
+                                ? "Aucune conversation ne correspond."
+                                : "Vos conversations apparaîtront ici."}
                         </p>
                     ) : (
                         grouped.map((group) => (
-                            <div key={group.label} className="mb-3">
-                                <p className="px-2 pb-1 pt-2 text-[11px] font-medium text-slate-400">{group.label}</p>
+                            <div key={group.label} className="mb-1">
+                                <p className="px-2 pb-0.5 pt-3 text-[11px] font-medium text-slate-400">{group.label}</p>
                                 {group.items.map((conv) => (
                                     <div
                                         key={conv.id}
                                         className={cn(
-                                            "group relative flex items-center rounded-lg text-[13px] transition-colors",
+                                            "group relative flex items-center rounded-md text-[13px] transition-colors",
                                             conv.id === conversationId
-                                                ? "bg-accent-100/80 font-medium text-accent-900"
-                                                : "text-slate-600 hover:bg-accent-50 hover:text-slate-900"
+                                                ? "bg-slate-200/70 font-medium text-slate-900"
+                                                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                                         )}
                                     >
                                         <button
                                             type="button"
                                             onClick={() => void openConversation(conv.id)}
-                                            className="min-w-0 flex-1 truncate px-2 py-1.5 text-left focus-visible:outline-none"
+                                            title={conv.title || "Nouvel échange"}
+                                            aria-current={conv.id === conversationId ? "true" : undefined}
+                                            className="h-8 min-w-0 flex-1 truncate rounded-md px-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-400"
                                         >
                                             {conv.title || "Nouvel échange"}
                                         </button>
@@ -463,7 +513,7 @@ export function ChatWorkspace() {
                                             type="button"
                                             onClick={() => void deleteConversation(conv.id)}
                                             title="Supprimer"
-                                            className="mr-1 hidden h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 group-hover:flex"
+                                            className="mr-1 hidden h-6 w-6 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-rose-600 group-focus-within:flex group-hover:flex"
                                         >
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </button>
@@ -474,32 +524,26 @@ export function ChatWorkspace() {
                     )}
                 </nav>
 
-                <div className="space-y-1 border-t border-slate-200 px-3 py-2.5 text-[11.5px] text-slate-500">
+                <div className="space-y-0.5 border-t border-slate-200 px-3 py-2 text-[11.5px] text-slate-500">
                     <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                            <Coins className="h-3.5 w-3.5" />
-                            Coût aujourd&apos;hui
-                        </span>
-                        <span className="font-semibold text-slate-700">{formatEuros(usage?.today.costEur ?? 0)}</span>
+                        <span>Coût aujourd&apos;hui</span>
+                        <span className="font-medium tabular-nums text-slate-700">{formatEuros(usage?.today.costEur ?? 0)}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5" />
-                            Tokens aujourd&apos;hui
-                        </span>
-                        <span className="font-semibold text-slate-700">{formatTokens(usage?.today.tokens ?? 0)}</span>
+                        <span>Tokens aujourd&apos;hui</span>
+                        <span className="font-medium tabular-nums text-slate-700">{formatTokens(usage?.today.tokens ?? 0)}</span>
                     </div>
                 </div>
             </aside>
 
             {/* Main column */}
-            <section className="cp-ai-canvas flex min-w-0 flex-1 flex-col">
-                <header className="flex h-12 shrink-0 items-center gap-2 px-3">
+            <section className="flex min-w-0 flex-1 flex-col bg-white">
+                <header className="flex h-12 shrink-0 items-center gap-1.5 border-b border-slate-100 px-3">
                     <button
                         type="button"
                         onClick={() => setSidebarOpen((v) => !v)}
                         title={sidebarOpen ? "Masquer l'historique" : "Afficher l'historique"}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+                        className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
                     >
                         <PanelLeft className="h-4 w-4" />
                     </button>
@@ -508,20 +552,22 @@ export function ChatWorkspace() {
                             type="button"
                             onClick={startNewChat}
                             title="Nouvelle conversation"
-                            className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+                            aria-label="Nouvelle conversation"
+                            className="flex h-8 w-8 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
                         >
-                            <Plus className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Nouvelle conversation</span>
+                            <Plus className="h-4 w-4" />
                         </button>
                     )}
 
                     <ScopeSelect
+                        label="Périmètre"
                         value={clientId}
                         onChange={(v) => changeScope(v, "")}
                         options={[{ value: "", label: "Vue agence" }, ...clients.map((c) => ({ value: c.id, label: c.name }))]}
                     />
                     {activeClient && activeClient.missions.length > 0 && (
                         <ScopeSelect
+                            label="Mission"
                             value={missionId}
                             onChange={(v) => changeScope(clientId, v)}
                             options={[
@@ -531,10 +577,6 @@ export function ChatWorkspace() {
                         />
                     )}
 
-                    <span className="ml-auto hidden items-center gap-1.5 rounded-full border border-accent-200 bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700 sm:inline-flex">
-                        <span className="h-1.5 w-1.5 rounded-full bg-accent-500" aria-hidden />
-                        Captain AI · {deep ? "gpt-4.1 · approfondi" : "gpt-4o-mini"}
-                    </span>
                 </header>
 
                 <div
@@ -542,20 +584,17 @@ export function ChatWorkspace() {
                     onScroll={onScroll}
                     className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
                 >
-                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-6 pt-4">
+                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-6 pt-6">
                         {isLoading ? (
                             <div className="flex h-40 items-center justify-center">
                                 <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                             </div>
                         ) : isEmpty ? (
                             <div className="mt-[10vh] px-2 md:mt-[15vh]">
-                                <span className="cp-ai-orb mb-5 flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg shadow-accent-500/25">
-                                    <AiMark className="h-6 w-6" />
-                                </span>
-                                <h1 className="bg-gradient-to-r from-primary-700 via-accent-600 to-accent-500 bg-clip-text text-3xl font-semibold text-transparent">
+                                <h2 className="text-2xl font-semibold text-slate-900">
                                     Bonjour{firstName ? ` ${firstName}` : ""} !
-                                </h1>
-                                <p className="mt-1 text-2xl text-slate-400">
+                                </h2>
+                                <p className="mt-1 text-lg text-slate-500">
                                     {activeClient
                                         ? `Que voulez-vous savoir sur ${activeClient.name} ?`
                                         : "Comment puis-je vous aider aujourd'hui ?"}
@@ -564,18 +603,19 @@ export function ChatWorkspace() {
                         ) : (
                             messages.map((msg) =>
                                 msg.role === "USER" ? (
-                                    <div key={msg.id} className="flex justify-end">
-                                        <div className="max-w-[80%] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl rounded-br-md bg-gradient-to-br from-primary-600 to-primary-800 px-4 py-2.5 text-sm text-white shadow-sm">
+                                    <div key={msg.id} data-role="USER" className="flex flex-col items-end gap-1">
+                                        <div className="max-w-[80%] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl rounded-br-sm bg-primary px-3.5 py-2 text-sm text-white">
                                             {msg.content}
                                         </div>
+                                        {msg.at && (
+                                            <time dateTime={msg.at} className="text-[11px] tabular-nums text-slate-400">
+                                                {formatMessageTime(msg.at)}
+                                            </time>
+                                        )}
                                     </div>
                                 ) : (
-                                    <div key={msg.id} className="group flex gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-                                        <span className="cp-ai-orb mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm shadow-accent-500/30">
-                                            <AiMark className="h-4 w-4" />
-                                        </span>
-                                        <div className="cp-ai-answer min-w-0 flex-1">
-                                            {msg.trace && msg.trace.length > 0 && <ToolTrace trace={msg.trace} />}
+                                    <div key={msg.id} className="group">
+                                        <div className="cp-ai-answer min-w-0">
                                             <div className={cn(msg.failed && "text-rose-600")}>
                                                 <Markdown content={msg.content} />
                                             </div>
@@ -597,13 +637,14 @@ export function ChatWorkspace() {
                                                     }
                                                 />
                                             )}
+                                            {msg.trace && msg.trace.length > 0 && <ToolTrace trace={msg.trace} />}
                                             {!msg.failed && (
-                                                <div className="mt-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                                                <div className="mt-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                                                     <button
                                                         type="button"
                                                         onClick={() => void copyMessage(msg)}
                                                         title="Copier"
-                                                        className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                                        className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
                                                     >
                                                         {copiedId === msg.id ? (
                                                             <Check className="h-3.5 w-3.5 text-emerald-600" />
@@ -632,17 +673,12 @@ export function ChatWorkspace() {
 
                 {/* Composer */}
                 <div className="relative mx-auto w-full max-w-3xl shrink-0 px-4 pb-4">
-                    {/* Text scrolling under the composer fades out instead of cutting off. */}
-                    <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-white to-transparent"
-                    />
                     {!atBottom && !isEmpty && (
                         <button
                             type="button"
                             onClick={() => scrollToBottom()}
                             title="Aller en bas"
-                            className="absolute -top-12 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:text-slate-900"
+                            className="absolute -top-11 left-1/2 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:text-slate-900"
                         >
                             <ArrowDown className="h-4 w-4" />
                         </button>
@@ -656,13 +692,13 @@ export function ChatWorkspace() {
                                     type="button"
                                     onClick={() => void sendMessage(`${s.title} ${s.detail}`)}
                                     className={cn(
-                                        "group relative rounded-xl border border-slate-200 bg-white px-4 py-3 pr-9 text-left text-sm transition-all hover:-translate-y-0.5 hover:border-accent-300 hover:bg-accent-50/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400",
+                                        "group relative rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 pr-9 text-left text-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400",
                                         i > 1 && "hidden sm:block"
                                     )}
                                 >
                                     <span className="block font-medium text-slate-900">{s.title}</span>
                                     <span className="block text-slate-500">{s.detail}</span>
-                                    <ArrowRight className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300 transition-colors group-hover:text-accent-500" />
+                                    <ArrowRight className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300" />
                                 </button>
                             ))}
                         </div>
@@ -673,7 +709,7 @@ export function ChatWorkspace() {
                             e.preventDefault();
                             void sendMessage();
                         }}
-                        className="relative rounded-2xl border border-slate-200 bg-slate-50 shadow-sm transition-all focus-within:border-accent-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-accent-100"
+                        className="relative rounded-xl border border-slate-300 bg-white transition-colors focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-100"
                     >
                         <textarea
                             ref={textareaRef}
@@ -688,6 +724,7 @@ export function ChatWorkspace() {
                             rows={2}
                             autoFocus
                             placeholder="Demandez à Captain AI…"
+                            aria-label="Message à Captain AI"
                             className="block max-h-[220px] min-h-[72px] w-full resize-none bg-transparent px-4 pb-11 pt-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         />
                         <button
@@ -696,13 +733,13 @@ export function ChatWorkspace() {
                             aria-pressed={deep}
                             title="Modèle plus puissant et enquête plus longue : réponse plus lente et plus coûteuse"
                             className={cn(
-                                "absolute bottom-2 left-2 flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400",
+                                "absolute bottom-2 left-2 flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400",
                                 deep
-                                    ? "border-accent-300 bg-accent-50 text-accent-700"
-                                    : "border-slate-200 bg-white text-slate-500 hover:text-slate-900"
+                                    ? "bg-accent-50 text-accent-700"
+                                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                             )}
                         >
-                            <Brain className="h-3.5 w-3.5" />
+                            <Check className={cn("h-3.5 w-3.5", !deep && "hidden")} aria-hidden />
                             Réflexion approfondie
                         </button>
                         <div className="absolute bottom-2 right-2">
@@ -710,8 +747,9 @@ export function ChatWorkspace() {
                                 <button
                                     type="button"
                                     onClick={stopWaiting}
-                                    title="Arrêter"
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-700 text-white hover:bg-primary-800"
+                                    title="Arrêter (Échap)"
+                                    aria-label="Arrêter"
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
                                 >
                                     <Square className="h-3 w-3 fill-current" />
                                 </button>
@@ -719,38 +757,48 @@ export function ChatWorkspace() {
                                 <button
                                     type="submit"
                                     disabled={!input.trim()}
-                                    title="Envoyer"
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-sm shadow-accent-500/30 transition-transform hover:scale-105 disabled:scale-100 disabled:opacity-30 disabled:shadow-none"
+                                    title="Envoyer (Entrée)"
+                                    aria-label="Envoyer"
+                                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-600 text-white transition-colors hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-1 disabled:bg-slate-200 disabled:text-slate-400"
                                 >
                                     <ArrowUp className="h-4 w-4" />
                                 </button>
                             )}
                         </div>
                     </form>
-                    <p className="mt-2 text-center text-[11px] text-slate-400">
-                        Captain AI peut se tromper : vérifiez les chiffres importants.
-                    </p>
                 </div>
             </section>
         </div>
     );
 }
 
+/**
+ * A native select drawn as its current label: a bare <select> is as wide as
+ * its longest client name, which left « Vue agence » floating far from its
+ * chevron. The real control sits invisibly on top, so keyboard, screen readers
+ * and the OS picker behave exactly as before.
+ */
 function ScopeSelect({
+    label,
     value,
     onChange,
     options,
 }: {
+    label: string;
     value: string;
     onChange: (value: string) => void;
     options: Array<{ value: string; label: string }>;
 }) {
+    const current = options.find((o) => o.value === value)?.label ?? options[0]?.label ?? "";
     return (
-        <label className="relative min-w-0">
+        <span className="relative inline-flex h-8 min-w-0 max-w-[240px] items-center gap-1 rounded-md pl-2.5 pr-2 text-[13px] text-slate-600 hover:bg-slate-100 hover:text-slate-900 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-400">
+            <span className="truncate">{current}</span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
             <select
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="h-8 max-w-[220px] appearance-none truncate rounded-lg border border-slate-200 bg-white pl-2.5 pr-7 text-xs font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+                aria-label={label}
+                className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 focus:outline-none"
             >
                 {options.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -758,7 +806,6 @@ function ScopeSelect({
                     </option>
                 ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-        </label>
+        </span>
     );
 }

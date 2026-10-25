@@ -5,7 +5,6 @@ import {
     ArrowUp,
     Bot,
     ChevronDown,
-    Cpu,
     Loader2,
     MessageSquarePlus,
     RotateCcw,
@@ -310,10 +309,6 @@ export function AssistantThread({
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-900">
                                 Assistant Projet
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-700 border border-emerald-200/70">
-                                <Cpu className="h-2.5 w-2.5" />
-                                gpt-4o-mini
                             </span>
                         </div>
                         <div className="truncate text-[11px] text-slate-500">
