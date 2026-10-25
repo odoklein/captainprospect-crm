@@ -57,6 +57,8 @@ powershell.cmd
 
 # Lead Hub is its own git repository (deployed separately to Dokploy)
 /lead-hub/
+# Console agences (provisioning Phase 2-3) is its own git repository too
+/console/
 
 # provision-agency: state files hold agency secrets, infra file holds admin credentials
 /provision-out/

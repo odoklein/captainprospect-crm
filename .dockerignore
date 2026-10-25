@@ -10,6 +10,7 @@ debug*.log
 uploads
 private
 lead-hub
+console
 # Local tooling and caches: never needed by the build.
 .claude
 .vscode

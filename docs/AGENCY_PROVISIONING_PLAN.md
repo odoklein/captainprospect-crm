@@ -1,6 +1,6 @@
 # Agency provisioning — plan
 
-Status: **plan only, nothing built.** Builds on the white-label work already on
+Status: **Phases 0 to 3 built, none run against real servers yet** (status blocks in §3A). Builds on the white-label work already on
 `feat/assistant-brain` (BrandSettings, signed `/api/instance/*`, instance seed,
 Docker `migrate` stage — see `docs/WHITE_LABEL.md`).
 
@@ -121,6 +121,23 @@ Gaps found while preparing this plan:
 #### Phase 1 status (written 2026-10-26, runbook `docs/PROVISION_AGENCY.md`)
 
 CI workflow `.github/workflows/image.yml` (tests, then runtime + migrate images to GHCR) and `npm run provision-agency` (12 resumable steps, upgrade by new tag, custom-domain switch) are written and tested against fakes. **Neither has run for real yet**: the workflow has never executed and the script has never met a real Dokploy, Postgres or MinIO. Phase 1 is done when the test agency passes the runbook's section 6.
+
+#### Phase 2 and 3 status (built 2026-10-26, `console/`, its own git repo like `lead-hub/`)
+
+The Console exists: Node 24 + Hono + postgres.js (the Lead Hub stack rather than Next.js: one container, no build step, Postgres as the job queue). Read `console/README.md`.
+
+| Plan item | State |
+|---|---|
+| Wizard (5 steps), live checklist with plain-French hints and retry, invite email | **Built.** Runs the same 13 steps as `provision-agency` (vendored in `console/src/provision/`, drift-checked by a test). |
+| Fleet list, health, domain switch | **Built.** Health probe every minute; own domain re-checked every 5 min and switched by itself. |
+| Upgrades with rollback | **Built.** Pre-upgrade backup, migrate, redeploy, health; the previous image is redeployed automatically if the new one does not come up. Fleet-wide upgrade page. |
+| Backups and restore | **Built.** Nightly `pg_dump` to a platform bucket (separate S3 endpoint supported), 30-day retention, in-place restore behind a safety backup, monthly restore drill into a scratch database. |
+| Suspend / resume / export / delete | **Built.** Delete = two confirmation pages, export and final backup first, then app, route, database, role, bucket, key. |
+| Alerts | **Built.** In-app, email and Slack: instance down (3 probes), cron failing, no backup in 36 h, drill failed, rollback failed. |
+| Central cron scheduler (§3A) | **Built** into the Console (reads each instance's `/api/instance/cron`). |
+| Team access | **Built.** Invitation link, password + mandatory TOTP, lockout, journal. |
+
+**Not run against real servers.** 19 tests over a fake fleet and an embedded Postgres, one local boot checked in a browser. Do the Phase 1 test agency with the CLI first, then the same agency through the Console. Not built: Phase 4 (billing, metering).
 
 ### B. Image pipeline
 - GitHub Actions: on push to `main` → `docker build --build-arg GIT_SHA` →

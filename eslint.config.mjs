@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Separate repository with its own toolchain:
     "lead-hub/**",
+    "console/**",
   ]),
 ]);
 
