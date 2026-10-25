@@ -2242,10 +2242,14 @@ textarea::placeholder {
 
 /* --- Captain AI chat: avatar orb + shimmering "thinking" text --- */
 .cp-ai-orb {
+    /* Anchors the busy ring below. Without it the ring sizes itself on the
+       nearest positioned ancestor — the whole chat — and sweeps the page. */
+    position: relative;
     background: linear-gradient(135deg, var(--brand-accent-500), var(--brand-primary-600));
 }
 
-.cp-ai-orb::after {
+/* Spinning ring, only while Captain AI is working. */
+.cp-ai-orb-busy::after {
     content: "";
     position: absolute;
     inset: -3px;
@@ -2270,6 +2274,92 @@ textarea::placeholder {
     animation: cp-ai-shimmer 2.2s linear infinite;
 }
 
+/* Soft brand wash behind the conversation, so the empty canvas isn't flat white. */
+.cp-ai-canvas {
+    background:
+        radial-gradient(55% 38% at 50% 0%, color-mix(in oklab, var(--brand-accent-500) 7%, transparent), transparent 72%),
+        radial-gradient(38% 30% at 100% 100%, color-mix(in oklab, var(--brand-primary-500) 6%, transparent), transparent 72%),
+        var(--ds-surface);
+}
+
+/* Captain AI answers. The .ap-md-* rules only get their colours inside the
+   old .ap-root panel, so the full-page chat sets its own scope here. */
+.cp-ai-answer {
+    --ap-faint: var(--ds-ink-4);
+    --ap-line-soft: var(--ds-line-subtle);
+    --ap-accent: var(--brand-accent-600);
+    --ap-accent-deep: var(--brand-accent-700);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--ds-ink);
+    overflow-wrap: anywhere;
+}
+
+.cp-ai-answer .ap-md-p { margin: 0 0 10px; }
+.cp-ai-answer strong { color: var(--brand-primary-800); font-weight: 650; }
+
+.cp-ai-answer .ap-md-h {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 18px 0 8px;
+    font-size: 15px;
+    color: var(--brand-primary-800);
+}
+
+.cp-ai-answer .ap-md-h::before {
+    content: "";
+    flex-shrink: 0;
+    width: 4px;
+    height: 15px;
+    border-radius: 2px;
+    background: linear-gradient(var(--brand-accent-500), var(--brand-primary-500));
+}
+
+.cp-ai-answer .ap-md-ul { padding-left: 20px; gap: 4px; }
+.cp-ai-answer .ap-md-ul li::marker { color: var(--brand-accent-500); }
+
+/* Numbered steps as rose badges; the list's own start keeps the count going. */
+.cp-ai-answer .ap-md-ol {
+    list-style: none;
+    padding-left: 0;
+    gap: 8px;
+}
+
+.cp-ai-answer .ap-md-ol > li {
+    position: relative;
+    min-height: 24px;
+    padding-left: 34px;
+    counter-increment: ap-step;
+}
+
+.cp-ai-answer .ap-md-ol > li::before {
+    content: counter(ap-step);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--brand-accent-700);
+    background: color-mix(in oklab, var(--brand-accent-500) 12%, var(--ds-surface));
+    border: 1px solid color-mix(in oklab, var(--brand-accent-500) 28%, transparent);
+}
+
+/* Sub-points the model writes under a step sit under that step, not at the margin. */
+.cp-ai-answer .ap-md-ol + .ap-md-ul { margin-left: 34px; }
+
+.cp-ai-answer .ap-md-code {
+    background: color-mix(in oklab, var(--brand-accent-500) 8%, var(--ds-surface));
+    color: var(--brand-accent-700);
+}
+
 @keyframes cp-ai-spin {
     to { transform: rotate(360deg); }
 }
@@ -2287,7 +2377,7 @@ textarea::placeholder {
 @media (prefers-reduced-motion: reduce) {
     .cp-ai-trigger,
     .cp-ai-trigger-mini,
-    .cp-ai-orb::after,
+    .cp-ai-orb-busy::after,
     .cp-ai-shimmer {
         animation: none;
     }

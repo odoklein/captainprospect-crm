@@ -82,11 +82,11 @@ type Block =
     | { kind: "p"; lines: string[] }
     | { kind: "h"; level: number; text: string }
     | { kind: "ul"; items: string[] }
-    | { kind: "ol"; items: string[] };
+    | { kind: "ol"; items: string[]; start: number };
 
 const HEADING = /^(#{1,4})\s+(.*)$/;
 const BULLET = /^\s*[-*•]\s+(.*)$/;
-const NUMBERED = /^\s*\d+[.)]\s+(.*)$/;
+const NUMBERED = /^\s*(\d+)[.)]\s+(.*)$/;
 
 function parseBlocks(content: string): Block[] {
     const blocks: Block[] = [];
@@ -126,9 +126,11 @@ function parseBlocks(content: string): Block[] {
         if (numbered) {
             if (current?.kind !== "ol") {
                 flush();
-                current = { kind: "ol", items: [] };
+                // A step list interrupted by sub-bullets resumes at its own
+                // number ("2.", "3.") instead of restarting at 1.
+                current = { kind: "ol", items: [], start: Number(numbered[1]) || 1 };
             }
-            current.items.push(numbered[1]);
+            current.items.push(numbered[2]);
             continue;
         }
 
@@ -169,7 +171,12 @@ function Markdown({ content }: { content: string }) {
                 }
                 if (block.kind === "ol") {
                     return (
-                        <ol key={key} className="ap-md-ol">
+                        <ol
+                            key={key}
+                            className="ap-md-ol"
+                            start={block.start}
+                            style={{ counterReset: `ap-step ${block.start - 1}` }}
+                        >
                             {block.items.map((item, i) => (
                                 <li key={`${key}-${i}`}>{renderInline(item, `${key}-${i}`)}</li>
                             ))}
