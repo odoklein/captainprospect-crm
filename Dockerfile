@@ -28,6 +28,8 @@ RUN --mount=type=cache,target=/root/.npm \
 # One-shot migration image: `docker build --target migrate -t crm-migrate .`, then
 # run it once per instance (DATABASE_URL + DIRECT_URL in its env) BEFORE the new
 # runtime container takes traffic. The runtime image never migrates on start.
+# prisma/migrate-instance.ts builds an EMPTY database from schema.prisma and baselines the
+# migration history (the history alone cannot build one), or runs `prisma migrate deploy`.
 FROM deps AS migrate
 WORKDIR /app
 ARG GIT_SHA=dev
@@ -36,7 +38,7 @@ COPY prisma ./prisma
 # npm ci ran with --ignore-scripts, so the Prisma engines were never fetched:
 # fetch them now, at build time, so the migrate container needs no download.
 RUN npx prisma generate && npx prisma version
-CMD ["npx", "prisma", "migrate", "deploy"]
+CMD ["npx", "tsx", "prisma/migrate-instance.ts"]
 
 FROM node:20-slim AS build
 WORKDIR /app

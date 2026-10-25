@@ -77,7 +77,7 @@ npm run provision-agency -- agency.json --infra provision.infra.env --tag <sha7>
 |---|---|---|
 | 1 | `database` | creates role `agency_<slug>` and database `db_<slug>` on the cluster |
 | 2 | `storage` | creates bucket `<slug>`; with `PROVISION_MINIO_MC_ALIAS`, a key limited to it |
-| 3 | `migrate` | `prisma migrate deploy` from the migrate image against the new database |
+| 3 | `migrate` | `prisma/migrate-instance.ts` (from the migrate image or this checkout): on an empty database it builds the schema from `schema.prisma` and records the 86 existing migrations as applied (the history alone cannot build a database); on a managed one it runs `prisma migrate deploy` |
 | 4 | `seed` | reference data (permissions, statuses, endpoints, default brand row), no users |
 | 5 | `app` | creates the Dokploy application, points it at the image, saves its env, attaches `<slug>.<platform-domain>` with Let's Encrypt |
 | 6 | `deploy` | deploys it |
@@ -135,7 +135,16 @@ update the fake's expectation. Known soft spots: finding the project's environme
 `PROVISION_DOKPLOY_ENVIRONMENT_ID` to skip it), the `application.create` response (a re-run finds the
 application by name), and whether `saveDockerProvider` also switches the source type to Docker.
 
-## 9. Known limits
+## 9. What the first real run taught us (2026-10-26, our server)
+
+- **`prisma migrate deploy` cannot build an empty database.** The first migration alters `"User"`, which no migration creates (68 `CREATE TABLE` for 142 models). Fixed with `prisma/migrate-instance.ts` (rules in `prisma/migrate-plan.ts`, tested). On a fresh database the baseline took several minutes on a loaded server. Verified: 143 tables, 86 migrations recorded, seed present, and a second run takes the managed path with nothing pending.
+- **Coolify's proxy owns ports 80/443** and Dokploy's Traefik is only on :8090, so a Dokploy domain alone is unreachable. The `route` step writes `agency-<slug>.yml` into the proxy's watched directory (`PROVISION_PROXY_DYNAMIC_DIR`), so the script must run on that server.
+- **Dokploy deploys one job at a time** (a queue): a build in progress delays every deploy, ours included. The API answers `200` with an empty body and nothing visible until the queue reaches the job.
+- The Dokploy calls for project, application and domain behaved as `dokploy.ts` assumes, and so did the ones used to create the private Postgres, the MinIO start command and its volume. `project.all` lists databases by id only.
+- The runner (`provision-runner`: Node, a few packages, the generated Prisma client) joins `dokploy-network` to reach the private Postgres, MinIO and Dokploy by service name.
+- Set `SOCKET_URL` to a dead address in the shared env of any test agency: the app's default is the production socket server, which does not check the handshake token yet.
+
+## 10. Known limits
 
 - Without `mc`, every agency gets the MinIO admin key (the script says so in the step output).
 - Migrations run from this machine: it must reach the cluster (VPN or an allowed IP).

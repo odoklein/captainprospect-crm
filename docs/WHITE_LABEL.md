@@ -241,7 +241,11 @@ can copy as-is.
 2. **Create** an empty Postgres database for the agency.
 3. **Migrate** (one-shot container, before traffic):
    `docker run --rm -e DATABASE_URL=… -e DIRECT_URL=… crm-migrate:<sha>`
-   (`npm run db:migrate:deploy` outside Docker). `DIRECT_URL` is required by the
+   (`npx tsx prisma/migrate-instance.ts` outside Docker). On an **empty** database it creates the
+   schema from `schema.prisma` and records every migration as applied: the migration history alone
+   cannot build a database (its first migration alters `User`, which no migration creates), so
+   `prisma migrate deploy` on an empty database fails. On a managed database it runs `migrate deploy`.
+   It refuses a database that has tables but no `_prisma_migrations`. `DIRECT_URL` is required by the
    schema; use the same value as `DATABASE_URL` when there is no pooler.
 4. **Seed** reference data: `npm run db:seed:instance` (idempotent; permissions,
    role permissions, global action statuses, result categories, external

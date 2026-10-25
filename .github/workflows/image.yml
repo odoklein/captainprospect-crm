@@ -47,6 +47,7 @@ jobs:
           npm run test:oauth-relay
           npm run test:socket-handshake
           npm run test:provision-agency
+          npm run test:migrate-plan
 
   build:
     name: build and push

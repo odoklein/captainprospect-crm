@@ -88,7 +88,7 @@ export function realDbJob(mode: "docker" | "local", repoRoot: string, dockerNetw
             if (job === "seed") args.push("npm", "run", "db:seed:instance");
             await run("docker", args, { env });
         } else if (job === "migrate") {
-            await run("npx", ["prisma", "migrate", "deploy"], { env, cwd: repoRoot });
+            await run("npx", ["tsx", "prisma/migrate-instance.ts"], { env, cwd: repoRoot });
         } else {
             await run("npm", ["run", "db:seed:instance"], { env, cwd: repoRoot });
         }
