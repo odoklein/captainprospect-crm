@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuickEmailModal } from "@/components/email/QuickEmailModal";
+import { EmailHistoryPanel } from "@/components/email/EmailHistoryPanel";
 import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
 import { hasUsablePhone } from "@/lib/phone-utils";
 import { ContactDrawer } from "./ContactDrawer";
@@ -905,6 +906,13 @@ export function CompanyDrawer({
                         />
                     );
                 })()}
+
+                {/* Emails échangés (opens the inbox thread) */}
+                {!isEditing && !isCreating && company && (
+                    <DrawerSection title="Emails">
+                        <EmailHistoryPanel companyId={company.id} />
+                    </DrawerSection>
+                )}
 
                 {/* Historique des actions (result + note) */}
                 {!isEditing && !isCreating && company && (

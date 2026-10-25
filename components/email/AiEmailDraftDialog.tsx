@@ -1,18 +1,18 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import { cn } from "@/lib/utils";
-import { X, Loader2, AlertCircle, Copy, Check, RefreshCw } from "lucide-react";
+import React, { useState, useCallback, useEffect } from "react";
+import { Copy, Check, RefreshCw } from "lucide-react";
 import { AiMark } from "@/components/ui/AiMark";
+import { Button, Callout, Chip, Modal, ModalFooter, Textarea } from "@/components/ui";
 
-// Basic HTML sanitization for preview
+// Basic HTML sanitization for the preview
 function sanitizeHtml(html: string): string {
     return html
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
         .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-        .replace(/on\w+\s*=\s*"[^"]*"/gi, "")
-        .replace(/on\w+\s*=\s*'[^']*'/gi, "")
-        .replace(/on\w+\s*=\s*[^\s>]*/gi, "")
+        .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
+        .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
+        .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
         .replace(/javascript\s*:/gi, "");
 }
 
@@ -20,20 +20,30 @@ function sanitizeHtml(html: string): string {
 // TYPES
 // ============================================
 
+/** What the AI knows about the conversation (all optional). */
+export interface AiDraftContext {
+    mode?: "new" | "reply" | "forward";
+    /** Plain text of the message being answered. */
+    lastMessage?: string;
+    lastMessageFrom?: string;
+    recipientName?: string;
+    recipientTitle?: string;
+    companyName?: string;
+    missionName?: string;
+    senderName?: string;
+}
+
 export interface AiEmailDraftDialogProps {
     open: boolean;
     onClose: () => void;
     onInsert: (html: string) => void;
     subject?: string;
+    context?: AiDraftContext;
 }
-
-// ============================================
-// TONE OPTIONS
-// ============================================
 
 const TONES = [
     { id: "professional", label: "Professionnel" },
-    { id: "friendly", label: "Amical" },
+    { id: "friendly", label: "Chaleureux" },
     { id: "formal", label: "Formel" },
     { id: "concise", label: "Concis" },
     { id: "persuasive", label: "Persuasif" },
@@ -41,282 +51,204 @@ const TONES = [
 
 type ToneId = (typeof TONES)[number]["id"];
 
+const REPLY_SUGGESTIONS = [
+    "Remercier et proposer deux créneaux de rendez-vous la semaine prochaine",
+    "Répondre à sa question et relancer sur l'intérêt pour un échange",
+    "Accuser réception et indiquer qu'on revient vers lui rapidement",
+];
+
+const NEW_SUGGESTIONS = [
+    "Faire suite à notre appel et proposer un rendez-vous",
+    "Envoyer une présentation courte de l'offre",
+    "Relancer poliment sans réponse depuis une semaine",
+];
+
 // ============================================
 // AI EMAIL DRAFT DIALOG
 // ============================================
 
-export function AiEmailDraftDialog({
-    open,
-    onClose,
-    onInsert,
-    subject,
-}: AiEmailDraftDialogProps) {
+export function AiEmailDraftDialog({ open, onClose, onInsert, subject, context }: AiEmailDraftDialogProps) {
     const [instruction, setInstruction] = useState("");
-    const [selectedTone, setSelectedTone] = useState<ToneId>("professional");
+    const [tone, setTone] = useState<ToneId>("professional");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [bodyHtml, setBodyHtml] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
+    const isReply = context?.mode === "reply" && !!context.lastMessage;
+
+    useEffect(() => {
+        if (!open) return;
+        setError(null);
+        setBodyHtml(null);
+        setCopied(false);
+    }, [open]);
+
     const handleGenerate = useCallback(async () => {
         const trimmed = instruction.trim();
         if (!trimmed) return;
-
         setIsLoading(true);
         setError(null);
         setBodyHtml(null);
         setCopied(false);
-
         try {
-            const toneLabel = TONES.find(t => t.id === selectedTone)?.label || "professionnel";
-            const enhancedInstruction = `${trimmed}\n\nTon: ${toneLabel}`;
-
+            const toneLabel = TONES.find((t) => t.id === tone)?.label || "Professionnel";
             const res = await fetch("/api/ai/mistral/email-draft", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    instruction: enhancedInstruction,
+                    instruction: `${trimmed}\n\nTon : ${toneLabel}`,
                     subject: subject || undefined,
+                    context: context
+                        ? Object.fromEntries(Object.entries(context).filter(([, v]) => typeof v === "string" && v.trim() !== ""))
+                        : undefined,
                 }),
             });
-
             const json = await res.json();
-
-            if (json.success && json.data?.bodyHtml) {
-                setBodyHtml(json.data.bodyHtml);
-            } else {
-                setError(json.error || "Erreur lors de la génération. Réessayez.");
-            }
+            if (json.success && json.data?.bodyHtml) setBodyHtml(json.data.bodyHtml);
+            else setError(json.error || "La génération a échoué. Réessayez.");
         } catch {
             setError("Erreur de connexion. Vérifiez votre réseau.");
         } finally {
             setIsLoading(false);
         }
-    }, [instruction, selectedTone, subject]);
-
-    const handleRegenerate = () => {
-        handleGenerate();
-    };
+    }, [instruction, tone, subject, context]);
 
     const handleCopy = async () => {
         if (!bodyHtml) return;
         try {
-            // Extract text from HTML for clipboard
-            const tempDiv = document.createElement("div");
-            tempDiv.innerHTML = bodyHtml;
-            const text = tempDiv.textContent || tempDiv.innerText || "";
-            await navigator.clipboard.writeText(text);
+            const div = document.createElement("div");
+            div.innerHTML = bodyHtml;
+            await navigator.clipboard.writeText(div.innerText || div.textContent || "");
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            // Fallback: just ignore
+            // clipboard unavailable
         }
     };
 
-    const handleInsert = () => {
-        if (bodyHtml) {
-            onInsert(bodyHtml);
-            setBodyHtml(null);
-            setInstruction("");
-            setError(null);
-            setCopied(false);
-            onClose();
-        }
-    };
-
-    const handleClose = () => {
+    const reset = () => {
         setInstruction("");
         setBodyHtml(null);
         setError(null);
         setCopied(false);
+    };
+
+    const handleClose = () => {
+        reset();
         onClose();
     };
 
-    if (!open) return null;
+    const handleInsert = () => {
+        if (!bodyHtml) return;
+        onInsert(bodyHtml);
+        reset();
+        onClose();
+    };
+
+    const suggestions = isReply ? REPLY_SUGGESTIONS : NEW_SUGGESTIONS;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-            <div
-                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
-                onClick={handleClose}
-            />
-            <div
-                className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-200"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-primary-600">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                            <AiMark className="w-4.5 h-4.5 text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-[15px] font-semibold text-white">Rédaction assistée par IA</h2>
-                            <p className="text-[11px] text-white/70">Décrivez ce que vous voulez écrire</p>
-                        </div>
+        <Modal
+            isOpen={open}
+            onClose={handleClose}
+            title={isReply ? "Rédiger la réponse avec l'IA" : "Rédiger avec l'IA"}
+            description={
+                isReply
+                    ? `L'IA lit le dernier message${context?.lastMessageFrom ? ` de ${context.lastMessageFrom}` : ""} et rédige une réponse selon vos consignes.`
+                    : "Décrivez le message à écrire : l'IA rédige le corps, vous relisez avant d'insérer."
+            }
+            size="lg"
+        >
+            <div className="space-y-4">
+                {(context?.recipientName || context?.companyName || context?.missionName) && (
+                    <p className="text-xs text-ink-3">
+                        Contexte transmis :{" "}
+                        {[
+                            context?.recipientName && `destinataire ${context.recipientName}`,
+                            context?.companyName && `entreprise ${context.companyName}`,
+                            context?.missionName && `mission ${context.missionName}`,
+                        ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                    </p>
+                )}
+
+                <Textarea
+                    label="Consignes"
+                    rows={3}
+                    value={instruction}
+                    onChange={(e) => setInstruction(e.target.value)}
+                    placeholder={isReply ? "Ex. : accepter le rendez-vous de jeudi et confirmer l'adresse" : "Ex. : proposer un rendez-vous la semaine prochaine pour présenter l'offre"}
+                    disabled={isLoading}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            handleGenerate();
+                        }
+                    }}
+                />
+
+                {!instruction && !bodyHtml && (
+                    <div className="flex flex-wrap gap-1.5">
+                        {suggestions.map((s) => (
+                            <Chip key={s} onClick={() => setInstruction(s)} className="h-auto whitespace-normal py-1 text-left font-medium">
+                                {s}
+                            </Chip>
+                        ))}
                     </div>
-                    <button
-                        onClick={handleClose}
-                        className="p-2 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors"
-                    >
-                        <X className="w-4.5 h-4.5" />
-                    </button>
+                )}
+
+                <div>
+                    <p className="mb-1.5 text-xs font-medium text-ink-2">Ton</p>
+                    <div className="flex flex-wrap gap-1.5">
+                        {TONES.map((t) => (
+                            <Chip key={t.id} selected={tone === t.id} onClick={() => setTone(t.id)} disabled={isLoading}>
+                                {t.label}
+                            </Chip>
+                        ))}
+                    </div>
                 </div>
 
-                {/* Content */}
-                <div className="p-5 space-y-4">
-                    {/* Instruction */}
+                {error && <Callout tone="danger">{error}</Callout>}
+
+                {bodyHtml && (
                     <div>
-                        <label className="block text-[13px] font-semibold text-slate-700 mb-1.5">
-                            Instructions
-                        </label>
-                        <textarea
-                            value={instruction}
-                            onChange={(e) => setInstruction(e.target.value)}
-                            placeholder="Ex. : proposer un rendez-vous la semaine prochaine pour présenter notre offre de services..."
-                            className="w-full h-24 px-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 resize-none transition-all"
-                            disabled={isLoading}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                                    e.preventDefault();
-                                    handleGenerate();
-                                }
-                            }}
+                        <div className="mb-1.5 flex items-center justify-between">
+                            <p className="text-xs font-medium text-ink-2">Proposition</p>
+                            <div className="flex items-center gap-1">
+                                <Button size="xs" variant="ghost" leftIcon={copied ? <Check className="size-3" /> : <Copy className="size-3" />} onClick={handleCopy}>
+                                    {copied ? "Copié" : "Copier"}
+                                </Button>
+                                <Button size="xs" variant="ghost" leftIcon={<RefreshCw className="size-3" />} onClick={handleGenerate} disabled={isLoading}>
+                                    Régénérer
+                                </Button>
+                            </div>
+                        </div>
+                        <div
+                            className="max-h-64 overflow-y-auto rounded-control border border-line bg-surface-2 p-3 text-sm leading-relaxed text-ink [&_p]:mb-2 email-scrollbar"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(bodyHtml) }}
                         />
                     </div>
-
-                    {/* Tone Selector */}
-                    <div>
-                        <label className="block text-[13px] font-semibold text-slate-700 mb-2">
-                            Ton du message
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                            {TONES.map((tone) => (
-                                <button
-                                    key={tone.id}
-                                    onClick={() => setSelectedTone(tone.id)}
-                                    disabled={isLoading}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium border transition-all duration-150",
-                                        selectedTone === tone.id
-                                            ? "bg-primary-50 border-primary-300 text-primary-700 shadow-sm"
-                                            : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300",
-                                        isLoading && "opacity-50 cursor-not-allowed"
-                                    )}
-                                >
-                                    {tone.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Error */}
-                    {error && (
-                        <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-xl">
-                            <AlertCircle className="w-4.5 h-4.5 text-red-500 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                                <p className="text-[13px] text-red-700 font-medium">{error}</p>
-                            </div>
-                            <button
-                                onClick={() => setError(null)}
-                                className="text-red-400 hover:text-red-600 flex-shrink-0"
-                            >
-                                <X className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Generate Button */}
-                    {!bodyHtml && (
-                        <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-slate-400">
-                                Ctrl+Entrée pour générer
-                            </span>
-                            <button
-                                onClick={handleGenerate}
-                                disabled={isLoading || !instruction.trim()}
-                                className={cn(
-                                    "flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200",
-                                    isLoading || !instruction.trim()
-                                        ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-                                        : "bg-primary-600 text-white hover:bg-primary-500"
-                                )}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Génération...
-                                    </>
-                                ) : (
-                                    <>
-                                        <AiMark className="w-4 h-4" />
-                                        Générer
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Preview */}
-                    {bodyHtml && (
-                        <div className="space-y-3 animate-in slide-in-from-bottom-3 fade-in duration-300">
-                            <div className="border-t border-slate-200 pt-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                                        Aperçu
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                        <button
-                                            onClick={handleCopy}
-                                            className={cn(
-                                                "flex items-center gap-1 px-2 py-1 rounded-lg text-[12px] font-medium transition-all",
-                                                copied
-                                                    ? "bg-emerald-50 text-emerald-600"
-                                                    : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                                            )}
-                                            title="Copier le texte"
-                                        >
-                                            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                                            {copied ? "Copié" : "Copier"}
-                                        </button>
-                                        <button
-                                            onClick={handleRegenerate}
-                                            disabled={isLoading}
-                                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[12px] font-medium bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all disabled:opacity-50"
-                                            title="Régénérer"
-                                        >
-                                            <RefreshCw className={cn("w-3 h-3", isLoading && "animate-spin")} />
-                                            Régénérer
-                                        </button>
-                                    </div>
-                                </div>
-                                <div
-                                    className="min-h-[100px] max-h-[200px] overflow-y-auto p-4 rounded-xl border border-slate-200 bg-slate-50/50 prose prose-sm prose-slate max-w-none text-slate-700 email-scrollbar"
-                                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(bodyHtml) }}
-                                />
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center gap-2 justify-end pt-1">
-                                <button
-                                    onClick={handleClose}
-                                    className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    onClick={handleInsert}
-                                    className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-primary-600 text-white hover:bg-primary-500 rounded-xl transition-colors"
-                                >
-                                    <Check className="w-4 h-4" />
-                                    Insérer dans l&apos;email
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
-        </div>
+
+            <ModalFooter>
+                <Button variant="ghost" onClick={handleClose}>Annuler</Button>
+                {bodyHtml ? (
+                    <Button onClick={handleInsert} leftIcon={<Check className="size-4" />}>Insérer dans l&apos;email</Button>
+                ) : (
+                    <Button
+                        onClick={handleGenerate}
+                        disabled={!instruction.trim()}
+                        isLoading={isLoading}
+                        leftIcon={!isLoading ? <AiMark className="size-4" /> : undefined}
+                    >
+                        Générer
+                    </Button>
+                )}
+            </ModalFooter>
+        </Modal>
     );
 }
 

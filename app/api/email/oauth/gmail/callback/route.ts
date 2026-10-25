@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
         const state = req.nextUrl.searchParams.get('state');
         const error = req.nextUrl.searchParams.get('error');
 
-        const defaultReturn = '/manager/email/mailboxes';
+        const defaultReturn = '/manager/emails/mailboxes';
 
         if (error) {
             console.error('Gmail OAuth error:', error);
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
         );
     } catch (error) {
         console.error('Gmail OAuth callback error:', error);
-        const defaultReturn = '/manager/email/mailboxes';
+        const defaultReturn = '/manager/emails/mailboxes';
         return NextResponse.redirect(
             new URL(`${defaultReturn}?error=callback_failed`, req.url)
         );

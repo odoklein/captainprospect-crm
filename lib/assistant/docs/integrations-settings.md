@@ -152,7 +152,7 @@ External webhooks notify the CRM when events happen in third-party systems:
 | Problem | Solution |
 |---------|----------|
 | API key not working | Check the key is ACTIVE and has the correct scope. Re-generate if needed. |
-| Gmail sync stopped | OAuth token likely expired → go to `/manager/email/mailboxes` → reconnect Gmail |
+| Gmail sync stopped | OAuth token likely expired → go to `/manager/emails/mailboxes` → reconnect Gmail |
 | Leexi imports not appearing | Check LEEXI_API_KEY_ID and LEEXI_API_KEY_SECRET in system config → test connection |
 | Enrichment returning no results | Check APOLLO_API_KEY / SERP_API_KEY are valid → quota may be exhausted |
 | Google Drive sync failing | Reconnect OAuth → check folder permissions in Google Drive |

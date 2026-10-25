@@ -1,15 +1,7 @@
-"use client";
+import SequenceListView from "@/components/email/sequences/SequenceListView";
 
-import React from "react";
-
-// ============================================
-// SEQUENCES PAGE — Re-export from existing
-// /manager/emails/sequences
-// ============================================
-
-// Import the existing sequences page component
-import SequencesPageContent from "@/app/manager/email/sequences/page";
+export const metadata = { title: "Séquences · Email Hub" };
 
 export default function EmailHubSequencesPage() {
-    return <SequencesPageContent />;
+    return <SequenceListView />;
 }

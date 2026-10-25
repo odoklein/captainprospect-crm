@@ -3,43 +3,45 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MailboxManagerDialog } from "./MailboxManagerDialog";
 import { cn } from "@/lib/utils";
-import {
-    ChevronDown,
-    Mail,
-    Users,
-    Check,
-    Plus,
-    Loader2,
-    Settings,
-} from "lucide-react";
-import { getProviderColor } from "@/lib/email/providers/client-utils";
-import type { EmailProvider } from "@prisma/client";
+import { ChevronDown, Mail, Users, Check, Plus, Settings } from "lucide-react";
+import { Avatar, StatusDot } from "@/components/ui";
+import { TEAM_MAILBOX, type InboxMailbox } from "./inbox-utils";
 
 // ============================================
 // TYPES
 // ============================================
 
-export interface MailboxData {
-    id: string;
-    email: string;
-    displayName: string | null;
-    provider: EmailProvider;
-    type: string;
-    syncStatus: string;
-    healthScore: number;
-}
+export type MailboxData = InboxMailbox;
 
 interface MailboxSwitcherProps {
-    mailboxes: MailboxData[];
+    mailboxes: InboxMailbox[];
+    /** Mailbox id, TEAM_MAILBOX, or undefined for "all my mailboxes". */
     selectedMailboxId?: string;
     onSelectMailbox: (mailboxId: string | undefined) => void;
     onMailboxAdded?: () => void;
+    /** Supervisors: offer the whole team's mailboxes. */
     showTeamInbox?: boolean;
-    isLoading?: boolean;
 }
 
+type Tone = "success" | "warning" | "danger" | "neutral";
+
+function syncTone(status: string): Tone {
+    if (status === "SYNCED") return "success";
+    if (status === "SYNCING" || status === "PENDING") return "warning";
+    if (status === "ERROR" || status === "DISCONNECTED") return "danger";
+    return "neutral";
+}
+
+const SYNC_LABEL: Record<string, string> = {
+    SYNCED: "Synchronisée",
+    SYNCING: "Synchronisation…",
+    PENDING: "En attente de synchronisation",
+    ERROR: "Erreur de synchronisation",
+    DISCONNECTED: "Déconnectée",
+};
+
 // ============================================
-// MAILBOX SWITCHER COMPONENT
+// MAILBOX SWITCHER
 // ============================================
 
 export function MailboxSwitcher({
@@ -48,221 +50,166 @@ export function MailboxSwitcher({
     onSelectMailbox,
     onMailboxAdded,
     showTeamInbox = false,
-    isLoading = false,
 }: MailboxSwitcherProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [showManagerDialog, setShowManagerDialog] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    const ref = useRef<HTMLDivElement>(null);
 
-    // Close dropdown on outside click
     useEffect(() => {
         if (!isOpen) return;
-        const handleClickOutside = (e: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        const onDown = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setIsOpen(false);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.stopPropagation();
                 setIsOpen(false);
             }
         };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isOpen]);
-
-    // Close on Escape
-    useEffect(() => {
-        if (!isOpen) return;
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setIsOpen(false);
+        document.addEventListener("mousedown", onDown);
+        window.addEventListener("keydown", onKey, true);
+        return () => {
+            document.removeEventListener("mousedown", onDown);
+            window.removeEventListener("keydown", onKey, true);
         };
-        window.addEventListener("keydown", handleEsc);
-        return () => window.removeEventListener("keydown", handleEsc);
     }, [isOpen]);
 
-    const selectedMailbox = mailboxes.find(m => m.id === selectedMailboxId);
+    const own = mailboxes.filter((m) => m.isOwn !== false);
+    const team = mailboxes.filter((m) => m.isOwn === false);
+    const selected = mailboxes.find((m) => m.id === selectedMailboxId);
+    const isTeam = selectedMailboxId === TEAM_MAILBOX;
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case "SYNCED":
-                return "bg-emerald-400";
-            case "SYNCING":
-                return "bg-amber-400 animate-pulse";
-            case "ERROR":
-                return "bg-red-400";
-            default:
-                return "bg-slate-400";
-        }
+    const title = isTeam
+        ? "Toute l'équipe"
+        : selected
+            ? selected.displayName || selected.email
+            : own.length > 0 ? "Toutes mes boîtes" : "Mes conversations";
+    const subtitle = isTeam
+        ? `${mailboxes.length} boîte${mailboxes.length > 1 ? "s" : ""}`
+        : selected
+            ? selected.isOwn === false && selected.owner ? `${selected.email} · ${selected.owner.name}` : selected.email
+            : `${own.length} boîte${own.length > 1 ? "s" : ""}`;
+
+    const pick = (id: string | undefined) => {
+        onSelectMailbox(id);
+        setIsOpen(false);
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-10">
-                <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
-            </div>
-        );
-    }
-
-    if (mailboxes.length === 0) {
-        return (
-            <>
-                <button
-                    className="flex items-center justify-center gap-2 h-10 px-3 text-sm text-primary-600 hover:bg-primary-50 rounded-xl transition-colors w-full"
-                    onClick={() => setShowManagerDialog(true)}
-                >
-                    <Plus className="w-4 h-4" />
-                    Connecter une boîte mail
-                </button>
-                <MailboxManagerDialog
-                    isOpen={showManagerDialog}
-                    onClose={() => setShowManagerDialog(false)}
-                    onMailboxAdded={() => {
-                        onMailboxAdded?.();
-                        setShowManagerDialog(false);
-                    }}
+    const row = (m: InboxMailbox) => (
+        <button
+            key={m.id}
+            type="button"
+            role="option"
+            aria-selected={selectedMailboxId === m.id}
+            onClick={() => pick(m.id)}
+            className={cn(
+                "flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-surface-2",
+                selectedMailboxId === m.id && "bg-primary-50",
+            )}
+        >
+            <span className="relative">
+                <Avatar name={m.displayName || m.email} size="xs" />
+                <StatusDot
+                    tone={syncTone(m.syncStatus)}
+                    label={SYNC_LABEL[m.syncStatus] ?? m.syncStatus}
+                    className="absolute -bottom-0.5 -right-0.5 rounded-full ring-2 ring-surface"
                 />
-            </>
-        );
-    }
+            </span>
+            <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium text-ink">{m.displayName || m.email}</span>
+                <span className="block truncate text-2xs text-ink-4">
+                    {m.isOwn === false && m.owner ? `${m.owner.name} · ` : ""}{m.email}
+                </span>
+            </span>
+            {selectedMailboxId === m.id && <Check className="size-4 shrink-0 text-primary-600" aria-hidden />}
+        </button>
+    );
 
     return (
-        <div className="relative" ref={dropdownRef}>
-            {/* Selected Mailbox Button */}
+        <div className="relative" ref={ref}>
             <button
-                onClick={() => setIsOpen(!isOpen)}
-                className={cn(
-                    "w-full flex items-center gap-2.5 p-2 rounded-xl transition-all duration-200",
-                    isOpen ? "bg-slate-100 shadow-sm" : "hover:bg-slate-50"
-                )}
+                type="button"
+                onClick={() => setIsOpen((v) => !v)}
                 aria-expanded={isOpen}
                 aria-haspopup="listbox"
+                className={cn(
+                    "flex w-full items-center gap-2.5 rounded-control border px-2 py-1.5 text-left transition-colors",
+                    isOpen ? "border-line-strong bg-surface" : "border-line bg-surface hover:border-line-strong",
+                )}
             >
-                <div
-                    className="relative w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm flex-shrink-0"
-                    style={{ backgroundColor: selectedMailbox ? getProviderColor(selectedMailbox.provider) : "#6366f1" }}
-                >
-                    {selectedMailbox?.email?.[0]?.toUpperCase() || <Mail className="w-4 h-4" />}
-                    {selectedMailbox && (
-                        <div className={cn(
-                            "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white",
-                            getStatusColor(selectedMailbox.syncStatus)
-                        )} />
-                    )}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                    <p className="text-[13px] font-semibold text-slate-800 truncate">
-                        {selectedMailbox?.displayName || selectedMailbox?.email || "Toutes les boîtes"}
-                    </p>
-                    {selectedMailbox && (
-                        <p className="text-[11px] text-slate-400 truncate">
-                            {selectedMailbox.email}
-                        </p>
-                    )}
-                </div>
-                <ChevronDown className={cn(
-                    "w-4 h-4 text-slate-400 transition-transform duration-200 flex-shrink-0",
-                    isOpen && "rotate-180"
-                )} />
+                {selected ? (
+                    <Avatar name={selected.displayName || selected.email} size="xs" />
+                ) : (
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-surface-3 text-ink-3">
+                        {isTeam ? <Users className="size-3.5" aria-hidden /> : <Mail className="size-3.5" aria-hidden />}
+                    </span>
+                )}
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-ink">{title}</span>
+                    <span className="block truncate text-2xs text-ink-4">{subtitle}</span>
+                </span>
+                <ChevronDown className={cn("size-4 shrink-0 text-ink-4 transition-transform", isOpen && "rotate-180")} aria-hidden />
             </button>
 
-            {/* Dropdown */}
             {isOpen && (
                 <div
-                    className="absolute left-0 right-0 top-full mt-1 z-30 bg-white border border-slate-200 rounded-xl shadow-xl py-1.5 max-h-72 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200"
                     role="listbox"
+                    className="absolute inset-x-0 top-full z-30 mt-1 max-h-80 overflow-y-auto rounded-panel border border-line bg-surface py-1 shadow-lg"
                 >
-                    {/* All mailboxes option */}
-                    <button
-                        onClick={() => {
-                            onSelectMailbox(undefined);
-                            setIsOpen(false);
-                        }}
-                        className={cn(
-                            "w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors",
-                            !selectedMailboxId && "bg-primary-50/60"
-                        )}
-                        role="option"
-                        aria-selected={!selectedMailboxId}
-                    >
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                            <Mail className="w-4 h-4 text-slate-500" />
-                        </div>
-                        <div className="flex-1 text-left">
-                            <p className="text-[13px] font-medium text-slate-800">Toutes les boîtes</p>
-                            <p className="text-[11px] text-slate-400">{mailboxes.length} boîte{mailboxes.length > 1 ? "s" : ""}</p>
-                        </div>
-                        {!selectedMailboxId && (
-                            <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
-                        )}
-                    </button>
-
-                    {/* Team inbox option */}
-                    {showTeamInbox && (
+                    {own.length > 0 && (
                         <button
-                            onClick={() => {
-                                setIsOpen(false);
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors"
+                            type="button"
                             role="option"
+                            aria-selected={!selectedMailboxId}
+                            onClick={() => pick(undefined)}
+                            className={cn("flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-2", !selectedMailboxId && "bg-primary-50")}
                         >
-                            <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
-                                <Users className="w-4 h-4 text-primary-600" />
-                            </div>
-                            <div className="flex-1 text-left">
-                                <p className="text-[13px] font-medium text-slate-800">Team Inbox</p>
-                                <p className="text-[11px] text-slate-400">Toute l&apos;équipe</p>
-                            </div>
+                            <span className="flex size-6 items-center justify-center rounded-md bg-surface-3 text-ink-3"><Mail className="size-3.5" aria-hidden /></span>
+                            <span className="flex-1 text-[13px] font-medium text-ink">Toutes mes boîtes</span>
+                            {!selectedMailboxId && <Check className="size-4 text-primary-600" aria-hidden />}
+                        </button>
+                    )}
+                    {showTeamInbox && team.length > 0 && (
+                        <button
+                            type="button"
+                            role="option"
+                            aria-selected={isTeam}
+                            onClick={() => pick(TEAM_MAILBOX)}
+                            className={cn("flex w-full items-center gap-2.5 px-3 py-2 text-left hover:bg-surface-2", isTeam && "bg-primary-50")}
+                        >
+                            <span className="flex size-6 items-center justify-center rounded-md bg-surface-3 text-ink-3"><Users className="size-3.5" aria-hidden /></span>
+                            <span className="min-w-0 flex-1">
+                                <span className="block text-[13px] font-medium text-ink">Toute l&apos;équipe</span>
+                                <span className="block text-2xs text-ink-4">{mailboxes.length} boîtes</span>
+                            </span>
+                            {isTeam && <Check className="size-4 text-primary-600" aria-hidden />}
                         </button>
                     )}
 
-                    <div className="my-1.5 border-t border-slate-100" />
+                    {own.length > 0 && (
+                        <>
+                            <p className="px-3 pb-1 pt-2.5 text-2xs font-semibold uppercase tracking-wide text-ink-4">Mes boîtes</p>
+                            {own.map(row)}
+                        </>
+                    )}
+                    {showTeamInbox && team.length > 0 && (
+                        <>
+                            <p className="px-3 pb-1 pt-2.5 text-2xs font-semibold uppercase tracking-wide text-ink-4">Équipe</p>
+                            {team.map(row)}
+                        </>
+                    )}
 
-                    {/* Individual mailboxes */}
-                    {mailboxes.map((mailbox) => (
-                        <button
-                            key={mailbox.id}
-                            onClick={() => {
-                                onSelectMailbox(mailbox.id);
-                                setIsOpen(false);
-                            }}
-                            className={cn(
-                                "w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors",
-                                selectedMailboxId === mailbox.id && "bg-primary-50/60"
-                            )}
-                            role="option"
-                            aria-selected={selectedMailboxId === mailbox.id}
-                        >
-                            <div
-                                className="relative w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-sm"
-                                style={{ backgroundColor: getProviderColor(mailbox.provider) }}
-                            >
-                                {mailbox.email[0].toUpperCase()}
-                                <div className={cn(
-                                    "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white",
-                                    getStatusColor(mailbox.syncStatus)
-                                )} />
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                                <p className="text-[13px] font-medium text-slate-800 truncate">
-                                    {mailbox.displayName || mailbox.email}
-                                </p>
-                                <p className="text-[11px] text-slate-400 truncate">
-                                    {mailbox.email}
-                                </p>
-                            </div>
-                            {selectedMailboxId === mailbox.id && (
-                                <Check className="w-4 h-4 text-primary-600 flex-shrink-0" />
-                            )}
-                        </button>
-                    ))}
-
-                    {/* Manage mailboxes */}
-                    <div className="my-1.5 border-t border-slate-100" />
+                    <div className="my-1 border-t border-line" />
                     <button
+                        type="button"
                         onClick={() => {
                             setIsOpen(false);
                             setShowManagerDialog(true);
                         }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] text-primary-600 hover:bg-primary-50 transition-colors font-medium"
+                        className="flex w-full items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-primary-700 hover:bg-primary-50"
                     >
-                        <Settings className="w-4 h-4" />
-                        Gérer les boîtes mails
+                        {own.length === 0 ? <Plus className="size-4" aria-hidden /> : <Settings className="size-4" aria-hidden />}
+                        {own.length === 0 ? "Connecter une boîte mail" : "Gérer mes boîtes mail"}
                     </button>
                 </div>
             )}

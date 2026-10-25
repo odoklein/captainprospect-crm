@@ -14,7 +14,7 @@ export const PORTAL_PAGE_LABELS: Record<string, string> = {
     "/client/portal/reporting": "Rapports",
     "/client/portal/activite": "Activité",
     "/client/contact": "Messages",
-    "/client/portal/email": "Mon Email",
+    "/client/portal/emailing": "Emailing",
     "/client/portal/database": "Base de données",
     "/client/portal/files": "Fichiers",
     "/client/portal/sales-playbook": "Sales Playbook",

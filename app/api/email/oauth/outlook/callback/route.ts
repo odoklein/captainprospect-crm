@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         const error = req.nextUrl.searchParams.get('error');
         const errorDescription = req.nextUrl.searchParams.get('error_description');
 
-        const defaultReturn = '/manager/email/mailboxes';
+        const defaultReturn = '/manager/emails/mailboxes';
 
         if (error) {
             console.error('Outlook OAuth error:', error, errorDescription);
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
         );
     } catch (error) {
         console.error('Outlook OAuth callback error:', error);
-        const defaultReturn = '/manager/email/mailboxes';
+        const defaultReturn = '/manager/emails/mailboxes';
         return NextResponse.redirect(
             new URL(`${defaultReturn}?error=callback_failed`, req.url)
         );

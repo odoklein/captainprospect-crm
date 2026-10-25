@@ -1,10 +1,14 @@
 // ============================================
-// CRM AUTO-LINKING SERVICE
-// Automatically links emails to CRM entities
+// CRM LINKING SERVICE
+// Links email threads to CRM entities (contact → mission → client).
+//
+// In this CRM a Contact belongs to a Company, which belongs to a List, which
+// belongs to a Mission, which belongs to a Client. So a contact link carries
+// its mission and client with it; a mission link carries its client.
+// Automatic linking only fills empty fields: a manual link is never replaced.
 // ============================================
 
 import { prisma } from '@/lib/prisma';
-import { EmailThread, Client, Mission, Contact, Campaign } from '@prisma/client';
 
 // ============================================
 // TYPES
@@ -32,6 +36,25 @@ export interface LinkingConfig {
     confidenceThreshold: number;
 }
 
+export type LinkField = 'client' | 'mission' | 'contact' | 'campaign' | 'opportunity';
+
+export interface ResolvedLinks {
+    contactId?: string;
+    missionId?: string;
+    clientId?: string;
+}
+
+const PUBLIC_EMAIL_DOMAINS = new Set([
+    'gmail.com', 'googlemail.com',
+    'outlook.com', 'outlook.fr', 'hotmail.com', 'hotmail.fr', 'live.com', 'live.fr', 'msn.com',
+    'yahoo.com', 'yahoo.fr', 'ymail.com',
+    'icloud.com', 'me.com', 'mac.com',
+    'aol.com',
+    'protonmail.com', 'proton.me',
+    'orange.fr', 'wanadoo.fr', 'free.fr', 'sfr.fr', 'laposte.net', 'bbox.fr',
+    'gmx.com', 'gmx.fr',
+]);
+
 // ============================================
 // CRM LINKING SERVICE CLASS
 // ============================================
@@ -45,6 +68,58 @@ export class CrmLinkingService {
         autoLinkToCampaign: true,
         confidenceThreshold: 0.7,
     };
+
+    // ============================================
+    // RESOLUTION HELPERS (shared with the sending service)
+    // ============================================
+
+    /** Mission and client a contact belongs to (through company → list → mission). */
+    async resolveContactLinks(contactId: string): Promise<ResolvedLinks> {
+        const contact = await prisma.contact.findUnique({
+            where: { id: contactId },
+            select: {
+                id: true,
+                company: {
+                    select: {
+                        list: { select: { missionId: true, mission: { select: { clientId: true } } } },
+                    },
+                },
+            },
+        });
+        if (!contact) return {};
+        const list = contact.company?.list;
+        return {
+            contactId: contact.id,
+            missionId: list?.missionId ?? undefined,
+            clientId: list?.mission?.clientId ?? undefined,
+        };
+    }
+
+    /** Client of a mission. */
+    async resolveMissionClient(missionId: string): Promise<string | undefined> {
+        const mission = await prisma.mission.findUnique({
+            where: { id: missionId },
+            select: { clientId: true },
+        });
+        return mission?.clientId ?? undefined;
+    }
+
+    /**
+     * Links for an outbound email: explicit contact/mission first, the rest
+     * derived (contact → its list's mission → client).
+     */
+    async resolveOutboundLinks(input: { contactId?: string | null; missionId?: string | null }): Promise<ResolvedLinks> {
+        const out: ResolvedLinks = {};
+        if (input.contactId) {
+            const fromContact = await this.resolveContactLinks(input.contactId);
+            Object.assign(out, fromContact);
+        }
+        if (input.missionId) {
+            out.missionId = input.missionId;
+            out.clientId = (await this.resolveMissionClient(input.missionId)) ?? out.clientId;
+        }
+        return out;
+    }
 
     // ============================================
     // AUTO-LINK THREAD
@@ -63,101 +138,99 @@ export class CrmLinkingService {
         };
 
         try {
-            // Get thread with emails
             const thread = await prisma.emailThread.findUnique({
                 where: { id: threadId },
-                include: {
+                select: {
+                    id: true,
+                    participantEmails: true,
+                    contactId: true,
+                    missionId: true,
+                    clientId: true,
+                    campaignId: true,
                     emails: {
                         select: {
                             fromAddress: true,
                             toAddresses: true,
                             ccAddresses: true,
+                            contactId: true,
+                            missionId: true,
                         },
                     },
-                    mailbox: {
-                        select: { email: true, ownerId: true },
-                    },
+                    mailbox: { select: { email: true } },
                 },
             });
 
-            if (!thread) {
-                return result;
-            }
+            if (!thread) return result;
 
-            // Extract all email addresses from thread
-            const emailAddresses = this.extractEmailAddresses(thread);
-            const domains = this.extractDomains(emailAddresses);
-
-            // Skip internal emails only
             const mailboxEmail = thread.mailbox.email.toLowerCase();
-            const externalEmails = emailAddresses.filter(e => e !== mailboxEmail);
-            const externalDomains = this.extractDomains(externalEmails);
+            const mailboxDomain = mailboxEmail.split('@')[1];
+            const externalEmails = this.extractEmailAddresses(thread).filter(
+                (e) => e !== mailboxEmail && e.split('@')[1] !== mailboxDomain,
+            );
 
-            if (externalEmails.length === 0) {
-                return result;
+            const found: ResolvedLinks & { campaignId?: string } = {};
+
+            // 1. An email of the thread was sent with an explicit contact/mission
+            const sentWithContext = thread.emails.find((e) => e.contactId || e.missionId);
+            if (sentWithContext) {
+                Object.assign(found, await this.resolveOutboundLinks(sentWithContext));
+                result.method = 'manual';
+                result.confidence = 1;
             }
 
-            // Try to link to Contact (most specific)
-            if (cfg.autoLinkToContact) {
-                const contactLink = await this.findContactMatch(externalEmails);
-                if (contactLink) {
-                    result.linked.contactId = contactLink.id;
-                    result.confidence = 1.0;
-                    result.method = 'exact_match';
-
-                    // Also link to contact's company if it's a client
-                    if (contactLink.company && cfg.autoLinkToClient) {
-                        const client = await prisma.client.findFirst({
-                            where: {
-                                OR: [
-                                    { email: { contains: contactLink.company.domain || '', mode: 'insensitive' } },
-                                    { name: { equals: contactLink.company.name, mode: 'insensitive' } },
-                                ],
-                            },
-                        });
-                        if (client) {
-                            result.linked.clientId = client.id;
-                        }
-                    }
-                }
-            }
-
-            // Try to link to Client by email domain
-            if (cfg.autoLinkToClient && !result.linked.clientId) {
-                const clientLink = await this.findClientMatch(externalEmails, externalDomains);
-                if (clientLink) {
-                    result.linked.clientId = clientLink.id;
-                    if (!result.linked.contactId) {
-                        result.confidence = clientLink.confidence;
-                        result.method = clientLink.confidence === 1.0 ? 'exact_match' : 'domain_match';
-                    }
-
-                    // Try to link to active mission for this client
-                    if (cfg.autoLinkToMission) {
-                        const mission = await this.findActiveMissionForClient(clientLink.id);
-                        if (mission) {
-                            result.linked.missionId = mission.id;
-                        }
-                    }
-                }
-            }
-
-            // Try to link to Campaign (if thread came from sequence)
-            if (cfg.autoLinkToCampaign) {
-                const campaignLink = await this.findCampaignMatch(thread, externalEmails);
-                if (campaignLink) {
-                    result.linked.campaignId = campaignLink.id;
-                }
-            }
-
-            // Update thread with links
-            if (Object.keys(result.linked).length > 0) {
-                await prisma.emailThread.update({
-                    where: { id: threadId },
-                    data: result.linked,
+            // 2. A participant is a known contact
+            if (!found.contactId && cfg.autoLinkToContact && externalEmails.length > 0) {
+                const contact = await prisma.contact.findFirst({
+                    where: { email: { in: externalEmails, mode: 'insensitive' } },
+                    select: { id: true },
+                    orderBy: { updatedAt: 'desc' },
                 });
+                if (contact) {
+                    const links = await this.resolveContactLinks(contact.id);
+                    found.contactId = links.contactId;
+                    if (cfg.autoLinkToMission && !found.missionId) found.missionId = links.missionId;
+                    if (cfg.autoLinkToClient && !found.clientId) found.clientId = links.clientId;
+                    result.confidence = 1;
+                    result.method = 'exact_match';
+                }
             }
 
+            // 3. A participant is (from the domain of) a client
+            if (!found.clientId && cfg.autoLinkToClient && externalEmails.length > 0) {
+                const client = await this.findClientMatch(externalEmails);
+                if (client) {
+                    found.clientId = client.id;
+                    if (!found.contactId) {
+                        result.confidence = client.confidence;
+                        result.method = client.confidence === 1 ? 'exact_match' : 'domain_match';
+                    }
+                    if (cfg.autoLinkToMission && !found.missionId) {
+                        const mission = await this.findSingleActiveMission(client.id);
+                        if (mission) found.missionId = mission.id;
+                    }
+                }
+            }
+
+            // 4. Thread started by a sequence
+            if (cfg.autoLinkToCampaign) {
+                const campaign = await this.findCampaignMatch(thread.id);
+                if (campaign) {
+                    found.campaignId = campaign.id;
+                    if (!found.contactId && !found.clientId) result.method = 'sequence';
+                }
+            }
+
+            // Only fill what is empty — never overwrite a manual link
+            const data: LinkingResult['linked'] = {};
+            if (found.contactId && !thread.contactId) data.contactId = found.contactId;
+            if (found.missionId && !thread.missionId) data.missionId = found.missionId;
+            if (found.clientId && !thread.clientId) data.clientId = found.clientId;
+            if (found.campaignId && !thread.campaignId) data.campaignId = found.campaignId;
+
+            if (Object.keys(data).length > 0) {
+                await prisma.emailThread.update({ where: { id: threadId }, data });
+            }
+            result.linked = data;
             return result;
         } catch (error) {
             console.error('Auto-link thread error:', error);
@@ -170,41 +243,43 @@ export class CrmLinkingService {
     // ============================================
 
     async linkThreadToClient(threadId: string, clientId: string): Promise<void> {
-        await prisma.emailThread.update({
+        const thread = await prisma.emailThread.findUnique({
             where: { id: threadId },
-            data: { clientId },
+            select: { mission: { select: { clientId: true } } },
         });
-    }
-
-    async linkThreadToMission(threadId: string, missionId: string): Promise<void> {
-        const mission = await prisma.mission.findUnique({
-            where: { id: missionId },
-            select: { clientId: true },
-        });
-
         await prisma.emailThread.update({
             where: { id: threadId },
             data: {
-                missionId,
-                clientId: mission?.clientId,
+                clientId,
+                // A mission of another client no longer makes sense
+                ...(thread?.mission && thread.mission.clientId !== clientId ? { missionId: null } : {}),
             },
         });
     }
 
-    async linkThreadToContact(threadId: string, contactId: string): Promise<void> {
-        const contact = await prisma.contact.findUnique({
-            where: { id: contactId },
-            include: { company: true },
+    async linkThreadToMission(threadId: string, missionId: string): Promise<void> {
+        const clientId = await this.resolveMissionClient(missionId);
+        await prisma.emailThread.update({
+            where: { id: threadId },
+            data: { missionId, ...(clientId ? { clientId } : {}) },
         });
+    }
 
+    async linkThreadToContact(threadId: string, contactId: string): Promise<void> {
+        const [thread, links] = await Promise.all([
+            prisma.emailThread.findUnique({
+                where: { id: threadId },
+                select: { missionId: true, clientId: true },
+            }),
+            this.resolveContactLinks(contactId),
+        ]);
         await prisma.emailThread.update({
             where: { id: threadId },
             data: {
                 contactId,
-                // Try to link to client via company
-                ...(contact?.company && {
-                    clientId: await this.findClientByCompanyId(contact.company.id),
-                }),
+                // The contact's mission/client fill the thread when it has none
+                ...(!thread?.missionId && links.missionId ? { missionId: links.missionId } : {}),
+                ...(!thread?.clientId && links.clientId ? { clientId: links.clientId } : {}),
             },
         });
     }
@@ -225,8 +300,8 @@ export class CrmLinkingService {
         });
     }
 
-    async unlinkThread(threadId: string, field: 'client' | 'mission' | 'contact' | 'campaign' | 'opportunity'): Promise<void> {
-        const fieldMap = {
+    async unlinkThread(threadId: string, field: LinkField): Promise<void> {
+        const fieldMap: Record<LinkField, string> = {
             client: 'clientId',
             mission: 'missionId',
             contact: 'contactId',
@@ -248,7 +323,6 @@ export class CrmLinkingService {
         mailboxId?: string,
         limit: number = 100
     ): Promise<{ processed: number; linked: number }> {
-        // Find threads with no CRM links
         const threads = await prisma.emailThread.findMany({
             where: {
                 ...(mailboxId && { mailboxId }),
@@ -262,18 +336,12 @@ export class CrmLinkingService {
         });
 
         let linked = 0;
-
         for (const thread of threads) {
             const result = await this.autoLinkThread(thread.id);
-            if (Object.keys(result.linked).length > 0) {
-                linked++;
-            }
+            if (Object.keys(result.linked).length > 0) linked++;
         }
 
-        return {
-            processed: threads.length,
-            linked,
-        };
+        return { processed: threads.length, linked };
     }
 
     // ============================================
@@ -285,163 +353,55 @@ export class CrmLinkingService {
         emails: { fromAddress: string; toAddresses: string[]; ccAddresses: string[] }[];
     }): string[] {
         const emails = new Set<string>();
-
-        // From participant emails
-        thread.participantEmails.forEach(e => emails.add(e.toLowerCase()));
-
-        // From email messages
+        thread.participantEmails.forEach((e) => emails.add(e.toLowerCase()));
         for (const email of thread.emails) {
             emails.add(email.fromAddress.toLowerCase());
-            email.toAddresses.forEach(e => emails.add(e.toLowerCase()));
-            email.ccAddresses.forEach(e => emails.add(e.toLowerCase()));
+            email.toAddresses.forEach((e) => emails.add(e.toLowerCase()));
+            email.ccAddresses.forEach((e) => emails.add(e.toLowerCase()));
         }
-
-        return Array.from(emails);
+        return Array.from(emails).filter((e) => e.includes('@'));
     }
 
-    private extractDomains(emails: string[]): string[] {
-        const domains = new Set<string>();
-        
-        for (const email of emails) {
-            const domain = email.split('@')[1];
-            if (domain) {
-                domains.add(domain.toLowerCase());
-            }
-        }
-
-        return Array.from(domains);
-    }
-
-    private async findContactMatch(
-        emails: string[]
-    ): Promise<(Contact & { company: { id: string; name: string; domain: string | null } | null }) | null> {
-        return prisma.contact.findFirst({
-            where: {
-                email: { in: emails, mode: 'insensitive' },
-            },
-            include: {
-                company: {
-                    select: { id: true, name: true, domain: true },
-                },
-            },
-        });
-    }
-
-    private async findClientMatch(
-        emails: string[],
-        domains: string[]
-    ): Promise<{ id: string; confidence: number } | null> {
-        // First try exact email match
-        const exactMatch = await prisma.client.findFirst({
-            where: {
-                email: { in: emails, mode: 'insensitive' },
-            },
+    private async findClientMatch(emails: string[]): Promise<{ id: string; confidence: number } | null> {
+        const exact = await prisma.client.findFirst({
+            where: { email: { in: emails, mode: 'insensitive' } },
             select: { id: true },
         });
+        if (exact) return { id: exact.id, confidence: 1 };
 
-        if (exactMatch) {
-            return { id: exactMatch.id, confidence: 1.0 };
-        }
-
-        // Try domain match
+        const domains = Array.from(new Set(emails.map((e) => e.split('@')[1]).filter(Boolean)));
         for (const domain of domains) {
-            // Skip common email providers
-            if (this.isPublicEmailDomain(domain)) continue;
-
-            const domainMatch = await prisma.client.findFirst({
-                where: {
-                    OR: [
-                        { email: { contains: domain, mode: 'insensitive' } },
-                        { website: { contains: domain, mode: 'insensitive' } },
-                    ],
-                },
+            if (PUBLIC_EMAIL_DOMAINS.has(domain)) continue;
+            const byDomain = await prisma.client.findFirst({
+                where: { email: { endsWith: `@${domain}`, mode: 'insensitive' } },
                 select: { id: true },
             });
-
-            if (domainMatch) {
-                return { id: domainMatch.id, confidence: 0.8 };
-            }
+            if (byDomain) return { id: byDomain.id, confidence: 0.8 };
         }
-
         return null;
     }
 
-    private async findActiveMissionForClient(clientId: string): Promise<{ id: string } | null> {
-        return prisma.mission.findFirst({
-            where: {
-                clientId,
-                status: { in: ['ACTIVE', 'IN_PROGRESS'] },
-            },
+    /** The client's active mission, only when there is exactly one (no guessing). */
+    private async findSingleActiveMission(clientId: string): Promise<{ id: string } | null> {
+        const missions = await prisma.mission.findMany({
+            where: { clientId, status: 'ACTIVE' },
             select: { id: true },
-            orderBy: { createdAt: 'desc' },
+            take: 2,
         });
+        return missions.length === 1 ? missions[0] : null;
     }
 
-    private async findCampaignMatch(
-        thread: { id: string },
-        emails: string[]
-    ): Promise<{ id: string } | null> {
-        // Check if any email in thread was sent via a sequence
+    private async findCampaignMatch(threadId: string): Promise<{ id: string } | null> {
         const sequenceEmail = await prisma.email.findFirst({
-            where: {
-                threadId: thread.id,
-                sequenceEnrollmentId: { not: null },
-            },
+            where: { threadId, sequenceEnrollmentId: { not: null } },
             select: {
                 sequenceEnrollment: {
-                    select: {
-                        sequence: {
-                            select: {
-                                campaignId: true,
-                            },
-                        },
-                    },
+                    select: { sequence: { select: { campaignId: true } } },
                 },
             },
         });
-
-        if (sequenceEmail?.sequenceEnrollment?.sequence?.campaignId) {
-            return { id: sequenceEmail.sequenceEnrollment.sequence.campaignId };
-        }
-
-        return null;
-    }
-
-    private async findClientByCompanyId(companyId: string): Promise<string | null> {
-        const company = await prisma.company.findUnique({
-            where: { id: companyId },
-            select: { name: true, domain: true },
-        });
-
-        if (!company) return null;
-
-        const client = await prisma.client.findFirst({
-            where: {
-                OR: [
-                    { name: { equals: company.name, mode: 'insensitive' } },
-                    ...(company.domain ? [
-                        { website: { contains: company.domain, mode: 'insensitive' } },
-                        { email: { contains: company.domain, mode: 'insensitive' } },
-                    ] : []),
-                ],
-            },
-            select: { id: true },
-        });
-
-        return client?.id || null;
-    }
-
-    private isPublicEmailDomain(domain: string): boolean {
-        const publicDomains = [
-            'gmail.com', 'googlemail.com',
-            'outlook.com', 'hotmail.com', 'live.com', 'msn.com',
-            'yahoo.com', 'yahoo.fr',
-            'icloud.com', 'me.com', 'mac.com',
-            'aol.com',
-            'protonmail.com', 'proton.me',
-            'orange.fr', 'wanadoo.fr', 'free.fr', 'sfr.fr', 'laposte.net',
-        ];
-        return publicDomains.includes(domain.toLowerCase());
+        const campaignId = sequenceEmail?.sequenceEnrollment?.sequence?.campaignId;
+        return campaignId ? { id: campaignId } : null;
     }
 }
 

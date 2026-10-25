@@ -1,8 +1,9 @@
 // ============================================
 // DEVELOPER MAILBOX PAGE
-// Full-featured email client powered by InboxLayout
+// Full inbox (team mailboxes) inside the developer layout
 // ============================================
 
+import { Suspense } from "react";
 import { InboxLayout } from "@/components/email/inbox";
 
 export const metadata = {
@@ -11,5 +12,9 @@ export const metadata = {
 };
 
 export default function DeveloperMailboxPage() {
-    return <InboxLayout showTeamInbox={true} standalone />;
+    return (
+        <Suspense fallback={null}>
+            <InboxLayout showTeamInbox={true} standalone />
+        </Suspense>
+    );
 }

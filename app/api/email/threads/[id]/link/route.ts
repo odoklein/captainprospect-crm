@@ -1,14 +1,34 @@
 // ============================================
 // THREAD LINKING API ROUTES
-// POST /api/email/threads/[id]/link - Link thread to CRM entity
-// DELETE /api/email/threads/[id]/link - Unlink thread from CRM entity
+// POST /api/email/threads/[id]/link - Link thread to a CRM entity
+//      body: { type: 'contact'|'mission'|'client'|'campaign', entityId } | { autoLink: true }
+// DELETE /api/email/threads/[id]/link?type=… - Unlink thread from a CRM entity
+// Both return the thread's links afterwards (same shape as GET /threads/[id]).
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { crmLinkingService } from '@/lib/email/services/linking-service';
+import { crmLinkingService, type LinkField } from '@/lib/email/services/linking-service';
+import { authorizeThread, loadThreadLinks } from '../../_lib/thread-context';
+
+const LINK_TYPES: LinkField[] = ['client', 'mission', 'contact', 'campaign', 'opportunity'];
+
+async function entityExists(type: string, id: string): Promise<boolean> {
+    switch (type) {
+        case 'client':
+            return !!(await prisma.client.findUnique({ where: { id }, select: { id: true } }));
+        case 'mission':
+            return !!(await prisma.mission.findUnique({ where: { id }, select: { id: true } }));
+        case 'contact':
+            return !!(await prisma.contact.findUnique({ where: { id }, select: { id: true } }));
+        case 'campaign':
+            return !!(await prisma.campaign.findUnique({ where: { id }, select: { id: true } }));
+        default:
+            return false;
+    }
+}
 
 // ============================================
 // POST - Link thread to CRM entity
@@ -21,64 +41,38 @@ export async function POST(
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
-            return NextResponse.json(
-                { success: false, error: 'Non autorisé' },
-                { status: 401 }
-            );
+            return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
         }
 
         const { id: threadId } = await params;
-        const body = await req.json();
-        const { type, entityId, autoLink } = body;
+        const body = await req.json().catch(() => ({}));
+        const { type, entityId, autoLink } = body as { type?: string; entityId?: string; autoLink?: boolean };
 
-        // Verify thread exists and user has access
-        const thread = await prisma.emailThread.findUnique({
-            where: { id: threadId },
-            include: {
-                mailbox: {
-                    select: {
-                        ownerId: true,
-                        permissions: {
-                            where: { userId: session.user.id },
-                            select: { canRead: true },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!thread) {
-            return NextResponse.json(
-                { success: false, error: 'Thread non trouvé' },
-                { status: 404 }
-            );
+        const access = await authorizeThread(threadId, session.user.id, session.user.role);
+        if (access === null) {
+            return NextResponse.json({ success: false, error: 'Conversation introuvable' }, { status: 404 });
+        }
+        if (access === false) {
+            return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
         }
 
-        const isOwner = thread.mailbox.ownerId === session.user.id;
-        const hasPermission = thread.mailbox.permissions.some(p => p.canRead);
-
-        if (!isOwner && !hasPermission && session.user.role !== 'MANAGER') {
-            return NextResponse.json(
-                { success: false, error: 'Accès non autorisé' },
-                { status: 403 }
-            );
-        }
-
-        // Auto-link if requested
         if (autoLink) {
             const result = await crmLinkingService.autoLinkThread(threadId);
+            const links = await loadThreadLinks(threadId);
             return NextResponse.json({
                 success: true,
-                data: result,
+                data: { ...links, autoLink: result },
             });
         }
 
-        // Manual link
         if (!type || !entityId) {
-            return NextResponse.json(
-                { success: false, error: 'Type et entityId requis' },
-                { status: 400 }
-            );
+            return NextResponse.json({ success: false, error: 'Type et entityId requis' }, { status: 400 });
+        }
+        if (!['client', 'mission', 'contact', 'campaign'].includes(type)) {
+            return NextResponse.json({ success: false, error: 'Type de lien invalide' }, { status: 400 });
+        }
+        if (!(await entityExists(type, entityId))) {
+            return NextResponse.json({ success: false, error: 'Élément introuvable' }, { status: 404 });
         }
 
         switch (type) {
@@ -94,36 +88,13 @@ export async function POST(
             case 'campaign':
                 await crmLinkingService.linkThreadToCampaign(threadId, entityId);
                 break;
-            default:
-                return NextResponse.json(
-                    { success: false, error: 'Type de lien invalide' },
-                    { status: 400 }
-                );
         }
 
-        // Get updated thread
-        const updatedThread = await prisma.emailThread.findUnique({
-            where: { id: threadId },
-            select: {
-                id: true,
-                clientId: true,
-                missionId: true,
-                contactId: true,
-                campaignId: true,
-                opportunityId: true,
-            },
-        });
-
-        return NextResponse.json({
-            success: true,
-            data: updatedThread,
-        });
+        const links = await loadThreadLinks(threadId);
+        return NextResponse.json({ success: true, data: links });
     } catch (error) {
         console.error('POST /api/email/threads/[id]/link error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Erreur serveur' },
-            { status: 500 }
-        );
+        return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
     }
 }
 
@@ -138,67 +109,31 @@ export async function DELETE(
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
-            return NextResponse.json(
-                { success: false, error: 'Non autorisé' },
-                { status: 401 }
-            );
+            return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
         }
 
         const { id: threadId } = await params;
         const { searchParams } = new URL(req.url);
-        const type = searchParams.get('type') as 'client' | 'mission' | 'contact' | 'campaign' | 'opportunity' | null;
+        const type = searchParams.get('type') as LinkField | null;
 
-        if (!type) {
-            return NextResponse.json(
-                { success: false, error: 'Type requis' },
-                { status: 400 }
-            );
+        if (!type || !LINK_TYPES.includes(type)) {
+            return NextResponse.json({ success: false, error: 'Type requis' }, { status: 400 });
         }
 
-        // Verify thread exists and user has access
-        const thread = await prisma.emailThread.findUnique({
-            where: { id: threadId },
-            include: {
-                mailbox: {
-                    select: {
-                        ownerId: true,
-                        permissions: {
-                            where: { userId: session.user.id },
-                            select: { canRead: true },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!thread) {
-            return NextResponse.json(
-                { success: false, error: 'Thread non trouvé' },
-                { status: 404 }
-            );
+        const access = await authorizeThread(threadId, session.user.id, session.user.role);
+        if (access === null) {
+            return NextResponse.json({ success: false, error: 'Conversation introuvable' }, { status: 404 });
         }
-
-        const isOwner = thread.mailbox.ownerId === session.user.id;
-        const hasPermission = thread.mailbox.permissions.some(p => p.canRead);
-
-        if (!isOwner && !hasPermission && session.user.role !== 'MANAGER') {
-            return NextResponse.json(
-                { success: false, error: 'Accès non autorisé' },
-                { status: 403 }
-            );
+        if (access === false) {
+            return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
         }
 
         await crmLinkingService.unlinkThread(threadId, type);
+        const links = await loadThreadLinks(threadId);
 
-        return NextResponse.json({
-            success: true,
-            message: 'Lien supprimé',
-        });
+        return NextResponse.json({ success: true, data: links });
     } catch (error) {
         console.error('DELETE /api/email/threads/[id]/link error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Erreur serveur' },
-            { status: 500 }
-        );
+        return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
     }
 }

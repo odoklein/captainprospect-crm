@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-    AlertTriangle, Code2, Eye, Key, Link2, ListOrdered, Loader2, Mail, Megaphone, PhoneCall, RotateCcw, Send,
+    AlertTriangle, Code2, Eye, Inbox, Key, Link2, ListOrdered, Loader2, Mail, Megaphone, PhoneCall, RotateCcw, Send,
     ShieldCheck, PenLine, Variable,
 } from "lucide-react";
 import { useToast } from "@/components/ui";
@@ -237,7 +237,14 @@ export function EmailsPanel() {
 
     return (
         <>
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <SettingsLinkRow
+                    href="/manager/emails/mailboxes"
+                    icon={Inbox}
+                    tone="emerald"
+                    title="Boîtes mail de prospection"
+                    description="Comptes Gmail, Outlook ou IMAP des missions : signatures, limites d'envoi et synchronisation (Email Hub)."
+                />
                 <SettingsLinkRow
                     href="/manager/broadcasts"
                     icon={Megaphone}

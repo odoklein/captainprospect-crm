@@ -56,9 +56,9 @@ The **sidebar** on the left is your main navigation tool. It is role-specific �
 - Run and view AI-generated campaign analysis
 
 ### Email Hub
-- Sidebar → **Suivi** → **Email Hub** → `/manager/emails`
-- Manage mailboxes: `/manager/email/mailboxes`
-- Manage sequences: `/manager/email/sequences`
+- Sidebar → **Communication** → **Email Hub** → `/manager/emails` (Vue d'ensemble)
+- Tabs: Réception `/manager/emails/inbox`, Envoyés `/manager/emails/sent`, Séquences `/manager/emails/sequences`, Templates `/manager/emails/templates`, Campagnes (ReachInbox) `/manager/emails/campaigns`, Boîtes mail `/manager/emails/mailboxes`, Analytics `/manager/emails/analytics`
+- SDR / BD: Sidebar → **Email Hub** → `/sdr/emails` (Mes envois, Réception)
 
 ### Team Messaging
 - Sidebar → **Suivi** → **Messages** → `/manager/comms`

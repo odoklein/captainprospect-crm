@@ -1,7 +1,7 @@
 ---
-routes: ["/manager/emails", "/manager/email/mailboxes", "/manager/email/sequences", "/manager/email/templates", "/sdr/emails", "/manager/emails/analytics", "/manager/emails/sent"]
-roles: ["MANAGER", "SDR", "BOOKER", "BUSINESS_DEVELOPER"]
-keywords: ["email", "mailbox", "boîte mail", "séquence", "sequence", "template", "modèle", "Gmail", "Outlook", "IMAP", "SMTP", "connect mailbox", "warmup", "health", "santé mailbox", "send email", "envoyer email", "bounce", "deliverability", "open rate", "taux ouverture", "email hub", "inbox", "boîte de réception", "enroll", "inscrire", "sequence step", "étape"]
+routes: ["/manager/emails", "/manager/emails/inbox", "/manager/emails/sent", "/manager/emails/sequences", "/manager/emails/templates", "/manager/emails/campaigns", "/manager/emails/mailboxes", "/manager/emails/analytics", "/sdr/emails", "/sdr/emails/sent", "/sdr/emails/inbox", "/client/portal/emailing"]
+roles: ["MANAGER", "SDR", "BOOKER", "BUSINESS_DEVELOPER", "CLIENT"]
+keywords: ["email", "mailbox", "boîte mail", "séquence", "sequence", "template", "modèle", "Gmail", "Outlook", "IMAP", "SMTP", "ReachInbox", "campagne", "connect mailbox", "health", "santé mailbox", "send email", "envoyer email", "bounce", "rebond", "open rate", "taux ouverture", "email hub", "inbox", "boîte de réception", "réponse", "enroll", "inscrire", "étape", "relance automatique", "mes envois"]
 priority: 9
 ---
 
@@ -9,189 +9,186 @@ priority: 9
 
 ## Overview
 
-The Email Hub manages all email activity: connecting mailboxes, sending outbound emails, running automated sequences, and tracking engagement.
+Everything email lives in one hub: **Sidebar → Communication → Email Hub** (`/manager/emails`). The tabs are grouped by job:
 
-**Main entry point (Manager):** Sidebar → **Suivi → Email Hub** → `/manager/emails`
+| Tab | URL | What it is for |
+|---|---|---|
+| Vue d'ensemble | `/manager/emails` | What needs attention today: unread replies, bounces, mailboxes in error, sequences that can't send. Also mailbox health, sequences, templates and recent activity |
+| Réception | `/manager/emails/inbox` | Prospect replies and conversations, with a CRM panel showing the linked contact, company, mission and client |
+| Envoyés | `/manager/emails/sent` | Every email the team sent, with status filters (sent, opened, replied, bounced, failed) and CSV export |
+| Séquences | `/manager/emails/sequences` | Automatic multi-step follow-ups |
+| Templates | `/manager/emails/templates` | Shared email templates, assigned to missions |
+| Campagnes | `/manager/emails/campaigns` | ReachInbox campaign statistics, and linking campaigns to clients |
+| Boîtes mail | `/manager/emails/mailboxes` | Sending accounts: sync, daily limits, signatures, mission defaults |
+| Analytics | `/manager/emails/analytics` | Opens, replies and bounces over time, by mailbox, mission, SDR, sequence or template |
 
----
+The **Écrire** button in the tab bar opens the composer.
 
-## Email Hub Dashboard (`/manager/emails`)
+Old URLs (`/manager/email/...`, `/manager/emailing`, `/sdr/email`, `/client/portal/email`) redirect to the right tab.
 
-The dashboard shows at a glance:
-- **Health Pulse strip**: Active mailboxes | Warming mailboxes | Emails sent today | Overall open rate
-- **Sequence Performance panel**: Top sequences with sparklines, enrollment count, open/reply rates
-- **Activity Feed**: Recent email events (sent, opened, replied, clicked, bounced)
-- **Mailbox Health Grid**: Each mailbox's health score, sync status, warming progress
-- **Pending Actions**: Replies needing review, bounced emails, issues requiring attention
-
----
-
-## Connecting a Mailbox
-
-### Add Gmail
-1. Go to `/manager/email/mailboxes` → click **"+"**
-2. Select **Gmail**
-3. Click **Connecter avec Google** → complete OAuth flow
-4. Grant all requested permissions (read, send, manage)
-5. Mailbox appears with status **Connecté**
-
-### Add Outlook / Office 365
-1. Go to `/manager/email/mailboxes` → click **"+"**
-2. Select **Outlook / Microsoft 365**
-3. Click **Connecter avec Microsoft** → complete OAuth flow
-4. Grant permissions
-5. Mailbox appears with status **Connecté**
-
-### Add Custom IMAP/SMTP
-1. Go to `/manager/email/mailboxes` → click **"+"**
-2. Select **Custom IMAP**
-3. Fill IMAP settings: host, port (993), username, password
-4. Fill SMTP settings: host, port (587 or 465), username, password, SSL/TLS
-5. Click **Tester la connexion** → verify it's successful
-6. Click **Enregistrer**
+### Deep links
+- `/manager/emails/inbox?thread=<id>` opens a conversation (also `?folder=`, `?mailbox=team`, `?q=`, `?compose=1`).
+- `/manager/emails/templates?template=<id>` opens a template; `?new=1` starts a new one; `?mission=<id>` filters by mission.
+- `/manager/emails/mailboxes?mailbox=<id>` opens a mailbox's settings.
+- `/manager/emails/sent?status=REPLIED&mission=<id>` gives a filtered list of sent emails.
 
 ---
 
-## Mailbox Settings
+## Inbox (Réception)
 
-After connecting, configure each mailbox:
-- **Daily send limit** — max emails sent per day (stay under 200/day for new mailboxes)
-- **Warmup settings** — gradual ramp-up to build sender reputation
-- **Signature** — email signature appended to all outbound
-- **Tracking domain** — custom tracking domain for opens/clicks
-
----
-
-## Mailbox Health Scores
-
-Each mailbox has a health score (0–100):
-- **Green (80–100)**: Healthy, good deliverability
-- **Yellow (50–79)**: Some issues, monitor closely
-- **Red (0–49)**: Deliverability problems, may be disabled
-
-Health degrades when: bounce rate is high, spam complaints, consecutive send failures.
-
-If a mailbox is disabled: go to mailbox settings → resolve the issue → re-enable manually.
-
----
-
-## Email Sequences
-
-Sequences automate multi-step outbound email campaigns.
-
-### Create a Sequence
-1. Go to `/manager/email/sequences/new`
-2. Set:
-   - **Name** — descriptive name for the sequence
-   - **Mailbox** — which mailbox sends these emails
-   - **Stop on reply** — yes/no (recommended: yes)
-   - **Stop on bounce** — yes/no (recommended: yes)
-   - **Track opens / Track clicks** — yes/no
-3. Add **steps** (emails in the sequence):
-   - Click **Ajouter une étape**
-   - Set delay: "Send X days after previous step"
-   - Select or create an email template for this step
-4. Set status to **ACTIVE** → sequence is ready to use
-
-### Sequence Statuses
-| Status | Meaning |
-|--------|---------|
-| DRAFT | Being built, not active yet |
-| ACTIVE | Running — new enrollments are processed |
-| PAUSED | No new emails sent, enrollments preserved |
-| ARCHIVED | Ended, read-only |
-
-### Enroll Contacts in a Sequence
-1. Go to the sequence detail (`/manager/email/sequences/[id]`)
-2. Click **Inscrire des contacts** (Enroll contacts)
-3. Select contacts from a list or campaign
-4. Click **Confirmer**
-5. Contacts receive step 1 immediately (or at configured delay)
-
-### Enrollment Statuses
-| Status | Meaning |
-|--------|---------|
-| ACTIVE | Contact is in the sequence, emails being sent |
-| PAUSED | Temporarily paused for this contact |
-| COMPLETED | All steps completed |
-| REPLIED | Contact replied — sequence stopped |
-| BOUNCED | Email bounced — sequence stopped |
-| UNSUBSCRIBED | Contact opted out |
-| MANUAL_EXIT | Manually removed from sequence |
+- **Folders:** Réception, Non lus, Favoris, Envoyés, Archives, Corbeille, Tous les messages, plus custom labels.
+- **Managers** can switch to **Toute l'équipe** to read every mailbox.
+- **CRM panel** (right side): shows the linked contact, company, mission and client, with links to their pages.
+  - **Lier automatiquement** matches the conversation to a contact by email address.
+  - You can also search and link by hand.
+  - Labels and internal notes are in the same panel.
+- **Reply, reply all, forward:** forward includes the original message.
+  - The composer offers **mission templates** first, then the library.
+  - Variables like `{{firstName}}` are filled in from the linked contact.
+  - The AI draft uses the message you are replying to.
+- **Keyboard shortcuts:**
+  - `j`/`k`: next or previous conversation
+  - `e`: archive
+  - `s`: star
+  - `r`: reply
+  - `a`: reply all
+  - `f`: forward
+  - `c`: new email
+  - `/`: search
+  - `?`: list of all shortcuts
 
 ---
 
-## Email Templates
+## Connecting a mailbox
 
-Create reusable email templates:
-1. Go to `/manager/email/templates` → click **"+"**
-2. Fill: **Name**, **Subject line** (supports variables like `{{first_name}}`), **Body** (rich text editor)
-3. Add variables: `{{first_name}}`, `{{company}}`, `{{title}}` — auto-filled from contact data
-4. Click **Sauvegarder**
+Go to **Boîtes mail** and click **Ajouter une boîte**.
+- **Gmail** or **Outlook / Microsoft 365**: complete the OAuth flow. You come back to Boîtes mail with a confirmation.
+- **IMAP/SMTP**: enter the servers, then click **Tester** before saving.
+- **ReachInbox**: connected from the **Campagnes** tab using your API key.
 
-Templates are then available when building sequence steps.
+Click a mailbox to open its settings. You can change:
+- display name and signature
+- daily send limit
+- tracking domain
+- which missions use it as their **default mailbox** (SDRs send from the mission's default mailbox on the call screen)
+- team access
 
----
+You can also run **Synchroniser maintenant** and see the last error. Warmup is done in ReachInbox, not in the CRM.
 
-## Sending an Individual Email
-
-### From SDR Email Hub
-1. Go to `/sdr/emails`
-2. Click **Composer** (Compose)
-3. Select recipient (from contact database), subject, body
-4. Choose mailbox to send from
-5. Click **Envoyer**
-
-### Quick-Send from Call Screen
-While on the call interface (`/sdr/action`):
-1. After selecting a result, click **Envoyer un email**
-2. A quick-compose modal opens pre-filled with the contact
-3. Select a template or type freely
-4. Click **Envoyer**
+A mailbox in **sync error** shows up in red on Vue d'ensemble and on its card, with the error message and a **Réessayer** button.
 
 ---
 
-## Email Analytics (`/manager/emails/analytics`)
+## Templates
 
-Metrics available:
-- **Open rate** — % of sent emails that were opened
-- **Click rate** — % with at least one link clicked
-- **Reply rate** — % that received a reply
-- **Bounce rate** — % that bounced (hard or soft)
-- Charts: over time (daily/weekly), per sequence, per mailbox
+- **Library:** search, filter by category or mission, sort by most recent or most used. Each card shows its missions and how often it has been used.
+- **Editor:** a form on the left and a live preview with a fictional contact on the right.
+  - Click a variable to insert it at the cursor.
+  - Unknown variables are flagged.
+  - **Générer avec l'IA** is available.
+  - Missions are assigned inside the editor.
+- **Categories:** Prospection, Relance, Nurturing, Closing, Autre.
+- A template with **no mission** is not visible to SDRs on the call screen. The library warns about these.
+
+### Variables
+- **Contact:** `{{firstName}}`, `{{lastName}}`, `{{fullName}}`, `{{title}}`, `{{email}}`, `{{phone}}`
+- **Company:** `{{companyName}}`, `{{industry}}`, `{{website}}`
+- **Sender:** `{{senderName}}`, `{{senderFirstName}}`, `{{senderEmail}}`, `{{senderPhone}}`
+- **Mission:** `{{missionName}}`, `{{clientName}}`
+- **Date:** `{{currentDate}}`
+
+Fallback: `{{firstName|Madame, Monsieur}}` is used when the value is empty. French aliases such as `{{prenom}}` and `{{entreprise}}` also work.
 
 ---
 
-## Sent Email Archive (`/manager/emails/sent`)
+## Email sequences
 
-View all sent emails with:
-- To address, subject, sent date, status, open count, click count
-- Search by recipient or subject
-- Filter by mailbox, date range, status
-- Option to resend failed emails
+A sequence sends several emails automatically, spaced over days, and stops when the contact replies.
+
+### Create
+1. **Séquences → Nouvelle séquence.**
+2. Build the **timeline** of emails (Jour 0, +3 jours…). For each email you can:
+   - start from a template;
+   - insert variables;
+   - preview it with a sample or a real contact;
+   - use **M'envoyer un test**.
+   An email with an empty subject is sent as a reply in the same conversation.
+3. In **Réglages**, set:
+   - the mailbox;
+   - sending hours and days, and the timezone (Europe/Paris by default);
+   - stop when the contact replies or the email bounces;
+   - tracking.
+
+### Enrol contacts
+On the sequence page, go to **Contacts inscrits → Inscrire des contacts**, choose a mission, then optionally a list. Search and select contacts.
+- The screen shows who is skipped and why: no email, excluded, unsubscribed, already enrolled.
+- Draft or paused sequences accept contacts but send nothing until they are activated.
+
+### Activate
+**Activer la séquence** only works once the checklist is complete:
+- an active mailbox
+- complete emails
+- at least one contact waiting
+- no `[…]` placeholder left in the text
+
+### Statuses
+| Sequence | Meaning |
+|---|---|
+| Brouillon | Being built, sends nothing |
+| Active | The engine sends the due emails within the sending window |
+| En pause | Nothing is sent; contacts keep their position |
+| Archivée | Finished, read-only |
+
+| Contact | Meaning |
+|---|---|
+| En cours | Will receive the next email |
+| En pause | Paused for this contact |
+| Terminé | Received every email |
+| A répondu | Replied, so the sequence stopped |
+| Rebond | The address bounced, so the sequence stopped |
+| Désinscrit / Retiré | Opted out, or removed by hand |
+
+### The sending engine
+- The engine runs every 5 minutes.
+- It respects each mailbox's daily limit: when the limit is reached, the rest moves to the next day.
+- It retries 3 times on error.
+- If the Séquences page shows **"Le moteur d'envoi n'a pas tourné depuis…"**, the scheduled job is not running: no sequence email is being sent. Tell the tech team (the `/api/cron/email-sequences` job and `CRON_SECRET`).
 
 ---
 
-## Email Sync
+## Sending an individual email
 
-Emails sync automatically via:
-- **Gmail**: Push notifications (real-time) via webhook
-- **Outlook**: Subscription-based (near real-time)
-- **IMAP**: Periodic polling
+### From the call screen (SDR)
+1. On `/sdr/action`, choose the result **Envoie mail**.
+2. The composer opens with the **mission's default mailbox** and the **mission templates**.
+3. Click **Envoyer**. A message offers **Voir la conversation**.
 
-To force a manual sync:
-1. Go to `/manager/email/mailboxes`
-2. Click the mailbox row → click **Synchroniser maintenant**
+If the SDR sees "Aucune boîte", the mission has no default mailbox: a manager sets it in **Boîtes mail** (mailbox settings) or in the mission.
+
+### From contact or company drawers
+Each drawer has an **Emails** section showing the history of conversations with that contact or company. Click a conversation to open it.
+
+---
+
+## SDR / BD: Email Hub (`/sdr/emails`)
+- **Mes envois**: emails you sent, with status (sent, opened, replied, bounced), filters and CSV export. Click a row to see its content and open the conversation.
+- **Réception**: replies to your emails, plus the mailbox you own if you have one.
+- People who own a mailbox open on Réception; the others open on Mes envois.
+
+## Client portal: Emailing (`/client/portal/emailing`)
+Two tabs:
+- **Campagnes**: ReachInbox statistics.
+- **Emails envoyés**: emails the team sent for your missions, with filters and CSV export.
 
 ---
 
 ## Troubleshooting
 
 | Problem | Solution |
-|---------|----------|
-| Mailbox shows red health score | Open mailbox settings → check error log → usually requires reconnecting OAuth or fixing SMTP credentials |
-| Emails not sending | Check mailbox daily send limit → check if mailbox was disabled → check SMTP credentials |
-| Sequence emails not arriving | Verify sequence is ACTIVE → verify contact's enrollment is ACTIVE → check mailbox health |
-| Contact not receiving sequence | Check enrollment status → may have BOUNCED or UNSUBSCRIBED |
-| Gmail OAuth expired | Go to mailboxes → reconnect Gmail with fresh OAuth flow |
-| Open tracking not working | Check tracking pixel not blocked by recipient's email client → this is normal for some clients |
+|---|---|
+| A mailbox is in sync error | Boîtes mail → open the mailbox → read the last error → **Réessayer**. For Gmail or Outlook, reconnect the account (OAuth expired) |
+| An SDR can't send from the call screen | Check the mission has a default mailbox (mailbox settings → Missions) and the SDR is assigned to the mission |
+| Sequence emails aren't going out | The sequence must be **Active**, the contact **En cours**, and the mailbox under its limit and within the sending window. Also check the engine warning on Séquences |
+| A contact stopped receiving the sequence | Check their status: A répondu, Rebond, Désinscrit |
+| Open rate shows "—" | No email in the period was tracked (tracking off) |
+| A variable came out empty | Missing on the contact: use a fallback `{{firstName|Bonjour}}` |

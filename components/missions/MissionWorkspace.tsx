@@ -2276,7 +2276,7 @@ export function MissionWorkspace({
                                             ) : mailboxes.length === 0 ? (
                                                 <span className="text-slate-400 text-xs">
                                                     Aucune boîte mail disponible. Configurez-les dans{" "}
-                                                    <a href="/manager/email/mailboxes" className="text-primary-600 hover:underline">
+                                                    <a href="/manager/emails/mailboxes" className="text-primary-600 hover:underline">
                                                         Boîtes mail
                                                     </a>.
                                                 </span>
@@ -4208,7 +4208,7 @@ export function MissionWorkspace({
                                         Créez des templates partagés dans la section Email
                                     </p>
                                     <a
-                                        href="/manager/email/templates"
+                                        href={`/manager/emails/templates?new=1${mission?.id ? `&mission=${mission.id}` : ""}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"

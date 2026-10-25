@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { QuickEmailModal } from "@/components/email/QuickEmailModal";
+import { EmailHistoryPanel } from "@/components/email/EmailHistoryPanel";
 import { GooglePhoneSuggestion } from "@/components/enrichment/GooglePhoneSuggestion";
 import { hasUsablePhone } from "@/lib/phone-utils";
 
@@ -1487,6 +1488,13 @@ export function ContactDrawer({
                                 });
                         }}
                     />
+                )}
+
+                {/* Emails échangés (opens the inbox thread) */}
+                {!isEditing && !isCreating && contact && (
+                    <DrawerSection title="Emails">
+                        <EmailHistoryPanel contactId={contact.id} />
+                    </DrawerSection>
                 )}
 
                 {/* Historique des actions (result + note) */}

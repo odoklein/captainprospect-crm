@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        const defaultReturn = session.user.role === 'CLIENT' ? '/client/portal/email' : '/manager/email/mailboxes';
+        const defaultReturn = session.user.role === 'CLIENT' ? '/client/portal/emailing' : '/manager/emails/mailboxes';
 
         // Create state token with user ID for callback verification
         const state = Buffer.from(JSON.stringify({
