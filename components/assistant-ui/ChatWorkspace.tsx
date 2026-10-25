@@ -8,8 +8,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
     ArrowDown,
+    ArrowRight,
     ArrowUp,
     Check,
     ChevronDown,
@@ -28,6 +30,7 @@ import Markdown from "@/components/assistant-projet/Markdown";
 import { SecretCard, type RevealedSecret } from "@/components/vault/SecretCard";
 import { ToolTrace } from "./ToolTrace";
 import { ActionConfirmationCard } from "./ActionConfirmationCard";
+import { ThinkingStatus } from "./ThinkingStatus";
 import type { ClientOption, ConversationSummary, StoredAction, TraceEntry } from "./types";
 import type { UserAiUsageSummary } from "@/lib/ai/usage";
 
@@ -92,7 +95,10 @@ const formatEuros = (cost: number) => {
 };
 
 export function ChatWorkspace() {
+    const { data: session } = useSession();
+    const firstName = session?.user?.name?.split(" ")[0] ?? null;
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [pendingPrompt, setPendingPrompt] = useState("");
     const [clients, setClients] = useState<ClientOption[]>([]);
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
     const [usage, setUsage] = useState<UserAiUsageSummary | null>(null);
@@ -229,6 +235,7 @@ export function ChatWorkspace() {
             const controller = new AbortController();
             abortRef.current = controller;
             setInput("");
+            setPendingPrompt(prompt);
             setIsSending(true);
             setAtBottom(true);
             setMessages((prev) => [...prev, { id: `local-${Date.now()}`, role: "USER", content: prompt }]);
@@ -395,19 +402,24 @@ export function ChatWorkspace() {
             {/* History rail */}
             <aside
                 className={cn(
-                    "z-30 flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-50/80 transition-[margin,transform] duration-200",
+                    "z-30 flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-gradient-to-b from-accent-50/60 via-slate-50/80 to-slate-50/80 transition-[margin,transform] duration-200",
                     "absolute inset-y-0 left-0 md:relative",
                     sidebarOpen ? "translate-x-0 md:ml-0" : "-translate-x-full md:translate-x-0 md:-ml-64"
                 )}
                 aria-label="Historique des conversations"
             >
                 <div className="flex h-12 items-center justify-between px-3">
-                    <span className="text-sm font-semibold text-slate-900">Assistant</span>
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <span className="cp-ai-orb flex h-6 w-6 items-center justify-center rounded-md text-white">
+                            <AiMark className="h-3.5 w-3.5" />
+                        </span>
+                        Captain AI
+                    </span>
                     <button
                         type="button"
                         onClick={startNewChat}
                         title="Nouvelle conversation"
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-200/70 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-accent-700 hover:bg-accent-100/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400"
                     >
                         <Plus className="h-4 w-4" />
                     </button>
@@ -428,8 +440,8 @@ export function ChatWorkspace() {
                                         className={cn(
                                             "group relative flex items-center rounded-lg text-[13px] transition-colors",
                                             conv.id === conversationId
-                                                ? "bg-slate-200/80 text-slate-900"
-                                                : "text-slate-600 hover:bg-slate-200/50 hover:text-slate-900"
+                                                ? "bg-accent-100/80 font-medium text-accent-900"
+                                                : "text-slate-600 hover:bg-accent-50 hover:text-slate-900"
                                         )}
                                     >
                                         <button
@@ -511,8 +523,9 @@ export function ChatWorkspace() {
                         />
                     )}
 
-                    <span className="ml-auto hidden rounded-md border border-slate-200 px-1.5 py-0.5 font-mono text-[10.5px] text-slate-500 sm:inline">
-                        gpt-4o-mini
+                    <span className="ml-auto hidden items-center gap-1.5 rounded-full border border-accent-200 bg-accent-50 px-2.5 py-0.5 text-[11px] font-semibold text-accent-700 sm:inline-flex">
+                        <span className="h-1.5 w-1.5 rounded-full bg-accent-500" aria-hidden />
+                        Captain AI · gpt-4o-mini
                     </span>
                 </header>
 
@@ -523,8 +536,13 @@ export function ChatWorkspace() {
                                 <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
                             </div>
                         ) : isEmpty ? (
-                            <div className="mt-[12vh] px-2 md:mt-[18vh]">
-                                <h1 className="text-2xl font-semibold text-slate-900">Bonjour !</h1>
+                            <div className="mt-[10vh] px-2 md:mt-[15vh]">
+                                <span className="cp-ai-orb mb-5 flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg shadow-accent-500/25">
+                                    <AiMark className="h-6 w-6" />
+                                </span>
+                                <h1 className="bg-gradient-to-r from-primary-700 via-accent-600 to-accent-500 bg-clip-text text-3xl font-semibold text-transparent">
+                                    Bonjour{firstName ? ` ${firstName}` : ""} !
+                                </h1>
                                 <p className="mt-1 text-2xl text-slate-400">
                                     {activeClient
                                         ? `Que voulez-vous savoir sur ${activeClient.name} ?`
@@ -535,13 +553,13 @@ export function ChatWorkspace() {
                             messages.map((msg) =>
                                 msg.role === "USER" ? (
                                     <div key={msg.id} className="flex justify-end">
-                                        <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl bg-slate-900 px-4 py-2.5 text-sm text-white">
+                                        <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-gradient-to-br from-primary-600 to-primary-800 px-4 py-2.5 text-sm text-white shadow-sm">
                                             {msg.content}
                                         </div>
                                     </div>
                                 ) : (
-                                    <div key={msg.id} className="group flex gap-3">
-                                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-accent-600">
+                                    <div key={msg.id} className="group flex gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+                                        <span className="cp-ai-orb mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm shadow-accent-500/30">
                                             <AiMark className="h-4 w-4" />
                                         </span>
                                         <div className="min-w-0 flex-1 text-sm text-slate-800">
@@ -590,14 +608,11 @@ export function ChatWorkspace() {
                         )}
 
                         {isSending && (
-                            <div className="flex gap-3">
-                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-accent-600">
-                                    <AiMark className="h-4 w-4 animate-pulse" />
-                                </span>
-                                <span className="pt-1.5 text-sm text-slate-500">
-                                    Réflexion… {(elapsedMs / 1000).toFixed(1)} s
-                                </span>
-                            </div>
+                            <ThinkingStatus
+                                prompt={pendingPrompt}
+                                scopeName={activeClient?.name ?? null}
+                                elapsedMs={elapsedMs}
+                            />
                         )}
                     </div>
                 </div>
@@ -623,12 +638,13 @@ export function ChatWorkspace() {
                                     type="button"
                                     onClick={() => void sendMessage(`${s.title} ${s.detail}`)}
                                     className={cn(
-                                        "rounded-xl border border-slate-200 px-4 py-3 text-left text-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400",
+                                        "group relative rounded-xl border border-slate-200 bg-white px-4 py-3 pr-9 text-left text-sm transition-all hover:-translate-y-0.5 hover:border-accent-300 hover:bg-accent-50/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400",
                                         i > 1 && "hidden sm:block"
                                     )}
                                 >
                                     <span className="block font-medium text-slate-900">{s.title}</span>
                                     <span className="block text-slate-500">{s.detail}</span>
+                                    <ArrowRight className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-300 transition-colors group-hover:text-accent-500" />
                                 </button>
                             ))}
                         </div>
@@ -639,7 +655,7 @@ export function ChatWorkspace() {
                             e.preventDefault();
                             void sendMessage();
                         }}
-                        className="relative rounded-2xl border border-slate-200 bg-slate-50 transition-colors focus-within:border-slate-300 focus-within:bg-white"
+                        className="relative rounded-2xl border border-slate-200 bg-slate-50 shadow-sm transition-all focus-within:border-accent-300 focus-within:bg-white focus-within:ring-4 focus-within:ring-accent-100"
                     >
                         <textarea
                             ref={textareaRef}
@@ -653,7 +669,7 @@ export function ChatWorkspace() {
                             }}
                             rows={2}
                             autoFocus
-                            placeholder="Envoyer un message…"
+                            placeholder="Demandez à Captain AI…"
                             className="block max-h-[220px] min-h-[72px] w-full resize-none bg-transparent px-4 pb-11 pt-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
                         />
                         <div className="absolute bottom-2 right-2">
@@ -662,7 +678,7 @@ export function ChatWorkspace() {
                                     type="button"
                                     onClick={stopWaiting}
                                     title="Arrêter"
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-700"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-700 text-white hover:bg-primary-800"
                                 >
                                     <Square className="h-3 w-3 fill-current" />
                                 </button>
@@ -671,7 +687,7 @@ export function ChatWorkspace() {
                                     type="submit"
                                     disabled={!input.trim()}
                                     title="Envoyer"
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-30"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-accent-700 text-white shadow-sm shadow-accent-500/30 transition-transform hover:scale-105 disabled:scale-100 disabled:opacity-30 disabled:shadow-none"
                                 >
                                     <ArrowUp className="h-4 w-4" />
                                 </button>
@@ -679,7 +695,7 @@ export function ChatWorkspace() {
                         </div>
                     </form>
                     <p className="mt-2 text-center text-[11px] text-slate-400">
-                        L&apos;assistant peut se tromper : vérifiez les chiffres importants.
+                        Captain AI peut se tromper : vérifiez les chiffres importants.
                     </p>
                 </div>
             </section>

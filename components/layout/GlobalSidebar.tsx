@@ -22,6 +22,9 @@ import { UserRole } from "@prisma/client";
 import { formatCallbackDate } from "@/lib/utils/parseDateFromNote";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { ManagerSupportSidebarEntry } from "@/components/support/ManagerSupportSidebarEntry";
+import { AiMark } from "@/components/ui/AiMark";
+
+const CAPTAIN_AI_HREF = "/manager/assistant";
 
 interface GlobalSidebarProps {
     navigation: NavSection[];
@@ -503,6 +506,35 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                         <Search className="w-4 h-4" />
                     </button>
                 )}
+
+                {/* Captain AI — its own loud entry, not buried in a sub-menu */}
+                {userRole === "MANAGER" &&
+                    (isExpanded ? (
+                        <Link
+                            href={CAPTAIN_AI_HREF}
+                            onClick={closeMobile}
+                            className="cp-ai-trigger"
+                            data-active={pathname === CAPTAIN_AI_HREF}
+                        >
+                            <span className="cp-ai-trigger-icon">
+                                <AiMark className="w-3.5 h-3.5" />
+                            </span>
+                            <span>Captain AI</span>
+                            <span className="cp-ai-trigger-tag">IA</span>
+                        </Link>
+                    ) : (
+                        <Link
+                            href={CAPTAIN_AI_HREF}
+                            onClick={closeMobile}
+                            className="cp-ai-trigger-mini"
+                            data-active={pathname === CAPTAIN_AI_HREF}
+                            aria-label="Captain AI"
+                            title="Captain AI"
+                        >
+                            <AiMark className="w-4 h-4" />
+                            <span className="cp-ai-trigger-dot" aria-hidden />
+                        </Link>
+                    ))}
 
                 {/* Navigation */}
                 <nav className="cp-nav">
