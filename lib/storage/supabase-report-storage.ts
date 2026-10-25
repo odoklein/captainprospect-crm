@@ -1,16 +1,17 @@
 /**
  * Supabase Storage utility for analytics report PDFs.
- * Requires: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+ * Requires: SUPABASE_URL (or legacy NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY
  * Bucket "analytics-reports" must exist (create in Supabase Dashboard).
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { randomUUID } from "crypto";
+import { runtimeEnv } from "@/lib/runtime-config/env";
 
 const BUCKET = "analytics-reports";
 
 function getSupabaseAdmin(): SupabaseClient | null {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const url = runtimeEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL");
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !key) return null;
     return createClient(url, key);

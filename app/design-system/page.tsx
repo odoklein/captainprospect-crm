@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 import { SHADES, anchorShade, contrast } from "@/lib/brand/color";
 import { DesignSystemGallery, type RampInfo } from "@/components/design-system/DesignSystemGallery";
 
@@ -31,7 +31,8 @@ function rampInfo(name: string, role: string, ramp: Record<number, string>, seed
  * Living reference of the brand and the components. Public on purpose: a
  * clone checks its colours here before auth is even configured. Shows no data.
  */
-export default function DesignSystemPage() {
+export default async function DesignSystemPage() {
+    const brand = await getBrand();
     const p = brand.palette;
     const ramps = [
         rampInfo("primary", "Structure — sidebar, hero, primary actions", p.primary, p.primarySeed),

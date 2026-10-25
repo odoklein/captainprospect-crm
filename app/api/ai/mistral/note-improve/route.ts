@@ -11,7 +11,7 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 const noteImproveSchema = z.object({
     text: z.string().max(4000, 'Note trop longue').optional(),
@@ -44,6 +44,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         return errorResponse("Texte ou données d'appel requis", 400);
     }
 
+    const brand = await getBrand();
     const systemPrompt = `Tu es un assistant IA expert dans ${brand.name}, un CRM de prospection commerciale B2B.
 Ta mission UNIQUE est de produire un RÉSUMÉ synthétique, factuel, direct et précis d'un échange commercial pour le compte-rendu interne du commercial (SDR).
 

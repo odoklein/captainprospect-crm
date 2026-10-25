@@ -1,5 +1,5 @@
 // User roles in the system
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 export type UserRole =
     | "SDR"
     | "BOOKER"
@@ -97,11 +97,17 @@ export const URGENCY_LABELS: Record<Urgency, string> = {
     LONG: "Long terme",
 };
 
-export const LIST_TYPE_LABELS: Record<ListType, string> = {
-    SUZALI: `Liste ${brand.companyShortName}`,
-    CLIENT: "Liste Client",
-    MIXED: "Liste mixte",
-};
+/** List type labels in the given brand (server: getBrand(), client: useBrand()). SUZALI = the agency's own lists. */
+export function listTypeLabels(brand: Brand = defaultBrand): Record<ListType, string> {
+    return {
+        SUZALI: `Liste ${brand.companyShortName}`,
+        CLIENT: "Liste Client",
+        MIXED: "Liste mixte",
+    };
+}
+
+/** Default-brand snapshot; prefer listTypeLabels(brand). */
+export const LIST_TYPE_LABELS: Record<ListType, string> = listTypeLabels();
 
 export const STATUS_LABELS: Record<CompletenessStatus, string> = {
     INCOMPLETE: "Incomplet",

@@ -1,5 +1,5 @@
 import type { VaultAuditAction, VaultCredentialType } from "@prisma/client";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 
 /**
  * What the browser is allowed to know about a credential.
@@ -44,12 +44,18 @@ export interface VaultAuditEventDTO {
     createdAt: string;
 }
 
-export const VAULT_TYPE_LABELS: Record<VaultCredentialType, string> = {
-    PORTAL: `Portail ${brand.name}`,
-    EMAIL: "Boîte email",
-    CALENDAR: "Agenda",
-    CRM_EXTERNAL: "CRM externe",
-    LINKEDIN: "LinkedIn",
-    PHONE_TOOL: "Téléphonie",
-    OTHER: "Autre",
-};
+/** Credential type labels in the given brand (server: getBrand(), client: useBrand()). */
+export function vaultTypeLabels(brand: Brand = defaultBrand): Record<VaultCredentialType, string> {
+    return {
+        PORTAL: `Portail ${brand.name}`,
+        EMAIL: "Boîte email",
+        CALENDAR: "Agenda",
+        CRM_EXTERNAL: "CRM externe",
+        LINKEDIN: "LinkedIn",
+        PHONE_TOOL: "Téléphonie",
+        OTHER: "Autre",
+    };
+}
+
+/** Default-brand snapshot; prefer vaultTypeLabels(brand). */
+export const VAULT_TYPE_LABELS: Record<VaultCredentialType, string> = vaultTypeLabels();

@@ -4,9 +4,10 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, Eye, EyeOff, ArrowLeft, AlertCircle, CheckCircle, Loader2, ShieldCheck } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 function ResetPasswordForm() {
+    const brand = useBrand();
     const router = useRouter();
     const searchParams = useSearchParams();
     const token = searchParams.get("token") || "";

@@ -4,7 +4,7 @@ import { callProvider } from "./provider";
 import { acquireAlloSlot } from "./allo-semaphore";
 import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
 import { DateTime } from "luxon";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 const DEFAULT_COUNTRY = (process.env.PHONE_DEFAULT_COUNTRY ?? "FR") as Parameters<typeof isValidPhoneNumber>[1];
 const ENRICHMENT_DAY_TZ = process.env.CALL_ENRICHMENT_DAY_TZ ?? "Europe/Paris";
@@ -72,6 +72,7 @@ function relativeWindow(date: Date, beforeH: number, afterH: number) {
 async function generateFicheFromTranscription(transcription: string): Promise<Record<string, string> | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || !transcription.trim()) return null;
+  const brand = await getBrand();
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

@@ -32,6 +32,7 @@ import {
     type ToolTraceEntry,
 } from "@/lib/ai/tools/loop";
 import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
+import { getBrand } from "@/lib/brand/server";
 
 const ChatBody = z.object({
     conversationId: z.string().min(1),
@@ -117,7 +118,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
     const depth = body.depth ?? "standard";
     const systemPrompt = [
-        getAssistantSystemPrompt(ctx),
+        getAssistantSystemPrompt(ctx, await getBrand()),
         buildToolUsagePrompt(ctx, depth),
         buildReasoningPrompt(depth),
     ].join("\n\n");

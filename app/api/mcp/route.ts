@@ -5,6 +5,7 @@ import { authenticateApiKey, withUrlKey, type Principal } from "@/lib/api-v1/aut
 import { ApiError } from "@/lib/api-v1/errors";
 import { errorBody, recordAccess } from "@/lib/api-v1/handler";
 import { buildMcpServer } from "@/lib/api-v1/mcp-server";
+import { getBrand } from "@/lib/brand/server";
 
 // ============================================
 // POST /api/mcp — remote MCP server (Streamable HTTP, stateless)
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(errorBody("internal_error", "Internal server error"), { status: 500 });
   }
 
-  const server = buildMcpServer(principal, prisma, (entry) => recordAccess(principal, { ...entry, request: req }));
+  const { name: productName } = await getBrand();
+  const server = buildMcpServer(principal, prisma, (entry) => recordAccess(principal, { ...entry, request: req }), productName);
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
   await server.connect(transport);
   return transport.handleRequest(req);

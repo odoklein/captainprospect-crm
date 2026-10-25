@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { getBrand } from '@/lib/brand/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 import {
@@ -32,7 +33,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         },
     });
 
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = (await getBrand()).appUrl;
     const shareUrl = `${baseUrl}/shared/report/${token}`;
 
     return successResponse({ url: shareUrl, token: link.token, expiresAt: link.expiresAt });

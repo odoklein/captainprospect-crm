@@ -1,4 +1,4 @@
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 /** Self-contained HTML used by Chromium to render the analytics PDF. */
 
 export interface AnalyticsReportTemplateData {
@@ -30,7 +30,7 @@ function statusLabel(status: string): string {
     return status.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export function getAnalyticsReportHtml(data: AnalyticsReportTemplateData): string {
+export function getAnalyticsReportHtml(data: AnalyticsReportTemplateData, brand: Brand = defaultBrand): string {
     const k = data.kpis;
     const talkMinutes = Math.round(k.totalTalkTime / 60);
     const statuses = Object.entries(data.statusBreakdown).sort(([, a], [, b]) => b - a).slice(0, 8);

@@ -16,7 +16,7 @@ import { KeyRound, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { Badge, Button, Input, Modal, ModalFooter, PageHeader, Select, useToast } from "@/components/ui";
 import AssistantProjetPanel from "@/components/assistant-projet/AssistantProjetPanel";
 import VaultCredentialList, { type VaultCredential } from "@/components/vault/VaultCredentialList";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 interface ScopeClient {
     id: string;
@@ -46,8 +46,8 @@ interface ActivityEvent {
     createdAt: string;
 }
 
-const TYPE_OPTIONS = [
-    { value: "PORTAL", label: `Portail ${brand.name}` },
+const typeOptions = (brandName: string) => [
+    { value: "PORTAL", label: `Portail ${brandName}` },
     { value: "EMAIL", label: "Boîte email" },
     { value: "CALENDAR", label: "Agenda" },
     { value: "CRM_EXTERNAL", label: "CRM externe" },
@@ -68,6 +68,7 @@ const EMPTY_FORM = {
 };
 
 export default function AccessVaultPage() {
+    const brand = useBrand();
     const { success, error: toastError } = useToast();
 
     const [clients, setClients] = useState<ScopeClient[]>([]);
@@ -280,7 +281,7 @@ export default function AccessVaultPage() {
                         label="Type"
                         value={form.type}
                         onChange={(value) => setForm((f) => ({ ...f, type: String(value) }))}
-                        options={TYPE_OPTIONS}
+                        options={typeOptions(brand.name)}
                     />
                     <Input
                         label="Identifiant"

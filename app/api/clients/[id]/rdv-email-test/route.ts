@@ -12,7 +12,7 @@ import {
   buildRdvEmailFromCustomTemplate,
   buildRdvNotificationEmail,
 } from "@/lib/email/templates/rdv-notification";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 const schema = z
   .object({
@@ -120,6 +120,7 @@ export const POST = withErrorHandler(
       }),
     ]);
 
+    const brand = await getBrand();
     const baseData = {
       contactFirstName: "Marie",
       contactLastName: "Dupont",
@@ -138,9 +139,10 @@ export const POST = withErrorHandler(
       ? buildRdvEmailFromCustomTemplate(
           customTemplate.subject,
           customTemplate.bodyHtml,
-          baseData
+          baseData,
+          brand
         )
-      : buildRdvNotificationEmail(baseData);
+      : buildRdvNotificationEmail(baseData, brand);
 
     const sent = await sendTransactionalEmail({
       to,

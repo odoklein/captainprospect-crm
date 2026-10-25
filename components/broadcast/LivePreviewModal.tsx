@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Monitor, Smartphone, Braces, X, RefreshCw } from "lucide-react";
 import { EmailBlock } from "@/lib/broadcast/types";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 interface LivePreviewModalProps {
   open: boolean;
@@ -24,6 +24,7 @@ export function LivePreviewModal({
   rawHtml,
   accentColor = "#4f46e5",
 }: LivePreviewModalProps) {
+  const brand = useBrand();
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [useSampleData, setUseSampleData] = useState(true);
   const [loading, setLoading] = useState(false);

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button, Input, Badge } from "@/components/ui";
 import Link from "next/link";
+import { useRuntimeConfig } from "@/lib/runtime-config/client";
 
 interface CompanyIssuer {
     id?: string;
@@ -81,6 +82,7 @@ function FormField({ label, required, hint, children }: { label: string; require
 }
 
 export default function BillingSettingsPage() {
+    const runtimeConfig = useRuntimeConfig();
     const { success, error: showError } = useToast();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
@@ -388,12 +390,12 @@ export default function BillingSettingsPage() {
                         {
                             name: "Qonto",
                             desc: "Rapprochement automatique des paiements",
-                            enabled: process.env.NEXT_PUBLIC_QONTO_ENABLED === "true",
+                            enabled: runtimeConfig.features.qonto,
                         },
                         {
                             name: "Pappers",
                             desc: "Recherche d'entreprises françaises",
-                            enabled: process.env.NEXT_PUBLIC_PAPPERS_ENABLED === "true",
+                            enabled: runtimeConfig.features.pappers,
                         },
                     ].map((integration) => (
                         <div

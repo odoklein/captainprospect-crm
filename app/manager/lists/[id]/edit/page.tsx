@@ -9,6 +9,7 @@ import {
     Save,
 } from "lucide-react";
 import Link from "next/link";
+import { useBrand } from "@/lib/brand/client";
 
 // ============================================
 // TYPES
@@ -33,6 +34,7 @@ interface Mission {
 
 export default function EditListPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
+    const brand = useBrand();
     const { success, error: showError } = useToast();
 
     const [listId, setListId] = useState<string>("");
@@ -201,7 +203,7 @@ export default function EditListPage({ params }: { params: Promise<{ id: string 
                         <Select
                             label="Type *"
                             options={[
-                                { value: "SUZALI", label: "Suzali" },
+                                { value: "SUZALI", label: brand.companyShortName },
                                 { value: "CLIENT", label: "Client" },
                                 { value: "MIXED", label: "Mixte" },
                             ]}

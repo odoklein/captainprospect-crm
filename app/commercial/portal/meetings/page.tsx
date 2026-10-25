@@ -16,8 +16,8 @@ import {
 } from "@/lib/meetings/noShowWindow";
 import { getMeetingCancellationLabel } from "@/lib/constants/meetingCancellationReasons";
 import { MeetingsSkeleton } from "@/components/client/skeletons";
-import { brand } from "@/lib/brand";
-import { brandIcsProdId } from "@/lib/brand";
+import { brandIcsProdId, type Brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 /* ═══════════════════════════════════════════════════════════════
    DESIGN TOKENS  — single source of truth
@@ -557,7 +557,7 @@ const getChannelLabel = (channel?: string | null) => {
 /* ═══════════════════════════════════════════════════════════════
    EXPORT UTILS
 ═══════════════════════════════════════════════════════════════ */
-function genICS(m: Meeting) {
+function genICS(m: Meeting, brand: Brand) {
   const nameParts = m.contact ? [m.contact.firstName, m.contact.lastName].filter(Boolean) as string[] : [];
   const name = nameParts.join(" ") || m.company?.name || "Contact entreprise";
   const dt = m.callbackDate ? new Date(m.callbackDate) : new Date();
@@ -565,7 +565,7 @@ function genICS(m: Meeting) {
   const f  = (d: Date)   => `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}00`;
   const end = new Date(dt.getTime()+30*60000);
   const companyName = m.contact?.company?.name ?? m.company?.name ?? "Client";
-  const txt = ["BEGIN:VCALENDAR","VERSION:2.0",brandIcsProdId(),
+  const txt = ["BEGIN:VCALENDAR","VERSION:2.0",brandIcsProdId("RDV", brand),
     "BEGIN:VEVENT",`DTSTART:${f(dt)}`,`DTEND:${f(end)}`,
     `SUMMARY:RDV - ${name} (${companyName})`,
     `DESCRIPTION:${(m.note||"").replace(/\n/g,"\\n").slice(0,200)}`,
@@ -1300,6 +1300,7 @@ function FbModal({ m, onClose, out, recontact, note, done, sub, onOut, onReconta
   out:string; recontact:string; note:string; done:boolean; sub:boolean;
   onOut:(v:string)=>void; onRecontact:(v:string)=>void; onNote:(v:string)=>void; onSubmit:()=>void;
 }) {
+  const brand = useBrand();
   const name = m.contact ? [m.contact.firstName,m.contact.lastName].filter(Boolean).join(" ") || "Contact" : m.company?.name ?? "Contact entreprise";
   const companyName = m.contact?.company?.name ?? m.company?.name ?? "Entreprise inconnue";
   const isEditing = !!m.meetingFeedback;

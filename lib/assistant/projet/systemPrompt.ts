@@ -3,11 +3,11 @@
 // ============================================
 
 import type { AssistantContext } from "@/lib/ai/tools/types";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 
 export const ASSISTANT_PROJET_PROMPT_VERSION = "projet-v1";
 
-export function getAssistantSystemPrompt(ctx: AssistantContext): string {
+export function getAssistantSystemPrompt(ctx: AssistantContext, brand: Brand = defaultBrand): string {
     const project = ctx.project;
 
     return `Tu es l'Assistant Projet de ${brand.name}, un CRM de prospection B2B français.

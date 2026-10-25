@@ -5,6 +5,7 @@ import { X, Sparkles } from "lucide-react";
 import { AiMark } from "@/components/ui/AiMark";
 import { AssistantThread } from "./Thread";
 import type { ClientOption } from "./types";
+import { useBrand } from "@/lib/brand/client";
 
 interface AssistantModalProps {
     fixedClientId?: string;
@@ -17,6 +18,7 @@ export function AssistantModal({
     fixedMissionId,
     onDataChanged,
 }: AssistantModalProps) {
+    const brand = useBrand();
     const [isOpen, setIsOpen] = useState(false);
     const [clients, setClients] = useState<ClientOption[]>([]);
     const [clientId, setClientId] = useState(fixedClientId ?? "");
@@ -60,7 +62,7 @@ export function AssistantModal({
                     <div
                         className="fixed bottom-24 right-5 z-[77] w-[min(480px,calc(100vw-32px))] h-[min(680px,calc(100vh-120px))] shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150"
                         role="dialog"
-                        aria-label="Assistant IA Captain Prospect"
+                        aria-label={`Assistant IA ${brand.name}`}
                     >
                         <AssistantThread
                             clientId={clientId}

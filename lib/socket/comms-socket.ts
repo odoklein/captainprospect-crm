@@ -1,6 +1,8 @@
 /**
  * Singleton Socket.IO client for CRM comms (VPS at 173.212.231.174, port 4000).
- * Connects over WebSocket only. Set NEXT_PUBLIC_SOCKET_URL to override (e.g. for production behind a domain).
+ * Connects over WebSocket only. URL and path come from the instance runtime config
+ * (SOCKET_URL / SOCKET_PATH, or the legacy NEXT_PUBLIC_ names, read on the server at
+ * request time — lib/runtime-config), so one image serves every instance.
  * When the app is served over HTTPS (e.g. Vercel), the socket URL is forced to HTTPS so the browser uses wss://
  * and does not block mixed content. For production, use a URL with valid TLS (e.g. https://suzalink.com).
  */
@@ -11,16 +13,7 @@ import type {
   TypingPayload,
   ReceiveMessagePayload,
 } from "./types";
-
-const DEFAULT_URL =
-  typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SOCKET_URL
-    ? process.env.NEXT_PUBLIC_SOCKET_URL
-    : "http://173.212.231.174:4000";
-/** Socket.IO server default path is /socket.io. Override with NEXT_PUBLIC_SOCKET_PATH if your server uses a different path (e.g. /socket). */
-const DEFAULT_PATH =
-  typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SOCKET_PATH
-    ? process.env.NEXT_PUBLIC_SOCKET_PATH
-    : "/socket.io";
+import { getRuntimeConfig } from "@/lib/runtime-config/client";
 
 /** Use HTTPS when the page is HTTPS to avoid mixed-content blocking (HTTPS page → ws://). */
 function getEffectiveUrl(url: string): string {
@@ -52,8 +45,10 @@ let socket: Socket | null = null;
  * Use connectCommsSocket() to connect and register callbacks.
  */
 function getSocket(options: { url?: string; path?: string } = {}): Socket {
-  const url = getEffectiveUrl(options.url ?? DEFAULT_URL);
-  const path = options.path ?? DEFAULT_PATH;
+  // Read at connect time, not at import: the runtime config is per instance.
+  const runtime = getRuntimeConfig().socket;
+  const url = getEffectiveUrl(options.url ?? runtime.url);
+  const path = options.path ?? runtime.path;
   if (!socket) {
     socket = io(url, {
       path,

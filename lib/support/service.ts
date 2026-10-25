@@ -25,7 +25,7 @@ import type {
 } from "./types";
 import { SUPPORT_ATTACHMENT_MAX_COUNT, supportAttachmentUrl } from "./types";
 import { canClientSideUserAccess, clientSideConversationWhere } from "./access";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 const MESSAGE_PAGE_SIZE = 200;
 
@@ -886,6 +886,7 @@ export async function notifyClientByEmailIfEnabled(
     if (!clientUser?.email) return;
 
     const { sendTransactionalEmail } = await import("@/lib/email/transactional");
+    const brand = await getBrand();
     const preview = messagePreview.length > 200
         ? messagePreview.slice(0, 199) + "…"
         : messagePreview;

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { buildExportQuery } from "@/lib/prospection-export/filters";
 import type { ExportChannel, TreatmentFilter } from "@/lib/prospection-export/types";
 import type { ExportPreview } from "@/lib/prospection-export/workbook";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -140,6 +140,7 @@ function Chip({ active, onClick, disabled, children, count }: {
 export function ProspectionExportModal({
     isOpen, onClose, missionId, missionName, sdrOptions, initial, onToast,
 }: ProspectionExportModalProps) {
+    const brand = useBrand();
     const [selectedLists, setSelectedLists] = useState<string[] | null>(initial.listIds);
     const [treatment, setTreatment] = useState<TreatmentFilter>("all");
     const [statuses, setStatuses] = useState<string[]>(initial.statuses);

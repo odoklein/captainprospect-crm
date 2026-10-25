@@ -6,6 +6,7 @@ import {
     RdvNotificationData,
 } from "@/lib/email/templates/rdv-notification";
 import { emitCrmEvent } from "@/lib/integrations/messaging/events";
+import { getBrand } from "@/lib/brand/server";
 
 interface CreateNotificationParams {
     userId: string;
@@ -542,6 +543,7 @@ export async function sendNewRdvEmailNotification(
         // The manager-editable template is the "new RDV" wording: reschedules and
         // cancellations always use the built-in layout.
         const useCustomTemplate = Boolean(customTemplate) && (!data.variant || data.variant === "new");
+        const brand = await getBrand();
 
         const interlocuteurRecipients = new Set<string>();
         if (interlocuteur) {
@@ -572,8 +574,8 @@ export async function sendNewRdvEmailNotification(
         if (recipients.size > 0) {
             // Use custom DB template if available, otherwise use default dynamic builder
             const { subject, html } = useCustomTemplate && customTemplate
-                ? buildRdvEmailFromCustomTemplate(customTemplate.subject, customTemplate.bodyHtml, data)
-                : buildRdvNotificationEmail(data);
+                ? buildRdvEmailFromCustomTemplate(customTemplate.subject, customTemplate.bodyHtml, data, brand)
+                : buildRdvNotificationEmail(data, brand);
 
             await Promise.allSettled(
                 Array.from(recipients).map((email) =>
@@ -591,9 +593,10 @@ export async function sendNewRdvEmailNotification(
                 ? buildRdvEmailFromCustomTemplate(
                       customTemplate.subject,
                       customTemplate.bodyHtml,
-                      interlocuteurData
+                      interlocuteurData,
+                      brand
                   )
-                : buildRdvNotificationEmail(interlocuteurData);
+                : buildRdvNotificationEmail(interlocuteurData, brand);
 
             await Promise.allSettled(
                 Array.from(interlocuteurRecipients).map((email) =>

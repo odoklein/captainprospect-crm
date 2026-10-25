@@ -19,7 +19,7 @@ import { SegmentedControl, Shimmer, StatusPill } from "@/components/accueil/Accu
 import {
     DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SaveBar, SettingsCard, SettingsLinkRow,
 } from "@/components/settings/SettingsUI";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 async function call<T = unknown>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, init);
@@ -275,6 +275,7 @@ export function EmailsPanel() {
 }
 
 function SenderCard({ onLoaded }: { onLoaded: (v: { from: string; source: "settings" | "env" | "none" }) => void }) {
+    const brand = useBrand();
     const toast = useToast();
     const [from, setFrom] = useState("");
     const [source, setSource] = useState<"settings" | "env" | "none" | null>(null);

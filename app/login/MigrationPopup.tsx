@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 export default function MigrationPopup() {
+    const brand = useBrand();
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {

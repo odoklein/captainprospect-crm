@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 interface Props {
     params: Promise<{ token: string }>;
@@ -13,6 +13,7 @@ const MONTH_NAMES = [
 
 export default async function SharedReportPage({ params }: Props) {
     const { token } = await params;
+    const brand = await getBrand();
 
     const link = await prisma.sharedReportLink.findUnique({
         where: { token },

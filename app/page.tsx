@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions, getRedirectPath } from "@/lib/auth";
+import { getBrand } from "@/lib/brand/server";
 import { Button } from "@/components/ui";
 import { Zap, ArrowRight, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +24,7 @@ export default async function HomePage() {
     // Redirect to login page for visitors
     redirect('/login');
 
+    const brand = await getBrand();
     return (
         <div className="min-h-screen flex flex-col bg-[#0f172a] text-slate-100 overflow-hidden selection:bg-indigo-500/30">
             {/* Background Effects */}
@@ -39,7 +41,7 @@ export default async function HomePage() {
                         <Zap className="w-6 h-6 text-white" />
                     </div>
                     <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-                        Suzalink
+                        {brand.name}
                     </span>
                 </div>
                 <Link href="/login">
@@ -69,7 +71,7 @@ export default async function HomePage() {
 
                     <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed">
                         La plateforme centrale pour piloter, exécuter et analyser
-                        l&apos;ensemble de la stratégie de croissance de Suzali Conseil.
+                        l&apos;ensemble de la stratégie de croissance de {brand.companyName}.
                     </p>
 
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -125,7 +127,7 @@ export default async function HomePage() {
             {/* Footer */}
             <footer className="relative z-10 w-full border-t border-slate-800/50 bg-[#0f172a]/50 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between text-slate-500 text-sm">
-                    <p>© 2026 Suzalink. Tous droits réservés.</p>
+                    <p>© {new Date().getFullYear()} {brand.companyName}. Tous droits réservés.</p>
                     <div className="flex items-center gap-4">
                         <span>Sécurisé par SSL</span>
                         <div className="w-1 h-1 rounded-full bg-slate-700" />

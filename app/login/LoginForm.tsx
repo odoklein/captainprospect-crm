@@ -12,7 +12,7 @@ import {
     Check,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 interface SavedAccount {
     email: string;
@@ -80,6 +80,7 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 export default function LoginForm() {
+    const brand = useBrand();
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
