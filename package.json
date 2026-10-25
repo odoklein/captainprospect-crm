@@ -43,6 +43,8 @@
     "test:oauth-relay": "tsx --test lib/oauth-relay/oauth-relay.test.ts",
     "test:socket-handshake": "tsx --test lib/socket/handshake.test.ts",
     "test:license": "tsx --test lib/license/license.test.ts",
+    "test:provision-agency": "tsx --test scripts/provision-agency/provision.test.ts",
+    "provision-agency": "tsx scripts/provision-agency/index.ts",
     "test:hr": "tsx --test lib/hr/hr-calculation-service.test.ts",
     "test:hr:all": "tsx --test lib/hr/hr-calculation-service.test.ts lib/hr/hr-integration.test.ts"
   },

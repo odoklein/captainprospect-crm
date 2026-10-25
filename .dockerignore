@@ -17,3 +17,12 @@ lead-hub
 coverage
 tsconfig.tsbuildinfo
 *.log
+# Not part of the app: working files, notes and exports (the build context was ~100 MB of them).
+work
+extracted_leads
+sqsq
+.github
+docs
+Screenshot*.png
+/*.pdf
+/*.html

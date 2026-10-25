@@ -1,0 +1,118 @@
+# One image for every agency instance.
+#
+#   push to main  -> ghcr.io/<repo>:<sha7> and :main, plus the migrate image
+#                    ghcr.io/<repo>-migrate:<sha7> and :main
+#   tag v2026.11.1 -> the same, tagged with the release name (and :latest)
+#
+# Agencies are upgraded to a release tag, never to :main (docs/AGENCY_PROVISIONING_PLAN.md).
+# Nothing agency-specific is baked in: brand, URLs and keys come from each
+# instance's database and container env (docs/WHITE_LABEL.md).
+#
+# Packages are private by default. Dokploy pulls them with a token that has
+# read:packages (docs/PROVISION_AGENCY.md, "Registry access").
+
+name: image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  test:
+    name: white-label tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts --fetch-retries=5
+      # Prisma types are needed by the tests that import @prisma/client.
+      - run: npx prisma generate
+      - run: |
+          npm run test:license
+          npm run test:export
+          npm run test:oauth-relay
+          npm run test:socket-handshake
+          npm run test:provision-agency
+
+  build:
+    name: build and push
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Short sha
+        id: meta
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags (runtime)
+        id: tags
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.meta.outputs.sha }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Tags (migrate)
+        id: tags_migrate
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}-migrate
+          tags: |
+            type=raw,value=${{ steps.meta.outputs.sha }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      # Migrate image first: it is the cheap one and shares the deps stage cache.
+      - name: Build and push migrate image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrate
+          push: true
+          build-args: GIT_SHA=${{ steps.meta.outputs.sha }}
+          tags: ${{ steps.tags_migrate.outputs.tags }}
+          labels: ${{ steps.tags_migrate.outputs.labels }}
+          cache-from: type=gha,scope=deps
+          cache-to: type=gha,scope=deps,mode=max
+
+      - name: Build and push runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: GIT_SHA=${{ steps.meta.outputs.sha }}
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: ${{ steps.tags.outputs.labels }}
+          cache-from: type=gha,scope=deps
+          cache-to: type=gha,scope=runtime,mode=max
