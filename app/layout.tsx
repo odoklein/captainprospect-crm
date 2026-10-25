@@ -9,6 +9,9 @@ import { brandFontVariables } from "@/brand/fonts";
 import { BrandStyle } from "@/components/brand/BrandStyle";
 import { RuntimeConfigScript } from "@/components/runtime/RuntimeConfigScript";
 import { getPublicRuntimeConfig } from "@/lib/runtime-config/server";
+import { getLicense } from "@/lib/license/server";
+import { isSuspended } from "@/lib/license/resolve";
+import { SuspendedBanner } from "@/components/license/SuspendedBanner";
 
 // The brand is this instance's BrandSettings row (cached 60 s in lib/brand/server),
 // so every page renders per request: no build-time snapshot of the default brand.
@@ -46,6 +49,7 @@ export default async function RootLayout({
   await connection();
   const brand = await getBrand();
   const runtimeConfig = getPublicRuntimeConfig(brand.appUrl);
+  const license = await getLicense();
   return (
     <html lang={brand.locale.lang} className={brandFontVariables} suppressHydrationWarning>
       <head>
@@ -56,6 +60,7 @@ export default async function RootLayout({
         <BrandProvider brand={brand}>
           <Providers>{children}</Providers>
         </BrandProvider>
+        {isSuspended(license) && <SuspendedBanner reason={license.suspendedReason} />}
         {process.env.VERCEL === "1" && <Analytics />}
       </body>
     </html>

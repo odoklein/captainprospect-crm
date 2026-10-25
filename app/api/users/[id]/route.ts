@@ -10,6 +10,8 @@ import {
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
+import { checkSeatFor } from '@/lib/license/server';
+import { usesSeat } from '@/lib/license/resolve';
 
 // ============================================
 // GET /api/users/[id] - Get user details
@@ -115,6 +117,7 @@ export const PUT = withErrorHandler(async (
             email: true,
             name: true,
             role: true,
+            isActive: true,
             clientId: true,
             alloPhoneNumber: true,
             preferences: true,
@@ -123,6 +126,12 @@ export const PUT = withErrorHandler(async (
 
     if (!existingUser) {
         return errorResponse('Utilisateur non trouvé', 404);
+    }
+
+    // Moving an active client-portal user to a staff role takes a seat
+    if (data.role && existingUser.isActive && !usesSeat(existingUser.role) && usesSeat(data.role)) {
+        const seats = await checkSeatFor(data.role);
+        if (!seats.ok) return errorResponse(seats.message, 403);
     }
 
     // Check email uniqueness if changing

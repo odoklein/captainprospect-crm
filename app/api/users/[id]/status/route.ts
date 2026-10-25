@@ -10,6 +10,7 @@ import {
 import { z } from 'zod';
 import { revokeAllUserSessions } from '@/lib/user-session';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
+import { checkSeatFor } from '@/lib/license/server';
 
 // ============================================
 // PUT /api/users/[id]/status - Toggle user active status
@@ -35,11 +36,17 @@ export const PUT = withErrorHandler(async (
     // Check user exists
     const user = await prisma.user.findUnique({
         where: { id },
-        select: { id: true, name: true, role: true },
+        select: { id: true, name: true, role: true, isActive: true },
     });
 
     if (!user) {
         return errorResponse('Utilisateur non trouvé', 404);
+    }
+
+    // Re-activating takes a seat back
+    if (data.isActive && !user.isActive) {
+        const seats = await checkSeatFor(user.role);
+        if (!seats.ok) return errorResponse(seats.message, 403);
     }
 
     // Prevent deactivating other managers (optional security measure)

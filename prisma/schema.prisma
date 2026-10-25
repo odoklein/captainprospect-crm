@@ -3763,6 +3763,24 @@ model BrandSettings {
 }
 
 // ============================================
+// INSTANCE LICENSE (white-label control plane) — one row, id = 'default'.
+// Pushed by the Console through PUT /api/instance/license. No row = no limit,
+// everything on (the original Captain Prospect deployment).
+// ============================================
+
+model InstanceLicense {
+  id              String   @id @default("default")
+  status          String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  plan            String? // label only ("starter", "pro"…)
+  seatLimit       Int? // staff seats (every active non-CLIENT user); null = unlimited
+  features        Json     @default("{}") // { callVault?: bool, … } — a missing key means enabled
+  aiMonthlyQuota  Int? // reserved for usage metering; null = unlimited
+  suspendedReason String?
+  updatedAt       DateTime @updatedAt
+  updatedBy       String? // "instance-api"
+}
+
+// ============================================
 // SYSTEM EMAIL TEMPLATES (manager-editable)
 // ============================================
 

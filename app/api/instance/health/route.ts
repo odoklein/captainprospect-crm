@@ -2,9 +2,10 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { runtimeEnv } from "@/lib/runtime-config/env";
 import { guardInstanceRequest, instanceJson } from "@/lib/instance/respond";
+import { getLicense, getSeatUsage } from "@/lib/license/server";
 
 // Control-plane health probe (HMAC-signed like the rest of /api/instance/*).
-//   GET → { version, schemaVersion, brandUpdatedAt, dbOk }
+//   GET → { version, schemaVersion, brandUpdatedAt, dbOk, license: { status, plan, seatLimit, seatsUsed } }
 // Never throws: a database problem is reported as dbOk:false with 200, so the
 // control plane can tell "container up, DB down" from "container down".
 export const dynamic = "force-dynamic";
@@ -41,6 +42,12 @@ async function dbOk(): Promise<boolean> {
     }
 }
 
+async function licenseSummary(dbUp: boolean) {
+    const license = await getLicense();
+    const seats = dbUp ? await getSeatUsage() : { used: null, limit: license.seatLimit };
+    return { status: license.status, plan: license.plan, seatLimit: license.seatLimit, seatsUsed: seats.used };
+}
+
 export async function GET(request: NextRequest) {
     const guard = await guardInstanceRequest(request, "health");
     if (!guard.ok) return guard.response;
@@ -52,5 +59,6 @@ export async function GET(request: NextRequest) {
         schemaVersion,
         brandUpdatedAt: brandUpdated,
         dbOk: ok,
+        license: await licenseSummary(ok),
     });
 }

@@ -39,6 +39,10 @@
     "test:stats": "tsx --test lib/stats/metrics.test.ts",
     "test:api-v1": "tsx --test lib/api-v1/api-v1.test.ts lib/api-v1/smart.test.ts lib/api-v1/sql.pglite.test.ts",
     "api-key:create": "tsx scripts/create-api-key.ts",
+    "test:export": "tsx --test lib/export/export.test.ts",
+    "test:oauth-relay": "tsx --test lib/oauth-relay/oauth-relay.test.ts",
+    "test:socket-handshake": "tsx --test lib/socket/handshake.test.ts",
+    "test:license": "tsx --test lib/license/license.test.ts",
     "test:hr": "tsx --test lib/hr/hr-calculation-service.test.ts",
     "test:hr:all": "tsx --test lib/hr/hr-calculation-service.test.ts lib/hr/hr-integration.test.ts"
   },

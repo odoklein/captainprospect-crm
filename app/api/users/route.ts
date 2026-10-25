@@ -12,6 +12,7 @@ import {
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { resolveDefaultSdrManagerId } from '@/lib/hr/default-manager';
+import { checkSeatFor } from '@/lib/license/server';
 
 // ============================================
 // GET /api/users - List users
@@ -129,6 +130,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     if (existingUser) {
         return errorResponse('Un utilisateur avec cet email existe déjà', 400);
     }
+
+    // Seat limit of the instance license (client-portal users take no seat)
+    const seats = await checkSeatFor(data.role);
+    if (!seats.ok) return errorResponse(seats.message, 403);
 
     // Generate password if not provided
     const password = data.password || Math.random().toString(36).slice(-8);

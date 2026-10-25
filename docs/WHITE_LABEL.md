@@ -136,12 +136,18 @@ HMAC signature themselves (`lib/instance/auth.ts`).
 
 | Method | Route | Body / query | Response |
 |---|---|---|---|
-| `GET` | `/api/instance/health` | — | `{ version, schemaVersion, brandUpdatedAt, dbOk }` |
+| `GET` | `/api/instance/health` | — | `{ version, schemaVersion, brandUpdatedAt, dbOk, license: { status, plan, seatLimit, seatsUsed } }` |
 | `GET` | `/api/instance/brand` | — | current settings + resolved brand |
 | `PUT` | `/api/instance/brand` | JSON, any editable field (`name`, `primaryColor`, `emailDomains`, …) | `{ ok, changed, settings, brand }` |
 | `POST` | `/api/instance/brand/assets` | `multipart/form-data` `{ slot, file }` | `{ ok, slot, settings, brand }` |
 | `DELETE` | `/api/instance/brand/assets?slot=<slot>` | — | `{ ok, slot, settings, brand }` |
 | `POST` | `/api/instance/bootstrap` | `{ email, name }` | `201 { ok, userId, email, inviteUrl, expiresAt }`; `409` once any user exists |
+| `GET` | `/api/instance/license` | — | `{ license, seats: { used, limit } }` (§10) |
+| `PUT` | `/api/instance/license` | partial: `status`, `plan`, `seatLimit`, `features`, `aiMonthlyQuota`, `suspendedReason` | `{ changed, license, seats }` |
+| `GET` | `/api/instance/cron` | — | `{ jobs: [{ id, schedule, description, missedRun }] }` (§11) |
+| `POST` | `/api/instance/cron` | `{ job }` | runs the job now: `{ ok, job, status, result }` |
+| `POST` | `/api/instance/export` | — | `202 { export }`: starts a full data export (§12) |
+| `GET` | `/api/instance/export?id=` | — | `{ export, downloadUrl }` once done |
 
 `version` is `GIT_SHA`; `schemaVersion` is the last applied migration name
 (`null` if `_prisma_migrations` is absent).
@@ -272,7 +278,7 @@ Required:
 | `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY_ID`, `MINIO_SECRET_ACCESS_KEY`, `MINIO_BUCKET` | One bucket (or prefix) per instance; needed for logo uploads and recordings |
 | SMTP (`SMTP_*` / `SYSTEM_SMTP_*`) | Sender on the agency's domain |
 
-Optional: `APP_URL` (when it differs from `NEXTAUTH_URL`), `SOCKET_URL`,
+Optional: `INSTANCE_ID` (the agency's slug in the Console; needed by §13 and §14), `OAUTH_RELAY_URL` (§13), `APP_URL` (when it differs from `NEXTAUTH_URL`), `SOCKET_URL`,
 `SOCKET_PATH`, `OPENREPLAY_*`, `QONTO_*`, `PAPPERS_*`, `CRON_SECRET`, and the
 integration keys listed in `docs/INTEGRATION_SECRETS_PROPOSAL.md`. OAuth redirect
 URIs (`GOOGLE_REDIRECT_URI`, `MICROSOFT_REDIRECT_URI`, Slack) must use the
@@ -309,3 +315,57 @@ matter:
   instance, not for several replicas behind a load balancer.
 - `/favicon.ico` is a static file in the image; browsers that ignore
   `<link rel="icon">` still show the default icon.
+
+
+---
+
+## 10. License: seats, features, suspension
+
+One row (`InstanceLicense`, migration `20261026100000_add_instance_license`), written only by the control plane through `PUT /api/instance/license`. **No row, or a table not migrated yet, means active, unlimited, every feature on**: the original Captain Prospect deployment is unaffected. Code: `lib/license/` (`resolve.ts` pure, `server.ts` cached 30 s, `gates.ts`, `edge-state.ts`).
+
+| Field | Effect |
+|---|---|
+| `seatLimit` | Max **active staff users** (every role except `CLIENT`, the client portal). Checked when creating a user, re-activating one, or moving a client user to a staff role: `403` with a message in French. `null` = unlimited. Count-then-write, not a lock: two simultaneous creations can overshoot by one. |
+| `status: "SUSPENDED"` | **Read-only.** The middleware answers `403 instance_suspended` to every write under `/api/*` (login, `/api/auth/*`, webhooks and `/api/instance/*` are outside the matcher and keep working), a banner shows on every page, and `/api/instance/cron` runs nothing. Reads stay open so the agency can sign in and export. `suspendedReason` is shown in the banner. |
+| `features.callVault` | `false` makes `isVaultConfigured()` false (synchronous read of the cached license: a freshly started process allows it until its first page render or health probe). Still needs `VAULT_API_URL` / `VAULT_API_KEY`; not setting those is the simplest "off". |
+| `features.aiAssistant` | `false` gives `403 feature_not_included` on `/api/manager/assistant/*` (middleware). |
+| `features.whiteLabel` | `false` refuses writes to `/api/manager/brand`; reading stays open. The control plane can still set the brand through `/api/instance/brand`. |
+| `plan`, `aiMonthlyQuota` | Stored and returned; not enforced yet (usage metering is Phase 4). |
+
+The edge middleware cannot read the database: it calls this container's own `GET /api/license-state` (loopback first) and caches the answer 15 s. If that probe fails it **fails open** (not suspended, all features on) and retries after 3 s. A suspension therefore takes up to about 15 s to bite, and no restart is needed.
+
+Not covered: data written by webhook routes (`/api/webhooks/*`: Allo calls, inbound email) continues while suspended.
+
+## 11. Cron: one scheduler for the fleet
+
+`GET /api/instance/cron` lists the jobs (id, UTC cron expression, what it does, what a missed run costs). The control plane's single scheduler calls `POST /api/instance/cron { "job": "<id>" }` on each schedule for each agency. Calls are signed with `INSTANCE_ADMIN_SECRET`; the handlers are the existing `/api/cron/*` routes run in-process with this container's `CRON_SECRET`, so the cron secret never travels. The catalog ships with the image (`lib/instance/cron-jobs.ts`): a release that adds a job needs no Console change.
+
+| Job | Schedule (UTC) |
+|---|---|
+| `email-sequences` | `*/5 * * * *` |
+| `messaging-outbox` | `* * * * *` |
+| `meeting-reminders` | `0 * * * *` |
+| `exclusion-sweep` | `0 4 * * *` |
+| `billing-month-end` | `0 2 1 * *` |
+
+`CRON_SECRET` must be set in the instance env (`email-sequences` refuses to run without it). A suspended instance answers `{ skipped: "suspended" }`. A job's own failure comes back as `502` with its body, so the scheduler can alert.
+
+**Workers.** `worker:messaging` duplicates the `messaging-outbox` cron job: run the cron job and no second container. `worker:enrichment` reads a file queue (`private/queue`) that nothing enqueues any more (`lib/bullmq.ts` is imported, never used, by `app/actions/mission-wizard.ts`). Neither is needed per agency.
+
+## 12. Data export
+
+`POST /api/instance/export` starts a job in the web process and returns `202`. Poll `GET /api/instance/export?id=...` until `state: "done"`, then fetch `downloadUrl` (signed MinIO URL, valid 1 h). The archive is `exports/<id>.zip` in the instance's bucket: one CSV per table (UTF-8 with BOM, ISO dates, JSON as text) plus `manifest.json` (row counts, dropped columns, tables skipped). It works while suspended. One job at a time (`409 export_in_progress`); `503` without `MINIO_*`.
+
+Left out on purpose (`lib/export/plan.ts`): password hashes, OAuth and API tokens and any column named like a secret, sessions and login logs, API keys, the call-vault credentials, the assistant's internal traces. Cells starting with `=`, `+`, `-` or `@` get a leading apostrophe (spreadsheet formula injection). **Not included:** files in MinIO (attachments, recordings, logos). The zip is built on disk then uploaded in one piece, so the compressed archive must fit in memory. Job state is in memory: after a restart the file is still in the bucket but `GET` no longer knows the job.
+
+## 13. Mailbox OAuth through a relay
+
+Gmail and Outlook redirect the browser to **one** registered callback. With one Google/Microsoft app shared by every agency, that callback is a small relay run by the control plane at `https://auth.<platform-domain>`. Instance env: `OAUTH_RELAY_URL`, `INSTANCE_ID`, `INSTANCE_ADMIN_SECRET` (all three; otherwise the instance keeps using its own domain, and an explicit `GOOGLE_REDIRECT_URI` / `MICROSOFT_REDIRECT_URI` always wins). Register `<relay>/oauth/gmail/callback` and `<relay>/oauth/outlook/callback` once in the provider consoles.
+
+The instance wraps its `state` in a signed envelope (`lib/oauth-relay/state.ts`: instance id, provider, timestamp, HMAC under a key derived from `INSTANCE_ADMIN_SECRET`). The relay (`resolveRelayCallback`; copy `state.ts` as-is) reads the instance id, looks the instance up in **its own registry** (app URL and admin secret), verifies the signature (10 min), and redirects to `<registered app URL>/api/email/oauth/<provider>/callback` with the original state and every provider parameter. The target is never taken from the state, so a forged link cannot send a code to another host. The instance then exchanges the code with the same `redirect_uri` and checks its own state against the logged-in user, as before. Slack and Google Drive OAuth still use the instance's own domain.
+
+## 14. Realtime (socket) isolation
+
+The comms socket server is **not in this repo** (a shared service). The CRM side is done: `GET /api/comms/socket-token` returns a 5-minute token for the logged-in user (`lib/socket/handshake.ts`: instance id and user id, HMAC under a key derived from `INSTANCE_ADMIN_SECRET`), and the browser sends it as `auth: { token }` on every (re)connect. With no `INSTANCE_ID` (the original deployment) the token is `null` and the client connects exactly as before.
+
+**What the socket server must do before more than one agency shares it**, otherwise `online-users` and messages still cross agencies: on connection, read `socket.handshake.auth.token`, find the instance with `peekSocketInstanceId`, verify with that instance's secret (`verifySocketToken`) and refuse otherwise, `socket.join(socketRoomFor(instanceId))`, take the user id **from the token** (ignore the `userId` in `user-online`), and emit `online-users`, `typing` and `receive-message` to that room only. Until then, run one socket container per agency (`SOCKET_URL` per instance).

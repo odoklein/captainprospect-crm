@@ -54,6 +54,17 @@ function getSocket(options: { url?: string; path?: string } = {}): Socket {
       path,
       transports: ["websocket"],
       autoConnect: false,
+      // A fresh handshake token on every (re)connect: it tells the shared socket server
+      // which instance and which user this is (lib/socket/handshake). { token: null }
+      // (original deployment) or any failure connects as before, with no auth payload.
+      auth: (cb) => {
+        fetch("/api/comms/socket-token", { credentials: "same-origin", cache: "no-store" })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data: { token?: string | null; instanceId?: string } | null) =>
+            cb(data?.token ? { token: data.token, instanceId: data.instanceId } : {}),
+          )
+          .catch(() => cb({}));
+      },
     });
   }
   return socket;
