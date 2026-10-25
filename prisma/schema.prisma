@@ -4445,6 +4445,7 @@ model AssistantConversation {
   messages  AssistantMessage[]
   artifacts AssistantArtifact[]
   actions   AssistantActionLog[]
+  runs      AssistantRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4547,6 +4548,103 @@ model AssistantArtifact {
 
   @@index([clientId, missionId, createdAt])
   @@index([conversationId])
+}
+
+enum AssistantRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+  ABANDONED
+}
+
+enum AssistantEvidenceStatus {
+  OK
+  EMPTY
+  ERROR
+}
+
+/// One assistant turn: scope, model, cost, latency and outcome. The unique
+/// `lockKey` (= the conversation id while the turn runs) is the
+/// one-turn-at-a-time lock: a second concurrent turn cannot insert its run.
+model AssistantRun {
+  id String @id @default(cuid())
+
+  conversationId String
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  lockKey        String?               @unique
+
+  /// Trusted scope, copied from the server-side context — never from the model.
+  userId    String
+  clientId  String?
+  missionId String?
+
+  status           AssistantRunStatus @default(RUNNING)
+  model            String?
+  fallbackUsed     Boolean            @default(false)
+  promptTokens     Int                @default(0)
+  completionTokens Int                @default(0)
+  costEur          Float              @default(0)
+  latencyMs        Int?
+  firstTokenMs     Int?
+  iterations       Int                @default(0)
+  toolCalls        Int                @default(0)
+  retries          Int                @default(0)
+  errorCode        String?
+  /// { checked, verified, failed, repaired, skipped }
+  verification     Json?
+  /// The assistant message this run produced.
+  messageId        String?
+
+  evidence AssistantEvidence[]
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([conversationId, startedAt])
+  @@index([userId, startedAt])
+  @@map("AssistantProjetRun")
+}
+
+/// What one read tool returned, in a form an answer can cite and a manager can
+/// open: a privacy-safe summary, the numeric facts and the period. The payload
+/// itself is kept only while fresh (`expiresAt`) and never for free-text or
+/// vault tools; rows are deleted after the retention period
+/// (ASSISTANT_EVIDENCE_RETENTION_DAYS, 90) and with their conversation.
+model AssistantEvidence {
+  id String @id @default(cuid())
+
+  runId String
+  run   AssistantRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  /// Denormalised from the run for reuse lookups; scope from the trusted context.
+  conversationId String
+  userId         String
+  clientId       String?
+  missionId      String?
+
+  tool         String
+  /// sha256(tool, canonical validated arguments, scope).
+  argsHash     String
+  /// Validated, scrubbed arguments: ids, filters, windows.
+  args         Json
+  status       AssistantEvidenceStatus
+  errorCode    String?
+  summary      String                  @db.Text
+  facts        Json?
+  period       Json?
+  /// sha256 of the scrubbed payload, to show two retrievals saw the same data.
+  resultDigest String?
+  payload      Json?
+
+  retrievedAt DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([conversationId, tool, argsHash])
+  @@index([runId])
+  @@index([expiresAt])
+  @@map("AssistantProjetEvidence")
 }
 
 // ============================================

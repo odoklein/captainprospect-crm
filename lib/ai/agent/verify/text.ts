@@ -1,25 +1,28 @@
-// MARKER
 /**
  * French text helpers for claim extraction: length-preserving normalisation,
  * reporting-period expressions, dates, numbers.
  *
  * Normalisation keeps one output character per input UTF-16 unit, so an index
- * found in the normalised text is valid in the original — the annotator edits
+ * found in the normalised text is valid in the original - the annotator edits
  * the original at those positions.
  */
 
 import { addDays, daysBetween } from "../evidence/facts";
 
+/** Left and right single quotation marks, folded to a plain apostrophe. */
+const CURLY_QUOTES = new Set([0x2018, 0x2019]);
+const LINE_CHARS = new Set(["\n", "\r", "\t"]);
+
 export function normalizeKeepLength(text: string): string {
     let out = "";
-    for (const ch of text) {
-        if (ch.length !== 1) {
-            out += ch;
-            continue;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (!LINE_CHARS.has(ch) && /\s/.test(ch)) out += " ";
+        else if (CURLY_QUOTES.has(ch.charCodeAt(0))) out += "'";
+        else {
+            const base = ch.normalize("NFD").charAt(0);
+            out += (base.length === 1 ? base : ch).toLowerCase().charAt(0) || ch;
         }
-        if (ch === " " || ch === " ") out += " ";
-        else if (ch === "’" || ch === "‘") out += "'";
-        else out += (ch.normalize("NFD").charAt(0) || ch).toLowerCase();
     }
     return out;
 }
@@ -28,12 +31,12 @@ export function normalizeKeepLength(text: string): string {
 export function fold(text: string): string {
     return text
         .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .replace(/[  ]/g, " ")
+        .replace(/\p{M}/gu, "")
+        .replace(/[^\S\n\r\t]/g, " ")
         .toLowerCase();
 }
 
-// ── Periods ─────────────────────────────────────────────────────────────────
+// -- Periods ------------------------------------------------------------------
 
 export type ClaimPeriod =
     | { kind: "rolling"; days: number }
@@ -41,6 +44,9 @@ export type ClaimPeriod =
     | { kind: "month_to_date" }
     | { kind: "week_to_date" }
     | { kind: "today" }
+    | { kind: "yesterday" }
+    | { kind: "last_week" }
+    | { kind: "last_month" }
     | { kind: "since"; from: string }
     | { kind: "named_month"; month: number };
 
@@ -63,7 +69,7 @@ export function monthFromWord(word: string): number | null {
     return null;
 }
 
-/** Find every reporting-period expression. `text` must be normalised. */
+/** Every reporting-period expression. `text` must be normalised. */
 export function findPeriods(text: string, today: string): PeriodSpan[] {
     const spans: PeriodSpan[] = [];
     const add = (m: RegExpExecArray, period: ClaimPeriod) => spans.push({ start: m.index, end: m.index + m[0].length, period });
@@ -91,6 +97,13 @@ export function findPeriods(text: string, today: string): PeriodSpan[] {
     const day = /\baujourd'?hui\b/g;
     while ((m = day.exec(text))) add(m, { kind: "today" });
 
+    const yesterday = /\bhier\b/g;
+    while ((m = yesterday.exec(text))) add(m, { kind: "yesterday" });
+    const lastWeek = /\bla semaine (?:derniere|precedente|passee)\b/g;
+    while ((m = lastWeek.exec(text))) add(m, { kind: "last_week" });
+    const lastMonth = /\b(?:(?:le|du|au|sur le) )?mois (?:dernier|precedent|passe)\b/g;
+    while ((m = lastMonth.exec(text))) add(m, { kind: "last_month" });
+
     const since = new RegExp(`\\bdepuis le (\\d{1,2})(?:er)?\\s+(${MONTH_ALT})(?:\\s+(\\d{4}))?`, "g");
     while ((m = since.exec(text))) {
         const month = MONTHS.indexOf(m[2]) + 1;
@@ -103,9 +116,10 @@ export function findPeriods(text: string, today: string): PeriodSpan[] {
         add(m, { kind: "since", from: `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` });
     }
 
-    const named = new RegExp(`\\b(?:en|d'|de|du mois d')\\s*(${MONTH_ALT})\\b(?!\\s+\\d)`, "g");
+    const named = new RegExp(`\\b(?:en|d'|de|du mois d')\\s*(${MONTH_ALT})\\b`, "g");
     while ((m = named.exec(text))) {
-        if (spans.some((s) => m!.index >= s.start && m!.index < s.end)) continue;
+        const at = m.index;
+        if (spans.some((s) => at >= s.start && at < s.end)) continue;
         add(m, { kind: "named_month", month: MONTHS.indexOf(m[1]) + 1 });
     }
 
@@ -132,6 +146,12 @@ export function describeClaimPeriod(period: ClaimPeriod): string {
             return "semaine en cours";
         case "today":
             return "aujourd'hui";
+        case "yesterday":
+            return "hier";
+        case "last_week":
+            return "semaine dernière";
+        case "last_month":
+            return "mois dernier";
         case "since":
             return `depuis le ${period.from}`;
         case "named_month":
@@ -146,12 +166,12 @@ export function mondayOf(today: string): string {
 
 export { addDays, daysBetween };
 
-// ── Dates ───────────────────────────────────────────────────────────────────
+// -- Dates --------------------------------------------------------------------
 
 export interface DateMention {
     start: number;
     end: number;
-    /** "d/m" — comparable across formats. */
+    /** "d/m" - comparable across formats. */
     key: string;
     raw: string;
 }
@@ -179,7 +199,7 @@ export function findDates(text: string): DateMention[] {
     return out;
 }
 
-// ── Numbers ─────────────────────────────────────────────────────────────────
+// -- Numbers ------------------------------------------------------------------
 
 export interface NumberToken {
     start: number;
@@ -190,7 +210,12 @@ export interface NumberToken {
     unit: "count" | "pct";
 }
 
-const NUMBER = /(?<![\p{L}\d_.,/:#°@€$£-])(\d{1,3}(?:[   ]\d{3})+|\d+)(?:[.,](\d+))?(?![\d/:]|[.,]\d|\p{L})(\s*(?:%|pour\s?cent|points?\b))?/gu;
+/**
+ * A figure: 14, 1 260 (thousands separated by any space), 22,9 or 22.9, with an
+ * optional % / pour cent / points. Not part of a word (Q4, E1), an id, a date
+ * (28/10), a time (10:00) or a negative/range (-3).
+ */
+const NUMBER = /(?<![\p{L}\d_.,/:#@$-])(\d{1,3}(?:[^\S\n\r\t]\d{3})+|\d+)(?:[.,](\d+))?(?![\d/:]|[.,]\d|\p{L})(\s*(?:%|pour\s?cent|points?\b))?/gu;
 const PHONE = /(?:\+33\s?|\b0)\d(?:[\s.]?\d{2}){4}\b/g;
 
 export function findNumbers(original: string, normalized: string): NumberToken[] {
@@ -198,8 +223,8 @@ export function findNumbers(original: string, normalized: string): NumberToken[]
     let m: RegExpExecArray | null;
     PHONE.lastIndex = 0;
     while ((m = PHONE.exec(original))) blocked.push([m.index, m.index + m[0].length]);
-    // Quoted titles (« Relance Q4 ») and inline code are names, not claims.
-    const quoted = /«[^»\n]*»|`[^`\n]*`|\[[^\]\n]*\]\([^)\n]*\)/g;
+    // Quoted titles, inline code and link targets are names, not claims.
+    const quoted = /«[^»\n]*»|"[^"\n]*"|`[^`\n]*`|\]\([^)\n]*\)/g;
     while ((m = quoted.exec(original))) blocked.push([m.index, m.index + m[0].length]);
 
     const out: NumberToken[] = [];
@@ -216,7 +241,7 @@ export function findNumbers(original: string, normalized: string): NumberToken[]
         const lineStart = original.lastIndexOf("\n", start - 1) + 1;
         if (/^\s*$/.test(original.slice(lineStart, start)) && /^[.)]\s/.test(original.slice(numberEnd, numberEnd + 2))) continue; // "1. "
 
-        const digits = m[1].replace(/[   ]/g, "");
+        const digits = m[1].replace(/\s/g, "");
         const value = Number(`${digits}${m[2] !== undefined ? `.${m[2]}` : ""}`);
         if (!Number.isFinite(value)) continue;
         const unit = m[3] ? "pct" : "count";

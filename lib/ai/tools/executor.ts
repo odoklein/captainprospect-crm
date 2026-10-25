@@ -18,6 +18,8 @@ import {
 import { authorizeToolCall } from "./guard";
 import { getTool } from "./registry";
 import { wrapToolPayload } from "./redact";
+import { isEmptyPayload } from "@/lib/ai/agent/evidence/facts";
+import type { EvidenceSession } from "@/lib/ai/agent/evidence/session";
 
 export interface ToolCallRequest {
     id?: string;
@@ -86,15 +88,43 @@ export async function logAssistantAction(params: {
     }
 }
 
+export interface ExecuteOptions {
+    /**
+     * When attached, every read is recorded as evidence before its result is
+     * returned, and an identical still-fresh read is served from the ledger.
+     */
+    evidence?: EvidenceSession | null;
+}
+
 export async function executeToolCall(
     call: ToolCallRequest,
     ctx: AssistantContext,
+    options: ExecuteOptions = {},
 ): Promise<ToolExecutionResult> {
     const startedAt = Date.now();
     const tool = getTool(call.name);
+    const evidence = tool?.risk === "read" ? options.evidence ?? null : null;
+    let rawArgs: unknown = {};
 
     try {
-        const args = authorizeToolCall(tool, call.name, parseArguments(call.arguments), ctx);
+        rawArgs = parseArguments(call.arguments);
+        const args = authorizeToolCall(tool, call.name, rawArgs, ctx);
+
+        if (evidence) {
+            const hit = await evidence.reuse(tool!.name, evidence.hashArgs(tool!.name, args));
+            if (hit) {
+                return {
+                    tool: call.name,
+                    label: tool!.label,
+                    ok: true,
+                    data: hit.payload,
+                    durationMs: Date.now() - startedAt,
+                    cached: true,
+                    evidence: hit.entry.label,
+                };
+            }
+        }
+
         const data = await tool!.execute(args, ctx);
 
         // Spend the budget only on success: a failed write left no trace, so the
@@ -113,20 +143,44 @@ export async function executeToolCall(
             });
         }
 
+        // Persisted before the model sees the result: an answer can only cite
+        // evidence that already exists.
+        const entry = evidence
+            ? await evidence.record({
+                  tool: tool!.name,
+                  toolLabel: tool!.label,
+                  args,
+                  status: isEmptyPayload(data) ? "EMPTY" : "OK",
+                  data,
+              })
+            : null;
+
         return {
             tool: call.name,
             label: tool!.label,
             ok: true,
             data,
             durationMs: Date.now() - startedAt,
+            evidence: entry?.label,
         };
     } catch (error) {
+        const payload = toErrorPayload(error);
+        const entry = evidence
+            ? await evidence.record({
+                  tool: tool!.name,
+                  toolLabel: tool!.label,
+                  args: rawArgs,
+                  status: "ERROR",
+                  errorCode: payload.code,
+              })
+            : null;
         return {
             tool: call.name,
             label: tool?.label ?? call.name,
             ok: false,
-            error: toErrorPayload(error),
+            error: payload,
             durationMs: Date.now() - startedAt,
+            evidence: entry?.label,
         };
     }
 }
@@ -136,10 +190,11 @@ export function serializeToolResult(result: ToolExecutionResult): string {
     if (!result.ok) {
         return JSON.stringify({
             tool: result.tool,
+            ...(result.evidence ? { source: result.evidence } : {}),
             error: result.error,
             _note:
                 "Cet outil a échoué ou a été refusé. Explique la limite à l'utilisateur, n'invente pas de données.",
         });
     }
-    return wrapToolPayload(result.tool, result.data);
+    return wrapToolPayload(result.tool, result.data, result.evidence);
 }

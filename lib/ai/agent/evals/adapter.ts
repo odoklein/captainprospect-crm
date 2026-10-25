@@ -3,7 +3,7 @@
  * out. Swapping the runtime under test only touches this file.
  */
 
-import { runAssistantTurn, buildToolUsagePrompt } from "@/lib/ai/tools/loop";
+import { runAssistantTurn, buildToolUsagePrompt, buildReasoningPrompt } from "@/lib/ai/tools/loop";
 import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
 import type { AssistantContext } from "@/lib/ai/tools/types";
 import type { EvalTurnResult, Scenario } from "./scenarios";
@@ -11,7 +11,8 @@ import type { EvalTurnResult, Scenario } from "./scenarios";
 export const RUNTIME_NAME = "legacy-loop";
 
 export async function runEvalTurn(scenario: Scenario, ctx: AssistantContext, apiKey: string): Promise<EvalTurnResult> {
-    const systemPrompt = [getAssistantSystemPrompt(ctx), buildToolUsagePrompt(ctx)].join("\n\n");
+    // Same composition as the chat route; default brand, so no database read.
+    const systemPrompt = [getAssistantSystemPrompt(ctx), buildToolUsagePrompt(ctx, "standard"), buildReasoningPrompt("standard")].join("\n\n");
     const startedAt = Date.now();
     try {
         const turn = await runAssistantTurn({
@@ -19,6 +20,7 @@ export async function runEvalTurn(scenario: Scenario, ctx: AssistantContext, api
             history: [...(scenario.history ?? []), { role: "user", content: scenario.prompt }],
             ctx,
             apiKey,
+            depth: "standard",
         });
         return {
             answer: turn.answer,

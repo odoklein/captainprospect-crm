@@ -17,6 +17,7 @@ import { ApiError } from "@/lib/api-v1/errors";
 import { INTERNAL_TOOLS, TOOLS, type ToolDef } from "@/lib/api-v1/mcp-tools";
 import { READ_SCOPES } from "@/lib/api-v1/scopes";
 import { defineReadTool } from "../helpers";
+import { neutralizeUntrusted } from "../redact";
 import { ToolValidationError, type AssistantContext, type JsonSchemaObject } from "../types";
 
 /** French labels for the tool trace. Unlisted tools fall back to their name. */
@@ -99,7 +100,9 @@ function bridge(def: ToolDef) {
         execute: async (args, ctx) => {
             let result: unknown;
             try {
-                result = await def.run({ p: principalFor(ctx), db: prisma }, args);
+                // Notes, transcripts and company names are typed by prospects and
+                // SDRs: neutralised like every project tool's free text.
+                result = neutralizeUntrusted(await def.run({ p: principalFor(ctx), db: prisma }, args));
             } catch (error) {
                 if (error instanceof ApiError) {
                     throw new ToolValidationError(`${error.code}: ${error.message}`);

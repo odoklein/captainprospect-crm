@@ -16,7 +16,7 @@ import { randomUUID } from "node:crypto";
 import { scrubSensitive } from "@/lib/ai/tools/redact";
 import type { AssistantContext } from "@/lib/ai/tools/types";
 import type { CitationRef, EvidenceStatus } from "../protocol";
-import { collectStrings, extractFacts, periodOf, type EvidencePeriod, type Fact } from "./facts";
+import { collectStrings, extractFacts, periodFromArgs, periodOf, type EvidencePeriod, type Fact } from "./facts";
 import {
     MAX_CACHED_PAYLOAD_BYTES,
     digest,
@@ -178,8 +178,9 @@ export class EvidenceSession {
         const now = this.params.now();
         const { ctx, runId, store } = this.params;
         const scrubbed = input.data === undefined ? undefined : scrubSensitive(input.data);
-        const facts = input.status === "OK" ? extractFacts(scrubbed, now) : [];
-        const period = input.status === "ERROR" ? null : periodOf(scrubbed, now);
+        // The payload's own window wins; otherwise the one the arguments asked for.
+        const period = input.status === "ERROR" ? null : periodOf(scrubbed, now) ?? periodFromArgs(input.args, now);
+        const facts = input.status === "OK" ? extractFacts(scrubbed, now, period) : [];
         const argsHash = this.hashArgs(input.tool, input.args);
         const summary = buildEvidenceSummary({ toolLabel: input.toolLabel, status: input.status, errorCode: input.errorCode, facts, period });
 

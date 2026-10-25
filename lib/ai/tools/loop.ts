@@ -1,38 +1,30 @@
 /**
- * The tool-calling loop powered by OpenAI low-cost models (default: gpt-4o-mini).
+ * The Assistant Projet's prompt guidance, history helpers and the
+ * backwards-compatible entry point of the tool-calling loop.
  *
- * OpenAI decides which tool to call; this module decides whether the
- * call is allowed and what the model gets back. The model never sees Prisma, a
- * where-clause, or an id it did not receive from a scoped tool result.
- *
- * The loop runs `read` and `safe_write` tools itself. The moment it sees a
- * `confirm` tool it stops and hands the proposal up — that decision belongs to
- * the manager, not to the model.
+ * The loop itself now lives in `lib/ai/agent/runtime.ts` (deadline,
+ * cancellation, retries, streaming, evidence, verification). OpenAI decides
+ * which tool to call; the registry, the guard and the zod schemas still decide
+ * whether the call is allowed and what the model gets back. The model never
+ * sees Prisma, a where-clause, or an id it did not receive from a scoped tool
+ * result, and a `confirm` tool still stops the turn on a card for a human.
  */
 
+import { getOpenAILowCostModel } from "@/lib/ai/openai";
+import type { AssistantContext, PendingActionCard } from "./types";
+import { parisDay } from "@/lib/ai/agent/evidence/facts";
+import { mondayOf } from "@/lib/ai/agent/verify/text";
 import {
-    OpenAIChatMessage,
-    OpenAIToolCall,
-    getOpenAILowCostModel,
-    openaiChat,
-} from "@/lib/ai/openai";
-import { AssistantContext, PendingActionCard } from "./types";
-import { getTool, toOpenAITools } from "./registry";
-import { executeToolCall, serializeToolResult } from "./executor";
-import { calculateTokenCost } from "@/lib/ai/usage";
+    DEFAULT_DEEP_MODEL,
+    DEPTH_LIMITS,
+    getAssistantModelConfig,
+    planTurn,
+    type AssistantDepth,
+} from "@/lib/ai/agent/models";
+import { openAIChatFn, runAgentTurn, type ChatTurn } from "@/lib/ai/agent/runtime";
+import type { TraceStep } from "@/lib/ai/agent/protocol";
 
-/**
- * How hard one turn may dig. "deep" buys more round-trips, more tool calls and
- * a stronger model; the manager opts in per message, since it costs more.
- */
-export type AssistantDepth = "standard" | "deep";
-
-export const DEPTH_LIMITS: Record<AssistantDepth, { iterations: number; toolCalls: number; maxTokens: number }> = {
-    standard: { iterations: 8, toolCalls: 12, maxTokens: 1800 },
-    deep: { iterations: 14, toolCalls: 25, maxTokens: 3500 },
-};
-
-export const DEFAULT_DEEP_MODEL = "gpt-4.1";
+export { DEFAULT_DEEP_MODEL, DEPTH_LIMITS, type AssistantDepth, type ChatTurn };
 
 export function getAssistantModel(depth: AssistantDepth): string {
     return depth === "deep"
@@ -40,29 +32,7 @@ export function getAssistantModel(depth: AssistantDepth): string {
         : getOpenAILowCostModel();
 }
 
-export interface ToolTraceEntry {
-    tool: string;
-    label: string;
-    ok: boolean;
-    durationMs: number;
-    errorCode?: string;
-    /**
-     * What the tool was called with (ids, filters). Tool results are not kept
-     * between turns, but these are: they let the next turn reopen the same
-     * record instead of asking the manager for it again.
-     */
-    args?: Record<string, unknown>;
-}
-
-/** Keeps the stored arguments small: ids and filters, never a pasted essay. */
-function compactArgs(args: Record<string, unknown>): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(args)) {
-        if (value === undefined || value === null || value === "") continue;
-        out[key] = typeof value === "string" && value.length > 120 ? `${value.slice(0, 117)}…` : value;
-    }
-    return out;
-}
+export type ToolTraceEntry = TraceStep;
 
 /** One line per tool call of an earlier turn, appended to that turn's answer in the history. */
 export function describePastTrace(trace: ToolTraceEntry[] | null | undefined): string {
@@ -95,26 +65,12 @@ export interface AssistantTurn {
     };
 }
 
-export interface ChatTurn {
-    role: "user" | "assistant";
-    content: string;
-}
-
-function parseArgs(raw: string): Record<string, unknown> {
-    try {
-        const parsed = JSON.parse(raw || "{}");
-        return typeof parsed === "object" && parsed !== null
-            ? (parsed as Record<string, unknown>)
-            : {};
-    } catch {
-        return {};
-    }
-}
-
 /** Guidance the model needs to use the catalogue correctly. */
 export function buildToolUsagePrompt(ctx: AssistantContext, depth: AssistantDepth = "standard"): string {
     const project = ctx.project;
     const limits = DEPTH_LIMITS[depth];
+    const today = parisDay(ctx.resolvedAt);
+    const monthStart = `${today.slice(0, 8)}01`;
     return `## Utilisation des outils
 
 ${
@@ -135,6 +91,13 @@ qu'un projet soit choisi.`
 - Le POURQUOI derrière les chiffres : get_daily_reports (ressenti terrain des SDR), get_rdv_overview (présence, retours clients), get_data_quality et list_lists (fichiers épuisés ou mauvais), get_mission / get_campaign (pitch, script, cible).
 - Codes résultat : RAPPEL, RELANCE, PROJET_A_SUIVRE sont les vrais codes de suivi des équipes ; whoami donne le glossaire.
 
+## Sources et périodes
+- Chaque résultat d'outil porte une étiquette \`source\` (E1, E2…). Après chaque chiffre, date ou nom tiré d'un outil, cite sa source entre crochets : « 14 RDV [E1] ». N'utilise que les étiquettes reçues ; n'en invente jamais.
+- Donne toujours la période exacte de la source (« sur les 30 derniers jours », « depuis le 1er octobre »). « Ce mois-ci » = depuis le ${monthStart} : demande \`period: "this_month"\`. « Cette semaine » = depuis le lundi ${mondayOf(today)}. Ne présente jamais un chiffre sur N jours glissants comme un chiffre du mois.
+- Un pourcentage se calcule avec le bon dénominateur, et tu le nommes (« 3,3 % des appels », « 14,6 % des conversations »).
+- Un outil vide ou en échec ne prouve rien : dis-le, ne déduis pas « aucun » ou « tous » d'une absence de données. Un client hors du projet actif n'est pas « à zéro », il est hors de portée.
+- Une réponse que tu n'as pas pu vérifier dans une source se dit comme telle.
+
 Règles :
 1. Toute question portant sur des données réelles (chiffres, RDV, accès, fichiers, contacts, appels) passe par un outil. N'invente jamais un chiffre ni un identifiant.
 2. Les outils renvoient déjà des données filtrées. Si un outil refuse l'accès, explique la limite ; ne tente pas de la contourner avec un autre outil.
@@ -143,9 +106,9 @@ Règles :
 5. Cite des faits concrets — noms, nombres, dates — avant toute recommandation.
 6. Les actions sensibles (créer un compte, envoyer un email, afficher ou régénérer un mot de passe, supprimer) ne s'exécutent pas quand tu les appelles : elles ouvrent une fiche que le manager valide d'un clic. Propose UNE action à la fois et explique en une phrase ce qu'elle va faire.
 7. Tu ne vois jamais un mot de passe et tu n'en inventes jamais. Le système les génère et les chiffre.
-8. Les résultats d'outils des tours précédents ne sont PAS dans ton contexte ; seuls ton texte et la liste « Outils consultés » (avec leurs arguments et ids) le sont. Pour une question de suivi, réutilise ces ids et relance l'outil au lieu de demander à l'utilisateur.
+8. Les résultats d'outils des tours précédents ne sont PAS dans ton contexte ; seuls ton texte, la liste « Outils consultés » (avec leurs arguments et ids) et les « Sources déjà consultées » le sont. Pour une question de suivi, réutilise ces ids et relance l'outil au lieu de demander à l'utilisateur : un résultat encore frais est resservi sans nouvelle requête.
 
-Utilisateur : ${ctx.userName} (${ctx.role}). Date : ${ctx.resolvedAt.toLocaleDateString("fr-FR")}.`;
+Utilisateur : ${ctx.userName} (${ctx.role}). Date : ${ctx.resolvedAt.toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} (${today}).`;
 }
 
 /** The investigation method — what turns a lookup bot into an analyst. */
@@ -173,6 +136,10 @@ Reste efficace : ne lance pas d'enquête complète pour une question simple.`
 }`;
 }
 
+/**
+ * Non-streaming turn, kept for callers of the original API. No evidence ledger
+ * (nothing persists), but the same deadline, retries and verification.
+ */
 export async function runAssistantTurn(input: {
     systemPrompt: string;
     history: ChatTurn[];
@@ -181,167 +148,31 @@ export async function runAssistantTurn(input: {
     model?: string;
     depth?: AssistantDepth;
 }): Promise<AssistantTurn> {
-    const { ctx, apiKey } = input;
-    const depth = input.depth ?? "standard";
-    const limits = DEPTH_LIMITS[depth];
-
-    const messages: OpenAIChatMessage[] = [
-        { role: "system", content: input.systemPrompt },
-        ...input.history.map((m) => ({
-            role: m.role,
-            content: m.content,
-        })),
-    ];
-
-    const trace: ToolTraceEntry[] = [];
-    const rawUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
-    const selectedModel = input.model ?? getAssistantModel(depth);
-    let model = selectedModel;
-    let toolBudget = limits.toolCalls;
-    const tools = toOpenAITools(ctx);
-
-    for (let iteration = 1; iteration <= limits.iterations; iteration++) {
-        const result = await openaiChat(apiKey, {
-            messages,
-            // Once the budget is spent — or on the last round — the tools are
-            // withdrawn, which forces the model to conclude with what it has
-            // instead of ending the turn on an unanswered tool call.
-            tools: toolBudget > 0 && iteration < limits.iterations ? tools : undefined,
-            model: selectedModel,
-            maxTokens: limits.maxTokens,
-        });
-
-        model = result.model ?? model;
-        rawUsage.promptTokens += result.usage?.promptTokens ?? 0;
-        rawUsage.completionTokens += result.usage?.completionTokens ?? 0;
-        rawUsage.totalTokens += result.usage?.totalTokens ?? 0;
-
-        const toolCalls = result.message.tool_calls ?? [];
-
-        if (toolCalls.length === 0) {
-            const { costEur } = calculateTokenCost(
-                rawUsage.promptTokens,
-                rawUsage.completionTokens,
-                model
-            );
-            return {
-                answer: (result.message.content || "").trim() || "Je n'ai pas de réponse à donner.",
-                proposedAction: null,
-                trace,
-                iterations: iteration,
-                model,
-                usage: { ...rawUsage, costEur },
-            };
-        }
-
-        // A confirm-class tool anywhere in the batch ends the turn: it needs a human.
-        for (const call of toolCalls) {
-            const tool = getTool(call.function.name);
-            if (!tool || tool.risk !== "confirm") continue;
-
-            const args = parseArgs(call.function.arguments);
-            let card: PendingActionCard;
-            try {
-                card = tool.describe
-                    ? await tool.describe(args, ctx)
-                    : {
-                          title: tool.label,
-                          details: [],
-                          warning: null,
-                          confirmLabel: "Confirmer",
-                          danger: false,
-                      };
-            } catch (error) {
-                const { costEur } = calculateTokenCost(
-                    rawUsage.promptTokens,
-                    rawUsage.completionTokens,
-                    model
-                );
-                return {
-                    answer:
-                        (result.message.content?.trim() ? `${result.message.content.trim()}\n\n` : "") +
-                        `Je n'ai pas pu préparer cette action : ${
-                            error instanceof Error ? error.message : "données introuvables"
-                        }`,
-                    proposedAction: null,
-                    trace,
-                    iterations: iteration,
-                    model,
-                    usage: { ...rawUsage, costEur },
-                };
-            }
-
-            const { costEur } = calculateTokenCost(
-                rawUsage.promptTokens,
-                rawUsage.completionTokens,
-                model
-            );
-            return {
-                answer: (result.message.content || "").trim(),
-                proposedAction: { tool: tool.name, args, card },
-                trace,
-                iterations: iteration,
-                model,
-                usage: { ...rawUsage, costEur },
-            };
-        }
-
-        messages.push({
-            role: "assistant",
-            content: result.message.content,
-            tool_calls: toolCalls,
-        });
-
-        for (const call of toolCalls) {
-            if (toolBudget <= 0) {
-                messages.push({
-                    role: "tool",
-                    tool_call_id: call.id,
-                    content: JSON.stringify({
-                        error: {
-                            code: "tool_budget_exhausted",
-                            message: "Budget d'outils épuisé pour cette demande.",
-                        },
-                    }),
-                });
-                continue;
-            }
-            toolBudget -= 1;
-
-            const execution = await executeToolCall(
-                { id: call.id, name: call.function.name, arguments: call.function.arguments },
-                ctx
-            );
-
-            trace.push({
-                tool: execution.tool,
-                label: execution.label,
-                ok: execution.ok,
-                durationMs: execution.durationMs,
-                errorCode: execution.error?.code,
-                args: compactArgs(parseArgs(call.function.arguments)),
-            });
-
-            messages.push({
-                role: "tool",
-                tool_call_id: call.id,
-                content: serializeToolResult(execution),
-            });
-        }
-    }
-
-    const { costEur } = calculateTokenCost(
-        rawUsage.promptTokens,
-        rawUsage.completionTokens,
-        model
+    const config = getAssistantModelConfig();
+    const plan = planTurn(config, input.depth ?? "standard");
+    const result = await runAgentTurn(
+        {
+            systemPrompt: input.systemPrompt,
+            history: input.history,
+            ctx: input.ctx,
+            config,
+            plan: input.model ? { ...plan, model: input.model } : plan,
+        },
+        { chat: openAIChatFn(input.apiKey), store: null },
     );
     return {
-        answer:
-            "Je n'ai pas réussi à aboutir après plusieurs recherches. Reformule en précisant ce que tu cherches.",
-        proposedAction: null,
-        trace,
-        iterations: limits.iterations,
-        model,
-        usage: { ...rawUsage, costEur },
+        answer: result.answer,
+        proposedAction: result.proposedAction
+            ? { tool: result.proposedAction.tool, args: result.proposedAction.args, card: result.proposedAction.card }
+            : null,
+        trace: result.trace,
+        iterations: result.iterations,
+        model: result.model,
+        usage: {
+            promptTokens: result.usage.promptTokens,
+            completionTokens: result.usage.completionTokens,
+            totalTokens: result.usage.totalTokens,
+            costEur: result.usage.costEur,
+        },
     };
 }

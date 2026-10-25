@@ -55,6 +55,11 @@ export interface TraceStep {
     errorCode?: string;
     cached?: boolean;
     evidence?: string;
+    /**
+     * What the tool was called with (ids, filters), compacted. Tool results are
+     * not replayed between turns, these are: a follow-up can reopen the record.
+     */
+    args?: Record<string, unknown>;
 }
 
 export interface TurnUsage {

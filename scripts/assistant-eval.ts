@@ -9,9 +9,9 @@
  */
 
 import "dotenv/config";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { installFixtureTools, fixtureContext, type FixtureWorld } from "@/lib/ai/agent/evals/fixtures";
+import { installFixtureTools, fixtureContext, type FixtureCall, type FixtureWorld } from "@/lib/ai/agent/evals/fixtures";
 import { SCENARIOS, type EvalTurnResult } from "@/lib/ai/agent/evals/scenarios";
 import { runEvalTurn, RUNTIME_NAME } from "@/lib/ai/agent/evals/adapter";
 
@@ -19,6 +19,8 @@ function arg(name: string, fallback: string): string {
     const i = process.argv.indexOf(`--${name}`);
     return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
+
+type Row = { scenario: string; category: string; run: number; pass: boolean; failures: string[]; result: EvalTurnResult; calls: unknown[] };
 
 function percentile(values: number[], p: number): number {
     if (values.length === 0) return 0;
@@ -29,6 +31,8 @@ function percentile(values: number[], p: number): number {
 async function main() {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("OPENAI_API_KEY missing");
+    const regrade = arg("regrade", "");
+    if (regrade) return regradeFile(regrade);
     const runs = Number(arg("runs", "1"));
     const out = arg("out", `docs/assistant/eval-${RUNTIME_NAME}.json`);
     const only = arg("only", "");
@@ -36,7 +40,7 @@ async function main() {
     let world: FixtureWorld = "normal";
     const recorder = installFixtureTools(() => world);
 
-    const rows: Array<{ scenario: string; category: string; run: number; pass: boolean; failures: string[]; result: EvalTurnResult; calls: unknown[] }> = [];
+    const rows: Row[] = [];
 
     for (let run = 1; run <= runs; run++) {
         for (const scenario of SCENARIOS) {
@@ -51,11 +55,14 @@ async function main() {
         }
     }
     recorder.restore();
+    writeResults(out, rows);
+}
 
+function summarize(rows: Row[]) {
     const traces = rows.flatMap((r) => r.result.trace);
     const latencies = rows.map((r) => r.result.latencyMs);
     const firstText = rows.map((r) => r.result.firstTextMs).filter((v): v is number => v !== null);
-    const summary = {
+    return {
         runtime: RUNTIME_NAME,
         date: new Date().toISOString(),
         model: rows.find((r) => r.result.model)?.result.model ?? null,
@@ -71,6 +78,12 @@ async function main() {
             completion: rows.reduce((s, r) => s + r.result.usage.completionTokens, 0),
         },
         costEur: Math.round(rows.reduce((s, r) => s + r.result.usage.costEur, 0) * 10000) / 10000,
+        verification: {
+            partialAnswers: rows.filter((r) => r.result.verification?.status === "partial").length,
+            repaired: rows.filter((r) => r.result.verification?.repaired).length,
+            claimsChecked: rows.reduce((s, r) => s + (r.result.verification?.checked ?? 0), 0),
+            claimsFailed: rows.reduce((s, r) => s + (r.result.verification?.failed ?? 0), 0),
+        },
         byCategory: Object.fromEntries(
             [...new Set(rows.map((r) => r.category))].map((c) => {
                 const rs = rows.filter((r) => r.category === c);
@@ -79,10 +92,28 @@ async function main() {
         ),
         failureModes: rows.filter((r) => !r.pass).map((r) => `${r.scenario}#${r.run}: ${r.failures.join("; ")}`),
     };
+}
 
+function writeResults(out: string, rows: Row[], summaryOverride?: Partial<ReturnType<typeof summarize>>) {
+    const summary = { ...summarize(rows), ...summaryOverride };
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify({ summary, rows }, null, 2));
     console.log(JSON.stringify(summary, null, 2));
+}
+
+/** Apply the current graders to stored answers: both runs graded by the same rules. */
+function regradeFile(path: string) {
+    const data = JSON.parse(readFileSync(path, "utf8")) as { summary: { runtime: string; date: string }; rows: Row[] };
+    for (const row of data.rows) {
+        const scenario = SCENARIOS.find((s) => s.id === row.scenario);
+        if (!scenario) continue;
+        const critical = row.failures.filter((f) => f.startsWith("CRITICAL"));
+        row.failures = row.result.error
+            ? [`runtime error: ${row.result.error}`]
+            : [...critical, ...scenario.grade(row.result, row.calls as FixtureCall[], [])];
+        row.pass = row.failures.length === 0;
+    }
+    writeResults(path, data.rows, { runtime: data.summary.runtime, date: data.summary.date });
 }
 
 main().catch((error) => {

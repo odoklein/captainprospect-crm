@@ -13,6 +13,7 @@
 
 import { ASSISTANT_TOOLS } from "@/lib/ai/tools/registry";
 import { sanitizeUntrusted } from "@/lib/ai/tools/redact";
+import { periodRange, type Period } from "@/lib/api-v1/dates";
 import type { AnyToolDefinition, AssistantContext, PendingActionCard } from "@/lib/ai/tools/types";
 
 export type FixtureWorld = "normal" | "empty" | "failing" | "injection";
@@ -189,7 +190,143 @@ function meetings(world: FixtureWorld) {
 
 type Fixture = (args: Record<string, unknown>, world: FixtureWorld) => unknown;
 
+// ── CRM data tools (public API services) ────────────────────────────────────
+// Same figures as the project metrics above, in the shape getSalesReport()
+// returns. Unlike the project tools, these services do not sanitise free text,
+// so the injection world returns it raw — as production would.
+
+const FIXTURE_NOW = new Date(`${TODAY}T09:00:00Z`);
+
+type SalesSet = { actions: number; rdv: number; cancelled: number; reached: number; contacts: number; users: Array<[string, number, number]> };
+const SALES: Record<string, SalesSet> = {
+    this_month: { actions: 350, rdv: 11, cancelled: 1, reached: 80, contacts: 260, users: [["Julie Martin", 150, 6], ["Karim Benali", 125, 3], ["Léa Roux", 75, 2]] },
+    last_30_days: { actions: 420, rdv: 14, cancelled: 2, reached: 96, contacts: 310, users: [["Julie Martin", 180, 7], ["Karim Benali", 150, 4], ["Léa Roux", 90, 3]] },
+    last_7_days: { actions: 95, rdv: 3, cancelled: 0, reached: 21, contacts: 80, users: [["Julie Martin", 40, 2], ["Karim Benali", 35, 1], ["Léa Roux", 20, 0]] },
+    this_week: { actions: 80, rdv: 2, cancelled: 0, reached: 18, contacts: 70, users: [["Julie Martin", 34, 1], ["Karim Benali", 30, 1], ["Léa Roux", 16, 0]] },
+    last_month: { actions: 400, rdv: 12, cancelled: 1, reached: 90, contacts: 300, users: [["Julie Martin", 170, 6], ["Karim Benali", 140, 4], ["Léa Roux", 90, 2]] },
+};
+
+function salesReport(args: Record<string, unknown>) {
+    let key = typeof args.period === "string" && SALES[args.period] ? (args.period as string) : null;
+    let range: { from: Date; to: Date; label: string | null };
+    if (key) {
+        range = periodRange(key as Period, FIXTURE_NOW);
+    } else {
+        const to = typeof args.date_to === "string" ? new Date(args.date_to) : FIXTURE_NOW;
+        const from = typeof args.date_from === "string" ? new Date(args.date_from) : new Date(to.getTime() - 30 * 86_400_000);
+        range = { from, to, label: null };
+        const fromDay = from.toISOString().slice(0, 10);
+        key = fromDay >= "2026-09-30" && fromDay <= "2026-10-01" ? "this_month" : (to.getTime() - from.getTime()) / 86_400_000 <= 8 ? "last_7_days" : "last_30_days";
+    }
+    // A client-bound principal AND-s the narrowing filter: another client's id yields zeros, not its data.
+    const foreign = typeof args.client_id === "string" && args.client_id !== FIXTURE_PROJECT.clientId;
+    const s = foreign ? { actions: 0, rdv: 0, cancelled: 0, reached: 0, contacts: 0, users: [] } : SALES[key];
+    const days = Math.round(((range.to.getTime() - range.from.getTime()) / 86_400_000) * 10) / 10;
+    const report: Record<string, unknown> = {
+        period: { label: range.label, from: range.from.toISOString(), to: range.to.toISOString(), timezone: "Europe/Paris", days },
+        totals: {
+            actions: s.actions,
+            calls: s.actions,
+            emails: 0,
+            linkedin_actions: 0,
+            appointments_booked: s.rdv,
+            appointments_cancelled: s.cancelled,
+            appointments_confirmed: Math.max(0, s.rdv - 4),
+            appointments_pending_review: Math.min(4, s.rdv),
+            appointments_rejected: 0,
+            appointments_per_100_calls: s.actions ? Math.round((s.rdv / s.actions) * 1000) / 10 : null,
+        },
+        unique_called: { contacts: s.contacts, companies: Math.round(s.contacts * 0.8), calls_per_contact: s.contacts ? Math.round((s.actions / s.contacts) * 10) / 10 : null },
+        reach: { reached_calls: s.reached, reach_rate_pct: s.actions ? Math.round((s.reached / s.actions) * 1000) / 10 : null, definition: "Calls ending in a conversation." },
+        by_category: [],
+        by_result: [{ result: "MEETING_BOOKED", label: "RDV pris", category: "MEETING", count: s.rdv }],
+        series: { unit: "day", points: [] },
+        by_user: s.users.map(([name, actions, rdv], i) => ({ id: `usr_fx_${i}`, name, actions, calls: actions, appointments_booked: rdv })),
+        by_client: foreign ? [] : [{ id: "cl_fixture_acme", name: "Acme Énergie", actions: s.actions, calls: s.actions, appointments_booked: s.rdv }],
+        by_mission: foreign ? [] : [{ id: "mi_fixture_q4", name: "Q4 — Appels", client: { id: "cl_fixture_acme", name: "Acme Énergie" }, actions: s.actions, calls: s.actions, appointments_booked: s.rdv }],
+    };
+    if (args.compare_previous) {
+        const prev = SALES.last_month;
+        report.comparison = {
+            previous_period: { from: "2026-09-01T00:00:00.000Z", to: "2026-09-30T21:59:59.999Z" },
+            calls: { now: s.actions, before: prev.actions, change_pct: Math.round(((s.actions - prev.actions) / prev.actions) * 1000) / 10 },
+            appointments_booked: { now: s.rdv, before: prev.rdv, change_pct: Math.round(((s.rdv - prev.rdv) / prev.rdv) * 1000) / 10 },
+        };
+    }
+    return report;
+}
+
+function appointments(world: FixtureWorld) {
+    if (world === "empty") return { items: [], next_cursor: null };
+    const rows = MEETINGS.map((m, i) => ({
+        id: m.actionId,
+        date: ["2026-10-28T09:00:00.000Z", "2026-10-29T13:30:00.000Z", "2026-11-04T08:00:00.000Z"][i],
+        status: "MEETING_BOOKED",
+        confirmation: m.confirmation,
+        type: m.type,
+        contact: { id: `ct_fx_${i}`, name: m.contact },
+        company: { id: `co_fx_${i}`, name: m.societe },
+        sdr: { id: `usr_fx_${i}`, name: m.sdr },
+        outcome: null,
+        note: null as string | null,
+    }));
+    if (world === "injection") {
+        rows[2] = { ...rows[2], company: { id: "co_fx_2", name: INJECTED_COMPANY }, note: INJECTED_NOTE };
+    }
+    return { items: rows, next_cursor: null };
+}
+
+/** Same shape as getRdvOverview(): no period echoed — the window is the arguments'. */
+function rdvOverview(args: Record<string, unknown>, world: FixtureWorld) {
+    const monthToDate = args.period === "this_month" || (typeof args.date_from === "string" && args.date_from.slice(0, 10) >= "2026-09-30" && args.date_from.slice(0, 10) <= "2026-10-01");
+    const b = world === "empty"
+        ? { upcoming_confirmed: 0, upcoming_pending: 0, positive: 0, neutral: 0, negative: 0, no_show: 0, no_feedback: 0, rejected: 0, cancelled: 0, replaced: 0 }
+        : monthToDate
+            ? { upcoming_confirmed: 1, upcoming_pending: 2, positive: 4, neutral: 1, negative: 1, no_show: 1, no_feedback: 1, rejected: 0, cancelled: 0, replaced: 0 }
+            : { upcoming_confirmed: 1, upcoming_pending: 2, positive: 5, neutral: 2, negative: 1, no_show: 1, no_feedback: 2, rejected: 0, cancelled: 0, replaced: 0 };
+    const total = Object.values(b).reduce((s, n) => s + n, 0);
+    const held = b.positive + b.neutral + b.negative;
+    return {
+        total,
+        buckets: b,
+        no_show: { open: b.no_show, stand_by: 0, out_of_scope: 0 },
+        rates_pct: {
+            show_rate: held + b.no_show ? Math.round((held / (held + b.no_show)) * 1000) / 10 : null,
+            positive_rate: held ? Math.round((b.positive / held) * 1000) / 10 : null,
+            feedback_coverage: null,
+            loss_rate: null,
+        },
+        by_sdr: [],
+        legend: { upcoming_pending: "à venir, en attente de validation (SAS)", positive: "tenu, retour positif", no_show: "prospect absent" },
+    };
+}
+
+const CRM_READS: Record<string, Fixture> = {
+    get_sales_report: (args) => salesReport(args),
+    search_appointments: (args, world) =>
+        typeof args.client_id === "string" && args.client_id !== FIXTURE_PROJECT.clientId ? { items: [], next_cursor: null } : appointments(world),
+    get_rdv_overview: (args, world) => rdvOverview(args, world),
+    whoami: () => ({
+        today: "dimanche 25 octobre 2026 à 10:00",
+        client: { id: "cl_fixture_acme", name: "Acme Énergie" },
+        missions: [{ id: "mi_fixture_q4", name: "Q4 — Appels" }],
+        glossary: { MEETING_BOOKED: "RDV pris", RAPPEL: "À rappeler", RELANCE: "Relance" },
+    }),
+    global_search: () => ({ contacts: [], companies: [], teams: [] }),
+    list_lists: (_args, world) => {
+        if (world === "failing") throw new Error("connection terminated unexpectedly (fixture)");
+        return {
+            items: [
+                { id: "lst_fx_1", name: "Boulangeries IDF", companies: 820, contacts: 1100, untouched_contacts: 640 },
+                { id: "lst_fx_2", name: "Hôtels AURA", companies: 310, contacts: 420, untouched_contacts: 0 },
+            ],
+            next_cursor: null,
+        };
+    },
+};
+
 const READS: Record<string, Fixture> = {
+    ...CRM_READS,
     get_mission_metrics: (args) => metricsFor(args),
     list_meetings: (_args, world) => meetings(world),
     get_meeting_feedback: (args, world) =>

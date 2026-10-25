@@ -146,6 +146,10 @@ export interface ToolExecutionResult {
     data?: unknown;
     error?: { code: string; message: string };
     durationMs: number;
+    /** Served from a still-fresh earlier retrieval instead of a new query. */
+    cached?: boolean;
+    /** Evidence label (E1…) of a read, when an evidence session was attached. */
+    evidence?: string;
 }
 
 /**
