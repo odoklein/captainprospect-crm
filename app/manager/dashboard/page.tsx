@@ -13,7 +13,6 @@ import {
     type MissionSummaryItem,
 } from "@/components/accueil/ManagerDashboardView";
 import type { ManagerHomePeriod } from "@/lib/manager-home/types";
-import { TodayTasksCard } from "@/components/accueil/TodayTasksCard";
 
 /* ─── Constants ─── */
 const PRESET_LABELS: Record<DateRangePreset, string> = {
@@ -120,7 +119,6 @@ export default function ManagerDashboard() {
 
     return (
         <div className="space-y-6">
-        <TodayTasksCard />
         <ManagerDashboardView
             firstName={session?.user?.name?.split(" ")[0] ?? "Manager"}
             stats={main.data?.stats ?? null}

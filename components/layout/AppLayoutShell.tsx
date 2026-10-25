@@ -11,6 +11,7 @@ import { GlobalSearchModal } from "./GlobalSearchModal";
 import { SectionTabs } from "./SectionTabs";
 import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
+import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
 import { Modal } from "@/components/ui";
 import { DailyReportModal } from "@/components/sdr/DailyReportModal";
@@ -256,6 +257,7 @@ function InnerLayout({
                                 {dailyReport.submitted ? "Retour du jour envoyé" : "Retour journée"}
                             </button>
                         )}
+                        {userRole === UserRole.MANAGER && <TodayTasksMenu />}
                         <button
                             type="button"
                             onClick={() => router.refresh()}

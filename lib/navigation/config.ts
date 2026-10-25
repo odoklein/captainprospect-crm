@@ -125,7 +125,6 @@ export const MANAGER_NAV: NavSection[] = [
         children: [
           { href: "/manager/clients", icon: Building2, label: "Clients", permission: "pages.clients", description: "Fiches clients et leurs missions" },
           { href: "/manager/dashboard-projet", icon: UserCheck, label: "Dashboard projet", permission: "pages.clients", description: "Avancement de chaque projet client" },
-          { href: "/manager/assistant", icon: AiMark, label: "Assistant projet", permission: "pages.clients", description: "Assistant IA sur les données d'un projet" },
         ],
       },
       {
