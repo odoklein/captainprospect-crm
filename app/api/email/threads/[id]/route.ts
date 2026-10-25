@@ -1,14 +1,28 @@
 // ============================================
 // SINGLE THREAD API ROUTES
-// GET /api/email/threads/[id] - Get thread with messages
-// PATCH /api/email/threads/[id] - Update thread
-// DELETE /api/email/threads/[id] - Delete/trash thread
+// GET /api/email/threads/[id] - Get thread with messages, CRM links, permissions
+// PATCH /api/email/threads/[id] - Update thread (read, star, archive, labels…)
+// DELETE /api/email/threads/[id] - Trash (or ?permanent=true delete) a thread
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getMailboxSendAccess, isMailboxSupervisor } from '@/lib/email/permissions';
+import { THREAD_LINKS_SELECT, authorizeThread } from '../_lib/thread-context';
+
+function messageTime(e: { receivedAt: Date | null; sentAt: Date | null; createdAt: Date }): number {
+    return (e.receivedAt ?? e.sentAt ?? e.createdAt).getTime();
+}
+
+function forbidden() {
+    return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
+}
+
+function notFound() {
+    return NextResponse.json({ success: false, error: 'Conversation introuvable' }, { status: 404 });
+}
 
 // ============================================
 // GET - Get thread with all messages
@@ -21,18 +35,35 @@ export async function GET(
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
-            return NextResponse.json(
-                { success: false, error: 'Non autorisé' },
-                { status: 401 }
-            );
+            return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
         }
 
         const { id } = await params;
+        const access = await authorizeThread(id, session.user.id, session.user.role);
+        if (access === null) return notFound();
+        if (access === false) return forbidden();
 
-        // Get thread with full details
         const thread = await prisma.emailThread.findUnique({
             where: { id },
-            include: {
+            select: {
+                id: true,
+                mailboxId: true,
+                subject: true,
+                snippet: true,
+                participantEmails: true,
+                isRead: true,
+                isStarred: true,
+                isArchived: true,
+                isTrashed: true,
+                labels: true,
+                sentiment: true,
+                priority: true,
+                summary: true,
+                slaDeadline: true,
+                lastEmailAt: true,
+                createdAt: true,
+                assignedToId: true,
+                ...THREAD_LINKS_SELECT,
                 mailbox: {
                     select: {
                         id: true,
@@ -40,141 +71,93 @@ export async function GET(
                         email: true,
                         displayName: true,
                         provider: true,
-                        signature: true,
-                        signatureHtml: true,
-                        permissions: {
-                            where: { userId: session.user.id },
-                            select: {
-                                canRead: true,
-                                canSend: true,
-                                canSendAs: true,
-                            },
-                        },
+                        owner: { select: { id: true, name: true } },
                     },
                 },
                 emails: {
-                    orderBy: { receivedAt: 'asc' },
-                    include: {
-                        attachments: true,
+                    select: {
+                        id: true,
+                        fromAddress: true,
+                        fromName: true,
+                        toAddresses: true,
+                        ccAddresses: true,
+                        subject: true,
+                        bodyHtml: true,
+                        bodyText: true,
+                        direction: true,
+                        status: true,
+                        openCount: true,
+                        firstOpenedAt: true,
+                        receivedAt: true,
+                        sentAt: true,
+                        createdAt: true,
+                        sentBy: { select: { id: true, name: true } },
+                        attachments: {
+                            select: { id: true, filename: true, mimeType: true, size: true, storageKey: true, url: true },
+                        },
                     },
                 },
                 comments: {
                     orderBy: { createdAt: 'asc' },
-                    include: {
-                        user: {
-                            select: {
-                                id: true,
-                                name: true,
-                                email: true,
-                            },
-                        },
-                    },
-                },
-                assignedTo: {
                     select: {
                         id: true,
-                        name: true,
-                        email: true,
+                        content: true,
+                        createdAt: true,
+                        user: { select: { id: true, name: true, email: true } },
                     },
                 },
-                client: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        industry: true,
-                    },
-                },
-                mission: {
-                    select: {
-                        id: true,
-                        name: true,
-                        client: {
-                            select: {
-                                id: true,
-                                name: true,
-                            },
-                        },
-                    },
-                },
-                campaign: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-                contact: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        email: true,
-                        title: true,
-                        company: {
-                            select: {
-                                id: true,
-                                name: true,
-                            },
-                        },
-                    },
-                },
-                opportunity: {
-                    select: {
-                        id: true,
-                        needSummary: true,
-                        urgency: true,
-                    },
-                },
+                assignedTo: { select: { id: true, name: true, email: true } },
             },
         });
 
-        if (!thread) {
-            return NextResponse.json(
-                { success: false, error: 'Thread non trouvé' },
-                { status: 404 }
-            );
-        }
+        if (!thread) return notFound();
 
-        // Check access
-        const isOwner = thread.mailbox.ownerId === session.user.id;
-        const hasPermission = thread.mailbox.permissions.some(p => p.canRead);
-        const isManager = session.user.role === 'MANAGER';
+        // Chronological order: synced messages carry receivedAt, ours sentAt
+        const emails = [...thread.emails]
+            .sort((a, b) => messageTime(a) - messageTime(b))
+            .map((e) => ({
+                ...e,
+                // Storage details stay server-side; the UI only needs to know
+                // whether the file can be downloaded
+                attachments: e.attachments.map(({ storageKey, url, ...a }) => ({
+                    ...a,
+                    downloadable: !!storageKey || !!url,
+                })),
+            }));
 
-        if (!isOwner && !hasPermission && !isManager) {
-            return NextResponse.json(
-                { success: false, error: 'Accès non autorisé' },
-                { status: 403 }
-            );
-        }
-
-        // Mark as read if unread
         if (!thread.isRead) {
-            await prisma.emailThread.update({
-                where: { id },
-                data: { isRead: true },
-            });
+            await prisma.emailThread.update({ where: { id }, data: { isRead: true } });
         }
 
-        // Build permissions for the user
+        // Same rule as /api/email/send, so the reply button never lies
+        const sendAccess = await getMailboxSendAccess({
+            mailboxId: thread.mailboxId,
+            userId: session.user.id,
+            userRole: session.user.role,
+            missionId: thread.missionId,
+        });
+
         const permissions = {
             canRead: true,
-            canSend: isOwner || thread.mailbox.permissions.some(p => p.canSend),
-            canSendAs: isOwner || thread.mailbox.permissions.some(p => p.canSendAs),
+            canSend: sendAccess.allowed,
+            canSendAs: sendAccess.allowed,
+            sendBlockedReason: sendAccess.allowed ? null : sendAccess.reason ?? null,
+            canDelete:
+                thread.mailbox.ownerId === session.user.id || isMailboxSupervisor(session.user.role),
         };
 
         return NextResponse.json({
             success: true,
             data: {
                 ...thread,
+                isRead: true,
+                emails,
                 permissions,
             },
         });
     } catch (error) {
         console.error('GET /api/email/threads/[id] error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Erreur serveur' },
-            { status: 500 }
-        );
+        return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
     }
 }
 
@@ -189,76 +172,36 @@ export async function PATCH(
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
-            return NextResponse.json(
-                { success: false, error: 'Non autorisé' },
-                { status: 401 }
-            );
+            return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
         }
 
         const { id } = await params;
+        const access = await authorizeThread(id, session.user.id, session.user.role);
+        if (access === null) return notFound();
+        if (access === false) return forbidden();
+
         const body = await req.json();
-
-        // Get thread with mailbox
-        const thread = await prisma.emailThread.findUnique({
-            where: { id },
-            include: {
-                mailbox: {
-                    select: {
-                        ownerId: true,
-                        permissions: {
-                            where: { userId: session.user.id },
-                            select: { canRead: true },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!thread) {
-            return NextResponse.json(
-                { success: false, error: 'Thread non trouvé' },
-                { status: 404 }
-            );
-        }
-
-        // Check access
-        const isOwner = thread.mailbox.ownerId === session.user.id;
-        const hasPermission = thread.mailbox.permissions.some(p => p.canRead);
-        const isManager = session.user.role === 'MANAGER';
-
-        if (!isOwner && !hasPermission && !isManager) {
-            return NextResponse.json(
-                { success: false, error: 'Accès non autorisé' },
-                { status: 403 }
-            );
-        }
-
-        // Build update data
         const updateData: Record<string, unknown> = {};
 
-        if (typeof body.isRead === 'boolean') {
-            updateData.isRead = body.isRead;
-        }
-        if (typeof body.isStarred === 'boolean') {
-            updateData.isStarred = body.isStarred;
-        }
-        if (typeof body.isArchived === 'boolean') {
-            updateData.isArchived = body.isArchived;
-        }
-        if (typeof body.isTrashed === 'boolean') {
-            updateData.isTrashed = body.isTrashed;
-        }
-        if (body.assignedToId !== undefined) {
-            updateData.assignedToId = body.assignedToId || null;
-        }
-        if (body.labels !== undefined && Array.isArray(body.labels)) {
-            updateData.labels = body.labels;
+        if (typeof body.isRead === 'boolean') updateData.isRead = body.isRead;
+        if (typeof body.isStarred === 'boolean') updateData.isStarred = body.isStarred;
+        if (typeof body.isArchived === 'boolean') updateData.isArchived = body.isArchived;
+        if (typeof body.isTrashed === 'boolean') updateData.isTrashed = body.isTrashed;
+        if (body.assignedToId !== undefined) updateData.assignedToId = body.assignedToId || null;
+        if (Array.isArray(body.labels)) {
+            updateData.labels = Array.from(
+                new Set(
+                    (body.labels as unknown[])
+                        .filter((l): l is string => typeof l === 'string')
+                        .map((l) => l.trim())
+                        .filter((l) => l.length > 0 && l.length <= 40),
+                ),
+            ).slice(0, 20);
         }
         if (body.slaDeadline !== undefined) {
             updateData.slaDeadline = body.slaDeadline ? new Date(body.slaDeadline) : null;
         }
 
-        // Update thread
         const updated = await prisma.emailThread.update({
             where: { id },
             data: updateData,
@@ -275,21 +218,15 @@ export async function PATCH(
             },
         });
 
-        return NextResponse.json({
-            success: true,
-            data: updated,
-        });
+        return NextResponse.json({ success: true, data: updated });
     } catch (error) {
         console.error('PATCH /api/email/threads/[id] error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Erreur serveur' },
-            { status: 500 }
-        );
+        return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
     }
 }
 
 // ============================================
-// DELETE - Delete/trash thread
+// DELETE - Trash (default) or permanently delete a thread
 // ============================================
 
 export async function DELETE(
@@ -299,70 +236,33 @@ export async function DELETE(
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
-            return NextResponse.json(
-                { success: false, error: 'Non autorisé' },
-                { status: 401 }
-            );
+            return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
         }
 
         const { id } = await params;
         const { searchParams } = new URL(req.url);
         const permanent = searchParams.get('permanent') === 'true';
 
-        // Get thread with mailbox
         const thread = await prisma.emailThread.findUnique({
             where: { id },
-            include: {
-                mailbox: {
-                    select: {
-                        ownerId: true,
-                    },
-                },
-            },
+            select: { id: true, mailbox: { select: { ownerId: true } } },
         });
+        if (!thread) return notFound();
 
-        if (!thread) {
-            return NextResponse.json(
-                { success: false, error: 'Thread non trouvé' },
-                { status: 404 }
-            );
-        }
-
-        // Only owner or manager can delete
-        if (thread.mailbox.ownerId !== session.user.id && session.user.role !== 'MANAGER') {
-            return NextResponse.json(
-                { success: false, error: 'Accès non autorisé' },
-                { status: 403 }
-            );
+        // Only the mailbox owner or a supervisor can delete
+        if (thread.mailbox.ownerId !== session.user.id && !isMailboxSupervisor(session.user.role)) {
+            return forbidden();
         }
 
         if (permanent) {
-            // Permanently delete
-            await prisma.emailThread.delete({
-                where: { id },
-            });
-
-            return NextResponse.json({
-                success: true,
-                message: 'Thread supprimé définitivement',
-            });
-        } else {
-            // Move to trash
-            await prisma.emailThread.update({
-                where: { id },
-                data: { isTrashed: true },
-            });
-
-            return NextResponse.json({
-                success: true,
-                message: 'Thread déplacé vers la corbeille',
-            });
+            await prisma.emailThread.delete({ where: { id } });
+            return NextResponse.json({ success: true, message: 'Conversation supprimée définitivement' });
         }
+
+        await prisma.emailThread.update({ where: { id }, data: { isTrashed: true } });
+        return NextResponse.json({ success: true, message: 'Conversation déplacée dans la corbeille' });
     } catch (error) {
         console.error('DELETE /api/email/threads/[id] error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Erreur serveur' },
-            { status: 500 }
-        );
+        return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
     }
 }

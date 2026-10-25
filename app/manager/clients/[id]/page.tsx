@@ -49,7 +49,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import AITaskExtractor, { type ExtractedTask } from "@/components/sessions/AITaskExtractor";
 import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
-import { ReachInboxCampaignsPanel } from "@/components/email/ReachInboxCampaignsPanel";
+import { ReachInboxWorkspace } from "@/components/emailing/ReachInboxWorkspace";
 import { EditMissionDialog } from "@/components/missions/EditMissionDialog";
 import { MISSION_STATUS_CONFIG } from "@/lib/constants/missionStatus";
 import type { MissionStatusValue } from "@/lib/constants/missionStatus";
@@ -2333,7 +2333,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     </div>
 
                     {/* ── Campagnes ReachInbox liées à ce client ── */}
-                    <ReachInboxCampaignsPanel variant="manager" clientId={client.id} />
+                    <ReachInboxWorkspace variant="manager" clientId={client.id} />
                 </div>
             )}
 

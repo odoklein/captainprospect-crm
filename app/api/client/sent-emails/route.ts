@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
     successResponse,
@@ -9,11 +9,40 @@ import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
 
 // ============================================
 // GET /api/client/sent-emails
-// Enhanced: filters, stats, open/click counts, mission context
+// Emails sent for the logged-in client's missions (or from their own mailbox),
+// with filters, stats and open/click counts.
+// ?format=csv exports the filtered list (capped at CSV_MAX rows).
+//
+// Every filter is ANDed onto the client scope: the scope is never replaced
+// (a status/search filter used to overwrite the OR and leak other clients' rows).
 // ============================================
+
+const CSV_MAX = 5000;
+
+const STATUS_LABEL: Record<string, string> = {
+    SENT: "Envoyé",
+    DELIVERED: "Délivré",
+    OPENED: "Ouvert",
+    CLICKED: "Cliqué",
+    REPLIED: "Répondu",
+    BOUNCED: "Rebond",
+    FAILED: "Échoué",
+};
+
+function csvCell(value: unknown): string {
+    const s = value === null || value === undefined ? "" : String(value);
+    return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function frDateTime(d: Date | null): string {
+    if (!d) return "";
+    return d.toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "short", timeStyle: "short" });
+}
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["CLIENT"], request);
+    const { searchParams } = new URL(request.url);
+    const format = searchParams.get("format");
 
     // Find client record
     const clientUser = await prisma.user.findUnique({
@@ -22,6 +51,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     });
 
     if (!clientUser?.clientId) {
+        if (format === "csv") {
+            return new NextResponse("﻿", { headers: { "Content-Type": "text/csv; charset=utf-8" } });
+        }
         return successResponse({
             emails: [],
             stats: null,
@@ -29,91 +61,66 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         });
     }
 
-    const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
     const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "25")));
     const skip = (page - 1) * limit;
     const sortBy = searchParams.get("sortBy") || "sentAt";
-    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const sortOrder = (searchParams.get("sortOrder") === "asc" ? "asc" : "desc") as "asc" | "desc";
     const includeStats = searchParams.get("includeStats") === "true";
 
     // Filters
     const missionId = searchParams.get("missionId") || undefined;
     const status = searchParams.get("status") || undefined;
-    const search = searchParams.get("search") || undefined;
+    const search = searchParams.get("search")?.trim() || undefined;
     const dateFrom = searchParams.get("dateFrom") || undefined;
     const dateTo = searchParams.get("dateTo") || undefined;
     const hasOpened = searchParams.get("hasOpened") || undefined;
     const hasClicked = searchParams.get("hasClicked") || undefined;
 
-    // Base filter: emails sent for this client's missions OR from client's own mailbox
-    const baseWhere: Record<string, unknown> = {
-        direction: "OUTBOUND",
-        status: { not: "DRAFT" },
-        OR: [
-            {
-                mission: {
-                    clientId: clientUser.clientId,
-                    AND: [portalVisibleMissionWhere()],
-                },
-            },
-            {
-                mailbox: {
-                    ownerId: session.user.id,
-                },
-            },
-        ],
+    const visibleMission = {
+        clientId: clientUser.clientId,
+        AND: [portalVisibleMissionWhere()],
     };
 
-    if (missionId) {
-        baseWhere.missionId = missionId;
-        baseWhere.mission = {
-            clientId: clientUser.clientId,
-            AND: [portalVisibleMissionWhere()],
-        };
-        delete baseWhere.OR; // narrow to specific mission
-    }
+    const and: Record<string, unknown>[] = [
+        { direction: "OUTBOUND" },
+        { status: { not: "DRAFT" } },
+        missionId
+            ? { missionId, mission: visibleMission }
+            : { OR: [{ mission: visibleMission }, { mailbox: { ownerId: session.user.id } }] },
+    ];
 
-    if (status) {
-        // Map display statuses to DB statuses
-        if (status === "OPENED") {
-            (baseWhere as Record<string, unknown>).OR = [
-                { status: "OPENED" },
-                { status: "CLICKED" },
-                { status: "REPLIED" },
-            ];
-        } else {
-            baseWhere.status = status;
-        }
-    }
+    if (status === "OPENED") and.push({ status: { in: ["OPENED", "CLICKED", "REPLIED"] } });
+    else if (status) and.push({ status });
 
-    if (hasOpened === "true") baseWhere.openCount = { gt: 0 };
-    if (hasOpened === "false") baseWhere.openCount = 0;
-    if (hasClicked === "true") baseWhere.clickCount = { gt: 0 };
-    if (hasClicked === "false") baseWhere.clickCount = 0;
+    if (hasOpened === "true") and.push({ openCount: { gt: 0 } });
+    if (hasOpened === "false") and.push({ openCount: 0 });
+    if (hasClicked === "true") and.push({ clickCount: { gt: 0 } });
+    if (hasClicked === "false") and.push({ clickCount: 0 });
 
     if (dateFrom || dateTo) {
-        baseWhere.sentAt = {
-            ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-            ...(dateTo ? { lte: new Date(dateTo + "T23:59:59") } : {}),
-        };
+        and.push({
+            sentAt: {
+                ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+                ...(dateTo ? { lte: new Date(dateTo + "T23:59:59") } : {}),
+            },
+        });
     }
 
     if (search) {
-        const searchCondition = [
-            { subject: { contains: search, mode: "insensitive" } },
-            { toAddresses: { hasSome: [search] } },
-            { contact: { firstName: { contains: search, mode: "insensitive" } } },
-            { contact: { lastName: { contains: search, mode: "insensitive" } } },
-        ];
-        if (baseWhere.OR) {
-            // Merge search into existing OR - wrap current OR in AND with search OR
-            baseWhere.AND = [{ OR: baseWhere.OR as Record<string, unknown>[] }, { OR: searchCondition }];
-            delete baseWhere.OR;
-        } else {
-            baseWhere.OR = searchCondition;
-        }
+        and.push({
+            OR: [
+                { subject: { contains: search, mode: "insensitive" } },
+                { toAddresses: { hasSome: [search, search.toLowerCase()] } },
+                { contact: { firstName: { contains: search, mode: "insensitive" } } },
+                { contact: { lastName: { contains: search, mode: "insensitive" } } },
+                { contact: { email: { contains: search, mode: "insensitive" } } },
+                { contact: { company: { name: { contains: search, mode: "insensitive" } } } },
+            ],
+        });
     }
+
+    const where = { AND: and };
 
     const validSortFields: Record<string, unknown> = {
         sentAt: { sentAt: sortOrder },
@@ -124,56 +131,79 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     };
     const orderBy = validSortFields[sortBy] || { sentAt: "desc" };
 
-    const [emails, total] = await Promise.all([
-        prisma.email.findMany({
-            where: baseWhere,
-            orderBy,
-            skip,
-            take: limit,
+    const select = {
+        id: true,
+        subject: true,
+        toAddresses: true,
+        sentAt: true,
+        openCount: true,
+        clickCount: true,
+        firstOpenedAt: true,
+        lastOpenedAt: true,
+        status: true,
+        contact: {
             select: {
                 id: true,
-                subject: true,
-                toAddresses: true,
-                sentAt: true,
-                openCount: true,
-                clickCount: true,
-                firstOpenedAt: true,
-                lastOpenedAt: true,
-                status: true,
-                contact: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        email: true,
-                        company: { select: { id: true, name: true } },
-                    },
-                },
-                mission: {
-                    select: { id: true, name: true },
-                },
-                template: { select: { id: true, name: true } },
-                sentBy: { select: { id: true, name: true } },
+                firstName: true,
+                lastName: true,
+                email: true,
+                company: { select: { id: true, name: true } },
             },
-        }),
-        prisma.email.count({ where: baseWhere }),
+        },
+        mission: { select: { id: true, name: true } },
+        template: { select: { id: true, name: true } },
+        sentBy: { select: { id: true, name: true } },
+    } as const;
+
+    // ---------- CSV export ----------
+    if (format === "csv") {
+        const rows = await prisma.email.findMany({ where, orderBy, take: CSV_MAX, select });
+        const header = ["Date d'envoi", "Destinataire", "Email", "Société", "Objet", "Mission", "Statut", "Ouvertures", "Première ouverture", "Clics", "Envoyé par"];
+        const lines = rows.map((e) => {
+            const name = e.contact ? [e.contact.firstName, e.contact.lastName].filter(Boolean).join(" ") : "";
+            return [
+                frDateTime(e.sentAt),
+                name,
+                e.contact?.email || e.toAddresses[0] || "",
+                e.contact?.company?.name ?? "",
+                e.subject ?? "",
+                e.mission?.name ?? "",
+                STATUS_LABEL[e.status] ?? e.status,
+                e.openCount,
+                frDateTime(e.firstOpenedAt),
+                e.clickCount,
+                e.sentBy?.name ?? "",
+            ].map(csvCell).join(";");
+        });
+        const csv = "﻿" + [header.map(csvCell).join(";"), ...lines].join("\r\n");
+        const day = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Paris" });
+        return new NextResponse(csv, {
+            headers: {
+                "Content-Type": "text/csv; charset=utf-8",
+                "Content-Disposition": `attachment; filename="emails-envoyes-${day}.csv"`,
+                "Cache-Control": "no-store",
+                "X-Export-Capped": String(rows.length >= CSV_MAX),
+            },
+        });
+    }
+
+    const [emails, total] = await Promise.all([
+        prisma.email.findMany({ where, orderBy, skip, take: limit, select }),
+        prisma.email.count({ where }),
     ]);
 
     // Compute stats if requested
     let stats = null;
     if (includeStats) {
-        const statusCounts = await prisma.email.groupBy({
-            by: ["status"],
-            where: baseWhere,
-            _count: { id: true },
-        });
+        const [statusCounts, totalOpened, totalClicked] = await Promise.all([
+            prisma.email.groupBy({ by: ["status"], where, _count: { id: true } }),
+            prisma.email.count({ where: { AND: [...and, { openCount: { gt: 0 } }] } }),
+            prisma.email.count({ where: { AND: [...and, { clickCount: { gt: 0 } }] } }),
+        ]);
         const byStatus: Record<string, number> = {};
         statusCounts.forEach((s) => { byStatus[s.status] = s._count.id; });
 
         const totalSent = total;
-        const totalOpened = await prisma.email.count({ where: { ...baseWhere, openCount: { gt: 0 } } });
-        const totalClicked = await prisma.email.count({ where: { ...baseWhere, clickCount: { gt: 0 } } });
-
         stats = {
             totalSent,
             totalOpened,

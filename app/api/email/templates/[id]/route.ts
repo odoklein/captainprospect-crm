@@ -9,6 +9,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { extractVariables } from '@/lib/email/services/template-variables';
+import { normalizeTemplateCategory } from '@/components/email/templates/template-categories';
+
+const TEMPLATE_INCLUDE = {
+    createdBy: { select: { id: true, name: true } },
+    missionTemplates: {
+        select: {
+            missionId: true,
+            mission: { select: { id: true, name: true, status: true, client: { select: { id: true, name: true } } } },
+        },
+    },
+} as const;
 
 // ============================================
 // GET - Get template
@@ -31,14 +43,7 @@ export async function GET(
 
         const template = await prisma.emailTemplate.findUnique({
             where: { id },
-            include: {
-                createdBy: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-            },
+            include: TEMPLATE_INCLUDE,
         });
 
         if (!template) {
@@ -92,7 +97,7 @@ export async function PATCH(
         // Check ownership
         const template = await prisma.emailTemplate.findUnique({
             where: { id },
-            select: { createdById: true },
+            select: { createdById: true, subject: true, bodyHtml: true },
         });
 
         if (!template) {
@@ -109,28 +114,32 @@ export async function PATCH(
             );
         }
 
+        if (body.name !== undefined && !String(body.name).trim()) {
+            return NextResponse.json({ success: false, error: 'Le nom est requis' }, { status: 400 });
+        }
+        if (body.subject !== undefined && !String(body.subject).trim()) {
+            return NextResponse.json({ success: false, error: 'Le sujet est requis' }, { status: 400 });
+        }
+
         // Build update data
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
         
         if (body.name !== undefined) updateData.name = body.name.trim();
         if (body.subject !== undefined) updateData.subject = body.subject.trim();
         if (body.bodyHtml !== undefined) updateData.bodyHtml = body.bodyHtml;
         if (body.bodyText !== undefined) updateData.bodyText = body.bodyText;
-        if (body.category !== undefined) updateData.category = body.category;
+        if (body.category !== undefined) updateData.category = normalizeTemplateCategory(body.category);
         if (body.isShared !== undefined) updateData.isShared = body.isShared;
-        if (body.variables !== undefined) updateData.variables = body.variables;
+        if (body.subject !== undefined || body.bodyHtml !== undefined) {
+            updateData.variables = extractVariables(
+                `${body.subject ?? template.subject} ${body.bodyHtml ?? template.bodyHtml}`,
+            );
+        }
 
         const updated = await prisma.emailTemplate.update({
             where: { id },
             data: updateData,
-            include: {
-                createdBy: {
-                    select: {
-                        id: true,
-                        name: true,
-                    },
-                },
-            },
+            include: TEMPLATE_INCLUDE,
         });
 
         return NextResponse.json({

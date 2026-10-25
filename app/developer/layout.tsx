@@ -143,7 +143,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto flex flex-col">
+            <main className="flex-1 min-w-0 h-screen overflow-auto flex flex-col">
                 {/* Premium Header */}
                 <header className="bg-white/80 backdrop-blur-sm border-b border-slate-200/50 px-6 py-3 flex items-center justify-between sticky top-0 z-40">
                     <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -155,7 +155,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
                 </header>
                 {/* Main Content Area */}
                 {pathname.startsWith("/developer/mailbox") || pathname.startsWith("/developer/tickets") || pathname.startsWith("/developer/comms") ? (
-                    <div className="flex-1 w-full h-[calc(100vh-57px)] overflow-hidden">{children}</div>
+                    <div className="flex-1 min-h-0 w-full flex flex-col overflow-hidden">{children}</div>
                 ) : (
                     <div className="max-w-6xl mx-auto p-6 w-full">{children}</div>
                 )}

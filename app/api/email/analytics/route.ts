@@ -1,208 +1,52 @@
 // ============================================
-// EMAIL ANALYTICS API ROUTE
-// GET /api/email/analytics - Get email analytics
+// GET /api/email/analytics
+// Email performance computed from the Email table (see _lib/metrics.ts).
+//
+// Query: period=7|30|90|custom, from/to=yyyy-MM-dd (custom), mailboxId, missionId
+// Returns metrics + breakdowns + the filter options of the page.
+// Managers and developers only — the figures cover every team mailbox.
 // ============================================
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { Prisma } from '@prisma/client';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { NextRequest } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
+import { computeEmailMetrics, resolvePeriod } from "./_lib/metrics";
 
-export async function GET(req: NextRequest) {
-    try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json(
-                { success: false, error: 'Non autorisé' },
-                { status: 401 }
-            );
-        }
+export const GET = withErrorHandler(async (req: NextRequest) => {
+    await requireRole(["MANAGER", "DEVELOPER"], req);
 
-        const { searchParams } = new URL(req.url);
-        const mailboxId = searchParams.get('mailboxId');
-        const period = searchParams.get('period') || '30d'; // 7d, 30d, 90d
-        const userId = searchParams.get('userId');
+    const { searchParams } = new URL(req.url);
+    const period = resolvePeriod(searchParams, "30");
+    const mailboxId = searchParams.get("mailboxId") || searchParams.get("mailbox") || null;
+    const missionId = searchParams.get("missionId") || searchParams.get("mission") || null;
 
-        // Calculate date range
-        let daysBack = 30;
-        switch (period) {
-            case '7d': daysBack = 7; break;
-            case '30d': daysBack = 30; break;
-            case '90d': daysBack = 90; break;
-        }
-        
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - daysBack);
-        startDate.setHours(0, 0, 0, 0);
+    const [metrics, mailboxes, missions, outboundEver, trackedEver] = await Promise.all([
+        computeEmailMetrics(period, { mailboxId, missionId }, { breakdowns: true }),
+        prisma.mailbox.findMany({
+            select: { id: true, email: true, provider: true, isActive: true },
+            orderBy: { email: "asc" },
+        }),
+        // Missions that ever had an email, so the filter lists something useful.
+        prisma.mission.findMany({
+            where: { OR: [{ sentEmails: { some: {} } }, { emailThreads: { some: {} } }] },
+            select: { id: true, name: true, client: { select: { name: true } } },
+            orderBy: { name: "asc" },
+            take: 300,
+        }),
+        prisma.email.count({ where: { direction: "OUTBOUND", status: { notIn: ["DRAFT"] } } }),
+        prisma.email.count({ where: { direction: "OUTBOUND", trackingPixelId: { not: null } } }),
+    ]);
 
-        // Build mailbox filter
-        let mailboxIds: string[] = [];
-        
-        if (mailboxId) {
-            mailboxIds = [mailboxId];
-        } else {
-            // Get accessible mailboxes
-            const whereClause: Prisma.MailboxWhereInput = {
-                isActive: true,
-            };
-
-            if (session.user.role !== 'MANAGER') {
-                whereClause.OR = [
-                    { ownerId: session.user.id },
-                    { permissions: { some: { userId: session.user.id, canRead: true } } },
-                ];
-            } else if (userId) {
-                whereClause.ownerId = userId;
-            }
-
-            const mailboxes = await prisma.mailbox.findMany({
-                where: whereClause,
-                select: { id: true },
-            });
-            mailboxIds = mailboxes.map(m => m.id);
-        }
-
-        if (mailboxIds.length === 0) {
-            return NextResponse.json({
-                success: true,
-                data: {
-                    summary: { sent: 0, delivered: 0, opened: 0, clicked: 0, replied: 0, bounced: 0 },
-                    rates: { openRate: 0, clickRate: 0, replyRate: 0, bounceRate: 0 },
-                    daily: [],
-                    topPerformers: [],
-                },
-            });
-        }
-
-        // Get aggregated daily analytics
-        const dailyAnalytics = await prisma.emailAnalyticsDaily.findMany({
-            where: {
-                mailboxId: { in: mailboxIds },
-                date: { gte: startDate },
-            },
-            orderBy: { date: 'asc' },
-        });
-
-        // Aggregate totals
-        const summary = {
-            sent: 0,
-            delivered: 0,
-            opened: 0,
-            clicked: 0,
-            replied: 0,
-            bounced: 0,
-        };
-
-        const dailyByDate = new Map<string, typeof summary>();
-
-        for (const day of dailyAnalytics) {
-            summary.sent += day.sent;
-            summary.delivered += day.delivered;
-            summary.opened += day.opened;
-            summary.clicked += day.clicked;
-            summary.replied += day.replied;
-            summary.bounced += day.bounced;
-
-            const dateKey = day.date.toISOString().split('T')[0];
-            const existing = dailyByDate.get(dateKey) || { ...summary, sent: 0, delivered: 0, opened: 0, clicked: 0, replied: 0, bounced: 0 };
-            
-            dailyByDate.set(dateKey, {
-                sent: existing.sent + day.sent,
-                delivered: existing.delivered + day.delivered,
-                opened: existing.opened + day.opened,
-                clicked: existing.clicked + day.clicked,
-                replied: existing.replied + day.replied,
-                bounced: existing.bounced + day.bounced,
-            });
-        }
-
-        // Calculate rates
-        const rates = {
-            openRate: summary.delivered > 0 ? (summary.opened / summary.delivered) * 100 : 0,
-            clickRate: summary.opened > 0 ? (summary.clicked / summary.opened) * 100 : 0,
-            replyRate: summary.delivered > 0 ? (summary.replied / summary.delivered) * 100 : 0,
-            bounceRate: summary.sent > 0 ? (summary.bounced / summary.sent) * 100 : 0,
-        };
-
-        // Convert daily map to array
-        const daily = Array.from(dailyByDate.entries()).map(([date, stats]) => ({
-            date,
-            ...stats,
-        }));
-
-        // Get top performing sequences
-        const topSequences = await prisma.emailSequence.findMany({
-            where: {
-                mailboxId: { in: mailboxIds },
-            },
-            select: {
-                id: true,
-                name: true,
-                totalEnrolled: true,
-                totalCompleted: true,
-                totalReplied: true,
-                totalBounced: true,
-            },
-            orderBy: { totalReplied: 'desc' },
-            take: 5,
-        });
-
-        // Get response time analytics (average time to first reply)
-        const recentThreadsWithReply = await prisma.emailThread.findMany({
-            where: {
-                mailboxId: { in: mailboxIds },
-                createdAt: { gte: startDate },
-            },
-            include: {
-                emails: {
-                    where: { direction: 'OUTBOUND' },
-                    orderBy: { sentAt: 'asc' },
-                    take: 1,
-                },
-            },
-            take: 100,
-        });
-
-        let totalResponseTime = 0;
-        let responseCount = 0;
-        
-        for (const thread of recentThreadsWithReply) {
-            if (thread.emails.length > 0 && thread.emails[0].sentAt) {
-                const responseTime = thread.emails[0].sentAt.getTime() - thread.createdAt.getTime();
-                if (responseTime > 0) {
-                    totalResponseTime += responseTime;
-                    responseCount++;
-                }
-            }
-        }
-
-        const avgResponseTime = responseCount > 0 
-            ? Math.round(totalResponseTime / responseCount / (1000 * 60)) // in minutes
-            : 0;
-
-        return NextResponse.json({
-            success: true,
-            data: {
-                summary,
-                rates: {
-                    openRate: Math.round(rates.openRate * 10) / 10,
-                    clickRate: Math.round(rates.clickRate * 10) / 10,
-                    replyRate: Math.round(rates.replyRate * 10) / 10,
-                    bounceRate: Math.round(rates.bounceRate * 10) / 10,
-                },
-                daily,
-                topSequences,
-                avgResponseTime,
-                period,
-                mailboxCount: mailboxIds.length,
-            },
-        });
-    } catch (error) {
-        console.error('GET /api/email/analytics error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Erreur serveur' },
-            { status: 500 }
-        );
-    }
-}
+    return successResponse({
+        ...metrics,
+        context: {
+            outboundEver,
+            trackedEver,
+            mailboxCount: mailboxes.length,
+        },
+        options: {
+            mailboxes: mailboxes.map((m) => ({ id: m.id, label: m.email, hint: m.provider, inactive: !m.isActive })),
+            missions: missions.map((m) => ({ id: m.id, label: m.name, hint: m.client?.name ?? null })),
+        },
+    });
+});

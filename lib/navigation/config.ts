@@ -132,8 +132,7 @@ export const MANAGER_NAV: NavSection[] = [
         icon: MessagesSquare,
         label: "Communication",
         children: [
-          { href: "/manager/emails", icon: Mail, label: "Email Hub", permission: "pages.email", description: "Boîtes mail partagées et conversations" },
-          { href: "/manager/emailing", icon: Send, label: "Emailing", permission: "pages.email", description: "Campagnes et séquences d'emails" },
+          { href: "/manager/emails", icon: Mail, label: "Email Hub", permission: "pages.email", description: "Réponses, séquences, templates, campagnes ReachInbox et boîtes mail" },
           { href: "/manager/broadcasts", icon: Megaphone, label: "Broadcasts", permission: "pages.email", description: "Annonces et notifications à l'équipe ou aux clients" },
         ],
       },
@@ -207,7 +206,7 @@ export const MANAGER_NAV: NavSection[] = [
         icon: Settings2,
         label: "Réglages",
         children: [
-          { href: "/manager/settings", icon: Mail, label: "Email", permission: "pages.sdrs", description: "Comptes d'envoi et signatures" },
+          { href: "/manager/settings", icon: Mail, label: "Email", permission: "pages.sdrs", description: "Expéditeur et emails automatiques de la plateforme" },
           { href: "/manager/api", icon: Key, label: "API & intégrations", permission: "pages.sdrs", description: "Clés d'API et connecteurs" },
           { href: "/manager/acces", icon: ShieldCheck, label: "Coffre d'accès", permission: "pages.sdrs", description: "Identifiants partagés par mission" },
           { href: "/manager/audit", icon: ScrollText, label: "Journal d'audit", permission: "pages.sdrs", description: "Qui a fait quoi, et quand" },
@@ -431,6 +430,12 @@ export const BD_NAV: NavSection[] = [
     title: "Communication",
     items: [
       {
+        href: "/sdr/emails",
+        icon: Mail,
+        label: "Email Hub",
+        permission: "pages.email",
+      },
+      {
         href: "/bd/settings",
         icon: Settings,
         label: "Mon profil",
@@ -552,12 +557,6 @@ export const CLIENT_NAV: NavSection[] = [
         href: "/client/portal/emailing",
         icon: Send,
         label: "Emailing",
-        permission: "pages.dashboard",
-      },
-      {
-        href: "/client/portal/email",
-        icon: Mail,
-        label: "Mon Email",
         permission: "pages.dashboard",
       },
       {

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { authorizeThread } from '../../_lib/thread-context';
 
 // ============================================
 // GET - List thread comments
@@ -28,33 +29,15 @@ export async function GET(
 
         const { id: threadId } = await params;
 
-        // Verify thread access
-        const thread = await prisma.emailThread.findUnique({
-            where: { id: threadId },
-            select: {
-                mailbox: {
-                    select: {
-                        ownerId: true,
-                        permissions: {
-                            where: { userId: session.user.id },
-                            select: { canRead: true },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!thread) {
+        // Same read rule as the thread itself (mailbox access or participation)
+        const access = await authorizeThread(threadId, session.user.id, session.user.role);
+        if (access === null) {
             return NextResponse.json(
-                { success: false, error: 'Thread non trouvé' },
+                { success: false, error: 'Conversation introuvable' },
                 { status: 404 }
             );
         }
-
-        const isOwner = thread.mailbox.ownerId === session.user.id;
-        const hasPermission = thread.mailbox.permissions.some(p => p.canRead);
-
-        if (!isOwner && !hasPermission && session.user.role !== 'MANAGER') {
+        if (access === false) {
             return NextResponse.json(
                 { success: false, error: 'Accès non autorisé' },
                 { status: 403 }
@@ -111,38 +94,20 @@ export async function POST(
 
         if (!content?.trim()) {
             return NextResponse.json(
-                { success: false, error: 'Contenu requis' },
+                { success: false, error: 'Note vide' },
                 { status: 400 }
             );
         }
 
-        // Verify thread access
-        const thread = await prisma.emailThread.findUnique({
-            where: { id: threadId },
-            select: {
-                mailbox: {
-                    select: {
-                        ownerId: true,
-                        permissions: {
-                            where: { userId: session.user.id },
-                            select: { canRead: true },
-                        },
-                    },
-                },
-            },
-        });
-
-        if (!thread) {
+        // Same read rule as the thread itself (mailbox access or participation)
+        const access = await authorizeThread(threadId, session.user.id, session.user.role);
+        if (access === null) {
             return NextResponse.json(
-                { success: false, error: 'Thread non trouvé' },
+                { success: false, error: 'Conversation introuvable' },
                 { status: 404 }
             );
         }
-
-        const isOwner = thread.mailbox.ownerId === session.user.id;
-        const hasPermission = thread.mailbox.permissions.some(p => p.canRead);
-
-        if (!isOwner && !hasPermission && session.user.role !== 'MANAGER') {
+        if (access === false) {
             return NextResponse.json(
                 { success: false, error: 'Accès non autorisé' },
                 { status: 403 }

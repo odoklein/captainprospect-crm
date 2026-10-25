@@ -17,6 +17,8 @@ import {
 import { ImapProvider } from '../providers/imap';
 import { Mailbox, EmailThread, Email, EmailDirection, EmailStatus } from '@prisma/client';
 import { classifyError, ClassifiedError } from '../utils/error-taxonomy';
+import { crmLinkingService } from './linking-service';
+import { sequenceService } from './sequence-service';
 
 // ============================================
 // TYPES
@@ -338,8 +340,39 @@ export class EmailSyncService {
         }
 
         // Upsert messages
+        const newInbound: Email[] = [];
+        let createdAny = false;
         for (const messageData of threadData.messages) {
-            await this.upsertMessage(mailboxId, thread.id, messageData);
+            const { email, created } = await this.upsertMessage(mailboxId, thread.id, messageData);
+            if (created) {
+                createdAny = true;
+                if (email.direction === 'INBOUND') newInbound.push(email);
+            }
+        }
+
+        // Link the conversation to the CRM (contact / client / mission). Never blocks the sync.
+        if (createdAny && !thread.contactId) {
+            try {
+                await crmLinkingService.autoLinkThread(thread.id);
+            } catch (error) {
+                console.error('[sync] autoLinkThread failed:', error);
+            }
+        }
+
+        // Sequences: a reply stops the contact's sequence, a bounce notice marks it bounced.
+        for (const email of newInbound) {
+            try {
+                await sequenceService.handleInboundEmail({
+                    mailboxId,
+                    threadId: thread.id,
+                    fromAddress: email.fromAddress,
+                    subject: email.subject,
+                    bodyText: email.bodyText,
+                    receivedAt: email.receivedAt,
+                });
+            } catch (error) {
+                console.error('[sync] sequence reply handling failed:', error);
+            }
         }
 
         return thread;
@@ -349,7 +382,7 @@ export class EmailSyncService {
         mailboxId: string,
         threadId: string,
         messageData: EmailMessageData
-    ): Promise<Email> {
+    ): Promise<{ email: Email; created: boolean }> {
         // Check if message exists
         const existingMessage = messageData.id
             ? await prisma.email.findFirst({
@@ -379,7 +412,7 @@ export class EmailSyncService {
 
         if (existingMessage) {
             // Update existing message
-            return prisma.email.update({
+            const email = await prisma.email.update({
                 where: { id: existingMessage.id },
                 data: {
                     subject: messageData.subject,
@@ -389,10 +422,11 @@ export class EmailSyncService {
                     updatedAt: new Date(),
                 },
             });
+            return { email, created: false };
         }
 
         // Create new message
-        return prisma.email.create({
+        const email = await prisma.email.create({
             data: {
                 mailboxId,
                 threadId,
@@ -414,6 +448,7 @@ export class EmailSyncService {
                 sentAt: direction === 'OUTBOUND' ? messageData.date : null,
             },
         });
+        return { email, created: true };
     }
 
     // ============================================

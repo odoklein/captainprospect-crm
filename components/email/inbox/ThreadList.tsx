@@ -1,626 +1,350 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
     Star,
-    Clock,
-    Building2,
-    AlertCircle,
     Archive,
     Trash2,
-    Loader2,
     Inbox,
-    Search,
-    X,
+    Send,
+    MailCheck,
+    Tag,
+    SearchX,
+    Clock,
     RefreshCw,
+    ArchiveRestore,
+    Target,
 } from "lucide-react";
-import { format, isToday, isYesterday, isThisWeek } from "date-fns";
-import { fr } from "date-fns/locale";
+import { Button, EmptyState, IconButton, Skeleton, Callout } from "@/components/ui";
+import {
+    contactName,
+    formatSmartDate,
+    type OutreachStatus,
+    type ThreadSummary,
+} from "./inbox-utils";
 
 // ============================================
 // TYPES
 // ============================================
 
-interface Thread {
-    id: string;
-    mailboxId: string;
-    subject: string;
-    snippet: string | null;
-    participantEmails: string[];
-    isRead: boolean;
-    isStarred: boolean;
-    labels: string[];
-    sentiment: string | null;
-    priority: string | null;
-    slaDeadline: string | null;
-    lastEmailAt: string;
-    messageCount: number;
-    latestEmail: {
-        id: string;
-        fromAddress: string;
-        fromName: string | null;
-        direction: string;
-    } | null;
-    clientId: string | null;
-    missionId: string | null;
-    assignedTo: {
-        id: string;
-        name: string;
-    } | null;
-    mailbox: {
-        email: string;
-        displayName: string | null;
-    };
-}
-
 interface ThreadListProps {
-    mailboxId?: string;
+    threads: ThreadSummary[];
     folder: string;
-    selectedThreadId?: string;
-    onSelectThread: (thread: { id: string; subject: string; mailboxId: string }) => void;
-    refreshKey?: number;
+    search: string;
+    isLoading: boolean;
+    isLoadingMore: boolean;
+    error: string | null;
+    hasMore: boolean;
+    selectedThreadId?: string | null;
+    /** Show which mailbox / owner a thread lives in (team view). */
+    showMailbox?: boolean;
+    onLoadMore: () => void;
+    onRetry: () => void;
+    onClearSearch: () => void;
+    onSelectThread: (thread: ThreadSummary) => void;
+    onStar: (thread: ThreadSummary) => void;
+    onArchive: (thread: ThreadSummary) => void;
+    onTrash: (thread: ThreadSummary) => void;
 }
 
 // ============================================
-// HELPERS
+// EMPTY STATES (one per folder)
 // ============================================
 
-function formatSmartDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    if (isToday(date)) {
-        return format(date, "HH:mm", { locale: fr });
+function FolderEmptyState({ folder, search, onClearSearch }: { folder: string; search: string; onClearSearch: () => void }) {
+    if (search) {
+        return (
+            <EmptyState
+                variant="inline"
+                icon={SearchX}
+                title={`Aucun résultat pour « ${search} »`}
+                description="La recherche porte sur l'objet, l'aperçu, l'expéditeur et les participants."
+                action={<Button size="sm" variant="secondary" onClick={onClearSearch}>Effacer la recherche</Button>}
+            />
+        );
     }
-    if (isYesterday(date)) {
-        return "Hier";
+    if (folder.startsWith("label:")) {
+        return <EmptyState variant="inline" icon={Tag} title="Aucune conversation avec ce libellé" />;
     }
-    if (isThisWeek(date)) {
-        return format(date, "EEEE", { locale: fr });
-    }
-    return format(date, "d MMM", { locale: fr });
-}
-
-function getAvatarColor(name: string): string {
-    const colors = [
-        "bg-accent-500",
-        "bg-blue-500",
-        "bg-emerald-500",
-        "bg-amber-500",
-        "bg-rose-500",
-        "bg-teal-500",
-        "bg-primary-500",
-        "bg-pink-500",
-        "bg-cyan-500",
-        "bg-orange-500",
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-}
-
-function getInitials(name: string): string {
-    const parts = name.split(/[\s@.]+/).filter(Boolean);
-    if (parts.length >= 2) {
-        return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return (parts[0]?.[0] || "?").toUpperCase();
+    const states: Record<string, { icon: typeof Inbox; title: string; description?: string }> = {
+        inbox: {
+            icon: Inbox,
+            title: "Boîte de réception vide",
+            description: "Les réponses de vos prospects et de vos clients arrivent ici.",
+        },
+        unread: { icon: MailCheck, title: "Tout est lu", description: "Aucune conversation en attente de lecture." },
+        starred: {
+            icon: Star,
+            title: "Aucun favori",
+            description: "Appuyez sur S ou sur l'étoile pour garder une conversation sous la main.",
+        },
+        sent: { icon: Send, title: "Aucun message envoyé", description: "Les emails envoyés depuis le CRM apparaissent ici." },
+        archive: {
+            icon: Archive,
+            title: "Aucune archive",
+            description: "Archivez (E) les conversations traitées pour garder la boîte de réception nette.",
+        },
+        trash: { icon: Trash2, title: "Corbeille vide" },
+    };
+    const s = states[folder] ?? states.inbox;
+    return <EmptyState variant="inline" icon={s.icon} title={s.title} description={s.description} />;
 }
 
 // ============================================
-// DEBOUNCE HOOK
+// SKELETON
 // ============================================
 
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-    useEffect(() => {
-        const timer = setTimeout(() => setDebouncedValue(value), delay);
-        return () => clearTimeout(timer);
-    }, [value, delay]);
-    return debouncedValue;
-}
-
-// ============================================
-// SKELETON LOADER
-// ============================================
-
-function ThreadSkeleton() {
+function ThreadRowSkeleton() {
     return (
-        <div className="px-5 py-4 border-b border-slate-100/80">
-            <div className="flex items-start gap-3.5">
-                <div className="w-11 h-11 rounded-full skeleton-shimmer flex-shrink-0" />
-                <div className="flex-1 min-w-0 space-y-2.5">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="h-4 w-32 skeleton-shimmer rounded" />
-                        <div className="h-3 w-12 skeleton-shimmer rounded" />
-                    </div>
-                    <div className="h-3.5 w-48 skeleton-shimmer rounded" />
-                    <div className="h-3 w-64 skeleton-shimmer rounded" />
+        <div className="flex gap-3 border-b border-line px-4 py-3">
+            <Skeleton className="mt-1.5 size-2 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-3.5 w-36" />
+                    <Skeleton className="h-3 w-10" />
                 </div>
+                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-3 w-3/5" />
             </div>
         </div>
     );
 }
 
 // ============================================
-// THREAD LIST COMPONENT
+// OUTREACH STATUS
+// ============================================
+
+const OUTREACH: Record<OutreachStatus, { label: string; className: string }> = {
+    sent: { label: "Envoyé", className: "text-ink-3" },
+    opened: { label: "Ouvert", className: "text-info-ink" },
+    replied: { label: "Répondu", className: "text-success-ink" },
+    bounced: { label: "Non distribué", className: "text-danger-ink" },
+};
+
+// ============================================
+// THREAD LIST
 // ============================================
 
 export function ThreadList({
-    mailboxId,
+    threads,
     folder,
+    search,
+    isLoading,
+    isLoadingMore,
+    error,
+    hasMore,
     selectedThreadId,
+    showMailbox,
+    onLoadMore,
+    onRetry,
+    onClearSearch,
     onSelectThread,
-    refreshKey = 0,
-}: ThreadListProps) {
-    const [threads, setThreads] = useState<Thread[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [hasMore, setHasMore] = useState(false);
-    const [page, setPage] = useState(1);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [searchInput, setSearchInput] = useState("");
-    const [isSearchFocused, setIsSearchFocused] = useState(false);
-    const listRef = useRef<HTMLDivElement>(null);
-    const searchRef = useRef<HTMLInputElement>(null);
-    const fetchingRef = useRef(false);
-
-    // Debounce search by 400ms
-    const debouncedSearch = useDebounce(searchInput, 400);
-
-    // Fetch threads
-    const fetchThreads = useCallback(async (pageNum: number, append: boolean = false) => {
-        // Pagination guard - prevent duplicate fetches
-        if (fetchingRef.current && append) return;
-        fetchingRef.current = true;
-
-        if (!append) {
-            setIsLoading(true);
-            setError(null);
-        } else {
-            setIsLoadingMore(true);
-        }
-
-        try {
-            const params = new URLSearchParams({
-                folder,
-                page: pageNum.toString(),
-                limit: "30",
-            });
-
-            if (mailboxId) {
-                params.set("mailboxId", mailboxId);
-            }
-            if (debouncedSearch) {
-                params.set("search", debouncedSearch);
-            }
-
-            const res = await fetch(`/api/email/threads?${params.toString()}`);
-
-            if (!res.ok) {
-                throw new Error(`Erreur ${res.status}`);
-            }
-
-            const json = await res.json();
-
-            if (json.success) {
-                if (append) {
-                    setThreads(prev => [...prev, ...json.data.threads]);
-                } else {
-                    setThreads(json.data.threads);
-                }
-                setHasMore(json.data.hasMore);
-            } else {
-                throw new Error(json.error || "Erreur inconnue");
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Erreur de chargement";
-            if (!append) {
-                setError(message);
-            }
-            console.error("Failed to fetch threads:", err);
-        } finally {
-            setIsLoading(false);
-            setIsLoadingMore(false);
-            fetchingRef.current = false;
-        }
-    }, [mailboxId, folder, debouncedSearch]);
-
-    // Reset and refetch on filter change
-    useEffect(() => {
-        setPage(1);
-        fetchThreads(1, false);
-    }, [mailboxId, folder, debouncedSearch, refreshKey, fetchThreads]);
-
-    // Scroll-based pagination
-    const handleScroll = useCallback(() => {
-        if (!listRef.current || !hasMore || isLoadingMore || fetchingRef.current) return;
-
-        const { scrollTop, scrollHeight, clientHeight } = listRef.current;
-        if (scrollTop + clientHeight >= scrollHeight - 150) {
-            const nextPage = page + 1;
-            setPage(nextPage);
-            fetchThreads(nextPage, true);
-        }
-    }, [hasMore, isLoadingMore, page, fetchThreads]);
-
-    // Thread actions with optimistic updates and rollback
-    const handleStar = async (e: React.MouseEvent, threadId: string, isStarred: boolean) => {
-        e.stopPropagation();
-        const prevThreads = threads;
-        setThreads(prev => prev.map(t =>
-            t.id === threadId ? { ...t, isStarred: !isStarred } : t
-        ));
-        try {
-            const res = await fetch(`/api/email/threads/${threadId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isStarred: !isStarred }),
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            setThreads(prevThreads); // Rollback
-        }
-    };
-
-    const handleArchive = async (e: React.MouseEvent, threadId: string) => {
-        e.stopPropagation();
-        const prevThreads = threads;
-        setThreads(prev => prev.filter(t => t.id !== threadId));
-        try {
-            const res = await fetch(`/api/email/threads/${threadId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isArchived: true }),
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            setThreads(prevThreads); // Rollback
-        }
-    };
-
-    const handleTrash = async (e: React.MouseEvent, threadId: string) => {
-        e.stopPropagation();
-        const prevThreads = threads;
-        setThreads(prev => prev.filter(t => t.id !== threadId));
-        try {
-            const res = await fetch(`/api/email/threads/${threadId}`, {
-                method: "DELETE",
-            });
-            if (!res.ok) throw new Error();
-        } catch {
-            setThreads(prevThreads); // Rollback
-        }
-    };
-
-    // Error state
-    if (error && threads.length === 0) {
-        return (
-            <div className="flex-1 flex flex-col min-h-0">
-                <SearchBar
-                    searchInput={searchInput}
-                    setSearchInput={setSearchInput}
-                    isSearchFocused={isSearchFocused}
-                    setIsSearchFocused={setIsSearchFocused}
-                    searchRef={searchRef}
-                />
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
-                        <AlertCircle className="w-7 h-7 text-red-400" />
-                    </div>
-                    <h3 className="text-[15px] font-semibold text-slate-800 mb-1.5">
-                        Erreur de chargement
-                    </h3>
-                    <p className="text-sm text-slate-400 max-w-[260px] leading-relaxed mb-4">
-                        {error}
-                    </p>
-                    <button
-                        onClick={() => {
-                            setPage(1);
-                            fetchThreads(1, false);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                        Réessayer
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // Empty state
-    if (!isLoading && threads.length === 0) {
-        return (
-            <div className="flex-1 flex flex-col min-h-0">
-                <SearchBar
-                    searchInput={searchInput}
-                    setSearchInput={setSearchInput}
-                    isSearchFocused={isSearchFocused}
-                    setIsSearchFocused={setIsSearchFocused}
-                    searchRef={searchRef}
-                />
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
-                        <Inbox className="w-8 h-8 text-slate-400" />
-                    </div>
-                    <h3 className="text-[15px] font-semibold text-slate-800 mb-1.5">
-                        {searchInput ? "Aucun résultat" : "Boîte vide"}
-                    </h3>
-                    <p className="text-sm text-slate-400 max-w-[240px] leading-relaxed">
-                        {searchInput
-                            ? "Essayez de modifier votre recherche"
-                            : "Aucun message dans ce dossier"}
-                    </p>
-                    {searchInput && (
-                        <button
-                            onClick={() => setSearchInput("")}
-                            className="mt-4 px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-xl transition-colors"
-                        >
-                            Effacer la recherche
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex-1 flex flex-col min-h-0">
-            {/* Search */}
-            <SearchBar
-                searchInput={searchInput}
-                setSearchInput={setSearchInput}
-                isSearchFocused={isSearchFocused}
-                setIsSearchFocused={setIsSearchFocused}
-                searchRef={searchRef}
-            />
-
-            {/* Thread List */}
-            <div
-                ref={listRef}
-                onScroll={handleScroll}
-                className="flex-1 overflow-y-auto email-scrollbar"
-            >
-                {isLoading && threads.length === 0 ? (
-                    <div>
-                        {Array.from({ length: 8 }).map((_, i) => (
-                            <ThreadSkeleton key={i} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="email-entrance">
-                        {threads.map((thread) => (
-                            <ThreadListItem
-                                key={thread.id}
-                                thread={thread}
-                                isSelected={thread.id === selectedThreadId}
-                                onSelect={() => onSelectThread({
-                                    id: thread.id,
-                                    subject: thread.subject,
-                                    mailboxId: thread.mailboxId,
-                                })}
-                                onStar={(e) => handleStar(e, thread.id, thread.isStarred)}
-                                onArchive={(e) => handleArchive(e, thread.id)}
-                                onTrash={(e) => handleTrash(e, thread.id)}
-                            />
-                        ))}
-                    </div>
-                )}
-
-                {/* Load more indicator */}
-                {isLoadingMore && (
-                    <div className="flex items-center justify-center py-4">
-                        <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-// ============================================
-// SEARCH BAR
-// ============================================
-
-function SearchBar({
-    searchInput,
-    setSearchInput,
-    isSearchFocused,
-    setIsSearchFocused,
-    searchRef,
-}: {
-    searchInput: string;
-    setSearchInput: (q: string) => void;
-    isSearchFocused: boolean;
-    setIsSearchFocused: (f: boolean) => void;
-    searchRef: React.RefObject<HTMLInputElement | null>;
-}) {
-    return (
-        <div className="p-3">
-            <div className={cn(
-                "relative rounded-xl transition-all duration-200",
-                isSearchFocused
-                    ? "ring-2 ring-primary-500/20 shadow-sm"
-                    : ""
-            )}>
-                <Search className={cn(
-                    "absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors",
-                    isSearchFocused ? "text-primary-500" : "text-slate-400"
-                )} />
-                <input
-                    ref={searchRef}
-                    type="text"
-                    placeholder="Rechercher des emails..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setIsSearchFocused(false)}
-                    className="w-full pl-9 pr-9 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-primary-500 focus:bg-white transition-all"
-                />
-                {searchInput && (
-                    <button
-                        onClick={() => setSearchInput("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-}
-
-// ============================================
-// THREAD LIST ITEM
-// ============================================
-
-interface ThreadListItemProps {
-    thread: Thread;
-    isSelected: boolean;
-    onSelect: () => void;
-    onStar: (e: React.MouseEvent) => void;
-    onArchive: (e: React.MouseEvent) => void;
-    onTrash: (e: React.MouseEvent) => void;
-}
-
-function ThreadListItem({
-    thread,
-    isSelected,
-    onSelect,
     onStar,
     onArchive,
     onTrash,
-}: ThreadListItemProps) {
-    const sender = thread.latestEmail?.fromName || thread.latestEmail?.fromAddress || "Inconnu";
-    const isOutbound = thread.latestEmail?.direction === "OUTBOUND";
-    const smartDate = formatSmartDate(thread.lastEmailAt);
-    const avatarColor = getAvatarColor(sender);
-    const initials = getInitials(sender);
+}: ThreadListProps) {
+    const listRef = useRef<HTMLDivElement>(null);
+
+    // Keep the selected row visible when moving with j/k
+    useEffect(() => {
+        if (!selectedThreadId || !listRef.current) return;
+        const row = listRef.current.querySelector<HTMLElement>(`[data-thread-id="${CSS.escape(selectedThreadId)}"]`);
+        row?.scrollIntoView({ block: "nearest" });
+    }, [selectedThreadId]);
+
+    const handleScroll = () => {
+        const el = listRef.current;
+        if (!el || !hasMore || isLoadingMore || isLoading) return;
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) onLoadMore();
+    };
+
+    if (isLoading && threads.length === 0) {
+        return (
+            <div className="min-h-0 flex-1 overflow-hidden" aria-busy="true" aria-label="Chargement des conversations">
+                {Array.from({ length: 9 }).map((_, i) => <ThreadRowSkeleton key={i} />)}
+            </div>
+        );
+    }
+
+    if (error && threads.length === 0) {
+        return (
+            <div className="p-4">
+                <Callout
+                    tone="danger"
+                    title="Impossible de charger les conversations"
+                    action={<Button size="sm" variant="secondary" leftIcon={<RefreshCw className="size-3.5" />} onClick={onRetry}>Réessayer</Button>}
+                >
+                    {error}
+                </Callout>
+            </div>
+        );
+    }
+
+    if (threads.length === 0) {
+        return (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+                <FolderEmptyState folder={folder} search={search} onClearSearch={onClearSearch} />
+            </div>
+        );
+    }
 
     return (
         <div
+            ref={listRef}
+            onScroll={handleScroll}
+            role="listbox"
+            aria-label="Conversations"
+            className={cn("min-h-0 flex-1 overflow-y-auto email-scrollbar", isLoading && "opacity-60 transition-opacity")}
+        >
+            {threads.map((thread) => (
+                <ThreadRow
+                    key={thread.id}
+                    thread={thread}
+                    folder={folder}
+                    isSelected={thread.id === selectedThreadId}
+                    showMailbox={showMailbox}
+                    onSelect={() => onSelectThread(thread)}
+                    onStar={() => onStar(thread)}
+                    onArchive={() => onArchive(thread)}
+                    onTrash={() => onTrash(thread)}
+                />
+            ))}
+
+            {isLoadingMore && (
+                <div aria-busy="true">
+                    <ThreadRowSkeleton />
+                    <ThreadRowSkeleton />
+                </div>
+            )}
+            {hasMore && !isLoadingMore && (
+                <div className="flex justify-center py-3">
+                    <Button size="xs" variant="ghost" onClick={onLoadMore}>Charger plus</Button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================
+// THREAD ROW
+// ============================================
+
+interface ThreadRowProps {
+    thread: ThreadSummary;
+    folder: string;
+    isSelected: boolean;
+    showMailbox?: boolean;
+    onSelect: () => void;
+    onStar: () => void;
+    onArchive: () => void;
+    onTrash: () => void;
+}
+
+function ThreadRow({ thread, folder, isSelected, showMailbox, onSelect, onStar, onArchive, onTrash }: ThreadRowProps) {
+    const latest = thread.latestEmail;
+    const isOutbound = latest?.direction === "OUTBOUND";
+    const linkedName = contactName(thread.contact);
+    const counterpart = isOutbound
+        ? `À : ${linkedName || latest?.toAddresses[0] || thread.participantEmails[0] || "—"}`
+        : latest?.fromName || latest?.fromAddress || linkedName || "Expéditeur inconnu";
+    const unread = !thread.isRead;
+    const slaLate = thread.slaDeadline && new Date(thread.slaDeadline) < new Date();
+    const outreach = thread.outreachStatus ? OUTREACH[thread.outreachStatus] : null;
+
+    return (
+        <div
+            data-thread-id={thread.id}
+            role="option"
+            aria-selected={isSelected}
+            tabIndex={-1}
             onClick={onSelect}
             className={cn(
-                "group relative px-5 py-4 cursor-pointer transition-all duration-150 border-b border-slate-100/80",
-                isSelected
-                    ? "bg-primary-50/60"
-                    : "hover:bg-slate-50/80",
-                !thread.isRead && !isSelected && "bg-white"
+                "group relative cursor-pointer border-b border-line px-4 py-2.5 transition-colors",
+                isSelected ? "bg-primary-50" : "hover:bg-surface-2",
             )}
         >
-            {/* Selected indicator */}
-            {isSelected && (
-                <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-primary-500 rounded-r-full" />
-            )}
+            {isSelected && <span className="absolute inset-y-0 left-0 w-0.5 bg-primary-600" aria-hidden />}
 
-            <div className="flex items-start gap-3.5">
-                {/* Avatar */}
-                <div className="relative flex-shrink-0 mt-[1px]">
-                    <div className={cn(
-                        "w-11 h-11 rounded-full flex items-center justify-center text-[13px] font-semibold text-white shadow-sm",
-                        thread.clientId
-                            ? "bg-emerald-500"
-                            : avatarColor
-                    )}>
-                        {initials}
-                    </div>
-                    {!thread.isRead && (
-                        <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-primary-500 rounded-full ring-2 ring-white" />
-                    )}
-                </div>
+            <div className="flex items-start gap-2.5">
+                <span
+                    className={cn("mt-[7px] size-2 shrink-0 rounded-full", unread ? "bg-primary-600" : "bg-transparent")}
+                    aria-label={unread ? "Non lu" : undefined}
+                />
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                    {/* Row 1: Sender + Date */}
-                    <div className="flex items-center justify-between gap-3 mb-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <span className={cn(
-                                "text-[14px] truncate",
-                                thread.isRead ? "text-slate-600 font-medium" : "font-semibold text-slate-900"
-                            )}>
-                                {isOutbound ? `À: ${thread.participantEmails[0] || ""}` : sender}
-                            </span>
+                <div className="min-w-0 flex-1">
+                    {/* Row 1 — counterpart + date */}
+                    <div className="flex items-baseline gap-2">
+                        <span className={cn("min-w-0 flex-1 truncate text-[13px]", unread ? "font-semibold text-ink" : "font-medium text-ink-2")}>
+                            {counterpart}
                             {thread.messageCount > 1 && (
-                                <span className="flex-shrink-0 text-[11px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md font-medium tabular-nums">
-                                    {thread.messageCount}
-                                </span>
+                                <span className="ml-1.5 text-2xs font-medium tabular-nums text-ink-4">{thread.messageCount}</span>
                             )}
-                        </div>
-                        <span className={cn(
-                            "text-[11px] flex-shrink-0 tabular-nums pr-1",
-                            thread.isRead ? "text-slate-400" : "text-primary-600 font-semibold"
-                        )}>
-                            {smartDate}
+                        </span>
+                        <span className={cn("shrink-0 text-2xs tabular-nums group-hover:invisible", unread ? "font-semibold text-primary-700" : "text-ink-4")}>
+                            {formatSmartDate(thread.lastEmailAt)}
                         </span>
                     </div>
 
-                    {/* Row 2: Subject */}
-                    <p className={cn(
-                        "text-[13px] truncate leading-snug pr-2",
-                        thread.isRead ? "text-slate-500" : "text-slate-800 font-medium"
-                    )}>
-                        {thread.subject || "(Sans objet)"}
+                    {/* Row 2 — subject + snippet */}
+                    <p className="mt-0.5 truncate text-[13px] leading-snug">
+                        <span className={cn(unread ? "font-medium text-ink" : "text-ink-2")}>{thread.subject || "(Sans objet)"}</span>
+                        {thread.snippet && <span className="text-ink-4"> — {thread.snippet}</span>}
                     </p>
 
-                    {/* Row 3: Snippet + badges */}
-                    <div className="flex items-center gap-3 mt-1">
-                        <p className="text-[12px] text-slate-400 truncate flex-1 pr-2">
-                            {thread.snippet}
-                        </p>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                            {thread.clientId && (
-                                <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-100" title="Lié à un client">
-                                    <Building2 className="w-3 h-3 text-emerald-500" />
-                                </div>
+                    {/* Row 3 — context */}
+                    {(thread.mission || outreach || thread.isStarred || slaLate || thread.labels.length > 0 || showMailbox) && (
+                        <div className="mt-1 flex min-w-0 items-center gap-2 text-2xs">
+                            {thread.isStarred && <Star className="size-3 shrink-0 fill-warning text-warning" aria-label="Favori" />}
+                            {outreach && folder !== "inbox" && (
+                                <span className={cn("shrink-0 font-medium", outreach.className)}>{outreach.label}</span>
                             )}
-                            {thread.priority === "high" && (
-                                <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-red-50 border border-red-100" title="Haute priorité">
-                                    <AlertCircle className="w-3 h-3 text-red-500" />
-                                </div>
+                            {thread.mission && (
+                                <span className="inline-flex min-w-0 items-center gap-1 text-ink-3">
+                                    <Target className="size-3 shrink-0" aria-hidden />
+                                    <span className="truncate">{thread.mission.name}</span>
+                                </span>
                             )}
-                            {thread.slaDeadline && new Date(thread.slaDeadline) < new Date() && (
-                                <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-100" title="SLA dépassé">
-                                    <Clock className="w-3 h-3 text-amber-500" />
-                                </div>
+                            {thread.labels.slice(0, 2).map((l) => (
+                                <span key={l} className="shrink-0 rounded-chip border border-line bg-surface-2 px-1.5 text-ink-3">{l}</span>
+                            ))}
+                            {slaLate && (
+                                <span className="inline-flex shrink-0 items-center gap-1 font-medium text-warning-ink">
+                                    <Clock className="size-3" aria-hidden />
+                                    SLA dépassé
+                                </span>
                             )}
-                            {thread.isStarred && (
-                                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 flex-shrink-0" />
+                            {showMailbox && (
+                                <span className="ml-auto shrink-0 truncate text-ink-4" title={thread.mailbox.email}>
+                                    {thread.mailbox.owner?.name || thread.mailbox.displayName || thread.mailbox.email}
+                                </span>
                             )}
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
-            {/* Hover actions */}
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center gap-0.5 bg-white shadow-lg border border-slate-200 rounded-xl px-1.5 py-1 z-10">
-                <button
+            {/* Hover actions (keyboard: S, E) */}
+            <div
+                className="absolute right-2 top-1.5 hidden items-center gap-0.5 rounded-control border border-line bg-surface px-0.5 shadow-xs group-hover:flex"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <IconButton
+                    size="xs"
+                    icon={Star}
+                    label={thread.isStarred ? "Retirer des favoris (S)" : "Ajouter aux favoris (S)"}
+                    active={thread.isStarred}
                     onClick={onStar}
-                    className={cn(
-                        "p-1.5 rounded-lg transition-colors",
-                        thread.isStarred
-                            ? "text-amber-400 hover:bg-amber-50"
-                            : "text-slate-400 hover:text-amber-400 hover:bg-slate-50"
-                    )}
-                    title={thread.isStarred ? "Retirer des favoris" : "Ajouter aux favoris"}
-                >
-                    <Star className={cn("w-4 h-4", thread.isStarred && "fill-current")} />
-                </button>
-                <button
+                />
+                <IconButton
+                    size="xs"
+                    icon={thread.isArchived ? ArchiveRestore : Archive}
+                    label={thread.isArchived ? "Remettre en boîte de réception (E)" : "Archiver (E)"}
                     onClick={onArchive}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
-                    title="Archiver"
-                >
-                    <Archive className="w-4 h-4" />
-                </button>
-                <button
-                    onClick={onTrash}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    title="Supprimer"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
+                />
+                {folder !== "trash" && (
+                    <IconButton size="xs" variant="danger" icon={Trash2} label="Mettre à la corbeille (#)" onClick={onTrash} />
+                )}
             </div>
         </div>
     );

@@ -29,6 +29,19 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "26mb",
     },
   },
+  // The email area used to be split over /manager/email, /manager/emails and
+  // /manager/emailing. Everything now lives in the Email Hub (/manager/emails,
+  // /sdr/emails); old links, bookmarks and OAuth return URLs land on the right tab.
+  async redirects() {
+    return [
+      { source: "/manager/email", destination: "/manager/emails/inbox", permanent: false },
+      { source: "/manager/email/:path*", destination: "/manager/emails/:path*", permanent: false },
+      { source: "/manager/emailing", destination: "/manager/emails/campaigns", permanent: false },
+      { source: "/manager/emails/contacts", destination: "/manager/emails/sequences", permanent: false },
+      { source: "/sdr/email", destination: "/sdr/emails/inbox", permanent: false },
+      { source: "/client/portal/email", destination: "/client/portal/emailing?tab=sent", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

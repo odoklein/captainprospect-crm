@@ -1,31 +1,97 @@
 "use client";
 
-import React from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
-    LayoutDashboard,
-    Users,
-    Workflow,
-    Inbox,
     BarChart3,
-    Send,
-    Plus,
-    Mail,
+    FileText,
+    Inbox,
+    LayoutDashboard,
     Megaphone,
+    PenSquare,
+    Send,
+    Server,
+    Workflow,
+    type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { FOCUS_RING } from "@/components/ui/recipes";
 
 // ============================================
-// EMAIL HUB LAYOUT — Unified Tab Navigation
-// Wraps all /manager/emails/* and /sdr/emails/* pages
+// EMAIL HUB LAYOUT
+// One frame for every email page (/manager/emails/*, /sdr/emails/*).
+// The top bar already says "Communication › Email Hub", so the hub only adds
+// its page tabs, grouped by job: read & follow up | outreach | setup.
+// Pages own their padding (EmailHubPage) except the inbox, which fills the frame.
 // ============================================
 
 interface EmailHubTab {
     id: string;
     label: string;
     href: string;
-    icon: React.ReactNode;
-    badge?: number;
+    icon: LucideIcon;
+    /** Shown on hover: what the page is for. */
+    hint: string;
+}
+
+const MANAGER_GROUPS: EmailHubTab[][] = [
+    [
+        { id: "overview", label: "Vue d'ensemble", href: "/manager/emails", icon: LayoutDashboard, hint: "Ce qui demande votre attention aujourd'hui" },
+        { id: "inbox", label: "Réception", href: "/manager/emails/inbox", icon: Inbox, hint: "Réponses des prospects et conversations" },
+        { id: "sent", label: "Envoyés", href: "/manager/emails/sent", icon: Send, hint: "Tous les emails envoyés par l'équipe" },
+    ],
+    [
+        { id: "sequences", label: "Séquences", href: "/manager/emails/sequences", icon: Workflow, hint: "Relances automatiques en plusieurs étapes" },
+        { id: "templates", label: "Templates", href: "/manager/emails/templates", icon: FileText, hint: "Modèles d'emails partagés avec les missions" },
+        { id: "campaigns", label: "Campagnes", href: "/manager/emails/campaigns", icon: Megaphone, hint: "Statistiques des campagnes ReachInbox" },
+    ],
+    [
+        { id: "mailboxes", label: "Boîtes mail", href: "/manager/emails/mailboxes", icon: Server, hint: "Comptes d'envoi, synchronisation et limites" },
+        { id: "analytics", label: "Analytics", href: "/manager/emails/analytics", icon: BarChart3, hint: "Ouvertures, réponses et rebonds dans le temps" },
+    ],
+];
+
+const SDR_GROUPS: EmailHubTab[][] = [
+    [
+        { id: "sent", label: "Mes envois", href: "/sdr/emails/sent", icon: Send, hint: "Les emails que vous avez envoyés" },
+        { id: "inbox", label: "Réception", href: "/sdr/emails/inbox", icon: Inbox, hint: "Réponses des prospects" },
+    ],
+];
+
+function findActive(pathname: string, tabs: EmailHubTab[]): string | undefined {
+    // Longest matching href wins, so /manager/emails/sequences/123 → Séquences.
+    let best: EmailHubTab | undefined;
+    for (const tab of tabs) {
+        const hit = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+        if (hit && (!best || tab.href.length > best.href.length)) best = tab;
+    }
+    return best?.id;
+}
+
+/** Unread inbox threads, refreshed every minute while the hub is open. */
+function useUnreadCount(team: boolean): number | null {
+    const [count, setCount] = useState<number | null>(null);
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            try {
+                // Managers read every mailbox, so their badge counts the team's unread.
+                const res = await fetch(`/api/email/threads?folder=unread&limit=1${team ? "&scope=team" : ""}`);
+                const json = await res.json();
+                if (!cancelled && json?.success) setCount(json.data?.total ?? 0);
+            } catch {
+                /* the badge is a convenience */
+            }
+        };
+        load();
+        const timer = setInterval(load, 60_000);
+        return () => {
+            cancelled = true;
+            clearInterval(timer);
+        };
+    }, [team]);
+    return count;
 }
 
 interface EmailHubLayoutProps {
@@ -33,169 +99,94 @@ interface EmailHubLayoutProps {
     variant?: "manager" | "sdr";
 }
 
-const MANAGER_TABS: EmailHubTab[] = [
-    {
-        id: "dashboard",
-        label: "Dashboard",
-        href: "/manager/emails",
-        icon: <LayoutDashboard className="w-4 h-4" />,
-    },
-    {
-        id: "sent",
-        label: "Emails envoyés",
-        href: "/manager/emails/sent",
-        icon: <Send className="w-4 h-4" />,
-    },
-    {
-        id: "campaigns",
-        label: "ReachInbox",
-        href: "/manager/emails/campaigns",
-        icon: <Megaphone className="w-4 h-4" />,
-    },
-    {
-        id: "contacts",
-        label: "Contacts",
-        href: "/manager/emails/contacts",
-        icon: <Users className="w-4 h-4" />,
-    },
-    {
-        id: "sequences",
-        label: "Séquences",
-        href: "/manager/emails/sequences",
-        icon: <Workflow className="w-4 h-4" />,
-    },
-    {
-        id: "mailboxes",
-        label: "Boîtes mail",
-        href: "/manager/emails/mailboxes",
-        icon: <Inbox className="w-4 h-4" />,
-    },
-    {
-        id: "analytics",
-        label: "Analytics",
-        href: "/manager/emails/analytics",
-        icon: <BarChart3 className="w-4 h-4" />,
-    },
-];
-
-const SDR_TABS: EmailHubTab[] = [
-    {
-        id: "sends",
-        label: "Mes envois",
-        href: "/sdr/emails",
-        icon: <Send className="w-4 h-4" />,
-    },
-    {
-        id: "sequences",
-        label: "Séquences",
-        href: "/sdr/emails/sequences",
-        icon: <Workflow className="w-4 h-4" />,
-    },
-    {
-        id: "templates",
-        label: "Templates",
-        href: "/sdr/emails/templates",
-        icon: <Mail className="w-4 h-4" />,
-    },
-];
-
-function getActiveTab(pathname: string, tabs: EmailHubTab[]): string {
-    // Exact match first
-    const exact = tabs.find((t) => t.href === pathname);
-    if (exact) return exact.id;
-
-    // Prefix match (longest first)
-    const sorted = [...tabs].sort((a, b) => b.href.length - a.href.length);
-    const prefix = sorted.find((t) => pathname.startsWith(t.href + "/"));
-    if (prefix) return prefix.id;
-
-    return tabs[0]?.id || "";
-}
-
 export function EmailHubLayout({ children, variant = "manager" }: EmailHubLayoutProps) {
-    const pathname = usePathname();
-    const router = useRouter();
-    const tabs = variant === "manager" ? MANAGER_TABS : SDR_TABS;
-    const activeTab = getActiveTab(pathname, tabs);
+    const pathname = usePathname() ?? "";
+    const groups = variant === "manager" ? MANAGER_GROUPS : SDR_GROUPS;
+    const activeId = findActive(pathname, groups.flat());
+    const unread = useUnreadCount(variant === "manager");
+    const composeHref = variant === "manager" ? "/manager/emails/inbox?compose=1" : "/sdr/emails/inbox?compose=1";
 
     return (
-        <div className="flex flex-col h-full" style={{ fontFamily: "var(--cp-font, 'DM Sans', 'Inter', system-ui, sans-serif)" }}>
-            {/* ── Header ── */}
-            <div className="flex-shrink-0" style={{ borderBottom: "1px solid var(--cp-border)", background: "var(--cp-raised)" }}>
-                <div className="px-6 pt-5 pb-0">
-                    {/* Title row */}
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-[12px] flex items-center justify-center"
-                                style={{ background: "var(--cp-green)", color: "var(--cp-on-inverse)" }}>
-                                <Mail className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-semibold tracking-tight" style={{ color: "var(--cp-ink)" }}>
-                                    Email Hub
-                                </h1>
-                                <p className="text-xs" style={{ color: "var(--cp-ink-3)" }}>
-                                    {variant === "manager"
-                                        ? "Suivez les emails, les statistiques ReachInbox et les boites mail"
-                                        : "Vos emails et séquences"}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Quick compose button */}
-                        <button
-                            onClick={() => {
-                                // Navigate to compose or open modal
-                                if (variant === "manager") {
-                                    router.push("/manager/emails/contacts");
-                                }
-                            }}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-[10px] transition-all duration-200 hover:brightness-110 active:scale-[0.98]"
-                            style={{ background: "var(--cp-green)", color: "var(--cp-on-inverse)" }}
-                        >
-                            <Plus className="w-4 h-4" />
-                            Voir contacts
-                        </button>
-                    </div>
-
-                    {/* Tab navigation */}
-                    <div className="flex gap-1 overflow-x-auto">
-                        {tabs.map((tab) => {
-                            const isActive = activeTab === tab.id;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => router.push(tab.href)}
-                                    className={cn(
-                                        "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 -mb-px transition-all duration-200 whitespace-nowrap"
-                                    )}
-                                    style={isActive
-                                        ? { color: "var(--cp-green)", borderColor: "var(--cp-green)", background: "var(--cp-green-soft)" }
-                                        : { color: "var(--cp-ink-3)", borderColor: "transparent" }}
-                                    onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.color = "var(--cp-ink-2)"; e.currentTarget.style.background = "var(--cp-sunken)"; } }}
-                                    onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.color = "var(--cp-ink-3)"; e.currentTarget.style.background = ""; } }}
-                                >
-                                    {tab.icon}
-                                    {tab.label}
-                                    {tab.badge !== undefined && tab.badge > 0 && (
-                                        <span
-                                            className="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded-full min-w-[18px] text-center"
-                                            style={isActive
-                                                ? { background: "var(--cp-green)", color: "var(--cp-on-inverse)" }
-                                                : { background: "var(--cp-neutral-soft)", color: "var(--cp-ink-2)" }}
+        <div className="flex h-full min-h-0 flex-col">
+            <div className="flex-shrink-0 border-b border-line bg-surface">
+                <div className="flex items-center gap-3 px-4 sm:px-6">
+                    <nav
+                        aria-label="Email Hub"
+                        className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                        {groups.map((group, gi) => (
+                            <React.Fragment key={gi}>
+                                {gi > 0 && <span className="mx-1.5 h-4 w-px shrink-0 bg-line" aria-hidden />}
+                                {group.map((tab) => {
+                                    const active = tab.id === activeId;
+                                    const Icon = tab.icon;
+                                    const badge = tab.id === "inbox" && unread ? unread : null;
+                                    return (
+                                        <Link
+                                            key={tab.id}
+                                            href={tab.href}
+                                            title={tab.hint}
+                                            aria-current={active ? "page" : undefined}
+                                            className={cn(
+                                                "group relative flex h-11 shrink-0 items-center px-1 text-[13px] font-medium transition-colors",
+                                                active ? "text-ink" : "text-ink-3 hover:text-ink",
+                                                FOCUS_RING,
+                                            )}
                                         >
-                                            {tab.badge}
-                                        </span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
+                                            <span
+                                                className={cn(
+                                                    "flex items-center gap-1.5 rounded-lg px-2 py-1 transition-colors",
+                                                    !active && "group-hover:bg-surface-2",
+                                                )}
+                                            >
+                                                <Icon
+                                                    className={cn("size-3.5", active ? "text-primary-600" : "text-ink-4 group-hover:text-ink-3")}
+                                                    strokeWidth={active ? 2.2 : 1.8}
+                                                    aria-hidden
+                                                />
+                                                {tab.label}
+                                                {badge !== null && (
+                                                    <span
+                                                        className={cn(
+                                                            "min-w-[18px] rounded-full px-1.5 text-center text-3xs font-bold leading-[18px] tabular-nums",
+                                                            active ? "bg-accent text-accent-fg" : "bg-surface-3 text-ink-2",
+                                                        )}
+                                                        aria-label={`${badge} non lus`}
+                                                    >
+                                                        {badge > 99 ? "99+" : badge}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span
+                                                className={cn(
+                                                    "absolute inset-x-1.5 bottom-0 h-[2px] rounded-t-full bg-primary-600 transition-opacity",
+                                                    active ? "opacity-100" : "opacity-0",
+                                                )}
+                                                aria-hidden
+                                            />
+                                        </Link>
+                                    );
+                                })}
+                            </React.Fragment>
+                        ))}
+                    </nav>
+
+                    {activeId !== "inbox" && (
+                        <Link
+                            href={composeHref}
+                            className={cn(
+                                "hidden h-8 shrink-0 items-center gap-1.5 rounded-[10px] bg-primary px-3 text-[13px] font-semibold text-primary-fg shadow-primary transition-colors hover:bg-primary-hover sm:inline-flex",
+                                FOCUS_RING,
+                            )}
+                        >
+                            <PenSquare className="size-3.5" aria-hidden />
+                            Écrire
+                        </Link>
+                    )}
                 </div>
             </div>
 
-            {/* ── Page content ── */}
-            <div className="flex-1 overflow-y-auto" style={{ background: "var(--cp-canvas)" }}>
+            <div className={cn("min-h-0 flex-1 bg-canvas", activeId === "inbox" ? "flex flex-col overflow-hidden" : "overflow-y-auto")}>
                 {children}
             </div>
         </div>

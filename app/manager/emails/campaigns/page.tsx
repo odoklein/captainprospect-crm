@@ -1,21 +1,21 @@
-"use client";
+import { Suspense } from "react";
+import { EmailHubPage } from "@/components/email/EmailHubPage";
+import { ReachInboxWorkspace } from "@/components/emailing/ReachInboxWorkspace";
 
 // ============================================
-// REACHINBOX DASHBOARD - Email Hub section
-// /manager/emails/campaigns
-// API-key onboarding + read-only stats.
+// CAMPAIGNS — Email Hub section (/manager/emails/campaigns)
+// ReachInbox: API-key onboarding, read-only stats, campaign → client links.
+// ?connect=1 opens the API key dialog (from "Ajouter une boîte mail").
 // ============================================
 
-import { ReachInboxCampaignsPanel } from "@/components/email/ReachInboxCampaignsPanel";
+export const metadata = { title: "Campagnes · Email Hub" };
 
 export default function EmailHubCampaignsPage() {
     return (
-        <div className="p-6 max-w-[1600px] mx-auto space-y-4">
-            <ReachInboxCampaignsPanel variant="manager" />
-            <p className="text-[11px] px-1" style={{ color: "var(--cp-ink-3)" }}>
-                Lecture seule : cette page affiche les statistiques ReachInbox sans creer, modifier,
-                lancer ou mettre en pause des campagnes.
-            </p>
-        </div>
+        <EmailHubPage>
+            <Suspense fallback={null}>
+                <ReachInboxWorkspace variant="manager" />
+            </Suspense>
+        </EmailHubPage>
     );
 }

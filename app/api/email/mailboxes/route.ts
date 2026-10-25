@@ -11,9 +11,39 @@ import { authOptions } from '@/lib/auth';
 import { encrypt } from '@/lib/encryption';
 import { EmailProvider, MailboxType } from '@prisma/client';
 import { scheduleEmailSync } from '@/lib/email/queue';
+import { getSendableMailboxes, isMailboxSupervisor } from '@/lib/email/permissions';
+
+const MAILBOX_LIST_SELECT = {
+    id: true,
+    provider: true,
+    email: true,
+    displayName: true,
+    type: true,
+    syncStatus: true,
+    warmupStatus: true,
+    healthScore: true,
+    dailySendLimit: true,
+    sentToday: true,
+    lastSyncAt: true,
+    lastError: true,
+    isActive: true,
+    createdAt: true,
+    ownerId: true,
+    owner: { select: { id: true, name: true } },
+    _count: {
+        select: {
+            threads: true,
+            emails: true,
+        },
+    },
+} as const;
 
 // ============================================
-// GET - List user's mailboxes
+// GET - List mailboxes
+//   (default)            owned (+ shared when includeShared=true)
+//   scope=team           MANAGER/DEVELOPER: every active mailbox, with owner
+//   scope=sendable       mailboxes the user can send from; with missionId the
+//                        mission default mailbox comes first (isMissionDefault)
 // ============================================
 
 export async function GET(req: NextRequest) {
@@ -29,6 +59,36 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const includeShared = searchParams.get('includeShared') === 'true';
         const type = searchParams.get('type') as MailboxType | null;
+        const scope = searchParams.get('scope');
+
+        if (scope === 'sendable') {
+            const sendable = await getSendableMailboxes(
+                session.user.id,
+                session.user.role,
+                searchParams.get('missionId'),
+            );
+            return NextResponse.json({ success: true, data: sendable });
+        }
+
+        if (scope === 'team') {
+            if (!isMailboxSupervisor(session.user.role)) {
+                return NextResponse.json(
+                    { success: false, error: 'Accès réservé aux managers' },
+                    { status: 403 }
+                );
+            }
+            const team = await prisma.mailbox.findMany({
+                where: { isActive: true, ...(type && { type }) },
+                select: MAILBOX_LIST_SELECT,
+                orderBy: [{ ownerId: 'asc' }, { createdAt: 'asc' }],
+            });
+            // The user's own mailboxes first, then colleagues'
+            team.sort((a, b) => Number(b.ownerId === session.user.id) - Number(a.ownerId === session.user.id));
+            return NextResponse.json({
+                success: true,
+                data: team.map((m) => ({ ...m, isOwn: m.ownerId === session.user.id })),
+            });
+        }
 
         // Get owned mailboxes
         const whereClause = {
@@ -39,28 +99,7 @@ export async function GET(req: NextRequest) {
 
         const ownedMailboxes = await prisma.mailbox.findMany({
             where: whereClause,
-            select: {
-                id: true,
-                provider: true,
-                email: true,
-                displayName: true,
-                type: true,
-                syncStatus: true,
-                warmupStatus: true,
-                healthScore: true,
-                dailySendLimit: true,
-                sentToday: true,
-                lastSyncAt: true,
-                lastError: true,
-                isActive: true,
-                createdAt: true,
-                _count: {
-                    select: {
-                        threads: true,
-                        emails: true,
-                    },
-                },
-            },
+            select: MAILBOX_LIST_SELECT,
             orderBy: { createdAt: 'desc' },
         });
 
@@ -73,30 +112,7 @@ export async function GET(req: NextRequest) {
                     canRead: true,
                 },
                 include: {
-                    mailbox: {
-                        select: {
-                            id: true,
-                            provider: true,
-                            email: true,
-                            displayName: true,
-                            type: true,
-                            syncStatus: true,
-                            warmupStatus: true,
-                            healthScore: true,
-                            dailySendLimit: true,
-                            sentToday: true,
-                            lastSyncAt: true,
-                            lastError: true,
-                            isActive: true,
-                            createdAt: true,
-                            _count: {
-                                select: {
-                                    threads: true,
-                                    emails: true,
-                                },
-                            },
-                        },
-                    },
+                    mailbox: { select: MAILBOX_LIST_SELECT },
                 },
             });
 
@@ -115,7 +131,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            data: allMailboxes,
+            data: allMailboxes.map((m) => ({ ...m, isOwn: m.ownerId === session.user.id })),
         });
     } catch (error) {
         console.error('GET /api/email/mailboxes error:', error);
@@ -183,7 +199,7 @@ export async function POST(req: NextRequest) {
 
         if (requestedProvider === 'REACHINBOX' && !apiKey?.trim()) {
             return NextResponse.json(
-                { success: false, error: 'ClÃ© API ReachInbox requise' },
+                { success: false, error: 'Clé API ReachInbox requise' },
                 { status: 400 }
             );
         }

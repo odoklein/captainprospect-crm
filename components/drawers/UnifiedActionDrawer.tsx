@@ -934,24 +934,17 @@ export function UnifiedActionDrawer({
     };
 
     // ── Email mailboxes (React Query) ──
-    type Mailbox = { id: string; email: string; displayName: string | null };
+    type Mailbox = { id: string; email: string; displayName: string | null; isMissionDefault?: boolean };
     const isEmailMode = newActionResult === "ENVOIE_MAIL";
     const { data: emailMailboxes = [], isFetching: emailMailboxesLoading } = useQuery<Mailbox[]>({
         queryKey: sdrUnifiedDrawerMailboxesKey(isOpen && isEmailMode && missionId ? missionId : null),
         queryFn: async () => {
-            let missionDefault: Mailbox | null = null;
-            if (missionId) {
-                try {
-                    const mr = await fetch(`/api/missions/${missionId}`);
-                    const mj = await mr.json();
-                    if (mj.success && mj.data?.defaultMailbox) missionDefault = mj.data.defaultMailbox as Mailbox;
-                } catch { /* ignore */ }
-            }
-            const res = await fetch("/api/email/mailboxes?includeShared=true");
+            // Mailboxes the user may send from; the mission default comes first
+            // (an assigned SDR may use it without owning it).
+            const qs = missionId ? `&missionId=${encodeURIComponent(missionId)}` : "";
+            const res = await fetch(`/api/email/mailboxes?scope=sendable${qs}`);
             const json = await res.json();
-            let list: Mailbox[] = json.success && Array.isArray(json.data) ? json.data : [];
-            if (list.length === 0 && missionDefault) list = [missionDefault];
-            return list;
+            return json.success && Array.isArray(json.data) ? (json.data as Mailbox[]) : [];
         },
         enabled: isOpen && isEmailMode,
         staleTime: 60_000,
@@ -960,7 +953,7 @@ export function UnifiedActionDrawer({
     // Auto-select preferred mailbox when list loads
     useEffect(() => {
         if (emailMailboxes.length > 0 && !emailSelectedMailboxId) {
-            setEmailSelectedMailboxId(emailMailboxes[0].id);
+            setEmailSelectedMailboxId((emailMailboxes.find((m) => m.isMissionDefault) ?? emailMailboxes[0]).id);
         }
     }, [emailMailboxes, emailSelectedMailboxId]);
 

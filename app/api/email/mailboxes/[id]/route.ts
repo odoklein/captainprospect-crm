@@ -50,9 +50,16 @@ export async function GET(
                 healthScore: true,
                 lastSyncAt: true,
                 lastError: true,
+                lastSendReset: true,
+                trackingDomain: true,
+                consecutiveFailures: true,
+                lastFailureAt: true,
+                disabledAt: true,
+                disabledReason: true,
                 isActive: true,
                 createdAt: true,
                 updatedAt: true,
+                owner: { select: { id: true, name: true } },
                 _count: {
                     select: {
                         threads: true,
@@ -100,9 +107,14 @@ export async function GET(
             );
         }
 
+        // sentToday is only reset lazily on the next send: if the last reset was
+        // before today (Paris), nothing has been sent today yet.
+        const parisDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+        const sentTodayEffective = parisDay(mailbox.lastSendReset) === parisDay(new Date()) ? mailbox.sentToday : 0;
+
         return NextResponse.json({
             success: true,
-            data: mailbox,
+            data: { ...mailbox, sentTodayEffective },
         });
     } catch (error) {
         console.error('GET /api/email/mailboxes/[id] error:', error);
@@ -178,6 +190,23 @@ export async function PATCH(
         if (typeof body.isActive === 'boolean') {
             updateData.isActive = body.isActive;
         }
+        if (body.trackingDomain !== undefined) {
+            const raw = typeof body.trackingDomain === 'string' ? body.trackingDomain.trim() : '';
+            if (!raw) {
+                updateData.trackingDomain = null;
+            } else {
+                let parsed: URL;
+                try {
+                    parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+                } catch {
+                    return NextResponse.json(
+                        { success: false, error: 'Domaine de suivi invalide (ex. : https://track.mondomaine.fr)' },
+                        { status: 400 }
+                    );
+                }
+                updateData.trackingDomain = `${parsed.protocol}//${parsed.host}`;
+            }
+        }
 
         // Update mailbox
         const updated = await prisma.mailbox.update({
@@ -196,6 +225,7 @@ export async function PATCH(
                 signature: true,
                 signatureHtml: true,
                 healthScore: true,
+                trackingDomain: true,
                 isActive: true,
                 updatedAt: true,
             },

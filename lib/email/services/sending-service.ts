@@ -14,6 +14,15 @@ import {
 } from "../providers";
 import { Mailbox } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { crmLinkingService, type ResolvedLinks } from "./linking-service";
+
+/** Placeholder the inbox composer puts where the mailbox signature belongs. */
+export const SIGNATURE_MARKER = "<!--cp-signature-->";
+
+/** Message time for ordering: received (inbound/synced), else sent, else created. */
+function messageTime(m: { receivedAt: Date | null; sentAt: Date | null; createdAt: Date }): number {
+  return (m.receivedAt ?? m.sentAt ?? m.createdAt).getTime();
+}
 
 // ============================================
 // TYPES
@@ -107,8 +116,14 @@ export class EmailSendingService {
         );
       }
 
-      // Append signature if set
-      if (mailbox.signatureHtml && bodyHtml) {
+      // Append signature if set. The inbox composer marks where it goes (above
+      // a quoted reply/forward) with SIGNATURE_MARKER; otherwise it goes last.
+      if (bodyHtml && bodyHtml.includes(SIGNATURE_MARKER)) {
+        bodyHtml = bodyHtml.replace(
+          SIGNATURE_MARKER,
+          mailbox.signatureHtml ? `<br/>${mailbox.signatureHtml}` : "",
+        );
+      } else if (mailbox.signatureHtml && bodyHtml) {
         bodyHtml = `${bodyHtml}<br/><br/>${mailbox.signatureHtml}`;
       } else if (mailbox.signature && options.bodyText) {
         options.bodyText = `${options.bodyText}\n\n${mailbox.signature}`;
@@ -117,6 +132,42 @@ export class EmailSendingService {
       // Inline CSS for email client compatibility (Gmail, Outlook, etc.)
       if (bodyHtml) {
         bodyHtml = inlineHtmlForEmail(bodyHtml);
+      }
+
+      // Replying inside a CRM thread: options.threadId is OUR thread id. The
+      // provider needs its own thread id (Gmail threadId, Outlook conversation…)
+      // and the RFC Message-ID of the message we answer (In-Reply-To).
+      // A thread of another mailbox is ignored: the email starts a new thread.
+      const existingThread = options.threadId
+        ? await prisma.emailThread.findFirst({
+            where: { id: options.threadId, mailboxId },
+            select: {
+              id: true,
+              providerThreadId: true,
+              participantEmails: true,
+              contactId: true,
+              missionId: true,
+              clientId: true,
+            },
+          })
+        : null;
+
+      let inReplyTo = options.inReplyTo;
+      if (!inReplyTo && existingThread) {
+        const lastMessages = await prisma.email.findMany({
+          where: { threadId: existingThread.id, providerMessageId: { not: null } },
+          select: { providerMessageId: true, receivedAt: true, sentAt: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        });
+        const latest = lastMessages
+          .sort((a, b) => messageTime(b) - messageTime(a))
+          .find((m) => m.providerMessageId?.includes("@"));
+        // Only RFC Message-IDs (<x@y>) make sense in an In-Reply-To header
+        if (latest?.providerMessageId) {
+          const id = latest.providerMessageId.trim();
+          inReplyTo = id.startsWith("<") ? id : `<${id}>`;
+        }
       }
 
       // Build send params
@@ -138,8 +189,8 @@ export class EmailSendingService {
           content: a.content,
         })),
         trackingPixelId: trackingPixelId || undefined,
-        inReplyTo: options.inReplyTo,
-        threadId: options.threadId,
+        inReplyTo,
+        threadId: existingThread?.providerThreadId || undefined,
       };
 
       let result: {
@@ -215,12 +266,22 @@ export class EmailSendingService {
         return { success: false, error: result.error };
       }
 
+      // CRM links carried by the email (contact → mission → client), so a
+      // thread started from the call screen or a sequence is linked from birth.
+      const links =
+        options.contactId || options.missionId
+          ? await crmLinkingService
+              .resolveOutboundLinks({ contactId: options.contactId, missionId: options.missionId })
+              .catch(() => ({}) as ResolvedLinks)
+          : ({} as ResolvedLinks);
+
+      const recipients = [
+        ...options.to.map((t) => t.email),
+        ...(options.cc?.map((c) => c.email) ?? []),
+      ].map((e) => e.toLowerCase());
+
       // Create or update thread
-      let thread = options.threadId
-        ? await prisma.emailThread.findUnique({
-            where: { id: options.threadId },
-          })
-        : null;
+      let thread: { id: string } | null = existingThread;
 
       if (!thread && result.threadId) {
         // Try to find by provider thread ID
@@ -229,21 +290,45 @@ export class EmailSendingService {
             mailboxId,
             providerThreadId: result.threadId,
           },
+          select: { id: true },
         });
       }
 
       if (!thread) {
-        // Create new thread
+        // Create new thread, linked from birth
         thread = await prisma.emailThread.create({
           data: {
             mailboxId,
             subject: options.subject,
             snippet: options.bodyText?.substring(0, 200),
-            participantEmails: options.to.map((t) => t.email),
+            participantEmails: Array.from(new Set(recipients)),
             providerThreadId: result.threadId,
             lastEmailAt: new Date(),
+            isRead: true,
+            contactId: links.contactId,
+            missionId: links.missionId,
+            clientId: links.clientId,
           },
+          select: { id: true },
         });
+      } else {
+        // Existing thread: complete missing links and participants (never overwrite)
+        const current = await prisma.emailThread.findUnique({
+          where: { id: thread.id },
+          select: { participantEmails: true, contactId: true, missionId: true, clientId: true },
+        });
+        if (current) {
+          const participants = Array.from(new Set([...current.participantEmails, ...recipients]));
+          await prisma.emailThread.update({
+            where: { id: thread.id },
+            data: {
+              ...(participants.length !== current.participantEmails.length && { participantEmails: participants }),
+              ...(!current.contactId && links.contactId && { contactId: links.contactId }),
+              ...(!current.missionId && links.missionId && { missionId: links.missionId }),
+              ...(!current.clientId && links.clientId && { clientId: links.clientId }),
+            },
+          });
+        }
       }
 
       // Create email record
@@ -291,6 +376,8 @@ export class EmailSendingService {
         data: {
           lastEmailAt: new Date(),
           snippet: options.bodyText?.substring(0, 200),
+          // A new message brings the conversation back out of the trash
+          isTrashed: false,
         },
       });
 

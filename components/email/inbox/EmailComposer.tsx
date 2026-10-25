@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, useId } from "react";
+import React, { useState, useEffect, useRef, useCallback, useId, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import {
     X,
@@ -16,903 +16,705 @@ import {
     List,
     ListOrdered,
     Trash2,
-    Loader2,
-    Clock,
     FileText,
-    AlertCircle,
-    CheckCircle2,
+    ChevronDown,
 } from "lucide-react";
 import { AiMark } from "@/components/ui/AiMark";
+import { Button, Callout, ConfirmModal, IconButton, Kbd, Spinner } from "@/components/ui";
 import { AiEmailDraftDialog } from "@/components/email/AiEmailDraftDialog";
+import { fetchJson, htmlToText, type ComposeDraft } from "./inbox-utils";
 
-// ============================================
-// COMMON EMAIL DOMAINS (for @ domain completion)
-// ============================================
+// Must match SIGNATURE_MARKER in lib/email/services/sending-service.ts: the
+// server replaces it with the mailbox signature (above the quoted message).
+const SIGNATURE_MARKER = "<!--cp-signature-->";
 
-const COMMON_EMAIL_DOMAINS = [
-    "gmail.com",
-    "google.com",
-    "yahoo.com",
-    "yahoo.fr",
-    "outlook.com",
-    "hotmail.com",
-    "hotmail.fr",
-    "live.com",
-    "live.fr",
-    "icloud.com",
-    "me.com",
-    "protonmail.com",
-    "proton.me",
-    "orange.fr",
-    "free.fr",
-    "sfr.fr",
-    "laposte.net",
-    "wanadoo.fr",
-    "bbox.fr",
-    "aol.com",
-    "msn.com",
-    "ymail.com",
-    "zoho.com",
-    "mail.com",
-    "gmx.com",
-    "gmx.fr",
-];
-
-function getDomainSuggestions(domainFragment: string): string[] {
-    const lower = domainFragment.toLowerCase().trim();
-    if (!lower) return COMMON_EMAIL_DOMAINS.slice(0, 8);
-    if (lower.startsWith(".")) {
-        return COMMON_EMAIL_DOMAINS
-            .filter((d) => d.endsWith(lower))
-            .slice(0, 8);
-    }
-    return COMMON_EMAIL_DOMAINS
-        .filter((d) => d.startsWith(lower) || d.includes(lower))
-        .slice(0, 8);
-}
+const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+const VAR_RE = /\{\{\s*(\w+(?:\.\w+)?)\s*\}\}/g;
 
 // ============================================
 // TYPES
 // ============================================
 
-interface Mailbox {
+interface SendableMailbox {
     id: string;
     email: string;
     displayName: string | null;
-    signature: string | null;
-    signatureHtml: string | null;
+    isOwn: boolean;
+    isMissionDefault: boolean;
+    owner: { id: string; name: string } | null;
+}
+
+interface TemplateOption {
+    id: string;
+    name: string;
+    subject: string;
+    bodyHtml: string;
+    source: "mission" | "library";
+}
+
+export interface ComposerContext {
+    contactId?: string | null;
+    missionId?: string | null;
+    missionName?: string | null;
+    contact?: {
+        firstName?: string | null;
+        lastName?: string | null;
+        title?: string | null;
+        email?: string | null;
+        companyName?: string | null;
+    } | null;
 }
 
 interface EmailComposerProps {
-    mailboxId?: string;
-    replyTo?: {
-        threadId: string;
-        subject: string;
-        to: { email: string; name?: string }[];
-        cc?: { email: string; name?: string }[];
-        isForward?: boolean;
-    } | null;
+    draft: ComposeDraft;
+    /** Mailbox selected in the inbox (new message default). */
+    defaultMailboxId?: string;
+    /** Thread's mailbox for replies/forwards (fixed sender). */
+    lockedMailbox?: { id: string; email: string; displayName: string | null } | null;
+    context?: ComposerContext;
     onClose: () => void;
-    onSent: () => void;
+    onSent: (result: { threadId?: string; emailId?: string }) => void;
 }
 
 // ============================================
-// DISCARD CONFIRMATION DIALOG
+// RECIPIENT FIELD
 // ============================================
 
-function DiscardConfirmDialog({
-    onDiscard,
-    onCancel,
+function RecipientField({
+    label,
+    values,
+    onChange,
+    autoFocus,
+    trailing,
 }: {
-    onDiscard: () => void;
-    onCancel: () => void;
+    label: string;
+    values: string[];
+    onChange: (v: string[]) => void;
+    autoFocus?: boolean;
+    trailing?: React.ReactNode;
 }) {
+    const [input, setInput] = useState("");
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const commit = (raw: string) => {
+        const parts = raw.split(/[,;\s]+/).map((p) => p.trim()).filter(Boolean);
+        if (parts.length === 0) return;
+        const next = [...values];
+        for (const p of parts) if (!next.some((v) => v.toLowerCase() === p.toLowerCase())) next.push(p);
+        onChange(next);
+        setInput("");
+    };
+
     return (
-        <>
-            <div
-                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60] animate-in fade-in duration-150"
-                onClick={onCancel}
+        <div className="flex min-h-9 flex-wrap items-center gap-1.5 border-b border-line px-3 py-1" onClick={() => inputRef.current?.focus()}>
+            <span className="w-8 shrink-0 text-xs text-ink-4">{label}</span>
+            {values.map((email, i) => {
+                const valid = EMAIL_RE.test(email);
+                return (
+                    <span
+                        key={`${email}-${i}`}
+                        className={cn(
+                            "inline-flex h-6 items-center gap-1 rounded-chip border pl-2 pr-0.5 text-xs",
+                            valid ? "border-line bg-surface-2 text-ink" : "border-danger-line bg-danger-soft text-danger-ink",
+                        )}
+                        title={valid ? email : "Adresse invalide"}
+                    >
+                        {email}
+                        <button
+                            type="button"
+                            aria-label={`Retirer ${email}`}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onChange(values.filter((_, idx) => idx !== i));
+                            }}
+                            className="flex size-5 items-center justify-center rounded-full text-ink-4 hover:bg-surface-3 hover:text-ink"
+                        >
+                            <X className="size-3" aria-hidden />
+                        </button>
+                    </span>
+                );
+            })}
+            <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                autoFocus={autoFocus}
+                onChange={(e) => {
+                    const v = e.target.value;
+                    if (/[,;]$/.test(v)) commit(v.slice(0, -1));
+                    else setInput(v);
+                }}
+                onPaste={(e) => {
+                    const text = e.clipboardData.getData("text");
+                    if (/[,;\s]/.test(text.trim())) {
+                        e.preventDefault();
+                        commit(text);
+                    }
+                }}
+                onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === "Tab") && input.trim()) {
+                        e.preventDefault();
+                        commit(input);
+                    } else if (e.key === "Backspace" && !input && values.length > 0) {
+                        onChange(values.slice(0, -1));
+                    }
+                }}
+                onBlur={() => input.trim() && commit(input)}
+                aria-label={label === "À" ? "Destinataires" : label}
+                className="h-7 min-w-[120px] flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-4"
+                placeholder={values.length === 0 ? "adresse@entreprise.fr" : ""}
             />
-            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 w-[360px] animate-in zoom-in-95 fade-in duration-200">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-                        <Trash2 className="w-5 h-5 text-amber-500" />
-                    </div>
-                    <div>
-                        <h3 className="text-[15px] font-semibold text-slate-900">
-                            Supprimer le brouillon ?
-                        </h3>
-                        <p className="text-sm text-slate-500">
-                            Votre message sera perdu.
-                        </p>
-                    </div>
-                </div>
-                <div className="flex gap-2 justify-end">
-                    <button
-                        onClick={onCancel}
-                        className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
-                    >
-                        Continuer l&apos;édition
-                    </button>
-                    <button
-                        onClick={onDiscard}
-                        className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors"
-                    >
-                        Supprimer
-                    </button>
-                </div>
-            </div>
-        </>
+            {trailing}
+        </div>
     );
 }
 
 // ============================================
-// EMAIL COMPOSER COMPONENT
+// EMAIL COMPOSER
 // ============================================
 
-export function EmailComposer({
-    mailboxId,
-    replyTo,
-    onClose,
-    onSent,
-}: EmailComposerProps) {
-    // State
-    const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
-    const [selectedMailboxId, setSelectedMailboxId] = useState(mailboxId);
-    const [to, setTo] = useState<string[]>(replyTo?.to.map(t => t.email) || []);
-    const [cc, setCc] = useState<string[]>(replyTo?.cc?.map(c => c.email) || []);
+export function EmailComposer({ draft, defaultMailboxId, lockedMailbox, context, onClose, onSent }: EmailComposerProps) {
+    const isReply = draft.mode !== "new";
+    const [mailboxes, setMailboxes] = useState<SendableMailbox[]>([]);
+    const [mailboxesLoading, setMailboxesLoading] = useState(!lockedMailbox);
+    const [mailboxId, setMailboxId] = useState<string | undefined>(lockedMailbox?.id ?? draft.mailboxId);
+    const [to, setTo] = useState<string[]>(draft.to);
+    const [cc, setCc] = useState<string[]>(draft.cc);
     const [bcc, setBcc] = useState<string[]>([]);
-    const [subject, setSubject] = useState(replyTo?.subject || "");
-    const [attachments, setAttachments] = useState<File[]>([]);
-
-    const [showCc, setShowCc] = useState((replyTo?.cc?.length ?? 0) > 0);
+    const [showCc, setShowCc] = useState(draft.cc.length > 0);
     const [showBcc, setShowBcc] = useState(false);
+    const [subject, setSubject] = useState(draft.subject);
+    const [attachments, setAttachments] = useState<File[]>([]);
+    const [templateId, setTemplateId] = useState<string | null>(null);
+    const [templates, setTemplates] = useState<TemplateOption[] | null>(null);
+    const [showTemplates, setShowTemplates] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [sendError, setSendError] = useState<string | null>(null);
-    const [sendSuccess, setSendSuccess] = useState(false);
-    const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-    const [showSchedule, setShowSchedule] = useState(false);
-
-    const [toInput, setToInput] = useState("");
-    const [ccInput, setCcInput] = useState("");
-    const [bccInput, setBccInput] = useState("");
-    const [showAiDraftDialog, setShowAiDraftDialog] = useState(false);
-
-    // Domain suggestion dropdown (for @ completion)
-    const [domainSuggestionsField, setDomainSuggestionsField] = useState<"to" | "cc" | "bcc" | null>(null);
-    const [domainSuggestions, setDomainSuggestions] = useState<string[]>([]);
-    const [domainSuggestionsIndex, setDomainSuggestionsIndex] = useState(0);
+    const [confirmDiscard, setConfirmDiscard] = useState(false);
+    const [confirmUnresolved, setConfirmUnresolved] = useState(false);
+    const [showAi, setShowAi] = useState(false);
+    const [bodyVersion, setBodyVersion] = useState(0);
 
     const editorRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const templatesRef = useRef<HTMLDivElement>(null);
     const fileInputId = useId();
-    const hasContentRef = useRef(false);
 
-    // Track if composer has content (for discard warning)
-    const checkHasContent = useCallback(() => {
-        const bodyContent = editorRef.current?.textContent?.trim() || "";
-        hasContentRef.current = !!(to.length > 0 || subject.trim() || bodyContent || attachments.length > 0);
-    }, [to, subject, attachments]);
-
-    // Fetch mailboxes
+    // ---- Editor initial content (blank line, signature slot, quote) ------
     useEffect(() => {
-        let cancelled = false;
-        const fetchMailboxes = async () => {
-            try {
-                const res = await fetch("/api/email/mailboxes");
-                const json = await res.json();
-                if (cancelled) return;
-                if (json.success) {
-                    setMailboxes(json.data);
-                    if (!selectedMailboxId && json.data.length > 0) {
-                        setSelectedMailboxId(json.data[0].id);
-                    }
-                }
-            } catch (error) {
-                console.error("Failed to fetch mailboxes:", error);
-            }
-        };
-        fetchMailboxes();
-        return () => { cancelled = true; };
+        if (!editorRef.current) return;
+        editorRef.current.innerHTML =
+            `<div><br></div>${SIGNATURE_MARKER}` +
+            (draft.quotedHtml ? `<div><br></div>${draft.quotedHtml}` : "");
+        if (isReply && draft.mode !== "forward") {
+            // Caret at the top, ready to type
+            const range = document.createRange();
+            range.setStart(editorRef.current.firstChild ?? editorRef.current, 0);
+            range.collapse(true);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+            editorRef.current.focus();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Insert signature on mailbox change
+    // ---- Sendable mailboxes (new message) --------------------------------
     useEffect(() => {
-        const mailbox = mailboxes.find(m => m.id === selectedMailboxId);
-        if (mailbox?.signatureHtml && editorRef.current) {
-            if (!editorRef.current.innerHTML.trim()) {
-                editorRef.current.innerHTML = `<br><br>${mailbox.signatureHtml}`;
+        if (lockedMailbox) return;
+        let cancelled = false;
+        const mission = context?.missionId ? `&missionId=${encodeURIComponent(context.missionId)}` : "";
+        fetchJson<SendableMailbox[]>(`/api/email/mailboxes?scope=sendable${mission}`)
+            .then((list) => {
+                if (cancelled) return;
+                setMailboxes(list);
+                setMailboxId((current) => {
+                    if (current && list.some((m) => m.id === current)) return current;
+                    if (defaultMailboxId && list.some((m) => m.id === defaultMailboxId)) return defaultMailboxId;
+                    return list.find((m) => m.isMissionDefault)?.id ?? list[0]?.id;
+                });
+            })
+            .catch(() => !cancelled && setMailboxes([]))
+            .finally(() => !cancelled && setMailboxesLoading(false));
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lockedMailbox?.id, context?.missionId]);
+
+    // ---- Templates (lazy, on first open) ---------------------------------
+    useEffect(() => {
+        if (!showTemplates || templates) return;
+        const missionId = context?.missionId;
+        Promise.allSettled([
+            missionId
+                ? fetchJson<{ template: { id: string; name: string; subject: string; bodyHtml: string } }[]>(`/api/missions/${missionId}/templates`)
+                : Promise.resolve([]),
+            fetchJson<{ id: string; name: string; subject: string; bodyHtml: string }[]>("/api/email/templates"),
+        ]).then(([m, lib]) => {
+            const out: TemplateOption[] = [];
+            const seen = new Set<string>();
+            if (m.status === "fulfilled") {
+                for (const mt of m.value) {
+                    if (!mt.template || seen.has(mt.template.id)) continue;
+                    seen.add(mt.template.id);
+                    out.push({ ...mt.template, source: "mission" });
+                }
             }
-        }
-    }, [selectedMailboxId, mailboxes]);
-
-    // Update domain suggestions when typing after @
-    const updateDomainSuggestions = useCallback((field: "to" | "cc" | "bcc", value: string) => {
-        const atIndex = value.indexOf("@");
-        if (atIndex === -1) {
-            setDomainSuggestionsField(null);
-            return;
-        }
-        const fragment = value.slice(atIndex + 1);
-        const suggestions = getDomainSuggestions(fragment);
-        if (suggestions.length === 0) {
-            setDomainSuggestionsField(null);
-            return;
-        }
-        setDomainSuggestionsField(field);
-        setDomainSuggestions(suggestions);
-        setDomainSuggestionsIndex(0);
-    }, []);
-
-    const applyDomainSuggestion = useCallback((
-        field: "to" | "cc" | "bcc",
-        domain: string,
-        currentValue: string,
-        setter: React.Dispatch<React.SetStateAction<string>>,
-        listSetter: React.Dispatch<React.SetStateAction<string[]>>
-    ) => {
-        const atIndex = currentValue.indexOf("@");
-        const localPart = (atIndex === -1 ? currentValue : currentValue.slice(0, atIndex)).trim();
-        const fullEmail = localPart + "@" + domain;
-        if (fullEmail.includes("@") && localPart) {
-            listSetter(prev => [...prev, fullEmail]);
-            setter("");
-        } else {
-            setter(fullEmail);
-        }
-        setDomainSuggestionsField(null);
-    }, []);
-
-    // Handle email input
-    const handleEmailInput = (
-        value: string,
-        setter: React.Dispatch<React.SetStateAction<string>>,
-        listSetter: React.Dispatch<React.SetStateAction<string[]>>,
-        field: "to" | "cc" | "bcc"
-    ) => {
-        if (value.endsWith(",") || value.endsWith(" ")) {
-            const email = value.slice(0, -1).trim();
-            if (email && email.includes("@")) {
-                listSetter(prev => [...prev, email]);
-                setter("");
-                setDomainSuggestionsField(null);
+            if (lib.status === "fulfilled") {
+                for (const t of lib.value) {
+                    if (seen.has(t.id)) continue;
+                    seen.add(t.id);
+                    out.push({ id: t.id, name: t.name, subject: t.subject, bodyHtml: t.bodyHtml, source: "library" });
+                }
             }
-        } else {
-            setter(value);
-            updateDomainSuggestions(field, value);
-        }
+            setTemplates(out);
+        });
+    }, [showTemplates, templates, context?.missionId]);
+
+    useEffect(() => {
+        if (!showTemplates) return;
+        const onDown = (e: MouseEvent) => {
+            if (templatesRef.current && !templatesRef.current.contains(e.target as Node)) setShowTemplates(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+    }, [showTemplates]);
+
+    // ---- Variables -------------------------------------------------------
+    const variables = useMemo(() => {
+        const c = context?.contact;
+        const v: Record<string, string> = {};
+        const set = (k: string, val?: string | null) => {
+            if (val && val.trim()) v[k] = val.trim();
+        };
+        set("firstName", c?.firstName);
+        set("lastName", c?.lastName);
+        set("fullName", [c?.firstName, c?.lastName].filter(Boolean).join(" "));
+        set("title", c?.title);
+        set("email", c?.email);
+        set("company", c?.companyName);
+        set("companyName", c?.companyName);
+        const now = new Date();
+        v.currentDate = now.toLocaleDateString("fr-FR");
+        v.currentDay = now.toLocaleDateString("fr-FR", { weekday: "long" });
+        v.currentMonth = now.toLocaleDateString("fr-FR", { month: "long" });
+        v.currentYear = String(now.getFullYear());
+        return v;
+    }, [context?.contact]);
+
+    const substitute = useCallback(
+        (text: string) => text.replace(VAR_RE, (m, name: string) => variables[name] ?? m),
+        [variables],
+    );
+
+    const unresolved = useMemo(() => {
+        void bodyVersion;
+        const text = `${subject} ${editorRef.current?.innerHTML ?? ""}`;
+        const names = new Set<string>();
+        for (const m of text.matchAll(VAR_RE)) names.add(m[1]);
+        return Array.from(names);
+    }, [subject, bodyVersion]);
+
+    // ---- Editor helpers --------------------------------------------------
+    const insertAtTop = (html: string) => {
+        const el = editorRef.current;
+        if (!el) return;
+        const first = el.firstElementChild;
+        const isBlankFirst = first && first.tagName === "DIV" && first.innerHTML.replace(/<br\s*\/?>/gi, "").trim() === "";
+        const wrapper = document.createElement("div");
+        wrapper.innerHTML = html;
+        if (isBlankFirst) first.replaceWith(wrapper);
+        else el.insertBefore(wrapper, el.firstChild);
+        setBodyVersion((n) => n + 1);
+        el.focus();
     };
 
-    const handleEmailKeyDown = (
-        e: React.KeyboardEvent,
-        value: string,
-        setter: React.Dispatch<React.SetStateAction<string>>,
-        listSetter: React.Dispatch<React.SetStateAction<string[]>>,
-        field: "to" | "cc" | "bcc"
-    ) => {
-        if (domainSuggestionsField === field && domainSuggestions.length > 0) {
-            if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setDomainSuggestionsIndex((i) => (i + 1) % domainSuggestions.length);
-                return;
-            }
-            if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setDomainSuggestionsIndex((i) => (i - 1 + domainSuggestions.length) % domainSuggestions.length);
-                return;
-            }
-            if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault();
-                const domain = domainSuggestions[domainSuggestionsIndex];
-                applyDomainSuggestion(field, domain, value, setter, listSetter);
-                return;
-            }
-            if (e.key === "Escape") {
-                setDomainSuggestionsField(null);
-                return;
-            }
-        }
-        if (e.key === "Enter" || e.key === "Tab") {
-            e.preventDefault();
-            const email = value.trim();
-            if (email && email.includes("@")) {
-                listSetter(prev => [...prev, email]);
-                setter("");
-                setDomainSuggestionsField(null);
-            }
-        } else if (e.key === "Backspace" && !value) {
-            listSetter(prev => prev.slice(0, -1));
-        }
+    const applyTemplate = (t: TemplateOption) => {
+        setTemplateId(t.id);
+        if (!isReply || !subject.trim()) setSubject(substitute(t.subject));
+        insertAtTop(substitute(t.bodyHtml));
+        setShowTemplates(false);
+        setConfirmUnresolved(false);
     };
 
-    // Handle attachment (native label + input so file picker opens reliably)
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files && files.length > 0) {
-            // Capture file list synchronously; clearing input below can invalidate it before React runs the state updater
-            const toAdd = Array.from(files);
-            setAttachments(prev => [...prev, ...toAdd]);
-        }
-        e.target.value = "";
-    };
-
-    const removeAttachment = (index: number) => {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
-    };
-
-    // Format commands
-    const execCommand = (command: string, value?: string) => {
+    const exec = (command: string, value?: string) => {
         document.execCommand(command, false, value);
         editorRef.current?.focus();
     };
 
-    // Close with unsaved changes check
-    const handleClose = useCallback(() => {
-        checkHasContent();
-        if (hasContentRef.current) {
-            setShowDiscardConfirm(true);
-        } else {
-            onClose();
-        }
-    }, [checkHasContent, onClose]);
+    const hasContent = () => {
+        const text = editorRef.current?.innerText?.trim() ?? "";
+        const quotedText = draft.quotedHtml ? htmlToText(draft.quotedHtml) : "";
+        return (
+            attachments.length > 0 ||
+            (draft.mode === "new" && (to.length > 0 || subject.trim().length > 0)) ||
+            text.replace(quotedText, "").trim().length > 0
+        );
+    };
 
-    // Ctrl+Enter to send
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                if (!isSending && selectedMailboxId && to.length > 0) {
-                    handleSend();
-                }
-            }
-        };
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSending, selectedMailboxId, to]);
+    const requestClose = () => {
+        if (hasContent()) setConfirmDiscard(true);
+        else onClose();
+    };
 
-    // Send email
+    // ---- Send ------------------------------------------------------------
+    const invalidRecipients = [...to, ...cc, ...bcc].filter((e) => !EMAIL_RE.test(e));
+    const totalSize = attachments.reduce((s, f) => s + f.size, 0);
+    const overLimit = totalSize > 25 * 1024 * 1024;
+    const canSend = !!mailboxId && to.length > 0 && invalidRecipients.length === 0 && !overLimit && !isSending;
+
     const handleSend = async () => {
-        if (!selectedMailboxId || to.length === 0) return;
-
+        if (!canSend || !editorRef.current) return;
+        if (unresolved.length > 0 && !confirmUnresolved && !context?.contactId) {
+            setConfirmUnresolved(true);
+            return;
+        }
         setSendError(null);
         setIsSending(true);
-
         try {
-            const bodyHtml = editorRef.current?.innerHTML || "";
-            const bodyText = editorRef.current?.textContent || "";
+            const bodyHtml = editorRef.current.innerHTML;
+            const bodyText = htmlToText(bodyHtml.replace(SIGNATURE_MARKER, ""));
 
-            const formData = new FormData();
-            formData.append("mailboxId", selectedMailboxId);
-            formData.append("to", JSON.stringify(to.map(email => ({ email }))));
-            if (cc.length > 0) formData.append("cc", JSON.stringify(cc.map(email => ({ email }))));
-            if (bcc.length > 0) formData.append("bcc", JSON.stringify(bcc.map(email => ({ email }))));
-            formData.append("subject", subject);
-            formData.append("bodyHtml", bodyHtml);
-            formData.append("bodyText", bodyText);
-            if (replyTo?.threadId) formData.append("threadId", replyTo.threadId);
+            const form = new FormData();
+            form.append("mailboxId", mailboxId!);
+            form.append("to", JSON.stringify(to.map((email) => ({ email }))));
+            if (cc.length) form.append("cc", JSON.stringify(cc.map((email) => ({ email }))));
+            if (bcc.length) form.append("bcc", JSON.stringify(bcc.map((email) => ({ email }))));
+            form.append("subject", subject.trim() || "(Sans objet)");
+            form.append("bodyHtml", bodyHtml);
+            form.append("bodyText", bodyText);
+            if (draft.threadId) form.append("threadId", draft.threadId);
+            if (context?.contactId) form.append("contactId", context.contactId);
+            if (context?.missionId) form.append("missionId", context.missionId);
+            if (templateId) form.append("templateId", templateId);
+            attachments.forEach((file, i) => form.append(`attachment_${i}`, file));
 
-            attachments.forEach((file, index) => {
-                formData.append(`attachment_${index}`, file);
-            });
-
-            const res = await fetch("/api/email/send", {
+            const result = await fetchJson<{ threadId?: string; emailId?: string }>("/api/email/send", {
                 method: "POST",
-                body: formData,
+                body: form,
             });
-
-            const json = await res.json();
-
-            if (json.success) {
-                setSendSuccess(true);
-                // Brief success animation before closing
-                setTimeout(() => {
-                    onSent();
-                }, 800);
-            } else {
-                setSendError(json.error || "Erreur lors de l'envoi. Veuillez réessayer.");
-            }
-        } catch (error) {
-            console.error("Failed to send email:", error);
-            setSendError("Erreur de connexion. Vérifiez votre réseau et réessayez.");
+            onSent(result);
+        } catch (e) {
+            setSendError(e instanceof Error ? e.message : "Erreur lors de l'envoi. Réessayez.");
         } finally {
             setIsSending(false);
         }
     };
 
-    const selectedMailbox = mailboxes.find(m => m.id === selectedMailboxId);
+    // Ctrl/Cmd+Enter sends, Escape closes (inside the composer only)
+    const onComposerKeyDown = (e: React.KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            handleSend();
+        } else if (e.key === "Escape" && !showTemplates && !showAi) {
+            e.preventDefault();
+            e.stopPropagation();
+            requestClose();
+        }
+    };
 
-    // Total attachment size
-    const totalAttachmentSize = attachments.reduce((sum, f) => sum + f.size, 0);
-    const isOverLimit = totalAttachmentSize > 25 * 1024 * 1024; // 25MB limit
+    const title = draft.mode === "forward" ? "Transférer" : draft.mode === "new" ? "Nouveau message" : draft.mode === "replyAll" ? "Répondre à tous" : "Répondre";
+    const fromMailbox = lockedMailbox ?? mailboxes.find((m) => m.id === mailboxId) ?? null;
 
     return (
         <>
-            {/* Backdrop for fullscreen */}
-            {isFullscreen && (
-                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in duration-200" />
-            )}
+            {isExpanded && !isMinimized && <div className="fixed inset-0 z-40 bg-ink/20" onClick={() => setIsExpanded(false)} aria-hidden />}
 
             <div
+                role="dialog"
+                aria-label={title}
+                onKeyDown={onComposerKeyDown}
                 className={cn(
-                    "fixed z-50 bg-white flex flex-col transition-all duration-300 ease-in-out",
+                    "fixed z-50 flex flex-col overflow-hidden border border-line-strong bg-surface shadow-lg",
                     isMinimized
-                        ? "bottom-0 right-4 w-80 h-10 rounded-t-xl shadow-lg border border-slate-200"
-                        : isFullscreen
-                            ? "inset-6 rounded-2xl shadow-2xl border border-slate-200"
-                            : "bottom-0 right-4 w-[620px] max-w-[calc(100vw-2rem)] h-[520px] rounded-t-2xl shadow-2xl border border-slate-200 border-b-0"
+                        ? "bottom-0 right-4 h-10 w-72 rounded-t-panel"
+                        : isExpanded
+                            ? "inset-4 rounded-panel sm:inset-10"
+                            : "bottom-0 right-0 h-[min(600px,calc(100vh-4rem))] w-full rounded-t-panel sm:right-4 sm:w-[600px]",
                 )}
             >
                 {/* Header */}
-                <div className={cn(
-                    "h-11 px-4 flex items-center justify-between flex-shrink-0 transition-colors cursor-default",
-                    sendSuccess
-                        ? "bg-emerald-600 rounded-t-2xl"
-                        : isMinimized
-                            ? "bg-slate-800 rounded-t-xl"
-                            : "bg-slate-900 rounded-t-2xl"
-                )}>
-                    <div className="flex items-center gap-2 min-w-0">
-                        {sendSuccess ? (
-                            <>
-                                <CheckCircle2 className="w-4 h-4 text-white" />
-                                <span className="text-sm font-medium text-white">Message envoyé</span>
-                            </>
-                        ) : (
-                            <>
-                                <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-                                <span className="text-sm font-medium text-white truncate">
-                                    {replyTo?.isForward ? "Transférer" : replyTo ? "Répondre" : "Nouveau message"}
-                                </span>
-                                {isMinimized && subject && (
-                                    <span className="text-xs text-slate-400 truncate ml-1">
-                                        — {subject}
-                                    </span>
-                                )}
-                            </>
-                        )}
-                    </div>
-                    {!sendSuccess && (
-                        <div className="flex items-center gap-0.5">
-                            <button
-                                onClick={() => setIsMinimized(!isMinimized)}
-                                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                                title={isMinimized ? "Restaurer" : "Minimiser"}
-                            >
-                                <Minus className="w-3.5 h-3.5 text-slate-300" />
-                            </button>
-                            <button
-                                onClick={() => { setIsFullscreen(!isFullscreen); setIsMinimized(false); }}
-                                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                                title={isFullscreen ? "Réduire" : "Plein écran"}
-                            >
-                                {isFullscreen ? (
-                                    <Minimize2 className="w-3.5 h-3.5 text-slate-300" />
-                                ) : (
-                                    <Maximize2 className="w-3.5 h-3.5 text-slate-300" />
-                                )}
-                            </button>
-                            <button
-                                onClick={handleClose}
-                                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-                                title="Fermer"
-                            >
-                                <X className="w-3.5 h-3.5 text-slate-300" />
-                            </button>
-                        </div>
-                    )}
+                <div
+                    className="flex h-10 shrink-0 cursor-default items-center gap-2 border-b border-line bg-surface-2 pl-3 pr-1"
+                    onDoubleClick={() => setIsMinimized((v) => !v)}
+                >
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
+                        {title}
+                        {isMinimized && subject && <span className="font-normal text-ink-3"> — {subject}</span>}
+                    </span>
+                    <IconButton size="xs" icon={Minus} label={isMinimized ? "Restaurer" : "Réduire"} onClick={() => setIsMinimized((v) => !v)} />
+                    <IconButton
+                        size="xs"
+                        icon={isExpanded ? Minimize2 : Maximize2}
+                        label={isExpanded ? "Taille normale" : "Agrandir"}
+                        onClick={() => {
+                            setIsExpanded((v) => !v);
+                            setIsMinimized(false);
+                        }}
+                        className="hidden sm:inline-flex"
+                    />
+                    <IconButton size="xs" icon={X} label="Fermer (Échap)" onClick={requestClose} />
                 </div>
 
-                {/* Content */}
-                {!isMinimized && !sendSuccess && (
-                    <>
-                        {/* From */}
-                        <div className="px-4 py-2.5 border-b border-slate-100 flex items-center gap-2">
-                            <span className="text-[13px] text-slate-400 w-10 flex-shrink-0 font-medium">De</span>
+                <div className={cn("flex min-h-0 flex-1 flex-col", isMinimized && "hidden")}>
+                    {/* From */}
+                    <div className="flex h-9 shrink-0 items-center gap-1.5 border-b border-line px-3">
+                        <span className="w-8 shrink-0 text-xs text-ink-4">De</span>
+                        {lockedMailbox ? (
+                            <span className="truncate text-[13px] text-ink">
+                                {lockedMailbox.displayName ? `${lockedMailbox.displayName} <${lockedMailbox.email}>` : lockedMailbox.email}
+                            </span>
+                        ) : mailboxesLoading ? (
+                            <Spinner className="text-ink-4" />
+                        ) : mailboxes.length === 0 ? (
+                            <span className="text-[13px] text-danger-ink">Aucune boîte d&apos;envoi disponible</span>
+                        ) : (
                             <select
-                                value={selectedMailboxId || ""}
-                                onChange={(e) => setSelectedMailboxId(e.target.value)}
-                                className="flex-1 text-[13px] bg-white text-slate-800 focus:outline-none cursor-pointer font-medium"
+                                value={mailboxId ?? ""}
+                                onChange={(e) => setMailboxId(e.target.value)}
+                                aria-label="Boîte d'envoi"
+                                className="h-7 min-w-0 flex-1 cursor-pointer truncate bg-transparent text-[13px] text-ink outline-none"
                             >
-                                {mailboxes.map((mb) => (
-                                    <option key={mb.id} value={mb.id} className="text-slate-900 bg-white">
-                                        {mb.displayName ? `${mb.displayName} <${mb.email}>` : mb.email}
+                                {mailboxes.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.displayName ? `${m.displayName} <${m.email}>` : m.email}
+                                        {m.isMissionDefault ? " — boîte de la mission" : !m.isOwn && m.owner ? ` — ${m.owner.name}` : ""}
                                     </option>
                                 ))}
                             </select>
-                        </div>
-
-                        {/* To */}
-                        <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2 flex-wrap min-h-[40px]">
-                            <span className="text-[13px] text-slate-400 w-10 flex-shrink-0 font-medium">À</span>
-                            {to.map((email, i) => (
-                                <span
-                                    key={i}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-50 text-primary-700 text-[12px] rounded-lg font-medium border border-primary-100"
-                                >
-                                    {email}
-                                    <button
-                                        onClick={() => setTo(prev => prev.filter((_, idx) => idx !== i))}
-                                        className="text-primary-400 hover:text-primary-600 ml-0.5"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </span>
-                            ))}
-                            <div className="relative flex-1 min-w-[100px]">
-                                <input
-                                    type="email"
-                                    value={toInput}
-                                    onChange={(e) => handleEmailInput(e.target.value, setToInput, setTo, "to")}
-                                    onKeyDown={(e) => handleEmailKeyDown(e, toInput, setToInput, setTo, "to")}
-                                    onFocus={() => toInput.includes("@") && updateDomainSuggestions("to", toInput)}
-                                    onBlur={() => setTimeout(() => setDomainSuggestionsField(null), 150)}
-                                    placeholder={to.length === 0 ? "Destinataires" : ""}
-                                    className="w-full text-[13px] bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none"
-                                    autoFocus={replyTo?.isForward}
-                                />
-                                {domainSuggestionsField === "to" && domainSuggestions.length > 0 && (
-                                    <ul
-                                        className="absolute left-0 top-full z-[100] mt-0.5 min-w-[180px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-                                        role="listbox"
-                                    >
-                                        {domainSuggestions.map((domain, i) => (
-                                            <li
-                                                key={domain}
-                                                role="option"
-                                                aria-selected={i === domainSuggestionsIndex}
-                                                className={cn(
-                                                    "cursor-pointer px-3 py-2 text-[13px] font-medium",
-                                                    i === domainSuggestionsIndex
-                                                        ? "bg-primary-50 text-primary-700"
-                                                        : "text-slate-700 hover:bg-slate-50"
-                                                )}
-                                                onMouseDown={(e) => {
-                                                    e.preventDefault();
-                                                    applyDomainSuggestion("to", domain, toInput, setToInput, setTo);
-                                                }}
-                                            >
-                                                {domain}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[12px] text-slate-400 flex-shrink-0">
-                                {!showCc && (
-                                    <button onClick={() => setShowCc(true)} className="hover:text-primary-600 font-medium">
-                                        Cc
-                                    </button>
-                                )}
-                                {!showBcc && (
-                                    <button onClick={() => setShowBcc(true)} className="hover:text-primary-600 font-medium">
-                                        Cci
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Cc */}
-                        {showCc && (
-                            <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2 flex-wrap min-h-[40px]">
-                                <span className="text-[13px] text-slate-400 w-10 flex-shrink-0 font-medium">Cc</span>
-                                {cc.map((email, i) => (
-                                    <span
-                                        key={i}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-[12px] rounded-lg font-medium"
-                                    >
-                                        {email}
-                                        <button
-                                            onClick={() => setCc(prev => prev.filter((_, idx) => idx !== i))}
-                                            className="text-slate-400 hover:text-slate-600 ml-0.5"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </span>
-                                ))}
-                                <div className="relative flex-1 min-w-[100px]">
-                                    <input
-                                        type="email"
-                                        value={ccInput}
-                                        onChange={(e) => handleEmailInput(e.target.value, setCcInput, setCc, "cc")}
-                                        onKeyDown={(e) => handleEmailKeyDown(e, ccInput, setCcInput, setCc, "cc")}
-                                        onFocus={() => ccInput.includes("@") && updateDomainSuggestions("cc", ccInput)}
-                                        onBlur={() => setTimeout(() => setDomainSuggestionsField(null), 150)}
-                                        placeholder="Ajouter en Cc"
-                                        className="w-full text-[13px] bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none"
-                                    />
-                                    {domainSuggestionsField === "cc" && domainSuggestions.length > 0 && (
-                                        <ul className="absolute left-0 top-full z-[100] mt-0.5 min-w-[180px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg" role="listbox">
-                                            {domainSuggestions.map((domain, i) => (
-                                                <li
-                                                    key={domain}
-                                                    role="option"
-                                                    aria-selected={i === domainSuggestionsIndex}
-                                                    className={cn(
-                                                        "cursor-pointer px-3 py-2 text-[13px] font-medium",
-                                                        i === domainSuggestionsIndex ? "bg-primary-50 text-primary-700" : "text-slate-700 hover:bg-slate-50"
-                                                    )}
-                                                    onMouseDown={(e) => {
-                                                        e.preventDefault();
-                                                        applyDomainSuggestion("cc", domain, ccInput, setCcInput, setCc);
-                                                    }}
-                                                >
-                                                    {domain}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
                         )}
+                    </div>
 
-                        {/* Bcc */}
-                        {showBcc && (
-                            <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2 flex-wrap min-h-[40px]">
-                                <span className="text-[13px] text-slate-400 w-10 flex-shrink-0 font-medium">Cci</span>
-                                {bcc.map((email, i) => (
-                                    <span
-                                        key={i}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 text-[12px] rounded-lg font-medium"
-                                    >
-                                        {email}
-                                        <button
-                                            onClick={() => setBcc(prev => prev.filter((_, idx) => idx !== i))}
-                                            className="text-slate-400 hover:text-slate-600 ml-0.5"
-                                        >
-                                            <X className="w-3 h-3" />
-                                        </button>
-                                    </span>
-                                ))}
-                                <div className="relative flex-1 min-w-[100px]">
-                                    <input
-                                        type="email"
-                                        value={bccInput}
-                                        onChange={(e) => handleEmailInput(e.target.value, setBccInput, setBcc, "bcc")}
-                                        onKeyDown={(e) => handleEmailKeyDown(e, bccInput, setBccInput, setBcc, "bcc")}
-                                        onFocus={() => bccInput.includes("@") && updateDomainSuggestions("bcc", bccInput)}
-                                        onBlur={() => setTimeout(() => setDomainSuggestionsField(null), 150)}
-                                        placeholder="Ajouter en Cci"
-                                        className="w-full text-[13px] bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none"
-                                    />
-                                    {domainSuggestionsField === "bcc" && domainSuggestions.length > 0 && (
-                                        <ul className="absolute left-0 top-full z-[100] mt-0.5 min-w-[180px] rounded-xl border border-slate-200 bg-white py-1 shadow-lg" role="listbox">
-                                            {domainSuggestions.map((domain, i) => (
-                                                <li
-                                                    key={domain}
-                                                    role="option"
-                                                    aria-selected={i === domainSuggestionsIndex}
-                                                    className={cn(
-                                                        "cursor-pointer px-3 py-2 text-[13px] font-medium",
-                                                        i === domainSuggestionsIndex ? "bg-primary-50 text-primary-700" : "text-slate-700 hover:bg-slate-50"
-                                                    )}
-                                                    onMouseDown={(e) => {
-                                                        e.preventDefault();
-                                                        applyDomainSuggestion("bcc", domain, bccInput, setBccInput, setBcc);
-                                                    }}
-                                                >
-                                                    {domain}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Subject */}
-                        <div className="px-4 py-2.5 border-b border-slate-100">
-                            <input
-                                type="text"
-                                value={subject}
-                                onChange={(e) => setSubject(e.target.value)}
-                                placeholder="Objet"
-                                className="w-full text-[14px] bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none font-medium"
-                            />
-                        </div>
-
-                        {/* Formatting toolbar */}
-                        <div className="px-3 py-1.5 border-b border-slate-100 flex items-center gap-0.5 bg-slate-50/50">
-                            {[
-                                { cmd: "bold", icon: Bold, title: "Gras (Ctrl+B)" },
-                                { cmd: "italic", icon: Italic, title: "Italique (Ctrl+I)" },
-                                { cmd: "underline", icon: Underline, title: "Souligné (Ctrl+U)" },
-                            ].map(({ cmd, icon: Icon, title }) => (
-                                <button
-                                    key={cmd}
-                                    onClick={() => execCommand(cmd)}
-                                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-                                    title={title}
-                                >
-                                    <Icon className="w-4 h-4" />
-                                </button>
-                            ))}
-                            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-                            <button
-                                onClick={() => execCommand("insertUnorderedList")}
-                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-                                title="Liste à puces"
-                            >
-                                <List className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => execCommand("insertOrderedList")}
-                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-                                title="Liste numérotée"
-                            >
-                                <ListOrdered className="w-4 h-4" />
-                            </button>
-                            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-                            <button
-                                onClick={() => {
-                                    const url = prompt("URL du lien:");
-                                    if (url) execCommand("createLink", url);
-                                }}
-                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-                                title="Insérer un lien"
-                            >
-                                <Link2 className="w-4 h-4" />
-                            </button>
-                            <div className="w-px h-4 bg-slate-200 mx-0.5" />
-                            <button
-                                onClick={() => setShowAiDraftDialog(true)}
-                                className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-primary-50 text-primary-600 transition-colors"
-                                title="Rédaction assistée par IA"
-                            >
-                                <AiMark className="w-4 h-4" />
-                                <span className="text-[11px] font-bold">IA</span>
-                            </button>
-                        </div>
-
-                        {/* Editor */}
-                        <div
-                            ref={editorRef}
-                            contentEditable
-                            data-placeholder="Rédigez votre message..."
-                            className="flex-1 px-4 py-3 text-[14px] text-slate-800 overflow-y-auto focus:outline-none bg-white leading-relaxed email-scrollbar"
-                            style={{ minHeight: "150px" }}
-                            onInput={checkHasContent}
-                        />
-
-                        {/* Send Error */}
-                        {sendError && (
-                            <div className="mx-4 mb-2 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2">
-                                <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-[13px] text-red-700 font-medium">{sendError}</p>
-                                </div>
-                                <button
-                                    onClick={() => setSendError(null)}
-                                    className="text-red-400 hover:text-red-600 flex-shrink-0"
-                                >
-                                    <X className="w-3.5 h-3.5" />
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Attachments */}
-                        {attachments.length > 0 && (
-                            <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                                        {attachments.length} pièce{attachments.length > 1 ? "s" : ""} jointe{attachments.length > 1 ? "s" : ""}
-                                    </span>
-                                    <span className={cn(
-                                        "text-[11px]",
-                                        isOverLimit ? "text-red-500 font-semibold" : "text-slate-400"
-                                    )}>
-                                        {(totalAttachmentSize / (1024 * 1024)).toFixed(1)} MB
-                                        {isOverLimit && " (limite 25 MB)"}
-                                    </span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {attachments.map((file, i) => (
-                                        <div
-                                            key={i}
-                                            className="flex items-center gap-2 px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl group"
-                                        >
-                                            <FileText className="w-3.5 h-3.5 text-slate-400" />
-                                            <span className="text-[12px] text-slate-600 truncate max-w-[120px] font-medium">
-                                                {file.name}
-                                            </span>
-                                            <button
-                                                onClick={() => removeAttachment(i)}
-                                                className="text-slate-400 hover:text-red-500 transition-colors"
-                                            >
-                                                <X className="w-3 h-3" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Footer */}
-                        <div className="px-4 py-2.5 border-t border-slate-100 flex items-center justify-between bg-white rounded-b-2xl">
-                            <div className="flex items-center gap-0.5">
-                                <input
-                                    ref={fileInputRef}
-                                    id={fileInputId}
-                                    type="file"
-                                    multiple
-                                    className="sr-only"
-                                    onChange={handleFileSelect}
-                                    accept="*/*"
-                                />
-                                <label
-                                    htmlFor={fileInputId}
-                                    className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer inline-flex"
-                                    title="Joindre un fichier"
-                                >
-                                    <Paperclip className="w-4 h-4" />
-                                </label>
-                                <button
-                                    onClick={() => setShowSchedule(!showSchedule)}
-                                    className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-                                    title="Programmer l'envoi"
-                                >
-                                    <Clock className="w-4 h-4" />
-                                </button>
-                                <div className="w-px h-4 bg-slate-200 mx-1" />
-                                <button
-                                    onClick={handleClose}
-                                    className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-                                    title="Supprimer le brouillon"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-slate-400 hidden sm:inline">
-                                    Ctrl+Entrée pour envoyer
-                                </span>
-                                <button
-                                    onClick={handleSend}
-                                    disabled={isSending || !selectedMailboxId || to.length === 0 || isOverLimit}
-                                    className={cn(
-                                        "flex items-center gap-2 px-5 py-2 text-white text-sm font-semibold rounded-xl transition-all duration-200",
-                                        isSending || !selectedMailboxId || to.length === 0 || isOverLimit
-                                            ? "bg-slate-300 cursor-not-allowed"
-                                            : "bg-primary-600 hover:bg-primary-500"
-                                    )}
-                                >
-                                    {isSending ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Send className="w-4 h-4" />
-                                    )}
-                                    {isSending ? "Envoi..." : "Envoyer"}
-                                </button>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                <AiEmailDraftDialog
-                    open={showAiDraftDialog}
-                    onClose={() => setShowAiDraftDialog(false)}
-                    subject={subject}
-                    onInsert={(html) => {
-                        if (editorRef.current) {
-                            const current = editorRef.current.innerHTML || "";
-                            editorRef.current.innerHTML = current + html;
-                            editorRef.current.focus();
+                    <RecipientField
+                        label="À"
+                        values={to}
+                        onChange={setTo}
+                        autoFocus={draft.mode === "forward" || (draft.mode === "new" && to.length === 0)}
+                        trailing={
+                            <span className="ml-auto flex shrink-0 gap-1 text-xs">
+                                {!showCc && <button type="button" onClick={() => setShowCc(true)} className="rounded px-1 text-ink-3 hover:text-ink">Cc</button>}
+                                {!showBcc && <button type="button" onClick={() => setShowBcc(true)} className="rounded px-1 text-ink-3 hover:text-ink">Cci</button>}
+                            </span>
                         }
-                        setShowAiDraftDialog(false);
-                    }}
-                />
+                    />
+                    {showCc && <RecipientField label="Cc" values={cc} onChange={setCc} />}
+                    {showBcc && <RecipientField label="Cci" values={bcc} onChange={setBcc} />}
+
+                    <input
+                        type="text"
+                        value={subject}
+                        onChange={(e) => {
+                            setSubject(e.target.value);
+                            setConfirmUnresolved(false);
+                        }}
+                        placeholder="Objet"
+                        aria-label="Objet"
+                        className="h-9 shrink-0 border-b border-line bg-transparent px-3 text-[13px] font-medium text-ink outline-none placeholder:text-ink-4"
+                    />
+
+                    {/* Toolbar */}
+                    <div className="flex shrink-0 items-center gap-0.5 border-b border-line px-2 py-1">
+                        <IconButton size="xs" icon={Bold} label="Gras (Ctrl+B)" onClick={() => exec("bold")} />
+                        <IconButton size="xs" icon={Italic} label="Italique (Ctrl+I)" onClick={() => exec("italic")} />
+                        <IconButton size="xs" icon={Underline} label="Souligné (Ctrl+U)" onClick={() => exec("underline")} />
+                        <span className="mx-1 h-4 w-px bg-line" aria-hidden />
+                        <IconButton size="xs" icon={List} label="Liste à puces" onClick={() => exec("insertUnorderedList")} />
+                        <IconButton size="xs" icon={ListOrdered} label="Liste numérotée" onClick={() => exec("insertOrderedList")} />
+                        <IconButton
+                            size="xs"
+                            icon={Link2}
+                            label="Insérer un lien"
+                            onClick={() => {
+                                const url = window.prompt("Adresse du lien :", "https://");
+                                if (url && /^(https?:|mailto:)/i.test(url)) exec("createLink", url);
+                            }}
+                        />
+                        <span className="mx-1 h-4 w-px bg-line" aria-hidden />
+
+                        <div className="relative" ref={templatesRef}>
+                            <Button
+                                size="xs"
+                                variant="ghost"
+                                leftIcon={<FileText className="size-3.5" />}
+                                rightIcon={<ChevronDown className="size-3" />}
+                                onClick={() => setShowTemplates((v) => !v)}
+                                aria-expanded={showTemplates}
+                            >
+                                Modèles
+                            </Button>
+                            {showTemplates && (
+                                <div className="absolute bottom-full left-0 z-10 mb-1 max-h-72 w-72 overflow-y-auto rounded-panel border border-line bg-surface py-1 shadow-lg sm:bottom-auto sm:top-full sm:mb-0 sm:mt-1">
+                                    {templates === null ? (
+                                        <p className="flex items-center gap-2 px-3 py-2 text-xs text-ink-3"><Spinner /> Chargement des modèles…</p>
+                                    ) : templates.length === 0 ? (
+                                        <p className="px-3 py-2 text-xs text-ink-3">Aucun modèle. Créez-en depuis l&apos;onglet Modèles de l&apos;Email Hub.</p>
+                                    ) : (
+                                        (["mission", "library"] as const).map((src) => {
+                                            const items = templates.filter((t) => t.source === src);
+                                            if (items.length === 0) return null;
+                                            return (
+                                                <div key={src}>
+                                                    <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wide text-ink-4">
+                                                        {src === "mission" ? `Mission${context?.missionName ? ` · ${context.missionName}` : ""}` : "Bibliothèque"}
+                                                    </p>
+                                                    {items.map((t) => (
+                                                        <button
+                                                            key={t.id}
+                                                            type="button"
+                                                            onClick={() => applyTemplate(t)}
+                                                            className="block w-full px-3 py-1.5 text-left hover:bg-surface-2"
+                                                        >
+                                                            <span className="block truncate text-[13px] font-medium text-ink">{t.name}</span>
+                                                            <span className="block truncate text-2xs text-ink-4">{t.subject}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <Button size="xs" variant="ghost" leftIcon={<AiMark className="size-3.5" />} onClick={() => setShowAi(true)}>
+                            Rédiger avec l&apos;IA
+                        </Button>
+                    </div>
+
+                    {/* Editor */}
+                    <div
+                        ref={editorRef}
+                        contentEditable
+                        suppressContentEditableWarning
+                        role="textbox"
+                        aria-multiline="true"
+                        aria-label="Message"
+                        onInput={() => {
+                            setBodyVersion((n) => n + 1);
+                            setConfirmUnresolved(false);
+                        }}
+                        className="min-h-[140px] flex-1 overflow-y-auto px-3 py-2.5 text-sm leading-relaxed text-ink outline-none email-scrollbar [&_a]:text-primary-700 [&_a]:underline [&_blockquote]:text-ink-3"
+                    />
+
+                    {/* Notices */}
+                    <div className="shrink-0 space-y-2 px-3 empty:hidden">
+                        {unresolved.length > 0 && (
+                            <Callout tone="warning" className="py-2">
+                                Variables non remplacées : {unresolved.map((n) => `{{${n}}}`).join(", ")}.
+                                {context?.contactId
+                                    ? " Elles seront complétées avec la fiche du contact à l'envoi."
+                                    : " Aucun contact n'est lié : elles partiront vides."}
+                            </Callout>
+                        )}
+                        {invalidRecipients.length > 0 && (
+                            <p className="text-xs text-danger-ink">Adresse invalide : {invalidRecipients.join(", ")}</p>
+                        )}
+                        {sendError && (
+                            <Callout tone="danger" className="py-2">{sendError}</Callout>
+                        )}
+                    </div>
+
+                    {/* Attachments */}
+                    {attachments.length > 0 && (
+                        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-t border-line px-3 py-2">
+                            {attachments.map((file, i) => (
+                                <span key={`${file.name}-${i}`} className="inline-flex h-7 max-w-[200px] items-center gap-1.5 rounded-chip border border-line bg-surface-2 pl-2 pr-0.5 text-xs text-ink-2">
+                                    <Paperclip className="size-3 shrink-0 text-ink-4" aria-hidden />
+                                    <span className="truncate">{file.name}</span>
+                                    <button
+                                        type="button"
+                                        aria-label={`Retirer ${file.name}`}
+                                        onClick={() => setAttachments((a) => a.filter((_, idx) => idx !== i))}
+                                        className="flex size-5 items-center justify-center rounded-full text-ink-4 hover:bg-surface-3 hover:text-ink"
+                                    >
+                                        <X className="size-3" aria-hidden />
+                                    </button>
+                                </span>
+                            ))}
+                            <span className={cn("ml-auto text-2xs tabular-nums", overLimit ? "font-semibold text-danger-ink" : "text-ink-4")}>
+                                {(totalSize / (1024 * 1024)).toFixed(1).replace(".", ",")} Mo{overLimit && " — limite 25 Mo"}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <div className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-2">
+                        <Button
+                            size="sm"
+                            onClick={handleSend}
+                            disabled={!canSend}
+                            isLoading={isSending}
+                            leftIcon={!isSending ? <Send className="size-3.5" /> : undefined}
+                            variant={confirmUnresolved ? "danger" : "primary"}
+                        >
+                            {confirmUnresolved ? "Envoyer quand même" : "Envoyer"}
+                        </Button>
+                        <span className="hidden items-center gap-1 text-2xs text-ink-4 sm:inline-flex">
+                            <Kbd>Ctrl</Kbd><Kbd>Entrée</Kbd>
+                        </span>
+                        <div className="flex-1" />
+                        <input
+                            id={fileInputId}
+                            type="file"
+                            multiple
+                            className="sr-only"
+                            onChange={(e) => {
+                                const files = e.target.files ? Array.from(e.target.files) : [];
+                                if (files.length) setAttachments((a) => [...a, ...files]);
+                                e.target.value = "";
+                            }}
+                        />
+                        <label
+                            htmlFor={fileInputId}
+                            title="Joindre un fichier"
+                            className="inline-flex size-7 cursor-pointer items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-surface-3 hover:text-ink"
+                        >
+                            <Paperclip className="size-3.5" aria-hidden />
+                            <span className="sr-only">Joindre un fichier</span>
+                        </label>
+                        <IconButton size="xs" variant="danger" icon={Trash2} label="Abandonner le brouillon" onClick={requestClose} />
+                    </div>
+                    {fromMailbox && (
+                        <p className="shrink-0 px-3 pb-2 text-3xs text-ink-4">La signature de {fromMailbox.email} est ajoutée à l&apos;envoi.</p>
+                    )}
+                </div>
             </div>
 
-            {/* Discard Confirmation */}
-            {showDiscardConfirm && (
-                <DiscardConfirmDialog
-                    onDiscard={onClose}
-                    onCancel={() => setShowDiscardConfirm(false)}
-                />
-            )}
+            <AiEmailDraftDialog
+                open={showAi}
+                onClose={() => setShowAi(false)}
+                subject={subject}
+                context={{
+                    mode: draft.mode === "forward" ? "forward" : isReply ? "reply" : "new",
+                    lastMessage: draft.lastMessageText,
+                    lastMessageFrom: draft.lastMessageFrom,
+                    recipientName: [context?.contact?.firstName, context?.contact?.lastName].filter(Boolean).join(" ") || undefined,
+                    recipientTitle: context?.contact?.title ?? undefined,
+                    companyName: context?.contact?.companyName ?? undefined,
+                    missionName: context?.missionName ?? undefined,
+                    senderName: fromMailbox?.displayName ?? undefined,
+                }}
+                onInsert={(html) => {
+                    insertAtTop(html);
+                    setShowAi(false);
+                }}
+            />
+
+            <ConfirmModal
+                isOpen={confirmDiscard}
+                onClose={() => setConfirmDiscard(false)}
+                onConfirm={() => {
+                    setConfirmDiscard(false);
+                    onClose();
+                }}
+                title="Abandonner ce message ?"
+                message="Le brouillon n'est pas enregistré : son contenu sera perdu."
+                confirmText="Abandonner"
+                cancelText="Continuer l'édition"
+                variant="danger"
+            />
         </>
     );
 }

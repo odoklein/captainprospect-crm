@@ -1,10 +1,15 @@
-import { EmailingReachInboxWorkspace } from "@/components/emailing/EmailingReachInboxWorkspace";
+import { Suspense } from "react";
+import { ClientEmailingPage } from "@/components/emailing/ClientEmailingPage";
 
 export const metadata = {
     title: "Emailing | Portail client",
-    description: "Statistiques emailing ReachInbox",
+    description: "Campagnes emailing et emails envoyés",
 };
 
-export default function ClientEmailingPage() {
-    return <EmailingReachInboxWorkspace variant="client" />;
+export default function ClientPortalEmailingPage() {
+    return (
+        <Suspense fallback={null}>
+            <ClientEmailingPage />
+        </Suspense>
+    );
 }
