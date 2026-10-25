@@ -10,7 +10,7 @@ import { verifyInstanceSignature } from "../../lib/instance/auth";
 import { DokployClient, pickId, type FetchLike } from "./dokploy";
 import {
     brandPayload, buildDatabaseUrl, buildInstanceEnv, deriveNames, generateSecrets, licensePayload,
-    multipartLogo, parseEnvFile, toEnvFile, validateAgencyConfig, type AgencyConfig,
+    multipartLogo, parseEnvFile, renderProxyRoute, toEnvFile, validateAgencyConfig, type AgencyConfig,
 } from "./plan";
 import { provision, scrub, type Deps, type RunOptions, type State } from "./run";
 
@@ -118,6 +118,7 @@ function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: 
     let clock = 1_000_000;
     const instanceCalls: { method: string; path: string; body: string; sigOk: boolean }[] = [];
     const domains: string[] = [];
+    const routes: string[] = [];
 
     const deps: Deps = {
         pg: {
@@ -161,6 +162,7 @@ function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: 
             return { status: 200, json: { ok: true } };
         },
         dns: { resolveCname: async () => over.cnames?.value ?? [] },
+        proxy: { writeRoute: async (slug, content) => (routes.push(content), calls.push(`proxy.route:${slug}`), `/dyn/agency-${slug}.yml`) },
         readFile: async () => Buffer.from([137, 80, 78, 71]),
         log: (l) => void logs.push(l),
         sleep: async () => void (clock += 10_000),
@@ -170,7 +172,7 @@ function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: 
         load: async (slug: string) => saved.get(slug) ?? null,
         save: async (s: State) => void saved.set(s.slug, JSON.parse(JSON.stringify(s))),
     };
-    return { deps, store, calls, logs, saved, dokployEnvs, instanceCalls, domains, secretHolder };
+    return { deps, store, calls, logs, saved, dokployEnvs, instanceCalls, domains, secretHolder, routes };
 }
 
 const options = (over: Partial<RunOptions> = {}): RunOptions => ({
@@ -195,13 +197,15 @@ test("a full run does the steps in order, signed, without leaking secrets", asyn
     assert.equal(report.ok, true);
     assert.deepEqual(
         report.steps.map((s) => [s.id, s.result]),
-        [["database", "done"], ["storage", "done"], ["migrate", "done"], ["seed", "done"], ["app", "done"], ["deploy", "done"], ["health", "done"], ["brand", "done"], ["license", "done"], ["logos", "done"], ["custom-domain", "pending"], ["bootstrap", "done"]],
+        [["database", "done"], ["storage", "done"], ["migrate", "done"], ["seed", "done"], ["app", "done"], ["route", "done"], ["deploy", "done"], ["health", "done"], ["brand", "done"], ["license", "done"], ["logos", "done"], ["custom-domain", "pending"], ["bootstrap", "done"]],
     );
 
     // Order: database, bucket, schema before the app exists, deploy before any instance call.
     assert.ok(idx(w, "pg.createDatabase") < idx(w, "storage.ensureBucket"));
     assert.ok(idx(w, "db.migrate") < idx(w, "db.seed") && idx(w, "db.seed") < idx(w, "dokploy.create"));
     assert.ok(idx(w, "dokploy.deploy") > idx(w, "dokploy.image"));
+    assert.ok(idx(w, "proxy.route") > idx(w, "dokploy.domain") && idx(w, "proxy.route") < idx(w, "dokploy.deploy"), "the public route exists before the deploy");
+    assert.match(w.routes[0], /rule: Host\(`agence-nord\.crm-agence\.fr`\)/);
     assert.ok(w.calls.includes("storage.scopedKey:agence-nord:agency-agence-n-" + w.calls.find((c) => c.startsWith("storage.scopedKey"))!.split("-").pop()));
 
     // The app got the agency's env: own secrets, shared SMTP, scoped MinIO key, and the shared file could not override NEXTAUTH_SECRET.
@@ -285,6 +289,7 @@ test("custom domain: once the CNAME resolves the address switches and the instan
     assert.equal(report.primaryHost, "crm.agence-nord.fr");
     assert.equal(report.steps.find((s) => s.id === "custom-domain")!.result, "done");
     assert.ok(w.calls.includes("dokploy.domain:crm.agence-nord.fr"));
+    assert.match(w.routes.at(-1)!, /Host\(`agence-nord\.crm-agence\.fr`\) \|\| Host\(`crm\.agence-nord\.fr`\)/, "the route now serves both hosts");
     assert.match(w.dokployEnvs.at(-1)!, /^NEXTAUTH_URL=https:\/\/crm\.agence-nord\.fr$/m);
     assert.ok(w.domains.includes("agence-nord.crm-agence.fr"), "the platform address stays attached");
     const appUrlCall = w.instanceCalls.find((c) => c.method === "PUT" && c.path.endsWith("/brand"))!;
@@ -334,4 +339,13 @@ test("dokploy: ids are found whether bare or nested; errors carry route and body
     assert.equal(await client.createApplication({ name: "crm-x", environmentId: "e" }), "c");
     assert.deepEqual(JSON.parse(seen[0].init.body), { name: "crm-x", environmentId: "e" });
     await assert.rejects(client.deploy("a", "t"), /dokploy application\.deploy -> 404: no route/);
+});
+
+
+test("without a proxy configured the route step is pending and prints the file", async () => {
+    const w = makeWorld();
+    const r = await provision(options({ only: ["app", "route"] }), { ...w.deps, proxy: undefined }, w.store);
+    const route = r.steps.find((x) => x.id === "route")!;
+    assert.equal(route.result, "pending");
+    assert.match(route.note!, /PROVISION_PROXY_DYNAMIC_DIR[\s\S]*agency-agence-nord-http/);
 });

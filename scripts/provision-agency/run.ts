@@ -16,6 +16,7 @@ import {
     licensePayload,
     logoContentType,
     multipartLogo,
+    renderProxyRoute,
     toEnvFile,
     PROTECTED_KEYS,
     LOGO_SLOTS,
@@ -65,6 +66,8 @@ export interface Deps {
     /** Signed call to the agency instance. */
     instance(baseUrl: string, secret: string): (method: string, pathWithQuery: string, body?: Uint8Array | string, headers?: Record<string, string>) => Promise<InstanceResponse>;
     dns: { resolveCname(host: string): Promise<string[]> };
+    /** Public proxy (the one on ports 80/443). Absent = the route is printed for manual placement. */
+    proxy?: { writeRoute(slug: string, content: string): Promise<string> };
     readFile(path: string): Promise<Uint8Array>;
     log(line: string): void;
     sleep(ms: number): Promise<void>;
@@ -124,7 +127,17 @@ async function ensureApplication(c: Ctx): Promise<string> {
     return c.state.dokployAppId;
 }
 
-export const STEP_IDS = ["database", "storage", "migrate", "seed", "app", "deploy", "health", "brand", "license", "logos", "custom-domain", "bootstrap"] as const;
+/** Route every host of the agency through the public proxy to Dokploy's Traefik. */
+async function publishRoute(c: Ctx): Promise<StepResult | { result: StepResult; note?: string }> {
+    const yaml = renderProxyRoute(c.names.slug, c.state.domains);
+    if (!c.d.proxy) {
+        return { result: "pending", note: `aucun proxy configuré (PROVISION_PROXY_DYNAMIC_DIR): placez ce fichier à la main dans le dossier dynamique du proxy public:\n${yaml}` };
+    }
+    const file = await c.d.proxy.writeRoute(c.names.slug, yaml);
+    return { result: "done", note: `${c.state.domains.join(", ")} -> ${file}` };
+}
+
+export const STEP_IDS = ["database", "storage", "migrate", "seed", "app", "route", "deploy", "health", "brand", "license", "logos", "custom-domain", "bootstrap"] as const;
 
 const STEPS: Step[] = [
     {
@@ -194,6 +207,11 @@ const STEPS: Step[] = [
             c.state.imageTag = c.o.imageTag;
             return "done";
         },
+    },
+    {
+        id: "route",
+        label: "Route publique (proxy 80/443)",
+        run: publishRoute,
     },
     {
         id: "deploy",
@@ -283,6 +301,7 @@ const STEPS: Step[] = [
             const id = await ensureApplication(c);
             if (!(await c.d.dokploy.listDomains(id).catch(() => [] as string[])).includes(domain)) await c.d.dokploy.createDomain({ applicationId: id, host: domain, port: 5000 });
             if (!c.state.domains.includes(domain)) c.state.domains.push(domain);
+            await publishRoute(c); // the public proxy must know the new host before DNS traffic arrives
 
             // The instance's own URL (cookies, OAuth, links in emails) follows the new address.
             const previous = c.state.primaryHost;

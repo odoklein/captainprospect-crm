@@ -13,7 +13,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { DokployClient } from "./dokploy";
 import { buildInstanceEnv, deriveNames, generateSecrets, parseEnvFile, validateAgencyConfig, PROTECTED_KEYS } from "./plan";
-import { fileStore, realDbJob, realDeps, realPg, realStorage } from "./real";
+import { fileStore, realDbJob, realDeps, realPg, realProxy, realStorage } from "./real";
 import { provision, STEP_IDS } from "./run";
 
 function usage(): never {
@@ -90,7 +90,8 @@ async function main() {
         console.log(`Bucket        ${names.bucket}${infra.PROVISION_MINIO_MC_ALIAS ? " + clé limitée à ce bucket (mc)" : "  (clé administrateur MinIO partagée: PROVISION_MINIO_MC_ALIAS absent)"}`);
         console.log(`Application   ${names.appName} dans le projet Dokploy « ${options.dokployProject} »`);
         console.log(`Images        ${options.imageRepo}:${options.imageTag} et ${options.imageRepo}-migrate:${options.imageTag}`);
-        console.log(`Migrations    ${infra.PROVISION_MIGRATE_MODE || "docker"}`);
+        console.log(`Migrations    ${infra.PROVISION_MIGRATE_MODE || "docker"}${infra.PROVISION_DOCKER_NETWORK ? ` (réseau ${infra.PROVISION_DOCKER_NETWORK})` : ""}`);
+        console.log(`Proxy public  ${infra.PROVISION_PROXY_DYNAMIC_DIR ? `fichier agency-${names.slug}.yml dans ${infra.PROVISION_PROXY_DYNAMIC_DIR}` : "NON CONFIGURÉ (PROVISION_PROXY_DYNAMIC_DIR): la route sera à placer à la main"}`);
         console.log(`Manager       ${options.config.manager.name} <${options.config.manager.email}>`);
         console.log(`\nVariables de l'application (${Object.keys(env).length}):`);
         for (const [k, v] of Object.entries(env).sort(([x], [y]) => x.localeCompare(y))) console.log(`  ${k}=${/URL|HOST|ID|DOMAIN|NODE_ENV|PORT|BUCKET|REGION|FROM|NAME/.test(k) && !/SECRET|PASSWORD|KEY|TOKEN/.test(k) ? v.replace(/:\/\/([^:]+):[^@]+@/, "://$1:***@") : mask(v)}`);
@@ -103,7 +104,8 @@ async function main() {
         pg: realPg(need(infra, "PROVISION_PG_ADMIN_URL")),
         storage: realStorage(minio, infra.PROVISION_MINIO_MC_ALIAS || undefined),
         dokploy: new DokployClient(need(infra, "PROVISION_DOKPLOY_URL"), need(infra, "PROVISION_DOKPLOY_API_KEY")),
-        dbJob: realDbJob(mode, process.cwd()),
+        dbJob: realDbJob(mode, process.cwd(), infra.PROVISION_DOCKER_NETWORK || undefined),
+        proxy: infra.PROVISION_PROXY_DYNAMIC_DIR ? realProxy(infra.PROVISION_PROXY_DYNAMIC_DIR) : undefined,
     });
     const report = await provision(options, deps, fileStore(path.resolve("provision-out")));
 

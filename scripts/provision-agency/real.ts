@@ -79,11 +79,12 @@ export function realStorage(minio: { endpoint: string; accessKeyId: string; secr
     return storage;
 }
 
-export function realDbJob(mode: "docker" | "local", repoRoot: string): Deps["runDbJob"] {
+export function realDbJob(mode: "docker" | "local", repoRoot: string, dockerNetwork?: string): Deps["runDbJob"] {
     return async (job, input) => {
         const env = { DATABASE_URL: input.databaseUrl, DIRECT_URL: input.directUrl };
         if (mode === "docker") {
-            const args = ["run", "--rm", "-e", "DATABASE_URL", "-e", "DIRECT_URL", input.image];
+            // dockerNetwork: the Postgres service is only on Dokploy's overlay network (no public port).
+            const args = ["run", "--rm", ...(dockerNetwork ? ["--network", dockerNetwork] : []), "-e", "DATABASE_URL", "-e", "DIRECT_URL", input.image];
             if (job === "seed") args.push("npm", "run", "db:seed:instance");
             await run("docker", args, { env });
         } else if (job === "migrate") {
@@ -114,6 +115,18 @@ export function realInstance(): Deps["instance"] {
     };
 }
 
+/** Writes agency-<slug>.yml into the public proxy's watched dynamic directory (Traefik reloads it on its own). */
+export function realProxy(dir: string): NonNullable<Deps["proxy"]> {
+    return {
+        async writeRoute(slug, content) {
+            await mkdir(dir, { recursive: true });
+            const file = path.join(dir, `agency-${slug}.yml`);
+            await writeFile(file, content, { mode: 0o644 });
+            return file;
+        },
+    };
+}
+
 export function realDns(): Deps["dns"] {
     return { resolveCname: (host) => dns.resolveCname(host) };
 }
@@ -136,8 +149,9 @@ export function fileStore(dir: string) {
     };
 }
 
-export function realDeps(parts: { pg: Deps["pg"]; storage: Deps["storage"]; dokploy: DokployClient; dbJob: Deps["runDbJob"] }): Deps {
+export function realDeps(parts: { pg: Deps["pg"]; storage: Deps["storage"]; dokploy: DokployClient; dbJob: Deps["runDbJob"]; proxy?: Deps["proxy"] }): Deps {
     return {
+        proxy: parts.proxy,
         pg: parts.pg,
         storage: parts.storage,
         runDbJob: parts.dbJob,

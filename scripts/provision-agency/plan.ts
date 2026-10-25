@@ -217,6 +217,52 @@ export function toEnvFile(env: Record<string, string>): string {
     );
 }
 
+// ---------- public proxy route ----------
+
+/**
+ * Traefik file-provider config for the proxy that owns ports 80/443. On our server that is
+ * Coolify's proxy (Dokploy's own Traefik sits behind it on :8090), so a Dokploy domain alone is
+ * not reachable: each agency needs its hosts routed to Dokploy's Traefik, which then routes by
+ * Host to the app. Same shape as the hand-written files already in /data/coolify/proxy/dynamic.
+ */
+export function renderProxyRoute(slug: string, hosts: string[], upstream = "http://dokploy-traefik:80", resolver = "letsencrypt"): string {
+    const uniq = [...new Set(hosts)];
+    if (!uniq.length || !uniq.every((h) => HOST.test(h))) throw new Error("invalid_proxy_hosts");
+    const rule = uniq.map((h) => `Host(\`${h}\`)`).join(" || ");
+    const id = `agency-${slug}`;
+    return [
+        "# Written by provision-agency. Safe to delete only together with the agency.",
+        "http:",
+        "  routers:",
+        `    ${id}-http:`,
+        "      entryPoints:",
+        "        - http",
+        `      rule: ${rule}`,
+        `      service: ${id}-dokploy`,
+        "      middlewares:",
+        `        - ${id}-https`,
+        `    ${id}-https:`,
+        "      entryPoints:",
+        "        - https",
+        `      rule: ${rule}`,
+        `      service: ${id}-dokploy`,
+        "      tls:",
+        `        certResolver: ${resolver}`,
+        "  services:",
+        `    ${id}-dokploy:`,
+        "      loadBalancer:",
+        "        passHostHeader: true",
+        "        servers:",
+        `          - url: ${upstream}`,
+        "  middlewares:",
+        `    ${id}-https:`,
+        "      redirectScheme:",
+        "        scheme: https",
+        "        permanent: true",
+        "",
+    ].join("\n");
+}
+
 // ---------- API payloads ----------
 
 export function brandPayload(config: AgencyConfig, primaryHost: string): Record<string, unknown> {
