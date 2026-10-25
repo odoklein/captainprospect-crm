@@ -74,7 +74,7 @@ export function ThinkingStatus({
 
     return (
         <div className="flex gap-3" role="status" aria-live="polite">
-            <span className="cp-ai-orb relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white">
+            <span className="cp-ai-orb cp-ai-orb-busy flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white">
                 <AiMark className="h-4 w-4" />
             </span>
             <div className="min-w-0 pt-1">

@@ -493,7 +493,7 @@ export function ChatWorkspace() {
             </aside>
 
             {/* Main column */}
-            <section className="flex min-w-0 flex-1 flex-col">
+            <section className="cp-ai-canvas flex min-w-0 flex-1 flex-col">
                 <header className="flex h-12 shrink-0 items-center gap-2 px-3">
                     <button
                         type="button"
@@ -537,7 +537,11 @@ export function ChatWorkspace() {
                     </span>
                 </header>
 
-                <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto">
+                <div
+                    ref={scrollRef}
+                    onScroll={onScroll}
+                    className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+                >
                     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-6 pt-4">
                         {isLoading ? (
                             <div className="flex h-40 items-center justify-center">
@@ -561,7 +565,7 @@ export function ChatWorkspace() {
                             messages.map((msg) =>
                                 msg.role === "USER" ? (
                                     <div key={msg.id} className="flex justify-end">
-                                        <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-gradient-to-br from-primary-600 to-primary-800 px-4 py-2.5 text-sm text-white shadow-sm">
+                                        <div className="max-w-[80%] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl rounded-br-md bg-gradient-to-br from-primary-600 to-primary-800 px-4 py-2.5 text-sm text-white shadow-sm">
                                             {msg.content}
                                         </div>
                                     </div>
@@ -570,7 +574,7 @@ export function ChatWorkspace() {
                                         <span className="cp-ai-orb mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm shadow-accent-500/30">
                                             <AiMark className="h-4 w-4" />
                                         </span>
-                                        <div className="min-w-0 flex-1 text-sm text-slate-800">
+                                        <div className="cp-ai-answer min-w-0 flex-1">
                                             {msg.trace && msg.trace.length > 0 && <ToolTrace trace={msg.trace} />}
                                             <div className={cn(msg.failed && "text-rose-600")}>
                                                 <Markdown content={msg.content} />
@@ -628,6 +632,11 @@ export function ChatWorkspace() {
 
                 {/* Composer */}
                 <div className="relative mx-auto w-full max-w-3xl shrink-0 px-4 pb-4">
+                    {/* Text scrolling under the composer fades out instead of cutting off. */}
+                    <div
+                        aria-hidden
+                        className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-white to-transparent"
+                    />
                     {!atBottom && !isEmpty && (
                         <button
                             type="button"
