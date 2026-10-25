@@ -3711,6 +3711,58 @@ model SystemConfig {
 }
 
 // ============================================
+// BRAND SETTINGS — runtime white-label identity of this instance
+// ============================================
+// Exactly one row, id = "default". Every default equals brand/brand.config.ts,
+// so an empty table (or a database where this migration has not run yet)
+// renders the stock brand. Read through lib/brand/server.ts getBrand() (cached,
+// never throws); written by the manager Identité panel and the signed
+// /api/instance/brand provisioning route. One instance = one database = one
+// brand: no tenantId, no relation to Client.
+model BrandSettings {
+  id               String @id @default("default")
+  name             String @default("Captain Prospect")
+  productName      String @default("Captain Prospect CRM")
+  tagline          String @default("Plateforme d'exécution commerciale")
+  description      String @default("agence de prospection commerciale B2B")
+  companyName      String @default("Suzali Conseil")
+  companyShortName String @default("Suzali")
+
+  appUrl  String @default("https://app.captainprospect.fr") // used only when NEXTAUTH_URL / NEXT_PUBLIC_APP_URL are unset
+  website String @default("https://captainprospect.fr")
+
+  senderName           String   @default("Captain Prospect")
+  notificationsAddress String   @default("notifications@captainprospect.fr")
+  supportAddress       String   @default("support@suzalink.com")
+  emailDomains         String[] @default(["captainprospect.fr", "suzaliconseil.com"])
+
+  lang     String @default("fr")
+  locale   String @default("fr-FR")
+  currency String @default("EUR")
+  timeZone String @default("Europe/Paris")
+
+  primaryColor String @default("#263460")
+  accentColor  String @default("#C64B8B")
+  neutralTint  Float  @default(1)
+
+  fontPreset String @default("default") // "default" | "inter" | "manrope" (brand/fonts.ts)
+
+  // Object keys in MinIO (prefix brand/); null = the /public/brand default file.
+  logoFullKey        String?
+  logoFullInverseKey String?
+  logoMarkKey        String?
+  logoMarkInverseKey String?
+  faviconKey         String?
+  appleTouchIconKey  String?
+  logoFullWidth      Int     @default(2460)
+  logoFullHeight     Int     @default(758)
+  logoVersion        String? // bumped on every upload; the ?v= cache-buster
+
+  updatedAt DateTime @updatedAt
+  updatedBy String? // user id, or "instance-api"
+}
+
+// ============================================
 // SYSTEM EMAIL TEMPLATES (manager-editable)
 // ============================================
 

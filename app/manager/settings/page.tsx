@@ -1,11 +1,12 @@
 "use client";
 
 import { Suspense } from "react";
-import { BellRing, Key, Link2, Mail, Plug, ShieldCheck, Target, User } from "lucide-react";
+import { BellRing, Key, Link2, Mail, Palette, Plug, ShieldCheck, Target, User } from "lucide-react";
 import { SettingsShell, useSettingsSection, type SettingsSectionDef } from "@/components/settings/SettingsUI";
 import {
     AccountHeaderPills, DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
 } from "@/components/settings/AccountPanels";
+import { BrandingPanel } from "./BrandingPanel";
 import { McpPanel } from "./McpPanel";
 import { EmailsPanel, IntegrationsPanel, MasterPasswordPanel, TeamGoalsPanel } from "./PlatformPanels";
 
@@ -19,6 +20,7 @@ const SECTIONS: SettingsSectionDef[] = [
     { id: "profil", label: "Profil", hint: "Photo et coordonnées", icon: User, tone: "indigo", group: "Mon compte" },
     { id: "alertes", label: "Alertes", hint: "Notifications du bureau", icon: BellRing, tone: "amber", group: "Mon compte" },
     { id: "securite", label: "Sécurité", hint: "Mot de passe et appareils", icon: ShieldCheck, tone: "violet", group: "Mon compte" },
+    { id: "identite", label: "Identité", hint: "Nom, couleurs, logos", icon: Palette, tone: "violet", group: "Plateforme" },
     { id: "equipe", label: "Équipe & objectifs", hint: "Quota d'appels, statuts", icon: Target, tone: "emerald", group: "Plateforme" },
     { id: "emails", label: "Emails & modèles", hint: "Expéditeur, email de RDV", icon: Mail, tone: "indigo", group: "Plateforme" },
     { id: "integrations", label: "Intégrations", hint: "Leexi", icon: Link2, tone: "teal", group: "Plateforme" },
@@ -45,6 +47,7 @@ function ManagerSettings() {
             )}
             {active === "alertes" && <DesktopNotificationsCard />}
             {active === "securite" && <SecuritySection />}
+            {active === "identite" && <BrandingPanel />}
             {active === "equipe" && <TeamGoalsPanel />}
             {active === "emails" && <EmailsPanel />}
             {active === "integrations" && <IntegrationsPanel />}

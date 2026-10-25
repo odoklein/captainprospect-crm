@@ -10,3 +10,10 @@ debug*.log
 uploads
 private
 lead-hub
+# Local tooling and caches: never needed by the build.
+.claude
+.vscode
+.idea
+coverage
+tsconfig.tsbuildinfo
+*.log

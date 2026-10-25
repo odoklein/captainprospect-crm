@@ -17,6 +17,8 @@
     "db:reset": "tsx prisma/reset.ts",
     "db:verify": "tsx prisma/verify-reset.ts",
     "db:seed-endpoints": "tsx prisma/seed-endpoints.ts",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed:instance": "tsx prisma/seed-instance.ts",
     "worker:enrichment": "tsx workers/enrichment.ts",
     "worker:messaging": "tsx workers/messaging.ts",
     "test:messaging": "tsx --test lib/integrations/messaging/messaging.test.ts",

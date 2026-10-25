@@ -1,5 +1,11 @@
 FROM node:20-slim AS deps
 WORKDIR /app
+# Prisma's engines detect libssl at runtime; node:20-slim ships without it
+# ("Prisma failed to detect the libssl/openssl version" warning). ca-certificates
+# for TLS to the database and the APIs.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 # next build needs devDependencies (@tailwindcss/postcss, tailwindcss, typescript,
 # @types/*). Coolify injects the app env — including NODE_ENV=production — into every
@@ -18,15 +24,42 @@ RUN --mount=type=cache,target=/root/.npm \
         --fetch-retry-mintimeout=20000 \
         --fetch-retry-maxtimeout=120000 \
         --fetch-timeout=600000
+
+# One-shot migration image: `docker build --target migrate -t crm-migrate .`, then
+# run it once per instance (DATABASE_URL + DIRECT_URL in its env) BEFORE the new
+# runtime container takes traffic. The runtime image never migrates on start.
+FROM deps AS migrate
+WORKDIR /app
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
+COPY prisma ./prisma
+# npm ci ran with --ignore-scripts, so the Prisma engines were never fetched:
+# fetch them now, at build time, so the migrate container needs no download.
+RUN npx prisma generate && npx prisma version
+CMD ["npx", "prisma", "migrate", "deploy"]
+
 FROM node:20-slim AS build
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
+
+# Last stage = what a plain `docker build` produces. Same image for every
+# agency: brand, URLs and integrations come from the instance's DB and env.
 FROM node:20-slim AS runtime
 WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=5000

@@ -71,6 +71,8 @@ export const config = {
         // All /api routes except /api/auth/* (NextAuth handles its own routes)
         // and /api/webhooks/* (provider callbacks, each route verifies its own signature)
         // and /api/v1/* + /api/mcp (public API: Bearer API key, authenticated by the route itself)
-        "/api/((?!auth/|webhooks/|v1/|mcp).*)",
+        // and /api/brand/assets/* + /api/public-config (public brand files and config, on the login page too)
+        // and /api/instance/* (control-plane provisioning: HMAC-signed, verified by lib/instance/auth)
+        "/api/((?!auth/|webhooks/|v1/|mcp|brand/assets/|public-config|instance/).*)",
     ],
 };
