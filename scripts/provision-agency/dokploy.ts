@@ -93,11 +93,14 @@ export class DokployClient {
     }
 
     createDomain(input: { applicationId: string; host: string; port: number }) {
+        // Plain HTTP on purpose: TLS ends at the public proxy (Coolify's Traefik, which gets the
+        // Let's Encrypt certificate). With https:true Dokploy's own Traefik redirects http to https,
+        // and since the proxy talks to it over http that is an endless 308 loop (seen on the first real run).
         return this.call("POST", "domain.create", {
             host: input.host,
             port: input.port,
-            https: true,
-            certificateType: "letsencrypt",
+            https: false,
+            certificateType: "none",
             applicationId: input.applicationId,
             domainType: "application",
         });

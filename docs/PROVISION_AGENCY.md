@@ -135,7 +135,26 @@ update the fake's expectation. Known soft spots: finding the project's environme
 `PROVISION_DOKPLOY_ENVIRONMENT_ID` to skip it), the `application.create` response (a re-run finds the
 application by name), and whether `saveDockerProvider` also switches the source type to Docker.
 
+## 8b. Building the image without GitHub Actions (free)
+
+When Actions is unavailable (billing lock, no credit), build on the server into a local registry. Done on our server on 2026-10-26; the image `127.0.0.1:5000/captainprospect-crm:005c979` was built and pushed this way, and the demo agency runs from it.
+
+1. **Registry** (once): `docker run -d --name local-registry --restart unless-stopped -p 127.0.0.1:5000:5000 -v /root/provision/registry:/var/lib/registry registry:2`. Docker accepts plain HTTP for localhost, and Dokploy pulls from the same machine, so no credentials are needed (leave `PROVISION_REGISTRY_USER` unset).
+2. **Capped builder** (once), so the build cannot starve the other apps on the box: `docker buildx create --name capped --driver docker-container --driver-opt network=host --driver-opt memory=6g --driver-opt cpu-quota=300000 --driver-opt cpu-period=100000`.
+3. **Source**: `git archive <commit>` of the commit you want, shipped to `/root/provision/src` (leave out `docs`, `work`, `.github`, root PDFs and screenshots, as `.dockerignore` does). Use the **same commit** as the runner kit (`prisma/schema.prisma` must match the image).
+4. **Build**: `nohup nice -n 15 docker buildx build --builder capped --push -t 127.0.0.1:5000/captainprospect-crm:<sha7> --build-arg GIT_SHA=<sha7> . > build.log 2>&1 &`. It took about 25 minutes at 3 CPUs (webpack is the slow part, 4 GB of RAM).
+5. In `provision.infra.env`: `PROVISION_IMAGE_REPO=127.0.0.1:5000/captainprospect-crm`, and run with `--tag <sha7>`. Migrations run in `local` mode from the runner kit (no migrate image needed).
+
+Careful: Dokploy's scheduled Docker cleanup removed the `provision-runner` image once; the registry (a volume) and the running services survive it. Rebuild the runner from `/root/provision/kit` if it is gone.
+
 ## 9. What the first real run taught us (2026-10-26, our server)
+
+**Result: the demo agency came up end to end** (`https://demo.<ip>.sslip.io`): database, bucket, schema, seed, Dokploy app, public route, deploy, health, brand, license and first manager, from one command, with a valid Let's Encrypt certificate issued by the public proxy. Idle footprint of an agency app: about 230 MB.
+
+- **Dokploy domains must be plain HTTP** behind the public proxy. Created with HTTPS (the default), Dokploy's Traefik redirects http to https and the proxy talks to it over http: an endless 308 loop. Fixed in `dokploy.ts` (`https:false`, `certificateType:"none"`).
+- Dokploy ignores the `appName` we pass to `application.create` and generates one (`app-navigate-primary-card-8qr23s`): look the service up by the name stored in the state file, not `crm-<slug>`.
+- `application.update` with `command` replaces the container **entrypoint**, not its arguments: give the full command (`minio server /data ...`), not `server /data ...`.
+- `minio/minio` is no longer pullable from Docker Hub; use an image already in use on the server (`pgsty/minio`).
 
 - **`prisma migrate deploy` cannot build an empty database.** The first migration alters `"User"`, which no migration creates (68 `CREATE TABLE` for 142 models). Fixed with `prisma/migrate-instance.ts` (rules in `prisma/migrate-plan.ts`, tested). On a fresh database the baseline took several minutes on a loaded server. Verified: 143 tables, 86 migrations recorded, seed present, and a second run takes the managed path with nothing pending.
 - **Coolify's proxy owns ports 80/443** and Dokploy's Traefik is only on :8090, so a Dokploy domain alone is unreachable. The `route` step writes `agency-<slug>.yml` into the proxy's watched directory (`PROVISION_PROXY_DYNAMIC_DIR`), so the script must run on that server.

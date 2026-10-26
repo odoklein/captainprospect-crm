@@ -21,3 +21,15 @@ test("proxy route: hosts are de-duplicated and validated (no rule injection)", (
     assert.throws(() => renderProxyRoute("x", []), /invalid_proxy_hosts/);
     assert.throws(() => renderProxyRoute("x", ["a.example.com`) || Host(`evil.com"]), /invalid_proxy_hosts/);
 });
+
+test("dokploy domains are plain http: TLS ends at the public proxy (an https domain loops on 308)", async () => {
+    const { DokployClient } = await import("./dokploy");
+    const sent: { url: string; body: string }[] = [];
+    const client = new DokployClient("https://dok.example.com", "KEY", async (url, init) => {
+        sent.push({ url, body: String(init?.body) });
+        return { ok: true, status: 200, text: async () => "{}" };
+    });
+    await client.createDomain({ applicationId: "a1", host: "demo.example.com", port: 5000 });
+    assert.match(sent[0].url, /\/api\/domain\.create$/);
+    assert.deepEqual(JSON.parse(sent[0].body), { host: "demo.example.com", port: 5000, https: false, certificateType: "none", applicationId: "a1", domainType: "application" });
+});
