@@ -108,7 +108,7 @@ test("scrub removes secrets from messages", () => {
 
 type World = ReturnType<typeof makeWorld>;
 
-function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: string[] } } = {}) {
+function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: string[] }; a?: { value: Record<string, string[]> } } = {}) {
     const calls: string[] = [];
     const logs: string[] = [];
     const saved = new Map<string, State>();
@@ -161,7 +161,7 @@ function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: 
             }
             return { status: 200, json: { ok: true } };
         },
-        dns: { resolveCname: async () => over.cnames?.value ?? [] },
+        dns: { resolveCname: async () => over.cnames?.value ?? [], resolve4: async (host: string) => over.a?.value[host] ?? [] },
         proxy: { writeRoute: async (slug, content) => (routes.push(content), calls.push(`proxy.route:${slug}`), `/dyn/agency-${slug}.yml`) },
         readFile: async () => Buffer.from([137, 80, 78, 71]),
         log: (l) => void logs.push(l),
@@ -295,6 +295,18 @@ test("custom domain: once the CNAME resolves the address switches and the instan
     const appUrlCall = w.instanceCalls.find((c) => c.method === "PUT" && c.path.endsWith("/brand"))!;
     assert.deepEqual(JSON.parse(appUrlCall.body), { appUrl: "https://crm.agence-nord.fr" });
     assert.ok(appUrlCall.path.startsWith("https://agence-nord.crm-agence.fr"), "told through the old address, which still serves");
+});
+
+test("custom domain: an A record to the edge's address counts like the CNAME, any other address does not", async () => {
+    const a = { value: { "edge.crm-agence.fr": ["203.0.113.7"], "crm.agence-nord.fr": ["198.51.100.1"] } as Record<string, string[]> };
+    const w = makeWorld({ a });
+    let report = await provision(options(), w.deps, w.store);
+    assert.equal(report.steps.find((s) => s.id === "custom-domain")!.result, "pending");
+
+    a.value["crm.agence-nord.fr"] = ["203.0.113.7"];
+    report = await provision(options(), w.deps, w.store);
+    assert.equal(report.steps.find((s) => s.id === "custom-domain")!.result, "done");
+    assert.equal(report.primaryHost, "crm.agence-nord.fr");
 });
 
 test("--only runs just the named steps and rejects unknown ones", async () => {

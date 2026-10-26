@@ -128,7 +128,7 @@ export function realProxy(dir: string): NonNullable<Deps["proxy"]> {
 }
 
 export function realDns(): Deps["dns"] {
-    return { resolveCname: (host) => dns.resolveCname(host) };
+    return { resolveCname: (host) => dns.resolveCname(host), resolve4: (host) => dns.resolve4(host) };
 }
 
 export function fileStore(dir: string) {

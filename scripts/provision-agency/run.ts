@@ -65,7 +65,8 @@ export interface Deps {
     dokploy: Pick<DokployClient, "findEnvironmentId" | "findApplication" | "createApplication" | "saveDockerProvider" | "saveEnvironment" | "createDomain" | "listDomains" | "deploy">;
     /** Signed call to the agency instance. */
     instance(baseUrl: string, secret: string): (method: string, pathWithQuery: string, body?: Uint8Array | string, headers?: Record<string, string>) => Promise<InstanceResponse>;
-    dns: { resolveCname(host: string): Promise<string[]> };
+    /** resolve4 is optional: with it, a domain whose A records point at the edge's address is accepted too. */
+    dns: { resolveCname(host: string): Promise<string[]>; resolve4?(host: string): Promise<string[]> };
     /** Public proxy (the one on ports 80/443). Absent = the route is printed for manual placement. */
     proxy?: { writeRoute(slug: string, content: string): Promise<string> };
     readFile(path: string): Promise<Uint8Array>;
@@ -135,6 +136,13 @@ async function publishRoute(c: Ctx): Promise<StepResult | { result: StepResult; 
     }
     const file = await c.d.proxy.writeRoute(c.names.slug, yaml);
     return { result: "done", note: `${c.state.domains.join(", ")} -> ${file}` };
+}
+
+/** An A record instead of the CNAME is fine as long as every address it gives is one of the edge's. */
+async function pointsAtEdge(c: Ctx, domain: string, edge: string): Promise<boolean> {
+    if (!c.d.dns.resolve4) return false;
+    const [own, target] = await Promise.all([c.d.dns.resolve4(domain).catch((): string[] => []), c.d.dns.resolve4(edge).catch((): string[] => [])]);
+    return own.length > 0 && own.every((ip) => target.includes(ip));
 }
 
 export const STEP_IDS = ["database", "storage", "migrate", "seed", "app", "route", "deploy", "health", "brand", "license", "logos", "custom-domain", "bootstrap"] as const;
@@ -295,8 +303,8 @@ const STEPS: Step[] = [
 
             const edge = `edge.${c.o.platformDomain}`;
             const cnames = (await c.d.dns.resolveCname(domain).catch(() => [])).map((h) => h.replace(/\.$/, "").toLowerCase());
-            if (!cnames.includes(edge)) {
-                return { result: "pending", note: `ajoutez chez le registrar de l'agence: CNAME ${domain} -> ${edge}, puis relancez la commande (l'agence reste sur https://${c.state.primaryHost} en attendant)` };
+            if (!cnames.includes(edge) && !(await pointsAtEdge(c, domain, edge))) {
+                return { result: "pending", note: `ajoutez chez le registrar de l'agence: CNAME ${domain} -> ${edge} (ou un enregistrement A vers l'adresse de ${edge}), puis relancez la commande (l'agence reste sur https://${c.state.primaryHost} en attendant)` };
             }
             const id = await ensureApplication(c);
             if (!(await c.d.dokploy.listDomains(id).catch(() => [] as string[])).includes(domain)) await c.d.dokploy.createDomain({ applicationId: id, host: domain, port: 5000 });
