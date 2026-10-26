@@ -138,6 +138,27 @@ async function publishRoute(c: Ctx): Promise<StepResult | { result: StepResult; 
     return { result: "done", note: `${c.state.domains.join(", ")} -> ${file}` };
 }
 
+/**
+ * Gives the instance its new public URL. The redeploy that just started restarts it, so the proxy answers
+ * 502/503 (or 404 before the new router exists) for a while: retry those until the health timeout.
+ * Sent through the platform address, which always stays attached and has its certificate.
+ */
+async function sendAppUrl(c: Ctx, domain: string): Promise<void> {
+    const call = c.d.instance(`https://${c.names.platformHost}`, c.state.secrets.instanceAdminSecret);
+    const deadline = c.d.now().getTime() + (c.o.healthTimeoutMs ?? 6 * 60_000);
+    for (;;) {
+        let res: InstanceResponse;
+        try {
+            res = await call("PUT", "/api/instance/brand", JSON.stringify({ appUrl: `https://${domain}` }), { "Content-Type": "application/json" });
+        } catch (err) {
+            res = { status: 0, json: err instanceof Error ? err.message : String(err) };
+        }
+        if (res.status === 200) return;
+        if (![0, 404, 502, 503, 504].includes(res.status) || c.d.now().getTime() >= deadline) fail("PUT /api/instance/brand (appUrl)", res);
+        await c.d.sleep(10_000);
+    }
+}
+
 /** An A record instead of the CNAME is fine as long as every address it gives is one of the edge's. */
 async function pointsAtEdge(c: Ctx, domain: string, edge: string): Promise<boolean> {
     if (!c.d.dns.resolve4) return false;
@@ -299,28 +320,26 @@ const STEPS: Step[] = [
         async run(c) {
             const domain = c.o.config.domain;
             if (!domain) return { result: "done", note: "pas de domaine propre: l'adresse de la plateforme sert" };
-            if (c.state.primaryHost === domain) return "done";
 
-            const edge = `edge.${c.o.platformDomain}`;
-            const cnames = (await c.d.dns.resolveCname(domain).catch(() => [])).map((h) => h.replace(/\.$/, "").toLowerCase());
-            if (!cnames.includes(edge) && !(await pointsAtEdge(c, domain, edge))) {
-                return { result: "pending", note: `ajoutez chez le registrar de l'agence: CNAME ${domain} -> ${edge} (ou un enregistrement A vers l'adresse de ${edge}), puis relancez la commande (l'agence reste sur https://${c.state.primaryHost} en attendant)` };
+            if (c.state.primaryHost !== domain) {
+                const edge = `edge.${c.o.platformDomain}`;
+                const cnames = (await c.d.dns.resolveCname(domain).catch(() => [])).map((h) => h.replace(/\.$/, "").toLowerCase());
+                if (!cnames.includes(edge) && !(await pointsAtEdge(c, domain, edge))) {
+                    return { result: "pending", note: `ajoutez chez le registrar de l'agence: CNAME ${domain} -> ${edge} (ou un enregistrement A vers l'adresse de ${edge}), puis relancez la commande (l'agence reste sur https://${c.state.primaryHost} en attendant)` };
+                }
+                const id = await ensureApplication(c);
+                if (!(await c.d.dokploy.listDomains(id).catch(() => [] as string[])).includes(domain)) await c.d.dokploy.createDomain({ applicationId: id, host: domain, port: 5000 });
+                if (!c.state.domains.includes(domain)) c.state.domains.push(domain);
+                await publishRoute(c); // the public proxy must know the new host before DNS traffic arrives
+
+                // The instance's own URL (cookies, OAuth, links in emails) follows the new address.
+                c.state.primaryHost = domain;
+                await c.d.dokploy.saveEnvironment(id, toEnvFile(envFor(c)));
+                await c.d.dokploy.deploy(id, `domain ${domain}`);
+                await c.save();
             }
-            const id = await ensureApplication(c);
-            if (!(await c.d.dokploy.listDomains(id).catch(() => [] as string[])).includes(domain)) await c.d.dokploy.createDomain({ applicationId: id, host: domain, port: 5000 });
-            if (!c.state.domains.includes(domain)) c.state.domains.push(domain);
-            await publishRoute(c); // the public proxy must know the new host before DNS traffic arrives
-
-            // The instance's own URL (cookies, OAuth, links in emails) follows the new address.
-            const previous = c.state.primaryHost;
-            c.state.primaryHost = domain;
-            await c.d.dokploy.saveEnvironment(id, toEnvFile(envFor(c)));
-            await c.d.dokploy.deploy(id, `domain ${domain}`);
-            await c.save();
-            // Certificate and redeploy take a minute; the old address keeps serving until then.
-            const call = c.d.instance(`https://${previous}`, c.state.secrets.instanceAdminSecret);
-            const res = await call("PUT", "/api/instance/brand", JSON.stringify({ appUrl: `https://${domain}` }), { "Content-Type": "application/json" });
-            if (res.status !== 200) fail("PUT /api/instance/brand (appUrl)", res);
+            // Also on a re-run: the switch may have been saved while this call failed last time.
+            await sendAppUrl(c, domain);
             return { result: "done", note: `adresse principale: https://${domain}` };
         },
     },

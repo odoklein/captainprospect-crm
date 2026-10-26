@@ -108,7 +108,7 @@ test("scrub removes secrets from messages", () => {
 
 type World = ReturnType<typeof makeWorld>;
 
-function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: string[] }; a?: { value: Record<string, string[]> } } = {}) {
+function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: string[] }; a?: { value: Record<string, string[]> }; appUrlDown?: { value: number } } = {}) {
     const calls: string[] = [];
     const logs: string[] = [];
     const saved = new Map<string, State>();
@@ -154,6 +154,10 @@ function makeWorld(over: { migrateFails?: { value: boolean }; cnames?: { value: 
             const sigOk = verifyInstanceSignature({ secret, method, pathWithQuery, body, timestampHeader: sig["X-Instance-Timestamp"], signatureHeader: sig["X-Instance-Signature"] }).ok;
             instanceCalls.push({ method, path: `${baseUrl}${pathWithQuery}`, body: text, sigOk });
             void headers;
+            if (pathWithQuery === "/api/instance/brand" && text.startsWith("{\"appUrl\"") && over.appUrlDown && over.appUrlDown.value > 0) {
+                over.appUrlDown.value--;
+                return { status: 503, json: "no available server" };
+            }
             if (pathWithQuery === "/api/instance/health") return { status: 200, json: { dbOk: true, schemaVersion: "20261026100000_add_instance_license", version: "abc1234" } };
             if (pathWithQuery === "/api/instance/bootstrap") {
                 if (users++ > 0) return { status: 409, json: { error: "already_bootstrapped" } };
@@ -307,6 +311,27 @@ test("custom domain: an A record to the edge's address counts like the CNAME, an
     report = await provision(options(), w.deps, w.store);
     assert.equal(report.steps.find((s) => s.id === "custom-domain")!.result, "done");
     assert.equal(report.primaryHost, "crm.agence-nord.fr");
+});
+
+test("custom domain: the appUrl call waits out the restart, and a re-run sends it again", async () => {
+    const cnames = { value: ["edge.crm-agence.fr"] };
+    const appUrlDown = { value: 2 };
+    const w = makeWorld({ cnames, appUrlDown });
+    let report = await provision(options(), w.deps, w.store);
+    assert.equal(report.steps.find((s) => s.id === "custom-domain")!.result, "done");
+    assert.equal(w.instanceCalls.filter((c) => c.body.startsWith("{\"appUrl\"")).length, 3, "two 503 while restarting, then 200");
+
+    appUrlDown.value = 1_000;
+    const w2 = makeWorld({ cnames, appUrlDown });
+    report = await provision(options(), w2.deps, w2.store);
+    assert.equal(report.ok, false, "gives up after the health timeout");
+    assert.equal(w2.saved.get("agence-nord")!.primaryHost, "crm.agence-nord.fr", "the switch itself was saved");
+
+    appUrlDown.value = 0;
+    w2.instanceCalls.length = 0;
+    report = await provision(options(), w2.deps, w2.store);
+    assert.equal(report.steps.find((s) => s.id === "custom-domain")!.result, "done");
+    assert.deepEqual(JSON.parse(w2.instanceCalls.find((c) => c.body.startsWith("{\"appUrl\""))!.body), { appUrl: "https://crm.agence-nord.fr" });
 });
 
 test("--only runs just the named steps and rejects unknown ones", async () => {
