@@ -49,6 +49,8 @@ Check before the first provisioning: the Actions run is green and both packages 
 | `docker` on this machine, logged in to `ghcr.io` (or `PROVISION_MIGRATE_MODE=local`) | migrations and seed |
 | Optional now, needed before real agencies: the OAuth relay (`WHITE_LABEL.md` §13), a socket server that checks the handshake token (§14), the scheduler calling `/api/instance/cron` (§11) | mailboxes, realtime, cron jobs |
 
+On our server the agencies Postgres and MinIO were created with `scripts/provision-agency/server/bootstrap-infra.mjs` (run on the server: Dokploy API on loopback, secrets written to `/root/provision/infra.env`, mode 600), and the Console with `console/deploy/bootstrap-dokploy.mjs` (Console repo).
+
 ## 3. Describe the agency and the infrastructure
 
 Copy `scripts/provision-agency/examples/` and edit:
