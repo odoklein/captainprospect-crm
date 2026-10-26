@@ -7,6 +7,7 @@ import {
     withErrorHandler,
 } from "@/lib/api-utils";
 import { z } from "zod";
+import { checkLeexiKey } from "@/lib/leexi/service";
 
 const CONFIG_KEY_ID = "leexiApiKeyId";
 const CONFIG_KEY_SECRET = "leexiApiKeySecret";
@@ -46,10 +47,17 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
     const body = await request.json();
     const parsed = updateLeexiConfigSchema.safeParse(body);
     if (!parsed.success) {
-        return errorResponse(parsed.error.errors[0].message, 400);
+        return errorResponse(parsed.error.issues[0].message, 400);
     }
 
     const { keyId, keySecret } = parsed.data;
+
+    // A key Leexi refuses (e.g. without « read_calls ») would silently take
+    // precedence over a working one: check it before saving.
+    const check = await checkLeexiKey(keyId.trim(), keySecret.trim());
+    if (!check.ok) {
+        return errorResponse(check.message, 400);
+    }
 
     await prisma.$transaction([
         prisma.systemConfig.upsert({

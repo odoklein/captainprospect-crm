@@ -52,7 +52,9 @@
       "Bash(git branch *)",
       "Bash(git reset *)",
       "Bash(git push *)",
-      "Bash(cd \"/c/Users/dell/.claude/projects/C--Users-dell-Desktop-Desktop-CP-captainprospect-crm/memory\" && cat local-db-is-not-prod.md crm-mcp-admin-tools.md accueil-design-system.md brand-design-system.md de-slop-pass.md tsc-preexisting-debt.md stats-redesign.md)"
+      "Bash(cd \"/c/Users/dell/.claude/projects/C--Users-dell-Desktop-Desktop-CP-captainprospect-crm/memory\" && cat local-db-is-not-prod.md crm-mcp-admin-tools.md accueil-design-system.md brand-design-system.md de-slop-pass.md tsc-preexisting-debt.md stats-redesign.md)",
+      "Bash(python -)",
+      "PowerShell(git push origin feat/assistant-brain)"
     ]
   }
 }

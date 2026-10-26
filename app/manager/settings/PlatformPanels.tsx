@@ -17,7 +17,7 @@ import { RDV_TEMPLATE_VARIABLES } from "@/lib/email/templates/rdv-notification";
 import { PACE_DEFAULTS, PACE_LIMITS, PACE_THRESHOLDS } from "@/lib/sdr-pace/pace";
 import { SegmentedControl, Shimmer, StatusPill } from "@/components/accueil/AccueilUI";
 import {
-    DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SaveBar, SettingsCard, SettingsLinkRow,
+    DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SaveBar, SECONDARY_BUTTON, SettingsCard, SettingsLinkRow,
 } from "@/components/settings/SettingsUI";
 import { useBrand } from "@/lib/brand/client";
 
@@ -616,6 +616,21 @@ export function IntegrationsPanel() {
     const [keySecret, setKeySecret] = useState("");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [testing, setTesting] = useState(false);
+    const [checks, setChecks] = useState<Array<{ source: "settings" | "env"; ok: boolean; message: string }> | null>(null);
+
+    // One result per configured key (Paramètres, then server env): says which one Leexi accepts.
+    const test = async () => {
+        setTesting(true);
+        setChecks(null);
+        try {
+            setChecks(await call<Array<{ source: "settings" | "env"; ok: boolean; message: string }>>("/api/system-config/leexi/test"));
+        } catch (e) {
+            setError(errorText(e));
+        } finally {
+            setTesting(false);
+        }
+    };
 
     // We only care if Leexi is enabled; keys never leave the server
     useEffect(() => {
@@ -640,7 +655,8 @@ export function IntegrationsPanel() {
             setSource("settings");
             setKeyId("");
             setKeySecret("");
-            toast.success("Leexi connecté", "Paramètres Leexi enregistrés.");
+            setChecks(null);
+            toast.success("Leexi connecté", "Clé vérifiée auprès de Leexi et enregistrée.");
         } catch (e) {
             setError(errorText(e));
         } finally {
@@ -701,9 +717,24 @@ export function IntegrationsPanel() {
                             )}
                         </Field>
                     </div>
+                    {checks && (
+                        <div className="space-y-2">
+                            {checks.length === 0 && <Notice tone="slate">Aucune clé Leexi configurée.</Notice>}
+                            {checks.map((c) => (
+                                <Notice key={c.source} tone={c.ok ? "emerald" : "rose"} icon={c.ok ? ShieldCheck : AlertTriangle}>
+                                    <p className="font-bold">{c.source === "settings" ? "Clé enregistrée ici" : "Clé du serveur (variables d'environnement)"}</p>
+                                    <p>{c.message}</p>
+                                </Notice>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <FormStatus error={error} />
                         <div className="flex items-center gap-2 ml-auto">
+                            <button type="button" onClick={test} disabled={testing || saving || !enabled} className={SECONDARY_BUTTON}>
+                                {testing && <Loader2 className="w-4 h-4 motion-safe:animate-spin" aria-hidden />}
+                                Tester la connexion
+                            </button>
                             <button type="button" onClick={disable} disabled={saving || !enabled} className={cn(DANGER_BUTTON, "h-11 rounded-2xl")}>
                                 Désactiver
                             </button>
