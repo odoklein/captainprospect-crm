@@ -775,6 +775,7 @@ model Client {
   folders       Folder[]
   files         File[]
   projects      Project[]
+  tasks         Task[]
 
   // Client Portal visibility settings
   portalShowCallHistory Boolean @default(false)
@@ -1612,9 +1613,20 @@ model ProjectMember {
 }
 
 model Task {
-  id        String  @id @default(cuid())
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  // Optional: a task without a project is a personal / inbox task (lib/tasks/access.ts)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Unified task list: where the task belongs and where it came from
+  clientId     String?
+  client       Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  source       TaskSource       @default(MANUAL)
+  sourceRef    String? // free-form pointer back to the origin (e.g. "sessionTask:<id>")
+  sessionId    String?
+  session      ClientSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  audienceRole SessionTaskRole? // session to-dos addressed to a role rather than a person
+  assigneeLabel String? // free-text owner when it isn't a CRM user (often someone on the client side)
 
   title       String
   description String?      @db.Text
@@ -1671,6 +1683,17 @@ model Task {
   @@index([parentTaskId])
   @@index([position])
   @@index([milestoneId])
+  @@index([clientId])
+  @@index([source])
+  @@index([sessionId])
+}
+
+enum TaskSource {
+  MANUAL
+  ONBOARDING
+  SESSION
+  AI
+  SYSTEM
 }
 
 model TaskComment {
@@ -3808,6 +3831,7 @@ model ClientSession {
   summaryEmail String?       @db.Text
   emailSentAt  DateTime?
   tasks        SessionTask[]
+  workTasks    Task[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 

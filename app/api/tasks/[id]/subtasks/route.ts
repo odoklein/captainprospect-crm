@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { canEditTask, TASK_ACCESS_INCLUDE } from "@/lib/tasks/access";
 
 // GET /api/tasks/[id]/subtasks
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,11 +47,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         const parentTask = await prisma.task.findUnique({
             where: { id },
-            select: { id: true, projectId: true },
+            select: {
+                id: true, projectId: true, clientId: true,
+                createdById: true, assigneeId: true, audienceRole: true,
+                ...TASK_ACCESS_INCLUDE,
+            },
         });
 
         if (!parentTask) {
             return NextResponse.json({ success: false, error: "Tâche parente non trouvée" }, { status: 404 });
+        }
+
+        if (!canEditTask(session.user, parentTask)) {
+            return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
         }
 
         // Get next position
@@ -63,6 +72,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const subtask = await prisma.task.create({
             data: {
                 projectId: parentTask.projectId,
+                clientId: parentTask.clientId,
                 parentTaskId: id,
                 title: title.trim(),
                 description: description?.trim() || null,
@@ -79,15 +89,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         });
 
         // Log activity
-        await prisma.projectActivity.create({
-            data: {
-                projectId: parentTask.projectId,
-                taskId: id,
-                userId: session.user.id,
-                action: "subtask_created",
-                details: { subtaskTitle: subtask.title },
-            },
-        });
+        if (parentTask.projectId) {
+            await prisma.projectActivity.create({
+                data: {
+                    projectId: parentTask.projectId,
+                    taskId: id,
+                    userId: session.user.id,
+                    action: "subtask_created",
+                    details: { subtaskTitle: subtask.title },
+                },
+            });
+        }
 
         return NextResponse.json({ success: true, data: subtask });
     } catch (error) {

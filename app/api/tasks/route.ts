@@ -134,40 +134,48 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
         const {
-            projectId, title, description, priority, dueDate, startDate,
+            projectId, clientId, title, description, priority, dueDate, startDate,
             assigneeId, parentTaskId, labels, estimatedHours, milestoneId, position
         } = body;
-
-        if (!projectId) {
-            return NextResponse.json({ success: false, error: "Projet requis" }, { status: 400 });
-        }
 
         if (!title?.trim()) {
             return NextResponse.json({ success: false, error: "Titre requis" }, { status: 400 });
         }
 
-        const project = await prisma.project.findUnique({
-            where: { id: projectId },
-            include: { members: true },
-        });
-
-        if (!project) {
-            return NextResponse.json({ success: false, error: "Projet non trouvé" }, { status: 404 });
-        }
-
-        const isMember = project.members.some((m) => m.userId === session.user.id);
-        const isOwner = project.ownerId === session.user.id;
-        const isManager = session.user.role === "MANAGER";
-
-        if (!isMember && !isOwner && !isManager) {
+        if (session.user.role === "CLIENT") {
             return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
         }
 
-        // Auto position: get max position in project for this status
+        // No project = personal / inbox task, optionally tied to a client.
+        let taskClientId: string | null = clientId || null;
+        if (projectId) {
+            const project = await prisma.project.findUnique({
+                where: { id: projectId },
+                include: { members: true },
+            });
+
+            if (!project) {
+                return NextResponse.json({ success: false, error: "Projet non trouvé" }, { status: 404 });
+            }
+
+            const isMember = project.members.some((m) => m.userId === session.user.id);
+            const isOwner = project.ownerId === session.user.id;
+            const isManager = session.user.role === "MANAGER";
+
+            if (!isMember && !isOwner && !isManager) {
+                return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
+            }
+
+            taskClientId = taskClientId ?? project.clientId;
+        }
+
+        // Auto position: get max position in project (or in the creator's inbox) for this status
         let taskPosition = position;
         if (taskPosition === undefined || taskPosition === null) {
             const lastTask = await prisma.task.findFirst({
-                where: { projectId, status: "TODO", parentTaskId: null },
+                where: projectId
+                    ? { projectId, status: "TODO", parentTaskId: null }
+                    : { projectId: null, createdById: session.user.id, status: "TODO", parentTaskId: null },
                 orderBy: { position: "desc" },
                 select: { position: true },
             });
@@ -176,7 +184,8 @@ export async function POST(req: NextRequest) {
 
         const task = await prisma.task.create({
             data: {
-                projectId,
+                projectId: projectId || null,
+                clientId: taskClientId,
                 title: title.trim(),
                 description: description?.trim() || null,
                 priority: priority || "MEDIUM",
@@ -200,22 +209,24 @@ export async function POST(req: NextRequest) {
         });
 
         // Log activity
-        await prisma.projectActivity.create({
-            data: {
-                projectId,
-                taskId: task.id,
-                userId: session.user.id,
-                action: "task_created",
-                details: { title: task.title, priority: task.priority },
-            },
-        });
+        if (projectId) {
+            await prisma.projectActivity.create({
+                data: {
+                    projectId,
+                    taskId: task.id,
+                    userId: session.user.id,
+                    action: "task_created",
+                    details: { title: task.title, priority: task.priority },
+                },
+            });
+        }
 
         // Notify assignee
         if (assigneeId && assigneeId !== session.user.id) {
             await createTaskAssignmentNotification({
                 assigneeId,
                 taskTitle: task.title,
-                projectName: task.project.name,
+                projectName: task.project?.name ?? null,
                 assignedByName: session.user.name || "Un utilisateur",
             });
         }

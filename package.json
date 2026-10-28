@@ -26,6 +26,7 @@
     "test:prospection-export": "tsx --test lib/prospection-export/prospection-export.test.ts",
     "test:incoming-calls": "tsx --test lib/incoming-calls/allo-webhook.test.ts",
     "test:onboarding": "tsx --test lib/onboarding/checklist-template.test.ts",
+    "test:tasks": "tsx --test lib/tasks/access.test.ts lib/tasks/grouping.test.ts",
     "test:client-onboarding": "tsx --test lib/onboarding/client-onboarding.test.ts",
     "test:analyse-ia": "tsx --test lib/analyse-ia/analyse-ia.test.ts",
     "test:weekly-bilan": "tsx --test lib/reporting/weekly-bilan.test.ts",

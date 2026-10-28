@@ -8,7 +8,7 @@ import {
   validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
-import { findOrCreateClientProject } from '@/lib/projects/client-project';
+import { SESSION_TASKS_INCLUDE, createSessionTasks, toSessionTaskDto } from '@/lib/tasks/session-tasks';
 
 // ============================================
 // GET /api/clients/[id]/sessions
@@ -26,12 +26,7 @@ export const GET = withErrorHandler(
 
     const sessions = await prisma.clientSession.findMany({
       where: { clientId },
-      include: {
-        tasks: {
-          orderBy: { createdAt: 'asc' },
-          include: { mirroredTask: { select: { projectId: true } } },
-        },
-      },
+      include: SESSION_TASKS_INCLUDE,
       orderBy: { date: 'desc' },
     });
 
@@ -56,17 +51,8 @@ export const GET = withErrorHandler(
       crMarkdown: s.crMarkdown,
       summaryEmail: s.summaryEmail,
       emailSentAt: s.emailSentAt?.toISOString() ?? null,
-      projectId: s.tasks[0]?.mirroredTask?.projectId ?? activeProject?.id ?? null,
-      tasks: s.tasks.map((t) => ({
-        id: t.id,
-        label: t.label,
-        assignee: t.assignee,
-        assigneeRole: t.assigneeRole,
-        priority: t.priority,
-        dueDate: t.dueDate?.toISOString() ?? null,
-        doneAt: t.doneAt?.toISOString() ?? null,
-        taskId: t.taskId ?? null,
-      })),
+      projectId: s.workTasks[0]?.projectId ?? activeProject?.id ?? null,
+      tasks: s.workTasks.map(toSessionTaskDto),
       createdAt: s.createdAt.toISOString(),
     }));
 
@@ -129,60 +115,23 @@ export const POST = withErrorHandler(
         recordingUrl: body.recordingUrl,
         crMarkdown: body.crMarkdown,
         summaryEmail: body.summaryEmail,
-        tasks: {
-          create: (body.tasks ?? []).map((t) => ({
-            label: t.label,
-            assignee: t.assignee,
-            assigneeRole: t.assigneeRole || 'ALWAYS',
-            priority: t.priority || 'MEDIUM',
-            dueDate: t.dueDate ? new Date(t.dueDate) : null,
-          })),
-        },
       },
-      include: { tasks: true },
     });
 
-    let projectId: string | null = null;
-
-    // Automatically create or reuse a client project and mirror session tasks into it
-    if ((body.tasks ?? []).length > 0) {
-      const userId = sessionUser.user.id;
-
-      const project = await findOrCreateClientProject(clientId, userId, {
-        description: body.type
-          ? `Projet créé automatiquement à partir des sessions client (${body.type}).`
-          : 'Projet créé automatiquement à partir des sessions client.',
-      });
-
-      projectId = project.id;
-
-      // Create project tasks individually so we can link them back to session tasks
-      for (let i = 0; i < session.tasks.length; i++) {
-        const sessionTask = session.tasks[i];
-        const bodyTask = (body.tasks ?? [])[i];
-
-        const createdTask = await prisma.task.create({
-          data: {
-            projectId: project.id,
-            title: sessionTask.label,
-            description: body.type
-              ? `Tâche issue de la session "${body.type}" pour le client ${client.name}.`
-              : `Tâche issue d'une session pour le client ${client.name}.`,
-            status: 'TODO',
-            priority: (sessionTask.priority || 'MEDIUM') as any,
-            dueDate: sessionTask.dueDate,
-            assigneeId: bodyTask?.assigneeId || null,
-            createdById: userId,
-          },
-        });
-
-        // Link SessionTask → Task for bidirectional sync
-        await prisma.sessionTask.update({
-          where: { id: sessionTask.id },
-          data: { taskId: createdTask.id },
-        });
-      }
-    }
+    // The CR's action items become Tasks of the client's project (lib/tasks/session-tasks.ts).
+    const projectId = await createSessionTasks({
+      clientId,
+      clientName: client.name,
+      sessionId: session.id,
+      sessionType: body.type ?? null,
+      userId: sessionUser.user.id,
+      tasks: body.tasks ?? [],
+    });
+    const sessionTasks = await prisma.task.findMany({
+      where: { sessionId: session.id },
+      select: SESSION_TASKS_INCLUDE.workTasks.select,
+      orderBy: SESSION_TASKS_INCLUDE.workTasks.orderBy,
+    });
 
     let emailSent = false;
 
@@ -227,15 +176,7 @@ export const POST = withErrorHandler(
       crMarkdown: session.crMarkdown,
       summaryEmail: session.summaryEmail,
       emailSentAt: emailSent ? new Date().toISOString() : null,
-      tasks: session.tasks.map((t) => ({
-        id: t.id,
-        label: t.label,
-        assignee: t.assignee,
-        assigneeRole: t.assigneeRole,
-        priority: t.priority,
-        dueDate: t.dueDate?.toISOString() ?? null,
-        doneAt: t.doneAt?.toISOString() ?? null,
-      })),
+      tasks: sessionTasks.map(toSessionTaskDto),
       createdAt: session.createdAt.toISOString(),
     };
 

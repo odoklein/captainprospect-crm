@@ -45,9 +45,14 @@ export async function createNotification({
 interface TaskAssignmentNotificationParams {
     assigneeId: string;
     taskTitle: string;
-    projectName: string;
+    /** null for a task outside any project */
+    projectName: string | null;
     assignedByName: string;
     taskId?: string;
+}
+
+function inProject(projectName: string | null): string {
+    return projectName ? ` dans le projet ${projectName}` : "";
 }
 
 /**
@@ -62,7 +67,7 @@ export async function createTaskAssignmentNotification({
     return createNotification({
         userId: assigneeId,
         title: "Nouvelle tâche assignée",
-        message: `"${taskTitle}" dans le projet ${projectName} - assignée par ${assignedByName}`,
+        message: `"${taskTitle}"${inProject(projectName)} - assignée par ${assignedByName}`,
         type: "info",
         link: "/developer/tasks",
     });
@@ -80,7 +85,7 @@ export async function createTaskReassignmentNotification({
     return createNotification({
         userId: assigneeId,
         title: "Tâche réassignée",
-        message: `"${taskTitle}" dans le projet ${projectName} vous a été réassignée par ${assignedByName}`,
+        message: `"${taskTitle}"${inProject(projectName)} vous a été réassignée par ${assignedByName}`,
         type: "info",
         link: "/developer/tasks",
     });
