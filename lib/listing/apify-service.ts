@@ -1,6 +1,7 @@
 import { ApolloEnrichmentResult } from "./apollo-service";
+import { integrationKey } from "@/lib/integrations/keys";
 
-const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
+const apifyToken = () => integrationKey("APIFY_API_TOKEN");
 const GOOGLE_MAPS_ACTOR_ID = "compass~crawler-google-places";
 
 export interface ApifySearchParams {
@@ -36,6 +37,7 @@ export interface ApifyGoogleMapsItem {
 export async function startApifyRun(
   params: ApifySearchParams,
 ): Promise<string> {
+  const APIFY_API_TOKEN = apifyToken();
   if (!APIFY_API_TOKEN) {
     throw new Error("APIFY_API_TOKEN is not configured");
   }
@@ -76,6 +78,7 @@ export async function startApifyRun(
 export async function getApifyRunStatus(
   runId: string,
 ): Promise<{ status: string; datasetId?: string }> {
+  const APIFY_API_TOKEN = apifyToken();
   if (!APIFY_API_TOKEN) {
     throw new Error("APIFY_API_TOKEN is not configured");
   }
@@ -103,6 +106,7 @@ export async function getApifyRunStatus(
 export async function getApifyRunResults(
   datasetId: string,
 ): Promise<ApifyGoogleMapsItem[]> {
+  const APIFY_API_TOKEN = apifyToken();
   if (!APIFY_API_TOKEN) {
     throw new Error("APIFY_API_TOKEN is not configured");
   }

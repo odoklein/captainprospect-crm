@@ -1,3 +1,4 @@
+import { integrationKey } from "@/lib/integrations/keys";
 /**
  * One JSON-mode chat completion against OpenAI, with a timeout and errors a
  * person can act on. Used by Analyse IA and the weekly client bilan.
@@ -74,7 +75,7 @@ export interface JsonCallOptions {
 export async function callJsonModel(
     options: JsonCallOptions,
 ): Promise<{ parsed: any; tokens: number | null; model: string }> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     if (!apiKey) throw new AiCallError("MISSING_KEY", "OPENAI_API_KEY non configurée", 503);
 
     const model = options.model ?? DEFAULT_JSON_MODEL;

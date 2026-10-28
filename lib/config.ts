@@ -6,6 +6,7 @@
 // ============================================
 
 import { brand } from "@/lib/brand";
+import { integrationKey, integrationKeySource } from "@/lib/integrations/keys";
 export const config = {
   // ============================================
   // QUEUE CONFIGURATION
@@ -143,8 +144,13 @@ export const config = {
   // ============================================
   integrations: {
     apollo: {
-      enabled: process.env.APOLLO_ENABLED === "true",
-      apiKey: process.env.APOLLO_API_KEY || "",
+      // A key set in Paramètres turns Apollo on by itself; APOLLO_ENABLED stays for env-only setups.
+      get enabled() {
+        return process.env.APOLLO_ENABLED === "true" || integrationKeySource("APOLLO_API_KEY") === "stored";
+      },
+      get apiKey() {
+        return integrationKey("APOLLO_API_KEY") || "";
+      },
     },
   },
 

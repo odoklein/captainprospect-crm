@@ -5,6 +5,7 @@
 // ============================================
 
 import { getBrand } from "@/lib/brand/server";
+import { integrationKey } from "@/lib/integrations/keys";
 export interface FicheData {
   contexte: string;
   besoinsProblemes: string;
@@ -55,7 +56,7 @@ function extractFieldText(val: unknown): string {
 export async function generateFicheFromTranscription(
   transcription: string,
 ): Promise<GenerateFicheResult> {
-  const mistralApiKey = process.env.OPENAI_API_KEY;
+  const mistralApiKey = integrationKey("OPENAI_API_KEY");
   if (!mistralApiKey) {
     return { ok: false, message: "Clé API OpenAI non configurée (OPENAI_API_KEY)", status: 503 };
   }

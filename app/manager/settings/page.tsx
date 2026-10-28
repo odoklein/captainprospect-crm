@@ -7,6 +7,7 @@ import {
     AccountHeaderPills, DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
 } from "@/components/settings/AccountPanels";
 import { BrandingPanel } from "./BrandingPanel";
+import { IntegrationKeysPanel } from "./IntegrationKeysPanel";
 import { McpPanel } from "./McpPanel";
 import { EmailsPanel, IntegrationsPanel, MasterPasswordPanel, TeamGoalsPanel } from "./PlatformPanels";
 
@@ -23,7 +24,7 @@ const SECTIONS: SettingsSectionDef[] = [
     { id: "identite", label: "Identité", hint: "Nom, couleurs, logos", icon: Palette, tone: "violet", group: "Plateforme" },
     { id: "equipe", label: "Équipe & objectifs", hint: "Quota d'appels, statuts", icon: Target, tone: "emerald", group: "Plateforme" },
     { id: "emails", label: "Emails & modèles", hint: "Expéditeur, email de RDV", icon: Mail, tone: "indigo", group: "Plateforme" },
-    { id: "integrations", label: "Intégrations", hint: "Leexi", icon: Link2, tone: "teal", group: "Plateforme" },
+    { id: "integrations", label: "Intégrations", hint: "Clés OpenAI, Allo, Leexi…", icon: Link2, tone: "teal", group: "Plateforme" },
     { id: "mcp", label: "Connexion IA (MCP)", hint: "Clé pour ChatGPT, Claude", icon: Plug, tone: "violet", group: "Plateforme" },
     { id: "acces", label: "Accès maître", hint: "Mot de passe maître", icon: Key, tone: "amber", group: "Plateforme" },
 ];
@@ -50,7 +51,12 @@ function ManagerSettings() {
             {active === "identite" && <BrandingPanel />}
             {active === "equipe" && <TeamGoalsPanel />}
             {active === "emails" && <EmailsPanel />}
-            {active === "integrations" && <IntegrationsPanel />}
+            {active === "integrations" && (
+                <>
+                    <IntegrationKeysPanel />
+                    <IntegrationsPanel />
+                </>
+            )}
             {active === "mcp" && <McpPanel />}
             {active === "acces" && <MasterPasswordPanel />}
         </SettingsShell>

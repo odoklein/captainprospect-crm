@@ -8,6 +8,7 @@ import {
 import { ActionResult, Prisma } from '@prisma/client';
 import { parseAlloCallsListResponse } from '@/lib/call-enrichment/allo-response';
 import { fetchAlloMetricsForLine } from '@/lib/call-enrichment/allo-metrics';
+import { integrationKey } from "@/lib/integrations/keys";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     // Only Managers and Developers can see full team stats
@@ -280,7 +281,7 @@ async function enrichSdrPerformanceWithAlloCalls(
         return rows;
     }
 
-    const apiKey = process.env.ALLO_API_KEY;
+    const apiKey = integrationKey("ALLO_API_KEY");
     if (!apiKey) {
         return rows.map((r) => ({
             ...r,

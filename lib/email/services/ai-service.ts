@@ -4,6 +4,7 @@
 // ============================================
 
 import { prisma } from '@/lib/prisma';
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // TYPES
@@ -47,11 +48,11 @@ export interface EmailRiskAssessment {
 // ============================================
 
 export class EmailAIService {
-    private openaiApiKey: string | undefined;
     private model: string = 'gpt-4o';
 
-    constructor() {
-        this.openaiApiKey = process.env.OPENAI_API_KEY;
+    // Read on each call: the key can be changed from Paramètres without a restart.
+    private get openaiApiKey(): string | undefined {
+        return integrationKey("OPENAI_API_KEY");
     }
 
     // ============================================

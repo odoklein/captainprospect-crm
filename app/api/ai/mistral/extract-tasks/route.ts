@@ -13,6 +13,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import { getBrand } from "@/lib/brand/server";
+import { integrationKey } from "@/lib/integrations/keys";
 
 const extractTasksSchema = z.object({
     content: z.string().min(10).max(50000),
@@ -68,8 +69,8 @@ Contraintes :
 - Répondre en français
 - Maximum 20 tâches`;
 
-    const geminiApiKey = process.env.GEMINI_API_KEY;
-    const mistralApiKey = process.env.OPENAI_API_KEY;
+    const geminiApiKey = integrationKey("GEMINI_API_KEY");
+    const mistralApiKey = integrationKey("OPENAI_API_KEY");
 
     // 1. Try free Gemini 2.0 Flash model first
     if (geminiApiKey) {

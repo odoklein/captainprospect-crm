@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // EXPLORIUM TYPES
@@ -188,7 +189,7 @@ function mapCountryToCode(country: string): string | null {
  * Get API key with proper error handling
  */
 function getApiKey(): string | null {
-    const apiKey = process.env.EXPLORIUM_API_KEY;
+    const apiKey = integrationKey("EXPLORIUM_API_KEY");
     if (!apiKey || apiKey.trim() === "") {
         console.error("[Explorium] EXPLORIUM_API_KEY is missing or empty in environment variables");
         return null;

@@ -48,6 +48,7 @@ import {
 } from "@/lib/ai/agent/evidence/store";
 import { retentionDays } from "@/lib/ai/agent/evidence/policy";
 import type { AssistantErrorCode, StreamEvent, TurnPayload } from "@/lib/ai/agent/protocol";
+import { integrationKey } from "@/lib/integrations/keys";
 
 export const dynamic = "force-dynamic";
 // Deep turns may run up to ASSISTANT_DEEP_TURN_DEADLINE_MS (180 s by default).
@@ -106,7 +107,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
     const body = await validateRequest(request, ChatBody);
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     if (!apiKey) {
         return errorResponse(
             "L'assistant n'est pas configuré : OPENAI_API_KEY est absente côté serveur.",

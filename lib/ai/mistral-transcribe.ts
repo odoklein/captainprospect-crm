@@ -7,6 +7,7 @@
 // ============================================
 
 import { ensureAudioFilename, resolveAudioMime } from "@/lib/audio-upload";
+import { integrationKey } from "@/lib/integrations/keys";
 
 export type TranscribeResult =
   | { ok: true; text: string }
@@ -88,7 +89,7 @@ export async function transcribeAudioFr(
   }
 
   // 2. OpenAI transcription
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = integrationKey("OPENAI_API_KEY");
   if (!apiKey) {
     return {
       ok: false,

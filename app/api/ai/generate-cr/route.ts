@@ -7,6 +7,7 @@ import {
   validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // POST /api/ai/generate-cr
@@ -28,8 +29,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   const { prompt } = await validateRequest(request, schema);
 
-  const geminiApiKey = process.env.GEMINI_API_KEY;
-  const mistralApiKey = process.env.OPENAI_API_KEY;
+  const geminiApiKey = integrationKey("GEMINI_API_KEY");
+  const mistralApiKey = integrationKey("OPENAI_API_KEY");
 
   // 1. Try free Gemini 2.0 Flash model first
   if (geminiApiKey) {

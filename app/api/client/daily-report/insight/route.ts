@@ -10,6 +10,7 @@ import type { DailyInsight, DailyReport } from '@/lib/client/daily-report-types'
 import { mistralChat } from '@/lib/ai/mistral';
 import { brand as defaultBrand, type Brand } from "@/lib/brand";
 import { getBrand } from "@/lib/brand/server";
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // GET /api/client/daily-report/insight?day=&today=&tz=
@@ -82,7 +83,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const report = await buildDailyReport(clientId, query);
     const fallback = buildRuleInsight(report);
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     // Nothing to interpret: the rule summary says it as well as a model would.
     if (!apiKey || (report.totals.calls === 0 && report.totals.meetings === 0)) {
         return successResponse(fallback);

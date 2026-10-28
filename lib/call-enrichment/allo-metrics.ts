@@ -1,5 +1,6 @@
 import { parseAlloCallsListResponse } from "./allo-response";
 import { DateTime } from "luxon";
+import { integrationKey } from "@/lib/integrations/keys";
 
 export interface AlloLineMetrics {
     calls: number;
@@ -63,7 +64,7 @@ export async function fetchAlloMetricsForLine(
         return emptyResult;
     }
 
-    const apiKey = apiKeyOverride || process.env.ALLO_API_KEY;
+    const apiKey = apiKeyOverride || integrationKey("ALLO_API_KEY");
     if (!apiKey) {
         return emptyResult;
     }
@@ -198,7 +199,7 @@ export async function fetchAlloDailyCallsForLine(
         return dailyMap;
     }
 
-    const apiKey = apiKeyOverride || process.env.ALLO_API_KEY;
+    const apiKey = apiKeyOverride || integrationKey("ALLO_API_KEY");
     if (!apiKey) {
         return dailyMap;
     }

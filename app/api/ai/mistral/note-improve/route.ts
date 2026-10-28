@@ -12,6 +12,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import { getBrand } from "@/lib/brand/server";
+import { integrationKey } from "@/lib/integrations/keys";
 
 const noteImproveSchema = z.object({
     text: z.string().max(4000, 'Note trop longue').optional(),
@@ -28,7 +29,7 @@ const MISTRAL_MODEL = 'gpt-4.1-mini';
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireAuth(request);
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     if (!apiKey) {
         return errorResponse('OPENAI_API_KEY non configurée', 503);
     }
