@@ -16,12 +16,24 @@ import {
     type FolderKind,
     type Viewer,
 } from "./rules";
+import {
+    EMPTY_STATS,
+    INSTRUCTIONS_MAX_TOKENS,
+    checkInstructions,
+    instructionsTokens,
+    normalizeStarterQuestions,
+    toFolderCard,
+    type FolderCardRow,
+    type FolderStats,
+} from "./limits";
+import { readableWhere } from "../conversations/rules";
+import type { FolderCard, FolderDetail, VirtualClientFolder } from "../api-contract";
 
 /** A refusal the API can return as-is: French message + HTTP status. */
 export class AssistantAccessError extends Error {
     constructor(
         message: string,
-        readonly status: 403 | 404 | 503 = 403,
+        readonly status: 400 | 403 | 404 | 503 = 403,
     ) {
         super(message);
         this.name = "AssistantAccessError";
@@ -268,6 +280,270 @@ export async function moveConversation(
     );
     if (!result) throw new AssistantAccessError(FOLDERS_UNAVAILABLE, 503);
     return result;
+}
+
+// ============================================
+// v4 wire shapes: cards, detail, create, patch
+// ============================================
+
+const FOLDER_CARD_SELECT = {
+    id: true,
+    kind: true,
+    name: true,
+    color: true,
+    icon: true,
+    clientId: true,
+    lastActivityAt: true,
+} as const;
+
+type CountGroup = { key: string | null; count: number };
+const toMap = (rows: CountGroup[]): Map<string, number> =>
+    new Map(rows.filter((r): r is { key: string; count: number } => r.key !== null).map((r) => [r.key, r.count]));
+
+/**
+ * Counts behind a set of folder cards: conversations the viewer may read
+ * (GENERAL by folder, CLIENT by client so legacy unfiled threads count),
+ * active FOLDER memories, indexed files, pins, and whether the agent has an
+ * open finding or a pending proposal for the folder or its client.
+ */
+export async function folderStats(rows: FolderCardRow[], viewer: Viewer): Promise<FolderStats> {
+    if (rows.length === 0) return EMPTY_STATS;
+    const ids = rows.map((r) => r.id);
+    const clientIds = rows.map((r) => r.clientId).filter((c): c is string => !!c);
+    const readable = readableWhere(viewer) as Prisma.AssistantConversationWhereInput;
+
+    const base = await optional<Omit<FolderStats, "agentFolderIds" | "agentClientIds">>(
+        "folders.stats",
+        async () => {
+            const [byFolder, byClient, memories, files, pins] = await Promise.all([
+                prisma.assistantConversation
+                    .groupBy({ by: ["folderId"], where: { AND: [readable, { folderId: { in: ids } }] }, _count: { _all: true } })
+                    .then((r) => r.map((x) => ({ key: x.folderId, count: x._count._all }))),
+                clientIds.length
+                    ? prisma.assistantConversation
+                          .groupBy({ by: ["clientId"], where: { AND: [readable, { clientId: { in: clientIds } }] }, _count: { _all: true } })
+                          .then((r) => r.map((x) => ({ key: x.clientId, count: x._count._all })))
+                    : Promise.resolve([] as CountGroup[]),
+                prisma.assistantMemory
+                    .groupBy({ by: ["folderId"], where: { scope: "FOLDER", folderId: { in: ids }, deletedAt: null }, _count: { _all: true } })
+                    .then((r) => r.map((x) => ({ key: x.folderId, count: x._count._all }))),
+                prisma.assistantFileText
+                    .groupBy({ by: ["folderId"], where: { folderId: { in: ids }, file: { deletedAt: null } }, _count: { _all: true } })
+                    .then((r) => r.map((x) => ({ key: x.folderId, count: x._count._all }))),
+                prisma.assistantPin
+                    .groupBy({ by: ["folderId"], where: { folderId: { in: ids } }, _count: { _all: true } })
+                    .then((r) => r.map((x) => ({ key: x.folderId, count: x._count._all }))),
+            ]);
+            return {
+                byFolder: toMap(byFolder),
+                byClient: toMap(byClient),
+                memories: toMap(memories),
+                files: toMap(files),
+                pins: toMap(pins),
+            };
+        },
+        { byFolder: new Map(), byClient: new Map(), memories: new Map(), files: new Map(), pins: new Map() },
+    );
+
+    // The agent tables come with their own migration: missing = no activity.
+    const agent = await optional<{ folders: Set<string>; clients: Set<string> }>(
+        "folders.agent_activity",
+        async () => {
+            const scope = [{ folderId: { in: ids } }, ...(clientIds.length ? [{ clientId: { in: clientIds } }] : [])];
+            const [findings, runs] = await Promise.all([
+                prisma.agentFinding.groupBy({ by: ["folderId", "clientId"], where: { state: "OPEN", OR: scope } }),
+                prisma.agentRun.groupBy({
+                    by: ["folderId", "clientId"],
+                    where: { OR: scope, proposals: { some: { state: "PENDING", expiresAt: { gt: new Date() } } } },
+                }),
+            ]);
+            const folders = new Set<string>();
+            const clients = new Set<string>();
+            for (const row of [...findings, ...runs]) {
+                if (row.folderId) folders.add(row.folderId);
+                if (row.clientId) clients.add(row.clientId);
+            }
+            return { folders, clients };
+        },
+        { folders: new Set(), clients: new Set() },
+    );
+
+    return { ...base, agentFolderIds: agent.folders, agentClientIds: agent.clients };
+}
+
+export async function folderCards(rows: FolderCardRow[], viewer: Viewer): Promise<FolderCard[]> {
+    const stats = await folderStats(rows, viewer);
+    return rows.map((row) => toFolderCard(row, stats));
+}
+
+/** One folder card, or null when the folder (or the table) is missing. */
+export async function getFolderCard(folderId: string, viewer: Viewer): Promise<FolderCard | null> {
+    const row = await optional<FolderCardRow | null>(
+        "folders.card",
+        () => prisma.assistantFolder.findUnique({ where: { id: folderId }, select: FOLDER_CARD_SELECT }),
+        null,
+    );
+    return row ? (await folderCards([row], viewer))[0] : null;
+}
+
+/**
+ * The folder rail: general folders as cards, every active client with its
+ * missions and its folder card when the row exists. Tables missing = clients
+ * without folders and `degraded: true`.
+ */
+export async function listFolderCards(
+    viewer: Viewer,
+    options: { includeArchived?: boolean } = {},
+): Promise<{ general: FolderCard[]; clients: VirtualClientFolder[]; degraded: boolean }> {
+    const clients = await prisma.client.findMany({
+        where: { archivedAt: null },
+        orderBy: { name: "asc" },
+        select: {
+            id: true,
+            name: true,
+            missions: {
+                where: { isActive: true },
+                orderBy: { startDate: "desc" },
+                select: { id: true, name: true, status: true },
+            },
+        },
+    });
+    const virtual = (c: (typeof clients)[number], folder: FolderCard | null): VirtualClientFolder => ({
+        clientId: c.id,
+        name: c.name,
+        missions: c.missions.map((m) => ({ id: m.id, name: m.name, status: m.status })),
+        folder,
+    });
+
+    const rows = await optional<FolderCardRow[] | null>(
+        "folders.cards",
+        () =>
+            prisma.assistantFolder.findMany({
+                where: options.includeArchived ? {} : { OR: [{ kind: "CLIENT" }, { archivedAt: null }] },
+                orderBy: [{ lastActivityAt: { sort: "desc", nulls: "last" } }, { name: "asc" }],
+                select: FOLDER_CARD_SELECT,
+            }),
+        null,
+    );
+    if (!rows) return { general: [], clients: clients.map((c) => virtual(c, null)), degraded: true };
+
+    const cards = await folderCards(rows, viewer);
+    const byClient = new Map(cards.filter((c) => c.clientId).map((c) => [c.clientId as string, c]));
+    return {
+        general: cards.filter((c) => c.kind === "GENERAL"),
+        clients: clients.map((c) => virtual(c, byClient.get(c.id) ?? null)),
+        degraded: false,
+    };
+}
+
+/** Full folder for its home and settings. 404 when missing, 503 when the tables are. */
+export async function getFolderDetail(folderId: string, viewer: Viewer): Promise<FolderDetail> {
+    const folder = await optional<AssistantFolder | null | "missing">(
+        "folders.detail",
+        () => prisma.assistantFolder.findUnique({ where: { id: folderId } }),
+        "missing",
+    );
+    if (folder === "missing") throw new AssistantAccessError(FOLDERS_UNAVAILABLE, 503);
+    if (!folder) throw new AssistantAccessError("Dossier introuvable.", 404);
+
+    const [card] = await folderCards([folder], viewer);
+    const missions = folder.clientId
+        ? await prisma.mission.findMany({
+              where: { clientId: folder.clientId, isActive: true },
+              orderBy: { startDate: "desc" },
+              select: { id: true, name: true, status: true },
+          })
+        : [];
+    return {
+        ...card,
+        instructions: folder.instructions,
+        instructionsTokens: instructionsTokens(folder.instructions),
+        instructionsMaxTokens: INSTRUCTIONS_MAX_TOKENS,
+        starterQuestions: normalizeStarterQuestions(folder.starterQuestions),
+        missions: missions.map((m) => ({ id: m.id, name: m.name, status: m.status })),
+        createdAt: folder.createdAt.toISOString(),
+        archivedAt: folder.archivedAt ? folder.archivedAt.toISOString() : null,
+    };
+}
+
+function requireInstructions(raw: string | null | undefined): string | null {
+    const check = checkInstructions(raw);
+    if (!check.ok) throw new AssistantAccessError(check.reason, 400);
+    return check.value;
+}
+
+const cleanName = (name: string): string => {
+    const value = name.replace(/\s+/g, " ").trim();
+    if (!value) throw new AssistantAccessError("Le nom du dossier est vide.", 400);
+    return value.slice(0, 80);
+};
+
+export async function createGeneralFolder(
+    input: { name: string; color?: string | null; icon?: string | null; instructions?: string | null },
+    viewer: Viewer,
+): Promise<FolderDetail> {
+    const name = cleanName(input.name);
+    const instructions = requireInstructions(input.instructions);
+    const created = await optional<AssistantFolder | null>(
+        "folders.create",
+        () =>
+            prisma.assistantFolder.create({
+                data: {
+                    kind: "GENERAL",
+                    name,
+                    color: input.color ?? null,
+                    icon: input.icon ?? null,
+                    instructions,
+                    createdById: viewer.id,
+                    lastActivityAt: new Date(),
+                },
+            }),
+        null,
+    );
+    if (!created) throw new AssistantAccessError(FOLDERS_UNAVAILABLE, 503);
+    return getFolderDetail(created.id, viewer);
+}
+
+export interface FolderPatch {
+    name?: string;
+    color?: string | null;
+    icon?: string | null;
+    instructions?: string | null;
+    starterQuestions?: string[];
+    archived?: boolean;
+}
+
+/**
+ * Edits a folder. Any active manager may (folders are agency-wide). A CLIENT
+ * folder follows its client: its name is the client's and it is never
+ * archived on its own.
+ */
+export async function patchFolder(folderId: string, patch: FolderPatch, viewer: Viewer): Promise<FolderDetail> {
+    const folder = await optional<{ id: string; kind: FolderKind } | null | "missing">(
+        "folders.patch.read",
+        () => prisma.assistantFolder.findUnique({ where: { id: folderId }, select: { id: true, kind: true } }),
+        "missing",
+    );
+    if (folder === "missing") throw new AssistantAccessError(FOLDERS_UNAVAILABLE, 503);
+    if (!folder) throw new AssistantAccessError("Dossier introuvable.", 404);
+
+    const data: Prisma.AssistantFolderUpdateInput = {};
+    if (patch.name !== undefined) {
+        if (folder.kind === "CLIENT") throw new AssistantAccessError("Le dossier d'un client porte le nom du client.", 400);
+        data.name = cleanName(patch.name);
+    }
+    if (patch.color !== undefined) data.color = patch.color;
+    if (patch.icon !== undefined) data.icon = patch.icon;
+    if (patch.instructions !== undefined) data.instructions = requireInstructions(patch.instructions);
+    if (patch.starterQuestions !== undefined) data.starterQuestions = normalizeStarterQuestions(patch.starterQuestions);
+    if (patch.archived !== undefined) {
+        if (folder.kind === "CLIENT") throw new AssistantAccessError("Le dossier d'un client ne s'archive pas.", 400);
+        data.archivedAt = patch.archived ? new Date() : null;
+    }
+    if (Object.keys(data).length > 0) {
+        await prisma.assistantFolder.update({ where: { id: folder.id }, data });
+    }
+    return getFolderDetail(folder.id, viewer);
 }
 
 /** Marks activity on a folder (ordering in the rail). Silent when the folder or the table is missing. */

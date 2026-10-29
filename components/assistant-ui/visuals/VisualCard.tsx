@@ -20,8 +20,8 @@ export function IconButton({ label, onClick, children, active }: { label: string
             aria-label={label}
             aria-pressed={active}
             className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-md text-[var(--ds-ink-3)] transition-colors hover:bg-[var(--ds-surface-3)] hover:text-[var(--ds-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]",
-                active && "text-[var(--ds-accent-soft-ink)]",
+                "flex h-7 w-7 items-center justify-center rounded-md text-[var(--ds-ink-3)] transition-[background-color,color] duration-150 hover:bg-[var(--ds-surface-3)] hover:text-[var(--ds-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]",
+                active && "bg-[var(--ds-accent-soft)] text-[var(--ds-accent-soft-ink)]",
             )}
         >
             {children}
@@ -74,7 +74,7 @@ export function VisualCard({
                 <div className="cp-viz-actions flex shrink-0 items-center gap-0.5">
                     {refreshSlot}
                     {onTogglePin && (
-                        <IconButton label={pinned ? "Retirer du tableau" : "Épingler au tableau du dossier"} onClick={() => onTogglePin(visual)} active={pinned}>
+                        <IconButton label={pinned ? "Retirer du tableau du dossier" : "Épingler au dossier"} onClick={() => onTogglePin(visual)} active={pinned}>
                             {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                         </IconButton>
                     )}

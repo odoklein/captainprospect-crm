@@ -8,7 +8,8 @@ import {
   validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
-import { SESSION_TASKS_INCLUDE, createSessionTasks, toSessionTaskDto } from '@/lib/tasks/session-tasks';
+import { SESSION_TASKS_INCLUDE, toSessionTaskDto } from '@/lib/tasks/session-tasks';
+import { createClientSession, findSessionClient } from '@/lib/client-sessions/create';
 
 // ============================================
 // GET /api/clients/[id]/sessions
@@ -98,87 +99,18 @@ export const POST = withErrorHandler(
 
     const { id: clientId } = await context.params;
 
-    const client = await prisma.client.findUnique({
-      where: { id: clientId },
-      select: { id: true, name: true, email: true },
-    });
+    const client = await findSessionClient(clientId);
     if (!client) return errorResponse('Client introuvable', 404);
 
     const body = await validateRequest(request, createSessionSchema);
 
-    const session = await prisma.clientSession.create({
-      data: {
-        clientId,
-        type: body.type,
-        date: body.date ? new Date(body.date) : new Date(),
-        leexiId: body.leexiId,
-        recordingUrl: body.recordingUrl,
-        crMarkdown: body.crMarkdown,
-        summaryEmail: body.summaryEmail,
-      },
-    });
-
-    // The CR's action items become Tasks of the client's project (lib/tasks/session-tasks.ts).
-    const projectId = await createSessionTasks({
-      clientId,
-      clientName: client.name,
-      sessionId: session.id,
-      sessionType: body.type ?? null,
+    // Row, CR tasks and optional summary e-mail: lib/client-sessions/create.ts
+    // (shared with the agent's publish_weekly_bilan).
+    const { session: result, emailSent, projectId } = await createClientSession({
+      client,
+      input: body,
       userId: sessionUser.user.id,
-      tasks: body.tasks ?? [],
     });
-    const sessionTasks = await prisma.task.findMany({
-      where: { sessionId: session.id },
-      select: SESSION_TASKS_INCLUDE.workTasks.select,
-      orderBy: SESSION_TASKS_INCLUDE.workTasks.orderBy,
-    });
-
-    let emailSent = false;
-
-    // Send summary email if requested and client has an email
-    if (body.notifyByEmail && client.email && body.summaryEmail) {
-      try {
-        const nodemailer = (await import('nodemailer')).default;
-        const transporter = nodemailer.createTransport({
-          host: process.env.SYSTEM_SMTP_HOST,
-          port: Number(process.env.SYSTEM_SMTP_PORT ?? 587),
-          secure: false,
-          auth: {
-            user: process.env.SYSTEM_SMTP_USER,
-            pass: process.env.SYSTEM_SMTP_PASS,
-          },
-        });
-
-        await transporter.sendMail({
-          from: process.env.SYSTEM_SMTP_FROM ?? process.env.SYSTEM_SMTP_USER,
-          to: client.email,
-          subject: `Synthèse de notre session ${body.type} — ${client.name}`,
-          text: body.summaryEmail,
-        });
-
-        await prisma.clientSession.update({
-          where: { id: session.id },
-          data: { emailSentAt: new Date() },
-        });
-
-        emailSent = true;
-      } catch (err) {
-        console.error('Session email send failed:', err);
-      }
-    }
-
-    const result = {
-      id: session.id,
-      type: session.type,
-      date: session.date.toISOString(),
-      leexiId: session.leexiId,
-      recordingUrl: session.recordingUrl,
-      crMarkdown: session.crMarkdown,
-      summaryEmail: session.summaryEmail,
-      emailSentAt: emailSent ? new Date().toISOString() : null,
-      tasks: sessionTasks.map(toSessionTaskDto),
-      createdAt: session.createdAt.toISOString(),
-    };
 
     return NextResponse.json({ success: true, data: result, emailSent, projectId }, { status: 201 });
   },

@@ -2,15 +2,20 @@
 
 /**
  * ============================================================
- * ASSISTANT PROJET — page
+ * CAPTAIN AI — workspace
  * ============================================================
- * The dedicated workspace home of the assistant (gpt-4o-mini). It takes the
- * whole main area — AppLayoutShell gives this route no padded wrapper — with
- * a chatbot-style history rail, project scope picker and centred thread.
+ * Rail (folders, clients, pins), folder home and threads. It takes the whole
+ * main area — AppLayoutShell gives this route no padded wrapper. Suspense
+ * because the workspace reads its state from the URL.
  */
 
-import { ChatWorkspace } from "@/components/assistant-ui/ChatWorkspace";
+import { Suspense } from "react";
+import { AssistantWorkspace } from "@/components/assistant-ui/workspace/AssistantWorkspace";
 
-export default function AssistantProjetPage() {
-    return <ChatWorkspace />;
+export default function CaptainAiPage() {
+    return (
+        <Suspense fallback={<div className="h-full w-full bg-canvas" aria-busy="true" />}>
+            <AssistantWorkspace />
+        </Suspense>
+    );
 }

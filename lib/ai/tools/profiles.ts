@@ -80,7 +80,7 @@ export const TOOL_GROUPS: Record<ToolGroup, readonly string[]> = {
         "get_user",
         "list_exclusions",
     ],
-    insights: ["get_daily_reports", "get_data_quality", "get_meeting_feedback", "list_meetings", "get_campaign_status"],
+    insights: ["get_daily_reports", "get_data_quality", "get_meeting_feedback", "list_meetings", "get_campaign_status", "get_report_dataset"],
     // Everything that reads the project dossier: documents, accesses, drafts, tasks.
     folder: [
         "list_project_documents",
@@ -95,6 +95,10 @@ export const TOOL_GROUPS: Record<ToolGroup, readonly string[]> = {
         "read_draft",
         "list_tasks",
         "list_task_boards",
+        // Folder files (Captain AI v4): uploaded documents, searchable.
+        "list_folder_files",
+        "search_files",
+        "read_file_section",
     ],
     // Every safe_write and confirm tool.
     actions: [
@@ -109,6 +113,9 @@ export const TOOL_GROUPS: Record<ToolGroup, readonly string[]> = {
         "delete_credential",
         "send_onboarding_emails",
         "send_draft",
+        "publish_weekly_bilan",
+        "propose_action",
+        "record_finding",
     ],
     admin_db: ["admin_db_overview", "admin_db_inspect", "admin_db_sql"],
     agency: ["get_agency_overview", "get_agency_metrics", "list_clients_needing_attention", "search_across_projects"],
@@ -150,7 +157,7 @@ const GROUP_TRIGGERS: ReadonlyArray<[ToolGroup, RegExp]> = [
     ["contacts", /contact|prospect|societe|entreprise|lead|interlocuteur|telephone|email/],
     ["structure", /liste|fichier|campagne|mission|equipe|utilisateur|sdr|exclusion/],
     ["insights", /retour|ressenti|qualite|presen|honor|no.?show|feedback|statut/],
-    ["folder", /acces|mot de passe|compte|portail|document|brouillon|tache|playbook|compte.rendu/],
+    ["folder", /acces|mot de passe|compte|portail|document|brouillon|tache|playbook|compte.rendu|fichier|contrat|pdf|brief|annexe|presentation/],
     ["actions", /envoi|envoy|cree|creer|supprim|regen|affiche le mot|redige|brouillon|tache|retiens|memoris|oublie/],
 ];
 

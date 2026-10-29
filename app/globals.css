@@ -365,6 +365,15 @@
     from { background-position: 200% 0; }
     to { background-position: -200% 0; }
 }
+/* The ds-* motion is decoration: people who ask the OS for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+    .animate-ds-enter,
+    .animate-ds-pop,
+    .animate-ds-slide-in,
+    .animate-ds-shimmer {
+        animation: none !important;
+    }
+}
 
 @layer base {
     html {

@@ -26,7 +26,9 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: [process.env.REPLIT_DEV_DOMAIN || "*.replit.dev"],
   // Keep pdfkit external so its font data files (.afm) resolve correctly at runtime.
-  serverExternalPackages: ["pdfkit"],
+  // Document parsers for assistant folder files: loaded from node_modules at
+  // runtime rather than bundled (unpdf ships pdf.js, exceljs/mammoth pull zip and xml libs).
+  serverExternalPackages: ["pdfkit", "unpdf", "exceljs", "mammoth"],
   // Allow larger request bodies for email send (attachments). Default is 1MB.
   experimental: {
     // middleware.ts runs on /api/*: without this, request bodies are truncated at 10 MB (RDV audio uploads go up to 50 MB).

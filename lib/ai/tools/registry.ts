@@ -71,6 +71,10 @@ import { getStatsOverviewTool } from "./definitions/stats";
 import { showVisual } from "./definitions/visuals";
 import { defineLoadToolGroup } from "./definitions/toolgroups";
 import { forget, listMemories, remember, updateMemory } from "./definitions/memory";
+import { FILE_TOOLS } from "./definitions/files";
+import { REPORTING_TOOLS } from "./definitions/reporting";
+// The index, not tools/resolve.ts: resolve imports this registry.
+import { AGENT_RUN_TOOLS } from "@/lib/agent/tools/index";
 
 // The catalogue reads the registry it belongs to; the closure resolves it at
 // call time, after the array below exists.
@@ -115,6 +119,13 @@ export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     loadToolGroup,
     // Mémoire — what the manager said and asked to keep. Not a source to cite.
     listMemories,
+    // Fichiers du dossier — uploaded documents, extracted and searchable.
+    ...FILE_TOOLS,
+    // Captain Agent — run-scoped tools (dataset, propose_action, record_finding) need a
+    // permission only background runs hold, so chat never sees them; publish_weekly_bilan
+    // is a confirm tool, proposed by the weekly report and approved by a manager.
+    ...AGENT_RUN_TOOLS,
+    ...REPORTING_TOOLS,
     // Données CRM — contacts, appels, transcriptions, RDV, listes, retours SDR.
     // Scoped to the bound project; agency-wide when none is bound.
     ...CRM_DATA_TOOLS,

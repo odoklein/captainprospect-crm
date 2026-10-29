@@ -286,8 +286,9 @@ test("the profile slices stay under the token targets (wire estimate)", () => {
         const fullTokens = estimateWireTokens(toProviderTools(ctx));
         assert.ok(fullTokens <= rawTokens * 0.86, `full ${fullTokens} vs raw ${rawTokens}`);
         // The four memory tools added in B-PR2 (~500 wire tokens) moved the
-        // agency catalogue from 6.3k to 6.7k: the gate follows the surface.
-        if (!ctx.project) assert.ok(fullTokens <= 6_800, `agency full ${fullTokens}`);
+        // agency catalogue from 6.3k to 6.7k, and the three file tools (B-PR3,
+        // ~170 tokens after trimming) to 6.9k: the gate follows the surface.
+        if (!ctx.project) assert.ok(fullTokens <= 7_000, `agency full ${fullTokens}`);
     }
 });
 

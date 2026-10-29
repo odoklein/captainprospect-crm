@@ -46,6 +46,61 @@ export const prismaActionStore: ActionStore = {
     },
 };
 
+/**
+ * The same compare-and-set for Captain Agent proposals (`AgentProposal`):
+ * the "message id" is the proposal id, the card state maps onto the
+ * proposal's own enum, and the claim is `state = PENDING` re-checked by
+ * Postgres under the row lock. `decidedById` stamps who clicked.
+ *
+ *   executing → EXECUTING · cancelled → REJECTED · expired → EXPIRED
+ *   confirmed → EXECUTED  · failed    → FAILED
+ *
+ * `save` never writes a secret: only `outcome` (the tool's message) is kept.
+ */
+const PROPOSAL_STATE: Record<ActionState, "PENDING" | "EXECUTING" | "REJECTED" | "EXECUTED" | "EXPIRED" | "FAILED"> = {
+    pending: "PENDING",
+    executing: "EXECUTING",
+    cancelled: "REJECTED",
+    expired: "EXPIRED",
+    confirmed: "EXECUTED",
+    failed: "FAILED",
+};
+
+export function createPrismaProposalStore(options: { decidedById?: string | null; actionLogId?: () => string | null } = {}): ActionStore {
+    return {
+        async claim(proposalId, next) {
+            const at = next.settledAt ? new Date(next.settledAt) : new Date();
+            const { count } = await prisma.agentProposal.updateMany({
+                where: { id: proposalId, state: "PENDING" },
+                data: {
+                    state: PROPOSAL_STATE[next.state],
+                    decidedAt: at,
+                    ...(options.decidedById ? { decidedById: options.decidedById } : {}),
+                    ...(next.outcome !== undefined ? { outcome: next.outcome.slice(0, 2000) } : {}),
+                },
+            });
+            return count === 1;
+        },
+        async save(proposalId, next) {
+            const at = next.settledAt ? new Date(next.settledAt) : new Date();
+            const actionLogId = options.actionLogId?.() ?? null;
+            await prisma.agentProposal.update({
+                where: { id: proposalId },
+                data: {
+                    state: PROPOSAL_STATE[next.state],
+                    outcome: next.outcome !== undefined ? next.outcome.slice(0, 2000) : undefined,
+                    ...(next.state === "confirmed" ? { executedAt: at } : {}),
+                    ...(actionLogId ? { actionLogId } : {}),
+                },
+                select: { id: true },
+            });
+        },
+    };
+}
+
+/** Proposal store without an approver stamp (expiry sweeps, scripts). */
+export const prismaProposalStore: ActionStore = createPrismaProposalStore();
+
 /** Cards older than the TTL are refused: the data they described may have moved. */
 export function isExpired(action: StoredAction, messageCreatedAt: Date, now: Date, ttlMs: number): boolean {
     const proposed = action.proposedAt ? Date.parse(action.proposedAt) : messageCreatedAt.getTime();

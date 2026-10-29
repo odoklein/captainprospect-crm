@@ -58,19 +58,41 @@ import {
 } from "@/lib/ai/agent/evidence/store";
 import { retentionDays } from "@/lib/ai/agent/evidence/policy";
 import type { AssistantErrorCode, StreamEvent, TurnPayload } from "@/lib/ai/agent/protocol";
+import { canWriteConversation } from "@/lib/assistant/folders/rules";
+import { messageCountDelta, planReplay, type ReplayPlan } from "@/lib/assistant/conversations/rules";
+import { parseAttachments, type Attachment } from "@/lib/assistant/conversations/cards";
 
 export const dynamic = "force-dynamic";
 // Deep turns may run up to ASSISTANT_DEEP_TURN_DEADLINE_MS (180 s by default).
 export const maxDuration = 300;
 
-const ChatBody = z.object({
-    conversationId: z.string().min(1),
-    message: z.string().min(1).max(4000),
-    /** "deep" = stronger model + bigger tool budget, chosen per message by the manager. */
-    depth: z.enum(["standard", "deep"]).optional(),
-    /** NDJSON event stream instead of one JSON response. */
-    stream: z.boolean().optional(),
-});
+const ChatBody = z
+    .object({
+        conversationId: z.string().min(1),
+        /** Required, except with `regenerateMessageId` (the turn reruns the previous question). */
+        message: z.string().min(1).max(4000).optional(),
+        /** "deep" = stronger model + bigger tool budget, chosen per message by the manager. */
+        depth: z.enum(["standard", "deep"]).optional(),
+        /** NDJSON event stream instead of one JSON response. */
+        stream: z.boolean().optional(),
+        /** Files of the conversation's folder attached to this message (ChatBodyExtras). */
+        attachmentFileIds: z.array(z.string().min(1).max(64)).max(10).optional(),
+        /** Replace the last assistant answer. */
+        regenerateMessageId: z.string().min(1).max(64).optional(),
+        /** Replace the last user message (and its answer) with `message`. */
+        editMessageId: z.string().min(1).max(64).optional(),
+    })
+    .superRefine((body, issue) => {
+        if (!body.regenerateMessageId && !body.message) {
+            issue.addIssue({ code: "custom", path: ["message"], message: "Message requis" });
+        }
+    });
+
+/** What persistTurn writes besides the answer: the new USER row (null = reused) and the rows it replaces. */
+interface PersistOptions {
+    userMessage: { content: string; attachments: Attachment[] } | null;
+    supersedeIds: string[];
+}
 
 /** First user message becomes the thread title, so history is scannable. */
 function titleFrom(message: string): string {
@@ -142,6 +164,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                     kind: true,
                     summary: true,
                     summaryUpToMessageId: true,
+                    titleEditedAt: true,
                 },
             }),
         async () => {
@@ -150,13 +173,89 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 select: { id: true, clientId: true, missionId: true, createdById: true, messageCount: true },
             });
             return base
-                ? { ...base, folderId: null, kind: "CHAT" as const, summary: null, summaryUpToMessageId: null }
+                ? {
+                      ...base,
+                      folderId: null,
+                      kind: "CHAT" as const,
+                      summary: null,
+                      summaryUpToMessageId: null,
+                      titleEditedAt: null,
+                  }
                 : null;
         },
     );
-    if (!conversation || conversation.createdById !== session.user.id) {
+    // A SHARED thread is readable by every active manager (GET conversations/[id]),
+    // but only its owner writes a turn in it; anyone else gets the same 404.
+    if (!conversation || !canWriteConversation({ id: session.user.id }, conversation).ok) {
         throw new NotFoundError("Conversation introuvable");
     }
+
+    // Regenerate / edit: which live rows the new turn replaces. Needs the v4
+    // supersededAt column; without it the request is refused, not half-done.
+    let replay: Extract<ReplayPlan, { ok: true }> | null = null;
+    if (body.regenerateMessageId || body.editMessageId) {
+        const live = await optional(
+            "chat.replay",
+            () =>
+                prisma.assistantMessage.findMany({
+                    where: { conversationId: conversation.id, supersededAt: null },
+                    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                    take: 12,
+                    select: { id: true, role: true, content: true, attachments: true },
+                }),
+            null,
+        );
+        if (!live) {
+            return errorResponse("Régénérer ou modifier un message n'est pas encore activé sur cette instance.", 503);
+        }
+        const planned = planReplay(live, {
+            regenerateMessageId: body.regenerateMessageId,
+            editMessageId: body.editMessageId,
+            message: body.message,
+        });
+        if (!planned.ok) return errorResponse(planned.reason, 400);
+        replay = planned;
+    }
+    /** What the turn answers: the new message, or the reused question of a regenerate. */
+    const question = replay?.question ?? (body.message as string);
+
+    // Attachments must be files of the conversation's folder. A regenerate
+    // reuses the question's attachments, quietly dropping files deleted since.
+    const reusedIds = replay?.reuseUserMessage
+        ? (parseAttachments(replay.reuseUserMessage.attachments) ?? []).map((a) => a.fileId)
+        : [];
+    const wantedIds = [...new Set(body.attachmentFileIds?.length ? body.attachmentFileIds : reusedIds)];
+    let attachments: Attachment[] = [];
+    if (wantedIds.length > 0) {
+        if (!conversation.folderId) {
+            return errorResponse("Les pièces jointes demandent une conversation rangée dans un dossier.", 400);
+        }
+        const files = await optional(
+            "chat.attachments",
+            () =>
+                prisma.assistantFileText.findMany({
+                    where: { fileId: { in: wantedIds }, folderId: conversation.folderId as string, file: { deletedAt: null } },
+                    select: { fileId: true, status: true, file: { select: { originalName: true, name: true } } },
+                }),
+            null,
+        );
+        if (!files) return errorResponse("Les fichiers de l'assistant ne sont pas encore activés sur cette instance.", 503);
+        if (body.attachmentFileIds?.length && files.length !== wantedIds.length) {
+            return errorResponse("Un fichier joint n'appartient pas au dossier de cette conversation.", 400);
+        }
+        const byId = new Map(files.map((f) => [f.fileId, f]));
+        attachments = wantedIds
+            .map((fileId) => byId.get(fileId))
+            .filter((f): f is (typeof files)[number] => !!f)
+            .map((f) => ({ fileId: f.fileId, name: f.file.originalName || f.file.name, status: f.status }));
+    }
+    const attachmentFileIds = attachments.map((a) => a.fileId);
+    const persistOptions: PersistOptions = {
+        userMessage: replay?.reuseUserMessage ? null : { content: question, attachments },
+        supersedeIds: replay?.supersedeIds ?? [],
+    };
+    /** Rows the new turn replaces never travel in its history. */
+    const excludedFromHistory = new Set([...(replay?.supersedeIds ?? []), ...(replay?.reuseUserMessage ? [replay.reuseUserMessage.id] : [])]);
 
     const ctx = await buildAssistantContext({
         userId: session.user.id,
@@ -242,8 +341,13 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         }
     };
 
-    /** Saves the turn whatever its outcome: the transcript must match what happened. */
-    const persistTurn = async (result: AgentTurnResult): Promise<string | null> => {
+    /**
+     * Saves the turn whatever its outcome: the transcript must match what happened.
+     * A regenerate reuses the question (no USER row) and supersedes the old
+     * answer; an edit supersedes the old question and its answer. Both happen in
+     * the same transaction as the new answer, so the thread never shows a gap.
+     */
+    const persistTurn = async (result: AgentTurnResult, options: PersistOptions): Promise<string | null> => {
         const traceData = {
             entries: result.trace,
             // The model travels with the usage, or the cost summary prices a
@@ -260,11 +364,32 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             ...(result.error ? { error: result.error } : {}),
         };
         try {
-            const [, assistantMessage] = await prisma.$transaction([
-                prisma.assistantMessage.create({
-                    data: { conversationId: conversation.id, role: "USER", content: body.message },
-                    select: { id: true },
-                }),
+            const ops: Prisma.PrismaPromise<unknown>[] = [];
+            if (options.supersedeIds.length > 0) {
+                ops.push(
+                    prisma.assistantMessage.updateMany({
+                        where: { id: { in: options.supersedeIds }, conversationId: conversation.id, supersededAt: null },
+                        data: { supersededAt: new Date() },
+                    }),
+                );
+            }
+            if (options.userMessage) {
+                const { content, attachments: files } = options.userMessage;
+                ops.push(
+                    prisma.assistantMessage.create({
+                        data: {
+                            conversationId: conversation.id,
+                            role: "USER",
+                            content,
+                            // Only written when present: a pre-v4 table has no such column.
+                            ...(files.length > 0 ? { attachments: files as unknown as Prisma.InputJsonValue } : {}),
+                        },
+                        select: { id: true },
+                    }),
+                );
+            }
+            const assistantIndex = ops.length;
+            ops.push(
                 prisma.assistantMessage.create({
                     data: {
                         conversationId: conversation.id,
@@ -275,17 +400,22 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                     },
                     select: { id: true },
                 }),
+            );
+            // The first question names the thread, unless a manager renamed it.
+            const firstQuestion = conversation.messageCount - options.supersedeIds.length <= 0 && !conversation.titleEditedAt;
+            ops.push(
                 prisma.assistantConversation.update({
                     where: { id: conversation.id },
                     data: {
-                        messageCount: { increment: 2 },
+                        messageCount: { increment: messageCountDelta(options.userMessage !== null, options.supersedeIds.length) },
                         lastMessageAt: new Date(),
-                        ...(conversation.messageCount === 0 ? { title: titleFrom(body.message) } : {}),
+                        ...(firstQuestion && options.userMessage ? { title: titleFrom(options.userMessage.content) } : {}),
                     },
                     select: { id: true },
                 }),
-            ]);
-            return assistantMessage.id;
+            );
+            const saved = await prisma.$transaction(ops);
+            return (saved[assistantIndex] as { id: string }).id;
         } catch (error) {
             console.error("[assistant.chat] turn not saved", error);
             return null;
@@ -307,8 +437,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 summaryUpToMessageId: conversation.summaryUpToMessageId,
                 missionId: conversation.missionId,
             },
-            question: body.message,
+            question,
             folder: folder ? { name: folder.name, instructions: folder.instructions } : null,
+            // Attached files rank first in the file excerpts (files pipeline, lib/assistant/context/pack.ts).
+            attachmentFileIds,
             deps: prismaContextDeps,
         });
 
@@ -336,7 +468,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 }),
         );
         const previous = selectHistoryRows(
-            [...newestFirst].reverse(),
+            newestFirst.filter((m) => !excludedFromHistory.has(m.id)).reverse(),
             conversation.summaryUpToMessageId,
             { minTail: Math.min(HISTORY_MIN_TAIL, pack.historyWindow), max: historyTake },
         ).reverse();
@@ -367,7 +499,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             })
             .filter((m) => m.content.length > 0);
 
-        history.push({ role: "user", content: body.message });
+        history.push({ role: "user", content: question });
 
         const brand = await getBrand();
         // Byte-identical across turns (prompt caching): persona, tool rules and
@@ -387,7 +519,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         // A profile narrows the advertised tool schemas to the groups the
         // question needs; load_tool_group widens it inside the turn.
         const accessible = getToolsForContext(ctx).map((tool) => tool.name);
-        const profile = toolProfileFor({ ctx, depth, question: body.message, accessible });
+        const profile = toolProfileFor({ ctx, depth, question, accessible });
         const knownNames = [ctx.userName, ctx.project?.clientName, ctx.project?.missionName, brand.name].filter(
             (n): n is string => !!n,
         );
@@ -409,7 +541,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 },
                 { chat: providerChat(), store: storeUsable ? prismaEvidenceStore : null, ledger: recordAiUsage, surface: "assistant.chat" },
             );
-            messageId = await persistTurn(result);
+            messageId = await persistTurn(result, persistOptions);
             await finishRun(result, messageId);
             return toPayload(result, messageId);
         };

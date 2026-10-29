@@ -37,6 +37,13 @@ const NO_PAYLOAD = new Set([
     "get_call_recap",
     "get_playbook",
     "search_help",
+    // Folder file excerpts and blocks are document text (free text, like
+    // read_project_document). Size is not the reason: at most ~8 KB and ~16 KB,
+    // under MAX_CACHED_PAYLOAD_BYTES. Caching would copy a client's document
+    // into the ledger and keep serving it for the freshness window after the
+    // file was deleted or re-indexed; re-querying is cheap.
+    "search_files",
+    "read_file_section",
 ]);
 
 /**

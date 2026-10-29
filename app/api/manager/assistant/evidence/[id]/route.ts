@@ -6,8 +6,9 @@
 // is included only while the evidence is still fresh; after that only the
 // summary and facts remain (see lib/ai/agent/evidence/policy.ts).
 //
-// Access is the conversation's: its author, still active, same project scope.
-// Any denial is a 404, so an id cannot be probed.
+// Access is the conversation's: its author (or any active manager when the
+// thread is SHARED), still active, same project scope. Any denial is a 404,
+// so an id cannot be probed.
 // ============================================
 
 import { NextRequest } from "next/server";
@@ -19,6 +20,7 @@ import { scrubSensitive } from "@/lib/ai/tools/redact";
 import { resolveProjectBinding } from "@/lib/ai/tools/context";
 import { evidenceAccessDecision } from "@/lib/ai/agent/evidence/access";
 import { describePeriod } from "@/lib/ai/agent/evidence/summary";
+import { optional } from "@/lib/assistant/store/missing";
 import type { EvidencePeriod, Fact } from "@/lib/ai/agent/evidence/facts";
 
 const Params = z.object({ id: z.string().min(1).max(64) });
@@ -49,7 +51,7 @@ export const GET = withErrorHandler(
                     expiresAt: true,
                     run: {
                         select: {
-                            conversation: { select: { createdById: true, clientId: true, missionId: true } },
+                            conversation: { select: { id: true, createdById: true, clientId: true, missionId: true } },
                         },
                     },
                 },
@@ -61,10 +63,19 @@ export const GET = withErrorHandler(
         ]);
         if (!evidence || !viewer) throw new NotFoundError("Source introuvable");
 
-        const decision = evidenceAccessDecision(
-            { ...evidence, conversation: evidence.run.conversation },
-            viewer,
+        // A SHARED thread's sources open for every active manager. The column
+        // arrives with the v4 migration: without it, the thread is PRIVATE.
+        const conversation = evidence.run.conversation;
+        const visibility = await optional(
+            "evidence.visibility",
+            () =>
+                prisma.assistantConversation
+                    .findUnique({ where: { id: conversation.id }, select: { visibility: true } })
+                    .then((c) => c?.visibility ?? null),
+            null,
         );
+
+        const decision = evidenceAccessDecision({ ...evidence, conversation: { ...conversation, visibility } }, viewer);
         if (!decision.allowed) throw new NotFoundError("Source introuvable");
 
         // The project must still exist and still be this client's mission.

@@ -5,8 +5,8 @@
  * as a table, and the ways out — CSV, PNG, copy, pin.
  */
 
-import { useRef, useState, type ReactNode } from "react";
-import { Check, Copy, Download, Image as ImageIcon, Pin, PinOff, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, Copy, Download, Image as ImageIcon, Loader2, Pin, PinOff, X } from "lucide-react";
 import { formatValue, visualTable, type StoredVisual } from "@/lib/assistant/visuals/spec";
 import { VisualView } from "./VisualView";
 import { UnverifiedNote } from "./VisualCard";
@@ -15,13 +15,15 @@ import { cn } from "@/lib/utils";
 
 type View = "chart" | "data";
 
-function ActionButton({ onClick, children, active }: { onClick: () => void; children: ReactNode; active?: boolean }) {
+function ActionButton({ onClick, children, active, disabled }: { onClick: () => void; children: ReactNode; active?: boolean; disabled?: boolean }) {
     return (
         <button
             type="button"
             onClick={onClick}
+            disabled={disabled}
+            aria-pressed={active}
             className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--ds-line)] bg-[var(--ds-surface)] px-2.5 text-[12.5px] text-[var(--ds-ink-2)] transition-colors hover:border-[var(--ds-line-strong)] hover:text-[var(--ds-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]",
+                "inline-flex h-8 items-center gap-1.5 rounded-lg border disabled:pointer-events-none disabled:opacity-60 border-[var(--ds-line)] bg-[var(--ds-surface)] px-2.5 text-[12.5px] text-[var(--ds-ink-2)] transition-colors hover:border-[var(--ds-line-strong)] hover:text-[var(--ds-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]",
                 active && "border-[var(--ds-accent)] text-[var(--ds-accent-soft-ink)]",
             )}
         >
@@ -33,11 +35,14 @@ function ActionButton({ onClick, children, active }: { onClick: () => void; chil
 export function VisualCanvas({
     visual,
     pinned,
+    pinBusy,
     onTogglePin,
     onClose,
 }: {
     visual: StoredVisual;
     pinned?: boolean;
+    /** The pin request is in flight. */
+    pinBusy?: boolean;
     onTogglePin?: (visual: StoredVisual) => void;
     onClose: () => void;
 }) {
@@ -48,8 +53,19 @@ export function VisualCanvas({
     const chartRef = useRef<HTMLDivElement>(null);
     const table = visualTable(spec);
 
+    // The close button promises Échap: honour it, unless a dialog above owns the key.
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== "Escape" || e.defaultPrevented) return;
+            if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+            onClose();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+    }, [onClose]);
+
     return (
-        <aside className="cp-viz flex h-full min-h-0 w-full flex-col border-l border-[var(--ds-line)] bg-[var(--ds-surface)]" aria-label={`Visuel : ${spec.title}`}>
+        <aside className="cp-viz flex h-full min-h-0 w-full flex-col border-l border-[var(--ds-line)] bg-[var(--ds-surface)] animate-ds-slide-in" aria-label={`Visuel : ${spec.title}`}>
             <header className="flex items-start justify-between gap-3 border-b border-[var(--ds-line-subtle)] px-5 py-4">
                 <div className="min-w-0">
                     <h2 className="text-[16px] font-semibold text-[var(--ds-ink)]">{spec.title}</h2>
@@ -151,8 +167,15 @@ export function VisualCanvas({
                     {copied ? <Check className="h-3.5 w-3.5 text-[var(--ds-success)]" /> : <Copy className="h-3.5 w-3.5" />} {copied ? "Copié" : "Copier"}
                 </ActionButton>
                 {onTogglePin && (
-                    <ActionButton onClick={() => onTogglePin(visual)} active={pinned}>
-                        {pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />} {pinned ? "Retirer du tableau" : "Épingler au tableau"}
+                    <ActionButton onClick={() => onTogglePin(visual)} active={pinned} disabled={pinBusy}>
+                        {pinBusy ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : pinned ? (
+                            <PinOff className="h-3.5 w-3.5" />
+                        ) : (
+                            <Pin className="h-3.5 w-3.5" />
+                        )}{" "}
+                        {pinned ? "Retirer du tableau" : "Épingler au dossier"}
                     </ActionButton>
                 )}
             </footer>

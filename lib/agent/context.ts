@@ -22,16 +22,17 @@ export interface FolderScope {
     found: boolean;
 }
 
-type FolderClient = { findUnique: (args: { where: { id: string }; select: { clientId: boolean; missionId: boolean } }) => Promise<{ clientId: string | null; missionId: string | null } | null> };
+// A folder carries a client (CLIENT kind) but never a mission: the mission is chosen per thread.
+type FolderClient = { findUnique: (args: { where: { id: string }; select: { clientId: boolean } }) => Promise<{ clientId: string | null } | null> };
 
 export async function resolveFolderScope(folderId: string | null | undefined): Promise<FolderScope> {
     if (!folderId) return { clientId: null, missionId: null, found: false };
     const folders = (prisma as unknown as { assistantFolder?: FolderClient }).assistantFolder;
     if (!folders || typeof folders.findUnique !== "function") return { clientId: null, missionId: null, found: false };
     try {
-        const folder = await folders.findUnique({ where: { id: folderId }, select: { clientId: true, missionId: true } });
+        const folder = await folders.findUnique({ where: { id: folderId }, select: { clientId: true } });
         if (!folder) return { clientId: null, missionId: null, found: false };
-        return { clientId: folder.clientId ?? null, missionId: folder.missionId ?? null, found: true };
+        return { clientId: folder.clientId ?? null, missionId: null, found: true };
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2021" || error.code === "P2022")) {
             return { clientId: null, missionId: null, found: false };

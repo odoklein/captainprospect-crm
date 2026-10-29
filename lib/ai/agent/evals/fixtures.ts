@@ -490,6 +490,9 @@ export function installFixtureTools(getWorld: () => FixtureWorld): FixtureRecord
 
     for (const tool of ASSISTANT_TOOLS) {
         const name = tool.name;
+        // Captain Agent run-scoped tools (lib/agent/tools) read their run's own
+        // scope, not CRM data: there is nothing to fake, and their tests drive them.
+        if (tool.requiredPermissions?.includes("agent.run_scope")) continue;
         if (tool.risk === "confirm") {
             tool.describe = async (args: Record<string, unknown>) => {
                 recorder.calls.push({ tool: name, args });

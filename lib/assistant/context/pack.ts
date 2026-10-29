@@ -63,8 +63,8 @@ export interface FileHit {
 
 export interface ContextDeps {
     memories: (q: { folderId: string | null; userId: string }) => Promise<MemoryCandidate[]>;
-    /** Optional: Wave 3 plugs the files pipeline in; until then fileHits stays empty. */
-    files?: (q: { folderId: string; question: string; limit: number }) => Promise<FileHit[]>;
+    /** Optional: the folder files reader (lib/assistant/files/search.ts via ./prisma.ts). */
+    files?: (q: { folderId: string; question: string; limit: number; attachedFileIds?: string[] }) => Promise<FileHit[]>;
 }
 
 export interface ContextPackInput {
@@ -79,6 +79,8 @@ export interface ContextPackInput {
     question: string;
     folder?: { instructions: string | null; name: string } | null;
     priorEvidenceIndex?: string | null;
+    /** Files attached to the message: their opening chunks are offered first. */
+    attachmentFileIds?: string[];
     budgets?: Partial<ContextBudgets>;
     now?: Date;
     deps?: ContextDeps;
@@ -223,7 +225,19 @@ export async function buildContextPack(input: ContextPackInput): Promise<Context
     let fileHits: FileHit[] = [];
     if (deps.files && folderId) {
         const reader = deps.files;
-        const hits = await guarded("files", degraded, () => reader({ folderId, question: input.question, limit: FILE_HITS_LIMIT }), []);
+        const attachedFileIds = input.attachmentFileIds?.filter((id) => typeof id === "string" && id.length > 0) ?? [];
+        const hits = await guarded(
+            "files",
+            degraded,
+            () =>
+                reader({
+                    folderId,
+                    question: input.question,
+                    limit: FILE_HITS_LIMIT,
+                    ...(attachedFileIds.length > 0 ? { attachedFileIds } : {}),
+                }),
+            [],
+        );
         const trimmed = trimFileHits(hits, budgets.fileHits);
         fileHits = trimmed.kept;
         dropped.files = trimmed.dropped;
