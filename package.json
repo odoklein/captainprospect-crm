@@ -13,6 +13,7 @@
     "test:list-health": "tsx --test lib/services/ListHealthService.test.ts lib/services/ListHealthService.sql.pglite.test.ts",
     "test:ai-tools": "tsx --test lib/ai/tools/guard.test.ts",
     "test:assistant": "tsx --test lib/ai/agent/runtime.test.ts lib/ai/agent/verify/verifier.test.ts lib/ai/tools/guard.test.ts lib/assistant/answer.test.ts",
+    "test:assistant-folders": "tsx --test lib/assistant/store/missing.test.ts lib/assistant/store/migration.pglite.test.ts lib/assistant/folders/rules.test.ts lib/assistant/memory/normalize.test.ts",
     "test:tickets": "tsx --test lib/tickets/tickets.test.ts",
     "test:daily-report": "tsx --test lib/client/daily-report.test.ts",
     "db:reset": "tsx prisma/reset.ts",
