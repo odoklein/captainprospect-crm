@@ -56,6 +56,13 @@ export const CRON_JOBS: CronJob[] = [
         run: async (r) => (await import("@/app/api/cron/exclusion-sweep/route")).GET(r),
     },
     {
+        id: "agent-tick",
+        schedule: "*/5 * * * *",
+        description: "Met en file les veilles de l'agent arrivées à échéance ; exécute une veille courte lui-même quand le worker agent est absent (mode lite).",
+        missedRun: "Les veilles de l'agent ne démarrent pas ; sans worker dédié, rien ne tourne.",
+        run: async (r) => (await import("@/app/api/cron/agent-tick/route")).GET(r),
+    },
+    {
         id: "billing-month-end",
         schedule: "0 2 1 * *",
         description: "Génère les brouillons de facture du mois écoulé.",

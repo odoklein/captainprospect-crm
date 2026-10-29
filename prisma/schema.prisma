@@ -5393,3 +5393,267 @@ model AiUsage {
   @@index([surface, createdAt])
   @@index([runId])
 }
+
+// ============================================
+// CAPTAIN AGENT — background worker: jobs, runs, steps, proposals, findings
+// ============================================
+// Migration 20261101120000_add_agent_jobs (additive, idempotent). Ids only,
+// no relation to User / Client / Mission / AssistantConversation: the worker
+// resolves scope itself and the tables stay droppable without touching the
+// rest of the schema. Code degrades to "agent unavailable" when they are
+// missing (lib/agent/store.ts).
+
+enum AgentJobKind {
+  WATCH
+  REPORT
+  MISSION
+  DIGEST
+}
+
+enum AgentTrigger {
+  SCHEDULE
+  MANUAL
+  EVENT
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  WAITING_APPROVAL
+  DONE
+  FAILED
+  CANCELLED
+  DEFERRED
+}
+
+enum AgentStepStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  SKIPPED
+}
+
+enum AgentProposalState {
+  PENDING
+  EXECUTING
+  APPROVED
+  REJECTED
+  EXECUTED
+  EXPIRED
+  FAILED
+}
+
+enum AgentSeverity {
+  INFO
+  WARN
+  CRITICAL
+}
+
+enum AgentFindingState {
+  OPEN
+  ACKED
+  SNOOZED
+  RESOLVED
+}
+
+/// A recurring (or on-demand) piece of agent work: which playbook, on which
+/// scope, how often, with which thresholds.
+model AgentJob {
+  id       String       @id @default(cuid())
+  kind     AgentJobKind
+  /// Playbook id from lib/agent/playbooks/registry (e.g. "watch.client_at_risk").
+  playbook String
+  name     String
+  enabled  Boolean      @default(true)
+
+  folderId  String?
+  clientId  String?
+  missionId String?
+
+  /// Five-field cron expression, evaluated in `timezone`. Null = manual only.
+  schedule String?
+  timezone String  @default("Europe/Paris")
+  /// Per-playbook zod config: thresholds, recipients, dryRun, notify, budget.
+  config   Json?
+
+  createdById String?
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  lastStatus  AgentRunStatus?
+  failures    Int             @default(0)
+
+  runs AgentRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([playbook, folderId, clientId, missionId])
+  @@index([enabled, nextRunAt])
+}
+
+/// One execution of a playbook. Claimed with a single UPDATE … FOR UPDATE SKIP
+/// LOCKED (lib/agent/queue.ts); a stale heartbeat is requeued by the reaper.
+model AgentRun {
+  id    String    @id @default(cuid())
+  jobId String?
+  job   AgentJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  kind     AgentJobKind
+  playbook String
+  trigger  AgentTrigger
+  status   AgentRunStatus @default(QUEUED)
+  priority Int            @default(0)
+  runAfter DateTime       @default(now())
+  /// "job:<id>:<ISO minute>" for scheduled runs: a tick never enqueues twice.
+  dedupeKey String? @unique
+
+  folderId  String?
+  clientId  String?
+  missionId String?
+  /// The manager the run acts as (tools run under their permissions).
+  actorId   String
+  /// The AGENT thread (AssistantConversation) the run writes to.
+  conversationId String?
+
+  goal String? @db.Text
+  plan Json?
+  /// { maxToolCalls, maxCostEur, deadlineMs, maxSafeWrites, maxPhases }
+  budget Json
+  /// { promptTokens, completionTokens, costEur, toolCalls, phases }
+  usage  Json?
+
+  summary        String? @db.Text
+  findingsCount  Int     @default(0)
+  proposalsCount Int     @default(0)
+  stepsCount     Int     @default(0)
+  error          String? @db.Text
+
+  /// "worker" (second service) or "lite" (inside the web process, agent-tick).
+  mode        String    @default("worker")
+  lockedBy    String?
+  heartbeatAt DateTime?
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  checkpoint  Json?
+  cancelRequestedAt DateTime?
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  steps     AgentStep[]
+  proposals AgentProposal[]
+  findings  AgentFinding[]
+
+  @@index([status, runAfter, priority])
+  @@index([jobId, createdAt])
+  @@index([status, heartbeatAt])
+  @@index([createdAt])
+}
+
+/// One phase of a run: a detector, a model turn, a report step.
+model AgentStep {
+  id    String   @id @default(cuid())
+  runId String
+  run   AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  index  Int
+  /// detect | plan | execute | synthesise | report
+  phase  String
+  title  String
+  status AgentStepStatus @default(PENDING)
+
+  /// AssistantRun id of the model turn behind this step (evidence, cost).
+  assistantRunId String?
+  tool           String?
+  args           Json?
+  /// Live progress and outcome, ≤ 2 kB.
+  resultDigest   String? @db.Text
+  evidenceLabels Json?
+
+  promptTokens     Int     @default(0)
+  completionTokens Int     @default(0)
+  costEur          Float   @default(0)
+  model            String?
+  durationMs       Int?
+  error            String? @db.Text
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([runId, index])
+}
+
+/// A `confirm` action the agent wanted to take: it waits for a manager.
+model AgentProposal {
+  id    String   @id @default(cuid())
+  runId String
+  run   AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  batchId   String?
+  tool      String
+  args      Json
+  /// PendingActionCard from the tool's describe(), resolved server-side.
+  card      Json
+  rationale String? @db.Text
+  /// confirm | safe_write
+  risk      String
+  state     AgentProposalState @default(PENDING)
+
+  proposedAt  DateTime  @default(now())
+  expiresAt   DateTime
+  decidedById String?
+  decidedAt   DateTime?
+  executedAt  DateTime?
+  outcome     String?   @db.Text
+  actionLogId String?
+
+  @@index([state, expiresAt])
+  @@index([runId])
+}
+
+/// Something a watch rule noticed. Deduped by key so an alert does not repeat
+/// every day; lifecycle in lib/agent/findings.ts.
+model AgentFinding {
+  id    String    @id @default(cuid())
+  runId String?
+  run   AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  rule      String
+  /// "<rule>:<scope>:<key>" — unique across the agency.
+  dedupeKey String        @unique
+  severity  AgentSeverity
+  kind      String
+  title     String
+  body      String        @db.Text
+  metrics   Json?
+  evidenceIds Json?
+
+  folderId      String?
+  clientId      String?
+  missionId     String?
+  subjectUserId String?
+  /// Proposal seeds: [{ tool, args, rationale }]
+  suggested     Json?
+
+  state       AgentFindingState @default(OPEN)
+  firstSeenAt DateTime          @default(now())
+  lastSeenAt  DateTime          @default(now())
+  seenCount   Int               @default(1)
+  notifiedAt  DateTime?
+  ackedById   String?
+  ackedAt     DateTime?
+  snoozedUntil DateTime?
+  resolvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([state, severity, lastSeenAt])
+  @@index([rule, state])
+  @@index([clientId, state])
+  @@index([subjectUserId, state])
+}

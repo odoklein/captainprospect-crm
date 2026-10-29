@@ -10,6 +10,7 @@ type Gate = { feature: LicenseFeature; prefix: string; writesOnly?: boolean };
 
 export const FEATURE_GATES: Gate[] = [
     { feature: "aiAssistant", prefix: "/api/manager/assistant" },
+    { feature: "agent", prefix: "/api/manager/agent" },
     // Reading the brand stays open (the login page and the settings form need it); editing is the paid feature.
     { feature: "whiteLabel", prefix: "/api/manager/brand", writesOnly: true },
 ];

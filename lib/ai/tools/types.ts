@@ -69,6 +69,20 @@ export interface AssistantContext {
 
     /** The conversation this request belongs to. Stamped on anything created. */
     conversationId: string | null;
+
+    /**
+     * Tools this request may use at all, by name. Absent = the whole registry
+     * (chat). A background run narrows it per playbook (WATCH: `show_visual`
+     * only), and the guard refuses anything outside the set.
+     */
+    toolAllowlist?: ReadonlySet<string>;
+
+    /**
+     * "chat" (default): a manager is on the other side and can click a card.
+     * "background": the agent worker — nobody is there to confirm, so a
+     * `confirm` tool is proposed, never executed, whatever path reaches it.
+     */
+    mode?: "chat" | "background";
 }
 
 // ============================================

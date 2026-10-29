@@ -1,7 +1,8 @@
 # One image for every agency instance.
 #
 #   push to main  -> ghcr.io/<repo>:<sha7> and :main, plus the migrate image
-#                    ghcr.io/<repo>-migrate:<sha7> and :main
+#                    ghcr.io/<repo>-migrate:<sha7> and :main, and the agent worker
+#                    ghcr.io/<repo>-agent:<sha7> and :main
 #   tag v2026.11.1 -> the same, tagged with the release name (and :latest)
 #
 # Agencies are upgraded to a release tag, never to :main (docs/AGENCY_PROVISIONING_PLAN.md).
@@ -94,6 +95,17 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
+      - name: Tags (agent worker)
+        id: tags_agent
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}-agent
+          tags: |
+            type=raw,value=${{ steps.meta.outputs.sha }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
       # Migrate image first: it is the cheap one and shares the deps stage cache.
       - name: Build and push migrate image
         uses: docker/build-push-action@v6
@@ -104,6 +116,19 @@ jobs:
           build-args: GIT_SHA=${{ steps.meta.outputs.sha }}
           tags: ${{ steps.tags_migrate.outputs.tags }}
           labels: ${{ steps.tags_migrate.outputs.labels }}
+          cache-from: type=gha,scope=deps
+          cache-to: type=gha,scope=deps,mode=max
+
+      # Agent worker: same deps stage, full sources + tsx (no Next build).
+      - name: Build and push agent worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: agent-worker
+          push: true
+          build-args: GIT_SHA=${{ steps.meta.outputs.sha }}
+          tags: ${{ steps.tags_agent.outputs.tags }}
+          labels: ${{ steps.tags_agent.outputs.labels }}
           cache-from: type=gha,scope=deps
           cache-to: type=gha,scope=deps,mode=max
 

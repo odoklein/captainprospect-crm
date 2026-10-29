@@ -83,6 +83,10 @@ export async function buildAssistantContext(params: {
     clientId?: string | null;
     missionId?: string | null;
     conversationId?: string | null;
+    /** Background runs only: the playbook's tool allowlist and write budget. */
+    toolAllowlist?: ReadonlySet<string>;
+    mode?: AssistantContext["mode"];
+    autoWriteBudget?: number;
 }): Promise<AssistantContext> {
     const user = await prisma.user.findUnique({
         where: { id: params.userId },
@@ -104,8 +108,10 @@ export async function buildAssistantContext(params: {
         permissions,
         project,
         resolvedAt: new Date(),
-        autoWriteBudget: MAX_AUTO_WRITES_PER_REQUEST,
+        autoWriteBudget: params.autoWriteBudget ?? MAX_AUTO_WRITES_PER_REQUEST,
         conversationId: params.conversationId ?? null,
+        ...(params.toolAllowlist ? { toolAllowlist: params.toolAllowlist } : {}),
+        mode: params.mode ?? "chat",
     };
 }
 
