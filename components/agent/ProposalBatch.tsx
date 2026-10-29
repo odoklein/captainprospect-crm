@@ -2,26 +2,36 @@
 
 /**
  * The pending proposals as a batch: one card each, « Tout approuver » on top
- * (confirmed in a modal as soon as one card is sensitive), per-item results
- * shown inline, a revealed secret shown once under its card.
+ * (always confirmed in an AlertDialog), sensitive cards confirmed one by one,
+ * per-item results inline, a revealed secret shown once under its card.
  *
- * Decided cards stay in place with their outcome until the list unmounts,
- * so the result is read where the decision was made.
+ * Decided cards stay in place with their outcome until the list unmounts, so
+ * the result is read where the decision was made.
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { CheckCheck, Loader2 } from "lucide-react";
+import { CheckCheck, Loader2, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ConfirmModal } from "@/components/ui/Modal";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/shadcn/alert-dialog";
+import { Button, buttonVariants } from "@/components/ui/shadcn/button";
 import { useToast } from "@/components/ui/Toast";
 import type { RevealedSecret } from "@/components/vault/SecretCard";
 import type { AgentProposalItem } from "@/lib/assistant/api-contract";
 import { KIND_LABEL } from "@/lib/agent/client/format";
 import { decideBatch, decideProposal, type PendingProposal } from "@/lib/agent/client/hooks";
 import { ProposalCard, type ProposalResult } from "./ProposalCard";
-import { MINI_BUTTON, useNow } from "./shared";
+import { useNow } from "./shared";
 
-type BatchItem = AgentProposalItem & { run?: PendingProposal["run"] };
+export type BatchItem = AgentProposalItem & { run?: PendingProposal["run"] };
 
 export interface ProposalController {
     busy: Record<string, "approve" | "reject">;
@@ -30,6 +40,11 @@ export interface ProposalController {
     batchBusy: boolean;
     decide: (proposal: BatchItem, decision: "approve" | "reject") => Promise<void>;
     decideAll: (proposals: BatchItem[], decision: "approve" | "reject") => Promise<void>;
+    /** Approve, through the confirmation dialog when the card is sensitive. */
+    requestApprove: (proposal: BatchItem) => void;
+    /** The sensitive card waiting for confirmation. */
+    confirming: BatchItem | null;
+    setConfirming: (proposal: BatchItem | null) => void;
     clearSecret: (id: string) => void;
     /** Items decided here, kept on screen after they leave the pending list. */
     retained: Record<string, BatchItem>;
@@ -42,6 +57,7 @@ export function useProposalController(): ProposalController {
     const [secrets, setSecrets] = useState<Record<string, RevealedSecret>>({});
     const [retained, setRetained] = useState<Record<string, BatchItem>>({});
     const [batchBusy, setBatchBusy] = useState(false);
+    const [confirming, setConfirming] = useState<BatchItem | null>(null);
 
     const decide = useCallback(
         async (proposal: BatchItem, decision: "approve" | "reject") => {
@@ -106,6 +122,14 @@ export function useProposalController(): ProposalController {
         [toast],
     );
 
+    const requestApprove = useCallback(
+        (proposal: BatchItem) => {
+            if (proposal.card.danger) setConfirming(proposal);
+            else void decide(proposal, "approve");
+        },
+        [decide],
+    );
+
     const clearSecret = useCallback((id: string) => {
         setSecrets((s) => {
             const next = { ...s };
@@ -114,7 +138,7 @@ export function useProposalController(): ProposalController {
         });
     }, []);
 
-    return { busy, results, secrets, batchBusy, decide, decideAll, clearSecret, retained };
+    return { busy, results, secrets, batchBusy, decide, decideAll, requestApprove, confirming, setConfirming, clearSecret, retained };
 }
 
 export function proposalContext(p: BatchItem): string | null {
@@ -154,33 +178,29 @@ export function ProposalBatch({
     const internal = useProposalController();
     const controller = external ?? internal;
     const visible = useVisibleProposals(proposals, controller);
-    const [confirming, setConfirming] = useState(false);
+    const [confirmingAll, setConfirmingAll] = useState(false);
     const now = useNow(30_000);
 
     const stillPending = visible.filter(
         (p) => p.state === "PENDING" && !controller.results[p.id]?.ok && new Date(p.expiresAt).getTime() > now.getTime(),
     );
-    const anyDanger = stillPending.some((p) => p.card.danger);
+    const dangerCount = stillPending.filter((p) => p.card.danger).length;
+    const confirming = controller.confirming;
 
     if (visible.length === 0) return null;
 
-    const approveAll = () => {
-        if (anyDanger) setConfirming(true);
-        else void controller.decideAll(stillPending, "approve");
-    };
-
     return (
-        <div className={cn("space-y-3", className)}>
+        <div className={cn("space-y-2.5", className)}>
             {stillPending.length > 1 && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-panel border border-line bg-surface-2 px-3 py-2">
-                    <p className="text-xs font-semibold text-ink-2">
-                        {stillPending.length} propositions attendent ta décision
-                        {anyDanger && <span className="text-warning-ink"> · dont des actions sensibles</span>}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-panel border border-line bg-surface-2 py-1.5 pr-1.5 pl-3.5 motion-safe:animate-ds-enter">
+                    <p className="text-xs font-medium text-ink-2">
+                        <span className="font-semibold text-ink tabular-nums">{stillPending.length}</span> propositions attendent ta décision
+                        {dangerCount > 0 && <span className="text-danger-ink"> · dont {dangerCount} sensible{dangerCount > 1 ? "s" : ""}</span>}
                     </p>
-                    <button type="button" className={MINI_BUTTON} onClick={approveAll} disabled={controller.batchBusy}>
-                        {controller.batchBusy ? <Loader2 className="size-3.5 motion-safe:animate-spin" aria-hidden /> : <CheckCheck className="size-3.5" aria-hidden />}
+                    <Button type="button" variant="outline" size="sm" onClick={() => setConfirmingAll(true)} disabled={controller.batchBusy}>
+                        {controller.batchBusy ? <Loader2 className="motion-safe:animate-spin" aria-hidden /> : <CheckCheck aria-hidden />}
                         Tout approuver
-                    </button>
+                    </Button>
                 </div>
             )}
             {visible.map((p, i) => (
@@ -195,21 +215,63 @@ export function ProposalBatch({
                     onSecretExpire={() => controller.clearSecret(p.id)}
                     selected={selectedId === p.id}
                     onFocusCard={onSelect ? () => onSelect(p.id) : undefined}
-                    onDecide={(decision) => void controller.decide(p, decision)}
+                    onApprove={() => controller.requestApprove(p)}
+                    onReject={() => void controller.decide(p, "reject")}
                 />
             ))}
-            <ConfirmModal
-                isOpen={confirming}
-                onClose={() => setConfirming(false)}
-                onConfirm={() => {
-                    setConfirming(false);
-                    void controller.decideAll(stillPending, "approve");
-                }}
-                variant="danger"
-                title="Tout approuver ?"
-                message={`${stillPending.length} actions vont être exécutées, dont ${stillPending.filter((p) => p.card.danger).length} sensible(s). Relis les cartes signalées avant de confirmer.`}
-                confirmText="Tout approuver"
-            />
+
+            <AlertDialog open={confirmingAll} onOpenChange={setConfirmingAll}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Tout approuver ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {stillPending.length} action{stillPending.length > 1 ? "s vont être exécutées" : " va être exécutée"}
+                            {dangerCount > 0 ? `, dont ${dangerCount} sensible${dangerCount > 1 ? "s" : ""}. Relis les cartes signalées avant de confirmer.` : "."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <ul className="max-h-48 space-y-1 overflow-y-auto rounded-[12px] border border-line-subtle bg-surface-2 p-2 text-xs">
+                        {stillPending.map((p) => (
+                            <li key={p.id} className="flex items-center gap-2 px-1 py-0.5">
+                                {p.card.danger ? <ShieldAlert className="size-3.5 shrink-0 text-danger" aria-label="Sensible" /> : <CheckCheck className="size-3.5 shrink-0 text-ink-4" aria-hidden />}
+                                <span className={cn("truncate", p.card.danger ? "font-semibold text-ink" : "text-ink-2")}>{p.card.title}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction
+                            className={dangerCount > 0 ? buttonVariants({ variant: "destructive" }) : undefined}
+                            onClick={() => void controller.decideAll(stillPending, "approve")}
+                        >
+                            Tout approuver
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && controller.setConfirming(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Approuver cette action sensible ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {confirming?.card.title}
+                            {confirming?.card.warning ? ` — ${confirming.card.warning}` : ""}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction
+                            className={buttonVariants({ variant: "destructive" })}
+                            onClick={() => {
+                                if (confirming) void controller.decide(confirming, "approve");
+                                controller.setConfirming(null);
+                            }}
+                        >
+                            {confirming?.card.confirmLabel || "Approuver"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

@@ -29,6 +29,14 @@ const nextConfig: NextConfig = {
   // Document parsers for assistant folder files: loaded from node_modules at
   // runtime rather than bundled (unpdf ships pdf.js, exceljs/mammoth pull zip and xml libs).
   serverExternalPackages: ["pdfkit", "unpdf", "exceljs", "mammoth"],
+  // unpdf loads pdf.js through a self-referencing dynamic import
+  // (`import("unpdf/pdfjs")` in dist/index.mjs). Output file tracing resolves
+  // it today, but a miss would only show at runtime in the standalone image
+  // (« PDF.js could not be resolved »): ship the whole dist with every route
+  // that can extract a document (assistant chat tools, folder files routes).
+  outputFileTracingIncludes: {
+    "/api/manager/assistant/**/*": ["./node_modules/unpdf/package.json", "./node_modules/unpdf/dist/**/*.mjs"],
+  },
   // Allow larger request bodies for email send (attachments). Default is 1MB.
   experimental: {
     // middleware.ts runs on /api/*: without this, request bodies are truncated at 10 MB (RDV audio uploads go up to 50 MB).

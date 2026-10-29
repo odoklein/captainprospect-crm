@@ -1,20 +1,24 @@
 "use client";
 
 /**
- * Thread header: Dossier › titre (inline rename), mission and visibility
- * chips, and the kebab menu — rename, pin, share, move, delete. A thread the
- * viewer cannot write to shows a read-only banner with a fork button.
+ * Thread header: Dossier › titre (inline rename), chips (mission, Partagée,
+ * Agent), and the actions menu — rename, pin, share, move, export as PDF,
+ * delete. A thread the viewer cannot write to shows a read-only banner with a
+ * fork button.
  */
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+    Bot,
     Building2,
     ChevronRight,
     Eye,
+    FileDown,
     Folder,
     FolderInput,
     GitFork,
     Globe2,
+    Loader2,
     Lock,
     MoreHorizontal,
     Pencil,
@@ -26,9 +30,17 @@ import {
 } from "lucide-react";
 import type { FolderCard, ThreadResponse } from "@/lib/assistant/api-contract";
 import { cn } from "@/lib/utils";
-import { FOCUS, PRIMARY_BUTTON, SECONDARY_BUTTON, SelectField } from "@/components/accueil/AccueilUI";
-import { ContextMenu } from "@/components/ui/ContextMenu";
-import { ConfirmModal, Modal, ModalFooter } from "@/components/ui/Modal";
+import { Badge } from "@/components/ui/shadcn/badge";
+import { Button } from "@/components/ui/shadcn/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/shadcn/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
+import { DeleteConversationDialog, MoveConversationDialog } from "./ConversationDialogs";
 
 type Conversation = ThreadResponse["conversation"];
 
@@ -42,6 +54,8 @@ export interface ThreadHeaderProps {
     trailing?: ReactNode;
     compact?: boolean;
     forking?: boolean;
+    /** The PDF of the whole conversation is being made. */
+    exportingPdf?: boolean;
     onOpenFolder?: (folderId: string | null) => void;
     onRename: (title: string) => void;
     onTogglePin: () => void;
@@ -49,9 +63,8 @@ export interface ThreadHeaderProps {
     onMove: (folderId: string | null) => Promise<void> | void;
     onDelete: () => Promise<void>;
     onFork: () => void;
+    onExportPdf?: () => void;
 }
-
-const CHIP = "inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-[11.5px] font-medium";
 
 export function ThreadHeader({
     conversation,
@@ -62,6 +75,7 @@ export function ThreadHeader({
     trailing,
     compact,
     forking,
+    exportingPdf,
     onOpenFolder,
     onRename,
     onTogglePin,
@@ -69,17 +83,14 @@ export function ThreadHeader({
     onMove,
     onDelete,
     onFork,
+    onExportPdf,
 }: ThreadHeaderProps) {
     const [renaming, setRenaming] = useState(false);
     const [draftTitle, setDraftTitle] = useState("");
-    const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
     const [confirmDelete, setConfirmDelete] = useState(false);
-    const [deleting, setDeleting] = useState(false);
     const [moveOpen, setMoveOpen] = useState(false);
-    const [moveTarget, setMoveTarget] = useState("");
-    const [moving, setMoving] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const kebabRef = useRef<HTMLButtonElement>(null);
+    const renameFromMenuRef = useRef(false);
 
     useEffect(() => {
         if (renaming) inputRef.current?.select();
@@ -91,8 +102,10 @@ export function ThreadHeader({
     const folderId = conversation ? (conversation.folderId ?? null) : (draftFolder?.id ?? null);
     const FolderIcon = folderKind === "CLIENT" ? Building2 : folderKind === "GENERAL" ? Folder : Globe2;
     const isOwner = conversation?.isOwner ?? true;
-    const inClientFolder = folderKind === "CLIENT";
     const title = conversation?.title?.trim() || "Nouvelle conversation";
+    const pinned = conversation?.pinnedAt !== null && conversation?.pinnedAt !== undefined;
+    const shared = conversation?.visibility === "SHARED";
+    const isAgent = conversation?.kind === "AGENT";
 
     // Enter, Échap and blur can all end one rename: only the first one counts.
     const renameDoneRef = useRef(false);
@@ -109,47 +122,6 @@ export function ThreadHeader({
         const next = draftTitle.trim();
         if (save && conversation && next && next !== conversation.title) onRename(next);
     };
-    const commitRename = () => endRename(true);
-
-    const openMenu = () => {
-        const rect = kebabRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        setMenuAt({ x: rect.right - 200, y: rect.bottom + 6 });
-    };
-
-    const pinned = conversation?.pinnedAt !== null && conversation?.pinnedAt !== undefined;
-    const shared = conversation?.visibility === "SHARED";
-
-    const menuItems = conversation
-        ? [
-              ...(canWrite ? [{ label: "Renommer", icon: <Pencil className="size-4" />, onClick: startRename }] : []),
-              { label: pinned ? "Désépingler" : "Épingler", icon: pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />, onClick: onTogglePin },
-              ...(isOwner
-                  ? [
-                        {
-                            label: shared ? "Rendre privée" : "Partager avec les managers",
-                            icon: shared ? <Lock className="size-4" /> : <Users className="size-4" />,
-                            onClick: onToggleVisibility,
-                        },
-                        {
-                            label: "Déplacer vers…",
-                            icon: <FolderInput className="size-4" />,
-                            onClick: () => {
-                                setMoveTarget(conversation.folderId ?? "");
-                                setMoveOpen(true);
-                            },
-                        },
-                        {
-                            label: "Supprimer",
-                            icon: <Trash2 className="size-4" />,
-                            onClick: () => setConfirmDelete(true),
-                            variant: "danger" as const,
-                            divider: true,
-                        },
-                    ]
-                  : []),
-          ]
-        : [];
 
     return (
         <>
@@ -158,18 +130,17 @@ export function ThreadHeader({
                 <nav aria-label="Fil d’Ariane" className="flex min-w-0 flex-1 items-center gap-1 text-[13.5px]">
                     {!compact && (
                         <>
-                            <button
+                            <Button
                                 type="button"
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => onOpenFolder?.(folderId)}
                                 disabled={!onOpenFolder}
-                                className={cn(
-                                    "inline-flex h-8 min-w-0 max-w-[40%] shrink items-center gap-1.5 rounded-lg px-2 text-ink-3 transition-colors duration-150 hover:bg-surface-2 hover:text-ink disabled:pointer-events-none",
-                                    FOCUS,
-                                )}
+                                className="min-w-0 max-w-[40%] shrink justify-start px-2 font-medium text-ink-3 disabled:opacity-100"
                             >
-                                <FolderIcon className="size-4 shrink-0 text-ink-4" aria-hidden />
+                                <FolderIcon className="text-ink-4" aria-hidden />
                                 <span className="truncate">{folderName}</span>
-                            </button>
+                            </Button>
                             <ChevronRight className="size-3.5 shrink-0 text-ink-4" aria-hidden />
                         </>
                     )}
@@ -178,11 +149,11 @@ export function ThreadHeader({
                             ref={inputRef}
                             value={draftTitle}
                             onChange={(e) => setDraftTitle(e.target.value)}
-                            onBlur={commitRename}
+                            onBlur={() => endRename(true)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                     e.preventDefault();
-                                    commitRename();
+                                    endRename(true);
                                 } else if (e.key === "Escape") {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -191,7 +162,7 @@ export function ThreadHeader({
                             }}
                             maxLength={120}
                             aria-label="Titre de la conversation"
-                            className="h-8 min-w-0 flex-1 rounded-lg border border-primary-300 bg-surface px-2 text-[13.5px] font-semibold text-ink shadow-2xs outline-none ring-4 ring-primary-500/10 motion-safe:animate-ds-pop"
+                            className="h-8 min-w-0 flex-1 rounded-[10px] border border-primary-400 bg-surface px-2 text-[13.5px] font-semibold text-ink shadow-2xs outline-none ring-4 ring-primary-500/12"
                         />
                     ) : (
                         <button
@@ -200,143 +171,126 @@ export function ThreadHeader({
                             disabled={!conversation || !canWrite}
                             title={conversation && canWrite ? "Renommer" : undefined}
                             aria-current="page"
-                            className={cn(
-                                "inline-flex h-8 min-w-0 items-center rounded-lg px-2 font-semibold text-ink transition-colors duration-150 hover:bg-surface-2 disabled:pointer-events-none",
-                                FOCUS,
-                            )}
+                            className="inline-flex h-8 min-w-0 items-center rounded-[10px] px-2 font-semibold text-ink transition-colors duration-150 ease-snappy hover:bg-surface-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:pointer-events-none"
                         >
-                            <span key={title} className="truncate motion-safe:animate-ds-enter">
-                                {title}
-                            </span>
+                            <span className="truncate">{title}</span>
                         </button>
                     )}
-                    {conversation?.missionName && !compact && (
-                        <span className={cn(CHIP, "max-w-[180px] border-line bg-surface-2 text-ink-2 max-md:hidden")} title={`Mission : ${conversation.missionName}`}>
-                            <Target className="size-3 shrink-0 text-ink-4" aria-hidden />
-                            <span className="truncate">{conversation.missionName}</span>
-                        </span>
-                    )}
-                    {conversation && (
-                        <button
-                            type="button"
-                            onClick={isOwner ? onToggleVisibility : undefined}
-                            disabled={!isOwner}
-                            title={isOwner ? (shared ? "Visible par les managers — cliquer pour la rendre privée" : "Visible par vous seul — cliquer pour la partager") : undefined}
-                            className={cn(
-                                CHIP,
-                                "transition-[background-color,border-color,color] duration-200 disabled:pointer-events-none max-sm:hidden",
-                                FOCUS,
-                                shared ? "border-primary-200 bg-primary-50 text-primary-700 hover:border-primary-300" : "border-line bg-surface text-ink-3 hover:border-line-strong hover:text-ink-2",
+                    {!renaming && (
+                        <div className="flex min-w-0 shrink items-center gap-1.5 max-sm:hidden">
+                            {isAgent && (
+                                <Badge variant="ai">
+                                    <Bot aria-hidden /> Agent
+                                </Badge>
                             )}
-                        >
-                            {shared ? <Users className="size-3" aria-hidden /> : <Lock className="size-3" aria-hidden />}
-                            {shared ? "Partagée" : "Privée"}
-                        </button>
+                            {conversation?.missionName && !compact && (
+                                <Badge variant="secondary" className="max-w-[180px] max-md:hidden" title={`Mission : ${conversation.missionName}`}>
+                                    <Target aria-hidden />
+                                    <span className="truncate">{conversation.missionName}</span>
+                                </Badge>
+                            )}
+                            {shared && (
+                                <Badge variant="info" title="Visible par les managers">
+                                    <Users aria-hidden /> Partagée
+                                </Badge>
+                            )}
+                        </div>
                     )}
                 </nav>
 
                 {trailing}
-                {conversation && menuItems.length > 0 && (
-                    <button
-                        ref={kebabRef}
-                        type="button"
-                        onClick={openMenu}
-                        aria-label="Actions de la conversation"
-                        aria-haspopup="menu"
-                        aria-expanded={menuAt !== null}
-                        className={cn(
-                            "inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors duration-150 hover:bg-surface-2 hover:text-ink",
-                            menuAt && "bg-surface-2 text-ink",
-                            FOCUS,
-                        )}
-                    >
-                        <MoreHorizontal className="size-4" aria-hidden />
-                    </button>
+                {conversation && (
+                    <DropdownMenu>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <DropdownMenuTrigger asChild>
+                                    <Button type="button" variant="ghost" size="icon-sm" aria-label="Actions de la conversation">
+                                        {exportingPdf ? <Loader2 className="animate-spin" aria-hidden /> : <MoreHorizontal aria-hidden />}
+                                    </Button>
+                                </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Actions</TooltipContent>
+                        </Tooltip>
+                        <DropdownMenuContent
+                            align="end"
+                            className="w-60"
+                            onCloseAutoFocus={(e) => {
+                                // « Renommer »: the focus goes to the title field, not back to the button.
+                                if (renameFromMenuRef.current) {
+                                    renameFromMenuRef.current = false;
+                                    e.preventDefault();
+                                    inputRef.current?.select();
+                                }
+                            }}
+                        >
+                            {canWrite && (
+                                <DropdownMenuItem
+                                    onSelect={() => {
+                                        renameFromMenuRef.current = true;
+                                        startRename();
+                                    }}
+                                >
+                                    <Pencil aria-hidden /> Renommer
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem onSelect={onTogglePin}>
+                                {pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />}
+                                {pinned ? "Désépingler" : "Épingler"}
+                            </DropdownMenuItem>
+                            {isOwner && (
+                                <>
+                                    <DropdownMenuItem onSelect={onToggleVisibility}>
+                                        {shared ? <Lock aria-hidden /> : <Users aria-hidden />}
+                                        {shared ? "Rendre privée" : "Partager avec les managers"}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => setMoveOpen(true)}>
+                                        <FolderInput aria-hidden /> Déplacer vers…
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            {onExportPdf && (
+                                <DropdownMenuItem onSelect={onExportPdf} disabled={exportingPdf}>
+                                    <FileDown aria-hidden /> Exporter la conversation en PDF
+                                </DropdownMenuItem>
+                            )}
+                            {!canWrite && (
+                                <DropdownMenuItem onSelect={onFork} disabled={forking}>
+                                    <GitFork aria-hidden /> Continuer dans une nouvelle conversation
+                                </DropdownMenuItem>
+                            )}
+                            {isOwner && (
+                                <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
+                                        <Trash2 aria-hidden /> Supprimer
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 )}
             </header>
 
             {conversation && !canWrite && (
-                <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-info-line bg-info-soft/60 px-4 py-2 text-[12.5px] text-info-ink motion-safe:animate-ds-enter">
+                <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-info-line bg-info-soft/60 px-4 py-2 text-[12.5px] text-info-ink">
                     <Eye className="size-4 shrink-0" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                        Lecture seule{conversation.ownerName ? ` — conversation de ${conversation.ownerName}` : ""}.
-                    </span>
-                    <button type="button" onClick={onFork} disabled={forking} className={cn(SECONDARY_BUTTON, "h-8")}>
-                        <GitFork className="size-3.5" aria-hidden />
+                    <span className="min-w-0 flex-1">Lecture seule{conversation.ownerName ? ` — conversation de ${conversation.ownerName}` : ""}.</span>
+                    <Button type="button" variant="outline" size="sm" onClick={onFork} disabled={forking}>
+                        {forking ? <Loader2 className="animate-spin" aria-hidden /> : <GitFork aria-hidden />}
                         {forking ? "Création…" : "Continuer dans une nouvelle conversation"}
-                    </button>
+                    </Button>
                 </div>
             )}
 
-            <ContextMenu items={menuItems} position={menuAt} onClose={() => setMenuAt(null)} />
-
-            <ConfirmModal
-                isOpen={confirmDelete}
-                onClose={() => !deleting && setConfirmDelete(false)}
-                onConfirm={async () => {
-                    setDeleting(true);
-                    try {
-                        await onDelete();
-                        setConfirmDelete(false);
-                    } finally {
-                        setDeleting(false);
-                    }
-                }}
-                title="Supprimer la conversation ?"
-                message={`« ${title} » et ses messages seront supprimés. Les éléments épinglés au tableau du dossier restent.`}
-                confirmText="Supprimer"
-                variant="danger"
-                isLoading={deleting}
+            <DeleteConversationDialog open={confirmDelete} onOpenChange={setConfirmDelete} title={title} onConfirm={onDelete} />
+            <MoveConversationDialog
+                open={moveOpen}
+                onOpenChange={setMoveOpen}
+                currentFolderId={conversation?.folderId ?? null}
+                inClientFolder={folderKind === "CLIENT"}
+                generalFolders={generalFolders}
+                onMove={onMove}
             />
-
-            <Modal
-                isOpen={moveOpen}
-                onClose={() => !moving && setMoveOpen(false)}
-                title="Déplacer la conversation"
-                description={inClientFolder ? undefined : "Vers un dossier général ou la vue agence."}
-                size="sm"
-            >
-                {inClientFolder ? (
-                    <p className="flex items-start gap-2.5 rounded-panel border border-line bg-surface-2 p-3 text-[13px] leading-relaxed text-ink-2">
-                        <Building2 className="mt-0.5 size-4 shrink-0 text-ink-4" aria-hidden />
-                        Une conversation d’un dossier client reste dans ce dossier : elle s’appuie sur les données, la mémoire et les fichiers de ce client.
-                    </p>
-                ) : (
-                    <SelectField value={moveTarget} onChange={setMoveTarget} ariaLabel="Dossier de destination">
-                        <option value="">Vue agence</option>
-                        {generalFolders
-                            .filter((f) => !f.id.startsWith("tmp-"))
-                            .map((f) => (
-                                <option key={f.id} value={f.id}>
-                                    {f.name}
-                                </option>
-                            ))}
-                    </SelectField>
-                )}
-                <ModalFooter>
-                    <button type="button" onClick={() => setMoveOpen(false)} disabled={moving} className={SECONDARY_BUTTON}>
-                        {inClientFolder ? "Fermer" : "Annuler"}
-                    </button>
-                    {!inClientFolder && (
-                        <button
-                            type="button"
-                            disabled={moving || moveTarget === (conversation?.folderId ?? "")}
-                            onClick={async () => {
-                                setMoving(true);
-                                try {
-                                    await onMove(moveTarget || null);
-                                    setMoveOpen(false);
-                                } finally {
-                                    setMoving(false);
-                                }
-                            }}
-                            className={cn(PRIMARY_BUTTON, "h-9 rounded-xl")}
-                        >
-                            {moving ? "Déplacement…" : "Déplacer"}
-                        </button>
-                    )}
-                </ModalFooter>
-            </Modal>
         </>
     );
 }

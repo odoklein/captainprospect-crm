@@ -1,11 +1,10 @@
 "use client";
 
 import { AlertCircle, RotateCcw, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { FOCUS, SECONDARY_BUTTON } from "@/components/accueil/AccueilUI";
+import { Button } from "@/components/ui/shadcn/button";
 
 /**
- * A turn that failed before any answer: the question stays visible (faded,
+ * A turn that failed before any answer: the question stays visible (dashed,
  * it was not saved) with the reason and « Réessayer », which sends the same
  * text again.
  */
@@ -38,19 +37,14 @@ export function ErrorTurn({
                 <div className="min-w-0 flex-1 pt-0.5">
                     <p className="text-sm font-semibold text-ink">La réponse n’a pas pu être produite</p>
                     <p className="mt-0.5 text-[13px] leading-relaxed text-ink-3">{message}</p>
-                    <button type="button" onClick={onRetry} disabled={disabled} className={cn(SECONDARY_BUTTON, "mt-2.5 h-8")}>
-                        <RotateCcw className="size-3.5" aria-hidden />
+                    <Button type="button" variant="outline" size="sm" onClick={onRetry} disabled={disabled} className="mt-2.5">
+                        <RotateCcw aria-hidden />
                         Réessayer
-                    </button>
+                    </Button>
                 </div>
-                <button
-                    type="button"
-                    onClick={onDismiss}
-                    aria-label="Ignorer l’erreur"
-                    className={cn("inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-ink-4 transition-colors hover:bg-surface hover:text-ink-2", FOCUS)}
-                >
-                    <X className="size-4" aria-hidden />
-                </button>
+                <Button type="button" variant="ghost" size="icon-xs" onClick={onDismiss} aria-label="Ignorer l’erreur" className="hover:bg-surface">
+                    <X aria-hidden />
+                </Button>
             </div>
         </div>
     );

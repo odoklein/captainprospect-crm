@@ -23,7 +23,10 @@ import { ProviderError } from "./errors";
 import { createDeepSeekProvider } from "./deepseek";
 import { OPENAI_CHAT_QUIRKS, createChatCompletionsProvider } from "./openai-chat";
 import { createResponsesProvider } from "./openai-responses";
+import { callResponsesWithFile, type FileInputCallRequest, type FileInputCallResponse, type FileInputFetch } from "./openai-files";
 import type { ChatFn, DataClass, Provider, ProviderId, Wire } from "./types";
+
+export type { FileInputCallRequest, FileInputCallResponse, FileInputFetch } from "./openai-files";
 
 export type { ChatCallRequest, ChatCallResponse, ChatFn, ChatMessage, DataClass, ProviderId, ReasoningEffort, ToolCall, ToolSpec, Usage, Wire } from "./types";
 export { EMPTY_USAGE, addUsage } from "./types";
@@ -93,6 +96,31 @@ export function assertEligible(spec: ModelSpec, dataClass: DataClass | undefined
         `Le modèle ${spec.label} n'est pas autorisé pour ces données (hébergement ${endpoint.residency.toUpperCase()}).`,
         { kind: "not_configured", retryable: false, provider: spec.provider },
     );
+}
+
+/**
+ * One Responses call with a file input (PDF OCR, lib/assistant/files/ocr.ts).
+ * Same guards as the chat function: residency for `dataClass`, the agency's
+ * key, and an OpenAI model (only OpenAI's Responses API takes `input_file`).
+ */
+export function providerFileCallFn(
+    options: { dataClass: DataClass; apiKey?: string; fetchImpl?: FileInputFetch; env?: Record<string, string | undefined> },
+): (request: FileInputCallRequest) => Promise<FileInputCallResponse> {
+    return async (request) => {
+        const spec = resolveModel(request.model);
+        if (spec.provider !== "openai") {
+            throw new ProviderError("WRONG_PROVIDER", `${request.model} cannot read files`, 500, "Ce modèle ne sait pas lire un fichier.", {
+                kind: "bad_request",
+                retryable: false,
+                provider: spec.provider,
+            });
+        }
+        assertEligible(spec, options.dataClass);
+        const endpoint = endpointFor(spec.provider, options.env);
+        const apiKey = options.apiKey ?? integrationKey(endpoint.keyName);
+        if (!apiKey) throw notConfigured(endpoint);
+        return callResponsesWithFile(request, { baseUrl: endpoint.baseUrl, apiKey, spec, env: options.env, fetchImpl: options.fetchImpl });
+    };
 }
 
 /**

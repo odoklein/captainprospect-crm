@@ -7,14 +7,20 @@
  *
  * Raw HTML is never rendered (react-markdown's default), and links keep
  * react-markdown's safe-protocol filter; external ones open in a new tab.
+ *
+ * The text renders block by block (splitMarkdownBlocks): a streamed answer
+ * only re-renders its last block, and the hand-over to the saved answer only
+ * touches a block the server actually rewrote.
  */
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import type { Element, ElementContent, Root } from "hast";
 import remarkGfm from "remark-gfm";
 import type { CitationRef } from "@/lib/ai/agent/protocol";
 import { CITATION_HREF, linkCitations } from "@/lib/assistant/answer";
+import { cn } from "@/lib/utils";
+import { blockChange, splitMarkdownBlocks } from "./workspace/thread/handover";
 import { CitationChip } from "./CitationChip";
 
 /** "1 240", "12,6 %", "-3 pts", "52" — a cell that is a figure, with an optional unit. */
@@ -103,16 +109,65 @@ function buildComponents(citations: CitationRef[]): Components {
     };
 }
 
-function AnswerMarkdown({ content, citations = [] }: { content: string; citations?: CitationRef[] }) {
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypeNumericColumns];
+
+/**
+ * One top-level block. While streaming only the last block's text changes, so
+ * only it re-renders. When the saved answer rewrote a block (verification
+ * repair) it cross-fades; a block that only grew, or did not change, does not
+ * move at all.
+ */
+const MarkdownBlock = memo(function MarkdownBlock({
+    text,
+    components,
+    first,
+    last,
+}: {
+    text: string;
+    components: Components;
+    first: boolean;
+    last: boolean;
+}) {
+    const [shown, setShown] = useState(text);
+    const [generation, setGeneration] = useState(0);
+    if (text !== shown) {
+        setShown(text);
+        if (blockChange(shown, text) === "replace") setGeneration((g) => g + 1);
+    }
+    const source = useMemo(() => linkCitations(text), [text]);
+    const rendered = (
+        <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={components}>
+            {source}
+        </ReactMarkdown>
+    );
+    if (generation === 0) return rendered;
+    return (
+        <div
+            key={generation}
+            className={cn(
+                "duration-300 ease-snappy animate-in fade-in-0",
+                first && "[&>:first-child]:mt-0",
+                last && "[&>:last-child]:mb-0",
+            )}
+        >
+            {rendered}
+        </div>
+    );
+});
+
+function AnswerMarkdown({ content, citations = EMPTY_CITATIONS }: { content: string; citations?: CitationRef[] }) {
     const components = useMemo(() => buildComponents(citations), [citations]);
-    const source = useMemo(() => linkCitations(content), [content]);
+    const blocks = useMemo(() => splitMarkdownBlocks(content), [content]);
     return (
         <div className="ap-md">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeNumericColumns]} components={components}>
-                {source}
-            </ReactMarkdown>
+            {blocks.map((block, i) => (
+                <MarkdownBlock key={i} text={block} components={components} first={i === 0} last={i === blocks.length - 1} />
+            ))}
         </div>
     );
 }
+
+const EMPTY_CITATIONS: CitationRef[] = [];
 
 export default memo(AnswerMarkdown);

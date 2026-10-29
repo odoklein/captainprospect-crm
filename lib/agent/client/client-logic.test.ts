@@ -21,11 +21,19 @@ import {
     futureLabel,
     groupFindings,
     groupOptions,
+    conversationHref,
+    countUpAt,
+    relativeTime,
     runDurationMs,
+    runHeadline,
+    runTitle,
+    snoozeToDay,
     sortFindings,
+    timeOptions,
+    workerStatusInfo,
 } from "./format";
 import { buildCron, describeCron, describePreset, parseCronToPreset, validateCron, DEFAULT_PRESET } from "./schedule";
-import { buildConfigFields, initialDraft, readDraft, schemaEnum, schemaHas } from "./config-form";
+import { buildConfigFields, initialDraft, readDraft, schemaEnum, schemaHas, sliderSpec } from "./config-form";
 
 // ── format ───────────────────────────────────────────────────────────────
 
@@ -157,6 +165,57 @@ test("clampIndex, budgetPercent, extractRunId, asList", () => {
     assert.deepEqual(asList("x"), []);
 });
 
+test("snoozeToDay picks 08:00 of a future day only", () => {
+    const now = new Date(2026, 9, 29, 15, 0);
+    assert.equal(snoozeToDay(new Date(2026, 9, 29), now), null);
+    assert.equal(snoozeToDay(new Date(2026, 9, 28), now), null);
+    const at = new Date(snoozeToDay(new Date(2026, 9, 30, 22, 10), now) as string);
+    assert.deepEqual([at.getDate(), at.getHours(), at.getMinutes()], [30, 8, 0]);
+});
+
+test("relativeTime", () => {
+    const now = new Date(2026, 9, 29, 12, 0);
+    assert.equal(relativeTime(new Date(2026, 9, 29, 11, 59, 40).toISOString(), now), "à l’instant");
+    assert.equal(relativeTime(new Date(2026, 9, 29, 11, 56).toISOString(), now), "il y a 4 min");
+    assert.equal(relativeTime(new Date(2026, 9, 29, 9, 0).toISOString(), now), "il y a 3 h");
+    assert.equal(relativeTime(new Date(2026, 9, 28, 9, 0).toISOString(), now), "hier");
+    assert.equal(relativeTime(new Date(2026, 9, 26, 9, 0).toISOString(), now), "il y a 3 j");
+});
+
+test("timeOptions and countUpAt", () => {
+    const opts = timeOptions(30);
+    assert.equal(opts.length, 48);
+    assert.equal(opts[0], "00:00");
+    assert.equal(opts[17], "08:30");
+    const withOdd = timeOptions(30, "08:05");
+    assert.equal(withOdd.length, 49);
+    assert.equal(withOdd[17], "08:05");
+    assert.equal(withOdd[18], "08:30");
+    assert.equal(timeOptions(30, "08:30").length, 48);
+    assert.equal(countUpAt(0, 10, 0), 0);
+    assert.equal(countUpAt(0, 10, 1), 10);
+    assert.equal(countUpAt(0, 10, 0.5), 9);
+    assert.equal(countUpAt(0, 1.5, 2, 2), 1.5);
+    assert.equal(countUpAt(10, 4, 1), 4);
+});
+
+test("runTitle, runHeadline, conversationHref, workerStatusInfo", () => {
+    assert.equal(runTitle({ jobName: "Veille", goal: "x", kind: "WATCH" }), "Veille");
+    assert.equal(runTitle({ jobName: null, goal: null, kind: "MISSION" }), "Mission");
+    assert.equal(runTitle({ jobName: null, goal: "a".repeat(100), kind: "MISSION" }).length, 89);
+    assert.equal(runHeadline("RUNNING", "Lecture des appels"), "Lecture des appels");
+    assert.equal(runHeadline("RUNNING", null), "L’agent travaille…");
+    assert.equal(runHeadline("WAITING_APPROVAL"), "En attente de ta validation");
+    assert.equal(conversationHref("a b"), "/manager/assistant?c=a%20b");
+    const now = new Date(2026, 9, 29, 12, 0);
+    assert.equal(workerStatusInfo({ mode: "worker", seenAt: null, enabled: true }, now).label, "Actif");
+    assert.equal(workerStatusInfo({ mode: "lite", seenAt: null, enabled: true }, now).tone, "warning");
+    const off = workerStatusInfo({ mode: "worker", seenAt: new Date(2026, 9, 29, 11, 50).toISOString(), enabled: false }, now);
+    assert.equal(off.label, "Arrêté");
+    assert.equal(off.live, false);
+    assert.match(off.description, /il y a 10 min/);
+});
+
 // ── schedule ─────────────────────────────────────────────────────────────
 
 test("presets build the expected cron", () => {
@@ -270,6 +329,16 @@ test("initialDraft and readDraft coerce and validate", () => {
     assert.equal(bad.errors.big, "Nombre entier attendu.");
     assert.equal(readDraft(fields, { ...draft, days: "0" }).errors.days, "Minimum 1.");
     assert.equal(readDraft(fields, { ...draft, days: "abc" }).errors.days, "Nombre attendu.");
+});
+
+test("sliderSpec: bounded numbers only, sensible steps", () => {
+    assert.deepEqual(sliderSpec({ type: "integer", min: 1, max: 180 }), { min: 1, max: 180, step: 1 });
+    assert.equal(sliderSpec({ type: "integer", min: 1, max: 10_000 }), null);
+    assert.equal(sliderSpec({ type: "integer", min: 1, max: null }), null);
+    assert.equal(sliderSpec({ type: "string", min: 1, max: 5 }), null);
+    assert.equal(sliderSpec({ type: "number", min: 2, max: 2 }), null);
+    assert.deepEqual(sliderSpec({ type: "number", min: 0, max: 1 }), { min: 0, max: 1, step: 0.01 });
+    assert.deepEqual(sliderSpec({ type: "number", min: 0, max: 50 }), { min: 0, max: 50, step: 0.1 });
 });
 
 test("schemaHas and schemaEnum", () => {

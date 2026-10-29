@@ -8,25 +8,43 @@ import assert from "node:assert/strict";
 
 import type { ConversationCard, FolderFile, MemoriesResponse, MemoryItem, PinItem } from "@/lib/assistant/api-contract";
 import {
+    ALL_MISSIONS,
+    FILE_STATUS,
+    canReindex,
+    charCountLevel,
+    cleanTitle,
+    countLabel,
     estimateTokens,
+    fileStatusHint,
     filesNeedPolling,
+    filesSummary,
     flattenConversationPages,
+    folderColor,
+    folderIconKey,
     formatBytes,
     groupMemories,
+    instructionsPreview,
+    kindFromToggle,
     liveTokens,
     mapMemory,
     memoryKindCounts,
     mergeFiles,
+    missionIdFromSelect,
     movePin,
     normalizePins,
     pinVisual,
     resolveTab,
+    restorePin,
     savedAgoLabel,
     starterQuestions,
+    tabCountLabel,
     tokenMeter,
+    uploadProgressValue,
+    uploadStatusLabel,
     upsertMemory,
     visibleTabs,
 } from "./logic";
+import * as libLogic from "../../../../lib/assistant/client/folder-logic";
 
 const mem = (over: Partial<MemoryItem>): MemoryItem => ({
     id: "m",
@@ -166,4 +184,91 @@ test("pins: tolerant envelope, reorder swaps positions, visual guard", () => {
     assert.deepEqual(flat.pins.map((x) => x.id), ["b", "a"]);
     assert.equal(pinVisual({ visual: { spec: { kind: "bar" } } } as PinItem) !== null, true);
     assert.equal(pinVisual({ visual: { spec: {} } } as PinItem), null);
+});
+
+test("components/…/folder/logic re-exports lib/assistant/client/folder-logic", () => {
+    assert.equal(resolveTab, libLogic.resolveTab);
+    assert.equal(FILE_STATUS, libLogic.FILE_STATUS);
+});
+
+test("tab counts hide zero and cap at 999+", () => {
+    assert.equal(tabCountLabel(undefined), null);
+    assert.equal(tabCountLabel(0), null);
+    assert.equal(tabCountLabel(7), "7");
+    assert.equal(tabCountLabel(1000), "999+");
+});
+
+test("French counts: 0 and 1 are singular, thousands are spaced", () => {
+    assert.equal(countLabel(0, "fichier", "fichiers"), "0 fichier");
+    assert.equal(countLabel(1, "fichier", "fichiers"), "1 fichier");
+    assert.match(countLabel(1204, "souvenir", "souvenirs"), /^1\s204 souvenirs$/);
+});
+
+test("folder colour: tone names, hex, tokens, else derived and stable", () => {
+    assert.deepEqual(folderColor("amber", "x"), { tone: "amber" });
+    assert.deepEqual(folderColor("#12abef", "x"), { css: "#12abef" });
+    assert.deepEqual(folderColor("--ds-accent", "x"), { css: "var(--ds-accent)" });
+    assert.deepEqual(folderColor("ds-accent", "x"), { css: "var(--ds-accent)" });
+    assert.deepEqual(folderColor(null, "Acme"), folderColor("", "Acme"));
+    assert.ok("tone" in folderColor(null, "Acme"));
+    assert.equal(folderIconKey("Bar-Chart-3"), "barchart3");
+    assert.equal(folderIconKey(null), "");
+});
+
+test("instructions preview is the first non-empty line", () => {
+    assert.equal(instructionsPreview("\n  \n  Première ligne  \nSeconde"), "Première ligne");
+    assert.equal(instructionsPreview(null), "");
+});
+
+test("mission select and inline titles", () => {
+    assert.equal(missionIdFromSelect(ALL_MISSIONS), null);
+    assert.equal(missionIdFromSelect(""), null);
+    assert.equal(missionIdFromSelect("m1"), "m1");
+    assert.equal(cleanTitle("  Nouveau   titre ", "Ancien"), "Nouveau titre");
+    assert.equal(cleanTitle("Ancien", "Ancien"), null);
+    assert.equal(cleanTitle("   ", "Ancien"), null);
+    assert.equal(cleanTitle("x".repeat(200), "", 120)?.length, 120);
+});
+
+test("memory counter and kind toggle", () => {
+    assert.equal(charCountLevel(0, 600), "ok");
+    assert.equal(charCountLevel(539, 600), "ok");
+    assert.equal(charCountLevel(540, 600), "warn");
+    assert.equal(charCountLevel(600, 600), "over");
+    assert.equal(kindFromToggle("DECISION"), "DECISION");
+    assert.equal(kindFromToggle("ALL"), null);
+    assert.equal(kindFromToggle(""), null);
+});
+
+test("file statuses: badges, hints from the server error, reindex rules, summary", () => {
+    assert.equal(FILE_STATUS.PROCESSING.spinner, true);
+    assert.equal(FILE_STATUS.NEEDS_OCR.label, "PDF scanné (OCR)");
+    assert.equal(FILE_STATUS.FAILED.badge, "danger");
+    assert.equal(fileStatusHint({ status: "FAILED", error: "Fichier corrompu" }), "Fichier corrompu");
+    assert.equal(fileStatusHint({ status: "NEEDS_OCR", error: "PDF scanné : OCR désactivé" }), "PDF scanné : OCR désactivé");
+    assert.equal(fileStatusHint({ status: "READY", error: "ignored" }), FILE_STATUS.READY.hint);
+    assert.equal(canReindex({ status: "PROCESSING" }), false);
+    assert.equal(canReindex({ status: "UNSUPPORTED" }), false);
+    assert.equal(canReindex({ status: "NEEDS_OCR" }), true);
+    assert.equal(filesSummary([]), "Aucun fichier");
+    assert.equal(filesSummary([{ status: "READY" }]), "1 fichier · 1 prêt");
+    assert.equal(filesSummary([{ status: "READY" }, { status: "READY" }, { status: "PENDING" }]), "3 fichiers · 2 prêts · 1 en cours d'indexation");
+});
+
+test("upload rows: labels and a progress sliver as soon as it starts", () => {
+    assert.equal(uploadStatusLabel("queued", 0), "En file");
+    assert.equal(uploadStatusLabel("uploading", 0.426), "43 %");
+    assert.equal(uploadStatusLabel("done", 1), "Envoyé");
+    assert.equal(uploadStatusLabel("error", 0.5), "Échec");
+    assert.equal(uploadProgressValue("queued", 0.5), 0);
+    assert.equal(uploadProgressValue("uploading", 0), 3);
+    assert.equal(uploadProgressValue("uploading", 0.5), 50);
+    assert.equal(uploadProgressValue("done", 0.2), 100);
+});
+
+test("undoing a pin removal puts it back in place", () => {
+    const p = (id: string, position: number) => ({ id, position, createdAt: `2026-10-0${position + 1}` }) as PinItem;
+    const list = [p("a", 0), p("c", 2)];
+    assert.deepEqual(restorePin(list, p("b", 1)).map((x) => x.id), ["a", "b", "c"]);
+    assert.deepEqual(restorePin([p("a", 0), p("b", 1)], p("b", 1)).map((x) => x.id), ["a", "b"]);
 });

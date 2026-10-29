@@ -43,6 +43,7 @@ import {
     upsertInPage,
     upsertInPages,
 } from "@/components/assistant-ui/workspace/thread/model";
+import { renderKeys } from "@/components/assistant-ui/workspace/thread/handover";
 
 // ============================================
 // Keys
@@ -197,7 +198,11 @@ export function useThreadActions(): ThreadActions {
         const refreshThread = async (id: string) => {
             try {
                 const fresh = await apiGet<ThreadResponse>(threadKey(id));
-                const merged = mergeThreadRefresh(getThread(id), fresh);
+                const current = getThread(id);
+                const merged = mergeThreadRefresh(current, fresh);
+                // Server rows replacing browser-minted ones keep their render key:
+                // the question and answer just written update in place, no remount.
+                if (current) renderKeys.carry(current.messages, merged.messages);
                 setThread(id, merged);
                 syncConversation(fresh.conversation);
                 return merged;

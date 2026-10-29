@@ -10,7 +10,7 @@
  *
  * The streaming hook lives here, above the threads, so moving around does
  * not cut an answer being written. The rail is a docked column from md up
- * (foldable, remembered) and an overlay drawer below.
+ * (folds to a strip of icons, remembered) and a left Sheet below.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -20,12 +20,14 @@ import { PanelLeftOpen } from "lucide-react";
 import type { FolderCard } from "@/lib/assistant/api-contract";
 import { useFolders, useThreadActions } from "@/lib/assistant/client/thread-hooks";
 import { cn } from "@/lib/utils";
-import { FOCUS } from "@/components/accueil/AccueilUI";
 import { useToast } from "@/components/ui/Toast";
+import { Button } from "@/components/ui/shadcn/button";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/shadcn/sheet";
+import { TooltipProvider } from "@/components/ui/shadcn/tooltip";
 import { FolderHome } from "./folder/FolderHome";
 import { CommandPalette } from "./CommandPalette";
 import { useIsMac } from "./Composer";
-import { Rail, useLocalStorageState } from "./Rail";
+import { Rail, RailStrip, useLocalStorageState } from "./Rail";
 import { Thread, type DraftScope, type StartRequest } from "./thread/Thread";
 import { useChatStream } from "./useChatStream";
 
@@ -38,7 +40,9 @@ const AGENCY = "agency";
 export function AssistantWorkspace() {
     return (
         <NuqsAdapter>
-            <WorkspaceShell />
+            <TooltipProvider>
+                <WorkspaceShell />
+            </TooltipProvider>
         </NuqsAdapter>
     );
 }
@@ -185,87 +189,72 @@ function WorkspaceShell() {
         return () => window.removeEventListener("keydown", onKey);
     }, [newConversation]);
 
-    useEffect(() => {
-        if (!mobileRail) return;
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setMobileRail(false);
-        };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [mobileRail]);
-
     // ---- Layout ---------------------------------------------------------------------------
 
+    // Below md the rail is a Sheet; from md up the folded rail keeps its own expand button.
     const railToggle = (
-        <button
-            type="button"
-            onClick={() => {
-                if (window.matchMedia("(min-width: 768px)").matches) setRailCollapsed(false);
-                else setMobileRail(true);
-            }}
-            aria-label="Afficher le panneau Captain AI"
-            title="Afficher le panneau"
-            className={cn(
-                "inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-[background-color,color] duration-150 hover:bg-surface-2 hover:text-ink",
-                railCollapsed ? "" : "md:hidden",
-                FOCUS,
-            )}
-        >
-            <PanelLeftOpen className="size-4" aria-hidden />
-        </button>
+        <Button type="button" variant="ghost" size="icon-sm" onClick={() => setMobileRail(true)} aria-label="Afficher le panneau Captain AI" className="md:hidden">
+            <PanelLeftOpen aria-hidden />
+        </Button>
+    );
+
+    const openSearch = useCallback(() => {
+        setPaletteOpen(true);
+        closeMobile();
+    }, [closeMobile]);
+
+    const onConversationDeleted = useCallback(
+        (id: string, folderId: string | null) => {
+            if (id === conversationId) openFolder(folderId);
+        },
+        [conversationId, openFolder],
     );
 
     const railProps = {
         activeKey,
         isMac,
         onNewChat: newConversation,
-        onOpenSearch: () => {
-            setPaletteOpen(true);
-            closeMobile();
-        },
+        onOpenSearch: openSearch,
         onOpenFolder: openFolder,
         onOpenConversation: openConversation,
+        onConversationDeleted,
     };
 
     return (
         <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-canvas">
-            {/* Docked rail (md+) */}
+            {/* Docked rail (md+): full, or folded to a strip of icons */}
             <aside
                 aria-label="Navigation Captain AI"
                 className={cn(
                     "hidden h-full shrink-0 overflow-hidden border-r border-line bg-surface-2 md:block",
-                    "transition-[width,opacity] duration-300 ease-[var(--ease-snappy)]",
-                    railCollapsed ? "w-0 border-r-0 opacity-0" : "w-[272px] opacity-100",
+                    "transition-[width] duration-300 ease-snappy",
+                    railCollapsed ? "w-14" : "w-[272px]",
                 )}
-                inert={railCollapsed}
             >
-                <div className="h-full w-[272px]">
-                    <Rail {...railProps} onCollapse={() => setRailCollapsed(true)} />
-                </div>
+                {railCollapsed ? (
+                    <RailStrip
+                        activeKey={activeKey}
+                        isMac={isMac}
+                        onExpand={() => setRailCollapsed(false)}
+                        onNewChat={newConversation}
+                        onOpenSearch={openSearch}
+                        onOpenFolder={openFolder}
+                    />
+                ) : (
+                    <div className="h-full w-[272px]">
+                        <Rail {...railProps} onCollapse={() => setRailCollapsed(true)} />
+                    </div>
+                )}
             </aside>
 
-            {/* Overlay rail (< md) */}
-            <div
-                className={cn(
-                    "fixed inset-0 z-[90] bg-ink/30 transition-opacity duration-200 md:hidden",
-                    mobileRail ? "opacity-100" : "pointer-events-none opacity-0",
-                )}
-                onClick={closeMobile}
-                aria-hidden
-            />
-            <aside
-                aria-label="Navigation Captain AI"
-                role="dialog"
-                aria-modal={mobileRail ? "true" : undefined}
-                inert={!mobileRail}
-                className={cn(
-                    "fixed inset-y-0 left-0 z-[91] w-[min(300px,86vw)] border-r border-line bg-surface-2 shadow-overlay md:hidden",
-                    "pt-[env(safe-area-inset-top)] transition-transform duration-300 ease-[var(--ease-emphasized)]",
-                    mobileRail ? "translate-x-0" : "-translate-x-full",
-                )}
-            >
-                <Rail {...railProps} mobile onCollapse={closeMobile} />
-            </aside>
+            {/* Rail as a left Sheet (< md) */}
+            <Sheet open={mobileRail} onOpenChange={setMobileRail}>
+                <SheetContent side="left" showCloseButton={false} className="w-[min(300px,86vw)] gap-0 bg-surface-2 p-0 pt-[env(safe-area-inset-top)] md:hidden">
+                    <SheetTitle className="sr-only">Navigation Captain AI</SheetTitle>
+                    <SheetDescription className="sr-only">Dossiers, clients et conversations.</SheetDescription>
+                    <Rail {...railProps} mobile onCollapse={closeMobile} />
+                </SheetContent>
+            </Sheet>
 
             <main className="flex min-w-0 flex-1 flex-col bg-surface">
                 {conversationId || isDraft ? (
@@ -285,7 +274,7 @@ function WorkspaceShell() {
                     />
                 ) : (
                     <div className="flex min-h-0 flex-1 flex-col">
-                        <div className={cn("flex h-12 shrink-0 items-center gap-2 border-b border-line-subtle px-3", railCollapsed ? "" : "md:hidden")}>
+                        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line-subtle px-3 md:hidden">
                             {railToggle}
                             <span className="truncate text-[13.5px] font-semibold text-ink">
                                 {folderParam ? (folderById.get(folderParam)?.name ?? "Dossier") : "Vue agence"}

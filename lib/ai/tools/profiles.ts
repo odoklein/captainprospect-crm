@@ -116,6 +116,7 @@ export const TOOL_GROUPS: Record<ToolGroup, readonly string[]> = {
         "publish_weekly_bilan",
         "propose_action",
         "record_finding",
+        "create_pdf",
     ],
     admin_db: ["admin_db_overview", "admin_db_inspect", "admin_db_sql"],
     agency: ["get_agency_overview", "get_agency_metrics", "list_clients_needing_attention", "search_across_projects"],
@@ -158,7 +159,7 @@ const GROUP_TRIGGERS: ReadonlyArray<[ToolGroup, RegExp]> = [
     ["structure", /liste|fichier|campagne|mission|equipe|utilisateur|sdr|exclusion/],
     ["insights", /retour|ressenti|qualite|presen|honor|no.?show|feedback|statut/],
     ["folder", /acces|mot de passe|compte|portail|document|brouillon|tache|playbook|compte.rendu|fichier|contrat|pdf|brief|annexe|presentation/],
-    ["actions", /envoi|envoy|cree|creer|supprim|regen|affiche le mot|redige|brouillon|tache|retiens|memoris|oublie/],
+    ["actions", /envoi|envoy|cree|creer|supprim|regen|affiche le mot|redige|brouillon|tache|retiens|memoris|oublie|pdf|export|document|rapport|telecharg/],
 ];
 
 /** Agency view only: raw SQL is worth sending when the wording smells of it. */

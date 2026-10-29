@@ -20,6 +20,7 @@
  */
 
 import { FILE_ACCEPT } from "@/lib/assistant/api-contract";
+import { ensurePdfRuntime } from "./runtime";
 
 export type DocumentKind = "pdf" | "docx" | "xlsx" | "csv" | "md" | "txt";
 
@@ -219,6 +220,8 @@ function tableHeading(name: string, header: string | null): string {
 // ============================================
 
 async function extractPdf(buffer: Uint8Array): Promise<ExtractResult> {
+    // pdf.js 6 needs Node 22+ built-ins; production runs Node 20 (see ./runtime.ts).
+    ensurePdfRuntime();
     const { getDocumentProxy, extractText } = await import("unpdf");
     // pdf.js may transfer (detach) the buffer it is given: hand it a copy.
     const pdf = await getDocumentProxy(new Uint8Array(buffer));

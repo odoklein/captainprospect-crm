@@ -12,33 +12,41 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { optional } from "@/lib/assistant/store/missing";
+import { ensureClientFolder } from "@/lib/assistant/folders/service";
+import { resolveDocumentKind } from "@/lib/assistant/files/extract";
+import { ensureFileTextReady, type EnsureResult } from "@/lib/assistant/files/pipeline";
 import { sanitizeUntrusted } from "../redact";
 import { requireProject } from "../context";
 import { defineReadTool, frDate, NO_PARAMS, params } from "../helpers";
 
-/** Types we can hand to the model as text. Anything else is listed, not read. */
+/** Types read as raw text when the files pipeline does not handle them (JSON, XML). */
 const READABLE_MIME = /^(text\/|application\/json|application\/xml)/i;
+
+/** Test seam: the on-demand extraction. Production code never reassigns it. */
+export const documentDeps = { ensure: ensureFileTextReady };
+
+/** Index states that will not become readable without a new upload. */
+const DEAD_ENDS = new Set(["NEEDS_OCR", "UNSUPPORTED"]);
 
 /** Characters of extracted text handed back by read_project_document. */
 const EXTRACTED_TEXT_MAX_CHARS = 12000;
 
 /**
- * Files whose text the assistant extracted (Captain AI v4, AssistantFileText
- * READY): readable whatever their mime (PDF, DOCX, XLSX...). Empty when the v4
- * tables are missing.
+ * Index state of these files (Captain AI v4 AssistantFileText): READY files
+ * are readable whatever their mime. Empty when the v4 tables are missing.
  */
-async function extractedFileIds(fileIds: string[]): Promise<Set<string>> {
-    if (fileIds.length === 0) return new Set();
+async function indexStates(fileIds: string[]): Promise<Map<string, { status: string; error: string | null }>> {
+    if (fileIds.length === 0) return new Map();
     const rows = await optional(
         "documents.extracted",
         () =>
             prisma.assistantFileText.findMany({
-                where: { fileId: { in: fileIds }, status: "READY" },
-                select: { fileId: true },
+                where: { fileId: { in: fileIds } },
+                select: { fileId: true, status: true, error: true },
             }),
-        [] as Array<{ fileId: string }>,
+        [] as Array<{ fileId: string; status: string; error: string | null }>,
     );
-    return new Set(rows.map((r) => r.fileId));
+    return new Map(rows.map((r) => [r.fileId, { status: r.status, error: r.error }]));
 }
 
 async function extractedText(fileId: string): Promise<string | null> {
@@ -85,6 +93,7 @@ export const listProjectDocuments = defineReadTool({
             select: {
                 id: true,
                 name: true,
+                originalName: true,
                 mimeType: true,
                 size: true,
                 description: true,
@@ -96,24 +105,30 @@ export const listProjectDocuments = defineReadTool({
             },
         });
 
-        const extracted = await extractedFileIds(files.map((f) => f.id));
+        const states = await indexStates(files.map((f) => f.id));
 
         return {
-            documents: files.map((f) => ({
-                documentId: f.id,
-                nom: f.name,
-                type: f.mimeType,
-                tailleKo: Math.round(f.size / 1024),
-                lisibleParLAssistant: READABLE_MIME.test(f.mimeType) || extracted.has(f.id),
-                dossier: f.folder?.name ?? null,
-                mission: f.mission?.name ?? null,
-                description: sanitizeUntrusted(f.description, 200),
-                tags: f.tags,
-                deposePar: f.uploadedBy.name,
-                depose: frDate(f.createdAt),
-            })),
+            documents: files.map((f) => {
+                const state = states.get(f.id);
+                const supported = !!resolveDocumentKind(f.mimeType, f.originalName || f.name) || READABLE_MIME.test(f.mimeType);
+                const readable = state ? state.status === "READY" || !DEAD_ENDS.has(state.status) : supported;
+                return {
+                    documentId: f.id,
+                    nom: f.name,
+                    type: f.mimeType,
+                    tailleKo: Math.round(f.size / 1024),
+                    lisibleParLAssistant: readable,
+                    ...(state && state.status !== "READY" && state.error ? { remarque: state.error } : {}),
+                    dossier: f.folder?.name ?? null,
+                    mission: f.mission?.name ?? null,
+                    description: sanitizeUntrusted(f.description, 200),
+                    tags: f.tags,
+                    deposePar: f.uploadedBy.name,
+                    depose: frDate(f.createdAt),
+                };
+            }),
             note:
-                "Les fichiers non lisibles (images, PDF scannés, formats non indexés) apparaissent ici mais leur contenu n'est pas accessible à l'assistant. Un PDF, DOCX ou tableur indexé dans le dossier client est lisible.",
+                "read_project_document lit les PDF (y compris scannés, par OCR), DOCX, tableurs et fichiers texte, même jamais indexés : le texte est extrait à la demande. Les images et autres formats ne sont pas lisibles.",
         };
     },
 });
@@ -122,7 +137,7 @@ export const readProjectDocument = defineReadTool({
     name: "read_project_document",
     label: "Lecture d'un document",
     description:
-        "Renvoie le contenu texte d'un document du projet : fichiers texte, et PDF/DOCX/tableurs dont le texte a été indexé (lisibleParLAssistant = true dans list_project_documents).",
+        "Renvoie le contenu texte d'un document du projet (PDF, DOCX, tableur, texte ; PDF scanné via OCR). Le texte est extrait à la demande s'il ne l'a jamais été.",
     parameters: params(
         { documentId: { type: "string", description: "Id obtenu via list_project_documents" } },
         ["documentId"],
@@ -136,14 +151,16 @@ export const readProjectDocument = defineReadTool({
             select: {
                 id: true,
                 name: true,
+                originalName: true,
                 mimeType: true,
                 size: true,
                 url: true,
                 clientId: true,
                 missionId: true,
+                deletedAt: true,
             },
         });
-        if (!file) return { error: "Document introuvable" };
+        if (!file || file.deletedAt) return { error: "Document introuvable" };
 
         // The binding is re-checked here, not trusted from the argument: an id
         // from another client must not resolve just because the model asked.
@@ -154,22 +171,61 @@ export const readProjectDocument = defineReadTool({
             return { error: "Ce document n'appartient pas au projet actif." };
         }
 
+        // PDF, DOCX, XLSX, CSV, Markdown, text: through the files pipeline. A
+        // file never indexed is extracted now (25 s budget, OCR for a scan),
+        // its text row filed in the client's CLIENT folder.
+        const displayName = file.originalName || file.name;
+        let state: EnsureResult | null = null;
+        if (resolveDocumentKind(file.mimeType, displayName)) {
+            state = await optional<EnsureResult | null>(
+                "documents.ondemand",
+                async () => {
+                    const folderId = (await ensureClientFolder(project.clientId, ctx.userId)).id;
+                    return documentDeps.ensure(file.id, {
+                        folderId,
+                        ledgerContext: {
+                            userId: ctx.userId,
+                            clientId: project.clientId,
+                            missionId: project.missionId,
+                            conversationId: ctx.conversationId,
+                        },
+                    });
+                },
+                null,
+            );
+        }
+
         // Text extracted by the folder files pipeline wins, whatever the mime.
         const text = await extractedText(file.id);
         if (text) {
             return {
                 nom: file.name,
-                source: "texte extrait du document",
+                fileId: file.id,
+                source: state?.extractor === "openai-ocr" ? "texte reconnu par OCR (PDF scanné)" : "texte extrait du document",
+                ...(state?.pages ? { pages: state.pages } : {}),
                 contenu: sanitizeUntrusted(text.slice(0, EXTRACTED_TEXT_MAX_CHARS), EXTRACTED_TEXT_MAX_CHARS),
                 ...(text.length > EXTRACTED_TEXT_MAX_CHARS
-                    ? { tronque: `Premiers ${EXTRACTED_TEXT_MAX_CHARS} caractères sur ${text.length}. Dans un dossier, search_files trouve le passage utile.` }
+                    ? {
+                          tronque: `Premiers ${EXTRACTED_TEXT_MAX_CHARS} caractères sur ${text.length}. Pour la suite : read_file_section avec file_id « ${file.id} » et from_block (${state?.chunkCount ? `${state.chunkCount} blocs au total` : "0 = début"}), ou search_files pour un passage précis.`,
+                      }
                     : {}),
+            };
+        }
+
+        if (state) {
+            const inFlight = state.timedOut || state.status === "PENDING" || state.status === "PROCESSING";
+            return {
+                nom: file.name,
+                fileId: file.id,
+                error: inFlight
+                    ? "Lecture du document en cours (extraction ou OCR) : rappelle read_project_document dans quelques secondes."
+                    : (state.error ?? "Le texte de ce document n'a pas pu être extrait."),
             };
         }
 
         if (!READABLE_MIME.test(file.mimeType)) {
             return {
-                error: `Le format ${file.mimeType} n'est pas lisible par l'assistant tant que son texte n'a pas été indexé (fichiers du dossier client).`,
+                error: `Le format ${file.mimeType} n'est pas lisible par l'assistant : seuls PDF, DOCX, XLSX, CSV, Markdown et texte le sont.`,
                 nom: file.name,
             };
         }

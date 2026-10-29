@@ -16,6 +16,10 @@
  *   what was already written on screen.
  * - It lives above the threads, so switching conversation does not cut an
  *   answer being written.
+ * - Hand-over (thread/handover.ts): each send mints a turn key; the saved
+ *   answer's id is bound to it and the snapshot is « settled » with that
+ *   answer before the thread receives it, so the live block and the saved
+ *   message are one React element that updates in place — never a remount.
  */
 
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -33,6 +37,7 @@ import {
     payloadToMessage,
     previewOf,
 } from "./thread/model";
+import { nextTurnKey, renderKeys } from "./thread/handover";
 
 export interface SendOptions {
     conversationId: string;
@@ -49,9 +54,13 @@ export type SendOutcome =
 
 export interface LiveSnapshot {
     conversationId: string;
+    /** Render key of this turn, shared by the live block and the saved answer. */
+    turnKey: string;
     state: LiveTurnState;
     startedAt: number;
     deep: boolean;
+    /** The saved answer, set the moment the final payload lands (before the thread has it). */
+    settled: ThreadMessage | null;
 }
 
 export interface FailedTurn {
@@ -158,7 +167,9 @@ export function useChatStream(): ChatStream {
                 : localUserMessage(`local-${Date.now()}`, prompt, options.attachments ?? null, now);
             actions.updateThread(conversationId, (t) => applyOptimisticSend(t, question, options));
 
-            liveRef.current = { conversationId, state: EMPTY_LIVE, startedAt: Date.now(), deep: options.deep };
+            const turnKey = nextTurnKey();
+            renderKeys.markStreamed(turnKey);
+            liveRef.current = { conversationId, turnKey, state: EMPTY_LIVE, startedAt: Date.now(), deep: options.deep, settled: null };
             flushNow();
             setSendingFor(conversationId);
 
@@ -205,6 +216,13 @@ export function useChatStream(): ChatStream {
                 if (!payload) throw new Error(failure ?? "La réponse a été interrompue.");
 
                 const answer = payloadToMessage(payload, `a-${Date.now()}`, new Date().toISOString());
+                // Hand-over: same key, the live block settles on the saved answer
+                // first, then the thread row (same key) takes over in place.
+                renderKeys.bind(answer.id, turnKey);
+                if (liveRef.current && liveRef.current.turnKey === turnKey) {
+                    liveRef.current = { ...liveRef.current, settled: answer };
+                    flushNow();
+                }
                 actions.updateThread(conversationId, (t) => appendMessage(t, answer));
                 const card = actions.getThread(conversationId)?.conversation;
                 if (card) {
@@ -249,20 +267,31 @@ export function useChatStream(): ChatStream {
         const draft = splitFollowUps(live.state.draft).body.trim();
         controller.abort();
         abortRef.current = null;
-        liveRef.current = null;
-        flushNow();
-        setSendingFor(null);
         const stopped: ThreadMessage = {
             id: `stopped-${Date.now()}`,
             role: "ASSISTANT",
             content: draft ? `${draft}\n\n*(Réponse interrompue.)*` : "*Réponse interrompue.*",
             createdAt: new Date().toISOString(),
-            trace: { visuals: live.state.visuals, status: "cancelled" },
+            trace: {
+                // The lookups already done stay listed, as on a finished answer.
+                entries: live.state.steps
+                    .filter((s) => s.state !== "running")
+                    .map((s) => ({ tool: s.tool, label: s.label, ok: s.state === "ok", durationMs: s.durationMs ?? 0 })),
+                visuals: live.state.visuals,
+                status: "cancelled",
+            },
             action: null,
             attachments: null,
             feedback: null,
         };
+        // Same hand-over as a final answer: the thread row takes the turn's key.
+        renderKeys.bind(stopped.id, live.turnKey);
+        liveRef.current = { ...live, settled: stopped };
+        flushNow();
         actions.updateThread(live.conversationId, (t) => appendMessage(t, stopped));
+        liveRef.current = null;
+        flushNow();
+        setSendingFor(null);
     }, [actions, flushNow]);
 
     return useMemo(

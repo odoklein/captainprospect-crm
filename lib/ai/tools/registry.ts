@@ -72,6 +72,7 @@ import { showVisual } from "./definitions/visuals";
 import { defineLoadToolGroup } from "./definitions/toolgroups";
 import { forget, listMemories, remember, updateMemory } from "./definitions/memory";
 import { FILE_TOOLS } from "./definitions/files";
+import { createPdf } from "./definitions/pdf";
 import { REPORTING_TOOLS } from "./definitions/reporting";
 // The index, not tools/resolve.ts: resolve imports this registry.
 import { AGENT_RUN_TOOLS } from "@/lib/agent/tools/index";
@@ -134,6 +135,8 @@ export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     draftEmail,
     createTask,
     fileCredentialUnderMission,
+    // Documents — a branded PDF to download (one private file, no client visibility).
+    createPdf,
     // Mémoire — reversible in one click (soft delete), logged like any write.
     remember,
     updateMemory,

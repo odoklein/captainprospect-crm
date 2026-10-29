@@ -1,6 +1,7 @@
 /**
- * Pure ranking of the Captain AI command palette: accent-insensitive fuzzy
- * match with highlight ranges, and the recent-items list.
+ * Pure logic of the Captain AI command palette: accent-insensitive fuzzy
+ * match with highlight ranges, action ranking, search state, Échap
+ * behaviour, shortcut labels and the recent-items list.
  *     npx tsx --test components/assistant-ui/workspace/CommandPaletteRank.test.ts
  */
 
@@ -142,6 +143,55 @@ export function splitHighlight(text: string, ranges: readonly Range[]): Array<{ 
     }
     if (at < text.length) out.push({ text: text.slice(at), match: false });
     return out;
+}
+
+/**
+ * Actions matching the query: label hits first (ranked, highlighted), then
+ * strong keyword-only hits (« veille » finds « Agent »), unhighlighted.
+ */
+export function rankActions<T extends { label: string; keywords: string }>(query: string, actions: readonly T[], limit = 3): Array<{ item: T; ranges: Range[] }> {
+    const byLabel = rankItems(query, actions, (a) => a.label, limit).map(({ item, hit }) => ({ item, ranges: hit.ranges }));
+    const byKeyword = actions
+        .filter((a) => !fuzzyMatch(query, a.label) && (fuzzyMatch(query, a.keywords)?.score ?? 0) >= 600)
+        .map((item) => ({ item, ranges: [] as Range[] }));
+    return [...byLabel, ...byKeyword];
+}
+
+// ============================================
+// Palette state
+// ============================================
+
+export const PALETTE_SEARCH_MIN = 2;
+export const PALETTE_DEBOUNCE_MS = 200;
+
+export interface PaletteSearchState {
+    /** Trimmed query. */
+    q: string;
+    /** Long enough for the server search. */
+    searching: boolean;
+    /** One character: local results only, with a hint. */
+    tooShort: boolean;
+    /** Waiting on the debounce or the first server answer for this query. */
+    pending: boolean;
+}
+
+export function paletteSearchState(query: string, debounced: string, server: { isValidating: boolean; hasData: boolean }, min = PALETTE_SEARCH_MIN): PaletteSearchState {
+    const q = query.trim();
+    const searching = q.length >= min;
+    const pending = searching && (debounced.trim() !== q || (server.isValidating && !server.hasData));
+    return { q, searching, tooShort: q.length > 0 && q.length < min, pending };
+}
+
+/** Échap: a typed query is cleared first, an empty palette closes. */
+export function escapeAction(query: string): "clear" | "close" {
+    return query.length > 0 ? "clear" : "close";
+}
+
+/** Keyboard hint of a shortcut, per platform: ["mod", "shift", "O"] → « ⌘⇧O » or « Ctrl Maj O ». */
+export function shortcutLabel(keys: readonly string[], isMac: boolean): string {
+    const map = (k: string) =>
+        k === "mod" ? (isMac ? "⌘" : "Ctrl") : k === "shift" ? (isMac ? "⇧" : "Maj") : k === "alt" ? (isMac ? "⌥" : "Alt") : k.toUpperCase();
+    return keys.map(map).join(isMac ? "" : " ");
 }
 
 // ============================================

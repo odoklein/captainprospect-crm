@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Files joined to the next message: uploaded to the thread's folder
- * (ASSISTANT_API.folderFiles), then polled until their text is extracted.
- * A thread without a folder (agency view) cannot take attachments.
+ * Files joined to the next message: uploaded one by one to the thread's
+ * folder (with upload progress), then polled until their text is extracted.
+ * Removing a chip cancels its upload. A thread without a folder (agency view)
+ * cannot take attachments.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,9 +14,9 @@ import {
     FILE_MAX_BYTES,
     type FileTextStatus,
     type FolderFilesResponse,
-    type UploadFilesResponse,
 } from "@/lib/assistant/api-contract";
-import { apiGet, apiUpload } from "@/lib/assistant/client/fetcher";
+import { apiGet } from "@/lib/assistant/client/fetcher";
+import { uploadFolderFile } from "@/lib/assistant/client/folder-hooks";
 
 export type AttachmentStatus = "uploading" | "error" | FileTextStatus;
 
@@ -24,6 +25,8 @@ export interface AttachmentItem {
     name: string;
     size: number;
     status: AttachmentStatus;
+    /** Upload progress 0–1 while `uploading`. */
+    progress: number;
     fileId: string | null;
     error: string | null;
 }
@@ -45,12 +48,27 @@ function rejectReason(file: File): string | null {
 export function useAttachments(folderId: string | null, onRejected?: (name: string, reason: string) => void) {
     const [items, setItems] = useState<AttachmentItem[]>([]);
     const rejectedRef = useRef(onRejected);
+    const uploadsRef = useRef(new Map<string, AbortController>());
     useEffect(() => {
         rejectedRef.current = onRejected;
     }, [onRejected]);
 
+    // Leaving the thread cancels what is still uploading.
+    useEffect(() => {
+        const uploads = uploadsRef.current;
+        return () => {
+            uploads.forEach((c) => c.abort());
+            uploads.clear();
+        };
+    }, []);
+
+    const patch = useCallback(
+        (key: string, next: Partial<AttachmentItem>) => setItems((prev) => prev.map((item) => (item.key === key ? { ...item, ...next } : item))),
+        [],
+    );
+
     const add = useCallback(
-        async (files: File[]) => {
+        (files: File[]) => {
             if (!folderId || files.length === 0) return;
             const accepted: Array<{ key: string; file: File }> = [];
             for (const file of files) {
@@ -64,35 +82,33 @@ export function useAttachments(folderId: string | null, onRejected?: (name: stri
             if (accepted.length === 0) return;
             setItems((prev) => [
                 ...prev,
-                ...accepted.map(({ key, file }) => ({ key, name: file.name, size: file.size, status: "uploading" as const, fileId: null, error: null })),
+                ...accepted.map(({ key, file }) => ({ key, name: file.name, size: file.size, status: "uploading" as const, progress: 0, fileId: null, error: null })),
             ]);
-            const form = new FormData();
-            for (const { file } of accepted) form.append("file", file);
-            try {
-                const res = await apiUpload<UploadFilesResponse>(ASSISTANT_API.folderFiles(folderId), form);
-                const byName = new Map(res.files.map((f) => [f.name, f]));
-                const rejected = new Map(res.rejected.map((r) => [r.name, r.reason]));
-                setItems((prev) =>
-                    prev.map((item) => {
-                        const mine = accepted.find((a) => a.key === item.key);
-                        if (!mine) return item;
-                        const uploaded = byName.get(item.name) ?? res.files[accepted.indexOf(mine)] ?? null;
-                        const reason = rejected.get(item.name);
+            for (const { key, file } of accepted) {
+                const controller = new AbortController();
+                uploadsRef.current.set(key, controller);
+                uploadFolderFile(folderId, file, (fraction) => patch(key, { progress: fraction }), controller.signal)
+                    .then((res) => {
+                        const uploaded = res.files[0] ?? null;
+                        const reason = res.rejected[0]?.reason;
                         if (reason || !uploaded) {
                             const why = reason ?? "Le fichier n’a pas été accepté.";
-                            rejectedRef.current?.(item.name, why);
-                            return { ...item, status: "error", error: why };
+                            rejectedRef.current?.(file.name, why);
+                            patch(key, { status: "error", error: why });
+                            return;
                         }
-                        return { ...item, status: uploaded.status, fileId: uploaded.fileId, error: uploaded.error };
-                    }),
-                );
-            } catch (error) {
-                const why = error instanceof Error ? error.message : "Envoi impossible.";
-                setItems((prev) => prev.map((item) => (accepted.some((a) => a.key === item.key) ? { ...item, status: "error", error: why } : item)));
-                rejectedRef.current?.(accepted.length === 1 ? accepted[0].file.name : `${accepted.length} fichiers`, why);
+                        patch(key, { status: uploaded.status, fileId: uploaded.fileId, error: uploaded.error, progress: 1 });
+                    })
+                    .catch((error: unknown) => {
+                        if (controller.signal.aborted) return;
+                        const why = error instanceof Error ? error.message : "Envoi impossible.";
+                        rejectedRef.current?.(file.name, why);
+                        patch(key, { status: "error", error: why });
+                    })
+                    .finally(() => uploadsRef.current.delete(key));
             }
         },
-        [folderId],
+        [folderId, patch],
     );
 
     // Extraction status, polled while a file is still being read.
@@ -122,7 +138,11 @@ export function useAttachments(folderId: string | null, onRejected?: (name: stri
         };
     }, [polling, folderId]);
 
-    const remove = useCallback((key: string) => setItems((prev) => prev.filter((i) => i.key !== key)), []);
+    const remove = useCallback((key: string) => {
+        uploadsRef.current.get(key)?.abort();
+        uploadsRef.current.delete(key);
+        setItems((prev) => prev.filter((i) => i.key !== key));
+    }, []);
     const clear = useCallback(() => setItems([]), []);
 
     const ready = items.filter((i) => i.fileId && i.status !== "error");

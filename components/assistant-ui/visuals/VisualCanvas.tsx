@@ -1,36 +1,23 @@
 "use client";
 
 /**
- * The canvas beside the chat: one visual at full size, with the same figures
- * as a table, and the ways out — CSV, PNG, copy, pin.
+ * The canvas beside the chat: one visual at full size, as a chart or as the
+ * same figures in a table (Tabs), and the ways out — CSV, image, copy, pin.
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, Download, Image as ImageIcon, Loader2, Pin, PinOff, X } from "lucide-react";
 import { formatValue, visualTable, type StoredVisual } from "@/lib/assistant/visuals/spec";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/shadcn/button";
+import { Kbd } from "@/components/ui/shadcn/kbd";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/shadcn/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
 import { VisualView } from "./VisualView";
 import { UnverifiedNote } from "./VisualCard";
 import { canExportPng, copyAsTable, downloadCsv, exportPng } from "./export";
-import { cn } from "@/lib/utils";
 
 type View = "chart" | "data";
-
-function ActionButton({ onClick, children, active, disabled }: { onClick: () => void; children: ReactNode; active?: boolean; disabled?: boolean }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            aria-pressed={active}
-            className={cn(
-                "inline-flex h-8 items-center gap-1.5 rounded-lg border disabled:pointer-events-none disabled:opacity-60 border-[var(--ds-line)] bg-[var(--ds-surface)] px-2.5 text-[12.5px] text-[var(--ds-ink-2)] transition-colors hover:border-[var(--ds-line-strong)] hover:text-[var(--ds-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]",
-                active && "border-[var(--ds-accent)] text-[var(--ds-accent-soft-ink)]",
-            )}
-        >
-            {children}
-        </button>
-    );
-}
 
 export function VisualCanvas({
     visual,
@@ -38,6 +25,7 @@ export function VisualCanvas({
     pinBusy,
     onTogglePin,
     onClose,
+    handlesEscape = true,
 }: {
     visual: StoredVisual;
     pinned?: boolean;
@@ -45,6 +33,8 @@ export function VisualCanvas({
     pinBusy?: boolean;
     onTogglePin?: (visual: StoredVisual) => void;
     onClose: () => void;
+    /** False when a Sheet around it already closes on Échap. */
+    handlesEscape?: boolean;
 }) {
     const { spec } = visual;
     const [view, setView] = useState<View>("chart");
@@ -53,110 +43,113 @@ export function VisualCanvas({
     const chartRef = useRef<HTMLDivElement>(null);
     const table = visualTable(spec);
 
-    // The close button promises Échap: honour it, unless a dialog above owns the key.
+    // The close button promises Échap: honour it, unless a dialog or menu above owns the key.
     useEffect(() => {
+        if (!handlesEscape) return;
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== "Escape" || e.defaultPrevented) return;
-            if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+            if (document.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"], [data-slot="dropdown-menu-content"]')) return;
             onClose();
         };
         document.addEventListener("keydown", onKey);
         return () => document.removeEventListener("keydown", onKey);
-    }, [onClose]);
+    }, [onClose, handlesEscape]);
 
     return (
-        <aside className="cp-viz flex h-full min-h-0 w-full flex-col border-l border-[var(--ds-line)] bg-[var(--ds-surface)] animate-ds-slide-in" aria-label={`Visuel : ${spec.title}`}>
-            <header className="flex items-start justify-between gap-3 border-b border-[var(--ds-line-subtle)] px-5 py-4">
+        <aside className="cp-viz flex h-full min-h-0 w-full flex-col border-l border-line bg-surface motion-safe:animate-ds-slide-in" aria-label={`Visuel : ${spec.title}`}>
+            <header className="flex items-start justify-between gap-3 border-b border-line-subtle px-5 py-4">
                 <div className="min-w-0">
-                    <h2 className="text-[16px] font-semibold text-[var(--ds-ink)]">{spec.title}</h2>
-                    {spec.subtitle && <p className="mt-0.5 text-[12.5px] text-[var(--ds-ink-3)]">{spec.subtitle}</p>}
+                    <h2 className="text-[16px] font-semibold tracking-tight text-ink">{spec.title}</h2>
+                    {spec.subtitle && <p className="mt-0.5 text-[12.5px] text-ink-3">{spec.subtitle}</p>}
                 </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    aria-label="Fermer"
-                    title="Fermer (Échap)"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--ds-ink-3)] hover:bg-[var(--ds-surface-3)] hover:text-[var(--ds-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]"
-                >
-                    <X className="h-4 w-4" />
-                </button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="Fermer le visuel">
+                            <X aria-hidden />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="flex items-center gap-1.5">
+                        Fermer <Kbd>Échap</Kbd>
+                    </TooltipContent>
+                </Tooltip>
             </header>
 
-            <div role="tablist" aria-label="Affichage" className="flex gap-1 px-5 pt-3">
-                {(["chart", "data"] as const).map((v) => (
-                    <button
-                        key={v}
-                        type="button"
-                        role="tab"
-                        aria-selected={view === v}
-                        onClick={() => setView(v)}
-                        className={cn(
-                            "h-8 rounded-md px-3 text-[13px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]",
-                            view === v ? "bg-[var(--ds-surface-3)] text-[var(--ds-ink)]" : "text-[var(--ds-ink-3)] hover:text-[var(--ds-ink)]",
-                        )}
-                    >
-                        {v === "chart" ? "Graphique" : "Données"}
-                    </button>
-                ))}
-            </div>
+            <Tabs value={view} onValueChange={(v) => setView(v as View)} className="min-h-0 flex-1 gap-0">
+                <div className="px-5 pt-3">
+                    <TabsList variant="underline">
+                        <TabsTrigger value="chart">Graphique</TabsTrigger>
+                        <TabsTrigger value="data">Données</TabsTrigger>
+                    </TabsList>
+                </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-                {view === "chart" ? (
-                    <div ref={chartRef}>
-                        <VisualView spec={spec} large />
-                    </div>
-                ) : (
-                    <div className="overflow-auto rounded-lg border border-[var(--ds-line-subtle)]">
-                        <table className="w-full border-collapse text-[13px]">
-                            <thead className="sticky top-0 bg-[var(--ds-surface)]">
-                                <tr>
-                                    {table.header.map((h) => (
-                                        <th key={h} scope="col" className="border-b border-[var(--ds-line)] px-3 py-2 text-left text-[12px] font-medium text-[var(--ds-ink-3)]">
-                                            {h}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {table.rows.map((row, i) => (
-                                    <tr key={i} className="border-b border-[var(--ds-line-subtle)] last:border-0">
-                                        {row.map((v, c) => (
-                                            <td key={c} className={cn("px-3 py-1.5", typeof v === "number" ? "text-right font-medium tabular-nums text-[var(--ds-ink)]" : "text-[var(--ds-ink-2)]")}>
-                                                {typeof v === "number" ? formatValue(v) : (v ?? "—")}
-                                            </td>
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                    <TabsContent value="chart" className="mt-0 outline-none">
+                        <div ref={chartRef}>
+                            <VisualView spec={spec} large />
+                        </div>
+                    </TabsContent>
+                    <TabsContent value="data" className="mt-0 outline-none">
+                        <div className="overflow-auto rounded-control border border-line-subtle">
+                            <table className="w-full border-collapse text-[13px]">
+                                <thead className="sticky top-0 bg-surface">
+                                    <tr>
+                                        {table.header.map((h) => (
+                                            <th key={h} scope="col" className="border-b border-line px-3 py-2 text-left text-[12px] font-medium text-ink-3">
+                                                {h}
+                                            </th>
                                         ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-                <UnverifiedNote values={visual.unverified} />
-                {visual.source && (
-                    <p className="mt-3 text-[12px] text-[var(--ds-ink-3)]">Source : {visual.source.label}</p>
-                )}
-            </div>
+                                </thead>
+                                <tbody>
+                                    {table.rows.map((row, i) => (
+                                        <tr key={i} className="border-b border-line-subtle last:border-0">
+                                            {row.map((v, c) => (
+                                                <td key={c} className={cn("px-3 py-1.5", typeof v === "number" ? "text-right font-medium tabular-nums text-ink" : "text-ink-2")}>
+                                                    {typeof v === "number" ? formatValue(v) : (v ?? "—")}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </TabsContent>
+                    <UnverifiedNote values={visual.unverified} />
+                    {visual.source && <p className="mt-3 text-[12px] text-ink-3">Source : {visual.source.label}</p>}
+                </div>
+            </Tabs>
 
-            <footer className="flex flex-wrap gap-2 border-t border-[var(--ds-line-subtle)] px-5 py-3">
-                <ActionButton onClick={() => downloadCsv(spec)}>
-                    <Download className="h-3.5 w-3.5" /> CSV
-                </ActionButton>
+            <footer className="flex flex-wrap gap-2 border-t border-line-subtle px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <Button type="button" variant="outline" size="sm" onClick={() => downloadCsv(spec)}>
+                    <Download aria-hidden /> CSV
+                </Button>
                 {canExportPng(spec) && (
-                    <ActionButton
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={exporting}
                         onClick={async () => {
                             if (!chartRef.current) {
                                 setView("chart");
                                 return;
                             }
                             setExporting(true);
-                            await exportPng(chartRef.current, spec);
-                            setExporting(false);
+                            try {
+                                await exportPng(chartRef.current, spec);
+                            } finally {
+                                setExporting(false);
+                            }
                         }}
                     >
-                        <ImageIcon className="h-3.5 w-3.5" /> {exporting ? "Export…" : "Image"}
-                    </ActionButton>
+                        {exporting ? <Loader2 className="animate-spin" aria-hidden /> : <ImageIcon aria-hidden />}
+                        {exporting ? "Export…" : "Image"}
+                    </Button>
                 )}
-                <ActionButton
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={async () => {
                         if (await copyAsTable(spec)) {
                             setCopied(true);
@@ -164,19 +157,22 @@ export function VisualCanvas({
                         }
                     }}
                 >
-                    {copied ? <Check className="h-3.5 w-3.5 text-[var(--ds-success)]" /> : <Copy className="h-3.5 w-3.5" />} {copied ? "Copié" : "Copier"}
-                </ActionButton>
+                    {copied ? <Check className="text-success" aria-hidden /> : <Copy aria-hidden />}
+                    {copied ? "Copié" : "Copier"}
+                </Button>
                 {onTogglePin && (
-                    <ActionButton onClick={() => onTogglePin(visual)} active={pinned} disabled={pinBusy}>
-                        {pinBusy ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : pinned ? (
-                            <PinOff className="h-3.5 w-3.5" />
-                        ) : (
-                            <Pin className="h-3.5 w-3.5" />
-                        )}{" "}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onTogglePin(visual)}
+                        disabled={pinBusy}
+                        aria-pressed={pinned}
+                        className={cn(pinned && "border-accent-200 bg-accent-soft text-accent-soft-ink hover:bg-accent-soft")}
+                    >
+                        {pinBusy ? <Loader2 className="animate-spin" aria-hidden /> : pinned ? <PinOff aria-hidden /> : <Pin aria-hidden />}
                         {pinned ? "Retirer du tableau" : "Épingler au dossier"}
-                    </ActionButton>
+                    </Button>
                 )}
             </footer>
         </aside>

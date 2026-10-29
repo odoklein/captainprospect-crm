@@ -1,31 +1,38 @@
 "use client";
 
 /**
- * « Déléguer une mission »: a goal in plain French, a scope (agency or one
- * client), a budget (MISSION_BUDGETS) and a dry-run switch. « Lancer »
- * queues the mission and hands the new run id back, so the caller opens its
- * RunDetail and the manager watches it start.
+ * « Déléguer une mission », in a right Sheet: a goal in plain French (with a
+ * counter and starters), a scope (agency or one client), a budget preset
+ * (MISSION_BUDGETS, as a RadioGroup of cards) and a dry-run switch.
+ * Ctrl / ⌘ + Entrée launches. « Lancer » queues the mission and hands the new
+ * run id back, so the caller opens its RunDetail and watches it start.
  */
 
 import { useState } from "react";
 import { Gauge, Loader2, Rocket, Telescope } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Drawer } from "@/components/ui/Drawer";
-import { Field } from "@/components/ui/Field";
-import { Kbd } from "@/components/ui/Kbd";
-import { Switch } from "@/components/ui/Switch";
-import { Textarea } from "@/components/ui/Textarea";
-import { useToast } from "@/components/ui/Toast";
 import { AiMark } from "@/components/ui/AiMark";
 import { FOCUS_RING } from "@/components/ui/recipes";
-import { PRIMARY_BUTTON, SECONDARY_BUTTON, SelectField } from "@/components/accueil/AccueilUI";
+import { useToast } from "@/components/ui/Toast";
+import { Button } from "@/components/ui/shadcn/button";
+import { Kbd, KbdGroup } from "@/components/ui/shadcn/kbd";
+import { Label } from "@/components/ui/shadcn/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/shadcn/radio-group";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/shadcn/select";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/shadcn/sheet";
+import { Switch } from "@/components/ui/shadcn/switch";
+import { Textarea } from "@/components/ui/shadcn/textarea";
 import { MISSION_BUDGETS, type CreateMissionBody } from "@/lib/assistant/api-contract";
 import { formatDuration, formatEur } from "@/lib/agent/client/format";
 import { createMission, useClientOptions, type ClientOption } from "@/lib/agent/client/hooks";
+import { FormField, StaticField } from "./shared";
 
 type BudgetKey = CreateMissionBody["budget"];
 
+const GOAL_MIN = 8;
 const GOAL_MAX = 2000;
+const AGENCY = "__agency";
+const FORM_ID = "agent-delegate-form";
 
 const BUDGETS: Array<{ key: BudgetKey; label: string; hint: string; icon: typeof Gauge }> = [
     { key: "rapide", label: "Rapide", hint: "Une question précise, une réponse courte.", icon: Gauge },
@@ -52,15 +59,24 @@ export function DelegateComposer({
     onLaunched: (runId: string) => void;
 }) {
     return (
-        <Drawer
-            isOpen={open}
-            onClose={onClose}
-            size="md"
-            title="Déléguer une mission"
-            description={client ? client.name : "L’agent travaille en arrière-plan et te soumet ses propositions"}
-        >
-            {open && <ComposerBody client={client ?? null} onClose={onClose} onLaunched={onLaunched} />}
-        </Drawer>
+        <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+            <SheetContent side="right" className="w-full gap-0 sm:max-w-lg">
+                <SheetHeader>
+                    <div className="flex items-center gap-3">
+                        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[12px] bg-accent text-accent-fg shadow-2xs">
+                            <AiMark className="size-[18px]" aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                            <SheetTitle>Déléguer une mission</SheetTitle>
+                            <SheetDescription className="text-xs">
+                                {client ? `Pour ${client.name}` : "L’agent travaille en arrière-plan et te soumet ses propositions"}
+                            </SheetDescription>
+                        </div>
+                    </div>
+                </SheetHeader>
+                {open && <ComposerBody client={client ?? null} onClose={onClose} onLaunched={onLaunched} />}
+            </SheetContent>
+        </Sheet>
     );
 }
 
@@ -75,11 +91,11 @@ function ComposerBody({ client, onClose, onLaunched }: { client: ClientOption | 
     const [error, setError] = useState<string | null>(null);
 
     const trimmed = goal.trim();
-    const canSend = trimmed.length >= 8 && trimmed.length <= GOAL_MAX && !sending;
+    const canSend = trimmed.length >= GOAL_MIN && trimmed.length <= GOAL_MAX && !sending;
 
     const launch = async () => {
         if (!canSend) {
-            setError(trimmed.length < 8 ? "Décris la mission en une phrase au moins." : null);
+            setError(trimmed.length < GOAL_MIN ? "Décris la mission en une phrase au moins." : null);
             return;
         }
         setError(null);
@@ -104,41 +120,60 @@ function ComposerBody({ client, onClose, onLaunched }: { client: ClientOption | 
     };
 
     return (
-        <form
-            className="space-y-5"
-            onSubmit={(e) => {
-                e.preventDefault();
-                void launch();
-            }}
-            onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        <>
+            <form
+                id={FORM_ID}
+                className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5"
+                onSubmit={(e) => {
                     e.preventDefault();
                     void launch();
-                }
-            }}
-        >
-            <div className="space-y-2">
-                <Textarea
-                    label="Objectif"
-                    value={goal}
-                    onChange={(e) => setGoal(e.target.value.slice(0, GOAL_MAX))}
-                    maxLength={GOAL_MAX}
-                    showCount
-                    rows={5}
-                    autoFocus
-                    required
-                    placeholder="Ce que l’agent doit comprendre, vérifier ou préparer, et pour quand."
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        void launch();
+                    }
+                }}
+            >
+                <FormField
+                    label={
+                        <span className="flex w-full items-center justify-between gap-2">
+                            <span>Objectif</span>
+                            <span className={cn("text-2xs font-medium tabular-nums", goal.length > GOAL_MAX * 0.9 ? "text-warning-ink" : "text-ink-4")}>
+                                {goal.length} / {GOAL_MAX}
+                            </span>
+                        </span>
+                    }
+                    htmlFor="agent-delegate-goal"
                     error={error ?? undefined}
-                />
+                    required
+                >
+                    <Textarea
+                        id="agent-delegate-goal"
+                        value={goal}
+                        onChange={(e) => {
+                            setGoal(e.target.value.slice(0, GOAL_MAX));
+                            if (error) setError(null);
+                        }}
+                        maxLength={GOAL_MAX}
+                        rows={5}
+                        autoFocus
+                        aria-invalid={Boolean(error) || undefined}
+                        placeholder="Ce que l’agent doit comprendre, vérifier ou préparer, et pour quand."
+                        className="min-h-32 max-h-72"
+                    />
+                </FormField>
                 {goal.length === 0 && (
-                    <div className="flex flex-wrap gap-1.5" aria-label="Exemples">
-                        {STARTERS.map((s) => (
+                    <div className="-mt-3 flex flex-wrap gap-1.5" aria-label="Exemples">
+                        {STARTERS.map((s, i) => (
                             <button
                                 key={s}
                                 type="button"
                                 onClick={() => setGoal(s)}
+                                style={{ animationDelay: `${i * 40}ms` }}
                                 className={cn(
-                                    "rounded-chip border border-line bg-surface px-2.5 py-1 text-left text-[11px] font-medium text-ink-3 transition-colors duration-150 hover:border-line-strong hover:text-ink",
+                                    "rounded-chip border border-line bg-surface px-2.5 py-1 text-left text-2xs font-medium text-ink-3 shadow-2xs motion-safe:animate-ds-enter",
+                                    "transition-[border-color,color,background-color] duration-150 ease-snappy hover:border-accent-200 hover:bg-accent-soft hover:text-accent-soft-ink",
                                     FOCUS_RING,
                                 )}
                             >
@@ -147,90 +182,91 @@ function ComposerBody({ client, onClose, onLaunched }: { client: ClientOption | 
                         ))}
                     </div>
                 )}
-            </div>
 
-            <Field label="Périmètre">
-                {client ? (
-                    <p className="flex h-10 items-center rounded-control border border-line bg-surface-2 px-3.5 text-sm font-semibold text-ink-2">{client.name}</p>
-                ) : (
-                    <SelectField value={clientId} onChange={setClientId} ariaLabel="Périmètre">
-                        <option value="">Vue agence</option>
-                        {clients.map((c) => (
-                            <option key={c.clientId} value={c.clientId}>
-                                {c.name}
-                            </option>
-                        ))}
-                    </SelectField>
-                )}
-            </Field>
+                <FormField label="Périmètre" htmlFor="agent-delegate-scope">
+                    {client ? (
+                        <StaticField>{client.name}</StaticField>
+                    ) : (
+                        <Select value={clientId === "" ? AGENCY : clientId} onValueChange={(v) => setClientId(v === AGENCY ? "" : v)}>
+                            <SelectTrigger id="agent-delegate-scope" className="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-72">
+                                <SelectItem value={AGENCY}>Vue agence</SelectItem>
+                                {clients.length > 0 && <SelectSeparator />}
+                                {clients.map((c) => (
+                                    <SelectItem key={c.clientId} value={c.clientId}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                </FormField>
 
-            <Field label="Budget">
-                <div role="radiogroup" aria-label="Budget" className="grid gap-2 sm:grid-cols-3">
-                    {BUDGETS.map((b) => {
-                        const limits = MISSION_BUDGETS[b.key];
-                        const active = budget === b.key;
-                        const Icon = b.icon;
-                        return (
-                            <button
-                                key={b.key}
-                                type="button"
-                                role="radio"
-                                aria-checked={active}
-                                onClick={() => setBudget(b.key)}
-                                className={cn(
-                                    "relative rounded-panel border p-3 text-left transition-[border-color,background-color,box-shadow,transform] duration-150 ease-snappy active:scale-[0.99]",
-                                    FOCUS_RING,
-                                    active ? "border-primary-300 bg-primary-50 shadow-xs" : "border-line bg-surface hover:border-line-strong",
-                                )}
-                            >
-                                <span className="flex items-center justify-between gap-2">
-                                    <span className={cn("inline-flex items-center gap-1.5 text-sm font-bold", active ? "text-primary-700" : "text-ink")}>
-                                        <Icon className="size-4" aria-hidden />
-                                        {b.label}
+                <fieldset className="grid gap-1.5">
+                    <legend className="mb-1.5 text-xs font-semibold text-ink-2">Budget</legend>
+                    <RadioGroup value={budget} onValueChange={(v) => setBudget(v as BudgetKey)} aria-label="Budget" className="grid gap-2 sm:grid-cols-3">
+                        {BUDGETS.map((b) => {
+                            const limits = MISSION_BUDGETS[b.key];
+                            const active = budget === b.key;
+                            const Icon = b.icon;
+                            const itemId = `agent-budget-${b.key}`;
+                            return (
+                                <Label
+                                    key={b.key}
+                                    htmlFor={itemId}
+                                    className={cn(
+                                        "relative flex cursor-pointer flex-col items-stretch gap-1 rounded-panel border p-3 font-normal",
+                                        "transition-[border-color,background-color,box-shadow,transform] duration-150 ease-snappy active:scale-[0.99]",
+                                        active ? "border-primary-300 bg-primary-50 shadow-2xs" : "border-line bg-surface hover:border-line-strong",
+                                    )}
+                                >
+                                    <span className="flex items-center justify-between gap-2">
+                                        <span className={cn("inline-flex items-center gap-1.5 text-sm font-semibold", active ? "text-primary-700" : "text-ink")}>
+                                            <Icon className="size-4" aria-hidden />
+                                            {b.label}
+                                        </span>
+                                        <RadioGroupItem id={itemId} value={b.key} />
                                     </span>
-                                    <span
-                                        aria-hidden
-                                        className={cn(
-                                            "size-4 rounded-full border-2 transition-colors duration-150",
-                                            active ? "border-primary bg-primary shadow-[inset_0_0_0_2px_var(--ds-surface)]" : "border-line-strong",
-                                        )}
-                                    />
-                                </span>
-                                <span className="mt-1 block text-xs font-semibold tabular-nums text-ink-2">
-                                    {formatEur(limits.maxCostEur).replace(",00", "")} · {formatDuration(limits.deadlineMs)}
-                                </span>
-                                <span className="mt-1 block text-[11px] leading-snug text-ink-3">{b.hint}</span>
-                            </button>
-                        );
-                    })}
+                                    <span className="text-xs font-semibold tabular-nums text-ink-2">
+                                        {formatEur(limits.maxCostEur).replace(",00", "")} · {formatDuration(limits.deadlineMs)}
+                                    </span>
+                                    <span className="text-2xs leading-snug text-ink-3">{b.hint}</span>
+                                </Label>
+                            );
+                        })}
+                    </RadioGroup>
+                </fieldset>
+
+                <div className="flex items-start justify-between gap-4 rounded-panel border border-line bg-surface px-3.5 py-3">
+                    <div className="min-w-0">
+                        <Label htmlFor="agent-delegate-dry" className="text-sm font-medium text-ink">
+                            Mode essai
+                        </Label>
+                        <p className="mt-1 text-2xs leading-relaxed text-ink-3">L’agent mène l’enquête et rédige ses propositions, sans rien pouvoir exécuter.</p>
+                    </div>
+                    <Switch id="agent-delegate-dry" checked={dryRun} onCheckedChange={setDryRun} className="mt-0.5" />
                 </div>
-            </Field>
-
-            <div className="rounded-panel border border-line bg-surface p-3.5">
-                <Switch
-                    checked={dryRun}
-                    onChange={setDryRun}
-                    label="Mode essai"
-                    description="L’agent mène l’enquête et rédige ses propositions, sans rien pouvoir exécuter."
-                />
-            </div>
-
-            <div className="sticky bottom-0 -mx-6 -mb-6 flex flex-wrap items-center justify-between gap-3 border-t border-line-subtle bg-surface px-6 py-4">
-                <span className="hidden items-center gap-1 text-[11px] text-ink-4 sm:inline-flex">
-                    <Kbd>Ctrl</Kbd>
-                    <Kbd>Entrée</Kbd>
+            </form>
+            <SheetFooter className="mt-0 flex-row items-center gap-2">
+                <span className="hidden items-center gap-1.5 text-2xs text-ink-4 sm:inline-flex">
+                    <KbdGroup>
+                        <Kbd>Ctrl</Kbd>
+                        <Kbd>Entrée</Kbd>
+                    </KbdGroup>
                     pour lancer
                 </span>
                 <div className="ml-auto flex items-center gap-2">
-                    <button type="button" className={SECONDARY_BUTTON} onClick={onClose} disabled={sending}>
+                    <Button type="button" variant="outline" onClick={onClose} disabled={sending}>
                         Annuler
-                    </button>
-                    <button type="submit" className={PRIMARY_BUTTON} disabled={!canSend}>
-                        {sending ? <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden /> : <AiMark className="size-4" aria-hidden />}
+                    </Button>
+                    <Button type="submit" form={FORM_ID} variant="ai" disabled={!canSend}>
+                        {sending ? <Loader2 className="motion-safe:animate-spin" aria-hidden /> : <AiMark aria-hidden />}
                         Lancer
-                    </button>
+                    </Button>
                 </div>
-            </div>
-        </form>
+            </SheetFooter>
+        </>
     );
 }

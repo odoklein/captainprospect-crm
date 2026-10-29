@@ -252,6 +252,11 @@ export function usePendingProposals(folderId?: string | null) {
     };
 }
 
+/** One-off read of a run (e.g. to find its conversation from a finding). */
+export function fetchRun(id: string): Promise<AgentRunDetail> {
+    return apiGet<AgentRunDetail>(AGENT_API.run(id));
+}
+
 // ============================================
 // Mutations
 // ============================================

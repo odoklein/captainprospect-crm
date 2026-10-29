@@ -16,8 +16,10 @@ import { ASSISTANT_API, type ConversationsResponse, type FolderCard } from "@/li
 import { apiGet, withQuery } from "@/lib/assistant/client/fetcher";
 import { useThreadActions } from "@/lib/assistant/client/thread-hooks";
 import { cn } from "@/lib/utils";
-import { EmptyBlock, FOCUS, SECONDARY_BUTTON, Shimmer } from "@/components/accueil/AccueilUI";
 import { useToast } from "@/components/ui/Toast";
+import { Button } from "@/components/ui/shadcn/button";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
 import { Thread, type StartRequest } from "./workspace/thread/Thread";
 import { useChatStream } from "./workspace/useChatStream";
 import { useIsMac } from "./workspace/Composer";
@@ -33,7 +35,11 @@ export interface EmbeddedAssistantProps {
 }
 
 export default function EmbeddedAssistant(props: EmbeddedAssistantProps) {
-    return <EmbeddedInner key={`${props.fixedClientId ?? ""}:${props.fixedMissionId ?? ""}`} {...props} />;
+    return (
+        <TooltipProvider>
+            <EmbeddedInner key={`${props.fixedClientId ?? ""}:${props.fixedMissionId ?? ""}`} {...props} />
+        </TooltipProvider>
+    );
 }
 
 export { EmbeddedAssistant };
@@ -101,24 +107,26 @@ function EmbeddedInner({ fixedClientId, fixedMissionId, className, onDataChanged
     const trailing = (
         <>
             {conversationId && (
-                <button
-                    type="button"
-                    onClick={() => setConversation(null)}
-                    aria-label="Nouvelle conversation"
-                    title="Nouvelle conversation"
-                    className={cn("inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink", FOCUS)}
-                >
-                    <SquarePen className="size-4" aria-hidden />
-                </button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" onClick={() => setConversation(null)} aria-label="Nouvelle conversation">
+                            <SquarePen aria-hidden />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Nouvelle conversation</TooltipContent>
+                </Tooltip>
             )}
-            <Link
-                href={workspaceHref}
-                className={cn("inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-[12.5px] font-medium text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink", FOCUS)}
-                title="Ouvrir dans Captain AI"
-            >
-                <span className="max-sm:sr-only">Ouvrir</span>
-                <ArrowUpRight className="size-3.5" aria-hidden />
-            </Link>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Button asChild variant="ghost" size="sm" className="px-2 font-medium text-ink-3">
+                        <Link href={workspaceHref}>
+                            <span className="max-sm:sr-only">Ouvrir</span>
+                            <ArrowUpRight className="size-3.5" aria-hidden />
+                        </Link>
+                    </Button>
+                </TooltipTrigger>
+                <TooltipContent>Ouvrir dans Captain AI</TooltipContent>
+            </Tooltip>
         </>
     );
 
@@ -127,30 +135,37 @@ function EmbeddedInner({ fixedClientId, fixedMissionId, className, onDataChanged
             {boot.status === "loading" ? (
                 <div className="flex h-full flex-col" aria-busy="true">
                     <div className="flex h-11 items-center gap-2 border-b border-line-subtle px-3">
-                        <Shimmer className="h-4 w-40 rounded-full" />
+                        <Skeleton className="h-4 w-40 rounded-chip" />
                     </div>
                     <div className="flex-1 space-y-3 p-4">
-                        <Shimmer className="ml-auto h-9 w-1/2 rounded-[18px]" />
-                        <Shimmer className="h-3.5 w-[85%] rounded-full" />
-                        <Shimmer className="h-3.5 w-[70%] rounded-full" />
+                        <Skeleton className="ml-auto h-9 w-1/2 rounded-[18px]" />
+                        <Skeleton className="h-3.5 w-[85%] rounded-chip" />
+                        <Skeleton className="h-3.5 w-[70%] rounded-chip" />
                     </div>
                     <div className="p-3">
-                        <Shimmer className="h-[92px] w-full rounded-[22px]" />
+                        <Skeleton className="h-[92px] w-full rounded-[22px]" />
                     </div>
                 </div>
             ) : boot.status === "error" ? (
-                <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
-                    <EmptyBlock icon={Building2} tone="slate" title="Captain AI n’a pas pu s’ouvrir" hint={boot.message} compact />
-                    <button
+                <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-surface-3 text-ink-3">
+                        <Building2 className="size-5" aria-hidden />
+                    </span>
+                    <div>
+                        <p className="text-sm font-semibold text-ink">Captain AI n’a pas pu s’ouvrir</p>
+                        <p className="mt-0.5 text-[13px] text-ink-3">{boot.message}</p>
+                    </div>
+                    <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={() => {
                             setBoot({ status: "loading" });
                             setAttempt((n) => n + 1);
                         }}
-                        className={SECONDARY_BUTTON}
                     >
                         Réessayer
-                    </button>
+                    </Button>
                 </div>
             ) : (
                 <Thread

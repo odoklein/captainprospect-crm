@@ -6,7 +6,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { fuzzyMatch, normalizeText, parseRecent, pushRecent, rankItems, splitHighlight, type RecentItem } from "./CommandPaletteRank";
+import {
+    escapeAction,
+    fuzzyMatch,
+    normalizeText,
+    paletteSearchState,
+    parseRecent,
+    pushRecent,
+    rankActions,
+    rankItems,
+    shortcutLabel,
+    splitHighlight,
+    type RecentItem,
+} from "./CommandPaletteRank";
 
 test("normalizeText strips accents and case", () => {
     assert.equal(normalizeText("Évènement Été"), "evenement ete");
@@ -72,4 +84,39 @@ test("recent list dedupes, caps and survives bad storage", () => {
     assert.equal(many.reduce((l, r) => pushRecent(l, r), [] as RecentItem[]).length, 6);
     assert.deepEqual(parseRecent("not json"), []);
     assert.deepEqual(parseRecent(JSON.stringify([{ kind: "nope", id: "1", label: "x" }, b])), [b]);
+});
+
+test("actions rank by label, then by strong keyword hits", () => {
+    const actions = [
+        { key: "new", label: "Nouvelle conversation", keywords: "nouveau chat question" },
+        { key: "agency", label: "Vue agence", keywords: "agence accueil" },
+        { key: "agent", label: "Agent", keywords: "agent veille automatisation" },
+    ];
+    assert.deepEqual(rankActions("agen", actions).map((a) => a.item.key), ["agent", "agency"]);
+    const veille = rankActions("veille", actions);
+    assert.deepEqual(veille.map((a) => a.item.key), ["agent"]);
+    assert.deepEqual(veille[0].ranges, []);
+    assert.deepEqual(rankActions("zzz", actions), []);
+});
+
+test("palette search state: min 2 chars, pending on debounce and first answer", () => {
+    const idle = { isValidating: false, hasData: false };
+    assert.deepEqual(paletteSearchState("", "", idle), { q: "", searching: false, tooShort: false, pending: false });
+    assert.deepEqual(paletteSearchState("a", "a", idle), { q: "a", searching: false, tooShort: true, pending: false });
+    assert.equal(paletteSearchState("acm", "ac", idle).pending, true);
+    assert.equal(paletteSearchState("acme", "acme", { isValidating: true, hasData: false }).pending, true);
+    // Previous results stay on screen while revalidating: not « pending ».
+    assert.equal(paletteSearchState("acme", "acme", { isValidating: true, hasData: true }).pending, false);
+    assert.equal(paletteSearchState("  acme  ", "acme", idle).q, "acme");
+});
+
+test("Échap clears a query before closing", () => {
+    assert.equal(escapeAction("acme"), "clear");
+    assert.equal(escapeAction(""), "close");
+});
+
+test("shortcut labels per platform", () => {
+    assert.equal(shortcutLabel(["mod", "shift", "o"], true), "⌘⇧O");
+    assert.equal(shortcutLabel(["mod", "shift", "o"], false), "Ctrl Maj O");
+    assert.equal(shortcutLabel(["mod", "k"], false), "Ctrl K");
 });

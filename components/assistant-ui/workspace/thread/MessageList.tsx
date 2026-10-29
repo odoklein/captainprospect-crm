@@ -2,46 +2,42 @@
 
 /**
  * The scrolling column of a thread: older pages on demand (with the reading
- * position kept), skeleton on first load, the live turn while an answer is
- * written, and a « dernier message » button when the reader scrolled up.
+ * position kept), skeleton on first load, the turn being written, and a
+ * « dernier message » button when the reader scrolled up.
  *
- * Scroll rules: a question just sent goes to the bottom; while streaming the
- * view follows only if the reader was already at the bottom; when the answer
- * lands, a long one is read from its question.
+ * The live turn is the last item of the SAME list as the messages, keyed by
+ * its turn key; the saved answer gets that key too (thread/handover.ts), so
+ * the hand-over is an in-place update, never an unmount + mount.
+ *
+ * Scroll rules: the view sticks to the bottom while the reader is there (a
+ * ResizeObserver follows every growth — stream, folding trace, chart drawn);
+ * scrolling up releases it, and nothing ever moves the view on its own then —
+ * not even the final answer landing. A question just sent goes to the bottom.
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ChevronUp, Loader2 } from "lucide-react";
 import type { ThreadMessage } from "@/lib/assistant/api-contract";
 import { cn } from "@/lib/utils";
-import { FOCUS, Shimmer } from "@/components/accueil/AccueilUI";
-import { LiveTurn } from "../../LiveTurn";
-import type { VisualHandlers } from "../../AnswerBody";
+import { Button } from "@/components/ui/shadcn/button";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { useLiveTurn, type ChatStream, type LiveSnapshot } from "../useChatStream";
+import { liveItemVisible } from "./handover";
 
 const BOTTOM_SLACK = 80;
-
-function LiveTurnClock({ snapshot, handlers }: { snapshot: LiveSnapshot; handlers: VisualHandlers }) {
-    const [now, setNow] = useState(snapshot.startedAt);
-    useEffect(() => {
-        const tick = setInterval(() => setNow(Date.now()), 100);
-        return () => clearInterval(tick);
-    }, []);
-    return <LiveTurn state={snapshot.state} elapsedMs={Math.max(0, now - snapshot.startedAt)} deep={snapshot.deep} handlers={handlers} />;
-}
 
 export function MessageSkeleton() {
     return (
         <div className="flex flex-col gap-8" aria-hidden>
             {[0, 1, 2].map((i) => (
-                <div key={i} className="flex flex-col gap-3" style={{ animationDelay: `${i * 30}ms` }}>
+                <div key={i} className="flex flex-col gap-3">
                     <div className="flex justify-end">
-                        <Shimmer className="h-10 w-[46%] rounded-[20px] rounded-br-md" />
+                        <Skeleton className="h-10 w-[46%] rounded-[20px] rounded-br-md" />
                     </div>
                     <div className="space-y-2">
-                        <Shimmer className="h-3.5 w-[88%] rounded-full" />
-                        <Shimmer className="h-3.5 w-[76%] rounded-full" />
-                        <Shimmer className="h-3.5 w-[58%] rounded-full" />
+                        <Skeleton className="h-3.5 w-[88%] rounded-chip" />
+                        <Skeleton className="h-3.5 w-[76%] rounded-chip" />
+                        <Skeleton className="h-3.5 w-[58%] rounded-chip" />
                     </div>
                 </div>
             ))}
@@ -57,7 +53,7 @@ export function MessageList({
     olderCursor,
     onLoadOlder,
     renderMessage,
-    liveHandlers,
+    renderLive,
     footer,
     empty,
     compact,
@@ -68,14 +64,20 @@ export function MessageList({
     loading: boolean;
     olderCursor: string | null;
     onLoadOlder: () => Promise<void>;
-    renderMessage: (message: ThreadMessage, index: number) => ReactNode;
-    liveHandlers: VisualHandlers;
+    /** `isLast`: the newest item of the column (no live turn after it). */
+    renderMessage: (message: ThreadMessage, index: number, isLast: boolean) => ReactNode;
+    /** The turn being written, keyed by its turn key. */
+    renderLive: (live: LiveSnapshot) => ReactNode;
     footer?: ReactNode;
     empty?: ReactNode;
     compact?: boolean;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const atBottomRef = useRef(true);
+    const contentRef = useRef<HTMLDivElement>(null);
+    /** Follow the bottom: true while the reader is there, released by scrolling up. */
+    const stickRef = useRef(true);
+    const lastTopRef = useRef(0);
+    const lastHeightRef = useRef(0);
     const [atBottom, setAtBottom] = useState(true);
     const [loadingOlder, setLoadingOlder] = useState(false);
     const prependAnchorRef = useRef<number | null>(null);
@@ -86,9 +88,9 @@ export function MessageList({
         conversationId: null,
     });
     const live = useLiveTurn(stream, conversationId);
-    const wasLiveRef = useRef(false);
+    const showLive = live !== null && liveItemVisible(live.settled?.id ?? null, messages);
 
-    const scrollToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    const toBottom = useCallback((behavior: ScrollBehavior = "auto") => {
         const el = scrollRef.current;
         if (el) el.scrollTo({ top: el.scrollHeight, behavior });
     }, []);
@@ -96,10 +98,33 @@ export function MessageList({
     const onScroll = () => {
         const el = scrollRef.current;
         if (!el) return;
-        const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < BOTTOM_SLACK;
-        atBottomRef.current = bottom;
+        const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+        const bottom = distance < BOTTOM_SLACK;
+        // Moving up by hand releases the view; the browser clamping scrollTop
+        // because the content shrank (a trace folding) does not.
+        const shrank = el.scrollHeight < lastHeightRef.current;
+        if (bottom) stickRef.current = true;
+        else if (el.scrollTop < lastTopRef.current - 1 && !shrank) stickRef.current = false;
+        lastTopRef.current = el.scrollTop;
+        lastHeightRef.current = el.scrollHeight;
         setAtBottom(bottom);
     };
+
+    // Every growth of the column (stream, folding trace, chart drawn, older
+    // page): follow it while stuck to the bottom.
+    useEffect(() => {
+        const el = scrollRef.current;
+        const content = contentRef.current;
+        if (!el || !content) return;
+        const observer = new ResizeObserver(() => {
+            if (prependAnchorRef.current !== null) return;
+            if (stickRef.current) el.scrollTop = el.scrollHeight;
+            lastTopRef.current = el.scrollTop;
+            lastHeightRef.current = el.scrollHeight;
+        });
+        observer.observe(content);
+        return () => observer.disconnect();
+    }, []);
 
     // Messages changed: decide where the view goes.
     useLayoutEffect(() => {
@@ -113,7 +138,7 @@ export function MessageList({
         // Another thread, or its first page arriving: start at the bottom.
         if (prev.conversationId !== conversationId || (prev.count === 0 && messages.length > 0)) {
             el.scrollTop = el.scrollHeight;
-            atBottomRef.current = true;
+            stickRef.current = true;
             setAtBottom(true);
             return;
         }
@@ -123,36 +148,14 @@ export function MessageList({
             prependAnchorRef.current = null;
             return;
         }
-        if (!last || last.id === prev.last) return;
-        if (last.role === "USER") {
-            atBottomRef.current = true;
+        // A question just sent: go and stay at the bottom. An answer landing
+        // moves nothing (the observer keeps the bottom if the reader is there).
+        if (last && last.id !== prev.last && last.role === "USER") {
+            stickRef.current = true;
             setAtBottom(true);
-            scrollToBottom("smooth");
-            return;
+            toBottom("smooth");
         }
-        // An answer landed: a long one is read from its question.
-        const followed = wasLiveRef.current || atBottomRef.current;
-        wasLiveRef.current = false;
-        if (followed) {
-            const questions = el.querySelectorAll<HTMLElement>("[data-role='USER']");
-            const question = questions[questions.length - 1];
-            const answers = el.querySelectorAll<HTMLElement>("[data-role='ASSISTANT']");
-            const answer = answers[answers.length - 1];
-            const tall = answer ? answer.offsetHeight > el.clientHeight * 0.7 : false;
-            if (question && tall) el.scrollTo({ top: Math.max(0, question.offsetTop - 16), behavior: "smooth" });
-            else scrollToBottom("smooth");
-        }
-    }, [messages, conversationId, scrollToBottom]);
-
-    // The live turn grows: follow it only when the reader is at the bottom.
-    useLayoutEffect(() => {
-        if (!live) return;
-        wasLiveRef.current = true;
-        if (atBottomRef.current) {
-            const el = scrollRef.current;
-            if (el) el.scrollTop = el.scrollHeight;
-        }
-    }, [live]);
+    }, [messages, conversationId, toBottom]);
 
     const loadOlder = async () => {
         const el = scrollRef.current;
@@ -170,55 +173,53 @@ export function MessageList({
 
     const showEmpty = !loading && messages.length === 0 && !live && !footer;
 
+    // One list: the messages, then the live turn — so its key can be taken over in place.
+    const items: ReactNode[] = messages.map((m, i) => renderMessage(m, i, !showLive && i === messages.length - 1));
+    if (live && showLive) items.push(renderLive(live));
+
     return (
         <div className="relative min-h-0 flex-1">
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
-                className="h-full overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable]"
+                className="h-full overflow-y-auto overflow-x-hidden overscroll-contain [scrollbar-gutter:stable] [scrollbar-width:thin]"
                 role="log"
                 aria-label="Messages"
                 aria-busy={loading || live !== null}
             >
-                <div className={cn("mx-auto flex w-full flex-col gap-7 px-4 pb-8 pt-6", compact ? "max-w-none gap-6 px-3 pt-4" : "max-w-3xl sm:px-6")}>
+                <div ref={contentRef} className={cn("mx-auto flex w-full flex-col gap-7 px-4 pb-8 pt-6", compact ? "max-w-none gap-6 px-3 pt-4" : "max-w-3xl sm:px-6")}>
                     {olderCursor && !loading && (
                         <div className="flex justify-center">
-                            <button
-                                type="button"
-                                onClick={() => void loadOlder()}
-                                disabled={loadingOlder}
-                                className={cn(
-                                    "inline-flex h-8 items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-[12.5px] font-medium text-ink-2 shadow-2xs transition-[border-color,color] duration-200 hover:border-line-strong hover:text-ink disabled:opacity-60",
-                                    FOCUS,
-                                )}
-                            >
-                                {loadingOlder ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <ChevronUp className="size-3.5" aria-hidden />}
+                            <Button type="button" variant="outline" size="xs" className="rounded-chip" onClick={() => void loadOlder()} disabled={loadingOlder}>
+                                {loadingOlder ? <Loader2 className="animate-spin" aria-hidden /> : <ChevronUp aria-hidden />}
                                 Charger les messages précédents
-                            </button>
+                            </Button>
                         </div>
                     )}
 
-                    {loading ? <MessageSkeleton /> : showEmpty ? empty : messages.map((m, i) => renderMessage(m, i))}
-
-                    {live && <LiveTurnClock snapshot={live} handlers={liveHandlers} />}
+                    {loading ? <MessageSkeleton /> : showEmpty ? empty : items}
                     {footer}
                 </div>
             </div>
 
-            <button
+            <Button
                 type="button"
-                onClick={() => scrollToBottom("smooth")}
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                    stickRef.current = true;
+                    toBottom("smooth");
+                }}
                 aria-label="Aller au dernier message"
                 tabIndex={atBottom ? -1 : 0}
                 className={cn(
-                    "absolute bottom-3 left-1/2 z-10 flex size-9 -translate-x-1/2 items-center justify-center rounded-full border border-line bg-surface text-ink-2 shadow-raised",
-                    "transition-[opacity,transform] duration-200 ease-[var(--ease-snappy)] hover:text-ink",
-                    FOCUS,
+                    "absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-full shadow-raised",
+                    "transition-[opacity,transform] duration-200 ease-snappy",
                     atBottom || loading || showEmpty ? "pointer-events-none translate-y-2 opacity-0" : "translate-y-0 opacity-100",
                 )}
             >
-                <ArrowDown className="size-4" aria-hidden />
-            </button>
+                <ArrowDown aria-hidden />
+            </Button>
         </div>
     );
 }

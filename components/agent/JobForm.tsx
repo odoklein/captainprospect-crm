@@ -1,29 +1,31 @@
 "use client";
 
 /**
- * Create or edit a scheduled agent task. Creating starts from the playbook
- * catalog (AGENT_API.playbooks); the form then asks for a name, a scope, a
- * schedule (ScheduleBuilder), the playbook's own settings (ConfigForm, from
- * its JSON Schema), the dry-run switch and how to notify.
+ * Create or edit a scheduled agent task, in a Dialog. Creating starts from
+ * the playbook catalog (AGENT_API.playbooks); the form then asks for a name,
+ * a scope, a schedule (ScheduleBuilder), the playbook's own settings
+ * (ConfigForm, from its JSON Schema), the dry-run switch and how to notify.
  */
 
-import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ArrowLeft, ChevronRight, Loader2, PackageOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Drawer } from "@/components/ui/Drawer";
-import { Input } from "@/components/ui/Input";
-import { Field } from "@/components/ui/Field";
-import { Switch } from "@/components/ui/Switch";
-import { useToast } from "@/components/ui/Toast";
 import { FOCUS_RING } from "@/components/ui/recipes";
-import { EmptyBlock, PRIMARY_BUTTON, SECONDARY_BUTTON, SelectField, Shimmer } from "@/components/accueil/AccueilUI";
+import { useToast } from "@/components/ui/Toast";
+import { Button } from "@/components/ui/shadcn/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/shadcn/dialog";
+import { Input } from "@/components/ui/shadcn/input";
+import { Label } from "@/components/ui/shadcn/label";
+import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/shadcn/select";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
+import { Switch } from "@/components/ui/shadcn/switch";
 import type { AgentJobItem, AgentPlaybookItem } from "@/lib/assistant/api-contract";
 import { buildConfigFields, initialDraft, optionLabel, readDraft, schemaEnum, type ConfigDraft } from "@/lib/agent/client/config-form";
 import { describeCron } from "@/lib/agent/client/schedule";
 import { createJob, patchJob, useClientOptions, usePlaybooks } from "@/lib/agent/client/hooks";
 import { ConfigForm } from "./ConfigForm";
 import { ScheduleBuilder } from "./ScheduleBuilder";
-import { KIND_ICON, KindTag, stagger } from "./shared";
+import { EmptyState, FormField, KIND_ICON, KindTag, SectionTitle, StaticField, stagger } from "./shared";
 
 export interface JobFormTarget {
     /** Edit this job; omit to create. */
@@ -33,6 +35,9 @@ export interface JobFormTarget {
     /** Create: lock the scope to this client. */
     client?: { clientId: string; folderId: string | null; name: string } | null;
 }
+
+const AGENCY = "__agency";
+const FORM_ID = "agent-job-form";
 
 export function JobForm({ target, onClose }: { target: JobFormTarget | null; onClose: () => void }) {
     const { playbooks, isLoading, error } = usePlaybooks();
@@ -48,43 +53,28 @@ export function JobForm({ target, onClose }: { target: JobFormTarget | null; onC
     };
 
     const catalog = playbooks.filter((p) => !lockedClient || p.scope !== "agency");
+    const canGoBack = !editing && picked && !target?.playbook;
 
-    return (
-        <Drawer
-            isOpen={target !== null}
-            onClose={close}
-            size="md"
-            title={editing ? "Modifier la tâche" : playbook ? playbook.label : "Nouvelle tâche"}
-            description={editing ? editing.playbookLabel : playbook ? "Réglages de la tâche" : "Choisis ce que l’agent doit faire"}
-            headerLeft={
-                !editing && picked && !target?.playbook ? (
-                    <button type="button" onClick={() => setPicked(null)} aria-label="Revenir au catalogue" className={cn("rounded-lg p-2 text-ink-3 hover:bg-surface-3 hover:text-ink", FOCUS_RING)}>
-                        <ArrowLeft className="size-4" />
-                    </button>
-                ) : undefined
-            }
-        >
-            {target === null ? null : isLoading && playbooks.length === 0 ? (
+    let body: ReactNode = null;
+    if (target !== null) {
+        if (isLoading && playbooks.length === 0) {
+            body = (
                 <div className="space-y-2">
                     {Array.from({ length: 3 }).map((_, i) => (
-                        <Shimmer key={i} className="h-20 rounded-panel" style={stagger(i)} />
+                        <Skeleton key={i} className="h-20 rounded-panel" style={stagger(i)} />
                     ))}
                 </div>
-            ) : error && playbooks.length === 0 ? (
-                <EmptyBlock tone="rose" title="Catalogue indisponible" hint={error instanceof Error ? error.message : undefined} />
-            ) : playbook ? (
-                <JobFormBody
-                    key={`${editing?.id ?? "new"}-${playbook.id}`}
-                    playbook={playbook}
-                    job={editing}
-                    lockedClient={lockedClient}
-                    onDone={close}
-                />
-            ) : editing ? (
-                <EmptyBlock tone="amber" title="Playbook introuvable" hint={`« ${editing.playbook} » n’existe plus dans cette version.`} />
-            ) : catalog.length === 0 ? (
-                <EmptyBlock tone="slate" title="Aucun playbook disponible" />
-            ) : (
+            );
+        } else if (error && playbooks.length === 0) {
+            body = <EmptyState compact icon={PackageOpen} title="Catalogue indisponible" hint={error instanceof Error ? error.message : undefined} />;
+        } else if (playbook) {
+            body = <JobFormBody key={`${editing?.id ?? "new"}-${playbook.id}`} playbook={playbook} job={editing} lockedClient={lockedClient} onDone={close} />;
+        } else if (editing) {
+            body = <EmptyState compact icon={PackageOpen} title="Playbook introuvable" hint={`« ${editing.playbook} » n’existe plus dans cette version.`} />;
+        } else if (catalog.length === 0) {
+            body = <EmptyState compact icon={PackageOpen} title="Aucun playbook disponible" />;
+        } else {
+            body = (
                 <ul className="space-y-2">
                     {catalog.map((p, i) => {
                         const Icon = KIND_ICON[p.kind];
@@ -95,29 +85,52 @@ export function JobForm({ target, onClose }: { target: JobFormTarget | null; onC
                                     onClick={() => setPicked(p.id)}
                                     className={cn(
                                         "group flex w-full items-start gap-3 rounded-panel border border-line bg-surface p-3.5 text-left shadow-2xs",
-                                        "transition-[border-color,box-shadow] duration-150 ease-snappy hover:border-line-strong hover:shadow-raised",
+                                        "transition-[border-color,box-shadow,transform] duration-150 ease-snappy hover:border-line-strong hover:shadow-card active:scale-[0.995]",
                                         FOCUS_RING,
                                     )}
                                 >
-                                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-accent-200 bg-accent-50 text-accent-700">
+                                    <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-accent-200 bg-accent-soft text-accent-soft-ink">
                                         <Icon className="size-4" aria-hidden />
                                     </span>
                                     <span className="min-w-0 flex-1">
                                         <span className="flex flex-wrap items-center gap-2">
-                                            <span className="text-sm font-bold text-ink">{p.label}</span>
+                                            <span className="text-sm font-semibold text-ink">{p.label}</span>
                                             <KindTag kind={p.kind} />
                                         </span>
                                         <span className="mt-0.5 block text-xs leading-relaxed text-ink-3">{p.description}</span>
-                                        {p.defaultSchedule && <span className="mt-1.5 block text-[11px] font-medium text-ink-4">Par défaut : {describeCron(p.defaultSchedule)}</span>}
+                                        {p.defaultSchedule && <span className="mt-1.5 block text-2xs font-medium text-ink-4">Par défaut : {describeCron(p.defaultSchedule)}</span>}
                                     </span>
-                                    <ChevronRight className="mt-2 size-4 shrink-0 text-ink-4 transition-transform duration-150 group-hover:translate-x-0.5" aria-hidden />
+                                    <ChevronRight className="mt-2 size-4 shrink-0 text-ink-4 transition-transform duration-150 ease-snappy group-hover:translate-x-0.5" aria-hidden />
                                 </button>
                             </li>
                         );
                     })}
                 </ul>
-            )}
-        </Drawer>
+            );
+        }
+    }
+
+    return (
+        <Dialog open={target !== null} onOpenChange={(o) => !o && close()}>
+            <DialogContent className="flex max-h-[min(860px,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+                <DialogHeader className="border-b border-line-subtle px-6 pt-5 pb-4">
+                    <div className="flex items-center gap-2">
+                        {canGoBack && (
+                            <Button type="button" variant="ghost" size="icon-sm" onClick={() => setPicked(null)} aria-label="Revenir au catalogue" className="-ml-2">
+                                <ArrowLeft aria-hidden />
+                            </Button>
+                        )}
+                        <DialogTitle>{editing ? "Modifier la tâche" : playbook ? playbook.label : "Nouvelle tâche"}</DialogTitle>
+                    </div>
+                    <DialogDescription>{editing ? editing.playbookLabel : playbook ? "Réglages de la tâche" : "Choisis ce que l’agent doit faire"}</DialogDescription>
+                </DialogHeader>
+                {playbook && target !== null ? (
+                    body
+                ) : (
+                    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{body}</div>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -190,91 +203,143 @@ function JobFormBody({
     };
 
     return (
-        <form
-            className="space-y-5"
-            onSubmit={(e) => {
-                e.preventDefault();
-                void submit();
-            }}
-        >
-            <p className="rounded-panel border border-line bg-surface-2 px-3.5 py-2.5 text-xs leading-relaxed text-ink-3">{playbook.description}</p>
-
-            <Input label="Nom" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required error={errors.__name} />
-
-            {lockedClient ? (
-                <Field label="Périmètre">
-                    <p className="flex h-10 items-center rounded-control border border-line bg-surface-2 px-3.5 text-sm font-semibold text-ink-2">{lockedClient.name}</p>
-                </Field>
-            ) : job ? (
-                <Field label="Périmètre">
-                    <p className="flex h-10 items-center rounded-control border border-line bg-surface-2 px-3.5 text-sm font-semibold text-ink-2">{job.clientName ?? "Vue agence"}</p>
-                </Field>
-            ) : playbook.scope !== "agency" ? (
-                <Field label="Périmètre" error={errors.__client} required={playbook.scope === "client"}>
-                    <SelectField value={clientId} onChange={setClientId} ariaLabel="Périmètre">
-                        {playbook.scope === "any" ? <option value="">Vue agence (tous les clients)</option> : <option value="">Choisir un client…</option>}
-                        {clients.map((c) => (
-                            <option key={c.clientId} value={c.clientId}>
-                                {c.name}
-                            </option>
-                        ))}
-                    </SelectField>
-                </Field>
-            ) : null}
-
-            <ScheduleBuilder
-                value={schedule}
-                allowNone
-                timezone={job?.timezone}
-                onChange={(cron, valid) => {
-                    setSchedule(cron);
-                    setScheduleValid(valid);
+        <>
+            <form
+                id={FORM_ID}
+                className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    void submit();
                 }}
-            />
-            {errors.__schedule && <p className="-mt-3 text-xs font-medium text-danger-ink">{errors.__schedule}</p>}
+            >
+                <p className="rounded-panel border border-line bg-surface-2 px-3.5 py-2.5 text-xs leading-relaxed text-ink-3">{playbook.description}</p>
 
-            {fields.length > 0 && (
-                <section className="space-y-3">
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-3">Réglages du playbook</h3>
-                    <ConfigForm fields={fields} draft={draft} errors={errors} onChange={setDraft} />
-                </section>
-            )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <FormField label="Nom" htmlFor="agent-job-name" error={errors.__name} required>
+                        <Input id="agent-job-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} aria-invalid={Boolean(errors.__name) || undefined} />
+                    </FormField>
 
-            <section className="space-y-3">
-                <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-3">Comportement</h3>
-                <div className="space-y-3 rounded-panel border border-line bg-surface p-3.5">
-                    <Switch
-                        checked={dryRun}
-                        onChange={setDryRun}
-                        label="Mode essai"
-                        description="L’agent analyse et propose, mais aucune écriture n’est exécutée, même approuvée."
-                    />
-                    {!job && <Switch checked={enabled} onChange={setEnabled} label="Activer dès maintenant" description="Désactivée, la tâche reste prête mais ne tourne pas." />}
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-sm font-medium text-ink">Notification</p>
-                            <p className="mt-0.5 text-xs text-ink-3">Quand un constat ou une proposition arrive.</p>
-                        </div>
-                        <SelectField value={notify} onChange={setNotify} ariaLabel="Notification" className="w-48">
-                            {notifyOptions.map((o) => (
-                                <option key={o} value={o}>
-                                    {optionLabel(o)}
-                                </option>
-                            ))}
-                        </SelectField>
-                    </div>
+                    {lockedClient ? (
+                        <FormField label="Périmètre">
+                            <StaticField>{lockedClient.name}</StaticField>
+                        </FormField>
+                    ) : job ? (
+                        <FormField label="Périmètre">
+                            <StaticField>{job.clientName ?? "Vue agence"}</StaticField>
+                        </FormField>
+                    ) : playbook.scope !== "agency" ? (
+                        <FormField label="Périmètre" htmlFor="agent-job-scope" error={errors.__client} required={playbook.scope === "client"}>
+                            <Select value={clientId === "" && playbook.scope === "any" ? AGENCY : clientId} onValueChange={(v) => setClientId(v === AGENCY ? "" : v)}>
+                                <SelectTrigger id="agent-job-scope" className="w-full" aria-invalid={Boolean(errors.__client) || undefined}>
+                                    <SelectValue placeholder="Choisir un client…" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-72">
+                                    {playbook.scope === "any" && (
+                                        <>
+                                            <SelectItem value={AGENCY}>Vue agence (tous les clients)</SelectItem>
+                                            <SelectSeparator />
+                                        </>
+                                    )}
+                                    {clients.map((c) => (
+                                        <SelectItem key={c.clientId} value={c.clientId}>
+                                            {c.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </FormField>
+                    ) : null}
                 </div>
-            </section>
 
-            <div className="sticky bottom-0 -mx-6 -mb-6 flex items-center justify-end gap-2 border-t border-line-subtle bg-surface px-6 py-4">
-                <button type="button" className={SECONDARY_BUTTON} onClick={onDone} disabled={saving}>
+                <div className="space-y-1.5">
+                    <ScheduleBuilder
+                        value={schedule}
+                        allowNone
+                        timezone={job?.timezone}
+                        onChange={(cron, valid) => {
+                            setSchedule(cron);
+                            setScheduleValid(valid);
+                        }}
+                    />
+                    {errors.__schedule && (
+                        <p className="text-2xs font-medium text-danger-ink" role="alert">
+                            {errors.__schedule}
+                        </p>
+                    )}
+                </div>
+
+                {fields.length > 0 && (
+                    <section className="space-y-3">
+                        <SectionTitle>Réglages du playbook</SectionTitle>
+                        <ConfigForm fields={fields} draft={draft} errors={errors} onChange={setDraft} />
+                    </section>
+                )}
+
+                <section className="space-y-3">
+                    <SectionTitle>Comportement</SectionTitle>
+                    <div className="divide-y divide-line-subtle rounded-panel border border-line bg-surface">
+                        <SwitchRow
+                            id="agent-job-dry"
+                            label="Mode essai"
+                            description="L’agent analyse et propose, mais aucune écriture n’est exécutée, même approuvée."
+                            checked={dryRun}
+                            onChange={setDryRun}
+                        />
+                        {!job && (
+                            <SwitchRow
+                                id="agent-job-enabled"
+                                label="Activer dès maintenant"
+                                description="Désactivée, la tâche reste prête mais ne tourne pas."
+                                checked={enabled}
+                                onChange={setEnabled}
+                            />
+                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-3 px-3.5 py-3">
+                            <div>
+                                <Label htmlFor="agent-job-notify" className="text-sm font-medium text-ink">
+                                    Notification
+                                </Label>
+                                <p className="mt-1 text-2xs text-ink-3">Quand un constat ou une proposition arrive.</p>
+                            </div>
+                            <Select value={notify} onValueChange={setNotify}>
+                                <SelectTrigger id="agent-job-notify" size="sm" className="w-48">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent align="end">
+                                    {notifyOptions.map((o) => (
+                                        <SelectItem key={o} value={o}>
+                                            {optionLabel(o)}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </section>
+            </form>
+            <DialogFooter className="border-t border-line-subtle bg-surface-2/50 px-6 py-3.5">
+                <Button type="button" variant="outline" onClick={onDone} disabled={saving}>
                     Annuler
-                </button>
-                <button type="submit" className={PRIMARY_BUTTON} disabled={saving}>
-                    {saving && <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden />}
+                </Button>
+                <Button type="submit" form={FORM_ID} disabled={saving}>
+                    {saving && <Loader2 className="motion-safe:animate-spin" aria-hidden />}
                     {job ? "Enregistrer" : "Créer la tâche"}
-                </button>
+                </Button>
+            </DialogFooter>
+        </>
+    );
+}
+
+function SwitchRow({ id, label, description, checked, onChange }: { id: string; label: string; description: string; checked: boolean; onChange: (v: boolean) => void }) {
+    return (
+        <div className="flex items-start justify-between gap-4 px-3.5 py-3">
+            <div className="min-w-0">
+                <Label htmlFor={id} className="text-sm font-medium text-ink">
+                    {label}
+                </Label>
+                <p className="mt-1 text-2xs leading-relaxed text-ink-3">{description}</p>
             </div>
-        </form>
+            <Switch id={id} checked={checked} onCheckedChange={onChange} className="mt-0.5" />
+        </div>
     );
 }

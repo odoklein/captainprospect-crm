@@ -190,6 +190,22 @@ export function schemaEnum(schema: unknown, key: string): string[] {
     return Array.isArray(p.enum) ? p.enum.filter((v): v is string => typeof v === "string") : [];
 }
 
+/**
+ * Slider settings for a bounded number: integers with a span ≤ 365 step by 1,
+ * decimals step by a hundredth of the span. null when a free input fits better
+ * (unbounded, or too wide a span for a pointer to be precise).
+ */
+export function sliderSpec(f: Pick<ConfigField, "type" | "min" | "max">): { min: number; max: number; step: number } | null {
+    if (f.type !== "integer" && f.type !== "number") return null;
+    if (f.min === null || f.max === null || f.max <= f.min) return null;
+    const span = f.max - f.min;
+    if (f.type === "integer") return span <= 365 ? { min: f.min, max: f.max, step: 1 } : null;
+    if (span > 1000) return null;
+    const raw = span / 100;
+    const magnitude = 10 ** Math.floor(Math.log10(raw));
+    return { min: f.min, max: f.max, step: magnitude };
+}
+
 export function optionLabel(value: string): string {
     return KNOWN_OPTION_LABELS[value] ?? humanizeKey(value);
 }

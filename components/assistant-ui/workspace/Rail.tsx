@@ -2,41 +2,67 @@
 
 /**
  * The workspace rail: brand + new chat, search (opens the command palette),
- * then Vue agence, Agent, and the « Épinglés », « Dossiers » and « Clients »
- * sections, with today's cost at the bottom.
+ * then Vue agence, Agent, and the « Épinglés », « Récentes », « Dossiers »
+ * and « Clients » sections, with today's cost at the bottom.
  *
- * One indicator slides under the active entry (measured, not re-rendered),
- * sections fold and remember it, the client list sorts A–Z or by activity.
+ * Sections fold (Collapsible) and remember it; conversation rows carry a
+ * hover menu (rename, pin, share, move, PDF, delete); one indicator slides
+ * under the active entry. Folded on desktop, the rail is a strip of icons
+ * with tooltips; on mobile it lives in a left Sheet (the workspace's).
  */
 
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import {
     ArrowDownAZ,
     Bot,
     Building2,
-    ChevronDown,
+    ChevronRight,
     Clock3,
+    FileDown,
     Folder,
+    FolderInput,
     FolderPlus,
     Globe2,
     Loader2,
+    Lock,
     MessageSquare,
+    MoreHorizontal,
     PanelLeftClose,
+    PanelLeftOpen,
+    Pencil,
     Pin,
+    PinOff,
     Plus,
     Search,
     SquarePen,
+    Trash2,
+    Users,
 } from "lucide-react";
-import type { FolderCard, VirtualClientFolder } from "@/lib/assistant/api-contract";
+import { ASSISTANT_API, type ConversationCard, type ConversationsResponse, type FolderCard, type VirtualClientFolder } from "@/lib/assistant/api-contract";
+import { apiGet } from "@/lib/assistant/client/fetcher";
 import { useAgentOverview, useFolders, useThreadActions, useUsage } from "@/lib/assistant/client/thread-hooks";
 import { cn } from "@/lib/utils";
-import { FOCUS, Shimmer } from "@/components/accueil/AccueilUI";
+import { FOCUS_RING } from "@/components/ui/recipes";
 import { AiMark } from "@/components/ui/AiMark";
-import { Kbd } from "@/components/ui/Kbd";
-import { Tooltip } from "@/components/ui/Tooltip";
 import { useToast } from "@/components/ui/Toast";
+import { Button } from "@/components/ui/shadcn/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/shadcn/collapsible";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/shadcn/dropdown-menu";
+import { Kbd } from "@/components/ui/shadcn/kbd";
+import { ScrollArea } from "@/components/ui/shadcn/scroll-area";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
+import { DeleteConversationDialog, MoveConversationDialog } from "./thread/ConversationDialogs";
 import { formatEuros, sortClients, type ClientSort } from "./thread/model";
+import { usePdfExport } from "./thread/usePdfExport";
 
 // ============================================
 // localStorage-backed state (SSR-safe, synced across tabs)
@@ -96,9 +122,21 @@ export function useLocalStorageState<T>(key: string, fallback: T): [T, (next: T)
 // Pieces
 // ============================================
 
-type SectionId = "pinned" | "folders" | "clients";
-const SECTIONS_DEFAULT: Record<SectionId, boolean> = { pinned: true, folders: true, clients: true };
+type SectionId = "pinned" | "recent" | "folders" | "clients";
+const SECTIONS_DEFAULT: Record<SectionId, boolean> = { pinned: true, recent: true, folders: true, clients: true };
 const CLIENTS_PREVIEW = 8;
+const RECENT_KEY = `${ASSISTANT_API.conversations}?limit=12`;
+
+const ROW = "group/item relative z-10 flex h-9 w-full min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-left text-[13px] transition-[background-color,color] duration-200 ease-snappy";
+const rowTone = (active?: boolean) => (active ? "font-semibold text-ink" : "text-ink-2 hover:bg-surface-3/70 hover:text-ink");
+
+function RailIcon({ active, busy, children }: { active?: boolean; busy?: boolean; children: ReactNode }) {
+    return (
+        <span className={cn("flex size-4 shrink-0 items-center justify-center transition-colors duration-200 [&_svg]:size-4", active ? "text-ink" : "text-ink-4 group-hover/item:text-ink-3")}>
+            {busy ? <Loader2 className="animate-spin" aria-hidden /> : children}
+        </span>
+    );
+}
 
 function RailItem({
     icon,
@@ -109,7 +147,6 @@ function RailItem({
     trailing,
     title,
     busy,
-    index = 0,
 }: {
     icon: ReactNode;
     label: string;
@@ -119,41 +156,26 @@ function RailItem({
     trailing?: ReactNode;
     title?: string;
     busy?: boolean;
-    index?: number;
 }) {
-    const cls = cn(
-        "group/item relative z-10 flex h-9 w-full min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-left text-[13px] motion-safe:animate-ds-enter",
-        "transition-[background-color,color] duration-200 ease-[var(--ease-snappy)]",
-        active ? "font-semibold text-ink" : "text-ink-2 hover:bg-surface-3/70 hover:text-ink",
-        FOCUS,
-    );
+    const cls = cn(ROW, rowTone(active), FOCUS_RING);
     const body = (
         <>
-            <span className={cn("flex size-4 shrink-0 items-center justify-center transition-colors duration-200", active ? "text-ink" : "text-ink-4 group-hover/item:text-ink-3")}>
-                {busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : icon}
-            </span>
+            <RailIcon active={active} busy={busy}>
+                {icon}
+            </RailIcon>
             <span className="min-w-0 flex-1 truncate">{label}</span>
             {trailing}
         </>
     );
-    const style = { animationDelay: `${Math.min(index, 8) * 30}ms` };
     if (href) {
         return (
-            <Link href={href} className={cls} data-rail-active={active ? "true" : undefined} title={title ?? label} style={style}>
+            <Link href={href} className={cls} data-rail-active={active ? "true" : undefined} title={title ?? label}>
                 {body}
             </Link>
         );
     }
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cls}
-            data-rail-active={active ? "true" : undefined}
-            aria-current={active ? "page" : undefined}
-            title={title ?? label}
-            style={style}
-        >
+        <button type="button" onClick={onClick} className={cls} data-rail-active={active ? "true" : undefined} aria-current={active ? "page" : undefined} title={title ?? label}>
             {body}
         </button>
     );
@@ -177,31 +199,200 @@ function Section({
     children: ReactNode;
 }) {
     return (
-        <section className="mt-4" aria-labelledby={`rail-section-${id}`}>
-            <div className="group/sec flex h-7 items-center gap-1 pl-2.5 pr-1">
-                <button
-                    id={`rail-section-${id}`}
-                    type="button"
-                    onClick={() => onToggle(id)}
-                    aria-expanded={open}
-                    className={cn("flex min-w-0 flex-1 items-center gap-1 rounded-md text-[11px] font-semibold uppercase tracking-wider text-ink-4 transition-colors hover:text-ink-2", FOCUS)}
-                >
-                    <span className="truncate">{label}</span>
-                    {count !== undefined && count > 0 && <span className="font-medium tabular-nums normal-case tracking-normal">{count}</span>}
-                    <ChevronDown className={cn("size-3 shrink-0 transition-transform duration-200 ease-[var(--ease-snappy)]", !open && "-rotate-90")} aria-hidden />
-                </button>
-                {action}
-            </div>
-            <div className={cn("grid transition-[grid-template-rows,opacity] duration-200 ease-[var(--ease-snappy)]", open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
-                <div className="min-h-0 overflow-hidden" inert={!open}>
-                    <div className="space-y-0.5 pt-0.5">{children}</div>
+        <Collapsible open={open} onOpenChange={() => onToggle(id)} asChild>
+            <section className="mt-4" aria-labelledby={`rail-section-${id}`}>
+                <div className="flex h-7 items-center gap-1 pl-2.5 pr-1">
+                    <CollapsibleTrigger asChild>
+                        <button
+                            id={`rail-section-${id}`}
+                            type="button"
+                            className={cn("flex min-w-0 flex-1 items-center gap-1 rounded-md text-[11px] font-semibold uppercase tracking-wider text-ink-4 transition-colors hover:text-ink-2", FOCUS_RING)}
+                        >
+                            <span className="truncate">{label}</span>
+                            {count !== undefined && count > 0 && <span className="font-medium normal-case tracking-normal tabular-nums">{count}</span>}
+                            <ChevronRight className={cn("size-3 shrink-0 transition-transform duration-200 ease-snappy", open && "rotate-90")} aria-hidden />
+                        </button>
+                    </CollapsibleTrigger>
+                    {action}
                 </div>
-            </div>
-        </section>
+                <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                    <div className="space-y-0.5 pt-0.5">{children}</div>
+                </CollapsibleContent>
+            </section>
+        </Collapsible>
     );
 }
 
-const SECTION_ACTION = "inline-flex size-6 shrink-0 items-center justify-center rounded-md text-ink-4 transition-[background-color,color] duration-150 hover:bg-surface-3 hover:text-ink";
+function SectionAction({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button type="button" variant="ghost" size="icon-xs" onClick={onClick} aria-label={label} className="size-6 text-ink-4">
+                    {children}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{label}</TooltipContent>
+        </Tooltip>
+    );
+}
+
+// ============================================
+// Conversation rows
+// ============================================
+
+type RowDialog = { kind: "move" | "delete"; card: ConversationCard } | null;
+
+function ConversationRow({
+    card,
+    active,
+    icon,
+    exporting,
+    onOpen,
+    onRename,
+    onTogglePin,
+    onToggleShare,
+    onMove,
+    onExportPdf,
+    onDelete,
+}: {
+    card: ConversationCard;
+    active: boolean;
+    icon: ReactNode;
+    exporting: boolean;
+    onOpen: () => void;
+    onRename: (title: string) => void;
+    onTogglePin: () => void;
+    onToggleShare: () => void;
+    onMove: () => void;
+    onExportPdf: () => void;
+    onDelete: () => void;
+}) {
+    const [renaming, setRenaming] = useState(false);
+    const [draft, setDraft] = useState("");
+    const doneRef = useRef(false);
+    const fromMenuRef = useRef(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const title = card.title?.trim() || "Nouvelle conversation";
+
+    const start = () => {
+        doneRef.current = false;
+        setDraft(card.title ?? "");
+        setRenaming(true);
+    };
+    const end = (save: boolean) => {
+        if (doneRef.current) return;
+        doneRef.current = true;
+        setRenaming(false);
+        const next = draft.trim();
+        if (save && next && next !== card.title) onRename(next);
+    };
+
+    if (renaming) {
+        return (
+            <div className="relative z-10 flex h-9 items-center gap-2.5 rounded-xl border border-primary-400 bg-surface px-2.5 shadow-2xs ring-4 ring-primary-500/12">
+                <RailIcon>{icon}</RailIcon>
+                <input
+                    ref={inputRef}
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            end(true);
+                        } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            end(false);
+                        }
+                    }}
+                    onBlur={() => end(true)}
+                    maxLength={120}
+                    aria-label="Titre de la conversation"
+                    className="min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-4 focus:outline-none"
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className={cn(ROW, "px-0", rowTone(active))} data-rail-active={active ? "true" : undefined}>
+            <button
+                type="button"
+                onClick={onOpen}
+                aria-current={active ? "page" : undefined}
+                title={title}
+                className={cn("flex h-full min-w-0 flex-1 items-center gap-2.5 rounded-xl pl-2.5 text-left", FOCUS_RING)}
+            >
+                <RailIcon active={active}>{icon}</RailIcon>
+                <span className="min-w-0 flex-1 truncate">{title}</span>
+            </button>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        aria-label={`Actions de « ${title} »`}
+                        className="mr-1 size-6 text-ink-4 opacity-0 transition-opacity group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 max-md:opacity-100"
+                    >
+                        {exporting ? <Loader2 className="animate-spin" aria-hidden /> : <MoreHorizontal aria-hidden />}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                    align="start"
+                    side="right"
+                    className="w-56"
+                    onCloseAutoFocus={(e) => {
+                        if (fromMenuRef.current) {
+                            fromMenuRef.current = false;
+                            e.preventDefault();
+                            inputRef.current?.focus();
+                        }
+                    }}
+                >
+                    {card.isOwner && (
+                        <DropdownMenuItem
+                            onSelect={() => {
+                                fromMenuRef.current = true;
+                                start();
+                            }}
+                        >
+                            <Pencil aria-hidden /> Renommer
+                        </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onSelect={onTogglePin}>
+                        {card.pinnedAt ? <PinOff aria-hidden /> : <Pin aria-hidden />}
+                        {card.pinnedAt ? "Désépingler" : "Épingler"}
+                    </DropdownMenuItem>
+                    {card.isOwner && (
+                        <>
+                            <DropdownMenuItem onSelect={onToggleShare}>
+                                {card.visibility === "SHARED" ? <Lock aria-hidden /> : <Users aria-hidden />}
+                                {card.visibility === "SHARED" ? "Rendre privée" : "Partager"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={onMove}>
+                                <FolderInput aria-hidden /> Déplacer vers…
+                            </DropdownMenuItem>
+                        </>
+                    )}
+                    <DropdownMenuItem onSelect={onExportPdf} disabled={exporting}>
+                        <FileDown aria-hidden /> Exporter en PDF
+                    </DropdownMenuItem>
+                    {card.isOwner && (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+                                <Trash2 aria-hidden /> Supprimer
+                            </DropdownMenuItem>
+                        </>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+}
 
 // ============================================
 // Rail
@@ -216,14 +407,18 @@ export interface RailProps {
     onOpenFolder: (folderId: string | null) => void;
     onOpenConversation: (id: string) => void;
     onCollapse: () => void;
-    /** Mobile drawer: the collapse button closes it. */
+    /** A conversation was deleted from the rail (the host leaves it if it is open). */
+    onConversationDeleted?: (id: string, folderId: string | null) => void;
+    /** Mobile Sheet: the collapse button closes it. */
     mobile?: boolean;
 }
 
-export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSearch, onOpenFolder, onOpenConversation, onCollapse, mobile }: RailProps) {
+export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSearch, onOpenFolder, onOpenConversation, onCollapse, onConversationDeleted, mobile }: RailProps) {
     const toast = useToast();
     const actions = useThreadActions();
+    const pdf = usePdfExport();
     const { data, isLoading } = useFolders();
+    const { data: recentPage } = useSWR<ConversationsResponse>(RECENT_KEY, apiGet, { revalidateOnFocus: false, keepPreviousData: true, shouldRetryOnError: false });
     const { data: usage, error: usageError } = useUsage();
     const { data: overview, error: overviewError } = useAgentOverview();
 
@@ -233,14 +428,19 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
     const [creating, setCreating] = useState(false);
     const [newName, setNewName] = useState("");
     const [ensuring, setEnsuring] = useState<string | null>(null);
+    const [dialog, setDialog] = useState<RowDialog>(null);
 
     const toggleSection = useCallback((id: SectionId) => setSections({ ...SECTIONS_DEFAULT, ...sections, [id]: !(sections[id] ?? true) }), [sections, setSections]);
     const isOpen = (id: SectionId) => sections[id] ?? true;
 
     const clients = useMemo(() => sortClients(data?.clients ?? [], clientSort), [data?.clients, clientSort]);
     const visibleClients = showAllClients ? clients : clients.slice(0, CLIENTS_PREVIEW);
-    const pinned = data?.pinnedConversations ?? [];
-    const general = data?.general ?? [];
+    const pinned = useMemo(() => data?.pinnedConversations ?? [], [data?.pinnedConversations]);
+    const general = useMemo(() => data?.general ?? [], [data?.general]);
+    const pinnedIds = useMemo(() => new Set(pinned.map((c) => c.id)), [pinned]);
+    // Récentes: the latest threads not already pinned above.
+    const recent = useMemo(() => (recentPage?.items ?? []).filter((c) => !pinnedIds.has(c.id)).slice(0, 8), [recentPage, pinnedIds]);
+    const clientFolderIds = useMemo(() => new Set((data?.clients ?? []).map((c) => c.folder?.id).filter((id): id is string => !!id)), [data?.clients]);
 
     const agentCount = overview && !overviewError ? overview.counts.pendingProposals + overview.counts.critical : 0;
 
@@ -254,7 +454,7 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
         if (!content || !indicator) return;
         const place = () => {
             const active = content.querySelector<HTMLElement>("[data-rail-active='true']");
-            const visible = active && active.getClientRects().length > 0 && active.closest("[inert]") === null;
+            const visible = active && active.getClientRects().length > 0 && active.closest("[data-state='closed']") === null;
             if (!active || !visible) {
                 indicator.style.opacity = "0";
                 return;
@@ -277,7 +477,7 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
         const observer = new ResizeObserver(place);
         observer.observe(content);
         return () => observer.disconnect();
-    }, [activeKey, data, sections, clientSort, showAllClients]);
+    }, [activeKey, data, recentPage, sections, clientSort, showAllClients]);
 
     // ---- Actions ----------------------------------------------------------------------
 
@@ -324,48 +524,68 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
         }
     };
 
+    const patch = (id: string, body: Parameters<typeof actions.patchConversation>[1], success: string) =>
+        actions
+            .patchConversation(id, body)
+            .then(() => toast.success(success))
+            .catch((e: unknown) => toast.error("Modification non enregistrée", e instanceof Error ? e.message : undefined));
+
+    const renderConversation = (c: ConversationCard, icon: ReactNode) => (
+        <ConversationRow
+            key={c.id}
+            card={c}
+            icon={icon}
+            active={activeKey === `conv:${c.id}`}
+            exporting={pdf.busyKey === c.id}
+            onOpen={() => onOpenConversation(c.id)}
+            onRename={(title) => void patch(c.id, { title }, "Conversation renommée")}
+            onTogglePin={() => void patch(c.id, { pinned: !c.pinnedAt }, c.pinnedAt ? "Conversation désépinglée" : "Conversation épinglée")}
+            onToggleShare={() =>
+                void patch(
+                    c.id,
+                    { visibility: c.visibility === "SHARED" ? "PRIVATE" : "SHARED" },
+                    c.visibility === "SHARED" ? "Conversation rendue privée" : "Partagée avec les managers",
+                )
+            }
+            onMove={() => setDialog({ kind: "move", card: c })}
+            onExportPdf={() => void pdf.exportPdf(c.id)}
+            onDelete={() => setDialog({ kind: "delete", card: c })}
+        />
+    );
+
     const mod = isMac ? "⌘" : "Ctrl";
 
     return (
         <div className="flex h-full min-h-0 w-full flex-col bg-surface-2">
             {/* Brand + new chat */}
-            <div className="flex h-14 shrink-0 items-center gap-2 px-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-600 text-accent-fg shadow-xs">
+            <div className="flex h-14 shrink-0 items-center gap-1 px-3">
+                <span className="mr-1 flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-600 text-accent-fg shadow-2xs">
                     <AiMark className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold tracking-tight text-ink">Captain AI</span>
-                <Tooltip
-                    position="bottom"
-                    content={
-                        <span className="flex items-center gap-2 text-xs">
-                            Nouvelle conversation
-                            <span className="flex gap-0.5">
-                                <Kbd className="border-white/20 bg-white/10 text-white">{mod}</Kbd>
-                                <Kbd className="border-white/20 bg-white/10 text-white">⇧</Kbd>
-                                <Kbd className="border-white/20 bg-white/10 text-white">O</Kbd>
-                            </span>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" onClick={onNewChat} aria-label="Nouvelle conversation" aria-keyshortcuts={isMac ? "Meta+Shift+O" : "Control+Shift+O"}>
+                            <SquarePen aria-hidden />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="flex items-center gap-2">
+                        Nouvelle conversation
+                        <span className="flex gap-0.5">
+                            <Kbd>{mod}</Kbd>
+                            <Kbd>⇧</Kbd>
+                            <Kbd>O</Kbd>
                         </span>
-                    }
-                >
-                    <button
-                        type="button"
-                        onClick={onNewChat}
-                        aria-label="Nouvelle conversation"
-                        aria-keyshortcuts={isMac ? "Meta+Shift+O" : "Control+Shift+O"}
-                        className={cn("inline-flex size-8 items-center justify-center rounded-lg text-ink-3 transition-[background-color,color] duration-150 hover:bg-surface-3 hover:text-ink", FOCUS)}
-                    >
-                        <SquarePen className="size-4" aria-hidden />
-                    </button>
+                    </TooltipContent>
                 </Tooltip>
-                <button
-                    type="button"
-                    onClick={onCollapse}
-                    aria-label={mobile ? "Fermer le panneau" : "Replier le panneau"}
-                    title={mobile ? "Fermer" : "Replier"}
-                    className={cn("inline-flex size-8 items-center justify-center rounded-lg text-ink-3 transition-[background-color,color] duration-150 hover:bg-surface-3 hover:text-ink", FOCUS)}
-                >
-                    <PanelLeftClose className="size-4" aria-hidden />
-                </button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon-sm" onClick={onCollapse} aria-label={mobile ? "Fermer le panneau" : "Replier le panneau"}>
+                            <PanelLeftClose aria-hidden />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">{mobile ? "Fermer" : "Replier"}</TooltipContent>
+                </Tooltip>
             </div>
 
             {/* Search → palette */}
@@ -376,8 +596,8 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
                     aria-keyshortcuts={isMac ? "Meta+K" : "Control+K"}
                     className={cn(
                         "flex h-9 w-full items-center gap-2 rounded-xl border border-line bg-surface px-2.5 text-[13px] text-ink-4 shadow-2xs",
-                        "transition-[border-color,color] duration-200 ease-[var(--ease-snappy)] hover:border-line-strong hover:text-ink-3",
-                        FOCUS,
+                        "transition-[border-color,color] duration-200 ease-snappy hover:border-line-strong hover:text-ink-3",
+                        FOCUS_RING,
                     )}
                 >
                     <Search className="size-4 shrink-0" aria-hidden />
@@ -389,180 +609,170 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
                 </button>
             </div>
 
-            <nav aria-label="Captain AI" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4 [scrollbar-width:thin]">
-                <div ref={contentRef} className="relative">
-                    <span
-                        ref={indicatorRef}
-                        aria-hidden
-                        className="pointer-events-none absolute inset-x-0 top-0 z-0 rounded-xl border border-line bg-surface opacity-0 shadow-xs transition-[transform,height,opacity] duration-300 ease-[var(--ease-snappy)]"
-                    />
-
-                    <div className="space-y-0.5">
-                        <RailItem icon={<Globe2 className="size-4" />} label="Vue agence" active={activeKey === "agency"} onClick={() => onOpenFolder(null)} />
-                        <RailItem
-                            icon={<Bot className="size-4" />}
-                            label="Agent"
-                            href="/manager/assistant/agent"
-                            title={agentCount > 0 ? `Agent — ${agentCount} élément(s) à traiter` : "Agent"}
-                            trailing={
-                                agentCount > 0 ? (
-                                    <span
-                                        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-600 px-1.5 text-[10.5px] font-bold tabular-nums text-accent-fg motion-safe:animate-ds-pop"
-                                        aria-label={`${agentCount} à traiter`}
-                                    >
-                                        {agentCount > 99 ? "99+" : agentCount}
-                                    </span>
-                                ) : null
-                            }
+            {/* Radix lays the viewport content out as a table: make it a block so long names truncate. */}
+            <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
+                <nav aria-label="Captain AI" className="px-2 pb-4">
+                    <div ref={contentRef} className="relative">
+                        <span
+                            ref={indicatorRef}
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-0 top-0 z-0 rounded-xl border border-line bg-surface opacity-0 shadow-2xs transition-[transform,height,opacity] duration-300 ease-snappy"
                         />
-                    </div>
 
-                    {pinned.length > 0 && (
-                        <Section id="pinned" label="Épinglés" count={pinned.length} open={isOpen("pinned")} onToggle={toggleSection}>
-                            {pinned.map((c, i) => (
-                                <RailItem
-                                    key={c.id}
-                                    index={i}
-                                    icon={<Pin className="size-3.5" />}
-                                    label={c.title || "Nouvelle conversation"}
-                                    active={activeKey === `conv:${c.id}`}
-                                    onClick={() => onOpenConversation(c.id)}
-                                />
-                            ))}
-                        </Section>
-                    )}
+                        <div className="space-y-0.5">
+                            <RailItem icon={<Globe2 />} label="Vue agence" active={activeKey === "agency"} onClick={() => onOpenFolder(null)} />
+                            <RailItem
+                                icon={<Bot />}
+                                label="Agent"
+                                href="/manager/assistant/agent"
+                                title={agentCount > 0 ? `Agent — ${agentCount} élément(s) à traiter` : "Agent"}
+                                trailing={
+                                    agentCount > 0 ? (
+                                        <span
+                                            className="inline-flex h-5 min-w-5 items-center justify-center rounded-chip bg-accent-600 px-1.5 text-[10.5px] font-bold tabular-nums text-accent-fg motion-safe:animate-ds-pop"
+                                            aria-label={`${agentCount} à traiter`}
+                                        >
+                                            {agentCount > 99 ? "99+" : agentCount}
+                                        </span>
+                                    ) : null
+                                }
+                            />
+                        </div>
 
-                    <Section
-                        id="folders"
-                        label="Dossiers"
-                        count={general.length}
-                        open={isOpen("folders")}
-                        onToggle={toggleSection}
-                        action={
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (!isOpen("folders")) toggleSection("folders");
-                                    startCreating();
-                                }}
-                                aria-label="Nouveau dossier"
-                                title="Nouveau dossier"
-                                className={cn(SECTION_ACTION, FOCUS)}
-                            >
-                                <Plus className="size-3.5" aria-hidden />
-                            </button>
-                        }
-                    >
-                        {isLoading && !data ? (
-                            <RailSkeleton rows={3} />
-                        ) : (
-                            general.map((f: FolderCard, i) => (
-                                <RailItem
-                                    key={f.id}
-                                    index={i}
-                                    icon={<Folder className="size-4" />}
-                                    label={f.name}
-                                    busy={f.id.startsWith("tmp-")}
-                                    active={activeKey === `folder:${f.id}`}
-                                    onClick={() => !f.id.startsWith("tmp-") && onOpenFolder(f.id)}
-                                    trailing={f.hasAgentActivity ? <ActivityDot /> : null}
-                                />
-                            ))
+                        {pinned.length > 0 && (
+                            <Section id="pinned" label="Épinglés" count={pinned.length} open={isOpen("pinned")} onToggle={toggleSection}>
+                                {pinned.map((c) => renderConversation(c, <Pin />))}
+                            </Section>
                         )}
-                        {creating ? (
-                            <div className="relative z-10 flex h-9 items-center gap-2.5 rounded-xl border border-primary-300 bg-surface px-2.5 shadow-2xs ring-4 ring-primary-500/10 motion-safe:animate-ds-pop">
-                                <FolderPlus className="size-4 shrink-0 text-ink-4" aria-hidden />
-                                <input
-                                    autoFocus
-                                    value={newName}
-                                    onChange={(e) => setNewName(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                            e.preventDefault();
-                                            void submitFolder();
-                                        } else if (e.key === "Escape") {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            cancelCreating();
-                                        }
+
+                        {recent.length > 0 && (
+                            <Section id="recent" label="Récentes" open={isOpen("recent")} onToggle={toggleSection}>
+                                {recent.map((c) => renderConversation(c, c.kind === "AGENT" ? <Bot /> : <MessageSquare />))}
+                            </Section>
+                        )}
+
+                        <Section
+                            id="folders"
+                            label="Dossiers"
+                            count={general.length}
+                            open={isOpen("folders")}
+                            onToggle={toggleSection}
+                            action={
+                                <SectionAction
+                                    label="Nouveau dossier"
+                                    onClick={() => {
+                                        if (!isOpen("folders")) toggleSection("folders");
+                                        startCreating();
                                     }}
-                                    onBlur={() => void submitFolder()}
-                                    maxLength={80}
-                                    placeholder="Nom du dossier"
-                                    aria-label="Nom du nouveau dossier"
-                                    className="min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-4 focus:outline-none"
-                                />
-                            </div>
-                        ) : (
-                            <RailItem icon={<FolderPlus className="size-4" />} label="Nouveau dossier" onClick={startCreating} />
-                        )}
-                    </Section>
-
-                    <Section
-                        id="clients"
-                        label="Clients"
-                        count={clients.length}
-                        open={isOpen("clients")}
-                        onToggle={toggleSection}
-                        action={
-                            <button
-                                type="button"
-                                onClick={() => setClientSort(clientSort === "alpha" ? "recent" : "alpha")}
-                                aria-label={clientSort === "alpha" ? "Trier par activité récente" : "Trier par ordre alphabétique"}
-                                title={clientSort === "alpha" ? "Ordre alphabétique — cliquer pour les plus récents" : "Plus récents d’abord — cliquer pour l’ordre alphabétique"}
-                                className={cn(SECTION_ACTION, FOCUS)}
-                            >
-                                {clientSort === "alpha" ? <ArrowDownAZ className="size-3.5" aria-hidden /> : <Clock3 className="size-3.5" aria-hidden />}
-                            </button>
-                        }
-                    >
-                        {isLoading && !data ? (
-                            <RailSkeleton rows={5} />
-                        ) : clients.length === 0 ? (
-                            <p className="px-2.5 py-2 text-[12px] text-ink-4">Aucun client pour l’instant.</p>
-                        ) : (
-                            <>
-                                {visibleClients.map((vc, i) => (
+                                >
+                                    <Plus aria-hidden />
+                                </SectionAction>
+                            }
+                        >
+                            {isLoading && !data ? (
+                                <RailSkeleton rows={3} />
+                            ) : (
+                                general.map((f: FolderCard) => (
                                     <RailItem
-                                        key={vc.clientId}
-                                        index={i}
-                                        icon={<Building2 className="size-4" />}
-                                        label={vc.name}
-                                        busy={ensuring === vc.clientId}
-                                        active={vc.folder ? activeKey === `folder:${vc.folder.id}` : false}
-                                        onClick={() => void openClient(vc)}
-                                        trailing={vc.folder?.hasAgentActivity ? <ActivityDot /> : null}
+                                        key={f.id}
+                                        icon={<Folder />}
+                                        label={f.name}
+                                        busy={f.id.startsWith("tmp-")}
+                                        active={activeKey === `folder:${f.id}`}
+                                        onClick={() => !f.id.startsWith("tmp-") && onOpenFolder(f.id)}
+                                        trailing={f.hasAgentActivity ? <ActivityDot /> : null}
                                     />
-                                ))}
-                                {clients.length > CLIENTS_PREVIEW && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAllClients((v) => !v)}
-                                        className={cn("relative z-10 flex h-8 w-full items-center rounded-xl px-2.5 text-[12.5px] font-medium text-ink-3 transition-colors hover:bg-surface-3/70 hover:text-ink", FOCUS)}
-                                    >
-                                        {showAllClients ? "Afficher moins" : `Afficher les ${clients.length - CLIENTS_PREVIEW} autres`}
-                                    </button>
-                                )}
-                            </>
-                        )}
-                    </Section>
+                                ))
+                            )}
+                            {creating ? (
+                                <div className="relative z-10 flex h-9 items-center gap-2.5 rounded-xl border border-primary-400 bg-surface px-2.5 shadow-2xs ring-4 ring-primary-500/12 motion-safe:animate-ds-pop">
+                                    <FolderPlus className="size-4 shrink-0 text-ink-4" aria-hidden />
+                                    <input
+                                        autoFocus
+                                        value={newName}
+                                        onChange={(e) => setNewName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                void submitFolder();
+                                            } else if (e.key === "Escape") {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                cancelCreating();
+                                            }
+                                        }}
+                                        onBlur={() => void submitFolder()}
+                                        maxLength={80}
+                                        placeholder="Nom du dossier"
+                                        aria-label="Nom du nouveau dossier"
+                                        className="min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-4 focus:outline-none"
+                                    />
+                                </div>
+                            ) : (
+                                <RailItem icon={<FolderPlus />} label="Nouveau dossier" onClick={startCreating} />
+                            )}
+                        </Section>
 
-                    {data?.degraded && (
-                        <p className="mx-2.5 mt-4 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-4">
-                            <MessageSquare className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                            Les dossiers ne sont pas encore activés sur cette instance.
-                        </p>
-                    )}
-                </div>
-            </nav>
+                        <Section
+                            id="clients"
+                            label="Clients"
+                            count={clients.length}
+                            open={isOpen("clients")}
+                            onToggle={toggleSection}
+                            action={
+                                <SectionAction
+                                    label={clientSort === "alpha" ? "Ordre alphabétique — trier par activité récente" : "Plus récents d’abord — trier par ordre alphabétique"}
+                                    onClick={() => setClientSort(clientSort === "alpha" ? "recent" : "alpha")}
+                                >
+                                    {clientSort === "alpha" ? <ArrowDownAZ aria-hidden /> : <Clock3 aria-hidden />}
+                                </SectionAction>
+                            }
+                        >
+                            {isLoading && !data ? (
+                                <RailSkeleton rows={5} />
+                            ) : clients.length === 0 ? (
+                                <p className="px-2.5 py-2 text-[12px] text-ink-4">Aucun client pour l’instant.</p>
+                            ) : (
+                                <>
+                                    {visibleClients.map((vc) => (
+                                        <RailItem
+                                            key={vc.clientId}
+                                            icon={<Building2 />}
+                                            label={vc.name}
+                                            busy={ensuring === vc.clientId}
+                                            active={vc.folder ? activeKey === `folder:${vc.folder.id}` : false}
+                                            onClick={() => void openClient(vc)}
+                                            trailing={vc.folder?.hasAgentActivity ? <ActivityDot /> : null}
+                                        />
+                                    ))}
+                                    {clients.length > CLIENTS_PREVIEW && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowAllClients((v) => !v)}
+                                            className={cn("relative z-10 flex h-8 w-full items-center rounded-xl px-2.5 text-[12.5px] font-medium text-ink-3 transition-colors hover:bg-surface-3/70 hover:text-ink", FOCUS_RING)}
+                                        >
+                                            {showAllClients ? "Afficher moins" : `Afficher les ${clients.length - CLIENTS_PREVIEW} autres`}
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </Section>
+
+                        {data?.degraded && (
+                            <p className="mx-2.5 mt-4 flex items-start gap-1.5 text-[11.5px] leading-relaxed text-ink-4">
+                                <MessageSquare className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                                Les dossiers ne sont pas encore activés sur cette instance.
+                            </p>
+                        )}
+                    </div>
+                </nav>
+            </ScrollArea>
 
             {usage && !usageError && (
                 <div className="shrink-0 border-t border-line-subtle px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] text-[11.5px] text-ink-3">
                     <div className="flex items-center justify-between gap-2">
                         <span>Coût aujourd’hui</span>
-                        <span key={usage.today.costEur} className="font-semibold tabular-nums text-ink-2 motion-safe:animate-ds-enter">
-                            {formatEuros(usage.today.costEur)}
-                        </span>
+                        <span className="font-semibold tabular-nums text-ink-2">{formatEuros(usage.today.costEur)}</span>
                     </div>
                     <div className="mt-0.5 flex items-center justify-between gap-2 text-ink-4">
                         <span>Requêtes</span>
@@ -570,6 +780,121 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
                     </div>
                 </div>
             )}
+
+            <MoveConversationDialog
+                open={dialog?.kind === "move"}
+                onOpenChange={(open) => !open && setDialog(null)}
+                currentFolderId={dialog?.card.folderId ?? null}
+                inClientFolder={dialog?.card.folderId ? clientFolderIds.has(dialog.card.folderId) : false}
+                generalFolders={general}
+                onMove={async (target) => {
+                    if (!dialog) return;
+                    await patch(dialog.card.id, { folderId: target }, `Déplacée vers ${target ? (general.find((f) => f.id === target)?.name ?? "le dossier") : "la vue agence"}`);
+                }}
+            />
+            <DeleteConversationDialog
+                open={dialog?.kind === "delete"}
+                onOpenChange={(open) => !open && setDialog(null)}
+                title={dialog?.card.title?.trim() || "Nouvelle conversation"}
+                onConfirm={async () => {
+                    if (!dialog) return;
+                    const { id, folderId } = dialog.card;
+                    try {
+                        await actions.deleteConversation(id);
+                        toast.success("Conversation supprimée");
+                        onConversationDeleted?.(id, folderId);
+                    } catch (e) {
+                        toast.error("Suppression impossible", e instanceof Error ? e.message : undefined);
+                    }
+                }}
+            />
+        </div>
+    );
+});
+
+// ============================================
+// Folded rail (desktop): icons with tooltips
+// ============================================
+
+export const RailStrip = memo(function RailStrip({
+    activeKey,
+    isMac,
+    onExpand,
+    onNewChat,
+    onOpenSearch,
+    onOpenFolder,
+}: {
+    activeKey: string;
+    isMac: boolean;
+    onExpand: () => void;
+    onNewChat: () => void;
+    onOpenSearch: () => void;
+    onOpenFolder: (folderId: string | null) => void;
+}) {
+    const { data: overview, error: overviewError } = useAgentOverview();
+    const agentCount = overview && !overviewError ? overview.counts.pendingProposals + overview.counts.critical : 0;
+    const mod = isMac ? "⌘" : "Ctrl";
+
+    const item = (label: ReactNode, aria: string, icon: ReactNode, props: { onClick?: () => void; href?: string; active?: boolean; badge?: boolean }) => (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={aria}
+                    aria-current={props.active ? "page" : undefined}
+                    onClick={props.onClick}
+                    asChild={!!props.href}
+                    className={cn("relative", props.active && "bg-surface text-ink shadow-2xs ring-1 ring-line")}
+                >
+                    {props.href ? (
+                        <Link href={props.href}>
+                            {icon}
+                            {props.badge && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-accent-500 ring-2 ring-surface-2" aria-hidden />}
+                        </Link>
+                    ) : (
+                        icon
+                    )}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="flex items-center gap-2">
+                {label}
+            </TooltipContent>
+        </Tooltip>
+    );
+
+    return (
+        <div className="flex h-full w-full flex-col items-center gap-1 bg-surface-2 py-3">
+            {item("Afficher le panneau", "Afficher le panneau", <PanelLeftOpen aria-hidden />, { onClick: onExpand })}
+            {item(
+                <>
+                    Nouvelle conversation
+                    <span className="flex gap-0.5">
+                        <Kbd>{mod}</Kbd>
+                        <Kbd>⇧</Kbd>
+                        <Kbd>O</Kbd>
+                    </span>
+                </>,
+                "Nouvelle conversation",
+                <SquarePen aria-hidden />,
+                { onClick: onNewChat },
+            )}
+            {item(
+                <>
+                    Rechercher
+                    <span className="flex gap-0.5">
+                        <Kbd>{mod}</Kbd>
+                        <Kbd>K</Kbd>
+                    </span>
+                </>,
+                "Rechercher",
+                <Search aria-hidden />,
+                { onClick: onOpenSearch },
+            )}
+            <div className="my-1 h-px w-6 bg-line" aria-hidden />
+            {item("Vue agence", "Vue agence", <Globe2 aria-hidden />, { onClick: () => onOpenFolder(null), active: activeKey === "agency" })}
+            {item(agentCount > 0 ? `Agent — ${agentCount} à traiter` : "Agent", "Agent", <Bot aria-hidden />, { href: "/manager/assistant/agent", badge: agentCount > 0 })}
         </div>
     );
 });
@@ -588,8 +913,8 @@ function RailSkeleton({ rows }: { rows: number }) {
         <div className="space-y-1.5 px-2.5 py-1" aria-hidden>
             {Array.from({ length: rows }, (_, i) => (
                 <div key={i} className="flex h-7 items-center gap-2.5">
-                    <Shimmer className="size-4 rounded-md" />
-                    <Shimmer className="h-3 rounded-full" style={{ width: `${55 + ((i * 17) % 35)}%` }} />
+                    <Skeleton className="size-4 rounded-md" />
+                    <Skeleton className="h-3 rounded-chip" style={{ width: `${55 + ((i * 17) % 35)}%` }} />
                 </div>
             ))}
         </div>

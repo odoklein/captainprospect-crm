@@ -1,25 +1,37 @@
 "use client";
 
 /**
- * Tableau tab: the charts pinned to the folder. Each card redraws its stored
- * visual, can be refreshed with the same query, renamed, reordered (menu
- * Monter / Descendre) and removed (with undo).
+ * Tableau tab: the charts pinned to the folder, as a responsive grid of
+ * Cards. Each card redraws its stored visual, can be refreshed with the same
+ * query, renamed inline, reordered (menu Monter / Descendre) and removed
+ * (deferred delete with an undo toast).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, ArrowDown, ArrowUp, LayoutGrid, MessageSquare, MoreHorizontal, Pencil, Pin, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, MessageSquare, MoreHorizontal, Pencil, Pin, RefreshCw, Trash2 } from "lucide-react";
 import type { PinItem } from "@/lib/assistant/api-contract";
 import type { StoredVisual } from "@/lib/assistant/visuals/spec";
 import { usePins } from "@/lib/assistant/client/folder-hooks";
-import { CARD, EmptyBlock, FOCUS, SECONDARY_BUTTON, Shimmer, relativeTime } from "@/components/accueil/AccueilUI";
-import { ContextMenu } from "@/components/ui/ContextMenu";
+import { WIDE_VISUALS, cleanTitle, movePin, pinVisual, restorePin } from "@/lib/assistant/client/folder-logic";
+import { relativeTime } from "@/components/accueil/AccueilUI";
+import { Button } from "@/components/ui/shadcn/button";
+import { Card } from "@/components/ui/shadcn/card";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/shadcn/dropdown-menu";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
+import { FOCUS_RING } from "@/components/ui/recipes";
 import { useToast } from "@/components/ui/Toast";
 import { VisualView } from "@/components/assistant-ui/visuals/VisualView";
 import { cn } from "@/lib/utils";
-import { movePin, pinVisual, sortPins } from "./logic";
+import { ENTER, EmptyState, ErrorState, InlineTitleInput, stagger } from "./parts";
 
 const UNDO_MS = 6000;
-const WIDE = new Set(["table", "kpi_row", "heatmap"]);
 
 export function BoardTab({ folderId, onOpenConversation }: { folderId: string; onOpenConversation(id: string): void }) {
     const { pins, error, isLoading, setLocal, patch, persistOrder, destroy, refresh, reload } = usePins(folderId);
@@ -96,7 +108,7 @@ export function BoardTab({ folderId, onOpenConversation }: { folderId: string; o
                         const t = pendingDeletes.current.get(pin.id);
                         if (t) clearTimeout(t);
                         pendingDeletes.current.delete(pin.id);
-                        void setLocal((list) => sortPins([...list.filter((p) => p.id !== pin.id), pin]));
+                        void setLocal((list) => restorePin(list, pin));
                     },
                 },
             });
@@ -104,22 +116,22 @@ export function BoardTab({ folderId, onOpenConversation }: { folderId: string; o
         [destroy, reload, setLocal, toast],
     );
 
-    if (error) {
-        return (
-            <div className="flex flex-col items-center gap-3">
-                <EmptyBlock compact icon={LayoutGrid} tone="rose" title="Impossible de charger le tableau" hint={error.message} />
-                <button type="button" className={SECONDARY_BUTTON} onClick={() => void reload()}>
-                    Réessayer
-                </button>
-            </div>
-        );
-    }
+    if (error) return <ErrorState title="Impossible de charger le tableau" message={error.message} onRetry={() => void reload()} />;
 
     if (isLoading || !pins) {
         return (
             <div className="grid gap-4 lg:grid-cols-2" aria-busy="true" aria-label="Chargement du tableau">
                 {[0, 1].map((i) => (
-                    <Shimmer key={i} className="h-72" />
+                    <Card key={i} className="gap-4 p-5">
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-1/2 rounded-md" />
+                                <Skeleton className="h-3 w-1/3 rounded-md" />
+                            </div>
+                            <Skeleton className="h-8 w-28 rounded-[10px]" />
+                        </div>
+                        <Skeleton className="h-52 rounded-panel" />
+                    </Card>
                 ))}
             </div>
         );
@@ -127,11 +139,16 @@ export function BoardTab({ folderId, onOpenConversation }: { folderId: string; o
 
     if (pins.length === 0) {
         return (
-            <EmptyBlock
+            <EmptyState
                 icon={Pin}
-                tone="indigo"
+                tone="primary"
                 title="Ton tableau est vide"
-                hint="Dans une conversation, survole un graphique et clique sur l'épingle en haut à droite : il apparaît ici et peut être actualisé à tout moment."
+                hint={
+                    <>
+                        Dans une conversation, survole un graphique et clique sur l&apos;épingle en haut à droite : il apparaît ici, et
+                        « Actualiser » le recalcule avec les données du moment.
+                    </>
+                }
             />
         );
     }
@@ -141,11 +158,7 @@ export function BoardTab({ folderId, onOpenConversation }: { folderId: string; o
             {pins.map((pin, i) => {
                 const visual = pinVisual<StoredVisual>(pin);
                 return (
-                    <li
-                        key={pin.id}
-                        className={cn("min-w-0 motion-safe:animate-ds-enter", visual && WIDE.has(visual.spec.kind) && "lg:col-span-2")}
-                        style={{ animationDelay: `${Math.min(i, 7) * 30}ms` }}
-                    >
+                    <li key={pin.id} className={cn("min-w-0", ENTER, visual && WIDE_VISUALS.has(visual.spec.kind) && "lg:col-span-2")} style={stagger(i)}>
                         <PinCard
                             pin={pin}
                             visual={visual}
@@ -191,146 +204,148 @@ function PinCard({
     onRemove(): void;
     onOpenConversation(id: string): void;
 }) {
-    const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
     const [editing, setEditing] = useState(false);
-    const [title, setTitle] = useState(pin.title);
-    const inputRef = useRef<HTMLInputElement>(null);
-    const menuButton = useRef<HTMLButtonElement>(null);
+    const keepFocus = useRef(false);
     const displayTitle = pin.title || visual?.spec.title || "Graphique";
-
-    useEffect(() => {
-        if (editing) {
-            inputRef.current?.focus();
-            inputRef.current?.select();
-        }
-    }, [editing]);
-
-    const commit = () => {
-        const next = title.trim();
-        setEditing(false);
-        if (next && next !== pin.title) onRename(next.slice(0, 120));
-        else setTitle(pin.title);
-    };
-
     const conversationId = pin.conversationId;
-    const closeMenu = useCallback(() => {
-        setMenu(null);
-    }, []);
 
     return (
-        <article className={cn(CARD, "cp-viz flex h-full flex-col rounded-2xl p-4 transition-[border-color,box-shadow] duration-200 hover:border-line-strong hover:shadow-raised")} aria-label={displayTitle}>
-            <header className="mb-3 flex items-start gap-2">
+        <Card
+            aria-label={displayTitle}
+            role="article"
+            className="cp-viz h-full gap-0 p-5 transition-[border-color,box-shadow] duration-200 ease-snappy hover:border-line-strong hover:shadow-raised"
+        >
+            <header className="mb-4 flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                     {editing ? (
-                        <input
-                            ref={inputRef}
-                            value={title}
+                        <InlineTitleInput
+                            initial={displayTitle}
                             maxLength={120}
-                            aria-label="Titre du graphique"
-                            onChange={(e) => setTitle(e.target.value)}
-                            onBlur={commit}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    commit();
-                                } else if (e.key === "Escape") {
-                                    e.preventDefault();
-                                    setTitle(pin.title);
-                                    setEditing(false);
-                                }
+                            label="Titre du graphique"
+                            className="-mx-2 h-8 text-sm font-semibold"
+                            onSave={(value) => {
+                                const next = cleanTitle(value, pin.title);
+                                if (next) onRename(next);
                             }}
-                            className="-mx-1 w-full rounded-md border border-primary-300 bg-surface px-1 text-sm font-extrabold text-ink outline-none ring-4 ring-primary-500/12"
+                            onDone={() => setEditing(false)}
                         />
                     ) : (
                         <button
                             type="button"
-                            onClick={() => {
-                                setTitle(pin.title || displayTitle);
-                                setEditing(true);
-                            }}
-                            className={cn("group -mx-1 inline-flex max-w-full items-center gap-1.5 rounded-md px-1 text-left text-sm font-extrabold text-ink hover:bg-surface-3/70", FOCUS)}
+                            onClick={() => setEditing(true)}
+                            className={cn(
+                                "group -mx-2 inline-flex max-w-full items-center gap-1.5 rounded-lg px-2 py-0.5 text-left text-sm font-semibold text-ink transition-colors duration-150 hover:bg-surface-3",
+                                FOCUS_RING,
+                            )}
                             aria-label={`Renommer « ${displayTitle} »`}
                         >
                             <span className="truncate">{displayTitle}</span>
-                            <Pencil className="h-3 w-3 flex-shrink-0 text-ink-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />
+                            <Pencil className="size-3 shrink-0 text-ink-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden />
                         </button>
                     )}
-                    <p className="mt-0.5 truncate text-[11px] font-semibold text-ink-4">
+                    <p className="mt-0.5 truncate text-xs text-ink-4" aria-live="polite">
                         {refreshing ? "Actualisation…" : pin.refreshedAt ? `Actualisé ${relativeTime(pin.refreshedAt)}` : `Épinglé ${relativeTime(pin.createdAt)}`}
                         {visual?.spec.subtitle ? ` · ${visual.spec.subtitle}` : ""}
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={onRefresh}
-                    disabled={refreshing}
-                    className={cn(SECONDARY_BUTTON, "h-8 px-2.5")}
-                    aria-label="Actualiser le graphique"
-                    title="Actualiser avec les données du moment"
-                >
-                    <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "motion-safe:animate-spin")} aria-hidden />
-                    <span className="hidden sm:inline">Actualiser</span>
-                </button>
-                <button
-                    ref={menuButton}
-                    type="button"
-                    aria-label="Plus d'actions"
-                    aria-haspopup="menu"
-                    aria-expanded={!!menu}
-                    onClick={() => {
-                        const r = menuButton.current?.getBoundingClientRect();
-                        setMenu(menu ? null : r ? { x: r.right - 200, y: r.bottom + 6 } : { x: 0, y: 0 });
-                    }}
-                    className={cn("inline-flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-surface text-ink-3 shadow-2xs transition-colors hover:border-line-strong hover:text-ink", FOCUS)}
-                >
-                    <MoreHorizontal className="h-4 w-4" aria-hidden />
-                </button>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing} aria-label="Actualiser le graphique">
+                            <RefreshCw className={cn(refreshing && "motion-safe:animate-spin")} aria-hidden />
+                            <span className="hidden sm:inline">{refreshing ? "Actualisation" : "Actualiser"}</span>
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Recalculer avec les données du moment</TooltipContent>
+                </Tooltip>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon-sm" aria-label="Plus d'actions">
+                            <MoreHorizontal aria-hidden />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="end"
+                        className="w-56"
+                        onCloseAutoFocus={(e) => {
+                            if (keepFocus.current) {
+                                e.preventDefault();
+                                keepFocus.current = false;
+                            }
+                        }}
+                    >
+                        <DropdownMenuItem
+                            onSelect={() => {
+                                keepFocus.current = true;
+                                setEditing(true);
+                            }}
+                        >
+                            <Pencil aria-hidden />
+                            Renommer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={first} onSelect={() => onMove(-1)}>
+                            <ArrowUp aria-hidden />
+                            Monter
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={last} onSelect={() => onMove(1)}>
+                            <ArrowDown aria-hidden />
+                            Descendre
+                        </DropdownMenuItem>
+                        {conversationId && (
+                            <DropdownMenuItem onSelect={() => onOpenConversation(conversationId)}>
+                                <MessageSquare aria-hidden />
+                                Ouvrir la conversation
+                            </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+                            <Trash2 aria-hidden />
+                            Retirer du tableau
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </header>
 
             {refreshError && (
-                <p role="alert" className="mb-3 flex items-start gap-1.5 rounded-xl border border-warning-line bg-warning-soft px-3 py-2 text-[11px] font-semibold text-warning-ink motion-safe:animate-ds-pop">
-                    <AlertTriangle className="mt-px h-3.5 w-3.5 flex-shrink-0" aria-hidden />
-                    <span>Actualisation impossible : {refreshError} Les données affichées sont celles de la dernière réussite.</span>
+                <p
+                    role="alert"
+                    className="mb-4 flex items-start gap-2 rounded-control border border-warning-line bg-warning-soft px-3 py-2 text-xs font-medium text-warning-ink motion-safe:animate-ds-pop"
+                >
+                    <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
+                    <span className="flex-1">Actualisation impossible : {refreshError} Les données affichées sont celles de la dernière réussite.</span>
+                    <Button variant="link" size="xs" className="h-auto px-0 text-warning-ink" onClick={onRefresh} disabled={refreshing}>
+                        Réessayer
+                    </Button>
                 </p>
             )}
 
-            <div className={cn("min-w-0 flex-1 transition-opacity duration-300", refreshing && "opacity-50")} aria-busy={refreshing || undefined}>
+            <div
+                className={cn("relative min-w-0 flex-1 transition-[opacity,filter] duration-300 ease-snappy", refreshing && "opacity-50 motion-safe:blur-[1px]")}
+                aria-busy={refreshing || undefined}
+            >
                 {visual ? (
                     <VisualView spec={visual.spec} />
                 ) : (
-                    <p className="rounded-xl border border-dashed border-line bg-surface-2/60 px-4 py-8 text-center text-xs text-ink-3">Ce visuel ne peut pas être affiché.</p>
+                    <p className="rounded-panel border border-dashed border-line bg-surface-2 px-4 py-8 text-center text-xs text-ink-3">Ce visuel ne peut pas être affiché.</p>
                 )}
             </div>
 
             {(pin.question || conversationId) && (
-                <footer className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-2.5">
-                    {pin.question ? <p className="min-w-0 flex-1 truncate text-[11px] italic text-ink-3" title={pin.question}>« {pin.question} »</p> : <span />}
+                <footer className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line-subtle pt-3">
+                    {pin.question ? (
+                        <p className="min-w-0 flex-1 truncate text-xs italic text-ink-3" title={pin.question}>
+                            « {pin.question} »
+                        </p>
+                    ) : (
+                        <span />
+                    )}
                     {conversationId && (
-                        <button
-                            type="button"
-                            onClick={() => onOpenConversation(conversationId)}
-                            className={cn("inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-[11px] font-bold text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink", FOCUS)}
-                        >
-                            <MessageSquare className="h-3.5 w-3.5" aria-hidden />
+                        <Button variant="ghost" size="xs" onClick={() => onOpenConversation(conversationId)}>
+                            <MessageSquare aria-hidden />
                             Ouvrir la conversation
-                        </button>
+                        </Button>
                     )}
                 </footer>
             )}
-
-            <ContextMenu
-                position={menu}
-                onClose={closeMenu}
-                items={[
-                    { label: "Renommer", icon: <Pencil className="h-4 w-4" />, onClick: () => { setTitle(pin.title || displayTitle); setEditing(true); } },
-                    { label: "Monter", icon: <ArrowUp className="h-4 w-4" />, onClick: () => onMove(-1), disabled: first },
-                    { label: "Descendre", icon: <ArrowDown className="h-4 w-4" />, onClick: () => onMove(1), disabled: last },
-                    ...(conversationId
-                        ? [{ label: "Ouvrir la conversation", icon: <MessageSquare className="h-4 w-4" />, onClick: () => onOpenConversation(conversationId) }]
-                        : []),
-                    { label: "Retirer du tableau", icon: <Trash2 className="h-4 w-4" />, onClick: onRemove, variant: "danger" as const, divider: true },
-                ]}
-            />
-        </article>
+        </Card>
     );
 }

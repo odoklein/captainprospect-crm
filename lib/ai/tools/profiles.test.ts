@@ -282,9 +282,11 @@ test("the profile slices stay under the token targets (wire estimate)", () => {
         // crm.ts / visuals.ts. Guard the gain, not a number not yet reached.
         // 0.86 rather than 0.85: the four memory tools registered in B-PR2 are
         // already slim, so they lift both sides and move the ratio slightly.
+        // 0.87 rather than 0.86: create_pdf (~85 wire tokens) is defined slim, so
+        // slimming cannot shrink it and it lifts the agency ratio to ~0.861.
         const rawTokens = estimateWireTokens(toRawProviderTools(ctx));
         const fullTokens = estimateWireTokens(toProviderTools(ctx));
-        assert.ok(fullTokens <= rawTokens * 0.86, `full ${fullTokens} vs raw ${rawTokens}`);
+        assert.ok(fullTokens <= rawTokens * 0.87, `full ${fullTokens} vs raw ${rawTokens}`);
         // The four memory tools added in B-PR2 (~500 wire tokens) moved the
         // agency catalogue from 6.3k to 6.7k, and the three file tools (B-PR3,
         // ~170 tokens after trimming) to 6.9k: the gate follows the surface.

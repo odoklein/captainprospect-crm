@@ -123,6 +123,47 @@ export function snoozeUntil(days: number, now: Date = new Date()): string {
     return new Date(now.getTime() + days * 86_400_000).toISOString();
 }
 
+/** Snooze to a calendar day picked by the user: that day at 08:00 local; null if the day is not after today. */
+export function snoozeToDay(day: Date, now: Date = new Date()): string | null {
+    const at = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 8, 0, 0, 0);
+    const startOfTomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    if (at.getTime() < startOfTomorrow.getTime()) return null;
+    return at.toISOString();
+}
+
+/** Past instant: « à l’instant », « il y a 4 min », « il y a 3 h », « hier », « il y a 3 j », else « 12 oct. ». */
+export function relativeTime(iso: string, now: Date = new Date()): string {
+    const diff = Math.max(0, now.getTime() - new Date(iso).getTime());
+    const min = Math.floor(diff / 60_000);
+    if (min < 1) return "à l’instant";
+    if (min < 60) return `il y a ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `il y a ${h} h`;
+    const d = Math.floor(h / 24);
+    if (d === 1) return "hier";
+    if (d < 7) return `il y a ${d} j`;
+    return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+/** "HH:MM" every `stepMin` minutes over a day, plus `include` when it falls between steps (kept sorted). */
+export function timeOptions(stepMin = 15, include?: string | null): string[] {
+    const out: string[] = [];
+    for (let m = 0; m < 24 * 60; m += stepMin) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
+    if (include && /^\d{2}:\d{2}$/.test(include) && !out.includes(include)) {
+        out.push(include);
+        out.sort();
+    }
+    return out;
+}
+
+/** Count-up frame: ease-out cubic from `from` to `to` at `progress` ∈ [0, 1], rounded to `decimals`. */
+export function countUpAt(from: number, to: number, progress: number, decimals = 0): number {
+    const p = Math.min(1, Math.max(0, progress));
+    const eased = 1 - Math.pow(1 - p, 3);
+    const factor = 10 ** decimals;
+    return Math.round((from + (to - from) * eased) * factor) / factor;
+}
+
 // ============================================
 // Labels
 // ============================================
@@ -173,6 +214,64 @@ export const FINDING_STATE_LABEL: Record<AgentFindingState, string> = {
 
 export function isLiveStatus(status: AgentRunStatus | null | undefined): boolean {
     return status === "QUEUED" || status === "RUNNING";
+}
+
+/** Display title of a run: its job, else its goal (clipped), else its kind. */
+export function runTitle(run: Pick<AgentRunCard, "jobName" | "goal" | "kind">): string {
+    if (run.jobName) return run.jobName;
+    if (run.goal) return run.goal.length > 90 ? `${run.goal.slice(0, 88)}…` : run.goal;
+    return KIND_LABEL[run.kind];
+}
+
+/** One sentence for the run's state; `currentStep` is the title of the step running now. */
+export function runHeadline(status: AgentRunStatus, currentStep?: string | null): string {
+    switch (status) {
+        case "QUEUED":
+            return "En file d’attente";
+        case "RUNNING":
+            return currentStep || "L’agent travaille…";
+        case "WAITING_APPROVAL":
+            return "En attente de ta validation";
+        case "DONE":
+            return "Exécution terminée";
+        case "FAILED":
+            return "L’exécution a échoué";
+        case "CANCELLED":
+            return "Exécution annulée";
+        case "DEFERRED":
+            return "Exécution reportée";
+    }
+}
+
+export function conversationHref(conversationId: string): string {
+    return `/manager/assistant?c=${encodeURIComponent(conversationId)}`;
+}
+
+export interface WorkerStatusInfo {
+    label: "Actif" | "Mode réduit" | "Arrêté";
+    tone: "success" | "warning" | "neutral";
+    live: boolean;
+    description: string;
+}
+
+/** Worker badge: label, tone and the tooltip sentence. */
+export function workerStatusInfo(
+    worker: { mode: "worker" | "lite" | "off"; seenAt: string | null; enabled: boolean },
+    now: Date = new Date(),
+): WorkerStatusInfo {
+    const seen = worker.seenAt ? ` Dernier signal ${relativeTime(worker.seenAt, now)}.` : "";
+    if (!worker.enabled || worker.mode === "off") {
+        return { label: "Arrêté", tone: "neutral", live: false, description: `L’agent ne tourne pas : aucune veille ni mission ne sera lancée.${seen}` };
+    }
+    if (worker.mode === "lite") {
+        return {
+            label: "Mode réduit",
+            tone: "warning",
+            live: true,
+            description: `Le second service (worker) n’est pas déployé. Seules les veilles tournent, toutes les 5 minutes ; les missions et rapports attendent le worker.${seen}`,
+        };
+    }
+    return { label: "Actif", tone: "success", live: true, description: `Le worker est en ligne.${seen}` };
 }
 
 // ============================================

@@ -24,22 +24,45 @@ import type { StoredVisual } from "@/lib/assistant/visuals/spec";
 import { apiSend } from "@/lib/assistant/client/fetcher";
 import { useThread, useThreadActions } from "@/lib/assistant/client/thread-hooks";
 import { cn } from "@/lib/utils";
-import { EmptyBlock, FOCUS, SECONDARY_BUTTON } from "@/components/accueil/AccueilUI";
+import { FOCUS_RING } from "@/components/ui/recipes";
 import { AiMark } from "@/components/ui/AiMark";
 import { useToast } from "@/components/ui/Toast";
+import { Button } from "@/components/ui/shadcn/button";
+import { Kbd } from "@/components/ui/shadcn/kbd";
 import type { RevealedSecret } from "@/components/vault/SecretCard";
-import type { VisualHandlers } from "../../AnswerBody";
 import type { StoredAction } from "../../types";
 import { Canvas } from "../Canvas";
 import { Composer, type ComposerHandle, type ComposerSubmit } from "../Composer";
-import type { ChatStream } from "../useChatStream";
+import type { ChatStream, LiveSnapshot } from "../useChatStream";
 import { AssistantMessage } from "./AssistantMessage";
 import { ErrorTurn } from "./ErrorTurn";
 import { MessageList } from "./MessageList";
 import { ThreadHeader } from "./ThreadHeader";
 import { UserMessage } from "./UserMessage";
+import { renderKeys } from "./handover";
 import { isLocalId, lastOfRole, parseAction, patchMessage } from "./model";
 import { useAttachments } from "./useAttachments";
+import { pdfExportKey, usePdfExport } from "./usePdfExport";
+
+/** A starter question, as a card. */
+function SuggestionCard({ children, onClick, delay, className }: { children: ReactNode; onClick: () => void; delay: number; className?: string }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            style={{ animationDelay: `${delay}ms` }}
+            className={cn(
+                "group/st relative rounded-panel border border-line bg-surface px-3.5 py-3 pr-9 text-[13.5px] text-ink-2 shadow-2xs motion-safe:animate-ds-enter",
+                "transition-[border-color,background-color,color,box-shadow] duration-200 ease-snappy hover:border-line-strong hover:bg-surface-2 hover:text-ink hover:shadow-card",
+                FOCUS_RING,
+                className,
+            )}
+        >
+            {children}
+            <ArrowRight className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-4 transition-transform duration-200 ease-snappy group-hover/st:translate-x-0.5" aria-hidden />
+        </button>
+    );
+}
 
 export interface DraftScope {
     folderId: string | null;
@@ -157,8 +180,18 @@ export function Thread({
 
     const warnBusy = useCallback(() => toast.warning("Une réponse est déjà en cours", "Attendez la fin de la réponse ou arrêtez-la."), [toast]);
 
+    /** Joined files plus the folder files mentioned with « @ », once each. */
+    const outgoingFiles = useCallback(
+        (mentions: ComposerSubmit["mentions"] = []) => {
+            const files = attachments.ready.map((a) => ({ fileId: a.fileId as string, name: a.name, status: a.status as string }));
+            for (const m of mentions) if (!files.some((f) => f.fileId === m.fileId)) files.push(m);
+            return files;
+        },
+        [attachments.ready],
+    );
+
     const sendText = useCallback(
-        async (text: string, deep: boolean, editMessageId?: string) => {
+        async (text: string, deep: boolean, editMessageId?: string, mentions?: ComposerSubmit["mentions"]) => {
             if (!conversationId) return;
             let editId = editMessageId;
             if (editId && isLocalId(editId)) {
@@ -170,29 +203,29 @@ export function Thread({
                     return;
                 }
             }
-            const files = editId ? [] : attachments.ready.map((a) => ({ fileId: a.fileId as string, name: a.name, status: a.status }));
+            const files = editId ? [] : outgoingFiles(mentions);
             if (!editId) attachments.clear();
             const outcome = await stream.send({ conversationId, text, deep, attachments: files, editMessageId: editId });
             if (!outcome.ok && outcome.busy) warnBusy();
         },
-        [conversationId, actions, attachments, stream, toast, warnBusy],
+        [conversationId, actions, attachments, outgoingFiles, stream, toast, warnBusy],
     );
 
     const handleSubmit = useCallback(
-        ({ text, deep, editMessageId }: ComposerSubmit) => {
+        ({ text, deep, editMessageId, mentions }: ComposerSubmit) => {
             if (busyElsewhere) {
                 warnBusy();
                 return false;
             }
             if (!conversationId) {
-                const files = attachments.ready.map((a) => ({ fileId: a.fileId as string, name: a.name, status: a.status }));
+                const files = outgoingFiles(mentions);
                 attachments.clear();
                 void onStart?.({ text, deep, attachments: files });
                 return;
             }
-            void sendText(text, deep, editMessageId);
+            void sendText(text, deep, editMessageId, mentions);
         },
-        [busyElsewhere, conversationId, attachments, onStart, sendText, warnBusy],
+        [busyElsewhere, conversationId, attachments, outgoingFiles, onStart, sendText, warnBusy],
     );
 
     const onFollowUp = useCallback(
@@ -282,6 +315,7 @@ export function Thread({
     const canPin = folderId !== null && !folderId.startsWith("tmp-");
 
     const onOpenVisual = useCallback((visual: StoredVisual, messageId: string | null) => setCanvas({ visual, messageId }), []);
+    const closeCanvas = useCallback(() => setCanvas(null), []);
 
     const onTogglePin = useCallback(
         async (visual: StoredVisual, messageId: string | null) => {
@@ -315,8 +349,6 @@ export function Thread({
         },
         [folderId, pinBusy, pins, actions, toast, folderName, conversationId],
     );
-
-    const liveHandlers: VisualHandlers = useMemo(() => ({ onOpen: (v) => onOpenVisual(v, null) }), [onOpenVisual]);
 
     // ---- Conversation actions ----------------------------------------------------------
 
@@ -361,36 +393,76 @@ export function Thread({
         }
     }, [conversationId, actions, toast, onDeleted, folderId]);
 
+    // ---- PDF ----------------------------------------------------------------------------
+
+    const pdf = usePdfExport();
+    const { exportPdf } = pdf;
+    const onExportAnswerPdf = useCallback(
+        (messageId: string) => {
+            if (conversationId) void exportPdf(conversationId, [messageId]);
+        },
+        [conversationId, exportPdf],
+    );
+
     // ---- Render ------------------------------------------------------------------------
 
     const lastUserId = useMemo(() => lastOfRole(messages, "USER")?.id ?? null, [messages]);
 
-    const renderMessage = (m: ThreadMessage, index: number) =>
-        m.role === "USER" ? (
+    const assistantProps = {
+        interactive,
+        pinnedVisualIds,
+        canPin,
+        onFollowUp,
+        onRegenerate,
+        onFeedback,
+        onAction,
+        onSecretExpire,
+        onOpenVisual,
+        onTogglePin,
+        onExportPdf: onExportAnswerPdf,
+    };
+
+    const renderMessage = (m: ThreadMessage, _index: number, isLast: boolean) => {
+        const key = renderKeys.keyOf(m.id);
+        return m.role === "USER" ? (
             <UserMessage
-                key={m.id}
+                key={key}
+                renderKey={key}
                 message={m}
                 onEdit={m.id === lastUserId && interactive ? () => composerRef.current?.startEdit(m.id, m.content) : null}
             />
         ) : (
             <AssistantMessage
-                key={m.id}
+                key={key}
+                renderKey={key}
                 message={m}
-                isLast={index === messages.length - 1}
-                interactive={interactive}
+                live={null}
+                isLast={isLast}
                 secret={secrets[m.id] ?? null}
                 actionBusy={busyAction === m.id}
-                pinnedVisualIds={pinnedVisualIds}
-                canPin={canPin}
-                onFollowUp={onFollowUp}
-                onRegenerate={onRegenerate}
-                onFeedback={onFeedback}
-                onAction={onAction}
-                onSecretExpire={onSecretExpire}
-                onOpenVisual={onOpenVisual}
-                onTogglePin={onTogglePin}
+                exportingPdf={conversationId !== null && pdf.busyKey === pdfExportKey(conversationId, [m.id])}
+                {...assistantProps}
             />
         );
+    };
+
+    // The turn being written: same component, same key as the saved answer it becomes.
+    const renderLive = (live: LiveSnapshot) => {
+        const settled = live.settled;
+        return (
+            <AssistantMessage
+                key={live.turnKey}
+                renderKey={live.turnKey}
+                message={settled}
+                live={settled ? null : live}
+                isLast
+                secret={settled ? (secrets[settled.id] ?? null) : null}
+                actionBusy={settled !== null && busyAction === settled.id}
+                exportingPdf={false}
+                {...assistantProps}
+            />
+        );
+    };
 
     const starters = folderKind === "CLIENT" ? CLIENT_STARTERS : folderKind === "GENERAL" ? GENERAL_STARTERS : AGENCY_STARTERS;
     const emptyState = (
@@ -407,23 +479,22 @@ export function Thread({
             {canWrite && (
                 <div className={cn("mt-6 grid gap-2 text-left", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
                     {starters.map((s, i) => (
-                        <button
+                        <SuggestionCard
                             key={s}
-                            type="button"
                             onClick={() => handleSubmit({ text: s, deep: false })}
-                            style={{ animationDelay: `${Math.min(i + 2, 8) * 30}ms` }}
-                            className={cn(
-                                "group/st relative rounded-panel border border-line bg-surface px-3.5 py-3 pr-9 text-[13.5px] text-ink-2 shadow-2xs motion-safe:animate-ds-enter",
-                                "transition-[border-color,background-color,color,box-shadow] duration-200 ease-[var(--ease-snappy)] hover:border-line-strong hover:bg-surface-2 hover:text-ink hover:shadow-card",
-                                FOCUS,
-                                i > 1 && compact && "hidden",
-                            )}
+                            delay={Math.min(i + 2, 8) * 30}
+                            className={cn(i > 1 && compact && "hidden")}
                         >
                             {s}
-                            <ArrowRight className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-ink-4 transition-transform duration-200 ease-[var(--ease-snappy)] group-hover/st:translate-x-0.5" aria-hidden />
-                        </button>
+                        </SuggestionCard>
                     ))}
                 </div>
+            )}
+            {canWrite && !compact && (
+                <p className="mt-5 hidden items-center justify-center gap-1.5 text-[12px] text-ink-4 motion-safe:animate-ds-enter [animation-delay:240ms] sm:flex">
+                    <Kbd>/</Kbd> commandes · <Kbd>@</Kbd> fichiers du dossier · <Kbd>{isMac ? "⌘" : "Ctrl"}</Kbd>
+                    <Kbd>K</Kbd> rechercher
+                </p>
             )}
         </div>
     );
@@ -446,19 +517,16 @@ export function Thread({
                     onDelete={async () => {}}
                     onFork={() => {}}
                 />
-                <div className="mx-auto mt-[10vh] w-full max-w-md px-4">
-                    <EmptyBlock
-                        icon={MessageSquareOff}
-                        tone="slate"
-                        title="Conversation introuvable"
-                        hint="Elle a peut-être été supprimée, ou elle n’est pas partagée avec vous."
-                    />
+                <div className="mx-auto mt-[10vh] flex w-full max-w-md flex-col items-center px-4 text-center">
+                    <span className="flex size-12 items-center justify-center rounded-2xl bg-surface-3 text-ink-3">
+                        <MessageSquareOff className="size-6" aria-hidden />
+                    </span>
+                    <h2 className="mt-4 text-base font-semibold text-ink">Conversation introuvable</h2>
+                    <p className="mt-1 text-[13.5px] leading-relaxed text-ink-3">Elle a peut-être été supprimée, ou elle n’est pas partagée avec vous.</p>
                     {onOpenFolder && (
-                        <div className="mt-4 flex justify-center">
-                            <button type="button" onClick={() => onOpenFolder(null)} className={SECONDARY_BUTTON}>
-                                Retour à la vue agence
-                            </button>
-                        </div>
+                        <Button type="button" variant="outline" className="mt-5" onClick={() => onOpenFolder(null)}>
+                            Retour à la vue agence
+                        </Button>
                     )}
                 </div>
             </div>
@@ -477,6 +545,8 @@ export function Thread({
                     trailing={trailing}
                     compact={compact}
                     forking={forking}
+                    exportingPdf={conversationId !== null && pdf.busyKey === conversationId}
+                    onExportPdf={conversationId && messages.length > 0 ? () => void pdf.exportPdf(conversationId) : undefined}
                     onOpenFolder={onOpenFolder}
                     onRename={(title) => void patch({ title })}
                     onTogglePin={() => void patch({ pinned: !conversation?.pinnedAt }, conversation?.pinnedAt ? "Conversation désépinglée" : "Conversation épinglée")}
@@ -504,7 +574,7 @@ export function Thread({
                     olderCursor={thread?.olderCursor ?? null}
                     onLoadOlder={() => (conversationId && thread?.olderCursor ? actions.loadOlder(conversationId, thread.olderCursor) : Promise.resolve())}
                     renderMessage={renderMessage}
-                    liveHandlers={liveHandlers}
+                    renderLive={renderLive}
                     empty={emptyState}
                     compact={compact}
                     footer={
@@ -534,6 +604,7 @@ export function Thread({
                         onRequestEditLast={requestEditLast}
                         attachments={attachments}
                         attachDisabledReason={attachDisabledReason}
+                        folderId={folderId && !folderId.startsWith("tmp-") ? folderId : null}
                         placeholder={folderKind === "AGENCY" ? "Demandez à Captain AI…" : `Demandez à Captain AI sur ${folderName}…`}
                         compact={compact}
                         autoFocus={!compact}
@@ -548,7 +619,7 @@ export function Thread({
                     pinned={pinnedVisualIds.has(canvas.visual.id)}
                     pinBusy={pinBusy === canvas.visual.id}
                     onTogglePin={canPin ? (v) => void onTogglePin(v, canvas.messageId) : undefined}
-                    onClose={() => setCanvas(null)}
+                    onClose={closeCanvas}
                     overlay={compact}
                 />
             )}

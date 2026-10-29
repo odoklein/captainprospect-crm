@@ -39,7 +39,7 @@ import {
     normalizePins,
     sortPins,
     upsertMemory,
-} from "@/components/assistant-ui/workspace/folder/logic";
+} from "./folder-logic";
 
 const QUIET = { revalidateOnFocus: false, shouldRetryOnError: false } as const;
 

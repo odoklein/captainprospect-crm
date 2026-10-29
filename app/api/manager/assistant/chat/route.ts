@@ -39,7 +39,8 @@ import {
 } from "@/lib/ai/tools/loop";
 import { getToolsForContext } from "@/lib/ai/tools/registry";
 import { toolProfileFor } from "@/lib/ai/tools/profiles";
-import { buildContextPack } from "@/lib/assistant/context/pack";
+import { buildContextPack, type AttachmentView } from "@/lib/assistant/context/pack";
+import { prepareAttachments } from "@/lib/assistant/files/attachments";
 import { prismaContextDeps } from "@/lib/assistant/context/prisma";
 import { optional } from "@/lib/assistant/store/missing";
 import { selectHistoryRows, HISTORY_MAX, HISTORY_MIN_TAIL } from "@/lib/assistant/context/history";
@@ -226,6 +227,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         : [];
     const wantedIds = [...new Set(body.attachmentFileIds?.length ? body.attachmentFileIds : reusedIds)];
     let attachments: Attachment[] = [];
+    let attachmentViews: AttachmentView[] = [];
     if (wantedIds.length > 0) {
         if (!conversation.folderId) {
             return errorResponse("Les pièces jointes demandent une conversation rangée dans un dossier.", 400);
@@ -235,7 +237,14 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             () =>
                 prisma.assistantFileText.findMany({
                     where: { fileId: { in: wantedIds }, folderId: conversation.folderId as string, file: { deletedAt: null } },
-                    select: { fileId: true, status: true, file: { select: { originalName: true, name: true } } },
+                    select: {
+                        fileId: true,
+                        status: true,
+                        pages: true,
+                        chunkCount: true,
+                        error: true,
+                        file: { select: { originalName: true, name: true } },
+                    },
                 }),
             null,
         );
@@ -244,10 +253,25 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             return errorResponse("Un fichier joint n'appartient pas au dossier de cette conversation.", 400);
         }
         const byId = new Map(files.map((f) => [f.fileId, f]));
-        attachments = wantedIds
-            .map((fileId) => byId.get(fileId))
-            .filter((f): f is (typeof files)[number] => !!f)
-            .map((f) => ({ fileId: f.fileId, name: f.file.originalName || f.file.name, status: f.status }));
+        const found = wantedIds.map((fileId) => byId.get(fileId)).filter((f): f is (typeof files)[number] => !!f);
+        // A file attached seconds ago is usually still being extracted (after()
+        // of the upload): wait for it here — 25 s in total, 3 at a time, never
+        // failing the turn — so its text is in the pack and the model can read it.
+        attachmentViews = await prepareAttachments(
+            found.map((f) => ({
+                fileId: f.fileId,
+                name: f.file.originalName || f.file.name,
+                status: f.status,
+                pages: f.pages,
+                chunkCount: f.chunkCount,
+                error: f.error,
+            })),
+            {
+                folderId: conversation.folderId,
+                ledgerContext: { userId: session.user.id, clientId: conversation.clientId, missionId: conversation.missionId, conversationId: conversation.id },
+            },
+        );
+        attachments = attachmentViews.map((v) => ({ fileId: v.fileId, name: v.name, status: v.status }));
     }
     const attachmentFileIds = attachments.map((a) => a.fileId);
     const persistOptions: PersistOptions = {
@@ -441,6 +465,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             folder: folder ? { name: folder.name, instructions: folder.instructions } : null,
             // Attached files rank first in the file excerpts (files pipeline, lib/assistant/context/pack.ts).
             attachmentFileIds,
+            attachments: attachmentViews,
             deps: prismaContextDeps,
         });
 

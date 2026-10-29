@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import type { UserRole } from "@prisma/client";
+import type { StoredVisual } from "@/lib/assistant/visuals/spec";
 
 // ============================================
 // RISK TIERS
@@ -99,6 +100,12 @@ export interface AssistantContext {
      * `confirm` tool is proposed, never executed, whatever path reaches it.
      */
     mode?: "chat" | "background";
+
+    /**
+     * The visuals drawn so far in this turn (show_visual), in their `[[visuel N]]`
+     * order. Set by the agent runtime; create_pdf reads it to include them.
+     */
+    turnVisuals?: () => StoredVisual[];
 }
 
 // ============================================

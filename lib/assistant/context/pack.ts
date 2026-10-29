@@ -81,12 +81,59 @@ export interface ContextPackInput {
     priorEvidenceIndex?: string | null;
     /** Files attached to the message: their opening chunks are offered first. */
     attachmentFileIds?: string[];
+    /** The same attachments with their index state, listed in a « Pièces jointes » block. */
+    attachments?: AttachmentView[];
     budgets?: Partial<ContextBudgets>;
     now?: Date;
     deps?: ContextDeps;
 }
 
-export type ContextSectionId = "folder_instructions" | "memory" | "user_prefs" | "summary" | "files" | "prior_evidence";
+export type ContextSectionId = "folder_instructions" | "memory" | "user_prefs" | "summary" | "attachments" | "files" | "prior_evidence";
+
+/** One file attached to the message, after the chat route tried to make it readable. */
+export interface AttachmentView {
+    fileId: string;
+    name: string;
+    /** AssistantFileText status (PENDING … UNSUPPORTED), or MISSING. */
+    status: string;
+    pages: number | null;
+    chunkCount: number;
+    error: string | null;
+    /** Extraction still running when the turn started. */
+    timedOut?: boolean;
+}
+
+const ATTACHMENTS_MAX_LISTED = 10;
+
+function oneLine(text: string, max: number): string {
+    const t = text.replace(/\s+/g, " ").trim();
+    return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+/**
+ * « Pièces jointes » block: every attached file, its state and how to read
+ * it, so the model knows it can open the document even when the excerpts
+ * below do not show the part it needs.
+ */
+export function renderAttachmentsBlock(attachments: AttachmentView[]): string {
+    if (attachments.length === 0) return "";
+    const lines = attachments.slice(0, ATTACHMENTS_MAX_LISTED).map((a) => {
+        const name = oneLine(a.name, 120);
+        const id = a.fileId;
+        if (a.status === "READY") {
+            const size = [a.pages ? `${a.pages} page${a.pages > 1 ? "s" : ""}` : null, a.chunkCount ? `${a.chunkCount} bloc${a.chunkCount > 1 ? "s" : ""}` : null]
+                .filter(Boolean)
+                .join(", ");
+            return `- ${name} (file_id ${id}) — lisible${size ? `, ${size}` : ""}. Lis-le avec read_file_section(file_id "${id}", from_block 0, puis la suite) ; search_files(query, file_id "${id}") pour un passage précis.`;
+        }
+        if (a.timedOut || a.status === "PENDING" || a.status === "PROCESSING") {
+            return `- ${name} (file_id ${id}) — lecture en cours (extraction ou OCR). Appelle read_file_section(file_id "${id}") : il attend la fin de la lecture.`;
+        }
+        return `- ${name} (file_id ${id}) — illisible : ${oneLine(a.error ?? "aucun texte extrait", 220)} Dis-le au manager plutôt que d'inventer son contenu.`;
+    });
+    const more = attachments.length > ATTACHMENTS_MAX_LISTED ? [`- … et ${attachments.length - ATTACHMENTS_MAX_LISTED} autre(s).`] : [];
+    return ["## Pièces jointes au message (documents du manager, à lire avec les outils de fichiers)", ...lines, ...more].join("\n");
+}
 
 export interface ContextSection {
     id: ContextSectionId;
@@ -219,6 +266,13 @@ export async function buildContextPack(input: ContextPackInput): Promise<Context
         const s = section("prior_evidence", "Sources déjà consultées", renderPriorEvidenceBlock(text), false);
         volatileSections.push(s);
         tokens.prior_evidence = s.tokens;
+    }
+
+    // Attachments: what was attached and how to read it; volatile, before the excerpts.
+    if (input.attachments && input.attachments.length > 0) {
+        const s = section("attachments", "Pièces jointes", renderAttachmentsBlock(input.attachments), false);
+        volatileSections.push(s);
+        tokens.attachments = s.tokens;
     }
 
     // Files: only with a reader and a folder; volatile.

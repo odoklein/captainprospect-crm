@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* shadcn/ui enter/exit utilities (animate-in, fade-in-0, zoom-in-95, slide-in-from-*,
+   animate-accordion-*). Tokens + reduced-motion rule: see "SHADCN/UI LAYER" below. */
+@import "tw-animate-css";
 
 /* ============================================================================
    DESIGN SYSTEM — TOKENS
@@ -374,6 +377,46 @@
         animation: none !important;
     }
 }
+
+/* ============================================================================
+   SHADCN/UI LAYER — components/ui/shadcn/** (docs/ui/SHADCN.md)
+   ----------------------------------------------------------------------------
+   The shadcn components are written with OUR utilities (bg-surface, text-ink-3,
+   border-line, rounded-panel, shadow-overlay…). shadcn's own semantic names
+   (background, popover, muted-foreground, ring…) are deliberately NOT defined:
+   several already mean something else here. Only the few concepts we lacked
+   get a token, always namespaced --sh-*.
+   ============================================================================ */
+:root {
+    /* Scrim behind Dialog / AlertDialog / Sheet / Drawer (same as Modal.tsx). */
+    --sh-scrim: color-mix(in oklab, var(--ds-ink) 45%, transparent);
+    /* Skeleton shimmer: a light sweep over bg-surface-3, moved by animate-ds-shimmer. */
+    --sh-shimmer: linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--ds-surface) 65%, transparent) 50%, transparent 100%);
+    /* Stacking: the shell tops out at 100, Modal.tsx is 120, Toast.tsx 130.
+       Modal surfaces sit with Modal; floating layers (menus, popovers, tooltips,
+       select) sit above any modal so they work inside one, below toasts. */
+    --sh-z-modal: 120;
+    --sh-z-popover: 125;
+}
+
+@theme inline {
+    --color-sh-scrim: var(--sh-scrim);
+}
+
+/* tw-animate-css ignores the OS setting: people who ask for less motion get the
+   overlays, menus, sheets and accordions without enter/exit animation. Radix
+   Presence sees `animation-name: none` and unmounts immediately. */
+@media (prefers-reduced-motion: reduce) {
+    [class*="animate-in"],
+    [class*="animate-out"],
+    [class*="animate-accordion-"],
+    [class*="animate-collapsible-"],
+    [data-vaul-drawer],
+    [data-vaul-overlay] {
+        animation: none !important;
+    }
+}
+/* ======================== END SHADCN/UI LAYER =============================== */
 
 @layer base {
     html {

@@ -273,6 +273,8 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
     let draft = "";
     const trace: TraceStep[] = [];
     const visuals: StoredVisual[] = [];
+    // create_pdf includes the visuals drawn in this turn.
+    ctx.turnVisuals = () => visuals;
     // Evidence the draft or a visual already leans on: never compacted away.
     const protectedLabels = new Set<string>();
 

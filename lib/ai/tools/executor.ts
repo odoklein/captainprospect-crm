@@ -60,6 +60,20 @@ function toErrorPayload(error: unknown): { code: string; message: string } {
  * question "what did the assistant actually do on this project?" has one
  * answer, regardless of which path executed it.
  */
+/** Longest string kept per argument in the action log (a create_pdf body can be 60k chars). */
+const LOG_STRING_MAX = 500;
+
+/**
+ * The arguments as the audit trail keeps them: same shape, long strings cut.
+ * The log answers "who did what to which record", not "what was written".
+ */
+export function compactLogArgs(value: unknown, depth = 0): unknown {
+    if (typeof value === "string") return value.length > LOG_STRING_MAX ? `${value.slice(0, LOG_STRING_MAX)}… (${value.length} caractères)` : value;
+    if (depth > 4 || value === null || typeof value !== "object") return value;
+    if (Array.isArray(value)) return value.slice(0, 50).map((v) => compactLogArgs(v, depth + 1));
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, compactLogArgs(v, depth + 1)]));
+}
+
 export async function logAssistantAction(params: {
     ctx: AssistantContext;
     tool: string;
@@ -74,7 +88,7 @@ export async function logAssistantAction(params: {
                 tool: params.tool,
                 // Arguments are ids and flags, never secrets — the vault's own
                 // audit trail covers what happened to the credential itself.
-                args: (params.args ?? {}) as Prisma.InputJsonValue,
+                args: compactLogArgs(params.args ?? {}) as Prisma.InputJsonValue,
                 outcome: params.outcome.slice(0, 1000),
                 confirmed: params.confirmed,
                 ok: params.ok,

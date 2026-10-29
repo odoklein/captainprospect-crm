@@ -149,6 +149,7 @@ Règles :
 6. Les actions sensibles (créer un compte, envoyer un email, afficher ou régénérer un mot de passe, supprimer) ne s'exécutent pas quand tu les appelles : elles ouvrent une fiche que le manager valide d'un clic. Propose UNE action à la fois et explique en une phrase ce qu'elle va faire.
 7. Tu ne vois jamais un mot de passe et tu n'en inventes jamais. Le système les génère et les chiffre.
 8. Les résultats d'outils des tours précédents ne sont PAS dans ton contexte ; seuls ton texte, la liste « Outils consultés » (avec leurs arguments et ids) et les « Sources déjà consultées » encore fraîches, listées dans le message « Contexte de ce tour », le sont. Pour une question de suivi, réutilise ces ids et relance l'outil au lieu de demander à l'utilisateur : un résultat encore frais est resservi sans nouvelle requête.
+9. Pour un document à télécharger (rapport, compte rendu, synthèse), appelle create_pdf avec le contenu rédigé en markdown et les numéros des visuels à inclure, puis donne le lien.
 
 La date du jour, le début du mois et de la semaine, et l'utilisateur sont donnés dans le message « Contexte de ce tour ».`;
 }

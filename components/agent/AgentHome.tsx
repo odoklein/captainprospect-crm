@@ -3,23 +3,28 @@
 /**
  * Captain Agent — the home of the background agent: worker status, today's
  * figures, and four tabs in the URL (`?tab=`): « À traiter » (inbox),
- * « Activité » (runs timeline), « Rapports », « Réglages » (scheduled
- * tasks). The open run lives in the URL too (`?run=<id>`), so a run can be
- * linked to and survives a reload.
+ * « Activité » (runs), « Rapports », « Réglages » (scheduled tasks). The
+ * open run lives in the URL too (`?run=<id>`), so a run can be linked to and
+ * survives a reload.
  *
  * Needs a nuqs adapter above it (app/manager/assistant/agent/page.tsx).
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { ArrowLeft, Coins, Info, Lightbulb, ListChecks, Loader2, OctagonAlert } from "lucide-react";
+import { ArrowLeft, Coins, Info, Lightbulb, ListChecks, Loader2, OctagonAlert, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
-import { Tooltip } from "@/components/ui/Tooltip";
-import { FOCUS, IconTile, KpiCard, PRIMARY_BUTTON, SegmentedControl, Shimmer, relativeTime } from "@/components/accueil/AccueilUI";
+import { FOCUS_RING } from "@/components/ui/recipes";
+import { Badge } from "@/components/ui/shadcn/badge";
+import { Button } from "@/components/ui/shadcn/button";
+import { Card } from "@/components/ui/shadcn/card";
+import { Skeleton } from "@/components/ui/shadcn/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/shadcn/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/tooltip";
 import type { AgentOverview } from "@/lib/assistant/api-contract";
-import { formatEur } from "@/lib/agent/client/format";
+import { formatEur, workerStatusInfo } from "@/lib/agent/client/format";
 import { useAgentOverview } from "@/lib/agent/client/hooks";
 import { DelegateComposer } from "./DelegateComposer";
 import { Inbox } from "./Inbox";
@@ -27,10 +32,12 @@ import { ReportsTab } from "./ReportsTab";
 import { RunDetail } from "./RunDetail";
 import { RunsTimeline } from "./RunsTimeline";
 import { SettingsTab } from "./SettingsTab";
-import { Pill, stagger } from "./shared";
+import { CountChip, CountUp, LiveDot, stagger, TONE_BADGE } from "./shared";
 
 const TABS = ["a-traiter", "activite", "rapports", "reglages"] as const;
 type AgentTab = (typeof TABS)[number];
+
+const TAB_CONTENT = "outline-none motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:data-[state=active]:slide-in-from-bottom-1 motion-safe:duration-200 ease-snappy";
 
 export function AgentHome() {
     const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("a-traiter"));
@@ -41,6 +48,8 @@ export function AgentHome() {
     const openRun = useCallback((id: string) => void setRunId(id), [setRunId]);
     const counts = overview?.counts;
     const toHandle = counts ? counts.openFindings + counts.pendingProposals : 0;
+    const liveRuns = counts ? counts.running + counts.queued : 0;
+    const loadingFirst = isLoading && !overview;
 
     return (
         <div className="w-full space-y-6 pb-12 antialiased">
@@ -48,30 +57,28 @@ export function AgentHome() {
             <header className="space-y-4 pt-1 motion-safe:animate-ds-enter">
                 <Link
                     href="/manager/assistant"
-                    className={cn("inline-flex items-center gap-1.5 rounded-lg px-1.5 py-1 -ml-1.5 text-xs font-semibold text-ink-3 transition-colors hover:text-ink", FOCUS)}
+                    className={cn("-ml-1.5 inline-flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs font-semibold text-ink-3 transition-colors duration-150 hover:text-ink", FOCUS_RING)}
                 >
                     <ArrowLeft className="size-3.5" aria-hidden />
                     Captain AI
                 </Link>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-fg shadow-xs">
-                            <AiMark className="size-6" aria-hidden />
+                    <div className="flex min-w-0 items-center gap-3.5">
+                        <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-[14px] bg-accent text-accent-fg shadow-raised">
+                            <AiMark className="size-[22px]" aria-hidden />
                         </span>
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2.5">
-                                <h1 className="text-2xl font-black tracking-tight text-ink sm:text-3xl">Captain Agent</h1>
-                                <WorkerStatus overview={overview} loading={isLoading} />
+                                <h1 className="text-2xl font-bold tracking-tight text-ink">Captain Agent</h1>
+                                <WorkerStatus overview={overview} loading={loadingFirst} />
                             </div>
-                            <p className="mt-0.5 text-xs font-medium text-ink-3 sm:text-sm">
-                                Il surveille, rédige et enquête en arrière-plan. Rien ne s’exécute sans ta validation.
-                            </p>
+                            <p className="mt-0.5 text-xs text-ink-3 sm:text-sm">Il surveille, rédige et enquête en arrière-plan. Rien ne s’exécute sans ta validation.</p>
                         </div>
                     </div>
-                    <button type="button" className={cn(PRIMARY_BUTTON, "self-start md:self-auto")} onClick={() => setComposing(true)}>
-                        <AiMark className="size-4" aria-hidden />
+                    <Button type="button" variant="ai" className="self-start md:self-auto" onClick={() => setComposing(true)}>
+                        <AiMark aria-hidden />
                         Déléguer une mission
-                    </button>
+                    </Button>
                 </div>
             </header>
 
@@ -83,80 +90,81 @@ export function AgentHome() {
             )}
 
             {/* KPIs */}
-            <section aria-label="Chiffres du jour" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
-                {isLoading && !overview
-                    ? Array.from({ length: 5 }).map((_, i) => <Shimmer key={i} className={cn("h-[104px] rounded-3xl", i === 4 && "col-span-2 lg:col-span-1")} style={stagger(i)} />)
-                    : (
-                        <>
-                            <KpiCard
-                                className="motion-safe:animate-ds-enter"
-                                label="Constats ouverts"
-                                value={counts?.openFindings ?? 0}
-                                sub="À lire et classer"
-                                visual={<IconTile icon={Lightbulb} tone="amber" />}
-                            />
-                            <KpiCard
-                                className="motion-safe:animate-ds-enter [animation-delay:30ms]"
-                                label="Critiques"
-                                value={counts?.critical ?? 0}
-                                badge={counts && counts.critical > 0 ? { text: "à voir", tone: "rose" } : undefined}
-                                sub={counts && counts.critical > 0 ? "Demandent une action rapide" : "Aucune alerte grave"}
-                                visual={<IconTile icon={OctagonAlert} tone={counts && counts.critical > 0 ? "rose" : "slate"} />}
-                            />
-                            <KpiCard
-                                className="motion-safe:animate-ds-enter [animation-delay:60ms]"
-                                label="À valider"
-                                value={counts?.pendingProposals ?? 0}
-                                sub="Propositions de l’agent"
-                                visual={<IconTile icon={ListChecks} tone="indigo" />}
-                            />
-                            <KpiCard
-                                className="motion-safe:animate-ds-enter [animation-delay:90ms]"
-                                label="En cours"
-                                value={counts?.running ?? 0}
-                                sub={counts && counts.queued > 0 ? `${counts.queued} en file d’attente` : "Aucune en attente"}
-                                visual={
-                                    counts && counts.running > 0 ? (
-                                        <span className="inline-flex size-8 items-center justify-center rounded-xl bg-accent text-accent-fg shadow-xs">
-                                            <Loader2 className="size-4 motion-safe:animate-spin" aria-hidden />
-                                        </span>
-                                    ) : (
-                                        <IconTile icon={AiMark} tone="violet" />
-                                    )
-                                }
-                            />
-                            <KpiCard
-                                className="col-span-2 motion-safe:animate-ds-enter [animation-delay:120ms] lg:col-span-1"
-                                label="Coût du jour"
-                                value={<span className="tabular-nums">{formatEur(overview?.costTodayEur ?? 0)}</span>}
-                                sub="Modèles et outils, toutes exécutions"
-                                visual={<IconTile icon={Coins} tone="teal" />}
-                            />
-                        </>
-                    )}
+            <section aria-label="Chiffres du jour" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+                {loadingFirst ? (
+                    Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className={cn("h-[108px] rounded-card", i === 4 && "col-span-2 lg:col-span-1")} style={stagger(i)} />)
+                ) : (
+                    <>
+                        <Kpi index={0} label="Constats ouverts" icon={Lightbulb} value={counts?.openFindings ?? 0} sub="À lire et classer" onClick={() => void setTab(null)} />
+                        <Kpi
+                            index={1}
+                            label="Critiques"
+                            icon={OctagonAlert}
+                            tone={counts && counts.critical > 0 ? "danger" : undefined}
+                            value={counts?.critical ?? 0}
+                            sub={counts && counts.critical > 0 ? "Demandent une action rapide" : "Aucune alerte grave"}
+                            onClick={() => void setTab(null)}
+                        />
+                        <Kpi index={2} label="À valider" icon={ListChecks} value={counts?.pendingProposals ?? 0} sub="Propositions de l’agent" onClick={() => void setTab(null)} />
+                        <Kpi
+                            index={3}
+                            label="En cours"
+                            icon={counts && counts.running > 0 ? Loader2 : AiMark}
+                            spin={Boolean(counts && counts.running > 0)}
+                            tone={counts && counts.running > 0 ? "accent" : undefined}
+                            value={counts?.running ?? 0}
+                            sub={counts && counts.queued > 0 ? `${counts.queued} en file d’attente` : "Aucune en attente"}
+                            onClick={() => void setTab("activite")}
+                        />
+                        <Kpi
+                            index={4}
+                            className="col-span-2 lg:col-span-1"
+                            label="Coût du jour"
+                            icon={Coins}
+                            value={overview?.costTodayEur ?? 0}
+                            decimals={2}
+                            format={formatEur}
+                            sub="Modèles et outils, toutes exécutions"
+                        />
+                    </>
+                )}
             </section>
 
             {/* Tabs */}
-            <div className="overflow-x-auto -mx-1 px-1 pb-1">
-                <SegmentedControl<AgentTab>
-                    ariaLabel="Sections de Captain Agent"
-                    value={tab}
-                    onChange={(v) => void setTab(v === "a-traiter" ? null : v)}
-                    options={[
-                        { value: "a-traiter", label: toHandle > 0 ? <TabLabel text="À traiter" count={toHandle} /> : "À traiter" },
-                        { value: "activite", label: counts && counts.running + counts.queued > 0 ? <TabLabel text="Activité" count={counts.running + counts.queued} live /> : "Activité" },
-                        { value: "rapports", label: "Rapports" },
-                        { value: "reglages", label: "Réglages" },
-                    ]}
-                />
-            </div>
+            <Tabs value={tab} onValueChange={(v) => void setTab(v === "a-traiter" ? null : (v as AgentTab))} className="gap-5">
+                <div className="-mx-1 overflow-x-auto px-1">
+                    <TabsList variant="underline" aria-label="Sections de Captain Agent" className="min-w-full">
+                        <TabsTrigger value="a-traiter">
+                            À traiter
+                            {toHandle > 0 && <CountChip count={toHandle} tone={counts && counts.critical > 0 ? "danger" : "primary"} />}
+                        </TabsTrigger>
+                        <TabsTrigger value="activite">
+                            Activité
+                            {liveRuns > 0 && (
+                                <span className="inline-flex items-center gap-1">
+                                    <LiveDot tone="accent" live />
+                                    <CountChip count={liveRuns} tone="accent" />
+                                </span>
+                            )}
+                        </TabsTrigger>
+                        <TabsTrigger value="rapports">Rapports</TabsTrigger>
+                        <TabsTrigger value="reglages">Réglages</TabsTrigger>
+                    </TabsList>
+                </div>
 
-            <div key={tab} className="motion-safe:animate-ds-enter" role="region" aria-label={TAB_LABEL[tab]}>
-                {tab === "a-traiter" && <Inbox onOpenRun={openRun} />}
-                {tab === "activite" && <RunsTimeline onOpenRun={openRun} />}
-                {tab === "rapports" && <ReportsTab onOpenRun={openRun} />}
-                {tab === "reglages" && <SettingsTab onOpenRun={openRun} />}
-            </div>
+                <TabsContent value="a-traiter" className={TAB_CONTENT}>
+                    <Inbox onOpenRun={openRun} />
+                </TabsContent>
+                <TabsContent value="activite" className={TAB_CONTENT}>
+                    <RunsTimeline onOpenRun={openRun} activeRunId={runId} />
+                </TabsContent>
+                <TabsContent value="rapports" className={TAB_CONTENT}>
+                    <ReportsTab onOpenRun={openRun} />
+                </TabsContent>
+                <TabsContent value="reglages" className={TAB_CONTENT}>
+                    <SettingsTab onOpenRun={openRun} />
+                </TabsContent>
+            </Tabs>
 
             <RunDetail runId={runId} onClose={() => void setRunId(null)} />
             <DelegateComposer open={composing} onClose={() => setComposing(false)} onLaunched={openRun} />
@@ -164,60 +172,86 @@ export function AgentHome() {
     );
 }
 
-const TAB_LABEL: Record<AgentTab, string> = {
-    "a-traiter": "À traiter",
-    activite: "Activité",
-    rapports: "Rapports",
-    reglages: "Réglages",
-};
-
-function TabLabel({ text, count, live }: { text: string; count: number; live?: boolean }) {
+function Kpi({
+    index,
+    label,
+    icon: Icon,
+    value,
+    sub,
+    tone,
+    spin,
+    decimals = 0,
+    format,
+    className,
+    onClick,
+}: {
+    index: number;
+    label: string;
+    icon: LucideIcon;
+    value: number;
+    sub: ReactNode;
+    tone?: "danger" | "accent";
+    spin?: boolean;
+    decimals?: number;
+    format?: (n: number) => string;
+    className?: string;
+    onClick?: () => void;
+}) {
+    const inner = (
+        <>
+            <div className="flex items-start justify-between gap-2">
+                <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-3">{label}</span>
+                <span
+                    className={cn(
+                        "inline-flex size-7 shrink-0 items-center justify-center rounded-[10px] border",
+                        tone === "danger" ? "border-danger-line bg-danger-soft text-danger" : tone === "accent" ? "border-accent-200 bg-accent-soft text-accent-soft-ink" : "border-line bg-surface-2 text-ink-3",
+                    )}
+                >
+                    <Icon className={cn("size-3.5", spin && "motion-safe:animate-spin")} aria-hidden />
+                </span>
+            </div>
+            <CountUp
+                value={value}
+                decimals={decimals}
+                format={format}
+                className={cn("mt-2 block text-[28px] leading-none font-semibold tracking-tight", tone === "danger" && value > 0 ? "text-danger" : "text-ink")}
+            />
+            <p className="mt-2 truncate text-2xs text-ink-3">{sub}</p>
+        </>
+    );
     return (
-        <span className="inline-flex items-center gap-1.5">
-            {text}
-            <span
-                className={cn(
-                    "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-black tabular-nums",
-                    live ? "bg-accent-100 text-accent-700" : "bg-primary-100 text-primary-700",
-                )}
-            >
-                {count}
-            </span>
-        </span>
+        <Card
+            className={cn(
+                "gap-0 rounded-card px-4 py-4 shadow-card motion-safe:animate-ds-enter sm:px-5",
+                onClick && "transition-[border-color,box-shadow,transform] duration-150 ease-snappy hover:border-line-strong hover:shadow-raised",
+                className,
+            )}
+            style={stagger(index)}
+        >
+            {onClick ? (
+                <button type="button" onClick={onClick} className={cn("-m-1 rounded-[14px] p-1 text-left", FOCUS_RING)} aria-label={`${label} : ${value}`}>
+                    {inner}
+                </button>
+            ) : (
+                inner
+            )}
+        </Card>
     );
 }
 
 function WorkerStatus({ overview, loading }: { overview: AgentOverview | undefined; loading: boolean }) {
-    if (loading && !overview) return <Shimmer className="h-6 w-20 rounded-full" />;
+    if (loading) return <Skeleton className="h-5 w-16 rounded-chip" />;
     if (!overview) return null;
-    const { mode, seenAt, enabled } = overview.worker;
-    const seen = seenAt ? `Dernier signal ${relativeTime(seenAt)}.` : "";
-    if (!enabled || mode === "off") {
-        return (
-            <Tooltip content={`L’agent ne tourne pas : aucune veille ni mission ne sera lancée. ${seen}`.trim()}>
-                <Pill tone="neutral">Arrêté</Pill>
-            </Tooltip>
-        );
-    }
-    if (mode === "lite") {
-        return (
-            <Tooltip
-                maxWidth="max-w-sm"
-                content={`Mode réduit : le second service (worker) n’est pas déployé. Seules les veilles tournent, toutes les 5 minutes ; les missions et rapports attendent le worker. ${seen}`.trim()}
-            >
-                <span tabIndex={0} className={cn("rounded-full", FOCUS)} aria-label="Mode réduit : le worker n’est pas déployé, seules les veilles tournent toutes les 5 minutes.">
-                    <Pill tone="warning" pulse>
-                        Mode réduit
-                    </Pill>
-                </span>
-            </Tooltip>
-        );
-    }
+    const info = workerStatusInfo(overview.worker);
     return (
-        <Tooltip content={`Le worker est en ligne. ${seen}`.trim()}>
-            <Pill tone="success" pulse>
-                Actif
-            </Pill>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Badge variant={TONE_BADGE[info.tone]} tabIndex={0} className="cursor-default gap-1.5" aria-label={`${info.label} : ${info.description}`}>
+                    <LiveDot tone={info.tone} live={info.live} />
+                    {info.label}
+                </Badge>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-sm">{info.description}</TooltipContent>
         </Tooltip>
     );
 }
