@@ -135,7 +135,8 @@ function WorkspaceShell() {
                 if (opts.firstMessage?.trim()) {
                     void stream.send({ conversationId: card.id, text: opts.firstMessage, deep: opts.deep ?? false, attachments: opts.attachments });
                 }
-                await setQuery({ c: card.id, folder: card.folderId ?? AGENCY });
+                // The folder the manager started from wins: the thread was created in it.
+                await setQuery({ c: card.id, folder: card.folderId ?? opts.folderId ?? AGENCY });
             } catch (e) {
                 toast.error("Conversation non créée", e instanceof Error ? e.message : undefined);
             }

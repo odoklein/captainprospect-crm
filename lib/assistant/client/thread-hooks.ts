@@ -30,6 +30,7 @@ import {
 } from "@/lib/assistant/api-contract";
 import type { UserAiUsageSummary } from "@/lib/ai/usage";
 import { apiGet, apiSend, withQuery } from "./fetcher";
+import { pickConversation, pickFolder } from "./pick";
 import {
     isConversationPage,
     isConversationPages,
@@ -68,17 +69,8 @@ const infiniteListKey = (key: unknown): string | null =>
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
-/** `ConversationCard` or `{ conversation: ConversationCard }`. */
-export function pickConversation(data: unknown): ConversationCard {
-    if (isRecord(data) && isRecord(data.conversation)) return data.conversation as unknown as ConversationCard;
-    return data as ConversationCard;
-}
-
-/** `FolderCard` or `{ folder: FolderCard }`. */
-export function pickFolder(data: unknown): FolderCard {
-    if (isRecord(data) && isRecord(data.folder)) return data.folder as unknown as FolderCard;
-    return data as FolderCard;
-}
+// Unwrapping lives in ./pick (pure, tested): the full card must win over the deprecated stub.
+export { pickConversation, pickFolder };
 
 /** `PinItem` or `{ pin: PinItem }`. */
 function pickPin(data: unknown): PinItem {
