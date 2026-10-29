@@ -59,7 +59,8 @@ test("seat check: unlimited, within, at and over the limit", () => {
 
 test("client-portal users take no seat", () => {
     assert.equal(usesSeat("CLIENT"), false);
-    for (const role of ["SDR", "MANAGER", "BOOKER", "DEVELOPER", "BUSINESS_DEVELOPER", "COMMERCIAL"]) assert.equal(usesSeat(role), true);
+    assert.equal(usesSeat("COMMERCIAL"), false, "a client's salesperson with a portal account is not agency staff");
+    for (const role of ["SDR", "MANAGER", "BOOKER", "DEVELOPER", "BUSINESS_DEVELOPER"]) assert.equal(usesSeat(role), true);
 });
 
 test("input validation accepts a partial update and rejects typos", () => {

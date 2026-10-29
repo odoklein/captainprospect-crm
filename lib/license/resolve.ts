@@ -44,8 +44,12 @@ export const DEFAULT_LICENSE: LicenseValues = {
     updatedAt: null,
 };
 
-/** Roles that do not use a seat: the agency's own customers (client portal). */
-export const SEAT_FREE_ROLES = ["CLIENT"] as const;
+/**
+ * Roles that do not use a seat: the agency's own customers on the client portal (CLIENT) and
+ * their salespeople with a portal account (COMMERCIAL, /commercial/portal). Seats are the
+ * agency's staff, as the packs sell them (Odo, 2026-10-29).
+ */
+export const SEAT_FREE_ROLES = ["CLIENT", "COMMERCIAL"] as const;
 
 function asStatus(v: unknown): LicenseStatus {
     return v === "SUSPENDED" ? "SUSPENDED" : "ACTIVE";

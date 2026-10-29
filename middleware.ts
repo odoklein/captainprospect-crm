@@ -10,7 +10,9 @@ export default withAuth(
         const apiKey = req.headers.get("x-api-key");
 
         // 0. License pushed by the control plane (cached a few seconds, fails open).
-        if (path.startsWith("/api/")) {
+        // Server actions are POSTs to page URLs (header Next-Action): writes like the /api ones.
+        const serverAction = req.method === "POST" && req.headers.has("next-action");
+        if (path.startsWith("/api/") || serverAction) {
             const license = await getEdgeLicenseState(req.nextUrl.origin);
             // Suspended: read-only. Reads, login and the public routes outside the
             // matcher stay available, so the agency can still sign in and export its data.

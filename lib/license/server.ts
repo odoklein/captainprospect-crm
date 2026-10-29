@@ -14,6 +14,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
     DEFAULT_LICENSE,
+    SEAT_FREE_ROLES,
     checkSeats,
     isFeatureEnabled,
     isSuspended,
@@ -88,7 +89,7 @@ export async function hasFeature(feature: LicenseFeature): Promise<boolean> {
 
 /** Active staff users: every active user whose role takes a seat. */
 export async function countStaffSeats(client: Pick<typeof prisma, "user"> = prisma): Promise<number> {
-    return client.user.count({ where: { isActive: true, role: { not: "CLIENT" } } });
+    return client.user.count({ where: { isActive: true, role: { notIn: [...SEAT_FREE_ROLES] } } });
 }
 
 /**

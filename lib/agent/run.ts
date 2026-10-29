@@ -10,7 +10,7 @@
 
 import type { AgentRunStatus } from "@prisma/client";
 import { getLicense } from "@/lib/license/server";
-import { isFeatureEnabled } from "@/lib/license/resolve";
+import { isFeatureEnabled, isSuspended } from "@/lib/license/resolve";
 import { resolveBudget } from "./budget";
 import { buildRunContext } from "./context";
 import { getPlaybook } from "./playbooks/registry";
@@ -44,7 +44,9 @@ export interface ExecuteResult {
 /** Whether the agent may run at all right now (kill switch + licence). */
 export async function agentAllowed(): Promise<{ ok: true } | { ok: false; reason: string }> {
     if (!(await agentEnabled())) return { ok: false, reason: "agent.enabled = false (interrupteur SystemConfig)" };
-    if (!isFeatureEnabled(await getLicense(), "agent")) return { ok: false, reason: "fonctionnalité « agent » désactivée par la licence" };
+    const license = await getLicense();
+    if (isSuspended(license)) return { ok: false, reason: "instance suspendue (licence)" };
+    if (!isFeatureEnabled(license, "agent")) return { ok: false, reason: "fonctionnalité « agent » désactivée par la licence" };
     return { ok: true };
 }
 

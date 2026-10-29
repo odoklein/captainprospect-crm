@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { bulkEnrichCompanies, ExploriumSearchFilters } from '@/lib/explorium';
+import { isSuspendedInstance } from '@/lib/license/server';
 import { ListType } from '@prisma/client';
 
 // ============================================
@@ -152,6 +153,11 @@ async function runWorker() {
 
     while (true) {
         try {
+            // Suspended by the Console: read-only, jobs wait in "pending" until it is reactivated.
+            if (await isSuspendedInstance()) {
+                await new Promise(resolve => setTimeout(resolve, 30_000));
+                continue;
+            }
             const files = await fs.promises.readdir(path.join(QUEUE_BASE_DIR, 'pending'));
 
             // Filter only jobs for this queue
