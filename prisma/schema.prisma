@@ -452,6 +452,9 @@ model User {
   assistantConversations AssistantConversation[] @relation("AssistantConversationAuthor")
   assistantActions       AssistantActionLog[]    @relation("AssistantActionActor")
   assistantArtifacts     AssistantArtifact[]     @relation("AssistantArtifactAuthor")
+  assistantFolders       AssistantFolder[]       @relation("AssistantFolderAuthor")
+  assistantMemories      AssistantMemory[]       @relation("AssistantMemoryUser")
+  assistantPins          AssistantPin[]          @relation("AssistantPinAuthor")
 
   // Google Drive Integration
   googleDriveConnected Boolean @default(false)
@@ -825,6 +828,7 @@ model Client {
   assistantConversations AssistantConversation[]
   assistantActions       AssistantActionLog[]
   assistantArtifacts     AssistantArtifact[]
+  assistantFolder        AssistantFolder?
 
   // Interlocuteurs (client's own sales team / commercials)
   interlocuteurs ClientInterlocuteur[]
@@ -1496,6 +1500,9 @@ model File {
 
   ticketId String?
   ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  /// Extracted text + chunks when the file lives in an assistant folder (Captain AI v4).
+  assistantText AssistantFileText?
 
   // Metadata
   description String?
@@ -4461,8 +4468,21 @@ model AssistantConversation {
   createdById String
   createdBy   User   @relation("AssistantConversationAuthor", fields: [createdById], references: [id], onDelete: Cascade)
 
+  /// Workspace folder (Captain AI v4). Null = agency view / not filed yet.
+  folderId String?
+  folder   AssistantFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  kind     AssistantConversationKind @default(CHAT)
+  /// PRIVATE = owner only; SHARED = read-only for every active manager.
+  visibility AssistantVisibility @default(PRIVATE)
+  pinnedAt   DateTime?
+
   title         String
   summary       String?   @db.Text
+  /// Rolling summary bookkeeping: last message folded into `summary` and its size.
+  summaryUpToMessageId String?
+  summaryTokens        Int?
+  /// Set when a manager renamed the thread: the AI title job must not overwrite it.
+  titleEditedAt        DateTime?
   messageCount  Int       @default(0)
   lastMessageAt DateTime?
 
@@ -4476,6 +4496,8 @@ model AssistantConversation {
 
   @@index([clientId, missionId, lastMessageAt])
   @@index([createdById])
+  @@index([folderId, lastMessageAt])
+  @@index([visibility, lastMessageAt])
   // Physical name differs from the model: `AssistantConversation` already
   // exists in this database, created by the support-tickets / assistant
   // transcripts migration of the sister app, with a different shape and live
@@ -4496,6 +4518,12 @@ model AssistantMessage {
   /// A proposed or executed action: { tool, args, card, state, outcome }.
   /// Never holds a secret — a revealed password goes server → UI only.
   action Json?
+  /// Files attached to a user message: [{ fileId, name, mimeType, size }].
+  attachments Json?
+  /// Manager feedback on an answer: { rating: "up" | "down", comment?, at, by }.
+  feedback Json?
+  /// Set when the message was edited or regenerated; the replacement is a newer row.
+  supersededAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -4677,6 +4705,213 @@ model AssistantEvidence {
   @@index([runId])
   @@index([expiresAt])
   @@map("AssistantProjetEvidence")
+}
+
+// ---- Assistant folders, memory, files, pins (Captain AI v4) ----
+// Workspace layer of the manager assistant: one folder per client (created
+// lazily on first use) plus general folders, all shared by every manager.
+// Conversations stay private unless their owner shares them (read-only for
+// other managers). Memory is written by the model and edited by managers in
+// three layers (agency, folder, user). Folder files reuse File/Folder storage:
+// a hidden storage Folder per assistant folder, File.clientId null so the
+// client portal never lists them. Physical names carry the AssistantProjet
+// prefix because a sister app shares the production database.
+
+enum AssistantFolderKind {
+  CLIENT
+  GENERAL
+}
+
+enum AssistantConversationKind {
+  CHAT
+  AGENT
+}
+
+enum AssistantVisibility {
+  PRIVATE
+  SHARED
+}
+
+enum AssistantMemoryScope {
+  AGENCY
+  FOLDER
+  USER
+}
+
+enum AssistantMemoryKind {
+  FACT
+  PREFERENCE
+  DECISION
+  CONTACT
+  GOAL
+}
+
+enum AssistantFileTextStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  NEEDS_OCR
+  UNSUPPORTED
+}
+
+model AssistantFolder {
+  id   String              @id @default(cuid())
+  kind AssistantFolderKind
+
+  /// CLIENT folders: exactly one per client, created on first use.
+  clientId String? @unique
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name  String
+  color String?
+  icon  String?
+  /// Manager-written guidance injected into every turn of the folder (<= 600 tokens, enforced by the API).
+  instructions     String? @db.Text
+  /// Suggested first questions shown on the folder home: string[].
+  starterQuestions Json?
+  settings         Json?
+
+  /// Hidden storage `Folder` ("Assistant · <name>", isPublic false, clientId null) holding the folder's files.
+  storageFolderId String? @unique
+
+  createdById String
+  createdBy   User   @relation("AssistantFolderAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  lastActivityAt DateTime?
+  archivedAt     DateTime?
+
+  conversations AssistantConversation[]
+  memories      AssistantMemory[]
+  files         AssistantFileText[]
+  pins          AssistantPin[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, archivedAt, lastActivityAt])
+  @@map("AssistantProjetFolder")
+}
+
+model AssistantMemory {
+  id    String               @id @default(cuid())
+  scope AssistantMemoryScope
+
+  /// FOLDER scope: the folder the fact belongs to.
+  folderId String?
+  folder   AssistantFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  /// USER scope: the manager the preference belongs to.
+  userId String?
+  user   User?   @relation("AssistantMemoryUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// Ranking bonus only: no relation, a deleted mission keeps the memory.
+  missionId String?
+
+  kind    AssistantMemoryKind @default(FACT)
+  content String              @db.VarChar(600)
+  /// "SCOPE:folderId|userId|" (lib/assistant/memory/normalize.ts).
+  scopeKey   String
+  /// sha1 of the normalised content: the same fact is stored once per scope.
+  contentKey String
+  /// { conversationId, messageId, by: "model" | "user" }
+  source     Json?
+  confidence Float     @default(0.8)
+  pinned     Boolean   @default(false)
+  useCount   Int       @default(0)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  /// Soft delete = undo from the Mémoire tab.
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scopeKey, contentKey])
+  @@index([scope, folderId, deletedAt])
+  @@index([scope, userId, deletedAt])
+  @@map("AssistantProjetMemory")
+}
+
+model AssistantFileText {
+  id String @id @default(cuid())
+
+  fileId String @unique
+  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  folderId String
+  folder   AssistantFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  status     AssistantFileTextStatus @default(PENDING)
+  text       String?                 @db.Text
+  pages      Int?
+  chars      Int                     @default(0)
+  tokens     Int                     @default(0)
+  chunkCount Int                     @default(0)
+  /// Which extractor produced the text (pdf-parse, mammoth, xlsx, ocr...).
+  extractor   String?
+  error       String?
+  attempts    Int       @default(0)
+  extractedAt DateTime?
+
+  chunks AssistantFileChunk[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([folderId, status])
+  @@map("AssistantProjetFileText")
+}
+
+model AssistantFileChunk {
+  id String @id @default(cuid())
+
+  fileTextId String
+  fileText   AssistantFileText @relation(fields: [fileTextId], references: [id], onDelete: Cascade)
+  /// Denormalised from the file text for folder-scoped search.
+  folderId String
+  fileId   String
+
+  index   Int
+  page    Int?
+  heading String?
+  content String  @db.Text
+  tokens  Int     @default(0)
+  /// Generated column: to_tsvector('french', content), GIN-indexed. Written by Postgres, never by Prisma.
+  tsv Unsupported("tsvector")?
+
+  @@unique([fileTextId, index])
+  @@index([folderId])
+  @@map("AssistantProjetFileChunk")
+}
+
+model AssistantPin {
+  id String @id @default(cuid())
+
+  folderId String
+  folder   AssistantFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  title String
+  /// The visual as rendered (StoredVisual, lib/assistant/visuals).
+  visual Json
+  /// What produced it, for "Actualiser": { tool, args, sql? }.
+  source   Json?
+  question String?
+
+  conversationId String?
+  messageId      String?
+
+  createdById String
+  createdBy   User   @relation("AssistantPinAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  position     Int       @default(0)
+  refreshedAt  DateTime?
+  refreshError String?
+
+  createdAt DateTime @default(now())
+
+  @@index([folderId, position])
+  @@map("AssistantProjetPin")
 }
 
 // ============================================
