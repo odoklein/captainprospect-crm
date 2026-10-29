@@ -103,7 +103,7 @@ export async function executeToolCall(
 ): Promise<ToolExecutionResult> {
     const startedAt = Date.now();
     const tool = getTool(call.name);
-    const evidence = tool?.risk === "read" ? options.evidence ?? null : null;
+    const evidence = tool?.risk === "read" && !tool.noEvidence ? options.evidence ?? null : null;
     let rawArgs: unknown = {};
 
     try {

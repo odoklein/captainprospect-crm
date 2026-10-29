@@ -45,6 +45,8 @@ export interface EvidenceEntry {
     /** Payload strings, in memory only (date and name checks). Null for prior entries. */
     strings: string[] | null;
     argsHash: string;
+    /** Scrubbed arguments of the read, for turning it into a refreshable pin. Null for prior-turn entries. */
+    args: Record<string, unknown> | null;
 }
 
 export interface RecordInput {
@@ -128,6 +130,7 @@ export class EvidenceSession {
                 prior: true,
                 strings: null,
                 argsHash: row.argsHash,
+                args: row.args && typeof row.args === "object" ? (row.args as Record<string, unknown>) : null,
             });
         }
     }
@@ -167,6 +170,7 @@ export class EvidenceSession {
                 prior: true,
                 strings: null,
                 argsHash: row.argsHash,
+                args: row.args && typeof row.args === "object" ? (row.args as Record<string, unknown>) : null,
             };
             this.entries.push(entry);
         }
@@ -204,6 +208,7 @@ export class EvidenceSession {
             prior: false,
             strings: scrubbed === undefined ? [] : collectStrings(scrubbed),
             argsHash,
+            args: (scrubSensitive(input.args ?? {}) as Record<string, unknown>) ?? {},
         };
 
         if (this.storeUsable && store && ctx.conversationId) {

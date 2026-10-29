@@ -98,6 +98,7 @@ function toPayload(result: AgentTurnResult, messageId: string | null): TurnPaylo
         citations: result.citations,
         unverifiedClaims: result.unverifiedClaims,
         verification: result.verification,
+        visuals: result.visuals,
         model: result.model,
         usage: result.usage,
     };
@@ -207,6 +208,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             citations: result.citations,
             unverifiedClaims: result.unverifiedClaims,
             verification: result.verification,
+            // Charts the answer draws: reopening the thread draws them again.
+            visuals: result.visuals,
             ...(result.error ? { error: result.error } : {}),
         };
         try {

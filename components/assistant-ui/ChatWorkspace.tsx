@@ -7,7 +7,7 @@
  * surface differs.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import {
     ArrowDown,
@@ -24,23 +24,44 @@ import {
     Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Markdown from "@/components/assistant-projet/Markdown";
 import { SecretCard, type RevealedSecret } from "@/components/vault/SecretCard";
 import { ToolTrace } from "./ToolTrace";
 import { ActionConfirmationCard } from "./ActionConfirmationCard";
-import { ThinkingStatus } from "./ThinkingStatus";
+import { AnswerBody, type VisualHandlers } from "./AnswerBody";
+import { VisualCanvas } from "./visuals/VisualCanvas";
+import type { StoredVisual } from "@/lib/assistant/visuals/spec";
+import { LiveTurn, type LiveTurnState } from "./LiveTurn";
 import type { ClientOption, ConversationSummary, StoredAction, TraceEntry } from "./types";
 import type { UserAiUsageSummary } from "@/lib/ai/usage";
+import type { CitationRef, StreamEvent, TurnPayload } from "@/lib/ai/agent/protocol";
+import { readNdjson, splitFollowUps } from "@/lib/assistant/answer";
 
 interface Message {
     id: string;
     role: "USER" | "ASSISTANT";
     content: string;
     trace?: TraceEntry[] | null;
+    citations?: CitationRef[];
+    visuals?: StoredVisual[];
     action?: StoredAction | null;
     secret?: RevealedSecret | null;
     failed?: boolean;
     at?: string;
+}
+
+const EMPTY_LIVE: LiveTurnState = { phase: "connecting", steps: [], draft: "", visuals: [] };
+
+function fromPayload(payload: TurnPayload, fallbackId: string): Message {
+    return {
+        id: payload.messageId ?? fallbackId,
+        role: "ASSISTANT",
+        content: payload.answer,
+        trace: payload.trace,
+        citations: payload.citations,
+        visuals: payload.visuals ?? [],
+        action: (payload.pendingAction as StoredAction | null) ?? null,
+        at: new Date().toISOString(),
+    };
 }
 
 const PROJECT_SUGGESTIONS = [
@@ -78,6 +99,8 @@ function toMessage(m: any): Message {
         role: m.role,
         content: m.content,
         trace: Array.isArray(rawTrace) ? rawTrace : rawTrace?.entries ?? null,
+        citations: Array.isArray(rawTrace?.citations) ? rawTrace.citations : [],
+        visuals: Array.isArray(rawTrace?.visuals) ? rawTrace.visuals : [],
         action: m.action ?? null,
         at: m.createdAt ?? undefined,
     };
@@ -110,7 +133,8 @@ export function ChatWorkspace() {
     const { data: session } = useSession();
     const firstName = session?.user?.name?.split(" ")[0] ?? null;
     const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [pendingPrompt, setPendingPrompt] = useState("");
+    // The turn being streamed; null when idle.
+    const [live, setLive] = useState<LiveTurnState | null>(null);
     const [clients, setClients] = useState<ClientOption[]>([]);
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
     const [usage, setUsage] = useState<UserAiUsageSummary | null>(null);
@@ -134,6 +158,11 @@ export function ChatWorkspace() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const abortRef = useRef<AbortController | null>(null);
+    // Mirror of `live` for the Stop handler, which must keep the draft on screen.
+    const liveRef = useRef<LiveTurnState | null>(null);
+    // The visual open in the canvas beside the chat.
+    const [canvas, setCanvas] = useState<StoredVisual | null>(null);
+    const visualHandlers: VisualHandlers = useMemo(() => ({ onOpen: setCanvas }), []);
     // Set when an answer lands: the next scroll puts its question at the top
     // of the view, so a long answer is read from its first line.
     const anchorAnswerRef = useRef(false);
@@ -256,7 +285,8 @@ export function ChatWorkspace() {
             const controller = new AbortController();
             abortRef.current = controller;
             setInput("");
-            setPendingPrompt(prompt);
+            liveRef.current = EMPTY_LIVE;
+            setLive(EMPTY_LIVE);
             setIsSending(true);
             setAtBottom(true);
             setMessages((prev) => [
@@ -289,24 +319,78 @@ export function ChatWorkspace() {
                         conversationId: id,
                         message: prompt,
                         depth: deep ? "deep" : "standard",
+                        stream: true,
                     }),
                     signal: controller.signal,
                 });
-                const payload = await res.json();
-                if (!res.ok) throw new Error(payload?.error ?? "L'assistant n'a pas pu répondre");
+                // Refusals before the turn starts (busy, not configured) are plain JSON.
+                if (!res.ok || !res.body) {
+                    const payload = await res.json().catch(() => null);
+                    throw new Error(payload?.error ?? "L'assistant n'a pas pu répondre");
+                }
 
-                const data = payload.data;
+                const update = (fn: (state: LiveTurnState) => LiveTurnState) => {
+                    if (!liveRef.current) return;
+                    liveRef.current = fn(liveRef.current);
+                    setLive(liveRef.current);
+                };
+                let answer: Message | null = null;
+                let failure: string | null = null;
+
+                await readNdjson(res.body, (event: StreamEvent) => {
+                    switch (event.type) {
+                        case "phase":
+                            update((s) => ({ ...s, phase: event.phase }));
+                            break;
+                        case "retry":
+                            update((s) => ({ ...s, phase: "retrying" }));
+                            break;
+                        case "tool_start":
+                            update((s) => ({
+                                ...s,
+                                phase: "tools",
+                                steps: [...s.steps, { id: event.id, tool: event.tool, label: event.label, state: "running" }],
+                            }));
+                            break;
+                        case "tool_end":
+                            update((s) => ({
+                                ...s,
+                                steps: s.steps.map((step) =>
+                                    step.id === event.id
+                                        ? { ...step, state: event.ok ? "ok" : "error", durationMs: event.durationMs, cached: event.cached }
+                                        : step
+                                ),
+                            }));
+                            break;
+                        case "visual":
+                            update((s) => ({
+                                ...s,
+                                visuals: s.visuals.some((v) => v.id === event.visual.id)
+                                    ? s.visuals.map((v) => (v.id === event.visual.id ? event.visual : v))
+                                    : [...s.visuals, event.visual],
+                            }));
+                            break;
+                        case "delta":
+                            update((s) => ({ ...s, phase: "writing", draft: s.draft + event.text }));
+                            break;
+                        case "reset":
+                            update((s) => ({ ...s, draft: "" }));
+                            break;
+                        case "final":
+                            answer = fromPayload(event.payload, `a-${Date.now()}`);
+                            break;
+                        case "error":
+                            if (event.payload) answer = fromPayload(event.payload, `a-${Date.now()}`);
+                            else failure = event.error.message;
+                            break;
+                    }
+                });
+
+                if (controller.signal.aborted) return;
+                if (!answer) throw new Error(failure ?? "La réponse a été interrompue.");
                 anchorAnswerRef.current = true;
-                setMessages((prev) => [
-                    ...prev,
-                    {
-                        id: data.messageId,
-                        role: "ASSISTANT",
-                        content: data.answer,
-                        trace: Array.isArray(data.trace) ? data.trace : data.trace?.entries ?? null,
-                        action: data.pendingAction ?? null,
-                    },
-                ]);
+                const finished: Message = answer;
+                setMessages((prev) => [...prev, finished]);
             } catch (err) {
                 if (controller.signal.aborted) return;
                 setMessages((prev) => [
@@ -321,6 +405,8 @@ export function ChatWorkspace() {
             } finally {
                 if (abortRef.current === controller) {
                     abortRef.current = null;
+                    liveRef.current = null;
+                    setLive(null);
                     setIsSending(false);
                     void loadHistory();
                 }
@@ -329,12 +415,23 @@ export function ChatWorkspace() {
         [input, isSending, conversationId, clientId, missionId, deep, loadHistory]
     );
 
-    // Stop only stops waiting: the server may still finish the turn, and the
-    // answer then shows up when the thread is reopened.
+    // Closing the stream cancels the turn on the server (the route aborts it
+    // and saves it as cancelled). What was already written stays on screen.
     const stopWaiting = () => {
+        const draft = splitFollowUps(liveRef.current?.draft ?? "").body.trim();
         abortRef.current?.abort();
         abortRef.current = null;
+        liveRef.current = null;
+        setLive(null);
         setIsSending(false);
+        setMessages((prev) => [
+            ...prev,
+            {
+                id: `stopped-${Date.now()}`,
+                role: "ASSISTANT",
+                content: draft ? `${draft}\n\n*(Réponse interrompue.)*` : "*Réponse interrompue.*",
+            },
+        ]);
     };
 
     const handleActionDecision = useCallback(
@@ -379,7 +476,7 @@ export function ChatWorkspace() {
 
     const copyMessage = async (message: Message) => {
         try {
-            await navigator.clipboard.writeText(message.content);
+            await navigator.clipboard.writeText(splitFollowUps(message.content).body);
             setCopiedId(message.id);
             setTimeout(() => setCopiedId((id) => (id === message.id ? null : id)), 1500);
         } catch {
@@ -407,7 +504,7 @@ export function ChatWorkspace() {
         }
         if (atBottom) scrollToBottom();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [messages, isSending]);
+    }, [messages, isSending, live]);
 
     const onScroll = () => {
         const el = scrollRef.current;
@@ -601,7 +698,7 @@ export function ChatWorkspace() {
                                 </p>
                             </div>
                         ) : (
-                            messages.map((msg) =>
+                            messages.map((msg, index) =>
                                 msg.role === "USER" ? (
                                     <div key={msg.id} data-role="USER" className="flex flex-col items-end gap-1">
                                         <div className="max-w-[80%] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl rounded-br-sm bg-primary px-3.5 py-2 text-sm text-white">
@@ -614,11 +711,13 @@ export function ChatWorkspace() {
                                         )}
                                     </div>
                                 ) : (
-                                    <div key={msg.id} className="group">
-                                        <div className="cp-ai-answer min-w-0">
-                                            <div className={cn(msg.failed && "text-rose-600")}>
-                                                <Markdown content={msg.content} />
-                                            </div>
+                                    <AssistantAnswer
+                                        key={msg.id}
+                                        msg={msg}
+                                        // Follow-ups only under the latest answer, and not while another is coming.
+                                        onFollowUp={index === messages.length - 1 && !isSending ? (q) => void sendMessage(q) : null}
+                                        handlers={visualHandlers}
+                                    >
                                             {msg.action && (
                                                 <ActionConfirmationCard
                                                     action={msg.action}
@@ -654,20 +753,12 @@ export function ChatWorkspace() {
                                                     </button>
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
+                                    </AssistantAnswer>
                                 )
                             )
                         )}
 
-                        {isSending && (
-                            <ThinkingStatus
-                                prompt={pendingPrompt}
-                                scopeName={activeClient?.name ?? null}
-                                elapsedMs={elapsedMs}
-                                deep={deep}
-                            />
-                        )}
+                        {isSending && live && <LiveTurn state={live} elapsedMs={elapsedMs} deep={deep} handlers={visualHandlers} />}
                     </div>
                 </div>
 
@@ -768,6 +859,56 @@ export function ChatWorkspace() {
                     </form>
                 </div>
             </section>
+
+            {canvas && (
+                <div className="absolute inset-y-0 right-0 z-30 w-full md:relative md:w-[min(560px,46vw)] md:shrink-0">
+                    <VisualCanvas visual={canvas} onClose={() => setCanvas(null)} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+/**
+ * One assistant answer: the markdown body with its source chips, whatever the
+ * caller adds under it (action card, secret, trace, copy), then the follow-up
+ * questions the model proposed, as buttons.
+ */
+function AssistantAnswer({
+    msg,
+    onFollowUp,
+    handlers,
+    children,
+}: {
+    msg: Message;
+    onFollowUp: ((question: string) => void) | null;
+    handlers: VisualHandlers;
+    children: ReactNode;
+}) {
+    const { followUps } = useMemo(() => splitFollowUps(msg.content), [msg.content]);
+    return (
+        <div className="group">
+            <div className="cp-ai-answer min-w-0">
+                <div className={cn(msg.failed && "text-rose-600")}>
+                    <AnswerBody content={msg.content} citations={msg.citations} visuals={msg.visuals} handlers={handlers} />
+                </div>
+                {children}
+                {onFollowUp && followUps.length > 0 && (
+                    <div className="mt-3 flex flex-col items-start gap-1.5">
+                        {followUps.map((question) => (
+                            <button
+                                key={question}
+                                type="button"
+                                onClick={() => onFollowUp(question)}
+                                className="inline-flex max-w-full items-center gap-2 rounded-lg border border-[var(--ds-line)] bg-[var(--ds-surface)] px-3 py-1.5 text-left text-[13px] text-[var(--ds-ink-2)] transition-colors hover:border-[var(--ds-line-strong)] hover:text-[var(--ds-ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-focus)]"
+                            >
+                                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--ds-ink-4)]" aria-hidden />
+                                <span className="min-w-0">{question}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

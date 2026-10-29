@@ -35,6 +35,8 @@ import {
     type AssistantContext,
     type PendingActionCard,
 } from "@/lib/ai/tools/types";
+import { checkVisualNumbers } from "@/lib/assistant/visuals/check";
+import type { VisualSpec } from "@/lib/assistant/visuals/spec";
 import type { AssistantModelConfig, TurnPlan } from "./models";
 import { withRetry } from "./retry";
 import { EvidenceSession } from "./evidence/session";
@@ -49,12 +51,16 @@ import type {
     TraceStep,
     TurnStatus,
     TurnUsage,
+    StoredVisual,
     UnverifiedClaim,
     VerificationReport,
 } from "./protocol";
 
 /** A repair is only attempted with at least this much of the deadline left. */
 const REPAIR_MIN_REMAINING_MS = 8_000;
+
+/** More than this many visuals in one answer is a dashboard, not an answer. */
+const MAX_VISUALS = 6;
 
 export interface ChatTurn {
     role: "user" | "assistant";
@@ -67,6 +73,7 @@ export interface ChatRequest {
     model: string;
     temperature: number;
     maxTokens: number;
+    reasoningEffort: TurnPlan["reasoningEffort"];
     signal: AbortSignal;
     timeoutMs: number;
     idleTimeoutMs: number;
@@ -118,6 +125,7 @@ export interface AgentTurnResult {
     citations: CitationRef[];
     unverifiedClaims: UnverifiedClaim[];
     verification: VerificationReport;
+    visuals: StoredVisual[];
     model: string;
     fallbackUsed: boolean;
     usage: TurnUsage;
@@ -223,6 +231,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
     let firstTokenMs: number | null = null;
     let draft = "";
     const trace: TraceStep[] = [];
+    const visuals: StoredVisual[] = [];
 
     const session = new EvidenceSession({
         store: deps.store,
@@ -251,9 +260,11 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                             model: candidate,
                             temperature: config.temperature,
                             maxTokens: plan.maxTokens,
+                            // The fallback is a classic model: the effort only matters to the planned one.
+                            reasoningEffort: candidate === plan.model ? plan.reasoningEffort : "none",
                             signal: turn.signal,
-                            timeoutMs: Math.min(config.providerTimeoutMs, Math.max(1, deadlineAt - Date.now())),
-                            idleTimeoutMs: config.idleTimeoutMs,
+                            timeoutMs: Math.min(plan.providerTimeoutMs, Math.max(1, deadlineAt - Date.now())),
+                            idleTimeoutMs: plan.idleTimeoutMs,
                             onTextDelta: (text) => {
                                 if (!wroteText) emit({ type: "phase", phase: "writing" });
                                 wroteText = true;
@@ -299,9 +310,46 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
         throw lastError;
     };
 
-    const finish = (partial: Omit<AgentTurnResult, "runId" | "trace" | "model" | "fallbackUsed" | "usage" | "iterations" | "retries" | "toolCalls" | "latencyMs" | "firstTokenMs" | "evidencePersisted">): AgentTurnResult => ({
+    /**
+     * A visual the model drew: its figures are checked against this turn's
+     * sources, it is kept for the message and sent to the browser, and the model
+     * is told its number (for the `[[visuel N]]` marker) and any figure to fix.
+     */
+    const registerVisual = (data: unknown): string => {
+        const { visual, from } = data as { visual: VisualSpec; from: string | null };
+        const same = visuals.findIndex((v) => v.spec.kind === visual.kind && v.spec.title === visual.title);
+        if (same < 0 && visuals.length >= MAX_VISUALS) {
+            return JSON.stringify({ error: { code: "too_many_visuals", message: `${MAX_VISUALS} visuels au maximum par réponse.` } });
+        }
+        const check = checkVisualNumbers(visual, session.entries.filter((e) => e.status === "OK"));
+        const entry = from ? session.resolve(from) : undefined;
+        const stored: StoredVisual = {
+            id: same >= 0 ? visuals[same].id : `v${visuals.length + 1}`,
+            spec: visual,
+            ...(check.unverified.length > 0 ? { unverified: check.unverified } : {}),
+            source: entry?.args ? { tool: entry.tool, args: entry.args, label: entry.toolLabel } : null,
+            question: (input.history[input.history.length - 1]?.content ?? "").slice(0, 300),
+        };
+        if (same >= 0) visuals[same] = stored;
+        else visuals.push(stored);
+        emit({ type: "visual", visual: stored });
+        const number = (same >= 0 ? same : visuals.length - 1) + 1;
+        return JSON.stringify({
+            affiche: true,
+            numero: number,
+            marqueur: `[[visuel ${number}]]`,
+            ...(check.unverified.length > 0
+                ? {
+                      avertissement: `Ces valeurs ne se retrouvent pas dans les sources consultées : ${check.unverified.slice(0, 8).join(", ")}. Rappelle show_visual avec les bons chiffres (même kind et même title : il remplace le visuel), ou retire-les.`,
+                  }
+                : {}),
+        });
+    };
+
+    const finish = (partial: Omit<AgentTurnResult, "runId" | "trace" | "visuals" | "model" | "fallbackUsed" | "usage" | "iterations" | "retries" | "toolCalls" | "latencyMs" | "firstTokenMs" | "evidencePersisted">): AgentTurnResult => ({
         runId,
         trace,
+        visuals,
         model,
         fallbackUsed,
         usage: { ...usage, costEur: Math.round(usage.costEur * 1_000_000) / 1_000_000, model },
@@ -451,7 +499,11 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                 };
                 trace.push({ ...step, args: compactArgs(call.function.arguments) });
                 emit({ type: "tool_end", id: call.id, ...step });
-                messages.push({ role: "tool", tool_call_id: call.id, content: serializeToolResult(execution) });
+                messages.push({
+                    role: "tool",
+                    tool_call_id: call.id,
+                    content: execution.ok && execution.tool === "show_visual" ? registerVisual(execution.data) : serializeToolResult(execution),
+                });
             }
             checkAbort();
         }
@@ -491,7 +543,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
     async function finalizeAnswer(
         text: string,
         messages: OpenAIChatMessage[],
-    ): Promise<Omit<AgentTurnResult, "runId" | "trace" | "model" | "fallbackUsed" | "usage" | "iterations" | "retries" | "toolCalls" | "latencyMs" | "firstTokenMs" | "evidencePersisted">> {
+    ): Promise<Omit<AgentTurnResult, "runId" | "trace" | "visuals" | "model" | "fallbackUsed" | "usage" | "iterations" | "retries" | "toolCalls" | "latencyMs" | "firstTokenMs" | "evidencePersisted">> {
         const answerText = text || "Je n'ai pas de réponse à donner.";
         emit({ type: "phase", phase: "verifying" });
         let current = answerText;

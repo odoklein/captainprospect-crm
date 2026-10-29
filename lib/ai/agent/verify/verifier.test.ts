@@ -244,3 +244,41 @@ test("a fully verified answer is left untouched", () => {
     const answer = "Sur les 30 derniers jours, 14 RDV ont été pris [E1].";
     assert.equal(annotateAnswer(answer, verify(answer, [ev("E1", METRICS_30)])), answer);
 });
+
+// -- Row labels that name a metric (regression: gpt-5.5 eval, 2026-10-29) ----------
+
+const SALES_REPORT = {
+    period: { label: "last_30_days", from: "2026-09-25T00:00:00.000Z", to: "2026-10-25T00:00:00.000Z", days: 30 },
+    totals: { calls: 420, appointments_booked: 14, appointments_confirmed: 10, appointments_cancelled: 2, appointments_per_100_calls: 3.3 },
+    unique_called: { contacts: 310, companies: 248, calls_per_contact: 1.4 },
+    reach: { reached_calls: 96, reach_rate_pct: 22.9 },
+    by_category: [
+        { category: "meeting_booked", label: "RDV pris", count: 14, share_pct: 3.3 },
+        { category: "calls", label: "Appels", count: 420, share_pct: 100 },
+    ],
+};
+
+test("a row labelled with a metric name is not an entity the figures must belong to", () => {
+    const answer = [
+        "La mission « Q4 — Appels » est à 420 appels, 310 contacts appelés et 14 RDV pris [E1].",
+        "",
+        "- 10 RDV confirmés [E1]",
+        "- 2 RDV annulés [E1]",
+    ].join("\n");
+    const r = verify(answer, [ev("E1", SALES_REPORT)], "Fais le point sur les 30 derniers jours");
+    assert.deepEqual(
+        r.numbers.filter((n) => n.status !== "verified").map((n) => `${n.token.raw}:${n.status}:${n.reason}`),
+        [],
+    );
+});
+
+test("the base of a rate (\"pour 100 appels\") is not a claim", () => {
+    const answer = "Le taux est de 3,3 RDV pour 100 appels [E1].";
+    const r = verify(answer, [ev("E1", SALES_REPORT)], "Fais le point sur les 30 derniers jours");
+    assert.deepEqual(r.numbers.map((n) => `${n.token.raw}:${n.status}`), ["3,3:verified"]);
+});
+
+test("a figure still has to be right: the wrong count behind a metric label fails", () => {
+    const r = verify("Il y a 15 RDV pris [E1].", [ev("E1", SALES_REPORT)], "Fais le point sur les 30 derniers jours");
+    assert.equal(r.numbers[0].status, "unsupported");
+});

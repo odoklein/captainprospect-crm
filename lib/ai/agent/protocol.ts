@@ -7,6 +7,10 @@
  * the draft was discarded (verification repair, or a new model round).
  */
 
+import type { StoredVisual } from "@/lib/assistant/visuals/spec";
+
+export type { StoredVisual };
+
 export type TurnStatus =
     /** Answered; every checked claim traced to evidence (or there was nothing to check). */
     | "complete"
@@ -94,6 +98,8 @@ export interface TurnPayload {
     citations: CitationRef[];
     unverifiedClaims: UnverifiedClaim[];
     verification: VerificationReport;
+    /** Charts and figures the answer draws, placed by its `[[visuel N]]` markers. */
+    visuals: StoredVisual[];
     model: string;
     usage: TurnUsage;
 }
@@ -130,6 +136,7 @@ export type StreamEvent =
           cached?: boolean;
           evidence?: string;
       }
+    | { type: "visual"; visual: StoredVisual }
     | { type: "delta"; text: string }
     | { type: "reset" }
     | { type: "retry"; attempt: number; delayMs: number }

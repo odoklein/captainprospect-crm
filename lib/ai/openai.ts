@@ -224,19 +224,39 @@ interface ChatRequest {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    /** Reasoning models only; ignored for the others. */
+    reasoningEffort?: "none" | "low" | "medium" | "high";
     /** Caller cancellation (turn cancelled, deadline, client disconnect). */
     signal?: AbortSignal;
     /** Non-streaming: whole request. Streaming: time to the response headers. */
     timeoutMs?: number;
 }
 
+/** GPT-5 and o-series: they think before answering and take `reasoning_effort`. */
+export function isReasoningModel(model: string): boolean {
+    return /^(gpt-5|o\d)/i.test(model.trim());
+}
+
+/**
+ * Parameters differ by family. Reasoning models reject a custom temperature —
+ * except GPT-5 with effort "none", which samples like a classic model — and
+ * o-series know no "none". `max_completion_tokens` is accepted by every model.
+ */
 function requestBody(options: ChatRequest, model: string): Record<string, unknown> {
     const body: Record<string, unknown> = {
         model,
         messages: options.messages,
-        temperature: options.temperature ?? 0.3,
-        max_tokens: options.maxTokens ?? 1500,
+        max_completion_tokens: options.maxTokens ?? 1500,
     };
+    const temperature = options.temperature ?? 0.3;
+    if (isReasoningModel(model)) {
+        const isO = /^o\d/i.test(model.trim());
+        const effort = options.reasoningEffort ?? (isO ? "medium" : "none");
+        body.reasoning_effort = isO && effort === "none" ? "low" : effort;
+        if (!isO && effort === "none") body.temperature = temperature;
+    } else {
+        body.temperature = temperature;
+    }
     if (options.tools && options.tools.length > 0) {
         body.tools = options.tools;
         body.tool_choice = "auto";

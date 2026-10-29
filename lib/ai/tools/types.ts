@@ -100,6 +100,13 @@ export interface ToolDefinition<TArgs = unknown, TResult = unknown> {
     risk: ToolRisk;
     /** True when the tool cannot work without a bound project. */
     requiresProject: boolean;
+    /**
+     * True when the tool must NOT run inside a bound project — it sees every
+     * client (raw SQL), so a project conversation never gets it.
+     */
+    agencyOnly?: boolean;
+    /** A read whose result is not a source (it draws, it does not look anything up): no evidence row, no [E] label. */
+    noEvidence?: boolean;
     /** Short French label for the tool trace in the UI. */
     label: string;
 

@@ -171,6 +171,20 @@ function matchesTerms(groups: TermGroups, context: string): boolean {
     return groups.every((group) => group.some((term) => context.includes(term)));
 }
 
+/**
+ * Every word the lexicon uses to talk about a metric. A row label made of them
+ * ("RDV pris", "Appels", "Conversations obtenues") names a measure, not a
+ * subject: "14 RDV confirmés" is not about an entity called "RDV pris".
+ */
+const METRIC_WORD_RES = [...new Set(LEXICON.flatMap(([, groups]) => groups.flat()))]
+    .filter((term) => term.length >= 3)
+    .map((term) => new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+
+export function isMetricLabel(entity: string): boolean {
+    const folded = fold(entity);
+    return METRIC_WORD_RES.some((re) => re.test(folded));
+}
+
 // -- Periods ------------------------------------------------------------------
 
 export function periodCompatible(claim: ClaimPeriod | null, fact: EvidencePeriod | null, now: Date): boolean {
@@ -448,7 +462,11 @@ export function verifyAnswer(answer: string, evidence: VerifiableEvidence[], opt
 
     const periods = findPeriods(norm, today);
     const questionPeriod = findPeriods(normalizeKeepLength(options.question), today)[0]?.period ?? null;
-    const entities = [...new Set(usable.flatMap((e) => e.facts.map((f) => f.entity).filter((x): x is string => !!x)))];
+    // Subjects only: a metric label ("RDV pris") is matched through the metric
+    // vocabulary, never as the entity a figure must belong to.
+    const entities = [
+        ...new Set(usable.flatMap((e) => e.facts.map((f) => f.entity).filter((x): x is string => !!x && !isMetricLabel(x)))),
+    ];
     const mentions = entityMentions(norm, entities);
     const allTerms = usable.flatMap((e) => e.facts.flatMap((f) => termsFor(f).flat()));
 
@@ -603,7 +621,9 @@ function evaluate(
         const groups = c.denominator ? [...termsFor(c.fact), ...termsFor(c.denominator)] : termsFor(c.fact);
         // An entity row's label ("MEETING_BOOKED", "Julie Martin") also names the metric.
         const entityNamed = !!c.fact.entity && wideText.includes(fold(c.fact.entity));
-        if (matchesTerms(groups, clauseText) || matchesTerms(groups, wideText) || (entityNamed && groups.length === 0)) {
+        // …and a row labelled "RDV pris" is the metric itself, whatever its key says.
+        const labelIsMetric = entityNamed && isMetricLabel(c.fact.entity!);
+        if (matchesTerms(groups, clauseText) || matchesTerms(groups, wideText) || labelIsMetric || (entityNamed && groups.length === 0)) {
             passing.push(c);
             continue;
         }

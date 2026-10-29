@@ -62,6 +62,14 @@ export function checkToolAccess(
         };
     }
 
+    if (tool.agencyOnly && ctx.project) {
+        return {
+            allowed: false,
+            code: "agency_only",
+            reason: "Cet outil voit tous les clients : il n'est disponible qu'en vue agence.",
+        };
+    }
+
     // One user message must not become a burst of writes through the loop.
     if (tool.risk === "safe_write" && ctx.autoWriteBudget <= 0) {
         return {

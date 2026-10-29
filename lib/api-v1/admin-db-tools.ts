@@ -5,8 +5,9 @@ import type { Ctx } from "./serializers";
 import type { ToolDef } from "./mcp-tools";
 import { ApiError } from "./errors";
 import { parseInput } from "./input";
+import { runReadOnlySql, SqlGuardError } from "./sql-guard";
 
-// All 138 Prisma model names
+// Every Prisma model name
 const MODEL_NAMES = Object.keys(Prisma.ModelName) as (keyof typeof Prisma.ModelName)[];
 const MODEL_LOOKUP = new Map<string, string>(MODEL_NAMES.map((m) => [m.toLowerCase(), m]));
 
@@ -90,7 +91,7 @@ function resolveModel(inputName: string): string {
     throw new ApiError(
       404,
       "table_not_found",
-      `Table '${inputName}' does not exist. Call 'admin_db_overview' to see all 138 available tables.`,
+      `Table '${inputName}' does not exist. Call 'admin_db_overview' to see all available tables.`,
     );
   }
   return resolved;
@@ -113,12 +114,12 @@ function tool<S extends z.ZodRawShape>(
 
 export const ADMIN_DB_TOOLS: ToolDef[] = [
   // ============================================
-  // 1. OVERVIEW: All 138 tables with counts and domains
+  // 1. OVERVIEW: All tables with counts and domains
   // ============================================
   tool({
     name: "admin_db_overview",
     description:
-      "SUPER-ADMINISTRATOR ONLY: Complete census of all 138 database tables in the CRM, categorized by domain (core_crm, billing, outreach, planning, ai, security) with live record counts.",
+      "SUPER-ADMINISTRATOR ONLY: Complete census of all database tables in the CRM, categorized by domain (core_crm, billing, outreach, planning, ai, security) with live record counts.",
     scope: null,
     shape: {},
     run: async ({ db, p }) => {
@@ -176,7 +177,7 @@ export const ADMIN_DB_TOOLS: ToolDef[] = [
   tool({
     name: "admin_db_inspect",
     description:
-      "SUPER-ADMINISTRATOR ONLY: Inspect the schema, column types, required fields, relations, primary key, and indexes of ANY of the 138 tables.",
+      "SUPER-ADMINISTRATOR ONLY: Inspect the schema, column types, required fields, relations, primary key, and indexes of ANY table.",
     scope: null,
     shape: {
       table: z.string().describe("Table name (e.g. 'User', 'Action', 'Invoice', 'ScheduleBlock', 'WeeklyAnalysis')"),
@@ -215,12 +216,12 @@ export const ADMIN_DB_TOOLS: ToolDef[] = [
   }),
 
   // ============================================
-  // 3. QUERY: Universal query engine across all 138 tables
+  // 3. QUERY: Universal query engine across every table
   // ============================================
   tool({
     name: "admin_db_query",
     description:
-      "SUPER-ADMINISTRATOR ONLY: Query ANY of the 138 tables with full Prisma filters, relational joins (include/select), sorting, and pagination. Sensitive secrets (passwords/hashes) are automatically redacted.",
+      "SUPER-ADMINISTRATOR ONLY: Query ANY table with full Prisma filters, relational joins (include/select), sorting, and pagination. Sensitive secrets (passwords/hashes) are automatically redacted.",
     scope: null,
     shape: {
       table: z.string().describe("Table name (e.g. 'User', 'Action', 'Company', 'Invoice', 'WeeklyAnalysis')"),
@@ -272,7 +273,7 @@ export const ADMIN_DB_TOOLS: ToolDef[] = [
   tool({
     name: "admin_db_get_record",
     description:
-      "SUPER-ADMINISTRATOR ONLY: Fetch a specific record by primary key (ID) from ANY of the 138 tables, with optional relational inclusion.",
+      "SUPER-ADMINISTRATOR ONLY: Fetch a specific record by primary key (ID) from ANY table, with optional relational inclusion.",
     scope: null,
     shape: {
       table: z.string().describe("Table name (e.g. 'User', 'Action', 'Company', 'Mission')"),
@@ -363,7 +364,7 @@ export const ADMIN_DB_TOOLS: ToolDef[] = [
   tool({
     name: "admin_db_sql",
     description:
-      "SUPER-ADMINISTRATOR ONLY: Execute parameterized read-only raw SQL queries (SELECT or WITH only) across the entire database. Destructive statements are strictly rejected.",
+      "SUPER-ADMINISTRATOR ONLY: Execute one parameterized read-only SQL query (SELECT or WITH) across the entire database. Runs in a READ ONLY transaction with a 15 s timeout and returns at most 1000 rows (`truncated: true` beyond). Table and column names are Prisma's, double-quoted: SELECT count(*) FROM \"Action\" WHERE \"createdAt\" >= now() - interval '7 days'.",
     scope: null,
     shape: {
       sql: z.string().trim().min(5).max(10_000).describe("Read-only SQL query starting with SELECT or WITH"),
@@ -373,40 +374,21 @@ export const ADMIN_DB_TOOLS: ToolDef[] = [
       if (!p.allClients) {
         throw new ApiError(403, "forbidden", "Requires super-administrator privileges (all-clients key).");
       }
-
-      const normalized = sql.trim().toLowerCase();
-      if (!normalized.startsWith("select") && !normalized.startsWith("with")) {
-        throw new ApiError(400, "invalid_query", "Only SELECT and WITH read-only queries are permitted.");
+      try {
+        const result = await runReadOnlySql(db, sql, params ?? []);
+        return {
+          query_executed: sql,
+          row_count: result.rowCount,
+          truncated: result.truncated,
+          duration_ms: result.durationMs,
+          data: redactSensitive(result.rows),
+        };
+      } catch (error) {
+        if (error instanceof SqlGuardError) throw new ApiError(400, error.code, error.message);
+        // A Postgres error (syntax, unknown column, timeout) is the model's to fix, not a 500.
+        const message = error instanceof Error ? error.message.split("\n").slice(-3).join(" ").slice(0, 500) : "query failed";
+        throw new ApiError(400, "query_error", message);
       }
-
-      const forbiddenWords = [
-        "insert",
-        "update",
-        "delete",
-        "drop",
-        "alter",
-        "truncate",
-        "create",
-        "grant",
-        "revoke",
-        "execute",
-        "exec",
-      ];
-
-      for (const word of forbiddenWords) {
-        const regex = new RegExp(`\\b${word}\\b`, "i");
-        if (regex.test(sql)) {
-          throw new ApiError(400, "forbidden_keyword", `The SQL keyword '${word.toUpperCase()}' is forbidden.`);
-        }
-      }
-
-      const rows = params && params.length > 0 ? await db.$queryRawUnsafe(sql, ...params) : await db.$queryRawUnsafe(sql);
-
-      return {
-        query_executed: sql,
-        row_count: Array.isArray(rows) ? rows.length : 1,
-        data: redactSensitive(rows),
-      };
     },
   }),
 ];

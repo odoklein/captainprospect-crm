@@ -7,7 +7,25 @@
 
 import { prisma } from "@/lib/prisma";
 
+/**
+ * USD list prices. `calculateTokenCost` takes the first key the model name
+ * contains, so a longer, more specific key must come before its prefix
+ * ("gpt-5.5" before "gpt-5", "gpt-4o-mini" before "gpt-4o").
+ * GPT-5.x prices as published in October 2026.
+ */
 export const OPENAI_PRICING: Record<string, { inputPerMillion: number; outputPerMillion: number }> = {
+    "gpt-5.5": {
+        inputPerMillion: 5.00,
+        outputPerMillion: 30.00,
+    },
+    "gpt-5.2": {
+        inputPerMillion: 1.75,
+        outputPerMillion: 14.00,
+    },
+    "gpt-5": {
+        inputPerMillion: 1.25,
+        outputPerMillion: 10.00,
+    },
     "gpt-4o-mini": {
         inputPerMillion: 0.15,
         outputPerMillion: 0.60,

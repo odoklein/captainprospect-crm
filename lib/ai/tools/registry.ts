@@ -57,6 +57,8 @@ import {
 } from "./definitions/agency";
 import { searchHelp } from "./definitions/knowledge";
 import { CRM_DATA_TOOLS } from "./definitions/crm";
+import { getStatsOverviewTool } from "./definitions/stats";
+import { showVisual } from "./definitions/visuals";
 
 export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     // ── READ — no side effects, run automatically ────────────────────────────
@@ -89,6 +91,10 @@ export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     listDrafts,
     readDraft,
     listTasks,
+    // Statistiques — the /manager/analytics engine, chart-ready.
+    getStatsOverviewTool,
+    // Dessiner — charts, key figures, tables; checked against the turn's sources.
+    showVisual,
     // Données CRM — contacts, appels, transcriptions, RDV, listes, retours SDR.
     // Scoped to the bound project; agency-wide when none is bound.
     ...CRM_DATA_TOOLS,

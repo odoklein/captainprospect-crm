@@ -29,8 +29,12 @@ const CONFIG: AssistantModelConfig = {
     primary: "gpt-4o-mini",
     deepModel: "gpt-4.1",
     fallback: null,
+    reasoningEffort: "none",
+    deepReasoningEffort: "high",
     providerTimeoutMs: 5_000,
     idleTimeoutMs: 5_000,
+    deepProviderTimeoutMs: 5_000,
+    deepIdleTimeoutMs: 5_000,
     turnDeadlineMs: 10_000,
     deepTurnDeadlineMs: 20_000,
     maxRetries: 2,
@@ -390,7 +394,7 @@ test("the SSE parser assembles text, tool-call fragments and usage", async () =>
     const res = await readChatStream(
         sse([
             'data: {"model":"gpt-4o-mini-x","choices":[{"delta":{"content":"Bon"}}]}\n\n',
-            'data: {"choices":[{"delta":{"content":"jour"}}]}\n\ndata: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"get_mission_','arguments":""}}]}}]}\n\n',
+            'data: {"choices":[{"delta":{"content":"jour"}}]}\n\ndata: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"name":"get_mis', 'sion_","arguments":""}}]}}]}\n\n',
             'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"metrics","arguments":"{\\"days\\":"}}]}}]}\n\n',
             'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"30}"}}]}}]}\n\n',
             'data: {"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":3,"total_tokens":13}}\n\n',

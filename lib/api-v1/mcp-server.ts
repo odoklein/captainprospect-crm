@@ -5,6 +5,7 @@ import { ApiError } from "./errors";
 import { auditEndpoint } from "./input";
 import { INTERNAL_TOOLS, TOOLS } from "./mcp-tools";
 import { ADMIN_DB_TOOLS } from "./admin-db-tools";
+import { toJsonSafe } from "./sql-guard";
 import { brand } from "@/lib/brand";
 
 /** First line names the instance's product; the rest is the same for every brand. */
@@ -25,7 +26,7 @@ const INSTRUCTION_RULES = [
 
 const ADMIN_RULES = [
   "9. Missing calls or transcripts? `get_call_coverage` reports, per SDR and per phone line, what the call vault holds vs what the CRM logged.",
-  "10. SUPER-ADMINISTRATOR ACCESS: This key has universal access across all 138 database tables.",
+  "10. SUPER-ADMINISTRATOR ACCESS: This key has universal access across every database table.",
   "   - Call `admin_db_overview` to view table names, categorized by domain, with live row counts.",
   "   - Call `admin_db_inspect` to check columns, data types, required fields, and relations.",
   "   - Call `admin_db_query` to query, filter, join, sort, and paginate through ANY table in the CRM.",
@@ -86,7 +87,8 @@ export function buildMcpServer(
         const argNames = Object.keys(args).filter((k) => k !== def.idArg && args[k] !== undefined);
         let status = 200;
         try {
-          const result = await def.run({ p: principal, db }, args);
+          // toJsonSafe: a BigInt (count(*), _sum) used to make stringify throw, hence internal_error.
+          const result = toJsonSafe(await def.run({ p: principal, db }, args));
           return { content: [{ type: "text" as const, text: JSON.stringify(result) }] };
         } catch (err) {
           const known = err instanceof ApiError;

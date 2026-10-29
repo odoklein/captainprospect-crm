@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import type { Principal } from "@/lib/api-v1/auth";
 import { ApiError } from "@/lib/api-v1/errors";
 import { INTERNAL_TOOLS, TOOLS, type ToolDef } from "@/lib/api-v1/mcp-tools";
+import { ADMIN_DB_TOOLS } from "@/lib/api-v1/admin-db-tools";
+import { toJsonSafe } from "@/lib/api-v1/sql-guard";
 import { READ_SCOPES } from "@/lib/api-v1/scopes";
 import { defineReadTool } from "../helpers";
 import { neutralizeUntrusted } from "../redact";
@@ -54,7 +56,20 @@ const LABELS: Record<string, string> = {
     get_data_quality: "Qualité des données",
     get_sales_report: "Rapport commercial",
     get_call_coverage: "Couverture des appels",
+    admin_db_overview: "Carte de la base",
+    admin_db_inspect: "Structure d'une table",
+    admin_db_sql: "Requête SQL en lecture seule",
 };
+
+/**
+ * The raw-database tools ChatGPT gets with an all-clients key. Agency view
+ * only: they see every client, so a project conversation never lists them.
+ * `admin_db_query` / `_aggregate` / `_get_record` are left out — they pass
+ * model-built Prisma `include`s, and SQL answers the same questions.
+ */
+const AGENCY_DB_TOOLS = ADMIN_DB_TOOLS.filter((def) =>
+    ["admin_db_overview", "admin_db_inspect", "admin_db_sql"].includes(def.name),
+);
 
 /** A tool result above this many characters is cut, so one search cannot fill the context. */
 const MAX_RESULT_CHARS = 40_000;
@@ -87,7 +102,7 @@ function jsonSchemaFor(def: ToolDef): JsonSchemaObject {
     };
 }
 
-function bridge(def: ToolDef) {
+function bridge(def: ToolDef, options: { agencyOnly?: boolean } = {}) {
     return defineReadTool({
         name: def.name,
         label: LABELS[def.name] ?? def.name,
@@ -97,12 +112,13 @@ function bridge(def: ToolDef) {
         // validating here as well would run the transforms twice.
         schema: z.record(z.string(), z.unknown()),
         requiresProject: false,
+        agencyOnly: options.agencyOnly,
         execute: async (args, ctx) => {
             let result: unknown;
             try {
                 // Notes, transcripts and company names are typed by prospects and
                 // SDRs: neutralised like every project tool's free text.
-                result = neutralizeUntrusted(await def.run({ p: principalFor(ctx), db: prisma }, args));
+                result = neutralizeUntrusted(toJsonSafe(await def.run({ p: principalFor(ctx), db: prisma }, args)));
             } catch (error) {
                 if (error instanceof ApiError) {
                     throw new ToolValidationError(`${error.code}: ${error.message}`);
@@ -121,4 +137,7 @@ function bridge(def: ToolDef) {
     });
 }
 
-export const CRM_DATA_TOOLS = [...TOOLS, ...INTERNAL_TOOLS].map(bridge);
+export const CRM_DATA_TOOLS = [
+    ...[...TOOLS, ...INTERNAL_TOOLS].map((def) => bridge(def)),
+    ...AGENCY_DB_TOOLS.map((def) => bridge(def, { agencyOnly: true })),
+];

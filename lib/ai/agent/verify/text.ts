@@ -226,6 +226,9 @@ export function findNumbers(original: string, normalized: string): NumberToken[]
     // Quoted titles, inline code and link targets are names, not claims.
     const quoted = /«[^»\n]*»|"[^"\n]*"|`[^`\n]*`|\]\([^)\n]*\)/g;
     while ((m = quoted.exec(original))) blocked.push([m.index, m.index + m[0].length]);
+    // `[[visuel 2]]` places a chart; the `:::suivi` block holds suggested questions, not claims.
+    const markers = /\[\[visuel\s+\d+\]\]|(?:^|\n)[ \t]*:::\s*suivi[\s\S]*?(?:\n[ \t]*:::|$)/gi;
+    while ((m = markers.exec(original))) blocked.push([m.index, m.index + m[0].length]);
 
     const out: NumberToken[] = [];
     NUMBER.lastIndex = 0;
@@ -238,6 +241,8 @@ export function findNumbers(original: string, normalized: string): NumberToken[]
         if (/^\s*h(\s*\d|\b)/.test(after)) continue; // 10 h 30
         if (new RegExp(`^\\s*(er\\s+)?${MONTH_WORD}`).test(after)) continue; // 28 oct.
         if (/^\s*(?:e|eme|er|ere)\b/.test(after)) continue; // 3e, 1er
+        // "3,3 RDV pour 100 appels": 100 is the base of a rate, not a count.
+        if (!m[3] && m[2] === undefined && [10, 100, 1000].includes(Number(m[1].replace(/\s/g, ""))) && /\b(pour|par)\s+$/.test(normalized.slice(Math.max(0, start - 8), start))) continue;
         const lineStart = original.lastIndexOf("\n", start - 1) + 1;
         if (/^\s*$/.test(original.slice(lineStart, start)) && /^[.)]\s/.test(original.slice(numberEnd, numberEnd + 2))) continue; // "1. "
 

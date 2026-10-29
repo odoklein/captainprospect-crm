@@ -2251,6 +2251,89 @@ textarea::placeholder {
     color: var(--ds-ink);
 }
 
+/* react-markdown nests sub-lists inside their <li>, and wraps loose items in <p>. */
+.cp-ai-answer li > .ap-md-ul,
+.cp-ai-answer li > .ap-md-ol { margin: 4px 0 2px; }
+.cp-ai-answer li > .ap-md-p { margin: 0; }
+.cp-ai-answer .ap-md-pre {
+    margin: 4px 0 12px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: var(--ds-surface-3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.cp-ai-answer .ap-md-pre code { background: none; padding: 0; }
+
+/* The draft being streamed ends on a caret, after its last line of text. */
+.cp-ai-caret .ap-md > :is(p, h3, h4):last-child::after,
+.cp-ai-caret .ap-md > :is(ul, ol):last-child > li:last-child::after {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    margin-left: 2px;
+    vertical-align: -2px;
+    border-radius: 1px;
+    background: var(--ds-ink-3);
+    animation: cpAiCaret 1s steps(2, start) infinite;
+}
+@keyframes cpAiCaret { to { visibility: hidden; } }
+
+/* --- Captain AI visuals (charts, key figures). Categorical slots in a fixed
+   order, never cycled; light and dark are separately stepped sets, validated
+   as a palette (adjacent CVD ΔE ≥ 8, normal-vision ≥ 15). --- */
+.cp-viz {
+    --viz-1: #2a78d6;
+    --viz-2: #eb6834;
+    --viz-3: #1baf7a;
+    --viz-4: #eda100;
+    --viz-5: #e87ba4;
+    --viz-6: #008300;
+    --viz-7: #6250d6;
+    --viz-8: #e34948;
+    /* one-hue magnitude ramp, light → dark (heatmap, funnel stages) */
+    --viz-seq-lo: #cde2fb;
+    --viz-seq-hi: #104281;
+    --viz-ord-1: #86b6ef;
+    --viz-ord-2: #5598e7;
+    --viz-ord-3: #2a78d6;
+    --viz-ord-4: #1c5cab;
+    --viz-ord-5: #184f95;
+}
+@media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .cp-viz {
+        --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500;
+        --viz-5: #d55181; --viz-6: #008300; --viz-7: #9085e9; --viz-8: #e66767;
+        --viz-seq-lo: #0d366b; --viz-seq-hi: #9ec5f4;
+        --viz-ord-1: #184f95; --viz-ord-2: #1c5cab; --viz-ord-3: #2a78d6; --viz-ord-4: #5598e7; --viz-ord-5: #86b6ef;
+    }
+}
+:root[data-theme="dark"] .cp-viz {
+    --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500;
+    --viz-5: #d55181; --viz-6: #008300; --viz-7: #9085e9; --viz-8: #e66767;
+    --viz-seq-lo: #0d366b; --viz-seq-hi: #9ec5f4;
+    --viz-ord-1: #184f95; --viz-ord-2: #1c5cab; --viz-ord-3: #2a78d6; --viz-ord-4: #5598e7; --viz-ord-5: #86b6ef;
+}
+.cp-viz-tip {
+    min-width: 140px;
+    padding: 8px 10px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    background: var(--ds-surface);
+    box-shadow: 0 6px 18px color-mix(in oklab, var(--ds-shadow-color) 14%, transparent);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ds-ink);
+}
+.cp-viz .recharts-surface { overflow: visible; }
+@media print {
+    .cp-viz-actions { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) { .cp-ai-caret .ap-md *::after { animation: none; } }
+
 /* --- Navigation --- */
 .cp-nav {
     flex: 1;
@@ -2876,6 +2959,46 @@ textarea::placeholder {
     .cp-main-expanded,
     .cp-main-collapsed {
         margin-left: 0 !important;
+    }
+}
+
+/* ============================================
+   SDR SCRIPT + ACTION DRAWERS SIDE BY SIDE
+   Script companion on the left, UnifiedActionDrawer on the right
+   (/sdr/action table view). From 900px they share the width instead
+   of overlapping: 0.75rem at each edge and between them (2.25rem).
+   Below 900px there is no room for two: the script opens on top and
+   each closes on its own.
+   ============================================ */
+
+@media (min-width: 900px) {
+    .sdr-drawer-pair-right,
+    .sdr-drawer-pair-left,
+    .sdr-drawer-solo-left {
+        --sdr-pair-right: min(56vw, 42rem);
+        --sdr-pair-left-max: 36rem;
+    }
+
+    .sdr-drawer-pair-right {
+        max-width: var(--sdr-pair-right);
+    }
+
+    .sdr-drawer-pair-left {
+        max-width: min(calc(100vw - var(--sdr-pair-right) - 2.25rem), var(--sdr-pair-left-max));
+    }
+
+    /* Alone, the script leaves most of the queue table readable. */
+    .sdr-drawer-solo-left {
+        max-width: min(46vw, var(--sdr-pair-left-max));
+    }
+}
+
+@media (min-width: 1536px) {
+    .sdr-drawer-pair-right,
+    .sdr-drawer-pair-left,
+    .sdr-drawer-solo-left {
+        --sdr-pair-right: 46rem;
+        --sdr-pair-left-max: 40rem;
     }
 }
 
