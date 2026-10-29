@@ -39,7 +39,9 @@ import {
 import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
 import { getBrand } from "@/lib/brand/server";
 import { getAssistantModelConfig, planTurn } from "@/lib/ai/agent/models";
-import { openAIChatFn, runAgentTurn, type AgentTurnResult } from "@/lib/ai/agent/runtime";
+import { providerChat, runAgentTurn, type AgentTurnResult } from "@/lib/ai/agent/runtime";
+import { isConfigured } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/ledger";
 import {
     EvidenceStoreUnavailable,
     prismaEvidenceStore,
@@ -48,7 +50,6 @@ import {
 } from "@/lib/ai/agent/evidence/store";
 import { retentionDays } from "@/lib/ai/agent/evidence/policy";
 import type { AssistantErrorCode, StreamEvent, TurnPayload } from "@/lib/ai/agent/protocol";
-import { integrationKey } from "@/lib/integrations/keys";
 
 export const dynamic = "force-dynamic";
 // Deep turns may run up to ASSISTANT_DEEP_TURN_DEADLINE_MS (180 s by default).
@@ -108,8 +109,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
     const body = await validateRequest(request, ChatBody);
 
-    const apiKey = integrationKey("OPENAI_API_KEY");
-    if (!apiKey) {
+    if (!isConfigured("openai")) {
         return errorResponse(
             "L'assistant n'est pas configuré : OPENAI_API_KEY est absente côté serveur.",
             503,
@@ -186,6 +186,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 iterations: result?.iterations ?? 0,
                 toolCalls: result?.toolCalls ?? 0,
                 retries: result?.retries ?? 0,
+                cachedInputTokens: result?.usage.cachedInputTokens ?? 0,
+                reasoningTokens: result?.usage.reasoningTokens ?? 0,
+                tier: plan.depth,
+                provider: result?.usage.provider ?? null,
                 errorCode: result?.error?.code ?? (result ? null : "internal"),
                 verification: result?.verification ?? null,
                 messageId,
@@ -298,7 +302,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         const runTurn = async (onEvent: (event: StreamEvent) => void, signal: AbortSignal) => {
             result = await runAgentTurn(
                 { systemPrompt, history, ctx, config, plan, signal, runId, onEvent, knownNames },
-                { chat: openAIChatFn(apiKey), store: storeUsable ? prismaEvidenceStore : null },
+                { chat: providerChat(), store: storeUsable ? prismaEvidenceStore : null, ledger: recordAiUsage, surface: "assistant.chat" },
             );
             messageId = await persistTurn(result);
             await finishRun(result, messageId);

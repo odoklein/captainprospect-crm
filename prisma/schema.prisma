@@ -4615,6 +4615,14 @@ model AssistantRun {
   iterations       Int                @default(0)
   toolCalls        Int                @default(0)
   retries          Int                @default(0)
+  /// Part of promptTokens served from the provider's prompt cache (billed at the cached price).
+  cachedInputTokens Int               @default(0)
+  /// Part of completionTokens spent on hidden reasoning.
+  reasoningTokens  Int                @default(0)
+  /// Routing tier the turn ran at ("fast" | "standard" | "deep"), null before routing existed.
+  tier             String?
+  /// Provider that answered ("openai" | "deepseek").
+  provider         String?
   errorCode        String?
   /// { checked, verified, failed, repaired, skipped }
   verification     Json?
@@ -5105,4 +5113,48 @@ model HrAuditLog {
   @@index([userId])
   @@index([actorId])
   @@index([createdAt])
+}
+
+// ---- AI usage ledger (Captain AI v4, Track A) ----
+// One row per model call, whatever the surface (assistant chat, summaries,
+// Analyse IA, weekly bilan, background agent). No foreign keys on purpose:
+// accounting rows outlive the conversations and users they describe.
+
+model AiUsage {
+  id String @id @default(cuid())
+
+  /// "assistant.chat", "assistant.summary", "analyse_ia", "weekly_bilan", "agent.watch", ...
+  surface      String
+  /// "openai" | "deepseek"
+  provider     String
+  /// Host that processed the call (api.openai.com, an EU DeepSeek host, ...), for the residency audit.
+  endpointHost String?
+  model        String
+  tier         String?
+  /// "raw_crm" | "aggregated" | "public"
+  dataClass    String?
+
+  inputTokens       Int @default(0)
+  cachedInputTokens Int @default(0)
+  outputTokens      Int @default(0)
+  reasoningTokens   Int @default(0)
+
+  costUsd   Float @default(0)
+  costEur   Float @default(0)
+  latencyMs Int?
+
+  userId         String?
+  clientId       String?
+  missionId      String?
+  conversationId String?
+  /// AssistantRun id (chat) or AgentRun id (background).
+  runId          String?
+  jobId          String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([surface, createdAt])
+  @@index([runId])
 }

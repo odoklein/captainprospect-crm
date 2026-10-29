@@ -11,8 +11,14 @@
  */
 
 import type { MistralToolSpec } from "@/lib/ai/mistral";
-import type { OpenAIToolSpec } from "@/lib/ai/openai";
+import type { ToolSpec } from "@/lib/ai/providers/types";
 import { AssistantContext, AnyToolDefinition } from "./types";
+
+/** OpenAI Chat Completions function-tool envelope (older callers and tests). */
+export interface OpenAIToolSpec {
+    type: "function";
+    function: { name: string; description: string; parameters: Record<string, unknown> };
+}
 import { listAccessibleTools } from "./guard";
 
 import { getProjectOverview, listProjects, listTaskBoards } from "./definitions/projects";
@@ -141,16 +147,18 @@ export function toMistralTools(ctx: AssistantContext): MistralToolSpec[] {
     }));
 }
 
+/** Provider-neutral function specs for the tools this caller may use (what the runtime sends). */
+export function toProviderTools(ctx: AssistantContext): ToolSpec[] {
+    return getToolsForContext(ctx).map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters as unknown as Record<string, unknown>,
+    }));
+}
+
 /** OpenAI function-calling schema for the tools this caller may use. */
 export function toOpenAITools(ctx: AssistantContext): OpenAIToolSpec[] {
-    return getToolsForContext(ctx).map((tool) => ({
-        type: "function" as const,
-        function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters as unknown as Record<string, unknown>,
-        },
-    }));
+    return toProviderTools(ctx).map((tool) => ({ type: "function" as const, function: tool }));
 }
 
 /** Counts for the docs and the UI footer. */

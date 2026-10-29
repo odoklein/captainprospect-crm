@@ -39,6 +39,11 @@ export interface RunFinish {
     errorCode: string | null;
     verification: unknown;
     messageId: string | null;
+    /** Added with the AiUsage ledger; tolerated when the columns are not migrated yet. */
+    cachedInputTokens?: number;
+    reasoningTokens?: number;
+    tier?: string | null;
+    provider?: string | null;
 }
 
 export interface EvidenceRow {
@@ -145,16 +150,21 @@ export const prismaEvidenceStore: EvidenceStore = {
     },
 
     async finishRun(id, data) {
-        await prisma.assistantRun.update({
-            where: { id },
-            data: {
-                ...data,
-                verification: (data.verification ?? Prisma.DbNull) as Prisma.InputJsonValue,
-                lockKey: null,
-                finishedAt: new Date(),
-            },
-            select: { id: true },
-        });
+        const { cachedInputTokens, reasoningTokens, tier, provider, ...base } = data;
+        const extra = { cachedInputTokens: cachedInputTokens ?? 0, reasoningTokens: reasoningTokens ?? 0, tier: tier ?? null, provider: provider ?? null };
+        const common = {
+            ...base,
+            verification: (data.verification ?? Prisma.DbNull) as Prisma.InputJsonValue,
+            lockKey: null,
+            finishedAt: new Date(),
+        };
+        try {
+            await prisma.assistantRun.update({ where: { id }, data: { ...common, ...extra }, select: { id: true } });
+        } catch (error) {
+            // The ledger columns arrive with a later migration: the run is still closed without them.
+            if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022")) throw error;
+            await prisma.assistantRun.update({ where: { id }, data: common, select: { id: true } });
+        }
     },
 
     async insertEvidence(row) {

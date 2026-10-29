@@ -10,7 +10,9 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 
-import { OpenAIError, readChatStream, type OpenAIChatResponse, type OpenAIToolCall } from "@/lib/ai/openai";
+import { ProviderError as OpenAIError } from "@/lib/ai/providers/errors";
+import { OPENAI_CHAT_QUIRKS, readChatStream } from "@/lib/ai/providers/openai-chat";
+import type { ChatCallResponse, ToolCall } from "@/lib/ai/providers/types";
 import { neutralizeUntrusted } from "@/lib/ai/tools/redact";
 import { installFixtureTools, fixtureContext, type FixtureWorld } from "./evals/fixtures";
 import { runAgentTurn, type ChatFn, type ChatRequest } from "./runtime";
@@ -43,27 +45,30 @@ const CONFIG: AssistantModelConfig = {
 
 const noSleep = async () => {};
 
-function toolCall(name: string, args: Record<string, unknown>, id = `call_${name}`): OpenAIToolCall {
-    return { id, type: "function", function: { name, arguments: JSON.stringify(args) } };
+function toolCall(name: string, args: Record<string, unknown>, id = `call_${name}`): ToolCall {
+    return { id, name, arguments: JSON.stringify(args) };
 }
 
-function reply(content: string | null, calls?: OpenAIToolCall[], model = "gpt-4o-mini"): OpenAIChatResponse {
+function reply(content: string | null, calls?: ToolCall[], model = "gpt-4o-mini"): ChatCallResponse {
     return {
-        message: { role: "assistant", content, tool_calls: calls },
-        usage: { promptTokens: 100, completionTokens: 20, totalTokens: 120 },
+        text: content,
+        toolCalls: calls ?? [],
+        usage: { inputTokens: 100, cachedInputTokens: 0, outputTokens: 20, reasoningTokens: 0, totalTokens: 120 },
         model,
+        provider: "openai",
+        finish: calls && calls.length > 0 ? "tool_calls" : "stop",
     };
 }
 
 /** A provider that plays one step per call; strings are streamed word by word. */
-function scripted(steps: Array<(req: ChatRequest) => Promise<OpenAIChatResponse> | OpenAIChatResponse>) {
+function scripted(steps: Array<(req: ChatRequest) => Promise<ChatCallResponse> | ChatCallResponse>) {
     const requests: ChatRequest[] = [];
     const chat: ChatFn = async (req) => {
         requests.push(req);
         const step = steps[Math.min(requests.length - 1, steps.length - 1)];
         const res = await step(req);
-        if (res.message.content && !res.message.tool_calls) {
-            for (const word of res.message.content.split(/(?<= )/)) req.onTextDelta(word);
+        if (res.text && res.toolCalls.length === 0) {
+            for (const word of res.text.split(/(?<= )/)) req.onTextDelta?.(word);
         }
         return res;
     };
@@ -123,6 +128,27 @@ test("streams text, persists evidence before the answer, resolves citations", as
     const toolEnd = events.findIndex((e) => e.type === "tool_end");
     assert.ok(toolEnd >= 0 && toolEnd < firstDelta, "tool progress precedes the text");
     assert.ok(result.firstTokenMs !== null);
+});
+
+test("every model call is reported to the ledger with the four token counters", async () => {
+    const entries: Array<{ surface: string; model: string; usage: { inputTokens: number; cachedInputTokens: number }; runId?: string | null }> = [];
+    const { chat } = scripted([
+        () => ({ ...reply(null, [toolCall("get_mission_metrics", { days: 30 })]), usage: { inputTokens: 1000, cachedInputTokens: 800, outputTokens: 10, reasoningTokens: 0, totalTokens: 1010 } }),
+        () => reply("Sur les 30 derniers jours, 14 RDV ont été pris [E1]."),
+    ]);
+    const ctx = fixtureContext({ conversationId: "conv_ledger" });
+    const result = await runAgentTurn(
+        { systemPrompt: "t", history: [{ role: "user", content: "Combien de RDV ?" }], ctx, config: CONFIG, plan: planTurn(CONFIG, "standard") },
+        { chat, store: createMemoryEvidenceStore(), sleep: noSleep, ledger: (e) => entries.push(e), surface: "test.surface" },
+    );
+    assert.equal(entries.length, 2);
+    assert.equal(entries[0].surface, "test.surface");
+    assert.equal(entries[0].usage.cachedInputTokens, 800);
+    assert.equal(entries[0].runId, result.runId);
+    assert.equal(result.usage.promptTokens, 1100);
+    assert.equal(result.usage.cachedInputTokens, 800);
+    assert.equal(result.usage.calls, 2);
+    assert.equal(result.usage.provider, "openai");
 });
 
 test("a model-invented citation never resolves and is removed", async () => {
@@ -215,7 +241,7 @@ test("transient provider errors are retried within the budget", async () => {
     const chat: ChatFn = async (req) => {
         calls++;
         if (calls <= 2) throw new OpenAIError("HTTP_503", "unavailable", 503, "indisponible", { kind: "server" });
-        req.onTextDelta("Bonjour.");
+        req.onTextDelta?.("Bonjour.");
         return reply("Bonjour.");
     };
     const events: StreamEvent[] = [];
@@ -247,7 +273,7 @@ test("no retry once text has been streamed; the partial text is kept and labelle
     let calls = 0;
     const chat: ChatFn = async (req) => {
         calls++;
-        req.onTextDelta("Sur les 30 derniers jours, ");
+        req.onTextDelta?.("Sur les 30 derniers jours, ");
         const err = new OpenAIError("NETWORK_ERROR", "reset", 502, "coupé", { kind: "network" });
         err.partial = true;
         throw err;
@@ -275,7 +301,7 @@ test("the fallback model takes over after the primary's retries", async () => {
 test("a stalled provider ends at the turn deadline", async () => {
     const stalled: ChatFn = (req) =>
         new Promise((_, reject) => {
-            req.signal.addEventListener("abort", () =>
+            req.signal?.addEventListener("abort", () =>
                 reject(new OpenAIError("CANCELLED", "aborted", 499, "annulé", { kind: "cancelled", retryable: false })),
             );
         });
@@ -401,19 +427,22 @@ test("the SSE parser assembles text, tool-call fragments and usage", async () =>
             "data: [DONE]\n\n",
         ]),
         "gpt-4o-mini",
+        "openai",
+        OPENAI_CHAT_QUIRKS,
         { onTextDelta: (t) => deltas.push(t) },
     );
     assert.deepEqual(deltas, ["Bon", "jour"]);
-    assert.equal(res.message.content, "Bonjour");
-    assert.equal(res.message.tool_calls?.[0].function.name, "get_mission_metrics");
-    assert.equal(res.message.tool_calls?.[0].function.arguments, '{"days":30}');
+    assert.equal(res.text, "Bonjour");
+    assert.equal(res.toolCalls[0].name, "get_mission_metrics");
+    assert.equal(res.toolCalls[0].arguments, '{"days":30}');
     assert.equal(res.usage?.totalTokens, 13);
     assert.equal(res.model, "gpt-4o-mini-x");
+    assert.equal(res.finish, "tool_calls");
 });
 
 test("a stream cut before [DONE] is an error, not an answer", async () => {
     await assert.rejects(
-        readChatStream(sse(['data: {"choices":[{"delta":{"content":"Bon"}}]}\n\n']), "m"),
+        readChatStream(sse(['data: {"choices":[{"delta":{"content":"Bon"}}]}\n\n']), "m", "openai", OPENAI_CHAT_QUIRKS),
         (e: unknown) => e instanceof OpenAIError && e.retryable,
     );
 });

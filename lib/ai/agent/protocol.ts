@@ -72,6 +72,14 @@ export interface TurnUsage {
     totalTokens: number;
     costEur: number;
     model: string;
+    /** Part of promptTokens served from the provider's prompt cache. */
+    cachedInputTokens?: number;
+    /** Part of completionTokens spent on hidden reasoning. */
+    reasoningTokens?: number;
+    /** "openai" | "deepseek" */
+    provider?: string;
+    /** Number of model calls in the turn. */
+    calls?: number;
 }
 
 export interface PendingActionPayload {
@@ -138,6 +146,8 @@ export type StreamEvent =
       }
     | { type: "visual"; visual: StoredVisual }
     | { type: "delta"; text: string }
+    /** A piece of the model's reasoning summary (reasoning models only). Cleared by `reset`. */
+    | { type: "reasoning"; text: string }
     | { type: "reset" }
     | { type: "retry"; attempt: number; delayMs: number }
     | { type: "final"; payload: TurnPayload }

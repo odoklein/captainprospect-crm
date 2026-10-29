@@ -17,16 +17,22 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { ProviderError } from "@/lib/ai/providers/errors";
+import { providerChatFn } from "@/lib/ai/providers";
+import { resolveModel } from "@/lib/ai/providers/catalog";
 import {
-    OpenAIError,
-    openaiChatStream,
-    type OpenAIChatMessage,
-    type OpenAIChatResponse,
-    type OpenAIToolSpec,
-} from "@/lib/ai/openai";
+    EMPTY_USAGE,
+    addUsage,
+    type ChatCallRequest,
+    type ChatCallResponse,
+    type ChatMessage,
+    type ToolSpec,
+    type Usage,
+} from "@/lib/ai/providers/types";
+import type { AiUsageEntry } from "@/lib/ai/ledger";
 import { calculateTokenCost } from "@/lib/ai/usage";
 import { authorizeToolCall } from "@/lib/ai/tools/guard";
-import { getTool, toOpenAITools } from "@/lib/ai/tools/registry";
+import { getTool, toProviderTools } from "@/lib/ai/tools/registry";
 import { executeToolCall, serializeToolResult } from "@/lib/ai/tools/executor";
 import {
     ToolAuthorizationError,
@@ -67,29 +73,33 @@ export interface ChatTurn {
     content: string;
 }
 
-export interface ChatRequest {
-    messages: OpenAIChatMessage[];
-    tools?: OpenAIToolSpec[];
-    model: string;
-    temperature: number;
-    maxTokens: number;
-    reasoningEffort: TurnPlan["reasoningEffort"];
-    signal: AbortSignal;
-    timeoutMs: number;
-    idleTimeoutMs: number;
-    onTextDelta: (text: string) => void;
+/** One provider call, in the neutral shape (see lib/ai/providers/types). */
+export type ChatRequest = ChatCallRequest;
+export type ChatResponse = ChatCallResponse;
+export type ChatFn = (request: ChatRequest) => Promise<ChatResponse>;
+
+/**
+ * The production chat function: routes each model to its provider with the
+ * agency's keys, and refuses an endpoint that may not see CRM data.
+ * `apiKey` overrides the stored OpenAI key (scripts, evals).
+ */
+export function providerChat(options: { apiKey?: string } = {}): ChatFn {
+    return providerChatFn({ dataClass: "raw_crm", apiKey: options.apiKey });
 }
 
-export type ChatFn = (request: ChatRequest) => Promise<OpenAIChatResponse>;
-
-export function openAIChatFn(apiKey: string): ChatFn {
-    return (request) => openaiChatStream(apiKey, request);
+/** @deprecated use providerChat({ apiKey }). Kept for the legacy loop and scripts. */
+export function openAIChatFn(apiKey?: string): ChatFn {
+    return providerChat(apiKey ? { apiKey } : {});
 }
 
 export interface RuntimeDeps {
     chat: ChatFn;
     /** Null = no ledger (tables missing): evidence stays in memory for this turn. */
     store: EvidenceStore | null;
+    /** Receives one entry per model call (lib/ai/ledger recordAiUsage in production). */
+    ledger?: (entry: AiUsageEntry) => void;
+    /** Ledger surface name; "assistant.chat" by default. */
+    surface?: string;
     now?: () => Date;
     sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
@@ -182,12 +192,14 @@ export function toAssistantError(error: unknown): AssistantErrorPayload {
             ? { code: "timeout", message: "La réponse a pris trop de temps et a été interrompue. Réessaie, éventuellement avec une question plus ciblée.", retryable: true }
             : { code: "cancelled", message: "Réponse interrompue.", retryable: true };
     }
-    if (error instanceof OpenAIError) {
+    if (error instanceof ProviderError) {
         switch (error.kind) {
             case "rate_limited":
                 return { code: "rate_limited", message: error.userMessage, retryable: error.retryable };
             case "auth":
                 return { code: "provider_auth", message: "L'assistant est mal configuré (clé du fournisseur refusée).", retryable: false };
+            case "not_configured":
+                return { code: "not_configured", message: error.userMessage, retryable: false };
             case "bad_request":
                 return { code: "internal", message: "Le fournisseur d'IA a refusé la requête.", retryable: false };
             default:
@@ -222,7 +234,10 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
     };
 
     // -- accounting -----------------------------------------------------------
-    const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, costEur: 0 };
+    let usage: Usage = EMPTY_USAGE;
+    let costEur = 0;
+    let modelCalls = 0;
+    let provider = resolveModel(plan.model).provider;
     let model = plan.model;
     let fallbackUsed = false;
     let retries = 0;
@@ -243,28 +258,32 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
     });
 
     /** One provider call: retries, then the fallback model, all inside the deadline. */
-    const callModel = async (messages: OpenAIChatMessage[], tools: OpenAIToolSpec[] | undefined): Promise<OpenAIChatResponse> => {
+    const callModel = async (messages: ChatMessage[], tools: ToolSpec[] | undefined): Promise<ChatResponse> => {
         const models = [plan.model, ...(plan.fallback ? [plan.fallback] : [])];
         let lastError: unknown;
         for (let i = 0; i < models.length; i++) {
             const candidate = models[i];
             let wroteText = false;
+            let callStartedAt = Date.now();
             try {
                 const response = await withRetry(
                     () => {
                         checkAbort();
                         draft = "";
+                        callStartedAt = Date.now();
                         return deps.chat({
                             messages,
                             tools,
                             model: candidate,
                             temperature: config.temperature,
-                            maxTokens: plan.maxTokens,
+                            maxOutputTokens: plan.maxTokens,
                             // The fallback is a classic model: the effort only matters to the planned one.
                             reasoningEffort: candidate === plan.model ? plan.reasoningEffort : "none",
+                            cacheKey: ctx.conversationId ?? runId,
                             signal: turn.signal,
                             timeoutMs: Math.min(plan.providerTimeoutMs, Math.max(1, deadlineAt - Date.now())),
                             idleTimeoutMs: plan.idleTimeoutMs,
+                            onReasoningDelta: (text) => emit({ type: "reasoning", text }),
                             onTextDelta: (text) => {
                                 if (!wroteText) emit({ type: "phase", phase: "writing" });
                                 wroteText = true;
@@ -278,8 +297,8 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                         maxRetries: config.maxRetries,
                         deadlineAt,
                         signal: turn.signal,
-                        isRetryable: (e) => e instanceof OpenAIError && e.retryable && !e.partial && !turn.signal.aborted,
-                        retryAfterMs: (e) => (e instanceof OpenAIError ? e.retryAfterMs : undefined),
+                        isRetryable: (e) => e instanceof ProviderError && e.retryable && !e.partial && !turn.signal.aborted,
+                        retryAfterMs: (e) => (e instanceof ProviderError ? e.retryAfterMs : undefined),
                         sleep: deps.sleep,
                         onRetry: ({ attempt, delayMs }) => {
                             retries += 1;
@@ -288,18 +307,31 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                     },
                 );
                 model = response.model || candidate;
-                const cost = calculateTokenCost(response.usage?.promptTokens ?? 0, response.usage?.completionTokens ?? 0, model);
-                usage.promptTokens += response.usage?.promptTokens ?? 0;
-                usage.completionTokens += response.usage?.completionTokens ?? 0;
-                usage.totalTokens += response.usage?.totalTokens ?? 0;
-                usage.costEur += cost.costEur;
+                provider = response.provider;
+                modelCalls += 1;
+                const callUsage = response.usage ?? EMPTY_USAGE;
+                usage = addUsage(usage, callUsage);
+                costEur += calculateTokenCost(callUsage, model).costEur;
+                deps.ledger?.({
+                    surface: deps.surface ?? "assistant.chat",
+                    model,
+                    usage: callUsage,
+                    latencyMs: Date.now() - callStartedAt,
+                    tier: plan.depth,
+                    dataClass: "raw_crm",
+                    userId: ctx.userId,
+                    clientId: ctx.project?.clientId ?? null,
+                    missionId: ctx.project?.missionId ?? null,
+                    conversationId: ctx.conversationId ?? null,
+                    runId,
+                });
                 return response;
             } catch (error) {
                 lastError = error;
                 checkAbort();
                 const canFallback =
                     i < models.length - 1 &&
-                    error instanceof OpenAIError &&
+                    error instanceof ProviderError &&
                     !error.partial &&
                     (error.retryable || error.status === 404);
                 if (!canFallback) throw error;
@@ -352,7 +384,17 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
         visuals,
         model,
         fallbackUsed,
-        usage: { ...usage, costEur: Math.round(usage.costEur * 1_000_000) / 1_000_000, model },
+        usage: {
+            promptTokens: usage.inputTokens,
+            completionTokens: usage.outputTokens,
+            totalTokens: usage.totalTokens,
+            cachedInputTokens: usage.cachedInputTokens,
+            reasoningTokens: usage.reasoningTokens,
+            costEur: Math.round(costEur * 1_000_000) / 1_000_000,
+            model,
+            provider,
+            calls: modelCalls,
+        },
         iterations,
         retries,
         toolCalls,
@@ -381,7 +423,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
         checkAbort();
 
         const priorIndex = session.priorIndex();
-        const messages: OpenAIChatMessage[] = [
+        const messages: ChatMessage[] = [
             {
                 role: "system",
                 content: priorIndex
@@ -392,7 +434,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
         ];
 
         let toolBudget = plan.toolCalls;
-        const tools = toOpenAITools(ctx);
+        const tools = toProviderTools(ctx);
 
         for (let iteration = 1; iteration <= plan.iterations; iteration++) {
             iterations = iteration;
@@ -401,22 +443,22 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
             // Once the budget is spent — or on the last round — the tools are
             // withdrawn, so the turn ends on an answer, not an unanswered call.
             const result = await callModel(messages, toolBudget > 0 && iteration < plan.iterations ? tools : undefined);
-            const calls = result.message.tool_calls ?? [];
+            const calls = result.toolCalls;
 
             if (calls.length === 0) {
-                return finish(await finalizeAnswer((result.message.content ?? "").trim(), messages));
+                return finish(await finalizeAnswer((result.text ?? "").trim(), messages));
             }
             // Text streamed before tool calls is preamble, not the answer.
             if (draft) emit({ type: "reset" });
 
             // -- confirm tools: validated and authorised before any card ------
-            const confirmCalls = calls.filter((c) => getTool(c.function.name)?.risk === "confirm");
+            const confirmCalls = calls.filter((c) => getTool(c.name)?.risk === "confirm");
             const rejected = new Map<string, string>();
             for (const call of confirmCalls) {
-                const tool = getTool(call.function.name)!;
+                const tool = getTool(call.name)!;
                 let args: Record<string, unknown>;
                 try {
-                    args = authorizeToolCall(tool, tool.name, parseArgs(call.function.arguments), ctx) as Record<string, unknown>;
+                    args = authorizeToolCall(tool, tool.name, parseArgs(call.arguments), ctx) as Record<string, unknown>;
                 } catch (error) {
                     if (error instanceof ToolValidationError || error instanceof ToolAuthorizationError || error instanceof ToolNotFoundError) {
                         rejected.set(call.id, JSON.stringify({ tool: tool.name, error: { code: error.code, message: error.message } }));
@@ -431,7 +473,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                         ? await tool.describe(args, ctx)
                         : { title: tool.label, details: [], warning: null, confirmLabel: "Confirmer", danger: false };
                 } catch (error) {
-                    const lead = (result.message.content ?? "").trim();
+                    const lead = (result.text ?? "").trim();
                     const answer = `${lead ? `${lead}\n\n` : ""}Je n'ai pas pu préparer cette action : ${describeErrorMessage(error)}`;
                     // A refusal from the domain ("aucun destinataire prêt") is an answer, not a crash.
                     return finish({
@@ -445,7 +487,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                     });
                 }
 
-                const lead = (result.message.content ?? "").trim();
+                const lead = (result.text ?? "").trim();
                 const verification = lead ? verify(lead) : null;
                 const answer = verification && verification.failed > 0 ? annotateAnswer(lead, verification) : lead;
                 return finish({
@@ -461,19 +503,25 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                 });
             }
 
-            messages.push({ role: "assistant", content: result.message.content, tool_calls: calls });
+            messages.push({
+                role: "assistant",
+                content: result.text,
+                toolCalls: calls,
+                ...(result.providerItems ? { providerItems: result.providerItems } : {}),
+            });
             emit({ type: "phase", phase: "tools" });
 
             for (const call of calls) {
                 const refused = rejected.get(call.id);
                 if (refused) {
-                    messages.push({ role: "tool", tool_call_id: call.id, content: refused });
+                    messages.push({ role: "tool", toolCallId: call.id, name: call.name, content: refused });
                     continue;
                 }
                 if (turn.signal.aborted || toolBudget <= 0) {
                     messages.push({
                         role: "tool",
-                        tool_call_id: call.id,
+                        toolCallId: call.id,
+                        name: call.name,
                         content: JSON.stringify({ error: { code: "tool_budget_exhausted", message: "Budget d'outils épuisé pour cette demande." } }),
                     });
                     continue;
@@ -481,10 +529,10 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                 toolBudget -= 1;
                 toolCalls += 1;
 
-                const label = getTool(call.function.name)?.label ?? call.function.name;
-                emit({ type: "tool_start", id: call.id, tool: call.function.name, label });
+                const label = getTool(call.name)?.label ?? call.name;
+                emit({ type: "tool_start", id: call.id, tool: call.name, label });
                 const execution = await executeToolCall(
-                    { id: call.id, name: call.function.name, arguments: call.function.arguments },
+                    { id: call.id, name: call.name, arguments: call.arguments },
                     ctx,
                     { evidence: session },
                 );
@@ -497,11 +545,12 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                     ...(execution.cached ? { cached: true } : {}),
                     ...(execution.evidence ? { evidence: execution.evidence } : {}),
                 };
-                trace.push({ ...step, args: compactArgs(call.function.arguments) });
+                trace.push({ ...step, args: compactArgs(call.arguments) });
                 emit({ type: "tool_end", id: call.id, ...step });
                 messages.push({
                     role: "tool",
-                    tool_call_id: call.id,
+                    toolCallId: call.id,
+                    name: call.name,
                     content: execution.ok && execution.tool === "show_visual" ? registerVisual(execution.data) : serializeToolResult(execution),
                 });
             }
@@ -519,7 +568,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
         });
     } catch (error) {
         const payload = toAssistantError(error);
-        if (!(error instanceof TurnAbort) && !(error instanceof OpenAIError)) {
+        if (!(error instanceof TurnAbort) && !(error instanceof ProviderError)) {
             console.error("[assistant.runtime] turn failed", error);
         }
         const status: TurnStatus =
@@ -542,7 +591,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
 
     async function finalizeAnswer(
         text: string,
-        messages: OpenAIChatMessage[],
+        messages: ChatMessage[],
     ): Promise<Omit<AgentTurnResult, "runId" | "trace" | "visuals" | "model" | "fallbackUsed" | "usage" | "iterations" | "retries" | "toolCalls" | "latencyMs" | "firstTokenMs" | "evidencePersisted">> {
         const answerText = text || "Je n'ai pas de réponse à donner.";
         emit({ type: "phase", phase: "verifying" });
@@ -558,7 +607,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                     [...messages, { role: "assistant", content: current }, { role: "user", content: buildRepairPrompt(result, session.entries) }],
                     undefined,
                 );
-                const candidate = (repair.message.content ?? "").trim();
+                const candidate = (repair.text ?? "").trim();
                 if (candidate) {
                     const second = verify(candidate);
                     repaired = true;

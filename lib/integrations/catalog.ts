@@ -15,7 +15,7 @@
 // A stored value wins over the container env; with neither, the feature is off.
 // ============================================
 
-export type IntegrationGroup = "ai" | "telephony" | "data";
+export type IntegrationGroup = "ai" | "telephony" | "meetings" | "data";
 
 export interface IntegrationKeyDef {
     /** Env-style name, also the name in the store. */
@@ -31,6 +31,7 @@ export interface IntegrationKeyDef {
 export const INTEGRATION_GROUPS: Record<IntegrationGroup, { label: string; hint: string }> = {
     ai: { label: "Intelligence artificielle", hint: "Assistant, fiches, analyses et rédaction" },
     telephony: { label: "Téléphonie", hint: "Statistiques d'appels et enregistrements" },
+    meetings: { label: "Enregistreurs de réunions", hint: "Importer un appel de closing dans « Nouveau client »" },
     data: { label: "Données & prospection", hint: "Sourcing, enrichissement, recherche d'entreprises" },
 };
 
@@ -52,6 +53,15 @@ export const INTEGRATION_KEYS = [
         docsUrl: "https://aistudio.google.com/app/apikey",
     },
     {
+        name: "DEEPSEEK_API_KEY",
+        label: "DeepSeek",
+        group: "ai",
+        usedFor:
+            "Tâches IA de fond (synthèses, bilans) et réponses rapides de l'assistant. Les données CRM ne lui sont envoyées que via un point d'accès hébergé en UE (DEEPSEEK_BASE_URL + DEEPSEEK_RESIDENCY=eu) ; sinon, enrichissement public uniquement",
+        placeholder: "sk-…",
+        docsUrl: "https://platform.deepseek.com/api_keys",
+    },
+    {
         name: "ALLO_API_KEY",
         label: "Allo — clé API",
         group: "telephony",
@@ -62,6 +72,51 @@ export const INTEGRATION_KEYS = [
         label: "Allo — secret du webhook",
         group: "telephony",
         usedFor: "Accepter les appels envoyés par Allo en temps réel (/api/webhooks/allo)",
+    },
+    // Note-takers (lib/notetakers): the « Appel enregistré » source of the « Nouveau client » wizard.
+    {
+        name: "MODJO_API_KEY",
+        label: "Modjo",
+        group: "meetings",
+        usedFor: "Importer un appel Modjo (résumés, prochaines étapes, transcription) dans « Nouveau client »",
+        docsUrl: "https://help.modjo.ai/en/articles/9310645-modjo-api",
+    },
+    {
+        name: "CLAAP_API_KEY",
+        label: "Claap",
+        group: "meetings",
+        usedFor: "Importer un enregistrement Claap (points clés, actions, transcription) dans « Nouveau client »",
+        placeholder: "cla_…",
+        docsUrl: "https://docs.claap.io/api-reference/introduction",
+    },
+    {
+        name: "GRAIN_API_KEY",
+        label: "Grain",
+        group: "meetings",
+        usedFor: "Importer un appel Grain (notes IA, transcription) dans « Nouveau client »",
+        placeholder: "grain_pat_…",
+        docsUrl: "https://grain.com/app/settings/integrations?tab=api",
+    },
+    {
+        name: "FIREFLIES_API_KEY",
+        label: "Fireflies",
+        group: "meetings",
+        usedFor: "Importer un appel Fireflies (résumé, actions, transcription) dans « Nouveau client »",
+        docsUrl: "https://app.fireflies.ai/integrations/custom/fireflies",
+    },
+    {
+        name: "FATHOM_API_KEY",
+        label: "Fathom",
+        group: "meetings",
+        usedFor: "Importer un appel Fathom (résumé, actions, transcription) dans « Nouveau client »",
+        docsUrl: "https://fathom.video/customize#api-access-header",
+    },
+    {
+        name: "TLDV_API_KEY",
+        label: "tl;dv",
+        group: "meetings",
+        usedFor: "Importer un appel tl;dv (notes, transcription) dans « Nouveau client »",
+        docsUrl: "https://tldv.io/app/settings/personal-settings/api-keys",
     },
     {
         name: "SERPER_API_KEY",
