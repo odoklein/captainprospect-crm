@@ -32,6 +32,8 @@
  */
 export type AssistantDepth = "standard" | "deep";
 
+import { integrationKey } from "@/lib/integrations/keys";
+
 export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
 /**
@@ -93,12 +95,18 @@ function temperature(raw: string | undefined): number {
     return Number.isFinite(value) ? Math.min(1.5, Math.max(0, value)) : 0.7;
 }
 
+/** An agency with a DeepSeek key and no OpenAI key runs the assistant on DeepSeek; explicit env still wins. */
+function deepSeekOnly(): boolean {
+    return !integrationKey("OPENAI_API_KEY") && !!integrationKey("DEEPSEEK_API_KEY");
+}
+
 export function getAssistantModelConfig(env: NodeJS.ProcessEnv = process.env): AssistantModelConfig {
     const fallback = env.OPENAI_ASSISTANT_FALLBACK_MODEL?.trim();
+    const ds = deepSeekOnly();
     return {
-        primary: env.OPENAI_ASSISTANT_MODEL?.trim() || DEFAULT_STANDARD_MODEL,
-        deepModel: env.OPENAI_ASSISTANT_DEEP_MODEL?.trim() || DEFAULT_DEEP_MODEL,
-        fallback: fallback === "none" ? null : fallback || DEFAULT_FALLBACK_MODEL,
+        primary: env.OPENAI_ASSISTANT_MODEL?.trim() || (ds ? "deepseek-chat" : DEFAULT_STANDARD_MODEL),
+        deepModel: env.OPENAI_ASSISTANT_DEEP_MODEL?.trim() || (ds ? "deepseek-reasoner" : DEFAULT_DEEP_MODEL),
+        fallback: fallback === "none" ? null : fallback || (ds ? null : DEFAULT_FALLBACK_MODEL),
         reasoningEffort: effort(env.ASSISTANT_REASONING_EFFORT, "none"),
         deepReasoningEffort: effort(env.ASSISTANT_DEEP_REASONING_EFFORT, "high"),
         providerTimeoutMs: bounded(env.ASSISTANT_PROVIDER_TIMEOUT_MS, 45_000, 5_000, 300_000),

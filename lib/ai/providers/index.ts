@@ -9,6 +9,7 @@
  * see that class of data the call is refused, never silently redirected.
  */
 
+import { getAssistantModelConfig } from "@/lib/ai/agent/models";
 import { integrationKey } from "@/lib/integrations/keys";
 import {
     endpointFor,
@@ -51,6 +52,11 @@ function notConfigured(endpoint: Endpoint): ProviderError {
 
 export function isConfigured(provider: ProviderId): boolean {
     return !!integrationKey(endpointFor(provider).keyName);
+}
+
+/** The assistant runs when the provider of its standard model has a key (OpenAI, or DeepSeek alone). */
+export function isAssistantConfigured(): boolean {
+    return isConfigured(resolveModel(getAssistantModelConfig().primary).provider);
 }
 
 function build(provider: ProviderId, wire: Wire, endpoint: Endpoint, apiKey: string): Provider {

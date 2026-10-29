@@ -48,7 +48,7 @@ import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
 import { getBrand } from "@/lib/brand/server";
 import { getAssistantModelConfig, planTurn } from "@/lib/ai/agent/models";
 import { providerChat, runAgentTurn, type AgentTurnResult } from "@/lib/ai/agent/runtime";
-import { isConfigured } from "@/lib/ai/providers";
+import { isAssistantConfigured } from "@/lib/ai/providers";
 import { recordAiUsage } from "@/lib/ai/ledger";
 import {
     EvidenceStoreUnavailable,
@@ -139,9 +139,9 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
     const body = await validateRequest(request, ChatBody);
 
-    if (!isConfigured("openai")) {
+    if (!isAssistantConfigured()) {
         return errorResponse(
-            "L'assistant n'est pas configuré : OPENAI_API_KEY est absente côté serveur.",
+            "L'assistant n'est pas configuré : ajoutez une clé OpenAI ou DeepSeek (Paramètres → Intégrations).",
             503,
         );
     }

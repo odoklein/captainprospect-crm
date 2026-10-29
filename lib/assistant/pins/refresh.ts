@@ -16,7 +16,7 @@ import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
 import { getBrand } from "@/lib/brand/server";
 import { getAssistantModelConfig, planTurn } from "@/lib/ai/agent/models";
 import { providerChat, runAgentTurn } from "@/lib/ai/agent/runtime";
-import { isConfigured } from "@/lib/ai/providers";
+import { isAssistantConfigured } from "@/lib/ai/providers";
 import { recordAiUsage } from "@/lib/ai/ledger";
 import type { StoredVisual } from "../visuals/spec";
 import type { Viewer } from "../folders/rules";
@@ -36,7 +36,7 @@ export async function refreshPin(pin: AssistantPin, folder: PinFolder, viewer: V
     const source = parsePinSource(pin.source) ?? parsePinSource(visual?.source);
     if (!source || !visual?.spec) throw new ValidationError(NO_SOURCE);
 
-    if (!isConfigured("openai")) {
+    if (!isAssistantConfigured()) {
         return settle(pin, { refreshError: "L'assistant n'est pas configuré sur ce serveur : actualisation impossible." });
     }
 
