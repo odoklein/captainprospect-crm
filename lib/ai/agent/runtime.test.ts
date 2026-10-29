@@ -318,7 +318,7 @@ test("cancellation stops the loop between tools and reaches the provider", async
     const controller = new AbortController();
     let providerSignal: AbortSignal | null = null;
     const chat: ChatFn = async (req) => {
-        providerSignal = req.signal;
+        providerSignal = req.signal ?? null;
         controller.abort(); // the browser goes away while the model asks for two tools
         return reply(null, [toolCall("get_mission_metrics", { days: 30 }), toolCall("list_meetings", {}, "call_2")]);
     };

@@ -10,7 +10,8 @@
 import { prisma } from "@/lib/prisma";
 import { NotFoundError, ValidationError } from "@/lib/api-utils";
 import type { UserRole } from "@prisma/client";
-import { AssistantContext, ProjectBinding } from "./types";
+import { optional } from "@/lib/assistant/store/missing";
+import { AssistantContext, FolderBinding, ProjectBinding } from "./types";
 
 /** Automatic (`safe_write`) actions allowed per user message. */
 export const MAX_AUTO_WRITES_PER_REQUEST = 3;
@@ -83,6 +84,8 @@ export async function buildAssistantContext(params: {
     clientId?: string | null;
     missionId?: string | null;
     conversationId?: string | null;
+    /** The conversation's assistant folder, when the instance has folders. */
+    folderId?: string | null;
     /** Background runs only: the playbook's tool allowlist and write budget. */
     toolAllowlist?: ReadonlySet<string>;
     mode?: AssistantContext["mode"];
@@ -100,6 +103,8 @@ export async function buildAssistantContext(params: {
         ? await resolveProjectBinding(params.clientId, params.missionId)
         : null;
 
+    const folder = params.folderId ? await resolveFolderBinding(params.folderId) : null;
+
     return {
         userId: user.id,
         userName: user.name,
@@ -110,6 +115,7 @@ export async function buildAssistantContext(params: {
         resolvedAt: new Date(),
         autoWriteBudget: params.autoWriteBudget ?? MAX_AUTO_WRITES_PER_REQUEST,
         conversationId: params.conversationId ?? null,
+        folder,
         ...(params.toolAllowlist ? { toolAllowlist: params.toolAllowlist } : {}),
         mode: params.mode ?? "chat",
     };
@@ -121,6 +127,35 @@ export async function buildAssistantContext(params: {
  * Tools call this instead of reading `ctx.project` directly, so the narrowing
  * and the failure message live in one place.
  */
+/**
+ * The folder a conversation lives in. Null when the id is unknown or the
+ * folders tables are not migrated yet: a turn never fails on a missing folder.
+ */
+export async function resolveFolderBinding(folderId: string): Promise<FolderBinding | null> {
+    return optional<FolderBinding | null>(
+        "context.folder",
+        async () => {
+            const row = await prisma.assistantFolder.findUnique({
+                where: { id: folderId },
+                select: { id: true, kind: true, name: true, clientId: true, archivedAt: true },
+            });
+            if (!row || row.archivedAt) return null;
+            return { id: row.id, kind: row.kind, name: row.name, clientId: row.clientId };
+        },
+        null,
+    );
+}
+
+/** The folder binding, or a thrown error (memory and file tools). */
+export function requireFolder(ctx: AssistantContext): FolderBinding {
+    if (!ctx.folder) {
+        throw new ValidationError(
+            "Cette conversation n'est rattachée à aucun dossier. Ouvre-la depuis un dossier (client ou général) pour utiliser la mémoire et les fichiers du dossier.",
+        );
+    }
+    return ctx.folder;
+}
+
 export function requireProject(ctx: AssistantContext): ProjectBinding {
     if (!ctx.project) {
         throw new ValidationError(

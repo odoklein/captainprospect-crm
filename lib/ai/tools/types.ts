@@ -30,6 +30,14 @@ export type ToolRisk = "read" | "safe_write" | "confirm";
 // REQUEST SCOPE
 // ============================================
 
+/** The assistant folder a conversation belongs to (see AssistantFolder). */
+export interface FolderBinding {
+    id: string;
+    kind: "CLIENT" | "GENERAL";
+    name: string;
+    clientId: string | null;
+}
+
 /** The project the exchange is bound to. `missionId: null` = client-wide. */
 export interface ProjectBinding {
     clientId: string;
@@ -69,6 +77,14 @@ export interface AssistantContext {
 
     /** The conversation this request belongs to. Stamped on anything created. */
     conversationId: string | null;
+
+    /**
+     * The assistant folder the conversation lives in (Captain AI v4). Null for
+     * agency-view threads and for instances without the folders migration.
+     * Memory and files tools scope themselves to it; `requireFolder()` throws
+     * when a tool cannot work without one.
+     */
+    folder?: FolderBinding | null;
 
     /**
      * Tools this request may use at all, by name. Absent = the whole registry

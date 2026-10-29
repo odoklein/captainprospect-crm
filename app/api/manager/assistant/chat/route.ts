@@ -16,7 +16,7 @@
 // ============================================
 
 import { randomUUID } from "node:crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
@@ -32,10 +32,17 @@ import { buildAssistantContext } from "@/lib/ai/tools/context";
 import {
     buildReasoningPrompt,
     buildToolUsagePrompt,
+    buildTurnContextMessage,
     describePastTrace,
     type ChatTurn,
     type ToolTraceEntry,
 } from "@/lib/ai/tools/loop";
+import { getToolsForContext } from "@/lib/ai/tools/registry";
+import { toolProfileFor } from "@/lib/ai/tools/profiles";
+import { buildContextPack } from "@/lib/assistant/context/pack";
+import { prismaContextDeps } from "@/lib/assistant/context/prisma";
+import { optional } from "@/lib/assistant/store/missing";
+import { maybeSummarize, maybeTitle } from "@/lib/assistant/summary/rolling";
 import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
 import { getBrand } from "@/lib/brand/server";
 import { getAssistantModelConfig, planTurn } from "@/lib/ai/agent/models";
@@ -124,6 +131,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             missionId: true,
             createdById: true,
             messageCount: true,
+            folderId: true,
+            kind: true,
+            summary: true,
+            summaryUpToMessageId: true,
         },
     });
     if (!conversation || conversation.createdById !== session.user.id) {
@@ -135,7 +146,22 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         clientId: conversation.clientId,
         missionId: conversation.missionId,
         conversationId: conversation.id,
+        folderId: conversation.folderId,
     });
+
+    // Folder instructions are stable guidance; a missing folders table must not
+    // fail the turn, so the read degrades to "no folder".
+    const folder = conversation.folderId
+        ? await optional<{ name: string; instructions: string | null } | null>(
+              "chat.folder",
+              () =>
+                  prisma.assistantFolder.findUnique({
+                      where: { id: conversation.folderId as string },
+                      select: { name: true, instructions: true },
+                  }),
+              null,
+          )
+        : null;
 
     const depth = body.depth ?? "standard";
     const config = getAssistantModelConfig();
@@ -252,12 +278,29 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     let result: AgentTurnResult | null = null;
     let messageId: string | null = null;
     try {
-        // Only the last 20 turns travel to the model: older ones carry stale ids
-        // more often than useful context.
+        // What the turn knows besides the raw history, within token budgets:
+        // folder instructions, memory, rolling summary, file extracts. Stable
+        // sections join the system prompt; volatile ones go in the turn context.
+        const pack = await buildContextPack({
+            ctx,
+            conversation: {
+                id: conversation.id,
+                kind: conversation.kind,
+                summary: conversation.summary,
+                summaryUpToMessageId: conversation.summaryUpToMessageId,
+                missionId: conversation.missionId,
+            },
+            question: body.message,
+            folder: folder ? { name: folder.name, instructions: folder.instructions } : null,
+            deps: prismaContextDeps,
+        });
+
+        // Only the recent raw turns travel: what fell out of the window is
+        // folded into the rolling summary by the after() job below.
         const previous = await prisma.assistantMessage.findMany({
-            where: { conversationId: conversation.id },
+            where: { conversationId: conversation.id, supersededAt: null },
             orderBy: { createdAt: "desc" },
-            take: 20,
+            take: pack.historyWindow,
             select: { role: true, content: true, action: true, trace: true },
         });
 
@@ -290,24 +333,57 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         history.push({ role: "user", content: body.message });
 
         const brand = await getBrand();
+        // Byte-identical across turns (prompt caching): persona, tool rules and
+        // the stable context sections only. The day, the user, the summary and
+        // the fresh sources travel in the turn context message.
         const systemPrompt = [
             getAssistantSystemPrompt(ctx, brand),
             buildToolUsagePrompt(ctx, depth),
             buildReasoningPrompt(depth),
+            ...pack.systemSections.map((section) => section.text),
         ].join("\n\n");
+        const turnContext = buildTurnContextMessage({
+            ctx,
+            depth,
+            sections: pack.volatileSections.map((section) => section.text),
+        });
+        // A profile narrows the advertised tool schemas to the groups the
+        // question needs; load_tool_group widens it inside the turn.
+        const accessible = getToolsForContext(ctx).map((tool) => tool.name);
+        const profile = toolProfileFor({ ctx, depth, question: body.message, accessible });
         const knownNames = [ctx.userName, ctx.project?.clientName, ctx.project?.missionName, brand.name].filter(
             (n): n is string => !!n,
         );
 
         const runTurn = async (onEvent: (event: StreamEvent) => void, signal: AbortSignal) => {
             result = await runAgentTurn(
-                { systemPrompt, history, ctx, config, plan, signal, runId, onEvent, knownNames },
+                {
+                    systemPrompt,
+                    history,
+                    ctx,
+                    config,
+                    plan,
+                    signal,
+                    runId,
+                    onEvent,
+                    knownNames,
+                    contextMessage: turnContext,
+                    toolNames: profile.names,
+                },
                 { chat: providerChat(), store: storeUsable ? prismaEvidenceStore : null, ledger: recordAiUsage, surface: "assistant.chat" },
             );
             messageId = await persistTurn(result);
             await finishRun(result, messageId);
             return toPayload(result, messageId);
         };
+
+        // Registered once, in the request scope: Next runs it after the response
+        // (including a stream) is sent, and persistTurn has already completed by
+        // then. Both jobs swallow their errors and never fail the turn.
+        after(async () => {
+            await maybeTitle(conversation.id);
+            await maybeSummarize(conversation.id);
+        });
 
         if (body.stream) {
             const encoder = new TextEncoder();

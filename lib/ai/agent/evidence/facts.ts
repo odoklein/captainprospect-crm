@@ -43,6 +43,16 @@ export interface Fact {
 /** Row label, in order of preference: who or what the numbers of a row are about. */
 const ENTITY_KEYS = ["sdr", "name", "nom", "client", "societe", "titre", "libelle", "label", "resultat", "result", "category", "outcome", "tableau", "bucket"];
 const SKIP_KEYS = /^(periodeJours|periode|period|previous_period|jours|durationMs|timezone|legend|definition)$|Id$|^id$/;
+/**
+ * The marker `truncateStructured` plants next to a sliced array. Its `kept` and
+ * `total` describe the cut, not the data, so the whole subtree is skipped —
+ * including the array form the marker takes when a parent is cut twice.
+ */
+const TRUNCATION_KEY = "_truncated";
+
+function isSkipped(key: string): boolean {
+    return key === TRUNCATION_KEY || SKIP_KEYS.test(key);
+}
 /** Leaf keys that only mean something with their parent: comparison.calls.before. */
 const GENERIC_LEAF = /^(now|before|change_pct|count|share_pct|value|total)$/;
 const PCT_KEY = /pct|taux|rate|pourcent|percent/i;
@@ -190,7 +200,7 @@ export function extractFacts(data: unknown, now: Date, fallbackPeriod: EvidenceP
             if (rows.length > 1) {
                 const numericColumns = new Set<string>();
                 for (const row of rows) {
-                    for (const [k, v] of Object.entries(row)) if (typeof v === "number" && !SKIP_KEYS.test(k)) numericColumns.add(k);
+                    for (const [k, v] of Object.entries(row)) if (typeof v === "number" && !isSkipped(k)) numericColumns.add(k);
                 }
                 for (const column of numericColumns) {
                     if (PCT_KEY.test(column)) continue;
@@ -210,7 +220,8 @@ export function extractFacts(data: unknown, now: Date, fallbackPeriod: EvidenceP
                     ? windowOf(toDay(prev.from)!, toDay(prev.to)!, { mode: "depuis" })
                     : previous;
             for (const [key, child] of Object.entries(record)) {
-                if (SKIP_KEYS.test(key)) continue;
+                // `continue` before the recursive call: the subtree is never entered.
+                if (isSkipped(key)) continue;
                 walk(child, path ? `${path}.${key}` : key, entity, scoped, previousHere);
             }
         }
@@ -228,7 +239,13 @@ export function isEmptyPayload(data: unknown): boolean {
     if (typeof record.error === "string") return true;
     let substance = false;
     const visit = (value: unknown, key: string) => {
-        if (substance || SKIP_KEYS.test(key)) return;
+        if (substance) return;
+        // A sliced array may be sliced down to nothing; the marker proves there were rows.
+        if (key === TRUNCATION_KEY) {
+            substance = true;
+            return;
+        }
+        if (isSkipped(key)) return;
         if (Array.isArray(value)) {
             if (value.length > 0) substance = true;
         } else if (typeof value === "number") {

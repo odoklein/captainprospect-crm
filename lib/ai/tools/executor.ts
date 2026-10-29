@@ -18,6 +18,7 @@ import {
 import { authorizeToolCall } from "./guard";
 import { getTool } from "./registry";
 import { wrapToolPayload } from "./redact";
+import { truncateStructured } from "./truncate";
 import { isEmptyPayload } from "@/lib/ai/agent/evidence/facts";
 import type { EvidenceSession } from "@/lib/ai/agent/evidence/session";
 
@@ -185,6 +186,9 @@ export async function executeToolCall(
     }
 }
 
+/** Above this many serialised characters, a result is sliced before it reaches the model. */
+const MODEL_RESULT_CAP_CHARS = 60_000;
+
 /** Serialise a result for the `tool` message sent back to the model. */
 export function serializeToolResult(result: ToolExecutionResult): string {
     if (!result.ok) {
@@ -196,5 +200,7 @@ export function serializeToolResult(result: ToolExecutionResult): string {
                 "Cet outil a échoué ou a été refusé. Explique la limite à l'utilisateur, n'invente pas de données.",
         });
     }
-    return wrapToolPayload(result.tool, result.data, result.evidence);
+    // Safety net for project tools, which cap nothing themselves: the evidence
+    // ledger already holds the full payload, only the model's copy is cut.
+    return wrapToolPayload(result.tool, truncateStructured(result.data, MODEL_RESULT_CAP_CHARS).value, result.evidence);
 }

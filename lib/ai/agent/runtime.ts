@@ -33,7 +33,14 @@ import type { AiUsageEntry } from "@/lib/ai/ledger";
 import { calculateTokenCost } from "@/lib/ai/usage";
 import { authorizeToolCall } from "@/lib/ai/tools/guard";
 import { getTool, toProviderTools } from "@/lib/ai/tools/registry";
+import { TOOL_GROUPS, type ToolGroup } from "@/lib/ai/tools/profiles";
 import { executeToolCall, serializeToolResult } from "@/lib/ai/tools/executor";
+import {
+    citedLabels,
+    compactToolMessages,
+    shouldCompact,
+    type CompactionEntry,
+} from "./compaction";
 import {
     ToolAuthorizationError,
     ToolNotFoundError,
@@ -42,6 +49,7 @@ import {
     type PendingActionCard,
 } from "@/lib/ai/tools/types";
 import { checkVisualNumbers } from "@/lib/assistant/visuals/check";
+import { renderPriorEvidenceBlock } from "@/lib/assistant/context/format";
 import type { VisualSpec } from "@/lib/assistant/visuals/spec";
 import type { AssistantModelConfig, TurnPlan } from "./models";
 import { withRetry } from "./retry";
@@ -67,6 +75,12 @@ const REPAIR_MIN_REMAINING_MS = 8_000;
 
 /** More than this many visuals in one answer is a dashboard, not an answer. */
 const MAX_VISUALS = 6;
+
+/**
+ * Input budget the compaction is measured against. Conservative: a standard
+ * turn may still take 16k output tokens, but the provider window is shared.
+ */
+const INPUT_BUDGET_TOKENS: Record<"standard" | "deep", number> = { standard: 80_000, deep: 160_000 };
 
 export interface ChatTurn {
     role: "user" | "assistant";
@@ -118,6 +132,18 @@ export interface AgentTurnInput {
     onEvent?: (event: StreamEvent) => void;
     /** Names the answer may use without a source (user, client, mission, brand). */
     knownNames?: string[];
+    /**
+     * Tool names advertised on the first call (lib/ai/tools/profiles.ts).
+     * Null or absent = every accessible tool. `load_tool_group` widens it
+     * during the turn; the guard still decides what may run.
+     */
+    toolNames?: ReadonlySet<string> | null;
+    /**
+     * The per-turn "[Contexte de ce tour]" message built by the route (user,
+     * date, summary, files). The prior-evidence index is appended here, after
+     * the session loads it, so the system prompt stays cacheable.
+     */
+    contextMessage?: string | null;
 }
 
 export interface ProposedAction {
@@ -247,6 +273,8 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
     let draft = "";
     const trace: TraceStep[] = [];
     const visuals: StoredVisual[] = [];
+    // Evidence the draft or a visual already leans on: never compacted away.
+    const protectedLabels = new Set<string>();
 
     const session = new EvidenceSession({
         store: deps.store,
@@ -355,6 +383,7 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
         }
         const check = checkVisualNumbers(visual, session.entries.filter((e) => e.status === "OK"));
         const entry = from ? session.resolve(from) : undefined;
+        if (from) protectedLabels.add(from);
         const stored: StoredVisual = {
             id: same >= 0 ? visuals[same].id : `v${visuals.length + 1}`,
             spec: visual,
@@ -423,25 +452,57 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
         checkAbort();
 
         const priorIndex = session.priorIndex();
-        const messages: ChatMessage[] = [
-            {
-                role: "system",
-                content: priorIndex
-                    ? `${input.systemPrompt}\n\n## Sources déjà consultées dans cette conversation (encore fraîches)\n${priorIndex}\nTu peux les citer avec leur étiquette. Pour en relire le détail, rappelle le même outil avec les mêmes arguments : le résultat sera réutilisé sans nouvelle requête.`
-                    : input.systemPrompt,
-            },
-            ...input.history.map((m) => ({ role: m.role, content: m.content })),
-        ];
+        // The system prompt is sent byte-identical every turn (prompt caching);
+        // everything that moves — the day, the summary, the fresh sources —
+        // travels in one context message right before the question.
+        const contextMessage = [input.contextMessage?.trim(), priorIndex ? renderPriorEvidenceBlock(priorIndex) : null]
+            .filter((part): part is string => !!part)
+            .join("\n\n");
+        const history: ChatMessage[] = input.history.map((m) => ({ role: m.role, content: m.content }));
+        if (contextMessage) {
+            // Before the last (user) message: history without the new question, context, question.
+            history.splice(Math.max(0, history.length - 1), 0, { role: "user", content: contextMessage });
+        }
+        const messages: ChatMessage[] = [{ role: "system", content: input.systemPrompt }, ...history];
 
         let toolBudget = plan.toolCalls;
-        const tools = toProviderTools(ctx);
+        // Advertised tool names: the turn's profile, widened by load_tool_group.
+        let advertised: Set<string> | null = input.toolNames ? new Set(input.toolNames) : null;
+        const compactionOptions = () => ({
+            budgetTokens: INPUT_BUDGET_TOKENS[plan.depth],
+            protectLabels: protectedLabels,
+            entries: session.entries
+                .filter((entry) => entry.status === "OK")
+                .map(
+                    (entry): CompactionEntry => ({
+                        label: entry.label,
+                        tool: entry.tool,
+                        summary: entry.summary,
+                        facts: entry.facts,
+                    }),
+                ),
+        });
 
         for (let iteration = 1; iteration <= plan.iterations; iteration++) {
             iterations = iteration;
             checkAbort();
             emit({ type: "phase", phase: "thinking" });
+            // Tool payloads grow every round: swap the old ones for their digest
+            // before they are sent again, keeping the cited ones raw.
+            if (draft) for (const label of citedLabels(draft)) protectedLabels.add(label);
+            const options = compactionOptions();
+            if (session.entries.length > 0 && shouldCompact(messages, options)) {
+                const compacted = compactToolMessages(messages, options);
+                messages.splice(0, messages.length, ...compacted.messages);
+                if (compacted.compacted > 0) {
+                    console.info(
+                        `[assistant.runtime] ${compacted.compacted} résultat(s) d'outil compacté(s) : ${compacted.before} → ${compacted.after} tokens estimés`,
+                    );
+                }
+            }
             // Once the budget is spent — or on the last round — the tools are
             // withdrawn, so the turn ends on an answer, not an unanswered call.
+            const tools = toProviderTools(ctx, advertised ? { names: advertised } : {});
             const result = await callModel(messages, toolBudget > 0 && iteration < plan.iterations ? tools : undefined);
             const calls = result.toolCalls;
 
@@ -553,6 +614,14 @@ export async function runAgentTurn(input: AgentTurnInput, deps: RuntimeDeps): Pr
                     name: call.name,
                     content: execution.ok && execution.tool === "show_visual" ? registerVisual(execution.data) : serializeToolResult(execution),
                 });
+                // The catalogue loaded another group: advertise its tools on the next call.
+                if (call.name === "load_tool_group" && execution.ok) {
+                    const group = (execution.data as { group?: unknown } | undefined)?.group;
+                    if (typeof group === "string" && group in TOOL_GROUPS) {
+                        advertised ??= new Set(toProviderTools(ctx).map((spec) => spec.name));
+                        for (const name of TOOL_GROUPS[group as ToolGroup]) advertised.add(name);
+                    }
+                }
             }
             checkAbort();
         }

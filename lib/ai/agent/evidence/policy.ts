@@ -39,8 +39,14 @@ const NO_PAYLOAD = new Set([
     "search_help",
 ]);
 
-/** Above this size a payload is summarised but not cached. */
-export const MAX_CACHED_PAYLOAD_BYTES = 32_000;
+/**
+ * Above this size a payload is summarised but not cached. Sized so that a
+ * result compacted away mid-turn (lib/ai/agent/compaction.ts) can still be
+ * served in full when the model asks for it again: the compaction hint
+ * promises the detail without a new query, so the cache must hold payloads
+ * as large as the tool truncation ceiling lets through.
+ */
+export const MAX_CACHED_PAYLOAD_BYTES = 64_000;
 
 export function evidenceTtlMs(tool: string): number {
     return (TTL_S[tool] ?? DEFAULT_TTL_S) * 1000;

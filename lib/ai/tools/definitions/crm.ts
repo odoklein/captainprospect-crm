@@ -20,6 +20,7 @@ import { toJsonSafe } from "@/lib/api-v1/sql-guard";
 import { READ_SCOPES } from "@/lib/api-v1/scopes";
 import { defineReadTool } from "../helpers";
 import { neutralizeUntrusted } from "../redact";
+import { truncateStructured } from "../truncate";
 import { ToolValidationError, type AssistantContext, type JsonSchemaObject } from "../types";
 
 /** French labels for the tool trace. Unlisted tools fall back to their name. */
@@ -126,13 +127,9 @@ function bridge(def: ToolDef, options: { agencyOnly?: boolean } = {}) {
                 throw error;
             }
 
-            const text = JSON.stringify(result) ?? "null";
-            if (text.length <= MAX_RESULT_CHARS) return result;
-            return {
-                truncated: true,
-                note: "Résultat trop long, coupé. Relance avec un `limit` plus petit ou des filtres plus précis.",
-                partial: text.slice(0, MAX_RESULT_CHARS),
-            };
+            // Arrays are sliced, not the text: the result stays valid JSON, so
+            // its totals remain facts the verifier can check.
+            return truncateStructured(result, MAX_RESULT_CHARS).value;
         },
     });
 }

@@ -9,6 +9,7 @@
     "start": "next start -p 5000 -H 0.0.0.0",
     "lint": "eslint",
     "brand:check": "tsx scripts/brand-check.ts",
+    "ai:token-audit": "tsx scripts/assistant-token-audit.ts",
     "test:call-enrichment": "tsx --test lib/call-enrichment/allo-response.test.ts",
     "test:list-health": "tsx --test lib/services/ListHealthService.test.ts lib/services/ListHealthService.sql.pglite.test.ts",
     "test:ai-tools": "tsx --test lib/ai/tools/guard.test.ts",
