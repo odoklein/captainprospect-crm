@@ -59,7 +59,7 @@ export function toResponsesInput(messages: ChatMessage[]): { instructions: strin
     return { instructions: system.length > 0 ? system.join("\n\n") : undefined, input };
 }
 
-export function buildResponsesBody(request: ChatCallRequest, spec: ModelSpec, env: NodeJS.ProcessEnv = process.env): Record<string, unknown> {
+export function buildResponsesBody(request: ChatCallRequest, spec: ModelSpec, env: Record<string, string | undefined> = process.env): Record<string, unknown> {
     const { instructions, input } = toResponsesInput(request.messages);
     const body: Record<string, unknown> = {
         model: endpointModelId(spec, env),
@@ -240,7 +240,7 @@ export async function readResponsesStream(
     };
 }
 
-export function createResponsesProvider(options: { baseUrl: string; apiKey: string; env?: NodeJS.ProcessEnv }): Provider {
+export function createResponsesProvider(options: { baseUrl: string; apiKey: string; env?: Record<string, string | undefined> }): Provider {
     const { baseUrl, apiKey } = options;
     const env = options.env ?? process.env;
     const url = `${baseUrl}/responses`;

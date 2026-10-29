@@ -86,7 +86,7 @@ export function buildChatBody(
     request: ChatCallRequest,
     spec: ModelSpec,
     quirks: ChatWireQuirks,
-    env: NodeJS.ProcessEnv = process.env,
+    env: Record<string, string | undefined> = process.env,
 ): Record<string, unknown> {
     const body: Record<string, unknown> = {
         model: endpointModelId(spec, env),
@@ -241,7 +241,7 @@ export function createChatCompletionsProvider(options: {
     baseUrl: string;
     apiKey: string;
     quirks: ChatWireQuirks;
-    env?: NodeJS.ProcessEnv;
+    env?: Record<string, string | undefined>;
 }): Provider {
     const { id, baseUrl, apiKey, quirks } = options;
     const env = options.env ?? process.env;

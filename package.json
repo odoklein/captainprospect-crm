@@ -14,6 +14,7 @@
     "test:list-health": "tsx --test lib/services/ListHealthService.test.ts lib/services/ListHealthService.sql.pglite.test.ts",
     "test:ai-tools": "tsx --test lib/ai/tools/guard.test.ts",
     "test:assistant": "tsx --test lib/ai/agent/runtime.test.ts lib/ai/agent/verify/verifier.test.ts lib/ai/tools/guard.test.ts lib/assistant/answer.test.ts lib/ai/providers/providers.test.ts lib/ai/usage.test.ts",
+    "test:assistant-v4": "tsx --test lib/ai/tools/truncate.test.ts lib/ai/tools/profiles.test.ts lib/ai/agent/compaction.test.ts lib/assistant/context/pack.test.ts lib/assistant/context/rank.test.ts lib/assistant/context/history.test.ts lib/ai/tools/definitions/memory.test.ts lib/assistant/summary/rolling.test.ts lib/assistant/projet/prompt-stability.test.ts",
     "test:providers": "tsx --test lib/ai/providers/providers.test.ts lib/ai/usage.test.ts",
     "test:assistant-folders": "tsx --test lib/assistant/store/missing.test.ts lib/assistant/store/migration.pglite.test.ts lib/assistant/folders/rules.test.ts lib/assistant/memory/normalize.test.ts",
     "test:agent": "tsx --test lib/agent/cron.test.ts lib/agent/budget.test.ts lib/agent/findings.test.ts lib/agent/notify.test.ts lib/agent/queue.pglite.test.ts lib/agent/watch/rules/client_at_risk.test.ts lib/agent/watch/rules/sdr_under_pace.test.ts lib/ai/tools/guard.test.ts",

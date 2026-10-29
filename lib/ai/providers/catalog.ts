@@ -279,7 +279,7 @@ function stripSlash(url: string): string {
     return url.replace(/\/+$/, "");
 }
 
-export function endpointFor(provider: ProviderId, env: NodeJS.ProcessEnv = process.env): Endpoint {
+export function endpointFor(provider: ProviderId, env: Record<string, string | undefined> = process.env): Endpoint {
     if (provider === "deepseek") {
         const baseUrl = stripSlash(env.DEEPSEEK_BASE_URL?.trim() || DEEPSEEK_DEFAULT_BASE_URL);
         // Residency is declared, never inferred: the operator who points at an
@@ -297,7 +297,7 @@ export function endpointFor(provider: ProviderId, env: NodeJS.ProcessEnv = proce
  * DPA) is the status quo for CRM data; China is public-data only unless the
  * operator says otherwise with AI_ALLOW_CN_RAW_CRM=true.
  */
-export function allowedResidencies(dataClass: DataClass, env: NodeJS.ProcessEnv = process.env): Residency[] {
+export function allowedResidencies(dataClass: DataClass, env: Record<string, string | undefined> = process.env): Residency[] {
     const allowCn = env.AI_ALLOW_CN_RAW_CRM?.trim().toLowerCase() === "true";
     switch (dataClass) {
         case "public":
@@ -310,12 +310,12 @@ export function allowedResidencies(dataClass: DataClass, env: NodeJS.ProcessEnv 
     }
 }
 
-export function residencyAllows(dataClass: DataClass, provider: ProviderId, env: NodeJS.ProcessEnv = process.env): boolean {
+export function residencyAllows(dataClass: DataClass, provider: ProviderId, env: Record<string, string | undefined> = process.env): boolean {
     return allowedResidencies(dataClass, env).includes(endpointFor(provider, env).residency);
 }
 
 /** The wire an OpenAI model is called through; DeepSeek only speaks Chat Completions. */
-export function wireFor(spec: ModelSpec, env: NodeJS.ProcessEnv = process.env): Wire {
+export function wireFor(spec: ModelSpec, env: Record<string, string | undefined> = process.env): Wire {
     if (spec.provider !== "openai") return "openai-chat";
     return env.ASSISTANT_WIRE?.trim().toLowerCase() === "responses" ? "openai-responses" : "openai-chat";
 }
@@ -325,7 +325,7 @@ export function wireFor(spec: ModelSpec, env: NodeJS.ProcessEnv = process.env): 
  * way ("DeepSeek-R1-Distill-Llama-70B" on OVHcloud, deployment names on Azure),
  * so the catalog id is mapped through env when set.
  */
-export function endpointModelId(spec: ModelSpec, env: NodeJS.ProcessEnv = process.env): string {
+export function endpointModelId(spec: ModelSpec, env: Record<string, string | undefined> = process.env): string {
     if (spec.provider === "deepseek") {
         if (spec.reasoning) return env.DEEPSEEK_MODEL_REASONER?.trim() || spec.id;
         return env.DEEPSEEK_MODEL_CHAT?.trim() || spec.id;

@@ -42,6 +42,7 @@ import { toolProfileFor } from "@/lib/ai/tools/profiles";
 import { buildContextPack } from "@/lib/assistant/context/pack";
 import { prismaContextDeps } from "@/lib/assistant/context/prisma";
 import { optional } from "@/lib/assistant/store/missing";
+import { selectHistoryRows, HISTORY_MAX, HISTORY_MIN_TAIL } from "@/lib/assistant/context/history";
 import { maybeSummarize, maybeTitle } from "@/lib/assistant/summary/rolling";
 import { getAssistantSystemPrompt } from "@/lib/assistant/projet/systemPrompt";
 import { getBrand } from "@/lib/brand/server";
@@ -123,20 +124,36 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         );
     }
 
-    const conversation = await prisma.assistantConversation.findUnique({
-        where: { id: body.conversationId },
-        select: {
-            id: true,
-            clientId: true,
-            missionId: true,
-            createdById: true,
-            messageCount: true,
-            folderId: true,
-            kind: true,
-            summary: true,
-            summaryUpToMessageId: true,
+    // The v4 columns (folder, kind, summary) arrive with a migration that is
+    // applied by hand on some instances: without them the turn runs as a plain,
+    // folder-less conversation instead of failing.
+    const conversation = await optional(
+        "chat.conversation",
+        () =>
+            prisma.assistantConversation.findUnique({
+                where: { id: body.conversationId },
+                select: {
+                    id: true,
+                    clientId: true,
+                    missionId: true,
+                    createdById: true,
+                    messageCount: true,
+                    folderId: true,
+                    kind: true,
+                    summary: true,
+                    summaryUpToMessageId: true,
+                },
+            }),
+        async () => {
+            const base = await prisma.assistantConversation.findUnique({
+                where: { id: body.conversationId },
+                select: { id: true, clientId: true, missionId: true, createdById: true, messageCount: true },
+            });
+            return base
+                ? { ...base, folderId: null, kind: "CHAT" as const, summary: null, summaryUpToMessageId: null }
+                : null;
         },
-    });
+    );
     if (!conversation || conversation.createdById !== session.user.id) {
         throw new NotFoundError("Conversation introuvable");
     }
@@ -297,12 +314,32 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
         // Only the recent raw turns travel: what fell out of the window is
         // folded into the rolling summary by the after() job below.
-        const previous = await prisma.assistantMessage.findMany({
-            where: { conversationId: conversation.id, supersededAt: null },
-            orderBy: { createdAt: "desc" },
-            take: pack.historyWindow,
-            select: { role: true, content: true, action: true, trace: true },
-        });
+        // With a summary, every message after its cutoff travels (up to
+        // HISTORY_MAX), so nothing falls between the summary and the window.
+        const historyTake = conversation.summary ? HISTORY_MAX : pack.historyWindow;
+        const historySelect = { id: true, role: true, content: true, action: true, trace: true } as const;
+        const newestFirst = await optional(
+            "chat.history",
+            () =>
+                prisma.assistantMessage.findMany({
+                    where: { conversationId: conversation.id, supersededAt: null },
+                    orderBy: { createdAt: "desc" },
+                    take: historyTake,
+                    select: historySelect,
+                }),
+            () =>
+                prisma.assistantMessage.findMany({
+                    where: { conversationId: conversation.id },
+                    orderBy: { createdAt: "desc" },
+                    take: historyTake,
+                    select: historySelect,
+                }),
+        );
+        const previous = selectHistoryRows(
+            [...newestFirst].reverse(),
+            conversation.summaryUpToMessageId,
+            { minTail: Math.min(HISTORY_MIN_TAIL, pack.historyWindow), max: historyTake },
+        ).reverse();
 
         const history: ChatTurn[] = previous
             .reverse()

@@ -10,7 +10,7 @@
 import { DEEPSEEK_CHAT_QUIRKS, createChatCompletionsProvider } from "./openai-chat";
 import type { Provider } from "./types";
 
-export function createDeepSeekProvider(options: { apiKey: string; baseUrl: string; env?: NodeJS.ProcessEnv }): Provider {
+export function createDeepSeekProvider(options: { apiKey: string; baseUrl: string; env?: Record<string, string | undefined> }): Provider {
     return createChatCompletionsProvider({
         id: "deepseek",
         baseUrl: options.baseUrl,

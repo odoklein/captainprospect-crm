@@ -41,6 +41,7 @@ export interface UsageLike {
     outputTokens?: number;
     completionTokens?: number;
     reasoningTokens?: number;
+    totalTokens?: number;
 }
 
 const round6 = (n: number) => Math.round(n * 1_000_000) / 1_000_000;
