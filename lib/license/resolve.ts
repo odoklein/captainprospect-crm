@@ -18,8 +18,9 @@ export type LicenseStatus = (typeof LICENSE_STATUSES)[number];
  *   callVault    call-vault transcripts and recordings (also needs VAULT_API_*), lib/call-vault-client
  *   aiAssistant  the manager assistant, /api/manager/assistant/* (middleware, lib/license/gates)
  *   whiteLabel   editing the brand, writes to /api/manager/brand (middleware, lib/license/gates)
+ *   agent        Captain Agent (background worker, /api/manager/agent/*, worker/agent.ts)
  */
-export const LICENSE_FEATURES = ["callVault", "aiAssistant", "whiteLabel"] as const;
+export const LICENSE_FEATURES = ["callVault", "aiAssistant", "whiteLabel", "agent"] as const;
 export type LicenseFeature = (typeof LICENSE_FEATURES)[number];
 
 export type LicenseValues = {
@@ -37,7 +38,7 @@ export const DEFAULT_LICENSE: LicenseValues = {
     status: "ACTIVE",
     plan: null,
     seatLimit: null,
-    features: { callVault: true, aiAssistant: true, whiteLabel: true },
+    features: { callVault: true, aiAssistant: true, whiteLabel: true, agent: true },
     aiMonthlyQuota: null,
     suspendedReason: null,
     updatedAt: null,

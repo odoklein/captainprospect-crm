@@ -40,6 +40,19 @@ COPY prisma ./prisma
 RUN npx prisma generate && npx prisma version
 CMD ["npx", "tsx", "prisma/migrate-instance.ts"]
 
+# Captain Agent worker: `docker build --target agent-worker -t crm-agent .`, one
+# container per agency next to the runtime one (same env file, no domain). The
+# runtime image is Next standalone and ships no lib/** sources, so the worker is
+# built like `migrate`: full sources on top of deps, run with tsx.
+FROM deps AS agent-worker
+WORKDIR /app
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
+ENV NODE_ENV=production
+COPY . .
+RUN npx prisma generate
+CMD ["npx", "tsx", "worker/agent.ts"]
+
 FROM node:20-slim AS build
 WORKDIR /app
 RUN apt-get update \
