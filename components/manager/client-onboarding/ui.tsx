@@ -222,7 +222,8 @@ export function SourcePeek({ text, title = "Récap source" }: { text: string; ti
                 <ChevronDown className={cn("size-4 text-ink-3 transition-transform", open && "rotate-180")} aria-hidden />
             </button>
             {open && (
-                <div className="max-h-72 overflow-y-auto border-t border-line px-4 py-3">
+                // No inner scroll: the wizard body already scrolls, and a scroll box inside it read as a second scrollbar.
+                <div className="border-t border-line px-4 py-3">
                     <p className="whitespace-pre-wrap text-xs leading-relaxed text-ink-2">{text}</p>
                 </div>
             )}

@@ -21,6 +21,7 @@ import {
 } from '@/lib/onboarding/client-create';
 import { parisDayOf } from '@/lib/onboarding/checklist-template';
 import { startChecklist } from '@/lib/onboarding/checklist-service';
+import { NOTETAKER_IDS } from '@/lib/notetakers/catalog';
 
 // ============================================
 // SCHEMAS
@@ -82,7 +83,8 @@ const createClientSchema = z.object({
     // Leexi import audit trail
     leexiImport: z.object({
         leexiCallId: z.string().optional(),
-        source: z.enum(['api', 'paste', 'webhook']),
+        // 'api' = Leexi; another note-taker's id when the call came from it.
+        source: z.enum(['api', 'paste', 'webhook', ...NOTETAKER_IDS]),
         rawRecap: z.string(),
         callTitle: z.string().optional(),
         callDate: z.string().optional().nullable(),

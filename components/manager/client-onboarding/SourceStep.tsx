@@ -1,19 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { ClipboardPaste, Clock, ExternalLink, Mic, PenLine, RefreshCw, Search, Users } from "lucide-react";
+import { NotetakerLogo, NotetakerLogoStack } from "@/components/notetakers/NotetakerLogo";
 import { Badge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import { Callout } from "@/components/ui/Callout";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Spinner } from "@/components/ui/Spinner";
 import { FIELD_BASE, FOCUS_RING } from "@/components/ui/recipes";
+import { NOTETAKER_IDS } from "@/lib/notetakers/catalog";
+import { NOTETAKER_GUIDES, NOTETAKER_HOW_IT_WORKS, notetakerSettingsHref } from "@/lib/notetakers/guide";
 import { cn } from "@/lib/utils";
 import type { SourceMode } from "./form";
 import { SourcePeek } from "./ui";
 
 // ============================================
-// TYPES (shapes of /api/leexi/calls and /api/leexi/calls/[id])
+// TYPES (shapes of /api/notetakers/[provider]/calls and …/calls/[id];
+// Leexi's own fields — deal, sales playbook — stay empty for the others)
 // ============================================
 
 export interface LeexiCallItem {
@@ -37,10 +42,24 @@ export interface LeexiCallLoaded {
     call: LeexiCallItem & { summary: string; salesPlaybook: string; followUpTasks: string[]; hasTranscript: boolean };
     recapText: string;
     websiteHint: string;
+    /** Note-taker the call comes from (none in drafts saved before the other note-takers: Leexi). */
+    provider?: NotetakerChoice;
 }
 
+/** A meeting recorder (Leexi, Grain, Fireflies…). */
+export interface NotetakerChoice {
+    id: string;
+    label: string;
+}
+
+interface NotetakerStatus extends NotetakerChoice {
+    configured: boolean;
+}
+
+export const LEEXI: NotetakerChoice = { id: "leexi", label: "Leexi" };
+
 const MODES: Array<{ value: SourceMode; title: string; text: string; icon: typeof Mic }> = [
-    { value: "leexi", title: "Appel Leexi", text: "Choisir l'appel de closing : résumé, playbook et tâches Leexi sont lus par l'IA.", icon: Mic },
+    { value: "leexi", title: "Appel enregistré", text: "Choisissez l'appel de closing : l'IA lit le résumé, les tâches et au besoin la transcription.", icon: Mic },
     { value: "paste", title: "Coller un récap", text: "Notes d'appel, compte rendu, thread email : l'IA en tire la fiche et le playbook.", icon: ClipboardPaste },
     { value: "manual", title: "Saisie manuelle", text: "Remplir la fiche soi-même, sans IA.", icon: PenLine },
 ];
@@ -54,6 +73,9 @@ const PERIODS = [
 type Period = (typeof PERIODS)[number]["value"];
 
 const MIN_RECAP = 20;
+// The call list grows in the wizard body (no scroll box of its own: two nested scrollbars),
+// so it shows a page of calls at a time.
+const CALLS_PAGE = 6;
 
 function fmtDate(iso: string | null): string {
     if (!iso) return "";
@@ -83,6 +105,9 @@ function customerLine(call: LeexiCallItem): string {
 interface SourceStepProps {
     mode: SourceMode | null;
     onModeChange: (mode: SourceMode) => void;
+    /** Note-taker of the « Appel enregistré » source. */
+    provider: NotetakerChoice;
+    onProviderChange: (provider: NotetakerChoice) => void;
     recapText: string;
     onRecapChange: (text: string) => void;
     loadedCall: LeexiCallLoaded | null;
@@ -121,6 +146,7 @@ export function SourceStep(props: SourceStepProps) {
                             </span>
                             <span className="text-sm font-semibold text-ink">{m.title}</span>
                             <span className="text-xs leading-relaxed text-ink-3">{m.text}</span>
+                            {m.value === "leexi" && <NotetakerLogoStack ids={NOTETAKER_IDS} max={5} className="mt-auto pt-1" />}
                         </button>
                     );
                 })}
@@ -132,7 +158,7 @@ export function SourceStep(props: SourceStepProps) {
                 </Callout>
             )}
 
-            {mode === "leexi" && <LeexiPanel {...props} />}
+            {mode === "leexi" && <RecordedCallSource {...props} />}
             {mode === "paste" && <PastePanel {...props} />}
             {mode === "manual" && (
                 <Callout tone="neutral" icon={PenLine}>
@@ -161,7 +187,7 @@ function PastePanel({ recapText, onRecapChange }: SourceStepProps) {
                 rows={12}
                 autoFocus
                 placeholder={"Collez le compte rendu de l'appel de closing : contexte, cible, volumes, objections, contacts, date de démarrage…"}
-                className={cn(FIELD_BASE, "min-h-56 resize-y px-3.5 py-3 text-sm leading-relaxed")}
+                className={cn(FIELD_BASE, "field-sizing-content min-h-56 resize-y px-3.5 py-3 text-sm leading-relaxed")}
             />
             <p className={cn("text-xs", length > 0 && length < MIN_RECAP ? "text-danger-ink" : "text-ink-3")}>
                 {length.toLocaleString("fr-FR")} caractères
@@ -172,10 +198,206 @@ function PastePanel({ recapText, onRecapChange }: SourceStepProps) {
 }
 
 // ============================================
-// LEEXI
+// RECORDED CALL — pick the note-taker, then the call
 // ============================================
 
-function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLoadCallId, onModeChange }: SourceStepProps) {
+function RecordedCallSource(props: SourceStepProps) {
+    const { provider, onProviderChange, onModeChange } = props;
+    const [tools, setTools] = useState<NotetakerStatus[] | null>(null);
+    const [loadError, setLoadError] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const aliveRef = useRef(true);
+
+    const load = useCallback(async () => {
+        setChecking(true);
+        try {
+            const json = await fetch("/api/notetakers").then((r) => r.json());
+            if (!aliveRef.current) return;
+            if (json?.success && Array.isArray(json.data)) setTools(json.data as NotetakerStatus[]);
+            else setLoadError(true);
+        } catch {
+            if (aliveRef.current) setLoadError(true);
+        } finally {
+            if (aliveRef.current) setChecking(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        aliveRef.current = true;
+        void load();
+        return () => {
+            aliveRef.current = false;
+        };
+    }, [load]);
+
+    const connected = tools?.filter((t) => t.configured) ?? [];
+    const others = tools?.filter((t) => !t.configured) ?? [];
+
+    // The tool picked last may have been disconnected since: fall back to the first connected one.
+    useEffect(() => {
+        if (!tools || connected.length === 0 || connected.some((t) => t.id === provider.id)) return;
+        onProviderChange({ id: connected[0].id, label: connected[0].label });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tools]);
+
+    // The key goes in from a Paramètres tab: coming back to this one checks again.
+    const noneConnected = !!tools && connected.length === 0;
+    useEffect(() => {
+        if (!noneConnected) return;
+        const onFocus = () => void load();
+        window.addEventListener("focus", onFocus);
+        return () => window.removeEventListener("focus", onFocus);
+    }, [noneConnected, load]);
+
+    if (loadError) {
+        // Leexi worked before the other tools existed: keep it usable.
+        return <CallsPanel key={LEEXI.id} {...props} provider={LEEXI} />;
+    }
+    if (!tools) {
+        return (
+            <div className="flex items-center justify-center gap-2 rounded-panel border border-line px-4 py-10 text-sm text-ink-3">
+                <Spinner /> Outils d&apos;enregistrement…
+            </div>
+        );
+    }
+    if (connected.length === 0) {
+        return <ConnectNotetaker tools={tools} checking={checking} onRecheck={() => void load()} onPaste={() => onModeChange("paste")} />;
+    }
+
+    const current = connected.find((t) => t.id === provider.id) ?? connected[0];
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                {connected.length > 1 ? (
+                    <SegmentedControl
+                        ariaLabel="Outil d'enregistrement"
+                        options={connected.map((t) => ({
+                            value: t.id,
+                            label: (
+                                <span className="inline-flex items-center gap-1.5">
+                                    <NotetakerLogo id={t.id} size="xs" />
+                                    {t.label}
+                                </span>
+                            ),
+                        }))}
+                        value={current.id}
+                        onChange={(id) => {
+                            const t = connected.find((c) => c.id === id);
+                            if (t) onProviderChange({ id: t.id, label: t.label });
+                        }}
+                        size="sm"
+                    />
+                ) : (
+                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-ink-2">
+                        <NotetakerLogo id={current.id} size="sm" />
+                        Appels {current.label}
+                    </span>
+                )}
+                {others.length > 0 && (
+                    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
+                        Aussi compatibles
+                        <NotetakerLogoStack ids={others.map((t) => t.id)} max={4} />
+                        <Link
+                            href={notetakerSettingsHref()}
+                            target="_blank"
+                            rel="noopener"
+                            className={cn("inline-flex items-center gap-1 rounded-md font-medium text-link hover:underline", FOCUS_RING)}
+                        >
+                            Connecter un autre outil <ExternalLink className="size-3" aria-hidden />
+                        </Link>
+                    </span>
+                )}
+            </div>
+            <CallsPanel key={current.id} {...props} provider={{ id: current.id, label: current.label }} />
+        </div>
+    );
+}
+
+/** No note-taker connected yet: what the import does, and one click per tool to its key in Paramètres. */
+function ConnectNotetaker({
+    tools,
+    checking,
+    onRecheck,
+    onPaste,
+}: {
+    tools: NotetakerStatus[];
+    checking: boolean;
+    onRecheck: () => void;
+    onPaste: () => void;
+}) {
+    return (
+        <div className="space-y-4 rounded-panel border border-line bg-surface p-5">
+            <div className="space-y-1">
+                <p className="text-sm font-semibold text-ink">Connectez l&apos;outil qui enregistre vos appels de closing</p>
+                <p className="max-w-2xl text-xs leading-relaxed text-ink-3">
+                    Une clé API, ajoutée une fois pour toute l&apos;agence. Vos appels récents s&apos;affichent ensuite ici : vous choisissez
+                    le bon, l&apos;IA pré-remplit la fiche client, la cible et le discours à partir du résumé, des tâches et au besoin de la
+                    transcription. Il ne reste qu&apos;à vérifier.
+                </p>
+            </div>
+
+            <ol className="grid gap-2 sm:grid-cols-3">
+                {NOTETAKER_HOW_IT_WORKS.map((step, i) => (
+                    <li key={step} className="flex items-start gap-2 rounded-control bg-surface-2 px-3 py-2.5 text-xs leading-relaxed text-ink-2">
+                        <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-50 text-[11px] font-semibold text-primary-700">
+                            {i + 1}
+                        </span>
+                        {step}
+                    </li>
+                ))}
+            </ol>
+
+            <ul className="grid gap-2 sm:grid-cols-2" aria-label="Outils compatibles">
+                {tools.map((t) => {
+                    const guide = NOTETAKER_GUIDES[t.id as keyof typeof NOTETAKER_GUIDES];
+                    return (
+                        <li key={t.id}>
+                            <Link
+                                href={notetakerSettingsHref(t.id)}
+                                target="_blank"
+                                rel="noopener"
+                                className={cn(
+                                    "group flex items-center gap-3 rounded-control border border-line px-3 py-2.5 transition-colors hover:border-line-strong hover:bg-surface-2",
+                                    FOCUS_RING,
+                                )}
+                            >
+                                <NotetakerLogo id={t.id} size="md" />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-medium text-ink">{t.label}</span>
+                                    <span className="block text-xs leading-snug text-ink-3">{guide?.tagline}</span>
+                                    {guide?.plan && <span className="mt-0.5 block text-[11px] leading-snug text-ink-4">API : {guide.plan}</span>}
+                                </span>
+                                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-ink-3 group-hover:text-link">
+                                    Connecter <ExternalLink className="size-3" aria-hidden />
+                                </span>
+                            </Link>
+                        </li>
+                    );
+                })}
+            </ul>
+
+            <div className="flex flex-col gap-3 border-t border-line-subtle pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-ink-3">
+                    La clé s&apos;ajoute dans Paramètres › Intégrations, dans un nouvel onglet. Revenez ici : la liste se met à jour.
+                </p>
+                <div className="flex shrink-0 gap-2">
+                    <Button size="xs" variant="ghost" onClick={onRecheck} isLoading={checking} leftIcon={<RefreshCw className="size-3.5" aria-hidden />}>
+                        Vérifier à nouveau
+                    </Button>
+                    <Button size="xs" variant="secondary" onClick={onPaste}>
+                        Coller le récap à la place
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CallsPanel({ provider, recapText, onRecapChange, loadedCall, onCallLoaded, autoLoadCallId, onModeChange }: SourceStepProps) {
+    const label = provider.label;
+    const base = `/api/notetakers/${encodeURIComponent(provider.id)}/calls`;
+    // A call loaded from another tool stays loaded, but is not this list's selection.
+    const loadedHere = loadedCall && (loadedCall.provider?.id ?? LEEXI.id) === provider.id ? loadedCall : null;
     const [query, setQuery] = useState("");
     const [period, setPeriod] = useState<Period>("180");
     const [calls, setCalls] = useState<LeexiCallItem[]>([]);
@@ -185,6 +407,7 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
     const [warning, setWarning] = useState<string | null>(null);
     const [loadingId, setLoadingId] = useState<string | null>(null);
     const [editText, setEditText] = useState(false);
+    const [shown, setShown] = useState(CALLS_PAGE);
     const reqSeq = useRef(0);
 
     const search = useCallback(async (q: string, days: Period) => {
@@ -197,15 +420,16 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
                 params.set("q", q.trim());
                 params.set("days", days);
             }
-            const res = await fetch(`/api/leexi/calls?${params}`);
+            const res = await fetch(`${base}?${params}`);
             const json = await res.json();
             if (seq !== reqSeq.current) return;
             if (!json.success) {
-                setError(json.error || "Leexi est indisponible.");
+                setError(json.error || `${label} est indisponible.`);
                 setCalls([]);
                 return;
             }
             setCalls(json.data.calls ?? []);
+            setShown(CALLS_PAGE);
             setWarning(json.data.warning ?? null);
             setSearched({ q: q.trim(), scanned: json.data.scanned });
         } catch {
@@ -213,21 +437,21 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
         } finally {
             if (seq === reqSeq.current) setLoading(false);
         }
-    }, []);
+    }, [base, label]);
 
     const loadCall = useCallback(
         async (id: string) => {
             setLoadingId(id);
             setError(null);
             try {
-                const res = await fetch(`/api/leexi/calls/${encodeURIComponent(id)}`);
+                const res = await fetch(`${base}/${encodeURIComponent(id)}`);
                 const json = await res.json();
                 if (!json.success) {
                     setError(json.error || "Impossible de charger cet appel.");
                     return;
                 }
                 if (json.data.warning) setWarning(json.data.warning);
-                onCallLoaded({ call: json.data.call, recapText: json.data.recapText, websiteHint: json.data.websiteHint ?? "" });
+                onCallLoaded({ call: json.data.call, recapText: json.data.recapText, websiteHint: json.data.websiteHint ?? "", provider });
                 setEditText(false);
             } catch {
                 setError("Impossible de joindre le serveur.");
@@ -235,13 +459,13 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
                 setLoadingId(null);
             }
         },
-        [onCallLoaded],
+        [base, onCallLoaded, provider],
     );
 
-    // Recent calls on open; a call passed by the clients page loads directly.
+    // Recent calls on open; a call passed by the clients page (always Leexi) loads directly.
     useEffect(() => {
         void search("", "180");
-        if (autoLoadCallId && autoLoadCallId !== loadedCall?.call.id) void loadCall(autoLoadCallId);
+        if (provider.id === LEEXI.id && autoLoadCallId && autoLoadCallId !== loadedCall?.call.id) void loadCall(autoLoadCallId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -258,7 +482,7 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
 
     return (
         <div className="space-y-4">
-            {warning && <Callout tone="warning" title="Clé Leexi à mettre à jour">{warning}</Callout>}
+            {warning && <Callout tone="warning" title={`Clé ${label} à mettre à jour`}>{warning}</Callout>}
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
@@ -273,7 +497,7 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
                                 void search(query, period);
                             }
                         }}
-                        aria-label="Rechercher un appel Leexi"
+                        aria-label={`Rechercher un appel ${label}`}
                         placeholder="Entreprise, participant, email, deal…"
                         className={cn(FIELD_BASE, "h-10 pl-10 pr-3.5 text-sm")}
                     />
@@ -290,7 +514,7 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
             {error && (
                 <Callout
                     tone="danger"
-                    title="Leexi ne répond pas comme prévu"
+                    title={`${label} ne répond pas comme prévu`}
                     action={
                         <Button size="xs" variant="secondary" onClick={() => onModeChange("paste")}>
                             Coller le récap à la place
@@ -305,7 +529,7 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
                 <div className="flex items-center justify-between gap-2 border-b border-line-subtle bg-surface-2 px-4 py-2 text-xs text-ink-3">
                     <span>
                         {loading
-                            ? "Recherche dans Leexi…"
+                            ? `Recherche dans ${label}…`
                             : searched?.q
                                 ? `${calls.length} appel${calls.length > 1 ? "s" : ""} pour « ${searched.q} »${searched.scanned ? ` · ${searched.scanned} parcourus` : ""}`
                                 : `${calls.length} appels récents`}
@@ -319,7 +543,7 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
                         Actualiser
                     </button>
                 </div>
-                <ul className="max-h-[300px] divide-y divide-line-subtle overflow-y-auto" aria-busy={loading}>
+                <ul className="divide-y divide-line-subtle" aria-busy={loading}>
                     {loading && calls.length === 0 && (
                         <li className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-ink-3">
                             <Spinner /> Chargement des appels…
@@ -330,8 +554,8 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
                             Aucun appel trouvé{searched?.q ? " : élargissez la période ou essayez un autre mot." : "."}
                         </li>
                     )}
-                    {calls.map((call) => {
-                        const selected = loadedCall?.call.id === call.id;
+                    {calls.slice(0, shown).map((call) => {
+                        const selected = loadedHere?.call.id === call.id;
                         return (
                             <li key={call.id}>
                                 <button
@@ -385,59 +609,71 @@ function LeexiPanel({ recapText, onRecapChange, loadedCall, onCallLoaded, autoLo
                         );
                     })}
                 </ul>
+                {calls.length > shown && (
+                    <button
+                        type="button"
+                        onClick={() => setShown((n) => n + CALLS_PAGE)}
+                        className={cn("w-full border-t border-line-subtle bg-surface-2 px-4 py-2 text-xs font-medium text-ink-3 hover:text-ink", FOCUS_RING, "focus-visible:ring-inset focus-visible:ring-offset-0")}
+                    >
+                        Afficher {Math.min(CALLS_PAGE, calls.length - shown)} appel{Math.min(CALLS_PAGE, calls.length - shown) > 1 ? "s" : ""} de plus · {calls.length - shown} restant{calls.length - shown > 1 ? "s" : ""}
+                    </button>
+                )}
             </div>
 
-            {loadedCall && (
+            {loadedHere && (
                 <div className="space-y-3 rounded-panel border border-primary-200 bg-primary-50/60 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                            <p className="text-sm font-semibold text-ink">{loadedCall.call.title}</p>
-                            <p className="mt-0.5 text-xs text-ink-3">
-                                {[fmtDate(loadedCall.call.date), fmtDuration(loadedCall.call.duration), loadedCall.call.users.length ? `avec ${loadedCall.call.users.join(", ")}` : ""]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                            </p>
+                        <div className="flex min-w-0 items-start gap-2.5">
+                            <NotetakerLogo id={provider.id} size="sm" className="mt-0.5" />
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-ink">{loadedHere.call.title}</p>
+                                <p className="mt-0.5 text-xs text-ink-3">
+                                    {[fmtDate(loadedHere.call.date), fmtDuration(loadedHere.call.duration), loadedHere.call.users.length ? `avec ${loadedHere.call.users.join(", ")}` : ""]
+                                        .filter(Boolean)
+                                        .join(" · ")}
+                                </p>
+                            </div>
                         </div>
-                        {loadedCall.call.url && (
+                        {loadedHere.call.url && (
                             <a
-                                href={loadedCall.call.url}
+                                href={loadedHere.call.url}
                                 target="_blank"
                                 rel="noreferrer"
                                 className={cn("inline-flex items-center gap-1 rounded-md text-xs font-medium text-link hover:underline", FOCUS_RING)}
                             >
-                                Ouvrir dans Leexi <ExternalLink className="size-3" aria-hidden />
+                                Ouvrir dans {label} <ExternalLink className="size-3" aria-hidden />
                             </a>
                         )}
                     </div>
-                    {loadedCall.call.importedClient && (
+                    {loadedHere.call.importedClient && (
                         <Callout tone="info">
-                            Cet appel a déjà servi à créer {loadedCall.call.importedClient.name}. Vérifiez qu&apos;il ne s&apos;agit pas du même client.
+                            Cet appel a déjà servi à créer {loadedHere.call.importedClient.name}. Vérifiez qu&apos;il ne s&apos;agit pas du même client.
                         </Callout>
                     )}
                     <div className="flex flex-wrap gap-1.5 text-xs">
-                        <Badge variant={loadedCall.call.summary ? "success" : "warning"} dot>
-                            {loadedCall.call.summary ? "Résumé Leexi" : "Pas de résumé : transcription utilisée"}
+                        <Badge variant={loadedHere.call.summary ? "success" : "warning"} dot>
+                            {loadedHere.call.summary ? `Résumé ${label}` : loadedHere.call.hasTranscript ? "Pas de résumé : transcription utilisée" : "Ni résumé ni transcription"}
                         </Badge>
-                        {loadedCall.call.salesPlaybook && <Badge variant="success" dot>Playbook Leexi</Badge>}
-                        {loadedCall.call.followUpTasks.length > 0 && (
+                        {loadedHere.call.salesPlaybook && <Badge variant="success" dot>Playbook Leexi</Badge>}
+                        {loadedHere.call.followUpTasks.length > 0 && (
                             <Badge variant="default" dot>
-                                {loadedCall.call.followUpTasks.length} tâche{loadedCall.call.followUpTasks.length > 1 ? "s" : ""} de suivi
+                                {loadedHere.call.followUpTasks.length} tâche{loadedHere.call.followUpTasks.length > 1 ? "s" : ""} de suivi
                             </Badge>
                         )}
-                        {loadedCall.call.customers.length > 0 && (
+                        {loadedHere.call.customers.length > 0 && (
                             <Badge variant="default" dot>
-                                {loadedCall.call.customers.length} participant{loadedCall.call.customers.length > 1 ? "s" : ""} client
+                                {loadedHere.call.customers.length} participant{loadedHere.call.customers.length > 1 ? "s" : ""} client
                             </Badge>
                         )}
                     </div>
-                    {loadedCall.call.preview && <p className="line-clamp-3 text-xs leading-relaxed text-ink-2">{loadedCall.call.preview}</p>}
+                    {loadedHere.call.preview && <p className="line-clamp-3 text-xs leading-relaxed text-ink-2">{loadedHere.call.preview}</p>}
                     {editText ? (
                         <textarea
                             value={recapText}
                             onChange={(e) => onRecapChange(e.target.value)}
                             rows={10}
                             aria-label="Texte envoyé à l'IA"
-                            className={cn(FIELD_BASE, "resize-y px-3.5 py-2.5 text-xs leading-relaxed")}
+                            className={cn(FIELD_BASE, "field-sizing-content min-h-40 resize-y px-3.5 py-2.5 text-xs leading-relaxed")}
                         />
                     ) : (
                         <SourcePeek text={recapText} title="Texte envoyé à l'IA" />

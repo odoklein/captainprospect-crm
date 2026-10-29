@@ -27,7 +27,7 @@ import {
 import { ClientStep } from "./ClientStep";
 import { LaunchStep } from "./LaunchStep";
 import { PitchStep } from "./PitchStep";
-import { SourceStep, type LeexiCallLoaded } from "./SourceStep";
+import { LEEXI, SourceStep, type LeexiCallLoaded, type NotetakerChoice } from "./SourceStep";
 
 // ============================================
 // STEPS & DRAFT
@@ -42,16 +42,22 @@ const STEPS = [
 type StepId = (typeof STEPS)[number]["id"];
 
 const MODE_SUBTITLE: Record<SourceMode, string> = {
-    leexi: "Depuis un appel Leexi",
+    leexi: "Depuis un appel enregistré",
     paste: "Depuis un récap collé",
     manual: "Saisie manuelle",
 };
+
+function modeSubtitle(mode: SourceMode, provider: NotetakerChoice): string {
+    return mode === "leexi" ? `Depuis un appel ${provider.label}` : MODE_SUBTITLE[mode];
+}
 
 const DRAFT_KEY = "cp:client-onboarding-draft:v1";
 const DRAFT_MAX_AGE_MS = 14 * 86_400_000;
 
 interface WizardState {
     mode: SourceMode | null;
+    /** Note-taker of the « Appel enregistré » source (absent from older drafts: Leexi). */
+    provider?: NotetakerChoice;
     stepIndex: number;
     maxVisited: number;
     form: OnboardingForm;
@@ -151,6 +157,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, onOpenClient
     const today = useMemo(() => parisDayOf(new Date()), []);
     const [state, setState] = useState<WizardState>(() => freshState(today));
     const { mode, stepIndex, maxVisited, form, recapText, loadedCall, playbook, aiValues, extractedFrom } = state;
+    const provider = state.provider ?? LEEXI;
     const patch = useCallback((p: Partial<WizardState>) => setState((s) => ({ ...s, ...p })), []);
 
     const [autoLoadCallId, setAutoLoadCallId] = useState<string | null>(null);
@@ -174,7 +181,8 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, onOpenClient
 
     const reset = useCallback(() => {
         abortRef.current?.abort();
-        setState(freshState(today));
+        // The note-taker is the agency's tool, not this client's: keep it.
+        setState((s) => ({ ...freshState(today), provider: s.provider }));
         setErrors({});
         setExtractError(null);
         setSubmitError(null);
@@ -191,7 +199,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, onOpenClient
             patch({ mode: "paste", recapText: initialRecapText });
         } else if (initialLeexiCallId) {
             reset();
-            patch({ mode: "leexi" });
+            patch({ mode: "leexi", provider: LEEXI });
             setAutoLoadCallId(initialLeexiCallId);
         } else if (!state.mode && !result) {
             setDraftOffer(readDraft());
@@ -288,7 +296,13 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, onOpenClient
                 mode: mode ?? "manual",
                 recapText: extractedFrom ?? recapText,
                 leexiCall: mode === "leexi" && loadedCall
-                    ? { id: loadedCall.call.id, title: loadedCall.call.title, date: loadedCall.call.date, duration: loadedCall.call.duration }
+                    ? {
+                          id: loadedCall.call.id,
+                          title: loadedCall.call.title,
+                          date: loadedCall.call.date,
+                          duration: loadedCall.call.duration,
+                          provider: loadedCall.provider?.id ?? LEEXI.id,
+                      }
                     : null,
             });
             const res = await fetch("/api/clients", {
@@ -382,7 +396,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, onOpenClient
                 </>
             }
         >
-            {draftOffer.form.name ? `« ${draftOffer.form.name} »` : MODE_SUBTITLE[draftOffer.mode!]}, enregistré {ago(draftOffer.savedAt)}.
+            {draftOffer.form.name ? `« ${draftOffer.form.name} »` : modeSubtitle(draftOffer.mode!, draftOffer.provider ?? LEEXI)}, enregistré {ago(draftOffer.savedAt)}.
         </Callout>
     ) : null;
 
@@ -405,7 +419,7 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, onOpenClient
                 <div className="min-w-0">
                     <h2 className="text-lg font-semibold tracking-tight text-ink">{result ? "Client créé" : "Nouveau client"}</h2>
                     <p className="mt-0.5 text-sm text-ink-3">
-                        {result ? result.clientName : mode ? MODE_SUBTITLE[mode] : "Choisissez d'où partir : l'IA pré-remplit la fiche, vous vérifiez."}
+                        {result ? result.clientName : mode ? modeSubtitle(mode, loadedCall?.provider ?? provider) : "Choisissez d'où partir : l'IA pré-remplit la fiche, vous vérifiez."}
                     </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
@@ -478,6 +492,8 @@ export function ClientOnboardingModal({ isOpen, onClose, onSuccess, onOpenClient
                                     setDraftOffer(null);
                                     patch({ mode: m, recapText: m === "leexi" && loadedCall ? loadedCall.recapText : recapText });
                                 }}
+                                provider={provider}
+                                onProviderChange={(p) => patch({ provider: p })}
                                 recapText={recapText}
                                 onRecapChange={(t) => patch({ recapText: t })}
                                 loadedCall={loadedCall}

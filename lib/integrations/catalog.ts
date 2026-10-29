@@ -87,7 +87,7 @@ export const INTEGRATION_KEYS = [
         group: "meetings",
         usedFor: "Importer un enregistrement Claap (points clés, actions, transcription) dans « Nouveau client »",
         placeholder: "cla_…",
-        docsUrl: "https://docs.claap.io/api-reference/introduction",
+        docsUrl: "https://help.claap.io/en/articles/11833785-using-claap-s-api",
     },
     {
         name: "GRAIN_API_KEY",
@@ -95,7 +95,7 @@ export const INTEGRATION_KEYS = [
         group: "meetings",
         usedFor: "Importer un appel Grain (notes IA, transcription) dans « Nouveau client »",
         placeholder: "grain_pat_…",
-        docsUrl: "https://grain.com/app/settings/integrations?tab=api",
+        docsUrl: "https://grain.com/app/settings/account/integrations/personal_api",
     },
     {
         name: "FIREFLIES_API_KEY",

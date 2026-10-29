@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { BellRing, Key, Link2, Mail, Palette, Plug, ShieldCheck, Target, User } from "lucide-react";
 import { SettingsShell, useSettingsSection, type SettingsSectionDef } from "@/components/settings/SettingsUI";
+import { LEEXI_SETTINGS_ANCHOR } from "@/lib/notetakers/guide";
 import {
     AccountHeaderPills, DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
 } from "@/components/settings/AccountPanels";
@@ -24,7 +25,7 @@ const SECTIONS: SettingsSectionDef[] = [
     { id: "identite", label: "Identité", hint: "Nom, couleurs, logos", icon: Palette, tone: "violet", group: "Plateforme" },
     { id: "equipe", label: "Équipe & objectifs", hint: "Quota d'appels, statuts", icon: Target, tone: "emerald", group: "Plateforme" },
     { id: "emails", label: "Emails & modèles", hint: "Expéditeur, email de RDV", icon: Mail, tone: "indigo", group: "Plateforme" },
-    { id: "integrations", label: "Intégrations", hint: "Clés OpenAI, Allo, Leexi…", icon: Link2, tone: "teal", group: "Plateforme" },
+    { id: "integrations", label: "Intégrations", hint: "Clés OpenAI, Allo, enregistreurs…", icon: Link2, tone: "teal", group: "Plateforme" },
     { id: "mcp", label: "Connexion IA (MCP)", hint: "Clé pour ChatGPT, Claude", icon: Plug, tone: "violet", group: "Plateforme" },
     { id: "acces", label: "Accès maître", hint: "Mot de passe maître", icon: Key, tone: "amber", group: "Plateforme" },
 ];
@@ -54,7 +55,9 @@ function ManagerSettings() {
             {active === "integrations" && (
                 <>
                     <IntegrationKeysPanel />
-                    <IntegrationsPanel />
+                    <div id={LEEXI_SETTINGS_ANCHOR} className="scroll-mt-24">
+                        <IntegrationsPanel />
+                    </div>
                 </>
             )}
             {active === "mcp" && <McpPanel />}

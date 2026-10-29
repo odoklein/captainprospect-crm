@@ -20,6 +20,8 @@ import {
     DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SaveBar, SECONDARY_BUTTON, SettingsCard, SettingsLinkRow,
 } from "@/components/settings/SettingsUI";
 import { useBrand } from "@/lib/brand/client";
+import { NotetakerKeyHelp } from "@/components/notetakers/NotetakerKeyHelp";
+import { NotetakerLogo } from "@/components/notetakers/NotetakerLogo";
 
 async function call<T = unknown>(url: string, init?: RequestInit): Promise<T> {
     const res = await fetch(url, init);
@@ -696,9 +698,14 @@ export function IntegrationsPanel() {
                 <Shimmer className="h-28" />
             ) : (
                 <div className="space-y-4">
-                    <p className="text-sm font-medium text-zinc-600 leading-relaxed max-w-2xl">
-                        Les clés sont stockées côté serveur dans la configuration système, jamais dans le navigateur.
-                    </p>
+                    <div className="flex items-start gap-3">
+                        <NotetakerLogo id="leexi" size="md" />
+                        <p className="text-sm font-medium text-zinc-600 leading-relaxed max-w-2xl">
+                            Importez un appel Leexi dans « Nouveau client » (résumé, playbook et tâches lus par l&apos;IA) et créez sessions et
+                            comptes rendus depuis les transcriptions. Les clés restent côté serveur, jamais dans le navigateur.
+                        </p>
+                    </div>
+                    {!enabled && <NotetakerKeyHelp id="leexi" />}
                     {source === "env" && (
                         <Notice tone="amber" icon={AlertTriangle}>
                             <p className="font-bold text-amber-900">Leexi est actuellement configuré via les variables d&apos;environnement.</p>

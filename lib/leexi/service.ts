@@ -162,7 +162,7 @@ export async function staffNames(): Promise<string[]> {
   return staffCache.names;
 }
 
-async function normalizeContext(): Promise<NormalizeContext> {
+export async function normalizeContext(): Promise<NormalizeContext> {
   const [brand, internalNames] = await Promise.all([getBrand(), staffNames()]);
   const domains = [...brand.email.domains];
   try {

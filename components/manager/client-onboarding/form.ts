@@ -5,6 +5,7 @@
 // ============================================
 
 import { emptyPlaybook, type Playbook, type PlaybookContact } from "@/lib/playbook/leexi-types";
+import { notetakerImportId } from "@/lib/notetakers/catalog";
 import { formatObjectionHandling } from "@/lib/onboarding/client-create";
 
 export type SourceMode = "leexi" | "paste" | "manual";
@@ -319,7 +320,8 @@ export function missingItems(form: OnboardingForm): MissingItem[] {
 export interface SourceInfo {
     mode: SourceMode;
     recapText: string;
-    leexiCall?: { id: string; title: string; date: string | null; duration: number } | null;
+    /** The recorded call the recap comes from; `provider` = note-taker id (none: Leexi). */
+    leexiCall?: { id: string; title: string; date: string | null; duration: number; provider?: string } | null;
 }
 
 function cleanList(list: string[]): string[] {
@@ -410,9 +412,11 @@ export function buildCreatePayload(form: OnboardingForm, extracted: Playbook | n
         checklistStartDay: form.startChecklist ? form.checklistStartDay || null : null,
     };
     if (source.mode !== "manual" && source.recapText.trim()) {
+        const provider = source.leexiCall?.provider ?? "leexi";
         payload.leexiImport = {
-            leexiCallId: source.leexiCall?.id,
-            source: source.mode === "leexi" ? "api" : "paste",
+            // LeexiCallImport keeps every note-taker: other tools' ids are prefixed so they never collide.
+            leexiCallId: source.leexiCall ? notetakerImportId(provider, source.leexiCall.id) : undefined,
+            source: source.mode !== "leexi" ? "paste" : provider === "leexi" ? "api" : provider,
             rawRecap: source.recapText,
             callTitle: source.leexiCall?.title,
             callDate: source.leexiCall?.date ?? null,
