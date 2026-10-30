@@ -13,6 +13,7 @@ import {
     USER_ROLE_LABELS,
     formatTicketRef,
 } from "@/lib/tickets/constants";
+import { ticketAttachmentUrl } from "@/lib/tickets/attachments";
 import type { TicketDetail, TicketComment, TicketHistoryEntry } from "./types";
 
 interface TicketThreadProps {
@@ -249,18 +250,40 @@ export function TicketThread({ ticket, currentUserId, canComment, onRefresh }: T
 
                 {ticket.attachments.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                        {ticket.attachments.map((attachment) => (
-                            <a
-                                key={attachment.id}
-                                href={attachment.url ?? "#"}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-slate-300"
-                            >
-                                <Paperclip className="w-3.5 h-3.5" />
-                                {attachment.originalName}
-                            </a>
-                        ))}
+                        {ticket.attachments.map((attachment) => {
+                            const src = ticketAttachmentUrl(ticket.id, attachment.id);
+                            // Screenshots are the point of most tickets: show them
+                            // instead of making the reader open each link.
+                            return attachment.mimeType.startsWith("image/") ? (
+                                <a
+                                    key={attachment.id}
+                                    href={src}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title={attachment.originalName}
+                                    className="block overflow-hidden rounded-xl border border-slate-200 bg-slate-100 hover:border-slate-300"
+                                >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={src}
+                                        alt={attachment.originalName}
+                                        loading="lazy"
+                                        className="h-28 w-auto max-w-[220px] object-cover"
+                                    />
+                                </a>
+                            ) : (
+                                <a
+                                    key={attachment.id}
+                                    href={attachment.url ?? "#"}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-2 px-3 py-2 text-xs text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-slate-300"
+                                >
+                                    <Paperclip className="w-3.5 h-3.5" />
+                                    {attachment.originalName}
+                                </a>
+                            );
+                        })}
                     </div>
                 )}
 

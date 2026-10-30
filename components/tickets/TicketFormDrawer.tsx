@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Modal, ModalFooter, Button, Input, Select, MultiSelect, useToast } from "@/components/ui";
+import { Drawer, Button, Input, Select, MultiSelect, useToast } from "@/components/ui";
 import {
     TICKET_AFFECTED_ROLE_OPTIONS,
     TICKET_CATEGORY_LABELS,
@@ -9,6 +9,8 @@ import {
     TICKET_SCOPE_LABELS,
     USER_ROLE_LABELS,
 } from "@/lib/tickets/constants";
+import { ticketAttachmentUrl } from "@/lib/tickets/attachments";
+import { TicketAttachmentsField, useTicketAttachments } from "./TicketAttachmentsField";
 import type { TicketDetail } from "./types";
 
 interface Option {
@@ -16,7 +18,7 @@ interface Option {
     name: string;
 }
 
-interface TicketFormModalProps {
+interface TicketFormDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     onSaved: () => void;
@@ -33,7 +35,7 @@ const SCOPE_OPTIONS = [
 const PRIORITY_OPTIONS = Object.entries(TICKET_PRIORITY_LABELS).map(([value, label]) => ({ value, label }));
 const ROLE_OPTIONS = TICKET_AFFECTED_ROLE_OPTIONS.map((role) => ({ value: role, label: USER_ROLE_LABELS[role] }));
 
-export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, clients }: TicketFormModalProps) {
+export function TicketFormDrawer({ isOpen, onClose, onSaved, ticket, developers, clients }: TicketFormDrawerProps) {
     const toast = useToast();
     const isEdit = Boolean(ticket);
 
@@ -50,6 +52,7 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
     const [assigneeId, setAssigneeId] = useState("");
     const [dueDate, setDueDate] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const attachments = useTicketAttachments(ticket?.attachments.length ?? 0);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -62,6 +65,8 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
         setClientId(ticket?.client?.id ?? "");
         setAssigneeId(ticket?.assignee?.id ?? "");
         setDueDate(ticket?.dueDate ? ticket.dueDate.slice(0, 10) : "");
+        attachments.clear();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, ticket]);
 
     // Switching to a client ticket implies the client experience changes, so
@@ -116,7 +121,15 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
                 throw new Error(result.error || "Enregistrement impossible");
             }
 
-            toast.success(isEdit ? "Ticket mis à jour" : "Ticket créé");
+            const { failed } = await attachments.uploadAll(result.data?.id ?? ticket!.id);
+            if (failed > 0) {
+                toast.warning(
+                    `Ticket enregistré, mais ${failed} capture${failed > 1 ? "s" : ""} n'${failed > 1 ? "ont" : "a"} pas pu être jointe${failed > 1 ? "s" : ""}.`,
+                );
+            } else {
+                toast.success(isEdit ? "Ticket mis à jour" : "Ticket créé");
+            }
+            attachments.clear();
             onSaved();
             onClose();
         } catch (error) {
@@ -126,15 +139,39 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
         }
     };
 
+    const existingImages = (ticket?.attachments ?? [])
+        .filter((file) => file.mimeType.startsWith("image/"))
+        .map((file) => ({
+            id: file.id,
+            name: file.originalName,
+            src: ticketAttachmentUrl(ticket!.id, file.id),
+        }));
+
+    const handleClose = () => {
+        if (!isSaving) onClose();
+    };
+
     return (
-        <Modal
+        <Drawer
             isOpen={isOpen}
-            onClose={onClose}
+            onClose={handleClose}
             title={isEdit ? "Modifier le ticket" : "Nouveau ticket"}
             description="Les tickets internes ne sont jamais visibles par les clients."
-            size="lg"
+            size="md"
+            // A half-written ticket is easy to lose to a stray click outside.
+            closeOnOverlay={false}
+            footer={
+                <div className="flex justify-end gap-2">
+                    <Button variant="secondary" onClick={handleClose} disabled={isSaving}>
+                        Annuler
+                    </Button>
+                    <Button onClick={handleSubmit} isLoading={isSaving}>
+                        {isEdit ? "Enregistrer" : "Créer le ticket"}
+                    </Button>
+                </div>
+            }
         >
-            <div className="space-y-4">
+            <div className="space-y-5">
                 <Input
                     label="Titre"
                     value={title}
@@ -152,6 +189,13 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
                         className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     />
                 </div>
+
+                <TicketAttachmentsField
+                    controller={attachments}
+                    active={isOpen}
+                    disabled={isSaving}
+                    existing={existingImages}
+                />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Select label="Catégorie" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
@@ -195,17 +239,8 @@ export function TicketFormModal({ isOpen, onClose, onSaved, ticket, developers, 
                     onChange={(event) => setDueDate(event.target.value)}
                 />
             </div>
-
-            <ModalFooter>
-                <Button variant="secondary" onClick={onClose} disabled={isSaving}>
-                    Annuler
-                </Button>
-                <Button onClick={handleSubmit} isLoading={isSaving}>
-                    {isEdit ? "Enregistrer" : "Créer le ticket"}
-                </Button>
-            </ModalFooter>
-        </Modal>
+        </Drawer>
     );
 }
 
-export default TicketFormModal;
+export default TicketFormDrawer;
