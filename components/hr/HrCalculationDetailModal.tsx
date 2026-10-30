@@ -295,7 +295,16 @@ export function HrCalculationDetailModal({
                     <tr>
                       <th scope="col" className="px-3 py-2.5">Date</th>
                       <th scope="col" className="px-3 py-2.5">Mission(s)</th>
-                      <th scope="col" className="px-3 py-2.5">Appels</th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2.5"
+                        title="Appels passés sur la ligne Allo. Si Allo n’en compte aucun ce jour-là, ce sont les actions CRM qui comptent."
+                      >
+                        Appels
+                      </th>
+                      <th scope="col" className="px-3 py-2.5" title="Appels enregistrés dans le CRM avec un résultat">
+                        Actions CRM
+                      </th>
                       <th scope="col" className="px-3 py-2.5">RDV</th>
                       <th scope="col" className="px-3 py-2.5">Objectif</th>
                       <th scope="col" className="px-3 py-2.5 text-right">Décision</th>
@@ -312,18 +321,22 @@ export function HrCalculationDetailModal({
                           <td className="px-3 py-2">
                             <DayType d={d} />
                           </td>
-                          <td
-                            className="px-3 py-2 font-semibold tabular-nums text-slate-800"
-                            title={
-                              d.alloCallCount !== undefined
-                                ? `WithAllo : ${d.alloCallCount} appel(s) | Actions CRM : ${d.crmActionCount ?? 0}`
-                                : undefined
-                            }
-                          >
+                          <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums text-slate-800">
                             {d.callCount}
                             {d.isWorkingDay && !d.isAbsence && data.dailyQuota > 0 && (
                               <span className="font-normal text-slate-400"> / {data.dailyQuota}</span>
                             )}
+                            {!d.alloCallCount && d.callCount > 0 && (
+                              <span
+                                title="Aucun appel Allo ce jour-là : le compte reprend les actions CRM"
+                                className="ml-1.5 rounded bg-slate-100 px-1 py-px text-[9px] font-medium text-slate-500"
+                              >
+                                CRM
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 tabular-nums text-slate-600">
+                            {d.crmActionCount ? d.crmActionCount : "—"}
                           </td>
                           <td className="px-3 py-2 font-semibold tabular-nums text-emerald-700">{d.rdvCount > 0 ? d.rdvCount : "—"}</td>
                           <td className="px-3 py-2">
