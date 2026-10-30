@@ -8,6 +8,7 @@ import {
 } from '@/lib/api-utils';
 import { z } from 'zod';
 import { geminiGenerate } from '@/lib/ai/gemini';
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // SCHEMAS
@@ -132,7 +133,7 @@ function buildScriptFromSuggestions(suggestions: ScriptSuggestions): Record<Scri
 // ============================================
 
 async function callGeminiScript(data: z.infer<typeof generateScriptSchema>) {
-    const apiKey = process.env.GEMINI_API_KEY!;
+    const apiKey = integrationKey("GEMINI_API_KEY")!;
     const systemPrompt = buildSystemPrompt(data.channel);
     const userPrompt = buildUserPrompt(
         data.channel,
@@ -169,7 +170,7 @@ const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
 const MISTRAL_MODEL = 'gpt-4.1-mini';
 
 async function callMistralScript(data: z.infer<typeof generateScriptSchema>) {
-    const apiKey = process.env.OPENAI_API_KEY!;
+    const apiKey = integrationKey("OPENAI_API_KEY")!;
     const response = await fetch(MISTRAL_API_URL, {
         method: 'POST',
         headers: {
@@ -212,8 +213,8 @@ async function callMistralScript(data: z.infer<typeof generateScriptSchema>) {
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
 
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const mistralKey = process.env.OPENAI_API_KEY;
+    const geminiKey = integrationKey("GEMINI_API_KEY");
+    const mistralKey = integrationKey("OPENAI_API_KEY");
     if (!geminiKey && !mistralKey) {
         return errorResponse(
             'Aucune configuration IA (GEMINI_API_KEY ou OPENAI_API_KEY). Contactez l\'administrateur.',

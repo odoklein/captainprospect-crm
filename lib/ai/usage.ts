@@ -1,30 +1,18 @@
 /**
- * AI Token & Cost Tracking Service
+ * AI token and cost accounting.
  *
- * Tracks OpenAI token usage and calculates costs in EUR using real-time
- * model pricing tables (specifically optimized for low-cost models like gpt-4o-mini).
+ * Prices come from the provider catalog. The cost formula bills cached input
+ * at the cached price and treats reasoning tokens as output, which is how the
+ * providers bill. `getUserAiUsage` reads the AiUsage ledger when it exists and
+ * falls back to the per-message traces for deployments that predate it.
  */
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { LEGACY_PRICING, priceFor } from "./providers/catalog";
 
-export const OPENAI_PRICING: Record<string, { inputPerMillion: number; outputPerMillion: number }> = {
-    "gpt-4o-mini": {
-        inputPerMillion: 0.15,
-        outputPerMillion: 0.60,
-    },
-    "gpt-4.1-mini": {
-        inputPerMillion: 0.20,
-        outputPerMillion: 0.80,
-    },
-    "gpt-4o": {
-        inputPerMillion: 2.50,
-        outputPerMillion: 10.00,
-    },
-    "o3-mini": {
-        inputPerMillion: 1.10,
-        outputPerMillion: 4.40,
-    },
-};
+/** Legacy view of the catalog (USD per million, OpenAI only). Kept for older callers and tests. */
+export const OPENAI_PRICING: Record<string, { inputPerMillion: number; outputPerMillion: number }> = LEGACY_PRICING;
 
 /** Standard EUR/USD exchange rate conversion */
 export const EUR_USD_RATE = 0.92;
@@ -45,138 +33,182 @@ export interface UsageCost {
     model: string;
 }
 
+/** Either naming works: the runtime's `Usage` or the older trace `promptTokens`/`completionTokens`. */
+export interface UsageLike {
+    inputTokens?: number;
+    promptTokens?: number;
+    cachedInputTokens?: number;
+    outputTokens?: number;
+    completionTokens?: number;
+    reasoningTokens?: number;
+    totalTokens?: number;
+}
+
+const round6 = (n: number) => Math.round(n * 1_000_000) / 1_000_000;
+
 /**
- * Calculates token cost in USD and EUR based on the model pricing.
+ * Cost in USD and EUR for one call or one turn.
+ *
+ *   calculateTokenCost(promptTokens, completionTokens, model)   // legacy
+ *   calculateTokenCost({ inputTokens, cachedInputTokens, outputTokens }, model)
  */
+export function calculateTokenCost(promptTokens: number, completionTokens: number, modelName?: string): { costUsd: number; costEur: number };
+export function calculateTokenCost(usage: UsageLike, modelName?: string): { costUsd: number; costEur: number };
 export function calculateTokenCost(
-    promptTokens: number,
-    completionTokens: number,
-    modelName: string = "gpt-4o-mini"
+    first: number | UsageLike,
+    second?: number | string,
+    third?: string,
 ): { costUsd: number; costEur: number } {
-    const key = Object.keys(OPENAI_PRICING).find((k) =>
-        modelName.toLowerCase().includes(k.toLowerCase())
-    ) || "gpt-4o-mini";
-
-    const pricing = OPENAI_PRICING[key] || OPENAI_PRICING["gpt-4o-mini"];
+    let input: number;
+    let cached: number;
+    let output: number;
+    let model: string;
+    if (typeof first === "number") {
+        input = first;
+        cached = 0;
+        output = typeof second === "number" ? second : 0;
+        model = third ?? "gpt-4o-mini";
+    } else {
+        input = first.inputTokens ?? first.promptTokens ?? 0;
+        cached = Math.min(first.cachedInputTokens ?? 0, input);
+        output = first.outputTokens ?? first.completionTokens ?? 0;
+        model = typeof second === "string" ? second : "gpt-4o-mini";
+    }
+    const price = priceFor(model);
     const costUsd =
-        (promptTokens * pricing.inputPerMillion) / 1_000_000 +
-        (completionTokens * pricing.outputPerMillion) / 1_000_000;
-    const costEur = costUsd * EUR_USD_RATE;
+        ((input - cached) * price.inputPerM + cached * price.cachedInputPerM + output * price.outputPerM) / 1_000_000;
+    return { costUsd: round6(costUsd), costEur: round6(costUsd * EUR_USD_RATE) };
+}
 
-    return {
-        costUsd: Math.round(costUsd * 1_000_000) / 1_000_000,
-        costEur: Math.round(costEur * 1_000_000) / 1_000_000,
-    };
+export interface UsageBucket {
+    tokens: number;
+    promptTokens: number;
+    completionTokens: number;
+    cachedInputTokens: number;
+    costEur: number;
+    requestCount: number;
 }
 
 export interface UserAiUsageSummary {
-    today: {
-        tokens: number;
-        promptTokens: number;
-        completionTokens: number;
-        costEur: number;
-        requestCount: number;
-    };
-    total: {
-        tokens: number;
-        promptTokens: number;
-        completionTokens: number;
-        costEur: number;
-        requestCount: number;
-    };
+    today: UsageBucket;
+    total: UsageBucket;
     defaultModel: string;
+    /** "ledger" = AiUsage rows (per model call); "traces" = per-message traces (older deployments). */
+    source: "ledger" | "traces";
+    bySurface: Array<{ surface: string; costEur: number; requestCount: number }>;
+    byProvider: Array<{ provider: string; costEur: number; requestCount: number }>;
+    /** Share of input tokens served from the prompt cache, over `total`. */
+    cachedRatio: number;
 }
 
-/**
- * Retrieves aggregate AI token usage and calculated euro consumption for a user.
- */
-export async function getUserAiUsage(userId: string): Promise<UserAiUsageSummary> {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+const emptyBucket = (): UsageBucket => ({ tokens: 0, promptTokens: 0, completionTokens: 0, cachedInputTokens: 0, costEur: 0, requestCount: 0 });
 
-    // Fetch messages where this user was the author of the conversation
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
+
+function isMissingTable(error: unknown): boolean {
+    return error instanceof Prisma.PrismaClientKnownRequestError && (error.code === "P2021" || error.code === "P2022");
+}
+
+async function usageFromLedger(userId: string, todayStart: Date): Promise<UserAiUsageSummary | null> {
+    const sum = { inputTokens: true, cachedInputTokens: true, outputTokens: true, costEur: true } as const;
+    const [total, today, bySurface, byProvider] = await Promise.all([
+        prisma.aiUsage.aggregate({ where: { userId }, _sum: sum, _count: { _all: true } }),
+        prisma.aiUsage.aggregate({ where: { userId, createdAt: { gte: todayStart } }, _sum: sum, _count: { _all: true } }),
+        prisma.aiUsage.groupBy({ by: ["surface"], where: { userId }, _sum: { costEur: true }, _count: { _all: true } }),
+        prisma.aiUsage.groupBy({ by: ["provider"], where: { userId }, _sum: { costEur: true }, _count: { _all: true } }),
+    ]);
+    if (total._count._all === 0) return null;
+
+    const bucket = (agg: typeof total): UsageBucket => {
+        const prompt = agg._sum.inputTokens ?? 0;
+        const completion = agg._sum.outputTokens ?? 0;
+        return {
+            tokens: prompt + completion,
+            promptTokens: prompt,
+            completionTokens: completion,
+            cachedInputTokens: agg._sum.cachedInputTokens ?? 0,
+            costEur: round4(agg._sum.costEur ?? 0),
+            requestCount: agg._count._all,
+        };
+    };
+    const totalBucket = bucket(total);
+    return {
+        today: bucket(today),
+        total: totalBucket,
+        defaultModel: process.env.OPENAI_ASSISTANT_MODEL || "gpt-5.5",
+        source: "ledger",
+        bySurface: bySurface.map((r) => ({ surface: r.surface, costEur: round4(r._sum.costEur ?? 0), requestCount: r._count._all })),
+        byProvider: byProvider.map((r) => ({ provider: r.provider, costEur: round4(r._sum.costEur ?? 0), requestCount: r._count._all })),
+        cachedRatio: totalBucket.promptTokens > 0 ? round4(totalBucket.cachedInputTokens / totalBucket.promptTokens) : 0,
+    };
+}
+
+async function usageFromTraces(userId: string, todayStart: Date): Promise<UserAiUsageSummary> {
     const messages = await prisma.assistantMessage.findMany({
-        where: {
-            conversation: {
-                createdById: userId,
-            },
-            role: "ASSISTANT",
-            trace: {
-                not: undefined,
-            },
-        },
-        select: {
-            trace: true,
-            createdAt: true,
-        },
-        orderBy: {
-            createdAt: "desc",
-        },
+        where: { conversation: { createdById: userId }, role: "ASSISTANT", trace: { not: undefined } },
+        select: { trace: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
         take: 500,
     });
 
-    let todayTokens = 0;
-    let todayPromptTokens = 0;
-    let todayCompletionTokens = 0;
-    let todayCostEur = 0;
-    let todayCount = 0;
-
-    let totalTokens = 0;
-    let totalPromptTokens = 0;
-    let totalCompletionTokens = 0;
-    let totalCostEur = 0;
-    let totalCount = 0;
-
+    const today = emptyBucket();
+    const total = emptyBucket();
     for (const msg of messages) {
         const trace = msg.trace as Record<string, unknown> | null;
         if (!trace) continue;
-
-        // Trace may contain a usage sub-object or top-level usage
         const usage = (trace.usage || trace) as {
             promptTokens?: number;
             completionTokens?: number;
             totalTokens?: number;
+            cachedInputTokens?: number;
+            costEur?: number;
             model?: string;
         } | null;
-
         const pTokens = Number(usage?.promptTokens || 0);
         const cTokens = Number(usage?.completionTokens || 0);
         const tTokens = Number(usage?.totalTokens || pTokens + cTokens);
-        const model = String(usage?.model || "gpt-4o-mini");
-
-        if (tTokens > 0) {
-            const { costEur } = calculateTokenCost(pTokens, cTokens, model);
-            totalTokens += tTokens;
-            totalPromptTokens += pTokens;
-            totalCompletionTokens += cTokens;
-            totalCostEur += costEur;
-            totalCount += 1;
-
-            if (msg.createdAt >= todayStart) {
-                todayTokens += tTokens;
-                todayPromptTokens += pTokens;
-                todayCompletionTokens += cTokens;
-                todayCostEur += costEur;
-                todayCount += 1;
-            }
-        }
+        if (tTokens <= 0) continue;
+        const cached = Number(usage?.cachedInputTokens || 0);
+        const costEur =
+            typeof usage?.costEur === "number" && usage.costEur > 0
+                ? usage.costEur
+                : calculateTokenCost({ promptTokens: pTokens, completionTokens: cTokens, cachedInputTokens: cached }, String(usage?.model || "gpt-4o-mini")).costEur;
+        const add = (b: UsageBucket) => {
+            b.tokens += tTokens;
+            b.promptTokens += pTokens;
+            b.completionTokens += cTokens;
+            b.cachedInputTokens += cached;
+            b.costEur += costEur;
+            b.requestCount += 1;
+        };
+        add(total);
+        if (msg.createdAt >= todayStart) add(today);
     }
-
+    today.costEur = round4(today.costEur);
+    total.costEur = round4(total.costEur);
     return {
-        today: {
-            tokens: todayTokens,
-            promptTokens: todayPromptTokens,
-            completionTokens: todayCompletionTokens,
-            costEur: Math.round(todayCostEur * 10_000) / 10_000,
-            requestCount: todayCount,
-        },
-        total: {
-            tokens: totalTokens,
-            promptTokens: totalPromptTokens,
-            completionTokens: totalCompletionTokens,
-            costEur: Math.round(totalCostEur * 10_000) / 10_000,
-            requestCount: totalCount,
-        },
-        defaultModel: process.env.OPENAI_ASSISTANT_MODEL || "gpt-4o-mini",
+        today,
+        total,
+        defaultModel: process.env.OPENAI_ASSISTANT_MODEL || "gpt-5.5",
+        source: "traces",
+        bySurface: total.requestCount > 0 ? [{ surface: "assistant.chat", costEur: total.costEur, requestCount: total.requestCount }] : [],
+        byProvider: total.requestCount > 0 ? [{ provider: "openai", costEur: total.costEur, requestCount: total.requestCount }] : [],
+        cachedRatio: total.promptTokens > 0 ? round4(total.cachedInputTokens / total.promptTokens) : 0,
     };
+}
+
+/**
+ * Aggregate AI usage and euro consumption for a user: the ledger when it has
+ * rows for them, the message traces otherwise (and when the table is missing).
+ */
+export async function getUserAiUsage(userId: string): Promise<UserAiUsageSummary> {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    try {
+        const fromLedger = await usageFromLedger(userId, todayStart);
+        if (fromLedger) return fromLedger;
+    } catch (error) {
+        if (!isMissingTable(error)) throw error;
+    }
+    return usageFromTraces(userId, todayStart);
 }

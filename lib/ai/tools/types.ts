@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import type { UserRole } from "@prisma/client";
+import type { StoredVisual } from "@/lib/assistant/visuals/spec";
 
 // ============================================
 // RISK TIERS
@@ -29,6 +30,14 @@ export type ToolRisk = "read" | "safe_write" | "confirm";
 // ============================================
 // REQUEST SCOPE
 // ============================================
+
+/** The assistant folder a conversation belongs to (see AssistantFolder). */
+export interface FolderBinding {
+    id: string;
+    kind: "CLIENT" | "GENERAL";
+    name: string;
+    clientId: string | null;
+}
 
 /** The project the exchange is bound to. `missionId: null` = client-wide. */
 export interface ProjectBinding {
@@ -69,6 +78,34 @@ export interface AssistantContext {
 
     /** The conversation this request belongs to. Stamped on anything created. */
     conversationId: string | null;
+
+    /**
+     * The assistant folder the conversation lives in (Captain AI v4). Null for
+     * agency-view threads and for instances without the folders migration.
+     * Memory and files tools scope themselves to it; `requireFolder()` throws
+     * when a tool cannot work without one.
+     */
+    folder?: FolderBinding | null;
+
+    /**
+     * Tools this request may use at all, by name. Absent = the whole registry
+     * (chat). A background run narrows it per playbook (WATCH: `show_visual`
+     * only), and the guard refuses anything outside the set.
+     */
+    toolAllowlist?: ReadonlySet<string>;
+
+    /**
+     * "chat" (default): a manager is on the other side and can click a card.
+     * "background": the agent worker — nobody is there to confirm, so a
+     * `confirm` tool is proposed, never executed, whatever path reaches it.
+     */
+    mode?: "chat" | "background";
+
+    /**
+     * The visuals drawn so far in this turn (show_visual), in their `[[visuel N]]`
+     * order. Set by the agent runtime; create_pdf reads it to include them.
+     */
+    turnVisuals?: () => StoredVisual[];
 }
 
 // ============================================
@@ -100,6 +137,13 @@ export interface ToolDefinition<TArgs = unknown, TResult = unknown> {
     risk: ToolRisk;
     /** True when the tool cannot work without a bound project. */
     requiresProject: boolean;
+    /**
+     * True when the tool must NOT run inside a bound project — it sees every
+     * client (raw SQL), so a project conversation never gets it.
+     */
+    agencyOnly?: boolean;
+    /** A read whose result is not a source (it draws, it does not look anything up): no evidence row, no [E] label. */
+    noEvidence?: boolean;
     /** Short French label for the tool trace in the UI. */
     label: string;
 
@@ -146,6 +190,10 @@ export interface ToolExecutionResult {
     data?: unknown;
     error?: { code: string; message: string };
     durationMs: number;
+    /** Served from a still-fresh earlier retrieval instead of a new query. */
+    cached?: boolean;
+    /** Evidence label (E1…) of a read, when an evidence session was attached. */
+    evidence?: string;
 }
 
 /**

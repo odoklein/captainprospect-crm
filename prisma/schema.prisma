@@ -452,6 +452,9 @@ model User {
   assistantConversations AssistantConversation[] @relation("AssistantConversationAuthor")
   assistantActions       AssistantActionLog[]    @relation("AssistantActionActor")
   assistantArtifacts     AssistantArtifact[]     @relation("AssistantArtifactAuthor")
+  assistantFolders       AssistantFolder[]       @relation("AssistantFolderAuthor")
+  assistantMemories      AssistantMemory[]       @relation("AssistantMemoryUser")
+  assistantPins          AssistantPin[]          @relation("AssistantPinAuthor")
 
   // Google Drive Integration
   googleDriveConnected Boolean @default(false)
@@ -775,6 +778,7 @@ model Client {
   folders       Folder[]
   files         File[]
   projects      Project[]
+  tasks         Task[]
 
   // Client Portal visibility settings
   portalShowCallHistory Boolean @default(false)
@@ -824,6 +828,7 @@ model Client {
   assistantConversations AssistantConversation[]
   assistantActions       AssistantActionLog[]
   assistantArtifacts     AssistantArtifact[]
+  assistantFolder        AssistantFolder?
 
   // Interlocuteurs (client's own sales team / commercials)
   interlocuteurs ClientInterlocuteur[]
@@ -1496,6 +1501,9 @@ model File {
   ticketId String?
   ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
+  /// Extracted text + chunks when the file lives in an assistant folder (Captain AI v4).
+  assistantText AssistantFileText?
+
   // Metadata
   description String?
   tags        String[] @default([])
@@ -1612,9 +1620,20 @@ model ProjectMember {
 }
 
 model Task {
-  id        String  @id @default(cuid())
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  // Optional: a task without a project is a personal / inbox task (lib/tasks/access.ts)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Unified task list: where the task belongs and where it came from
+  clientId     String?
+  client       Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  source       TaskSource       @default(MANUAL)
+  sourceRef    String? // free-form pointer back to the origin (e.g. "sessionTask:<id>")
+  sessionId    String?
+  session      ClientSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  audienceRole SessionTaskRole? // session to-dos addressed to a role rather than a person
+  assigneeLabel String? // free-text owner when it isn't a CRM user (often someone on the client side)
 
   title       String
   description String?      @db.Text
@@ -1671,6 +1690,17 @@ model Task {
   @@index([parentTaskId])
   @@index([position])
   @@index([milestoneId])
+  @@index([clientId])
+  @@index([source])
+  @@index([sessionId])
+}
+
+enum TaskSource {
+  MANUAL
+  ONBOARDING
+  SESSION
+  AI
+  SYSTEM
 }
 
 model TaskComment {
@@ -3711,6 +3741,76 @@ model SystemConfig {
 }
 
 // ============================================
+// BRAND SETTINGS — runtime white-label identity of this instance
+// ============================================
+// Exactly one row, id = "default". Every default equals brand/brand.config.ts,
+// so an empty table (or a database where this migration has not run yet)
+// renders the stock brand. Read through lib/brand/server.ts getBrand() (cached,
+// never throws); written by the manager Identité panel and the signed
+// /api/instance/brand provisioning route. One instance = one database = one
+// brand: no tenantId, no relation to Client.
+model BrandSettings {
+  id               String @id @default("default")
+  name             String @default("Captain Prospect")
+  productName      String @default("Captain Prospect CRM")
+  tagline          String @default("Plateforme d'exécution commerciale")
+  description      String @default("agence de prospection commerciale B2B")
+  companyName      String @default("Suzali Conseil")
+  companyShortName String @default("Suzali")
+
+  appUrl  String @default("https://app.captainprospect.fr") // used only when NEXTAUTH_URL / NEXT_PUBLIC_APP_URL are unset
+  website String @default("https://captainprospect.fr")
+
+  senderName           String   @default("Captain Prospect")
+  notificationsAddress String   @default("notifications@captainprospect.fr")
+  supportAddress       String   @default("support@suzalink.com")
+  emailDomains         String[] @default(["captainprospect.fr", "suzaliconseil.com"])
+
+  lang     String @default("fr")
+  locale   String @default("fr-FR")
+  currency String @default("EUR")
+  timeZone String @default("Europe/Paris")
+
+  primaryColor String @default("#263460")
+  accentColor  String @default("#C64B8B")
+  neutralTint  Float  @default(1)
+
+  fontPreset String @default("default") // "default" | "inter" | "manrope" (brand/fonts.ts)
+
+  // Object keys in MinIO (prefix brand/); null = the /public/brand default file.
+  logoFullKey        String?
+  logoFullInverseKey String?
+  logoMarkKey        String?
+  logoMarkInverseKey String?
+  faviconKey         String?
+  appleTouchIconKey  String?
+  logoFullWidth      Int     @default(2460)
+  logoFullHeight     Int     @default(758)
+  logoVersion        String? // bumped on every upload; the ?v= cache-buster
+
+  updatedAt DateTime @updatedAt
+  updatedBy String? // user id, or "instance-api"
+}
+
+// ============================================
+// INSTANCE LICENSE (white-label control plane) — one row, id = 'default'.
+// Pushed by the Console through PUT /api/instance/license. No row = no limit,
+// everything on (the original Captain Prospect deployment).
+// ============================================
+
+model InstanceLicense {
+  id              String   @id @default("default")
+  status          String   @default("ACTIVE") // ACTIVE | SUSPENDED
+  plan            String? // label only ("starter", "pro"…)
+  seatLimit       Int? // staff seats (every active non-CLIENT user); null = unlimited
+  features        Json     @default("{}") // { callVault?: bool, … } — a missing key means enabled
+  aiMonthlyQuota  Int? // reserved for usage metering; null = unlimited
+  suspendedReason String?
+  updatedAt       DateTime @updatedAt
+  updatedBy       String? // "instance-api"
+}
+
+// ============================================
 // SYSTEM EMAIL TEMPLATES (manager-editable)
 // ============================================
 
@@ -3738,6 +3838,7 @@ model ClientSession {
   summaryEmail String?       @db.Text
   emailSentAt  DateTime?
   tasks        SessionTask[]
+  workTasks    Task[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -4367,20 +4468,36 @@ model AssistantConversation {
   createdById String
   createdBy   User   @relation("AssistantConversationAuthor", fields: [createdById], references: [id], onDelete: Cascade)
 
+  /// Workspace folder (Captain AI v4). Null = agency view / not filed yet.
+  folderId String?
+  folder   AssistantFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  kind     AssistantConversationKind @default(CHAT)
+  /// PRIVATE = owner only; SHARED = read-only for every active manager.
+  visibility AssistantVisibility @default(PRIVATE)
+  pinnedAt   DateTime?
+
   title         String
   summary       String?   @db.Text
+  /// Rolling summary bookkeeping: last message folded into `summary` and its size.
+  summaryUpToMessageId String?
+  summaryTokens        Int?
+  /// Set when a manager renamed the thread: the AI title job must not overwrite it.
+  titleEditedAt        DateTime?
   messageCount  Int       @default(0)
   lastMessageAt DateTime?
 
   messages  AssistantMessage[]
   artifacts AssistantArtifact[]
   actions   AssistantActionLog[]
+  runs      AssistantRun[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId, missionId, lastMessageAt])
   @@index([createdById])
+  @@index([folderId, lastMessageAt])
+  @@index([visibility, lastMessageAt])
   // Physical name differs from the model: `AssistantConversation` already
   // exists in this database, created by the support-tickets / assistant
   // transcripts migration of the sister app, with a different shape and live
@@ -4401,6 +4518,12 @@ model AssistantMessage {
   /// A proposed or executed action: { tool, args, card, state, outcome }.
   /// Never holds a secret — a revealed password goes server → UI only.
   action Json?
+  /// Files attached to a user message: [{ fileId, name, mimeType, size }].
+  attachments Json?
+  /// Manager feedback on an answer: { rating: "up" | "down", comment?, at, by }.
+  feedback Json?
+  /// Set when the message was edited or regenerated; the replacement is a newer row.
+  supersededAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -4477,6 +4600,318 @@ model AssistantArtifact {
 
   @@index([clientId, missionId, createdAt])
   @@index([conversationId])
+}
+
+enum AssistantRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  TIMEOUT
+  ABANDONED
+}
+
+enum AssistantEvidenceStatus {
+  OK
+  EMPTY
+  ERROR
+}
+
+/// One assistant turn: scope, model, cost, latency and outcome. The unique
+/// `lockKey` (= the conversation id while the turn runs) is the
+/// one-turn-at-a-time lock: a second concurrent turn cannot insert its run.
+model AssistantRun {
+  id String @id @default(cuid())
+
+  conversationId String
+  conversation   AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  lockKey        String?               @unique
+
+  /// Trusted scope, copied from the server-side context — never from the model.
+  userId    String
+  clientId  String?
+  missionId String?
+
+  status           AssistantRunStatus @default(RUNNING)
+  model            String?
+  fallbackUsed     Boolean            @default(false)
+  promptTokens     Int                @default(0)
+  completionTokens Int                @default(0)
+  costEur          Float              @default(0)
+  latencyMs        Int?
+  firstTokenMs     Int?
+  iterations       Int                @default(0)
+  toolCalls        Int                @default(0)
+  retries          Int                @default(0)
+  /// Part of promptTokens served from the provider's prompt cache (billed at the cached price).
+  cachedInputTokens Int               @default(0)
+  /// Part of completionTokens spent on hidden reasoning.
+  reasoningTokens  Int                @default(0)
+  /// Routing tier the turn ran at ("fast" | "standard" | "deep"), null before routing existed.
+  tier             String?
+  /// Provider that answered ("openai" | "deepseek").
+  provider         String?
+  errorCode        String?
+  /// { checked, verified, failed, repaired, skipped }
+  verification     Json?
+  /// The assistant message this run produced.
+  messageId        String?
+
+  evidence AssistantEvidence[]
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  @@index([conversationId, startedAt])
+  @@index([userId, startedAt])
+  @@map("AssistantProjetRun")
+}
+
+/// What one read tool returned, in a form an answer can cite and a manager can
+/// open: a privacy-safe summary, the numeric facts and the period. The payload
+/// itself is kept only while fresh (`expiresAt`) and never for free-text or
+/// vault tools; rows are deleted after the retention period
+/// (ASSISTANT_EVIDENCE_RETENTION_DAYS, 90) and with their conversation.
+model AssistantEvidence {
+  id String @id @default(cuid())
+
+  runId String
+  run   AssistantRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  /// Denormalised from the run for reuse lookups; scope from the trusted context.
+  conversationId String
+  userId         String
+  clientId       String?
+  missionId      String?
+
+  tool         String
+  /// sha256(tool, canonical validated arguments, scope).
+  argsHash     String
+  /// Validated, scrubbed arguments: ids, filters, windows.
+  args         Json
+  status       AssistantEvidenceStatus
+  errorCode    String?
+  summary      String                  @db.Text
+  facts        Json?
+  period       Json?
+  /// sha256 of the scrubbed payload, to show two retrievals saw the same data.
+  resultDigest String?
+  payload      Json?
+
+  retrievedAt DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([conversationId, tool, argsHash])
+  @@index([runId])
+  @@index([expiresAt])
+  @@map("AssistantProjetEvidence")
+}
+
+// ---- Assistant folders, memory, files, pins (Captain AI v4) ----
+// Workspace layer of the manager assistant: one folder per client (created
+// lazily on first use) plus general folders, all shared by every manager.
+// Conversations stay private unless their owner shares them (read-only for
+// other managers). Memory is written by the model and edited by managers in
+// three layers (agency, folder, user). Folder files reuse File/Folder storage:
+// a hidden storage Folder per assistant folder, File.clientId null so the
+// client portal never lists them. Physical names carry the AssistantProjet
+// prefix because a sister app shares the production database.
+
+enum AssistantFolderKind {
+  CLIENT
+  GENERAL
+}
+
+enum AssistantConversationKind {
+  CHAT
+  AGENT
+}
+
+enum AssistantVisibility {
+  PRIVATE
+  SHARED
+}
+
+enum AssistantMemoryScope {
+  AGENCY
+  FOLDER
+  USER
+}
+
+enum AssistantMemoryKind {
+  FACT
+  PREFERENCE
+  DECISION
+  CONTACT
+  GOAL
+}
+
+enum AssistantFileTextStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
+  NEEDS_OCR
+  UNSUPPORTED
+}
+
+model AssistantFolder {
+  id   String              @id @default(cuid())
+  kind AssistantFolderKind
+
+  /// CLIENT folders: exactly one per client, created on first use.
+  clientId String? @unique
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  name  String
+  color String?
+  icon  String?
+  /// Manager-written guidance injected into every turn of the folder (<= 600 tokens, enforced by the API).
+  instructions     String? @db.Text
+  /// Suggested first questions shown on the folder home: string[].
+  starterQuestions Json?
+  settings         Json?
+
+  /// Hidden storage `Folder` ("Assistant · <name>", isPublic false, clientId null) holding the folder's files.
+  storageFolderId String? @unique
+
+  createdById String
+  createdBy   User   @relation("AssistantFolderAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  lastActivityAt DateTime?
+  archivedAt     DateTime?
+
+  conversations AssistantConversation[]
+  memories      AssistantMemory[]
+  files         AssistantFileText[]
+  pins          AssistantPin[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, archivedAt, lastActivityAt])
+  @@map("AssistantProjetFolder")
+}
+
+model AssistantMemory {
+  id    String               @id @default(cuid())
+  scope AssistantMemoryScope
+
+  /// FOLDER scope: the folder the fact belongs to.
+  folderId String?
+  folder   AssistantFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  /// USER scope: the manager the preference belongs to.
+  userId String?
+  user   User?   @relation("AssistantMemoryUser", fields: [userId], references: [id], onDelete: Cascade)
+  /// Ranking bonus only: no relation, a deleted mission keeps the memory.
+  missionId String?
+
+  kind    AssistantMemoryKind @default(FACT)
+  content String              @db.VarChar(600)
+  /// "SCOPE:folderId|userId|" (lib/assistant/memory/normalize.ts).
+  scopeKey   String
+  /// sha1 of the normalised content: the same fact is stored once per scope.
+  contentKey String
+  /// { conversationId, messageId, by: "model" | "user" }
+  source     Json?
+  confidence Float     @default(0.8)
+  pinned     Boolean   @default(false)
+  useCount   Int       @default(0)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  /// Soft delete = undo from the Mémoire tab.
+  deletedAt   DateTime?
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scopeKey, contentKey])
+  @@index([scope, folderId, deletedAt])
+  @@index([scope, userId, deletedAt])
+  @@map("AssistantProjetMemory")
+}
+
+model AssistantFileText {
+  id String @id @default(cuid())
+
+  fileId String @unique
+  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  folderId String
+  folder   AssistantFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  status     AssistantFileTextStatus @default(PENDING)
+  text       String?                 @db.Text
+  pages      Int?
+  chars      Int                     @default(0)
+  tokens     Int                     @default(0)
+  chunkCount Int                     @default(0)
+  /// Which extractor produced the text (pdf-parse, mammoth, xlsx, ocr...).
+  extractor   String?
+  error       String?
+  attempts    Int       @default(0)
+  extractedAt DateTime?
+
+  chunks AssistantFileChunk[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([folderId, status])
+  @@map("AssistantProjetFileText")
+}
+
+model AssistantFileChunk {
+  id String @id @default(cuid())
+
+  fileTextId String
+  fileText   AssistantFileText @relation(fields: [fileTextId], references: [id], onDelete: Cascade)
+  /// Denormalised from the file text for folder-scoped search.
+  folderId String
+  fileId   String
+
+  index   Int
+  page    Int?
+  heading String?
+  content String  @db.Text
+  tokens  Int     @default(0)
+  /// Generated column: to_tsvector('french', content), GIN-indexed. Written by Postgres, never by Prisma.
+  tsv Unsupported("tsvector")?
+
+  @@unique([fileTextId, index])
+  @@index([folderId])
+  @@map("AssistantProjetFileChunk")
+}
+
+model AssistantPin {
+  id String @id @default(cuid())
+
+  folderId String
+  folder   AssistantFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  title String
+  /// The visual as rendered (StoredVisual, lib/assistant/visuals).
+  visual Json
+  /// What produced it, for "Actualiser": { tool, args, sql? }.
+  source   Json?
+  question String?
+
+  conversationId String?
+  messageId      String?
+
+  createdById String
+  createdBy   User   @relation("AssistantPinAuthor", fields: [createdById], references: [id], onDelete: Cascade)
+
+  position     Int       @default(0)
+  refreshedAt  DateTime?
+  refreshError String?
+
+  createdAt DateTime @default(now())
+
+  @@index([folderId, position])
+  @@map("AssistantProjetPin")
 }
 
 // ============================================
@@ -4913,4 +5348,312 @@ model HrAuditLog {
   @@index([userId])
   @@index([actorId])
   @@index([createdAt])
+}
+
+// ---- AI usage ledger (Captain AI v4, Track A) ----
+// One row per model call, whatever the surface (assistant chat, summaries,
+// Analyse IA, weekly bilan, background agent). No foreign keys on purpose:
+// accounting rows outlive the conversations and users they describe.
+
+model AiUsage {
+  id String @id @default(cuid())
+
+  /// "assistant.chat", "assistant.summary", "analyse_ia", "weekly_bilan", "agent.watch", ...
+  surface      String
+  /// "openai" | "deepseek"
+  provider     String
+  /// Host that processed the call (api.openai.com, an EU DeepSeek host, ...), for the residency audit.
+  endpointHost String?
+  model        String
+  tier         String?
+  /// "raw_crm" | "aggregated" | "public"
+  dataClass    String?
+
+  inputTokens       Int @default(0)
+  cachedInputTokens Int @default(0)
+  outputTokens      Int @default(0)
+  reasoningTokens   Int @default(0)
+
+  costUsd   Float @default(0)
+  costEur   Float @default(0)
+  latencyMs Int?
+
+  userId         String?
+  clientId       String?
+  missionId      String?
+  conversationId String?
+  /// AssistantRun id (chat) or AgentRun id (background).
+  runId          String?
+  jobId          String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([surface, createdAt])
+  @@index([runId])
+}
+
+// ============================================
+// CAPTAIN AGENT — background worker: jobs, runs, steps, proposals, findings
+// ============================================
+// Migration 20261101120000_add_agent_jobs (additive, idempotent). Ids only,
+// no relation to User / Client / Mission / AssistantConversation: the worker
+// resolves scope itself and the tables stay droppable without touching the
+// rest of the schema. Code degrades to "agent unavailable" when they are
+// missing (lib/agent/store.ts).
+
+enum AgentJobKind {
+  WATCH
+  REPORT
+  MISSION
+  DIGEST
+}
+
+enum AgentTrigger {
+  SCHEDULE
+  MANUAL
+  EVENT
+}
+
+enum AgentRunStatus {
+  QUEUED
+  RUNNING
+  WAITING_APPROVAL
+  DONE
+  FAILED
+  CANCELLED
+  DEFERRED
+}
+
+enum AgentStepStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  SKIPPED
+}
+
+enum AgentProposalState {
+  PENDING
+  EXECUTING
+  APPROVED
+  REJECTED
+  EXECUTED
+  EXPIRED
+  FAILED
+}
+
+enum AgentSeverity {
+  INFO
+  WARN
+  CRITICAL
+}
+
+enum AgentFindingState {
+  OPEN
+  ACKED
+  SNOOZED
+  RESOLVED
+}
+
+/// A recurring (or on-demand) piece of agent work: which playbook, on which
+/// scope, how often, with which thresholds.
+model AgentJob {
+  id       String       @id @default(cuid())
+  kind     AgentJobKind
+  /// Playbook id from lib/agent/playbooks/registry (e.g. "watch.client_at_risk").
+  playbook String
+  name     String
+  enabled  Boolean      @default(true)
+
+  folderId  String?
+  clientId  String?
+  missionId String?
+
+  /// Five-field cron expression, evaluated in `timezone`. Null = manual only.
+  schedule String?
+  timezone String  @default("Europe/Paris")
+  /// Per-playbook zod config: thresholds, recipients, dryRun, notify, budget.
+  config   Json?
+
+  createdById String?
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  lastStatus  AgentRunStatus?
+  failures    Int             @default(0)
+
+  runs AgentRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([playbook, folderId, clientId, missionId])
+  @@index([enabled, nextRunAt])
+}
+
+/// One execution of a playbook. Claimed with a single UPDATE … FOR UPDATE SKIP
+/// LOCKED (lib/agent/queue.ts); a stale heartbeat is requeued by the reaper.
+model AgentRun {
+  id    String    @id @default(cuid())
+  jobId String?
+  job   AgentJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  kind     AgentJobKind
+  playbook String
+  trigger  AgentTrigger
+  status   AgentRunStatus @default(QUEUED)
+  priority Int            @default(0)
+  runAfter DateTime       @default(now())
+  /// "job:<id>:<ISO minute>" for scheduled runs: a tick never enqueues twice.
+  dedupeKey String? @unique
+
+  folderId  String?
+  clientId  String?
+  missionId String?
+  /// The manager the run acts as (tools run under their permissions).
+  actorId   String
+  /// The AGENT thread (AssistantConversation) the run writes to.
+  conversationId String?
+
+  goal String? @db.Text
+  plan Json?
+  /// { maxToolCalls, maxCostEur, deadlineMs, maxSafeWrites, maxPhases }
+  budget Json
+  /// { promptTokens, completionTokens, costEur, toolCalls, phases }
+  usage  Json?
+
+  summary        String? @db.Text
+  findingsCount  Int     @default(0)
+  proposalsCount Int     @default(0)
+  stepsCount     Int     @default(0)
+  error          String? @db.Text
+
+  /// "worker" (second service) or "lite" (inside the web process, agent-tick).
+  mode        String    @default("worker")
+  lockedBy    String?
+  heartbeatAt DateTime?
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  checkpoint  Json?
+  cancelRequestedAt DateTime?
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  steps     AgentStep[]
+  proposals AgentProposal[]
+  findings  AgentFinding[]
+
+  @@index([status, runAfter, priority])
+  @@index([jobId, createdAt])
+  @@index([status, heartbeatAt])
+  @@index([createdAt])
+}
+
+/// One phase of a run: a detector, a model turn, a report step.
+model AgentStep {
+  id    String   @id @default(cuid())
+  runId String
+  run   AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  index  Int
+  /// detect | plan | execute | synthesise | report
+  phase  String
+  title  String
+  status AgentStepStatus @default(PENDING)
+
+  /// AssistantRun id of the model turn behind this step (evidence, cost).
+  assistantRunId String?
+  tool           String?
+  args           Json?
+  /// Live progress and outcome, ≤ 2 kB.
+  resultDigest   String? @db.Text
+  evidenceLabels Json?
+
+  promptTokens     Int     @default(0)
+  completionTokens Int     @default(0)
+  costEur          Float   @default(0)
+  model            String?
+  durationMs       Int?
+  error            String? @db.Text
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([runId, index])
+}
+
+/// A `confirm` action the agent wanted to take: it waits for a manager.
+model AgentProposal {
+  id    String   @id @default(cuid())
+  runId String
+  run   AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  batchId   String?
+  tool      String
+  args      Json
+  /// PendingActionCard from the tool's describe(), resolved server-side.
+  card      Json
+  rationale String? @db.Text
+  /// confirm | safe_write
+  risk      String
+  state     AgentProposalState @default(PENDING)
+
+  proposedAt  DateTime  @default(now())
+  expiresAt   DateTime
+  decidedById String?
+  decidedAt   DateTime?
+  executedAt  DateTime?
+  outcome     String?   @db.Text
+  actionLogId String?
+
+  @@index([state, expiresAt])
+  @@index([runId])
+}
+
+/// Something a watch rule noticed. Deduped by key so an alert does not repeat
+/// every day; lifecycle in lib/agent/findings.ts.
+model AgentFinding {
+  id    String    @id @default(cuid())
+  runId String?
+  run   AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  rule      String
+  /// "<rule>:<scope>:<key>" — unique across the agency.
+  dedupeKey String        @unique
+  severity  AgentSeverity
+  kind      String
+  title     String
+  body      String        @db.Text
+  metrics   Json?
+  evidenceIds Json?
+
+  folderId      String?
+  clientId      String?
+  missionId     String?
+  subjectUserId String?
+  /// Proposal seeds: [{ tool, args, rationale }]
+  suggested     Json?
+
+  state       AgentFindingState @default(OPEN)
+  firstSeenAt DateTime          @default(now())
+  lastSeenAt  DateTime          @default(now())
+  seenCount   Int               @default(1)
+  notifiedAt  DateTime?
+  ackedById   String?
+  ackedAt     DateTime?
+  snoozedUntil DateTime?
+  resolvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([state, severity, lastSeenAt])
+  @@index([rule, state])
+  @@index([clientId, state])
+  @@index([subjectUserId, state])
 }

@@ -3,7 +3,7 @@
  * of the workspace). Run once per environment.
  *
  *   npx tsx scripts/register-allo-webhook.ts --list
- *   npx tsx scripts/register-allo-webhook.ts --url https://<crm-domain>/api/webhooks/allo
+ *   npx tsx scripts/register-allo-webhook.ts --url https://<crm-domain>/api/webhooks/allo [--name "Agency CRM"]
  *
  * Needs ALLO_API_KEY with the WEBHOOKS_READ_WRITE scope. Allo returns the
  * signing secret ONCE, in the creation response: put it in the CRM env as
@@ -11,6 +11,7 @@
  * delivery.
  */
 import "dotenv/config";
+import { brandConfig } from "../brand/brand.config";
 
 const ALLO_API = "https://api.withallo.com/v2/api/webhooks";
 const TOPICS = ["call.received", "call.answered", "call.completed"];
@@ -33,11 +34,14 @@ async function main() {
     if (!url || !/^https:\/\//.test(url) || !url.endsWith("/api/webhooks/allo")) {
         throw new Error("Pass --url https://<crm-domain>/api/webhooks/allo (Allo only delivers to HTTPS)");
     }
+    // White-label instances pass their own product name (shown in the Allo dashboard).
+    const nameIndex = args.indexOf("--name");
+    const productName = (nameIndex >= 0 && args[nameIndex + 1]) || brandConfig.identity.productName;
 
     const res = await fetch(ALLO_API, {
         method: "POST",
         headers,
-        body: JSON.stringify({ url, topics: TOPICS, description: "Captain Prospect CRM — incoming-call panel" }),
+        body: JSON.stringify({ url, topics: TOPICS, description: `${productName} — incoming-call panel` }),
     });
     const body = (await res.json().catch(() => null)) as { data?: { id?: string; signing_secret?: string } } | null;
 

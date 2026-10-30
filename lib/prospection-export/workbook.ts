@@ -19,7 +19,7 @@ import {
 } from "./rows";
 import type { ExportAction, ExportList, ExportRow, TreatmentFilter } from "./types";
 import { UNTREATED_LABEL } from "./types";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 
 // ============================================
 // ROW SETS PER LIST
@@ -280,7 +280,7 @@ function ratio(part: number, total: number): number | null {
     return total > 0 ? part / total : null;
 }
 
-function summarySheet(sets: ListRowSet[], data: ProspectionExportData, exportedAt: Date): XlsxSheet {
+function summarySheet(sets: ListRowSet[], data: ProspectionExportData, exportedAt: Date, brand: Brand): XlsxSheet {
     const rows: XlsxRow[] = [];
     const merges: XlsxSheet["merges"] = [];
     const heights: Record<number, number> = {};
@@ -476,13 +476,15 @@ export interface WorkbookOptions {
     includeSummary: boolean;
     includeHistory: boolean;
     exportedAt?: Date;
+    /** Instance brand (getBrand()); defaults to brand/brand.config.ts. */
+    brand?: Brand;
 }
 
 export function buildExportSheets(data: ProspectionExportData, options: WorkbookOptions): XlsxSheet[] {
     const sets = buildListRowSets(data);
     const exportedAt = options.exportedAt ?? new Date();
     const sheets: XlsxSheet[] = [];
-    if (options.includeSummary) sheets.push(summarySheet(sets, data, exportedAt));
+    if (options.includeSummary) sheets.push(summarySheet(sets, data, exportedAt, options.brand ?? defaultBrand));
     for (const set of sets) sheets.push(listSheet(set, data.exclusionReasons));
     if (options.includeHistory) sheets.push(historySheet(sets, data));
     return sheets;

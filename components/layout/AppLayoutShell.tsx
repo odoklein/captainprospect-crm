@@ -191,6 +191,7 @@ function InnerLayout({
         projects: "Projets",
         emails: "Email Hub",
         assistant: "Captain AI",
+        agent: "Captain Agent",
     };
     const currentPage = pageLabels[rawPage?.toLowerCase()] || rawPage;
 

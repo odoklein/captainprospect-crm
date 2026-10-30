@@ -8,7 +8,9 @@ import {
 } from '@/lib/client/daily-report';
 import type { DailyInsight, DailyReport } from '@/lib/client/daily-report-types';
 import { mistralChat } from '@/lib/ai/mistral';
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // GET /api/client/daily-report/insight?day=&today=&tz=
@@ -38,13 +40,15 @@ function aggregatesFor(r: DailyReport) {
     };
 }
 
-const SYSTEM_PROMPT = `Tu es l'analyste de ${brand.name}, ${brand.description}. Tu rédiges le résumé matinal
+function systemPrompt(brand: Brand = defaultBrand): string {
+    return `Tu es l'analyste de ${brand.name}, ${brand.description}. Tu rédiges le résumé matinal
 de l'activité de la veille pour le client (l'entreprise pour qui l'équipe prospecte).
 Règles strictes :
 - Français, ton professionnel, clair et chaleureux, vouvoiement.
 - N'utilise QUE les chiffres fournis. N'invente aucun chiffre, nom, pourcentage ou tendance absent des données.
 - Pas de superlatifs creux ; si l'activité est faible, dis-le sobrement et positivement.
 - Réponds uniquement par un objet JSON : {"headline": string (max 60 caractères), "summary": string (2 phrases max, 280 caractères max), "recommendation": string (1 phrase actionnable pour le client, 160 caractères max)}.`;
+}
 
 function parseInsight(text: string | null): DailyInsight | null {
     if (!text) return null;
@@ -79,7 +83,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const report = await buildDailyReport(clientId, query);
     const fallback = buildRuleInsight(report);
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     // Nothing to interpret: the rule summary says it as well as a model would.
     if (!apiKey || (report.totals.calls === 0 && report.totals.meetings === 0)) {
         return successResponse(fallback);
@@ -92,7 +96,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             temperature: 0.3,
             maxTokens: 350,
             messages: [
-                { role: 'system', content: SYSTEM_PROMPT },
+                { role: 'system', content: systemPrompt(await getBrand()) },
                 { role: 'user', content: `Données de la journée (JSON) :\n${JSON.stringify(aggregatesFor(report))}` },
             ],
         });

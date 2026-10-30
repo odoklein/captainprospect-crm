@@ -1,11 +1,13 @@
 /**
  * OpenReplay Client Tracker Service
- * Configured for self-hosted instance at openreplay.suzaliconseil.com
+ * Project key, ingest point and on/off come from the instance runtime config
+ * (OPENREPLAY_* env, read on the server at request time — lib/runtime-config).
  * Supports Next.js App Router (React 19), SSR safeguards, network sanitization,
  * and bidirectional Sentry error correlation.
  */
 
 import * as Sentry from "@sentry/nextjs";
+import { getRuntimeConfig } from "@/lib/runtime-config/client";
 
 // Global OpenReplay window interface definition
 declare global {
@@ -34,24 +36,11 @@ export interface OpenReplayConfig {
   capturePerformance?: boolean;
 }
 
-// Default config targeting self-hosted openreplay.suzaliconseil.com
-const DEFAULT_INGEST_POINT = "https://openreplay.suzaliconseil.com/ingest";
-
 class OpenReplayClient {
   private isInitialized = false;
   private isStarted = false;
-  private projectKey: string | null = null;
-  private ingestPoint: string = DEFAULT_INGEST_POINT;
   private pendingUser: OpenReplayUser | null = null;
   private pendingMetadata: Record<string, string> = {};
-
-  constructor() {
-    if (typeof window !== "undefined") {
-      this.projectKey = process.env.NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY || null;
-      this.ingestPoint =
-        process.env.NEXT_PUBLIC_OPENREPLAY_INGEST_POINT || DEFAULT_INGEST_POINT;
-    }
-  }
 
   /**
    * Initializes and starts the OpenReplay tracker in the client browser.
@@ -59,16 +48,17 @@ class OpenReplayClient {
   public start(customConfig?: Partial<OpenReplayConfig>): void {
     if (typeof window === "undefined") return;
 
-    const enabled = process.env.NEXT_PUBLIC_OPENREPLAY_ENABLED !== "false";
-    if (!enabled) {
-      console.log("[OpenReplay] Tracking is disabled via NEXT_PUBLIC_OPENREPLAY_ENABLED=false");
+    // Read at start time, not at import: the runtime config is per instance.
+    const runtime = getRuntimeConfig().openreplay;
+    if (!runtime.enabled) {
+      console.log("[OpenReplay] Tracking is disabled via OPENREPLAY_ENABLED=false");
       return;
     }
 
-    const key = customConfig?.projectKey || this.projectKey;
+    const key = customConfig?.projectKey || runtime.projectKey;
     if (!key) {
       console.warn(
-        "[OpenReplay] No projectKey found. Please set NEXT_PUBLIC_OPENREPLAY_PROJECT_KEY in your .env file."
+        "[OpenReplay] No projectKey found. Set OPENREPLAY_PROJECT_KEY in the instance env."
       );
       return;
     }
@@ -76,7 +66,7 @@ class OpenReplayClient {
     if (this.isStarted) return;
 
     try {
-      const ingestPoint = customConfig?.ingestPoint || this.ingestPoint;
+      const ingestPoint = customConfig?.ingestPoint || runtime.ingestPoint;
 
       const initOpts: Record<string, any> = {
         projectKey: key,

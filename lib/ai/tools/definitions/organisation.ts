@@ -120,7 +120,7 @@ export const listTasks = defineReadTool({
             taches: tasks.map((t) => ({
                 taskId: t.id,
                 titre: t.title,
-                tableau: t.project.name,
+                tableau: t.project?.name ?? null,
                 statut: t.status,
                 priorite: t.priority,
                 echeance: frDate(t.dueDate),

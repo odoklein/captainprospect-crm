@@ -1,38 +1,19 @@
 -- =============================================
--- Create first admin (Manager)
--- Run in Supabase SQL Editor
+-- Create first admin (Manager) — SUPERSEDED, intentionally empty.
 -- =============================================
--- Email:    admin@captain-prospect.fr
--- Password: Captain123@
--- Role:     MANAGER
+-- This file used to insert a manager with a bcrypt hash and a documented
+-- clear-text password, and its ON CONFLICT clause reset that account's
+-- password on every run. Both are still in git history: treat that
+-- credential as leaked and rotate it on every database where the account
+-- exists.
+--
+-- Create the first manager of an instance instead with the signed
+-- provisioning endpoint (no password ever travels in clear; the manager
+-- receives a one-time reset link):
+--
+--   POST /api/instance/bootstrap   {"email": "...", "name": "..."}
+--
+-- See docs/WHITE_LABEL.md and prisma/README.md.
 -- =============================================
 
-INSERT INTO "User" (
-  "id",
-  "email",
-  "password",
-  "name",
-  "role",
-  "isActive",
-  "clientId",
-  "clientOnboardingDismissedPermanently",
-  "createdAt",
-  "updatedAt"
-) VALUES (
-  'admin-001',
-  'admin@captain-prospect.fr',
-  '$2b$10$77B7DwAjfaPDHgJCQkfF8eNiIDOavFYc2peokFCBX3PPbhYd9C9jm',
-  'Admin Captain Prospect',
-  'MANAGER',
-  true,
-  NULL,
-  false,
-  NOW(),
-  NOW()
-)
-ON CONFLICT ("email") DO UPDATE SET
-  "password" = EXCLUDED."password",
-  "name" = EXCLUDED."name",
-  "role" = EXCLUDED."role",
-  "isActive" = EXCLUDED."isActive",
-  "updatedAt" = NOW();
+SELECT 'seed-admin.sql is superseded: use POST /api/instance/bootstrap (docs/WHITE_LABEL.md)' AS notice;

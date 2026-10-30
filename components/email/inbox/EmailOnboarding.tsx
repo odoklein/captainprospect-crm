@@ -17,7 +17,7 @@ import {
     EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 // ============================================
 // TYPES
@@ -361,6 +361,7 @@ function ImapConfigForm({
 // ============================================
 
 export function EmailOnboarding({ onMailboxConnected }: EmailOnboardingProps) {
+    const brand = useBrand();
     const [selectedProvider, setSelectedProvider] = useState<ProviderType>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

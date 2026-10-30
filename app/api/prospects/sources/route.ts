@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getBrand } from '@/lib/brand/server';
 import { requireRole, withErrorHandler, validateRequest, getPaginationParams, paginatedResponse } from '@/lib/api-utils';
 import { z } from 'zod';
 import { ProspectSourceType } from '@prisma/client';
@@ -113,7 +114,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   // Generate webhook URL for WEB_FORM sources (after source is created)
   if (source.type === 'WEB_FORM') {
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/prospects/intake?sourceId=${source.id}`;
+    const webhookUrl = `${(await getBrand()).appUrl}/api/prospects/intake?sourceId=${source.id}`;
     const updatedMetadata = {
       ...((source.metadata as any) || {}),
       webhookUrl,

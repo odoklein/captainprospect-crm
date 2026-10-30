@@ -12,6 +12,7 @@
  */
 
 import { MistralError } from "./mistral";
+import { integrationKey } from "@/lib/integrations/keys";
 
 const CONVERSATIONS_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL = "gpt-4.1-mini";
@@ -104,7 +105,7 @@ export async function runWebSearchConversation(params: {
     maxTokens?: number;
     timeoutMs?: number;
 }): Promise<WebSearchRun> {
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    const apiKey = integrationKey("OPENAI_API_KEY")?.trim();
     if (!apiKey) throw new MistralError("OPENAI_API_KEY manquante", 401);
 
     const timeoutMs = params.timeoutMs ?? 30_000;

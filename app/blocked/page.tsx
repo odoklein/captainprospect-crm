@@ -2,9 +2,10 @@
 
 import { signOut } from "next-auth/react";
 import { ShieldX, LogOut, Mail } from "lucide-react";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 export default function BlockedPage() {
+    const brand = useBrand();
     return (
         <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
             <div className="max-w-md w-full text-center">

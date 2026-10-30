@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/ui/NotificationBell";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 const NAV_ITEMS = [
     { href: "/developer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -34,6 +34,7 @@ const NAV_ITEMS = [
 ];
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
+    const brand = useBrand();
     const { data: session, status } = useSession();
     const router = useRouter();
     const pathname = usePathname();

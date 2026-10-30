@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { LifeBuoy, Plus, Send } from "lucide-react";
+import { LifeBuoy, Paperclip, Plus, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, Input, Select, EmptyState, LoadingState, useToast } from "@/components/ui";
+import { Button, Drawer, Input, Select, EmptyState, LoadingState, useToast } from "@/components/ui";
+import { TicketAttachmentsField, useTicketAttachments } from "@/components/tickets/TicketAttachmentsField";
 import { TICKET_CATEGORY_LABELS, formatTicketRef } from "@/lib/tickets/constants";
 import { TicketStatusBadge } from "@/components/tickets/TicketBadges";
 import type { TicketCategory, TicketStatus, TicketValidation } from "@prisma/client";
@@ -18,6 +19,7 @@ interface RequestItem {
     createdAt: string;
     status: TicketStatus;
     assignee: { name: string } | null;
+    _count: { attachments: number };
 }
 
 const CATEGORY_OPTIONS = Object.entries(TICKET_CATEGORY_LABELS).map(([value, label]) => ({ value, label }));
@@ -44,6 +46,7 @@ export default function SupportTechniquePage() {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [category, setCategory] = useState<string>("BUG");
+    const attachments = useTicketAttachments();
 
     const fetchRequests = useCallback(async () => {
         try {
@@ -62,6 +65,11 @@ export default function SupportTechniquePage() {
     useEffect(() => {
         fetchRequests();
     }, [fetchRequests]);
+
+    const closeForm = () => {
+        if (isSaving) return;
+        setIsFormOpen(false);
+    };
 
     const submit = async () => {
         if (title.trim().length < 3) {
@@ -87,10 +95,21 @@ export default function SupportTechniquePage() {
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || "Envoi impossible");
 
-            toast.success("Demande envoyée — un manager va la valider");
+            // The request exists from here on: a failed screenshot must not
+            // make the user resubmit (and duplicate) it.
+            const { failed } = await attachments.uploadAll(result.data.id);
+            if (failed > 0) {
+                toast.warning(
+                    `Demande envoyée, mais ${failed} capture${failed > 1 ? "s" : ""} n'${failed > 1 ? "ont" : "a"} pas pu être jointe${failed > 1 ? "s" : ""}. Précisez-le en commentaire.`,
+                );
+            } else {
+                toast.success("Demande envoyée — un manager va la valider");
+            }
+
             setTitle("");
             setDescription("");
             setCategory("BUG");
+            attachments.clear();
             setIsFormOpen(false);
             await fetchRequests();
         } catch (error) {
@@ -110,13 +129,31 @@ export default function SupportTechniquePage() {
                         qu&apos;elle parte en développement.
                     </p>
                 </div>
-                <Button onClick={() => setIsFormOpen((open) => !open)}>
+                <Button onClick={() => setIsFormOpen(true)}>
                     <Plus className="h-4 w-4" /> Nouvelle demande
                 </Button>
             </div>
 
-            {isFormOpen && (
-                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4">
+            <Drawer
+                isOpen={isFormOpen}
+                onClose={closeForm}
+                title="Nouvelle demande"
+                description="Un manager la valide avant qu'elle parte en développement"
+                size="md"
+                // A typed description is easy to lose to a stray click outside.
+                closeOnOverlay={false}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button variant="secondary" onClick={closeForm} disabled={isSaving}>
+                            Annuler
+                        </Button>
+                        <Button onClick={submit} isLoading={isSaving}>
+                            <Send className="h-4 w-4" /> Envoyer
+                        </Button>
+                    </div>
+                }
+            >
+                <div className="space-y-5">
                     <Input
                         label="Titre"
                         value={title}
@@ -129,21 +166,14 @@ export default function SupportTechniquePage() {
                         <textarea
                             value={description}
                             onChange={(event) => setDescription(event.target.value)}
-                            rows={5}
+                            rows={6}
                             placeholder="Ce que vous faisiez, ce qui s'est passé, ce que vous attendiez…"
                             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                         />
                     </div>
-                    <div className="flex justify-end gap-2">
-                        <Button variant="secondary" onClick={() => setIsFormOpen(false)} disabled={isSaving}>
-                            Annuler
-                        </Button>
-                        <Button onClick={submit} isLoading={isSaving}>
-                            <Send className="h-4 w-4" /> Envoyer
-                        </Button>
-                    </div>
+                    <TicketAttachmentsField controller={attachments} active={isFormOpen} disabled={isSaving} />
                 </div>
-            )}
+            </Drawer>
 
             {isLoading ? (
                 <LoadingState message="Chargement de vos demandes..." />
@@ -178,6 +208,12 @@ export default function SupportTechniquePage() {
                                         {TICKET_CATEGORY_LABELS[req.category]} ·{" "}
                                         {new Date(req.createdAt).toLocaleDateString("fr-FR")}
                                     </span>
+                                    {req._count.attachments > 0 && (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Paperclip className="h-3 w-3" />
+                                            {req._count.attachments}
+                                        </span>
+                                    )}
                                     {/* Once accepted, the request is real work: show where it
                                         stands so the requester doesn't have to ask. */}
                                     {req.validation === "ACCEPTED" && (

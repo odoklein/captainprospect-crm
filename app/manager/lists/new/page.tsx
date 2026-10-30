@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, Button, Select, useToast } from "@/components/ui";
 import { ArrowLeft, List, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useBrand } from "@/lib/brand/client";
 
 // ============================================
 // TYPES
@@ -28,6 +29,7 @@ interface FormData {
 
 export default function NewListPage() {
     const router = useRouter();
+    const brand = useBrand();
     const { success, error: showError } = useToast();
     const [missions, setMissions] = useState<Mission[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -175,7 +177,7 @@ export default function NewListPage() {
                     <Select
                         label="Type de liste *"
                         options={[
-                            { value: "SUZALI", label: "Suzali - Liste interne enrichie" },
+                            { value: "SUZALI", label: `${brand.companyShortName} - Liste interne enrichie` },
                             { value: "CLIENT", label: "Client - Données fournies par le client" },
                             { value: "MIXED", label: "Mixte - Fusion de sources" },
                         ]}

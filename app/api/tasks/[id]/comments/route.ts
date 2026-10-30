@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { canEditTask, TASK_ACCESS_INCLUDE } from "@/lib/tasks/access";
 
 // GET /api/tasks/[id]/comments
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,11 +47,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         const task = await prisma.task.findUnique({
             where: { id },
-            select: { id: true, projectId: true, title: true },
+            select: {
+                id: true, projectId: true, title: true,
+                createdById: true, assigneeId: true, audienceRole: true,
+                ...TASK_ACCESS_INCLUDE,
+            },
         });
 
         if (!task) {
             return NextResponse.json({ success: false, error: "Tâche non trouvée" }, { status: 404 });
+        }
+
+        if (!canEditTask(session.user, task)) {
+            return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
         }
 
         const comment = await prisma.taskComment.create({
@@ -65,15 +74,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         });
 
         // Log activity
-        await prisma.projectActivity.create({
-            data: {
-                projectId: task.projectId,
-                taskId: id,
-                userId: session.user.id,
-                action: "commented",
-                details: { preview: content.trim().slice(0, 100) },
-            },
-        });
+        if (task.projectId) {
+            await prisma.projectActivity.create({
+                data: {
+                    projectId: task.projectId,
+                    taskId: id,
+                    userId: session.user.id,
+                    action: "commented",
+                    details: { preview: content.trim().slice(0, 100) },
+                },
+            });
+        }
 
         return NextResponse.json({ success: true, data: comment });
     } catch (error) {

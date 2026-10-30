@@ -9,6 +9,7 @@ import {
 import { actionService } from "@/lib/services/ActionService";
 import { storageService } from "@/lib/storage/storage-service";
 import { resolveAudioMime } from "@/lib/audio-upload";
+import { integrationKey } from "@/lib/integrations/keys";
 
 const ALLO_HOST = "api.withallo.com";
 const ALLO_RECORDINGS_PATH_PREFIX = "/v1/assets/recordings/";
@@ -86,7 +87,7 @@ function resolveUpstream(urlString: string): Upstream {
     }
 
     if (u.protocol === "https:" && u.hostname === ALLO_HOST && u.pathname.startsWith(ALLO_RECORDINGS_PATH_PREFIX)) {
-        const apiKey = process.env.ALLO_API_KEY;
+        const apiKey = integrationKey("ALLO_API_KEY");
         if (!apiKey) throw new NotFoundError("Enregistrement introuvable");
         return { url: u, authHeader: apiKey };
     }

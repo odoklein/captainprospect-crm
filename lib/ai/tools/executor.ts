@@ -18,9 +18,9 @@ import {
 import { authorizeToolCall } from "./guard";
 import { getTool } from "./registry";
 import { wrapToolPayload } from "./redact";
-
-/** Hard cap on tool calls per assistant request. */
-export const MAX_TOOL_CALLS_PER_REQUEST = 8;
+import { truncateStructured } from "./truncate";
+import { isEmptyPayload } from "@/lib/ai/agent/evidence/facts";
+import type { EvidenceSession } from "@/lib/ai/agent/evidence/session";
 
 export interface ToolCallRequest {
     id?: string;
@@ -60,6 +60,20 @@ function toErrorPayload(error: unknown): { code: string; message: string } {
  * question "what did the assistant actually do on this project?" has one
  * answer, regardless of which path executed it.
  */
+/** Longest string kept per argument in the action log (a create_pdf body can be 60k chars). */
+const LOG_STRING_MAX = 500;
+
+/**
+ * The arguments as the audit trail keeps them: same shape, long strings cut.
+ * The log answers "who did what to which record", not "what was written".
+ */
+export function compactLogArgs(value: unknown, depth = 0): unknown {
+    if (typeof value === "string") return value.length > LOG_STRING_MAX ? `${value.slice(0, LOG_STRING_MAX)}… (${value.length} caractères)` : value;
+    if (depth > 4 || value === null || typeof value !== "object") return value;
+    if (Array.isArray(value)) return value.slice(0, 50).map((v) => compactLogArgs(v, depth + 1));
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, compactLogArgs(v, depth + 1)]));
+}
+
 export async function logAssistantAction(params: {
     ctx: AssistantContext;
     tool: string;
@@ -74,7 +88,7 @@ export async function logAssistantAction(params: {
                 tool: params.tool,
                 // Arguments are ids and flags, never secrets — the vault's own
                 // audit trail covers what happened to the credential itself.
-                args: (params.args ?? {}) as Prisma.InputJsonValue,
+                args: compactLogArgs(params.args ?? {}) as Prisma.InputJsonValue,
                 outcome: params.outcome.slice(0, 1000),
                 confirmed: params.confirmed,
                 ok: params.ok,
@@ -89,15 +103,43 @@ export async function logAssistantAction(params: {
     }
 }
 
+export interface ExecuteOptions {
+    /**
+     * When attached, every read is recorded as evidence before its result is
+     * returned, and an identical still-fresh read is served from the ledger.
+     */
+    evidence?: EvidenceSession | null;
+}
+
 export async function executeToolCall(
     call: ToolCallRequest,
     ctx: AssistantContext,
+    options: ExecuteOptions = {},
 ): Promise<ToolExecutionResult> {
     const startedAt = Date.now();
     const tool = getTool(call.name);
+    const evidence = tool?.risk === "read" && !tool.noEvidence ? options.evidence ?? null : null;
+    let rawArgs: unknown = {};
 
     try {
-        const args = authorizeToolCall(tool, call.name, parseArguments(call.arguments), ctx);
+        rawArgs = parseArguments(call.arguments);
+        const args = authorizeToolCall(tool, call.name, rawArgs, ctx);
+
+        if (evidence) {
+            const hit = await evidence.reuse(tool!.name, evidence.hashArgs(tool!.name, args));
+            if (hit) {
+                return {
+                    tool: call.name,
+                    label: tool!.label,
+                    ok: true,
+                    data: hit.payload,
+                    durationMs: Date.now() - startedAt,
+                    cached: true,
+                    evidence: hit.entry.label,
+                };
+            }
+        }
+
         const data = await tool!.execute(args, ctx);
 
         // Spend the budget only on success: a failed write left no trace, so the
@@ -116,33 +158,63 @@ export async function executeToolCall(
             });
         }
 
+        // Persisted before the model sees the result: an answer can only cite
+        // evidence that already exists.
+        const entry = evidence
+            ? await evidence.record({
+                  tool: tool!.name,
+                  toolLabel: tool!.label,
+                  args,
+                  status: isEmptyPayload(data) ? "EMPTY" : "OK",
+                  data,
+              })
+            : null;
+
         return {
             tool: call.name,
             label: tool!.label,
             ok: true,
             data,
             durationMs: Date.now() - startedAt,
+            evidence: entry?.label,
         };
     } catch (error) {
+        const payload = toErrorPayload(error);
+        const entry = evidence
+            ? await evidence.record({
+                  tool: tool!.name,
+                  toolLabel: tool!.label,
+                  args: rawArgs,
+                  status: "ERROR",
+                  errorCode: payload.code,
+              })
+            : null;
         return {
             tool: call.name,
             label: tool?.label ?? call.name,
             ok: false,
-            error: toErrorPayload(error),
+            error: payload,
             durationMs: Date.now() - startedAt,
+            evidence: entry?.label,
         };
     }
 }
+
+/** Above this many serialised characters, a result is sliced before it reaches the model. */
+const MODEL_RESULT_CAP_CHARS = 60_000;
 
 /** Serialise a result for the `tool` message sent back to the model. */
 export function serializeToolResult(result: ToolExecutionResult): string {
     if (!result.ok) {
         return JSON.stringify({
             tool: result.tool,
+            ...(result.evidence ? { source: result.evidence } : {}),
             error: result.error,
             _note:
                 "Cet outil a échoué ou a été refusé. Explique la limite à l'utilisateur, n'invente pas de données.",
         });
     }
-    return wrapToolPayload(result.tool, result.data);
+    // Safety net for project tools, which cap nothing themselves: the evidence
+    // ledger already holds the full payload, only the model's copy is cut.
+    return wrapToolPayload(result.tool, truncateStructured(result.data, MODEL_RESULT_CAP_CHARS).value, result.evidence);
 }

@@ -6,6 +6,7 @@ import {
     RdvNotificationData,
 } from "@/lib/email/templates/rdv-notification";
 import { emitCrmEvent } from "@/lib/integrations/messaging/events";
+import { getBrand } from "@/lib/brand/server";
 
 interface CreateNotificationParams {
     userId: string;
@@ -44,9 +45,14 @@ export async function createNotification({
 interface TaskAssignmentNotificationParams {
     assigneeId: string;
     taskTitle: string;
-    projectName: string;
+    /** null for a task outside any project */
+    projectName: string | null;
     assignedByName: string;
     taskId?: string;
+}
+
+function inProject(projectName: string | null): string {
+    return projectName ? ` dans le projet ${projectName}` : "";
 }
 
 /**
@@ -61,7 +67,7 @@ export async function createTaskAssignmentNotification({
     return createNotification({
         userId: assigneeId,
         title: "Nouvelle tâche assignée",
-        message: `"${taskTitle}" dans le projet ${projectName} - assignée par ${assignedByName}`,
+        message: `"${taskTitle}"${inProject(projectName)} - assignée par ${assignedByName}`,
         type: "info",
         link: "/developer/tasks",
     });
@@ -79,7 +85,7 @@ export async function createTaskReassignmentNotification({
     return createNotification({
         userId: assigneeId,
         title: "Tâche réassignée",
-        message: `"${taskTitle}" dans le projet ${projectName} vous a été réassignée par ${assignedByName}`,
+        message: `"${taskTitle}"${inProject(projectName)} vous a été réassignée par ${assignedByName}`,
         type: "info",
         link: "/developer/tasks",
     });
@@ -542,6 +548,7 @@ export async function sendNewRdvEmailNotification(
         // The manager-editable template is the "new RDV" wording: reschedules and
         // cancellations always use the built-in layout.
         const useCustomTemplate = Boolean(customTemplate) && (!data.variant || data.variant === "new");
+        const brand = await getBrand();
 
         const interlocuteurRecipients = new Set<string>();
         if (interlocuteur) {
@@ -572,8 +579,8 @@ export async function sendNewRdvEmailNotification(
         if (recipients.size > 0) {
             // Use custom DB template if available, otherwise use default dynamic builder
             const { subject, html } = useCustomTemplate && customTemplate
-                ? buildRdvEmailFromCustomTemplate(customTemplate.subject, customTemplate.bodyHtml, data)
-                : buildRdvNotificationEmail(data);
+                ? buildRdvEmailFromCustomTemplate(customTemplate.subject, customTemplate.bodyHtml, data, brand)
+                : buildRdvNotificationEmail(data, brand);
 
             await Promise.allSettled(
                 Array.from(recipients).map((email) =>
@@ -591,9 +598,10 @@ export async function sendNewRdvEmailNotification(
                 ? buildRdvEmailFromCustomTemplate(
                       customTemplate.subject,
                       customTemplate.bodyHtml,
-                      interlocuteurData
+                      interlocuteurData,
+                      brand
                   )
-                : buildRdvNotificationEmail(interlocuteurData);
+                : buildRdvNotificationEmail(interlocuteurData, brand);
 
             await Promise.allSettled(
                 Array.from(interlocuteurRecipients).map((email) =>

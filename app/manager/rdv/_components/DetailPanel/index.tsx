@@ -41,6 +41,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { downloadICS, proximityLabel } from "../../_lib/formatters";
+import { useBrand } from "@/lib/brand/client";
 import { DetailTab } from "./DetailTab";
 import { FicheTab } from "./FicheTab";
 import { FeedbackTab } from "./FeedbackTab";
@@ -83,6 +84,7 @@ export function DetailPanel({
   updateLocalMeeting,
   meetings = [],
 }: DetailPanelProps) {
+  const brand = useBrand();
   const { selectedMeeting, setSelectedMeeting, panelOpen, panelTab, setPanelTab, closePanel } = panelState;
 
   if (!selectedMeeting) return null;
@@ -438,7 +440,7 @@ export function DetailPanel({
             {selectedMeeting.callbackDate && (
               <button
                 className="rdv-btn rdv-btn-ghost rdv-btn-sm"
-                onClick={() => downloadICS(selectedMeeting)}
+                onClick={() => downloadICS(selectedMeeting, brand)}
               >
                 <CalendarPlus size={12} /> Export .ics
               </button>

@@ -1,84 +1,12 @@
 import { PrismaClient } from '@prisma/client';
+import { EXTERNAL_ENDPOINTS } from './reference-data';
 
 const prisma = new PrismaClient();
 
 async function seedEndpoints() {
   console.log('🌱 Seeding external endpoints...');
 
-  const endpoints = [
-    {
-      path: '/api/stats',
-      name: 'Dashboard Statistics',
-      description: 'Get comprehensive dashboard statistics including actions, meetings, conversion rates, and performance metrics',
-      methods: ['GET'],
-      minRole: 'MANAGER',
-      supportsClientScope: true,
-      supportsMissionScope: true,
-      isEnabled: true,
-      defaultRateLimitPerMinute: 60,
-      defaultRateLimitPerHour: 1000,
-    },
-    {
-      path: '/api/stats/missions-summary',
-      name: 'Missions Summary',
-      description: 'Get a summary of all active missions with activity metrics and performance data',
-      methods: ['GET'],
-      minRole: 'MANAGER',
-      supportsClientScope: true,
-      supportsMissionScope: false,
-      isEnabled: true,
-      defaultRateLimitPerMinute: 60,
-      defaultRateLimitPerHour: 1000,
-    },
-    {
-      path: '/api/prospects/intake',
-      name: 'Prospect Intake',
-      description: 'Submit new prospects for processing and enrichment',
-      methods: ['POST'],
-      minRole: 'CLIENT',
-      supportsClientScope: true,
-      supportsMissionScope: true,
-      isEnabled: true,
-      defaultRateLimitPerMinute: 30,
-      defaultRateLimitPerHour: 500,
-    },
-    {
-      path: '/api/prospects',
-      name: 'Prospects List',
-      description: 'Get a list of prospects with filtering and pagination',
-      methods: ['GET'],
-      minRole: 'SDR',
-      supportsClientScope: true,
-      supportsMissionScope: true,
-      isEnabled: true,
-      defaultRateLimitPerMinute: 60,
-      defaultRateLimitPerHour: 1000,
-    },
-    {
-      path: '/api/meetings',
-      name: 'Meetings',
-      description: 'Get scheduled meetings and calendar data',
-      methods: ['GET'],
-      minRole: 'SDR',
-      supportsClientScope: true,
-      supportsMissionScope: true,
-      isEnabled: true,
-      defaultRateLimitPerMinute: 60,
-      defaultRateLimitPerHour: 1000,
-    },
-    {
-      path: '/api/activities',
-      name: 'Activities',
-      description: 'Get activity logs and interaction history',
-      methods: ['GET'],
-      minRole: 'SDR',
-      supportsClientScope: true,
-      supportsMissionScope: true,
-      isEnabled: true,
-      defaultRateLimitPerMinute: 60,
-      defaultRateLimitPerHour: 1000,
-    },
-  ];
+  const endpoints = EXTERNAL_ENDPOINTS;
 
   for (const endpoint of endpoints) {
     const existing = await prisma.externalEndpoint.findUnique({

@@ -1,11 +1,40 @@
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
+import { getEdgeLicenseState, isWriteMethod } from "@/lib/license/edge-state";
+import { blockingFeature } from "@/lib/license/gates";
 
 export default withAuth(
-    function middleware(req) {
+    async function middleware(req) {
         const token = req.nextauth.token;
         const path = req.nextUrl.pathname;
         const apiKey = req.headers.get("x-api-key");
+
+        // 0. License pushed by the control plane (cached a few seconds, fails open).
+        // Server actions are POSTs to page URLs (header Next-Action): writes like the /api ones.
+        const serverAction = req.method === "POST" && req.headers.has("next-action");
+        if (path.startsWith("/api/") || serverAction) {
+            const license = await getEdgeLicenseState(req.nextUrl.origin);
+            // Suspended: read-only. Reads, login and the public routes outside the
+            // matcher stay available, so the agency can still sign in and export its data.
+            if (license.suspended && isWriteMethod(req.method)) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: "instance_suspended",
+                        message: license.reason ?? "Compte suspendu : les modifications sont désactivées. Contactez-nous pour le réactiver.",
+                    },
+                    { status: 403 },
+                );
+            }
+            // A feature the pack does not include.
+            const off = blockingFeature(path, req.method, license.features);
+            if (off) {
+                return NextResponse.json(
+                    { success: false, error: "feature_not_included", feature: off, message: "Cette fonctionnalité n'est pas incluse dans votre offre." },
+                    { status: 403 },
+                );
+            }
+        }
 
         // 1. Autoriser l'accès si une API Key est présente
         // On laisse la route API finale valider si la clé est correcte dans Supabase
@@ -71,6 +100,9 @@ export const config = {
         // All /api routes except /api/auth/* (NextAuth handles its own routes)
         // and /api/webhooks/* (provider callbacks, each route verifies its own signature)
         // and /api/v1/* + /api/mcp (public API: Bearer API key, authenticated by the route itself)
-        "/api/((?!auth/|webhooks/|v1/|mcp).*)",
+        // and /api/brand/assets/* + /api/public-config (public brand files and config, on the login page too)
+        // and /api/instance/* (control-plane provisioning: HMAC-signed, verified by lib/instance/auth)
+        // and /api/license-state (suspension probe the middleware itself calls)
+        "/api/((?!auth/|webhooks/|v1/|mcp|brand/assets/|public-config|license-state|instance/).*)",
     ],
 };

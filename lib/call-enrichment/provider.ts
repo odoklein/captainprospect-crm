@@ -1,6 +1,7 @@
 import { AlloProvider } from './allo-provider';
 import { VaultProvider } from './vault-provider';
 import { isVaultConfigured } from '@/lib/call-vault-client';
+import { integrationKey } from "@/lib/integrations/keys";
 
 export interface CallRecord {
   summary?: string;
@@ -30,7 +31,7 @@ function buildProvider(): CallProvider {
     return new VaultProvider();
   }
 
-  const apiKey = process.env.ALLO_API_KEY;
+  const apiKey = integrationKey("ALLO_API_KEY");
   if (apiKey) {
     console.log('[call-enrichment] provider=Allo (legacy direct fallback — set VAULT_API_URL/VAULT_API_KEY to use call-vault instead)');
     return new AlloProvider(apiKey);
@@ -46,4 +47,13 @@ function buildProvider(): CallProvider {
   };
 }
 
-export const callProvider: CallProvider = buildProvider();
+// Rebuilt when the Allo key changes (Paramètres → Intégrations), without a restart.
+let built: { key: string | undefined; provider: CallProvider } | null = null;
+
+export const callProvider: CallProvider = {
+  fetchMatchingCallRecord(input) {
+    const key = integrationKey("ALLO_API_KEY");
+    if (!built || built.key !== key) built = { key, provider: buildProvider() };
+    return built.provider.fetchMatchingCallRecord(input);
+  },
+};

@@ -7,7 +7,7 @@
 // Nothing is written on the company until an SDR applies a suggestion.
 // ============================================
 
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
@@ -119,8 +119,12 @@ interface EphemeralLookup {
     createdAt: Date;
 }
 
+// No auth secret configured: a per-process random key (ephemeral ids then stop
+// verifying after a restart) rather than a constant anyone could sign with.
+const FALLBACK_KEY = randomBytes(32).toString("hex");
+
 function sign(body: string): string {
-    const key = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "company-ai-ephemeral-dev-key";
+    const key = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || FALLBACK_KEY;
     return createHmac("sha256", key).update(body).digest("base64url");
 }
 

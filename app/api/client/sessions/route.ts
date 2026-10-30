@@ -11,6 +11,7 @@ import {
   requireRole,
   withErrorHandler,
 } from '@/lib/api-utils';
+import { SESSION_TASKS_INCLUDE, toSessionTaskDto } from '@/lib/tasks/session-tasks';
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
   const session = await requireRole(['CLIENT'], request);
@@ -19,7 +20,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
   const sessions = await prisma.clientSession.findMany({
     where: { clientId },
-    include: { tasks: { orderBy: { createdAt: 'asc' } } },
+    include: SESSION_TASKS_INCLUDE,
     orderBy: { date: 'desc' },
   });
 
@@ -32,13 +33,14 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     crMarkdown: s.crMarkdown,
     summaryEmail: s.summaryEmail,
     emailSentAt: s.emailSentAt?.toISOString() ?? null,
-    tasks: s.tasks.map((t) => ({
+    // The portal only needs what the client reads; no internal ids beyond the row id.
+    tasks: s.workTasks.map(toSessionTaskDto).map((t) => ({
       id: t.id,
       label: t.label,
       assignee: t.assignee,
       assigneeRole: t.assigneeRole,
       priority: t.priority,
-      doneAt: t.doneAt?.toISOString() ?? null,
+      doneAt: t.doneAt,
     })),
     createdAt: s.createdAt.toISOString(),
   }));

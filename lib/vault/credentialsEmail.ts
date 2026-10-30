@@ -13,7 +13,8 @@ import { NotFoundError, ValidationError } from "@/lib/api-utils";
 import { decrypt } from "@/lib/encryption";
 import { sendTransactionalEmail } from "@/lib/email/transactional";
 import { recordVaultAudit } from "./service";
-import { brand } from "@/lib/brand";
+import type { Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 /** Keeps interpolated values from breaking out of the HTML body. */
 function escapeHtml(value: string): string {
@@ -33,7 +34,7 @@ function buildHtml(params: {
     url: string | null;
     senderName: string;
     note: string | null;
-}): string {
+}, brand: Brand): string {
     const rows: Array<[string, string]> = [
         ["Identifiant", params.login],
         ["Mot de passe", params.password],
@@ -175,6 +176,7 @@ export async function sendCredentialsEmail(params: {
             ? `${credential.interlocuteur.firstName} ${credential.interlocuteur.lastName}`.trim()
             : recipient);
 
+    const brand = await getBrand();
     const sent = await sendTransactionalEmail({
         to: recipient,
         subject: `Vos acces - ${credential.label}`,
@@ -186,7 +188,7 @@ export async function sendCredentialsEmail(params: {
             url: credential.url,
             senderName: actor?.name || brand.name,
             note: params.note?.trim() || null,
-        }),
+        }, brand),
         text: [
             `Bonjour ${recipientName},`,
             "",

@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* shadcn/ui enter/exit utilities (animate-in, fade-in-0, zoom-in-95, slide-in-from-*,
+   animate-accordion-*). Tokens + reduced-motion rule: see "SHADCN/UI LAYER" below. */
+@import "tw-animate-css";
 
 /* ============================================================================
    DESIGN SYSTEM — TOKENS
@@ -365,6 +368,55 @@
     from { background-position: 200% 0; }
     to { background-position: -200% 0; }
 }
+/* The ds-* motion is decoration: people who ask the OS for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+    .animate-ds-enter,
+    .animate-ds-pop,
+    .animate-ds-slide-in,
+    .animate-ds-shimmer {
+        animation: none !important;
+    }
+}
+
+/* ============================================================================
+   SHADCN/UI LAYER — components/ui/shadcn/** (docs/ui/SHADCN.md)
+   ----------------------------------------------------------------------------
+   The shadcn components are written with OUR utilities (bg-surface, text-ink-3,
+   border-line, rounded-panel, shadow-overlay…). shadcn's own semantic names
+   (background, popover, muted-foreground, ring…) are deliberately NOT defined:
+   several already mean something else here. Only the few concepts we lacked
+   get a token, always namespaced --sh-*.
+   ============================================================================ */
+:root {
+    /* Scrim behind Dialog / AlertDialog / Sheet / Drawer (same as Modal.tsx). */
+    --sh-scrim: color-mix(in oklab, var(--ds-ink) 45%, transparent);
+    /* Skeleton shimmer: a light sweep over bg-surface-3, moved by animate-ds-shimmer. */
+    --sh-shimmer: linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--ds-surface) 65%, transparent) 50%, transparent 100%);
+    /* Stacking: the shell tops out at 100, Modal.tsx is 120, Toast.tsx 130.
+       Modal surfaces sit with Modal; floating layers (menus, popovers, tooltips,
+       select) sit above any modal so they work inside one, below toasts. */
+    --sh-z-modal: 120;
+    --sh-z-popover: 125;
+}
+
+@theme inline {
+    --color-sh-scrim: var(--sh-scrim);
+}
+
+/* tw-animate-css ignores the OS setting: people who ask for less motion get the
+   overlays, menus, sheets and accordions without enter/exit animation. Radix
+   Presence sees `animation-name: none` and unmounts immediately. */
+@media (prefers-reduced-motion: reduce) {
+    [class*="animate-in"],
+    [class*="animate-out"],
+    [class*="animate-accordion-"],
+    [class*="animate-collapsible-"],
+    [data-vaul-drawer],
+    [data-vaul-overlay] {
+        animation: none !important;
+    }
+}
+/* ======================== END SHADCN/UI LAYER =============================== */
 
 @layer base {
     html {
@@ -2162,7 +2214,7 @@ textarea::placeholder {
     color: #fff;
 }
 
-/* --- Captain AI entry: the one loud button in the sidebar --- */
+/* --- Captain AI entry: flat brand selection, no glow --- */
 .cp-ai-trigger,
 .cp-ai-trigger-mini {
     position: relative;
@@ -2170,22 +2222,17 @@ textarea::placeholder {
     align-items: center;
     flex-shrink: 0;
     color: #fff;
-    background: linear-gradient(120deg, var(--brand-accent-600), var(--brand-accent-500) 45%, var(--brand-primary-500));
-    background-size: 200% 100%;
-    border: 1px solid color-mix(in oklab, var(--brand-accent-300) 55%, transparent);
-    box-shadow: 0 6px 18px -6px color-mix(in oklab, var(--brand-accent-500) 75%, transparent);
-    transition: background-position 400ms ease, box-shadow 160ms ease, transform 120ms ease;
-    animation: cp-ai-glow 3.2s ease-in-out infinite;
+    background: var(--brand-accent-600);
+    transition: background-color 150ms ease;
 }
 
 .cp-ai-trigger {
     gap: 9px;
     margin: 0 10px 8px;
     padding: 8px 10px;
-    border-radius: 9px;
+    border-radius: 8px;
     font-size: 12.5px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-weight: 600;
 }
 
 .cp-ai-trigger-mini {
@@ -2193,94 +2240,34 @@ textarea::placeholder {
     width: 34px;
     height: 34px;
     margin: 0 auto 8px;
-    border-radius: 9px;
+    border-radius: 8px;
 }
 
 .cp-ai-trigger:hover,
 .cp-ai-trigger-mini:hover {
-    background-position: 100% 0;
-    transform: translateY(-1px);
-}
-
-.cp-ai-trigger[data-active="true"],
-.cp-ai-trigger-mini[data-active="true"] {
-    border-color: #fff;
-    animation: none;
+    background: var(--brand-accent-700);
 }
 
 .cp-ai-trigger-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.18);
-}
-
-.cp-ai-trigger-tag {
-    margin-left: auto;
-    padding: 1.5px 6px;
-    border-radius: 999px;
-    font-size: 9.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: rgba(255, 255, 255, 0.2);
+    width: 20px;
+    height: 20px;
 }
 
 .cp-ai-trigger-dot {
     position: absolute;
     top: -3px;
     right: -3px;
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 999px;
     background: var(--brand-accent-300);
     box-shadow: 0 0 0 2px var(--ds-inverse);
 }
 
-/* --- Captain AI chat: avatar orb + shimmering "thinking" text --- */
-.cp-ai-orb {
-    /* Anchors the busy ring below. Without it the ring sizes itself on the
-       nearest positioned ancestor — the whole chat — and sweeps the page. */
-    position: relative;
-    background: linear-gradient(135deg, var(--brand-accent-500), var(--brand-primary-600));
-}
-
-/* Spinning ring, only while Captain AI is working. */
-.cp-ai-orb-busy::after {
-    content: "";
-    position: absolute;
-    inset: -3px;
-    border-radius: 999px;
-    border: 2px solid transparent;
-    border-top-color: var(--brand-accent-400);
-    border-right-color: color-mix(in oklab, var(--brand-accent-400) 40%, transparent);
-    animation: cp-ai-spin 1.1s linear infinite;
-}
-
-.cp-ai-shimmer {
-    background: linear-gradient(
-        90deg,
-        var(--brand-primary-600) 0%,
-        var(--brand-accent-500) 40%,
-        var(--brand-primary-600) 80%
-    );
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: cp-ai-shimmer 2.2s linear infinite;
-}
-
-/* Soft brand wash behind the conversation, so the empty canvas isn't flat white. */
-.cp-ai-canvas {
-    background:
-        radial-gradient(55% 38% at 50% 0%, color-mix(in oklab, var(--brand-accent-500) 7%, transparent), transparent 72%),
-        radial-gradient(38% 30% at 100% 100%, color-mix(in oklab, var(--brand-primary-500) 6%, transparent), transparent 72%),
-        var(--ds-surface);
-}
+/* --- Captain AI chat --- */
 
 /* Captain AI answers. The .ap-md-* rules only get their colours inside the
    old .ap-root panel, so the full-page chat sets its own scope here. */
@@ -2290,98 +2277,114 @@ textarea::placeholder {
     --ap-accent: var(--brand-accent-600);
     --ap-accent-deep: var(--brand-accent-700);
     font-size: 14px;
-    line-height: 1.7;
+    line-height: 1.65;
     color: var(--ds-ink);
     overflow-wrap: anywhere;
 }
 
 .cp-ai-answer .ap-md-p { margin: 0 0 10px; }
-.cp-ai-answer strong { color: var(--brand-primary-800); font-weight: 650; }
+.cp-ai-answer strong { font-weight: 600; }
 
 .cp-ai-answer .ap-md-h {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 18px 0 8px;
+    margin: 18px 0 6px;
     font-size: 15px;
-    color: var(--brand-primary-800);
-}
-
-.cp-ai-answer .ap-md-h::before {
-    content: "";
-    flex-shrink: 0;
-    width: 4px;
-    height: 15px;
-    border-radius: 2px;
-    background: linear-gradient(var(--brand-accent-500), var(--brand-primary-500));
+    color: var(--ds-ink);
 }
 
 .cp-ai-answer .ap-md-ul { padding-left: 20px; gap: 4px; }
-.cp-ai-answer .ap-md-ul li::marker { color: var(--brand-accent-500); }
-
-/* Numbered steps as rose badges; the list's own start keeps the count going. */
-.cp-ai-answer .ap-md-ol {
-    list-style: none;
-    padding-left: 0;
-    gap: 8px;
-}
-
-.cp-ai-answer .ap-md-ol > li {
-    position: relative;
-    min-height: 24px;
-    padding-left: 34px;
-    counter-increment: ap-step;
-}
-
-.cp-ai-answer .ap-md-ol > li::before {
-    content: counter(ap-step);
-    position: absolute;
-    left: 0;
-    top: 1px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    font-size: 11.5px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--brand-accent-700);
-    background: color-mix(in oklab, var(--brand-accent-500) 12%, var(--ds-surface));
-    border: 1px solid color-mix(in oklab, var(--brand-accent-500) 28%, transparent);
-}
+.cp-ai-answer .ap-md-ol { padding-left: 22px; gap: 4px; }
+.cp-ai-answer .ap-md-ol > li::marker { color: var(--ds-ink-3); }
 
 /* Sub-points the model writes under a step sit under that step, not at the margin. */
-.cp-ai-answer .ap-md-ol + .ap-md-ul { margin-left: 34px; }
+.cp-ai-answer .ap-md-ol + .ap-md-ul { margin-left: 22px; }
 
 .cp-ai-answer .ap-md-code {
-    background: color-mix(in oklab, var(--brand-accent-500) 8%, var(--ds-surface));
-    color: var(--brand-accent-700);
+    background: var(--ds-surface-3);
+    color: var(--ds-ink);
 }
 
-@keyframes cp-ai-spin {
-    to { transform: rotate(360deg); }
+/* react-markdown nests sub-lists inside their <li>, and wraps loose items in <p>. */
+.cp-ai-answer li > .ap-md-ul,
+.cp-ai-answer li > .ap-md-ol { margin: 4px 0 2px; }
+.cp-ai-answer li > .ap-md-p { margin: 0; }
+.cp-ai-answer .ap-md-pre {
+    margin: 4px 0 12px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: var(--ds-surface-3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
 }
+.cp-ai-answer .ap-md-pre code { background: none; padding: 0; }
 
-@keyframes cp-ai-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
+/* The draft being streamed ends on a caret, after its last line of text. */
+.cp-ai-caret .ap-md > :is(p, h3, h4):last-child::after,
+.cp-ai-caret .ap-md > :is(ul, ol):last-child > li:last-child::after {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    margin-left: 2px;
+    vertical-align: -2px;
+    border-radius: 1px;
+    background: var(--ds-ink-3);
+    animation: cpAiCaret 1s steps(2, start) infinite;
 }
+@keyframes cpAiCaret { to { visibility: hidden; } }
 
-@keyframes cp-ai-glow {
-    0%, 100% { box-shadow: 0 6px 18px -6px color-mix(in oklab, var(--brand-accent-500) 70%, transparent); }
-    50% { box-shadow: 0 6px 24px -4px color-mix(in oklab, var(--brand-accent-400) 95%, transparent); }
+/* --- Captain AI visuals (charts, key figures). Categorical slots in a fixed
+   order, never cycled; light and dark are separately stepped sets, validated
+   as a palette (adjacent CVD ΔE ≥ 8, normal-vision ≥ 15). --- */
+.cp-viz {
+    --viz-1: #2a78d6;
+    --viz-2: #eb6834;
+    --viz-3: #1baf7a;
+    --viz-4: #eda100;
+    --viz-5: #e87ba4;
+    --viz-6: #008300;
+    --viz-7: #6250d6;
+    --viz-8: #e34948;
+    /* one-hue magnitude ramp, light → dark (heatmap, funnel stages) */
+    --viz-seq-lo: #cde2fb;
+    --viz-seq-hi: #104281;
+    --viz-ord-1: #86b6ef;
+    --viz-ord-2: #5598e7;
+    --viz-ord-3: #2a78d6;
+    --viz-ord-4: #1c5cab;
+    --viz-ord-5: #184f95;
 }
-
-@media (prefers-reduced-motion: reduce) {
-    .cp-ai-trigger,
-    .cp-ai-trigger-mini,
-    .cp-ai-orb-busy::after,
-    .cp-ai-shimmer {
-        animation: none;
+@media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .cp-viz {
+        --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500;
+        --viz-5: #d55181; --viz-6: #008300; --viz-7: #9085e9; --viz-8: #e66767;
+        --viz-seq-lo: #0d366b; --viz-seq-hi: #9ec5f4;
+        --viz-ord-1: #184f95; --viz-ord-2: #1c5cab; --viz-ord-3: #2a78d6; --viz-ord-4: #5598e7; --viz-ord-5: #86b6ef;
     }
 }
+:root[data-theme="dark"] .cp-viz {
+    --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500;
+    --viz-5: #d55181; --viz-6: #008300; --viz-7: #9085e9; --viz-8: #e66767;
+    --viz-seq-lo: #0d366b; --viz-seq-hi: #9ec5f4;
+    --viz-ord-1: #184f95; --viz-ord-2: #1c5cab; --viz-ord-3: #2a78d6; --viz-ord-4: #5598e7; --viz-ord-5: #86b6ef;
+}
+.cp-viz-tip {
+    min-width: 140px;
+    padding: 8px 10px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    background: var(--ds-surface);
+    box-shadow: 0 6px 18px color-mix(in oklab, var(--ds-shadow-color) 14%, transparent);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ds-ink);
+}
+.cp-viz .recharts-surface { overflow: visible; }
+@media print {
+    .cp-viz-actions { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) { .cp-ai-caret .ap-md *::after { animation: none; } }
 
 /* --- Navigation --- */
 .cp-nav {
@@ -3008,6 +3011,46 @@ textarea::placeholder {
     .cp-main-expanded,
     .cp-main-collapsed {
         margin-left: 0 !important;
+    }
+}
+
+/* ============================================
+   SDR SCRIPT + ACTION DRAWERS SIDE BY SIDE
+   Script companion on the left, UnifiedActionDrawer on the right
+   (/sdr/action table view). From 900px they share the width instead
+   of overlapping: 0.75rem at each edge and between them (2.25rem).
+   Below 900px there is no room for two: the script opens on top and
+   each closes on its own.
+   ============================================ */
+
+@media (min-width: 900px) {
+    .sdr-drawer-pair-right,
+    .sdr-drawer-pair-left,
+    .sdr-drawer-solo-left {
+        --sdr-pair-right: min(56vw, 42rem);
+        --sdr-pair-left-max: 36rem;
+    }
+
+    .sdr-drawer-pair-right {
+        max-width: var(--sdr-pair-right);
+    }
+
+    .sdr-drawer-pair-left {
+        max-width: min(calc(100vw - var(--sdr-pair-right) - 2.25rem), var(--sdr-pair-left-max));
+    }
+
+    /* Alone, the script leaves most of the queue table readable. */
+    .sdr-drawer-solo-left {
+        max-width: min(46vw, var(--sdr-pair-left-max));
+    }
+}
+
+@media (min-width: 1536px) {
+    .sdr-drawer-pair-right,
+    .sdr-drawer-pair-left,
+    .sdr-drawer-solo-left {
+        --sdr-pair-right: 46rem;
+        --sdr-pair-left-max: 40rem;
     }
 }
 
@@ -5847,6 +5890,22 @@ textarea::placeholder {
 .ap-md-ul { list-style: disc; }
 .ap-md-ol { list-style: decimal; }
 .ap-md-ul li::marker, .ap-md-ol li::marker { color: var(--ap-faint); }
+/* Tables: hairline rows, no card; figures right-aligned and tabular. */
+.ap-md-table-wrap { margin: 4px 0 12px; overflow-x: auto; }
+.ap-md-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; }
+.ap-md-table th, .ap-md-table td { padding: 7px 12px 7px 0; text-align: left; vertical-align: baseline; border-bottom: 1px solid var(--ap-line-soft, #eef0f3); }
+.ap-md-table thead th { font-size: 12px; font-weight: 500; color: var(--ap-faint, #94a3b8); border-bottom-color: var(--ds-line, #e2e8f0); }
+.ap-md-table tbody th { font-weight: 500; }
+.ap-md-table tbody tr:last-child > * { border-bottom: 0; }
+.ap-md-table [data-num] { text-align: right; padding-right: 0; padding-left: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ap-md-table td[data-num] { font-weight: 600; }
+/* A "label : value" list stays compact, so each figure sits next to its label. */
+.ap-md-kv { width: auto; min-width: min(100%, 300px); }
+/* min-width keeps the bars of consecutive lists starting on one line. */
+.ap-md-kv tbody th { min-width: 128px; padding-right: 32px; }
+.ap-md-bar { width: 180px; padding-left: 14px !important; }
+@media (max-width: 480px) { .ap-md-kv { width: 100%; } .ap-md-bar { width: 35%; } }
+.ap-md-bar > span { display: block; height: 6px; min-width: 2px; border-radius: 3px; background: var(--brand-primary, #263460); }
 .ap-md-link { color: var(--ap-accent); font-weight: 500; text-underline-offset: 2px; }
 .ap-md-link:hover { text-decoration: underline; }
 .ap-md-code {

@@ -6,10 +6,10 @@ import { sendTransactionalEmail } from "@/lib/email/transactional";
 import { recordAuthEvent } from "@/lib/auth-event";
 import {
   DEFAULT_PASSWORD_RECOVERY_HTML,
-  DEFAULT_PASSWORD_RECOVERY_SUBJECT,
+  defaultPasswordRecoverySubject,
   applyEmailTemplateVariables,
 } from "@/lib/email/templates/security-auth";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Build reset URL
+    const brand = await getBrand();
     const baseUrl =
       brand.appUrl;
     const resetUrl = `${baseUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(normalizedEmail)}`;
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
       select: { subject: true, bodyHtml: true },
     });
     const subjectTemplate =
-      customTemplate?.subject || DEFAULT_PASSWORD_RECOVERY_SUBJECT;
+      customTemplate?.subject || defaultPasswordRecoverySubject(brand);
     const htmlTemplate = customTemplate?.bodyHtml || DEFAULT_PASSWORD_RECOVERY_HTML;
     const templateVars = {
       "{{userName}}": user.name || "Bonjour",

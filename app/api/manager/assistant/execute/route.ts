@@ -8,12 +8,13 @@
 //
 // The pending action is read from the stored message rather than the request,
 // so a tampered body cannot execute something the manager never saw on screen.
+// It is then claimed atomically (pending → executing): a double click or two
+// tabs execute it once. A card older than ASSISTANT_ACTION_TTL_HOURS is refused.
 // ============================================
 
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
 import {
     errorResponse,
     requireRole,
@@ -27,6 +28,8 @@ import { getTool } from "@/lib/ai/tools/registry";
 import { authorizeToolCall } from "@/lib/ai/tools/guard";
 import { logAssistantAction } from "@/lib/ai/tools/executor";
 import type { WriteOutcome } from "@/lib/ai/tools/types";
+import { prismaActionStore, settlePendingAction, type StoredAction } from "@/lib/ai/agent/actions";
+import { getActionTtlMs } from "@/lib/ai/agent/models";
 
 const ExecuteBody = z.object({
     conversationId: z.string().min(1),
@@ -34,13 +37,6 @@ const ExecuteBody = z.object({
     /** "confirm" runs it, "cancel" records the refusal. */
     decision: z.enum(["confirm", "cancel"]).default("confirm"),
 });
-
-interface StoredAction {
-    tool: string;
-    args: Record<string, unknown>;
-    state: string;
-    outcome?: string;
-}
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
@@ -51,6 +47,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         select: {
             id: true,
             action: true,
+            createdAt: true,
             conversation: {
                 select: { id: true, clientId: true, missionId: true, createdById: true },
             },
@@ -68,26 +65,37 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     if (!stored?.tool) {
         return errorResponse("Ce message ne porte aucune action.", 400);
     }
-    if (stored.state !== "pending") {
-        // Double-click, or a stale tab. Replaying a send is exactly what this guard exists for.
-        return errorResponse("Cette action a déjà été traitée.", 409);
-    }
-
-    if (body.decision === "cancel") {
-        await prisma.assistantMessage.update({
-            where: { id: message.id },
-            data: { action: { ...stored, state: "cancelled" } as unknown as Prisma.InputJsonValue },
-        });
-        return successResponse({ state: "cancelled" });
-    }
 
     const tool = getTool(stored.tool);
-    if (!tool || tool.risk !== "confirm") {
+    if (body.decision === "confirm" && (!tool || tool.risk !== "confirm")) {
         // Read and safe-write tools are not reachable here, and neither is
         // anything the model invented.
         return errorResponse("Action non autorisée", 400);
     }
 
+    const settled = await settlePendingAction({
+        store: prismaActionStore,
+        messageId: message.id,
+        stored,
+        decision: body.decision,
+        messageCreatedAt: message.createdAt,
+        now: new Date(),
+        ttlMs: getActionTtlMs(),
+    });
+
+    if (settled.kind === "not_pending") {
+        // Double-click, or a stale tab. Replaying a send is exactly what this guard exists for.
+        return errorResponse("Cette action a déjà été traitée.", 409);
+    }
+    if (settled.kind === "expired") {
+        return errorResponse("Cette proposition a expiré. Redemande-la à l'assistant pour repartir de données à jour.", 410);
+    }
+    if (settled.kind === "cancelled") {
+        return successResponse({ state: "cancelled" });
+    }
+
+    // Claimed: this request alone may execute. Identity, role, permissions and
+    // project are resolved again now, not taken from the proposal.
     const ctx = await buildAssistantContext({
         userId: session.user.id,
         clientId: message.conversation.clientId,
@@ -97,18 +105,15 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
     let outcome: WriteOutcome;
     try {
-        const args = authorizeToolCall(tool, tool.name, stored.args, ctx);
-        outcome = await tool.execute(args, ctx);
+        const args = authorizeToolCall(tool!, tool!.name, stored.args, ctx);
+        outcome = await tool!.execute(args, ctx);
     } catch (error) {
         const detail = error instanceof Error ? error.message : "L'action a échoué";
 
-        await prisma.assistantMessage.update({
-            where: { id: message.id },
-            data: { action: { ...stored, state: "failed", outcome: detail } as unknown as Prisma.InputJsonValue },
-        });
+        await prismaActionStore.save(message.id, { ...stored, state: "failed", outcome: detail, settledAt: new Date().toISOString() });
         await logAssistantAction({
             ctx,
-            tool: tool.name,
+            tool: tool!.name,
             args: stored.args,
             outcome: detail,
             confirmed: true,
@@ -118,13 +123,15 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         return errorResponse(detail, 400);
     }
 
-    await prisma.assistantMessage.update({
-        where: { id: message.id },
-        data: { action: { ...stored, state: "confirmed", outcome: outcome.message } as unknown as Prisma.InputJsonValue },
+    await prismaActionStore.save(message.id, {
+        ...stored,
+        state: "confirmed",
+        outcome: outcome.message,
+        settledAt: new Date().toISOString(),
     });
     await logAssistantAction({
         ctx,
-        tool: tool.name,
+        tool: tool!.name,
         args: stored.args,
         outcome: outcome.message,
         confirmed: true,

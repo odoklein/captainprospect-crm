@@ -4,6 +4,7 @@
 // ============================================
 
 import { prisma } from "@/lib/prisma";
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // TYPES
@@ -77,7 +78,7 @@ export async function summarizeThread(threadId: string): Promise<ThreadSummary> 
         .sort((a, b) => b.messageCount - a.messageCount);
 
     // Check for OpenAI API key
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openaiKey = integrationKey("OPENAI_API_KEY");
 
     if (openaiKey) {
         try {
@@ -265,7 +266,7 @@ export async function generateMessageSuggestions(
         return [];
     }
 
-    const mistralKey = process.env.OPENAI_API_KEY;
+    const mistralKey = integrationKey("OPENAI_API_KEY");
     if (mistralKey) {
         try {
             return await generateMistralSuggestions(chronological, mistralKey);
@@ -274,7 +275,7 @@ export async function generateMessageSuggestions(
         }
     }
 
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const openaiKey = integrationKey("OPENAI_API_KEY");
     if (openaiKey) {
         try {
             return await generateAISuggestions(chronological, openaiKey);

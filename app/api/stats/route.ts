@@ -12,6 +12,7 @@ import {
 } from '@/lib/api-utils';
 import { validateApiKey, extractApiKey, logApiKeyUsage } from '@/lib/api-keys';
 import { parseAlloCallsListResponse } from '@/lib/call-enrichment/allo-response';
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // GET /api/stats - Dashboard statistics
@@ -297,7 +298,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     let rdvLeaderboard: { id: string; name: string; rdv: number; actions: number }[] = [];
     const allSdrIds = [...new Set([...topSDRs.map((s) => s.sdrId), ...rdvBySdr.map((s) => s.sdrId)])];
     if (allSdrIds.length > 0) {
-        const alloApiKey = process.env.ALLO_API_KEY;
+        const alloApiKey = integrationKey("ALLO_API_KEY");
         const sdrs = await prisma.user.findMany({
             where: { id: { in: allSdrIds } },
             select: { id: true, name: true, alloPhoneNumber: true },

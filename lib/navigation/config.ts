@@ -5,7 +5,6 @@ import {
   Target,
   FileText,
   LayoutGrid,
-  List,
   BarChart3,
   Users,
   FolderKanban,
@@ -45,6 +44,7 @@ import {
   MessagesSquare,
   Settings2,
   Tag,
+  ListChecks,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { AiMark } from "@/components/ui/AiMark";
@@ -91,6 +91,12 @@ export const MANAGER_NAV: NavSection[] = [
         href: "/manager/dashboard",
         icon: LayoutDashboard,
         label: "Accueil",
+        permission: "pages.dashboard",
+      },
+      {
+        href: "/manager/tasks",
+        icon: ListChecks,
+        label: "Tâches",
         permission: "pages.dashboard",
       },
     ],
@@ -283,6 +289,12 @@ export const SDR_NAV: NavSection[] = [
         permission: "pages.planning",
       },
       {
+        href: "/sdr/tasks",
+        icon: ListChecks,
+        label: "Tâches",
+        permission: "pages.dashboard",
+      },
+      {
         href: "/sdr/projects",
         icon: FolderKanban,
         label: "Projets",
@@ -395,6 +407,12 @@ export const BD_NAV: NavSection[] = [
         permission: "pages.missions",
       },
       {
+        href: "/bd/tasks",
+        icon: ListChecks,
+        label: "Tâches",
+        permission: "pages.dashboard",
+      },
+      {
         href: "/sdr/action",
         icon: Phone,
         label: "Appeler",
@@ -478,9 +496,9 @@ export const DEVELOPER_NAV: NavSection[] = [
       },
       {
         href: "/developer/tasks",
-        icon: List,
-        label: "Taches",
-        permission: "pages.projects",
+        icon: ListChecks,
+        label: "Tâches",
+        permission: "pages.dashboard",
       },
       {
         href: "/developer/tickets",

@@ -6,6 +6,7 @@ import {
     type CompanySearchInput,
     type PhoneSuggestion,
 } from "./phone-match";
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // Mapbox Search Box (forward search) phone lookup.
@@ -37,7 +38,7 @@ type MapboxResponse = {
 export async function findCompanyPhoneViaMapbox(
     input: CompanySearchInput,
 ): Promise<PhoneSuggestion | null> {
-    const accessToken = process.env.MAPBOX_ACCESS_TOKEN?.trim();
+    const accessToken = integrationKey("MAPBOX_ACCESS_TOKEN")?.trim();
     if (!accessToken) {
         throw new Error("MAPBOX_ACCESS_TOKEN_MISSING");
     }

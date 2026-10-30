@@ -2,7 +2,9 @@ import PDFDocument from "pdfkit";
 import path from "path";
 import { existsSync } from "fs";
 import type { ReportData, ReportMission } from "@/lib/reporting/types";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
+import { readBrandAsset } from "@/lib/brand/upload";
 
 // Client report PDF. Every text call gets explicit x/y (pdfkit otherwise
 // reuses the last x and width, which is how titles ended up wrapped in a
@@ -11,25 +13,31 @@ import { brand } from "@/lib/brand";
 
 type Doc = PDFKit.PDFDocument;
 
-// Brand colours come from brand/brand.config.ts (same ramps as the app).
-const P = brand.palette.primary;
-const C = {
-    brand: brand.palette.primarySeed,
-    brandStrong: P[950],
-    brandMid: P[400],
-    brandSoft: P[50],
-    onBrand: P[200],
-    onBrandSoft: P[100],
-    cream: "#F7F6F2",
-    ink: "#0F1216",
-    ink2: "#3B424A",
-    ink3: "#737B85",
-    ink4: "#A3AAB3",
-    line: "#E6E8EB",
-    white: "#FFFFFF",
-    up: "#1F8A4C",
-    down: "#B45309",
-};
+// Brand colours come from the instance brand (same ramps as the app).
+function colorsFor(b: Brand) {
+    const P = b.palette.primary;
+    return {
+        brand: b.palette.primarySeed,
+        brandStrong: P[950],
+        brandMid: P[400],
+        brandSoft: P[50],
+        onBrand: P[200],
+        onBrandSoft: P[100],
+        cream: "#F7F6F2",
+        ink: "#0F1216",
+        ink2: "#3B424A",
+        ink3: "#737B85",
+        ink4: "#A3AAB3",
+        line: "#E6E8EB",
+        white: "#FFFFFF",
+        up: "#1F8A4C",
+        down: "#B45309",
+    };
+}
+
+// Set by generateClientReportPdf before it draws; every draw below runs
+// synchronously after that, so concurrent reports cannot interleave colours.
+let C = colorsFor(defaultBrand);
 
 const F = { regular: "Helvetica", bold: "Helvetica-Bold" };
 
@@ -154,10 +162,12 @@ function sectionTitle(doc: Doc, cur: Cursor, title: string, hint?: string) {
 
 /* ── blocks ── */
 
-function drawTopBar(doc: Doc, cur: Cursor) {
+function drawTopBar(doc: Doc, cur: Cursor, brand: Brand, uploadedMark: Buffer | null) {
     const y = cur.y;
-    const mark = path.join(process.cwd(), "public", brand.logos.mark);
-    if (existsSync(mark)) {
+    // Uploaded marks live in MinIO (read by the caller); defaults are files in /public.
+    const local = brand.logos.mark.startsWith("/api/") ? null : path.join(process.cwd(), "public", brand.logos.mark);
+    const mark = uploadedMark ?? (local && existsSync(local) ? local : null);
+    if (mark) {
         doc.image(mark, LEFT, y - 1, { width: 18, height: 18 });
     } else {
         doc.roundedRect(LEFT, y, 16, 16, 4).fill(C.brand);
@@ -390,7 +400,7 @@ function drawMissions(doc: Doc, cur: Cursor, missions: ReportMission[]) {
     cur.y += 20;
 }
 
-function drawFooters(doc: Doc, data: ReportData) {
+function drawFooters(doc: Doc, data: ReportData, brand: Brand) {
     const range = doc.bufferedPageRange();
     for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
@@ -414,7 +424,16 @@ function collectPdfBuffer(doc: Doc): Promise<Buffer> {
     });
 }
 
-export async function generateClientReportPdf(data: ReportData): Promise<Buffer> {
+/** The uploaded mark when it is a PNG (pdfkit draws PNG/JPEG only; SVG/WebP fall back to the square). */
+async function uploadedMarkForPdf(brand: Brand): Promise<Buffer | null> {
+    if (!brand.logos.mark.startsWith("/api/")) return null;
+    const asset = await readBrandAsset("mark").catch(() => null);
+    return asset && asset.contentType === "image/png" ? asset.bytes : null;
+}
+
+export async function generateClientReportPdf(data: ReportData, brandArg?: Brand): Promise<Buffer> {
+    const brand = brandArg ?? (await getBrand());
+    C = colorsFor(brand);
     const doc = new PDFDocument({
         size: "A4",
         margins: { top: PAGE.margin, right: PAGE.margin, bottom: PAGE.margin, left: PAGE.margin },
@@ -428,14 +447,14 @@ export async function generateClientReportPdf(data: ReportData): Promise<Buffer>
     const done = collectPdfBuffer(doc);
     const cur = new Cursor(doc, () => drawRunningHeader(doc, data));
 
-    drawTopBar(doc, cur);
+    drawTopBar(doc, cur, brand, await uploadedMarkForPdf(brand));
     drawTitle(doc, cur, data);
     drawHero(doc, cur, data);
     drawKpis(doc, cur, data);
     if (data.meetingsByPeriod.length > 1) drawChart(doc, cur, data.meetingsByPeriod);
     drawInsights(doc, cur, data);
     drawMissions(doc, cur, data.missions);
-    drawFooters(doc, data);
+    drawFooters(doc, data, brand);
 
     doc.end();
     return done;

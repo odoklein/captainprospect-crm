@@ -1,3 +1,4 @@
+import { integrationKey } from "@/lib/integrations/keys";
 /**
  * Pappers API Service
  * Integrates with Pappers.fr API to search and fetch company information
@@ -38,13 +39,9 @@ export interface PappersSearchResult {
 }
 
 export class PappersService {
-    private apiKey: string;
-
-    constructor() {
-        this.apiKey = process.env.PAPPERS_API_KEY || "";
-        if (!this.apiKey) {
-            console.warn("PAPPERS_API_KEY not set. Pappers API calls will fail.");
-        }
+    // Read on each call: the key can be changed from Paramètres without a restart.
+    private get apiKey(): string {
+        return integrationKey("PAPPERS_API_KEY") || "";
     }
 
     /**

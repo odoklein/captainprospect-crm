@@ -7,7 +7,8 @@
 import PDFDocument from "pdfkit";
 import { PDFDocument as PDFLibDocument, PDFName, PDFString, PDFArray, PDFDict, PDFHexString, AFRelationship } from "pdf-lib";
 import { Invoice, InvoiceItem, BillingClient, CompanyIssuer } from "@prisma/client";
-import { brand } from "@/lib/brand";
+import type { Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 // Extended types with new schema fields
 interface ExtendedCompanyIssuer extends CompanyIssuer {
@@ -282,15 +283,16 @@ export class FacturXService {
      * Generate PDF with embedded Factur-X XML (EN16931 compliant)
      */
     async generateFacturXPDF(invoice: ExtendedInvoice): Promise<Buffer> {
-        const pdfBuffer = await this.generatePDFContent(invoice);
-        const finalPdf = await this.embedXMLIntoPDF(pdfBuffer, invoice);
+        const brand = await getBrand();
+        const pdfBuffer = await this.generatePDFContent(invoice, brand);
+        const finalPdf = await this.embedXMLIntoPDF(pdfBuffer, invoice, brand);
         return finalPdf;
     }
 
     /**
      * Generate the visual PDF content
      */
-    private generatePDFContent(invoice: ExtendedInvoice): Promise<Buffer> {
+    private generatePDFContent(invoice: ExtendedInvoice, brand: Brand): Promise<Buffer> {
         return new Promise((resolve, reject) => {
             try {
                 const doc = new PDFDocument({
@@ -520,7 +522,8 @@ export class FacturXService {
      */
     private async embedXMLIntoPDF(
         pdfBuffer: Buffer,
-        invoice: ExtendedInvoice
+        invoice: ExtendedInvoice,
+        brand: Brand
     ): Promise<Buffer> {
         try {
             // Generate XML
@@ -551,7 +554,7 @@ export class FacturXService {
             pdfDoc.setModificationDate(new Date());
 
             // Add XMP metadata for PDF/A-3 conformance
-            const xmpMetadata = this.generateXMPMetadata(invoice);
+            const xmpMetadata = this.generateXMPMetadata(invoice, brand);
             const metadataStream = pdfDoc.context.stream(new TextEncoder().encode(xmpMetadata), {
                 Type: "Metadata",
                 Subtype: "XML",
@@ -573,7 +576,7 @@ export class FacturXService {
     /**
      * Generate XMP metadata for PDF/A-3 conformance
      */
-    private generateXMPMetadata(invoice: ExtendedInvoice): string {
+    private generateXMPMetadata(invoice: ExtendedInvoice, brand: Brand): string {
         const title = `${invoice.documentType === "CREDIT_NOTE" ? "Avoir" : "Facture"} ${invoice.invoiceNumber || ""}`;
         const now = new Date().toISOString();
 

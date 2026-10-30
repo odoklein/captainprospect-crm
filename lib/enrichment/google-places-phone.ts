@@ -6,6 +6,7 @@ import {
     type CompanySearchInput,
     type PhoneSuggestion,
 } from "./phone-match";
+import { integrationKey } from "@/lib/integrations/keys";
 
 const GOOGLE_PLACES_TEXT_SEARCH_URL =
     "https://places.googleapis.com/v1/places:searchText";
@@ -27,7 +28,7 @@ type GooglePlacesResponse = {
 export async function findCompanyPhoneViaGoogle(
     input: CompanySearchInput,
 ): Promise<PhoneSuggestion | null> {
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY?.trim();
+    const apiKey = integrationKey("GOOGLE_PLACES_API_KEY")?.trim();
     if (!apiKey) {
         throw new Error("GOOGLE_PLACES_API_KEY_MISSING");
     }

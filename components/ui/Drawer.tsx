@@ -20,6 +20,9 @@ export const DRAWER_BACKDROP_CLASS = "bg-black/15 animate-fade-in";
 export const DRAWER_PANEL_SURFACE_CLASS =
     "overflow-hidden rounded-2xl sm:rounded-[20px] border border-line bg-surface shadow-overlay";
 
+/** Open drawers, oldest first; the last one owns the Escape key. */
+const openDrawers: symbol[] = [];
+
 interface DrawerProps {
     isOpen: boolean;
     onClose: () => void;
@@ -139,15 +142,28 @@ export function Drawer({
     modal = true,
 }: DrawerProps) {
     const drawerRef = useRef<HTMLDivElement>(null);
+    const stackId = useRef(Symbol("drawer")).current;
 
-    // Handle ESC key
+    // Registered on open only (not on every render) so the stack order is the
+    // order drawers were actually opened in.
+    useEffect(() => {
+        if (!isOpen) return;
+        openDrawers.push(stackId);
+        return () => {
+            const index = openDrawers.indexOf(stackId);
+            if (index !== -1) openDrawers.splice(index, 1);
+        };
+    }, [isOpen, stackId]);
+
+    // Handle ESC key — only the drawer on top reacts, so Esc in an edit form
+    // doesn't also close the detail drawer it was opened from.
     const handleKeyDown = useCallback(
         (e: KeyboardEvent) => {
-            if (e.key === "Escape" && closeOnEscape) {
+            if (e.key === "Escape" && closeOnEscape && openDrawers[openDrawers.length - 1] === stackId) {
                 onClose();
             }
         },
-        [closeOnEscape, onClose]
+        [closeOnEscape, onClose, stackId]
     );
 
     // Lock body scroll when drawer is open

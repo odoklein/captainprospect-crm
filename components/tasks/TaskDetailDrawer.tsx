@@ -31,7 +31,7 @@ interface TaskDetail {
     completedAt: string | null;
     assignee: { id: string; name: string; email: string } | null;
     createdBy: { id: string; name: string };
-    project: { id: string; name: string; members?: any[] };
+    project: { id: string; name: string; members?: any[] } | null;
     parentTask: { id: string; title: string } | null;
     subtasks: any[];
     comments: { id: string; content: string; createdAt: string; user: { id: string; name: string } }[];
@@ -224,7 +224,7 @@ export function TaskDetailDrawer({
                 body: JSON.stringify({
                     title: task.title,
                     description: task.description,
-                    projectName: task.project.name,
+                    projectName: task.project?.name,
                 }),
             });
             const json = await res.json();
@@ -262,7 +262,7 @@ export function TaskDetailDrawer({
                 body: JSON.stringify({
                     title: task.title,
                     description: task.description,
-                    projectContext: task.project.name,
+                    projectContext: task.project?.name,
                 }),
             });
             const json = await res.json();

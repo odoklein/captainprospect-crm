@@ -1,39 +1,35 @@
 import { NextRequest } from 'next/server';
 import {
   successResponse,
-  errorResponse,
   requireRole,
   withErrorHandler,
 } from '@/lib/api-utils';
-import { fetchLeexiCallById, isLeexiAvailable } from '@/lib/leexi/service';
+import { getBrand } from '@/lib/brand/server';
+import { getLeexiCall } from '@/lib/leexi/service';
+import { buildOnboardingRecap, websiteFromCustomers } from '@/lib/leexi/normalize';
+import { leexiErrorResponse } from '@/lib/leexi/route-helpers';
+
+// ============================================
+// GET /api/leexi/calls/[id]
+// One call, ready for the onboarding wizard: `recapText` is what the playbook
+// extractor reads (participants, deal, Leexi summary + sales playbook, tasks).
+// The raw transcript stays server-side (it can be 100k+ characters).
+// ============================================
 
 export const GET = withErrorHandler(async (request: NextRequest, context: { params: Promise<{ id: string }> }) => {
   await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
-
-  if (!(await isLeexiAvailable())) {
-    return errorResponse('Leexi non configuré', 503);
-  }
-
   const { id } = await context.params;
 
   try {
-    const call = await fetchLeexiCallById(id);
-
-    const recapText = call.recap || call.summary || call.transcript?.slice(0, 10000) || '';
-
+    const [{ data: call, warning }, brand] = await Promise.all([getLeexiCall(id), getBrand()]);
+    const { transcript, ...rest } = call;
     return successResponse({
-      id: call.id,
-      title: call.title || 'Appel sans titre',
-      date: call.date || null,
-      duration: call.duration || 0,
-      companyName: call.company_name || call.participants?.find((p) => p.company)?.company || '',
-      participants: call.participants || [],
-      recapText,
-      hasTranscript: !!call.transcript,
+      call: { ...rest, hasTranscript: transcript.length > 0 },
+      recapText: buildOnboardingRecap(call, brand.name),
+      websiteHint: websiteFromCustomers(call.customers),
+      warning,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erreur Leexi';
-    console.error('Leexi call detail error:', err);
-    return errorResponse(message, 500);
+    return leexiErrorResponse(err);
   }
 });

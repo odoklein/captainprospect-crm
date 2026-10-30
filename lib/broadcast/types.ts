@@ -1,5 +1,4 @@
-import { brandUrl } from "@/lib/brand";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, brandUrl, type Brand } from "@/lib/brand";
 // ============================================
 // BROADCAST UNIFIED TYPES & VARIABLE REGISTRY
 // ============================================
@@ -61,171 +60,177 @@ export interface BroadcastVariable {
 
 // ── Variables Registry ─────────────────────────────────────────────────────────
 
-export const BROADCAST_VARIABLES_REGISTRY: Record<string, BroadcastVariable[]> = {
-  rdv_notification: [
-    {
-      key: "contactFirstName",
-      token: "{{contactFirstName}}",
-      label: "Prénom du prospect",
-      category: "Contact",
-      sampleValue: "Jean",
-      description: "Prénom du prospect ayant accepté le rendez-vous",
-    },
-    {
-      key: "contactLastName",
-      token: "{{contactLastName}}",
-      label: "Nom du prospect",
-      category: "Contact",
-      sampleValue: "Dupont",
-      description: "Nom de famille du prospect",
-    },
-    {
-      key: "companyName",
-      token: "{{companyName}}",
-      label: "Nom de l'entreprise",
-      category: "Entreprise",
-      sampleValue: "Acme SAS",
-      description: "Société cible du rendez-vous",
-    },
-    {
-      key: "missionName",
-      token: "{{missionName}}",
-      label: "Nom de la mission",
-      category: "Général",
-      sampleValue: "Campagne Q3 Grands Comptes",
-      description: "Mission de prospection concernée",
-    },
-    {
-      key: "scheduledDate",
-      token: "{{scheduledDate}}",
-      label: "Date du RDV",
-      category: "RDV",
-      sampleValue: "Mardi 14 Octobre 2026",
-      description: "Date du rendez-vous fixé",
-    },
-    {
-      key: "scheduledTime",
-      token: "{{scheduledTime}}",
-      label: "Heure du RDV",
-      category: "RDV",
-      sampleValue: "14:30",
-      description: "Heure du rendez-vous (fuseau horaire de Paris)",
-    },
-    {
-      key: "meetingType",
-      token: "{{meetingType}}",
-      label: "Type de réunion",
-      category: "RDV",
-      sampleValue: "Visioconférence",
-      description: "Visio, Présentiel ou Téléphonique",
-    },
-    {
-      key: "meetingJoinUrl",
-      token: "{{meetingJoinUrl}}",
-      label: "Lien de connexion / Visio",
-      category: "RDV",
-      sampleValue: "https://meet.google.com/cp-abc-xyz",
-      description: "Lien Google Meet, Teams ou Zoom",
-    },
-    {
-      key: "meetingAddress",
-      token: "{{meetingAddress}}",
-      label: "Adresse physique",
-      category: "RDV",
-      sampleValue: "12 rue de la Paix, 75002 Paris",
-      description: "Adresse pour un RDV en présentiel",
-    },
-    {
-      key: "portalUrl",
-      token: "{{portalUrl}}",
-      label: "Lien de l'espace client",
-      category: "Général",
-      sampleValue: brandUrl("/client/portal/meetings"),
-      description: "Lien direct vers la fiche RDV sur le portail client",
-    },
-  ],
+/** Variables per broadcast key, with sample values in the given brand (instance brand: getBrand() / useBrand()). */
+export function broadcastVariablesRegistry(brand: Brand = defaultBrand): Record<string, BroadcastVariable[]> {
+  return {
+    rdv_notification: [
+      {
+        key: "contactFirstName",
+        token: "{{contactFirstName}}",
+        label: "Prénom du prospect",
+        category: "Contact",
+        sampleValue: "Jean",
+        description: "Prénom du prospect ayant accepté le rendez-vous",
+      },
+      {
+        key: "contactLastName",
+        token: "{{contactLastName}}",
+        label: "Nom du prospect",
+        category: "Contact",
+        sampleValue: "Dupont",
+        description: "Nom de famille du prospect",
+      },
+      {
+        key: "companyName",
+        token: "{{companyName}}",
+        label: "Nom de l'entreprise",
+        category: "Entreprise",
+        sampleValue: "Acme SAS",
+        description: "Société cible du rendez-vous",
+      },
+      {
+        key: "missionName",
+        token: "{{missionName}}",
+        label: "Nom de la mission",
+        category: "Général",
+        sampleValue: "Campagne Q3 Grands Comptes",
+        description: "Mission de prospection concernée",
+      },
+      {
+        key: "scheduledDate",
+        token: "{{scheduledDate}}",
+        label: "Date du RDV",
+        category: "RDV",
+        sampleValue: "Mardi 14 Octobre 2026",
+        description: "Date du rendez-vous fixé",
+      },
+      {
+        key: "scheduledTime",
+        token: "{{scheduledTime}}",
+        label: "Heure du RDV",
+        category: "RDV",
+        sampleValue: "14:30",
+        description: "Heure du rendez-vous (fuseau horaire de Paris)",
+      },
+      {
+        key: "meetingType",
+        token: "{{meetingType}}",
+        label: "Type de réunion",
+        category: "RDV",
+        sampleValue: "Visioconférence",
+        description: "Visio, Présentiel ou Téléphonique",
+      },
+      {
+        key: "meetingJoinUrl",
+        token: "{{meetingJoinUrl}}",
+        label: "Lien de connexion / Visio",
+        category: "RDV",
+        sampleValue: "https://meet.google.com/cp-abc-xyz",
+        description: "Lien Google Meet, Teams ou Zoom",
+      },
+      {
+        key: "meetingAddress",
+        token: "{{meetingAddress}}",
+        label: "Adresse physique",
+        category: "RDV",
+        sampleValue: "12 rue de la Paix, 75002 Paris",
+        description: "Adresse pour un RDV en présentiel",
+      },
+      {
+        key: "portalUrl",
+        token: "{{portalUrl}}",
+        label: "Lien de l'espace client",
+        category: "Général",
+        sampleValue: brandUrl("/client/portal/meetings", brand),
+        description: "Lien direct vers la fiche RDV sur le portail client",
+      },
+    ],
 
-  password_recovery: [
-    {
-      key: "userName",
-      token: "{{userName}}",
-      label: "Nom de l'utilisateur",
-      category: "Contact",
-      sampleValue: "Marie Laurent",
-      description: "Nom complet du destinataire",
-    },
-    {
-      key: "resetUrl",
-      token: "{{resetUrl}}",
-      label: "Lien de réinitialisation",
-      category: "Sécurité",
-      sampleValue: brandUrl("/reset-password?token=example_token"),
-      description: "Lien sécurisé à usage unique pour choisir un nouveau mot de passe",
-    },
-    {
-      key: "expiryMinutes",
-      token: "{{expiryMinutes}}",
-      label: "Durée de validité (minutes)",
-      category: "Sécurité",
-      sampleValue: "60",
-      description: "Durée de validité du lien en minutes",
-    },
-  ],
+    password_recovery: [
+      {
+        key: "userName",
+        token: "{{userName}}",
+        label: "Nom de l'utilisateur",
+        category: "Contact",
+        sampleValue: "Marie Laurent",
+        description: "Nom complet du destinataire",
+      },
+      {
+        key: "resetUrl",
+        token: "{{resetUrl}}",
+        label: "Lien de réinitialisation",
+        category: "Sécurité",
+        sampleValue: brandUrl("/reset-password?token=example_token", brand),
+        description: "Lien sécurisé à usage unique pour choisir un nouveau mot de passe",
+      },
+      {
+        key: "expiryMinutes",
+        token: "{{expiryMinutes}}",
+        label: "Durée de validité (minutes)",
+        category: "Sécurité",
+        sampleValue: "60",
+        description: "Durée de validité du lien en minutes",
+      },
+    ],
 
-  password_otp: [
-    {
-      key: "userName",
-      token: "{{userName}}",
-      label: "Nom de l'utilisateur",
-      category: "Contact",
-      sampleValue: "Thomas Martin",
-      description: "Nom complet du destinataire",
-    },
-    {
-      key: "otpCode",
-      token: "{{otpCode}}",
-      label: "Code OTP unique",
-      category: "Sécurité",
-      sampleValue: "849 201",
-      description: "Code temporaire à 6 chiffres",
-    },
-    {
-      key: "expiryMinutes",
-      token: "{{expiryMinutes}}",
-      label: "Durée de validité (minutes)",
-      category: "Sécurité",
-      sampleValue: "15",
-      description: "Durée avant expiration du code",
-    },
-  ],
+    password_otp: [
+      {
+        key: "userName",
+        token: "{{userName}}",
+        label: "Nom de l'utilisateur",
+        category: "Contact",
+        sampleValue: "Thomas Martin",
+        description: "Nom complet du destinataire",
+      },
+      {
+        key: "otpCode",
+        token: "{{otpCode}}",
+        label: "Code OTP unique",
+        category: "Sécurité",
+        sampleValue: "849 201",
+        description: "Code temporaire à 6 chiffres",
+      },
+      {
+        key: "expiryMinutes",
+        token: "{{expiryMinutes}}",
+        label: "Durée de validité (minutes)",
+        category: "Sécurité",
+        sampleValue: "15",
+        description: "Durée avant expiration du code",
+      },
+    ],
 
-  general: [
-    {
-      key: "userName",
-      token: "{{userName}}",
-      label: "Nom du destinataire",
-      category: "Contact",
-      sampleValue: "Alexandre",
-      description: "Nom ou prénom du destinataire",
-    },
-    {
-      key: "companyName",
-      token: "{{companyName}}",
-      label: "Entreprise du destinataire",
-      category: "Entreprise",
-      sampleValue: "Tech Innovators",
-      description: "Nom de la société",
-    },
-    {
-      key: "appUrl",
-      token: "{{appUrl}}",
-      label: "Lien de la plateforme",
-      category: "Général",
-      sampleValue: brandUrl("/"),
-      description: "Lien d'accès principal au CRM",
-    },
-  ],
-};
+    general: [
+      {
+        key: "userName",
+        token: "{{userName}}",
+        label: "Nom du destinataire",
+        category: "Contact",
+        sampleValue: "Alexandre",
+        description: "Nom ou prénom du destinataire",
+      },
+      {
+        key: "companyName",
+        token: "{{companyName}}",
+        label: "Entreprise du destinataire",
+        category: "Entreprise",
+        sampleValue: "Tech Innovators",
+        description: "Nom de la société",
+      },
+      {
+        key: "appUrl",
+        token: "{{appUrl}}",
+        label: "Lien de la plateforme",
+        category: "Général",
+        sampleValue: brandUrl("/", brand),
+        description: "Lien d'accès principal au CRM",
+      },
+    ],
+  };
+}
+
+/** Default-brand snapshot; prefer broadcastVariablesRegistry(brand). */
+export const BROADCAST_VARIABLES_REGISTRY = broadcastVariablesRegistry();
 
 // ── Pre-configured System Broadcast Definitions ────────────────────────────────
 
@@ -244,191 +249,197 @@ export interface BroadcastDefinition {
   defaultHtml: string;
 }
 
-export const SYSTEM_BROADCAST_DEFINITIONS: BroadcastDefinition[] = [
-  {
-    key: "rdv_notification",
-    name: "Notification Nouveau RDV Client",
-    description: "Email automatique envoyé au client et aux commerciaux dès qu'un rendez-vous est qualifié et réservé.",
-    category: "RDV",
-    triggerType: "AUTOMATED_EVENT",
-    triggerEventLabel: "Dès qu'un RDV est pris",
-    channels: ["EMAIL", "IN_APP_BANNER"],
-    isSystemLocked: true,
-    isActive: true,
-    defaultSubject: "Nouveau RDV confirmé - {{contactFirstName}} {{contactLastName}} ({{companyName}})",
-    defaultBlocks: [
-      {
-        id: "b_head",
-        type: "header",
-        props: {
-          showLogo: true,
-          logoSubtitle: "Notification · Nouveau Rendez-vous",
+/** Built-in broadcasts, worded in the given brand (instance brand: getBrand()). */
+export function systemBroadcastDefinitions(brand: Brand = defaultBrand): BroadcastDefinition[] {
+  return [
+    {
+      key: "rdv_notification",
+      name: "Notification Nouveau RDV Client",
+      description: "Email automatique envoyé au client et aux commerciaux dès qu'un rendez-vous est qualifié et réservé.",
+      category: "RDV",
+      triggerType: "AUTOMATED_EVENT",
+      triggerEventLabel: "Dès qu'un RDV est pris",
+      channels: ["EMAIL", "IN_APP_BANNER"],
+      isSystemLocked: true,
+      isActive: true,
+      defaultSubject: "Nouveau RDV confirmé - {{contactFirstName}} {{contactLastName}} ({{companyName}})",
+      defaultBlocks: [
+        {
+          id: "b_head",
+          type: "header",
+          props: {
+            showLogo: true,
+            logoSubtitle: "Notification · Nouveau Rendez-vous",
+          },
         },
-      },
-      {
-        id: "b_badge",
-        type: "callout",
-        content: "Nouveau rendez-vous confirmé",
-        props: {
-          styleVariant: "success",
-          badgeText: "CONFIRMÉ",
+        {
+          id: "b_badge",
+          type: "callout",
+          content: "Nouveau rendez-vous confirmé",
+          props: {
+            styleVariant: "success",
+            badgeText: "CONFIRMÉ",
+          },
         },
-      },
-      {
-        id: "b_heading",
-        type: "heading",
-        content: "Un nouveau rendez-vous a été planifié.",
-        props: { align: "left" },
-      },
-      {
-        id: "b_intro",
-        type: "paragraph",
-        content:
-          "Notre équipe vient de confirmer un rendez-vous qualifié avec **{{contactFirstName}} {{contactLastName}}** de l'entreprise **{{companyName}}** dans le cadre de votre mission **{{missionName}}**.",
-      },
-      {
-        id: "b_kv",
-        type: "key_value",
-        props: {
-          items: [
-            { label: "Date", value: "{{scheduledDate}}" },
-            { label: "Heure", value: "{{scheduledTime}} (Paris)" },
-            { label: "Type", value: "{{meetingType}}" },
-            { label: "Société", value: "{{companyName}}" },
-          ],
+        {
+          id: "b_heading",
+          type: "heading",
+          content: "Un nouveau rendez-vous a été planifié.",
+          props: { align: "left" },
         },
-      },
-      {
-        id: "b_cta",
-        type: "button",
-        props: {
-          buttonText: "Consulter la fiche RDV sur mon portail →",
-          buttonUrl: "{{portalUrl}}",
-          buttonColor: "#4f46e5",
-          align: "center",
+        {
+          id: "b_intro",
+          type: "paragraph",
+          content:
+            "Notre équipe vient de confirmer un rendez-vous qualifié avec **{{contactFirstName}} {{contactLastName}}** de l'entreprise **{{companyName}}** dans le cadre de votre mission **{{missionName}}**.",
         },
-      },
-      {
-        id: "b_foot",
-        type: "footer",
-        content:
-          `Cet email automatique a été généré par ${brand.name} pour le suivi de votre prospection commerciale.`,
-      },
-    ],
-    defaultHtml: "",
-  },
-  {
-    key: "password_recovery",
-    name: "Récupération Mot de passe (Lien magique)",
-    description: "Email automatique envoyé lorsqu'un utilisateur clique sur « Mot de passe oublié ».",
-    category: "SECURITY",
-    triggerType: "AUTOMATED_EVENT",
-    triggerEventLabel: "Demande de mot de passe oublié",
-    channels: ["EMAIL"],
-    isSystemLocked: true,
-    isActive: true,
-    defaultSubject: `Réinitialisation de votre mot de passe - ${brand.name}`,
-    defaultBlocks: [
-      {
-        id: "sec_head",
-        type: "header",
-        props: {
-          showLogo: true,
-          logoSubtitle: "Sécurité & Accès",
+        {
+          id: "b_kv",
+          type: "key_value",
+          props: {
+            items: [
+              { label: "Date", value: "{{scheduledDate}}" },
+              { label: "Heure", value: "{{scheduledTime}} (Paris)" },
+              { label: "Type", value: "{{meetingType}}" },
+              { label: "Société", value: "{{companyName}}" },
+            ],
+          },
         },
-      },
-      {
-        id: "sec_heading",
-        type: "heading",
-        content: "Réinitialisation de votre mot de passe",
-        props: { align: "left" },
-      },
-      {
-        id: "sec_intro",
-        type: "paragraph",
-        content:
-          "Bonjour **{{userName}}**,\n\nNous avons reçu une demande de réinitialisation de mot de passe pour votre compte " + brand.name + ". Cliquez sur le bouton ci-dessous pour choisir votre nouveau mot de passe.",
-      },
-      {
-        id: "sec_cta",
-        type: "button",
-        props: {
-          buttonText: "Définir mon nouveau mot de passe",
-          buttonUrl: "{{resetUrl}}",
-          buttonColor: "#4f46e5",
-          align: "center",
+        {
+          id: "b_cta",
+          type: "button",
+          props: {
+            buttonText: "Consulter la fiche RDV sur mon portail →",
+            buttonUrl: "{{portalUrl}}",
+            buttonColor: "#4f46e5",
+            align: "center",
+          },
         },
-      },
-      {
-        id: "sec_notice",
-        type: "callout",
-        content:
-          "Ce lien expire automatiquement dans **{{expiryMinutes}} minutes** pour des raisons de sécurité.",
-        props: { styleVariant: "warning" },
-      },
-      {
-        id: "sec_foot",
-        type: "footer",
-        content:
-          "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email en toute sécurité.",
-      },
-    ],
-    defaultHtml: "",
-  },
-  {
-    key: "password_otp",
-    name: "Code de sécurité OTP (Authentification)",
-    description: "Email automatique contenant le code à 6 chiffres pour valider une connexion ou une action sensible.",
-    category: "SECURITY",
-    triggerType: "AUTOMATED_EVENT",
-    triggerEventLabel: "Validation code à 2 facteurs / OTP",
-    channels: ["EMAIL"],
-    isSystemLocked: true,
-    isActive: true,
-    defaultSubject: `Votre code de validation de sécurité - ${brand.name}`,
-    defaultBlocks: [
-      {
-        id: "otp_head",
-        type: "header",
-        props: {
-          showLogo: true,
-          logoSubtitle: "Code de sécurité temporaire",
+        {
+          id: "b_foot",
+          type: "footer",
+          content:
+            `Cet email automatique a été généré par ${brand.name} pour le suivi de votre prospection commerciale.`,
         },
-      },
-      {
-        id: "otp_heading",
-        type: "heading",
-        content: "Votre code de vérification",
-        props: { align: "center" },
-      },
-      {
-        id: "otp_intro",
-        type: "paragraph",
-        content:
-          "Bonjour **{{userName}}**,\n\nVoici votre code d'authentification à usage unique à saisir dans votre application :",
-        props: { align: "center" },
-      },
-      {
-        id: "otp_code",
-        type: "callout",
-        content: "{{otpCode}}",
-        props: {
-          styleVariant: "accent",
-          align: "center",
+      ],
+      defaultHtml: "",
+    },
+    {
+      key: "password_recovery",
+      name: "Récupération Mot de passe (Lien magique)",
+      description: "Email automatique envoyé lorsqu'un utilisateur clique sur « Mot de passe oublié ».",
+      category: "SECURITY",
+      triggerType: "AUTOMATED_EVENT",
+      triggerEventLabel: "Demande de mot de passe oublié",
+      channels: ["EMAIL"],
+      isSystemLocked: true,
+      isActive: true,
+      defaultSubject: `Réinitialisation de votre mot de passe - ${brand.name}`,
+      defaultBlocks: [
+        {
+          id: "sec_head",
+          type: "header",
+          props: {
+            showLogo: true,
+            logoSubtitle: "Sécurité & Accès",
+          },
         },
-      },
-      {
-        id: "otp_warn",
-        type: "callout",
-        content: "Ce code expire dans **{{expiryMinutes}} minutes**. Ne le partagez avec personne.",
-        props: { styleVariant: "neutral", align: "center" },
-      },
-      {
-        id: "otp_foot",
-        type: "footer",
-        content: `${brand.name} · Si vous n'êtes pas l'auteur de cette demande, contactez immédiatement l'administrateur.`,
-      },
-    ],
-    defaultHtml: "",
-  },
-];
+        {
+          id: "sec_heading",
+          type: "heading",
+          content: "Réinitialisation de votre mot de passe",
+          props: { align: "left" },
+        },
+        {
+          id: "sec_intro",
+          type: "paragraph",
+          content:
+            "Bonjour **{{userName}}**,\n\nNous avons reçu une demande de réinitialisation de mot de passe pour votre compte " + brand.name + ". Cliquez sur le bouton ci-dessous pour choisir votre nouveau mot de passe.",
+        },
+        {
+          id: "sec_cta",
+          type: "button",
+          props: {
+            buttonText: "Définir mon nouveau mot de passe",
+            buttonUrl: "{{resetUrl}}",
+            buttonColor: "#4f46e5",
+            align: "center",
+          },
+        },
+        {
+          id: "sec_notice",
+          type: "callout",
+          content:
+            "Ce lien expire automatiquement dans **{{expiryMinutes}} minutes** pour des raisons de sécurité.",
+          props: { styleVariant: "warning" },
+        },
+        {
+          id: "sec_foot",
+          type: "footer",
+          content:
+            "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email en toute sécurité.",
+        },
+      ],
+      defaultHtml: "",
+    },
+    {
+      key: "password_otp",
+      name: "Code de sécurité OTP (Authentification)",
+      description: "Email automatique contenant le code à 6 chiffres pour valider une connexion ou une action sensible.",
+      category: "SECURITY",
+      triggerType: "AUTOMATED_EVENT",
+      triggerEventLabel: "Validation code à 2 facteurs / OTP",
+      channels: ["EMAIL"],
+      isSystemLocked: true,
+      isActive: true,
+      defaultSubject: `Votre code de validation de sécurité - ${brand.name}`,
+      defaultBlocks: [
+        {
+          id: "otp_head",
+          type: "header",
+          props: {
+            showLogo: true,
+            logoSubtitle: "Code de sécurité temporaire",
+          },
+        },
+        {
+          id: "otp_heading",
+          type: "heading",
+          content: "Votre code de vérification",
+          props: { align: "center" },
+        },
+        {
+          id: "otp_intro",
+          type: "paragraph",
+          content:
+            "Bonjour **{{userName}}**,\n\nVoici votre code d'authentification à usage unique à saisir dans votre application :",
+          props: { align: "center" },
+        },
+        {
+          id: "otp_code",
+          type: "callout",
+          content: "{{otpCode}}",
+          props: {
+            styleVariant: "accent",
+            align: "center",
+          },
+        },
+        {
+          id: "otp_warn",
+          type: "callout",
+          content: "Ce code expire dans **{{expiryMinutes}} minutes**. Ne le partagez avec personne.",
+          props: { styleVariant: "neutral", align: "center" },
+        },
+        {
+          id: "otp_foot",
+          type: "footer",
+          content: `${brand.name} · Si vous n'êtes pas l'auteur de cette demande, contactez immédiatement l'administrateur.`,
+        },
+      ],
+      defaultHtml: "",
+    },
+  ];
+}
+
+/** Default-brand snapshot; prefer systemBroadcastDefinitions(brand). Keys and flags are brand-independent. */
+export const SYSTEM_BROADCAST_DEFINITIONS = systemBroadcastDefinitions();

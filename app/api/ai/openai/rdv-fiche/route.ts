@@ -12,7 +12,8 @@ import {
   validateRequest,
 } from "@/lib/api-utils";
 import { z } from "zod";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
+import { integrationKey } from "@/lib/integrations/keys";
 
 const schema = z.object({
   transcription: z.string().min(20, "Transcription requise").max(120_000, "Transcription trop longue"),
@@ -24,11 +25,12 @@ const OPENAI_MODEL = "gpt-4o-mini";
 export const POST = withErrorHandler(async (request: NextRequest) => {
   await requireAuth(request);
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = integrationKey("OPENAI_API_KEY");
   if (!apiKey) return errorResponse("OPENAI_API_KEY non configurée", 503);
 
   const { transcription } = await validateRequest(request, schema);
 
+  const brand = await getBrand();
   const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM ${brand.name}).
 
 Ta tâche: à partir d'une transcription d'échange (appel / RDV), extraire et structurer les informations dans une "fiche RDV".
