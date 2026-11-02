@@ -290,7 +290,8 @@ test("the profile slices stay under the token targets (wire estimate)", () => {
         // The four memory tools added in B-PR2 (~500 wire tokens) moved the
         // agency catalogue from 6.3k to 6.7k, and the three file tools (B-PR3,
         // ~170 tokens after trimming) to 6.9k: the gate follows the surface.
-        if (!ctx.project) assert.ok(fullTokens <= 7_000, `agency full ${fullTokens}`);
+        // create_xlsx + create_pptx (#116, nested sheet/slide schemas) take it to ~7.15k.
+        if (!ctx.project) assert.ok(fullTokens <= 7_250, `agency full ${fullTokens}`);
     }
 });
 

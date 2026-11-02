@@ -117,6 +117,8 @@ export const TOOL_GROUPS: Record<ToolGroup, readonly string[]> = {
         "propose_action",
         "record_finding",
         "create_pdf",
+        "create_xlsx",
+        "create_pptx",
     ],
     admin_db: ["admin_db_overview", "admin_db_inspect", "admin_db_sql"],
     agency: ["get_agency_overview", "get_agency_metrics", "list_clients_needing_attention", "search_across_projects"],

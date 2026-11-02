@@ -2,6 +2,8 @@
 // The action-queue API returns the full eligible queue, so every filter here
 // runs in memory — instant, no refetch per keystroke.
 
+import { revenueBucketOf, sectorKey, sizeBucketOf, type RevenueBucket, type SizeBucket } from "./company-facets";
+
 export type QueueRowType = "" | "contact" | "company";
 export type PhoneScope = "any" | "contact" | "company";
 export type PhoneAvailability = "" | "contact" | "company" | "companyOnly" | "both" | "none";
@@ -20,6 +22,10 @@ export interface QueueFilters {
     phoneScope: PhoneScope;
     phoneAvailability: PhoneAvailability;
     lineType: LineType;
+    /** Company facets (#118): any of the picked values; empty = no filter. sectorKey() values. */
+    sectors: string[];
+    sizes: SizeBucket[];
+    revenues: RevenueBucket[];
 }
 
 export const DEFAULT_QUEUE_FILTERS: QueueFilters = {
@@ -32,6 +38,9 @@ export const DEFAULT_QUEUE_FILTERS: QueueFilters = {
     phoneScope: "any",
     phoneAvailability: "",
     lineType: "",
+    sectors: [],
+    sizes: [],
+    revenues: [],
 };
 
 /** The subset of a queue row the filters read. */
@@ -44,7 +53,7 @@ export interface QueueRowLike {
         email?: string | null;
         phone?: string | null;
     } | null;
-    company: { name: string; industry?: string | null; phone?: string | null };
+    company: { name: string; industry?: string | null; phone?: string | null; size?: string | null; revenue?: string | null };
     priority: string;
     channel: string;
     missionName?: string;
@@ -185,6 +194,17 @@ export function matchesQueueFilters(
         if (lineKind(phone) !== f.lineType) return false;
     }
 
+    // Older saved filters predate the company facets, hence the "?? []".
+    if ((f.sectors ?? []).length > 0 && !f.sectors.includes(sectorKey(row.company.industry))) return false;
+    if ((f.sizes ?? []).length > 0) {
+        const bucket = sizeBucketOf(row.company.size);
+        if (!bucket || !f.sizes.includes(bucket)) return false;
+    }
+    if ((f.revenues ?? []).length > 0) {
+        const bucket = revenueBucketOf(row.company.revenue);
+        if (!bucket || !f.revenues.includes(bucket)) return false;
+    }
+
     if (search && !rowMatchesSearch(row, search)) return false;
     return true;
 }
@@ -197,6 +217,9 @@ export function countAdvancedFilters(f: QueueFilters): number {
         phoneNeedle(f.phone) ? "phone" : "",
         f.phoneAvailability,
         f.lineType,
+        (f.sectors ?? []).length > 0 ? "sectors" : "",
+        (f.sizes ?? []).length > 0 ? "sizes" : "",
+        (f.revenues ?? []).length > 0 ? "revenues" : "",
     ].filter(Boolean).length;
 }
 

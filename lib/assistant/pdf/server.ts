@@ -42,9 +42,15 @@ export interface StoredPdf {
 
 /** Stores the bytes and records the File row (see the header for where). */
 export async function storeGeneratedPdf(input: { buffer: Buffer; fileName: string; userId: string; folderId: string | null }): Promise<StoredPdf> {
+    return storeGeneratedFile({ ...input, mimeType: PDF_MIME });
+}
+
+/** Same storage for any file the assistant makes (PDF, Excel, PowerPoint). */
+export async function storeGeneratedFile(input: { buffer: Buffer; fileName: string; mimeType: string; userId: string; folderId: string | null }): Promise<StoredPdf> {
+    const mimeType = input.mimeType;
     if (input.folderId) {
         try {
-            const file = await storeFolderUpload({ folderId: input.folderId, userId: input.userId, buffer: input.buffer, name: input.fileName, mimeType: PDF_MIME });
+            const file = await storeFolderUpload({ folderId: input.folderId, userId: input.userId, buffer: input.buffer, name: input.fileName, mimeType });
             return { fileId: file.id, downloadUrl: fileDownloadUrl(file.id), stored: "folder" };
         } catch (error) {
             // A folder whose storage cannot be prepared still gets its PDF, owned by the user.
@@ -53,15 +59,15 @@ export async function storeGeneratedPdf(input: { buffer: Buffer; fileName: strin
     }
     const { key, url } = await storageService.upload(
         input.buffer,
-        { filename: input.fileName, mimeType: PDF_MIME, size: input.buffer.length, folder: ASSISTANT_STORAGE_PREFIX },
+        { filename: input.fileName, mimeType, size: input.buffer.length, folder: ASSISTANT_STORAGE_PREFIX },
         input.userId,
     );
     try {
         const file = await prisma.file.create({
             data: {
-                name: input.fileName.replace(/\.pdf$/i, ""),
+                name: input.fileName.replace(/\.[^/.]+$/, "") || input.fileName,
                 originalName: input.fileName,
-                mimeType: PDF_MIME,
+                mimeType,
                 size: input.buffer.length,
                 path: key,
                 url,

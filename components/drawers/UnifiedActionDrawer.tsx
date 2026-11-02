@@ -88,6 +88,7 @@ import {
 } from "@/lib/query-keys";
 import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openreplay/events";
 import { openReplayTracker } from "@/lib/openreplay/tracker";
+import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
 
 // ============================================
 // TYPES
@@ -2604,10 +2605,20 @@ export function UnifiedActionDrawer({
                                             className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                         />
                                     ) : (
-                                        <p className="text-sm font-medium text-slate-700">{company.size || "—"}</p>
+                                        <p className="text-sm font-medium text-slate-700">{companyHeadcountText(company.size, company.customData) || "—"}</p>
                                     )}
                                 </div>
                             </div>
+                            {/* CA comes from an imported column (#118); shown only when one exists. */}
+                            {!isEditingCompany && companyRevenueText(company.customData) && (
+                                <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
+                                    <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                                    <div className="w-full">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Chiffre d&apos;affaires</p>
+                                        <p className="text-sm font-medium text-slate-700">{companyRevenueText(company.customData)}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Company custom data */}

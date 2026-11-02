@@ -113,6 +113,9 @@ interface NextActionData {
         website?: string;
         country?: string;
         phone?: string | null;
+        /** Queue rows only: headcount / revenue read for the filters (#118). */
+        size?: string | null;
+        revenue?: string | null;
     };
     campaignId?: string;
     strategyName?: string | null;

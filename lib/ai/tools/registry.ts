@@ -73,6 +73,7 @@ import { defineLoadToolGroup } from "./definitions/toolgroups";
 import { forget, listMemories, remember, updateMemory } from "./definitions/memory";
 import { FILE_TOOLS } from "./definitions/files";
 import { createPdf } from "./definitions/pdf";
+import { createPptx, createXlsx } from "./definitions/office";
 import { REPORTING_TOOLS } from "./definitions/reporting";
 // The index, not tools/resolve.ts: resolve imports this registry.
 import { AGENT_RUN_TOOLS } from "@/lib/agent/tools/index";
@@ -137,6 +138,9 @@ export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     fileCredentialUnderMission,
     // Documents — a branded PDF to download (one private file, no client visibility).
     createPdf,
+    // Excel workbook / PowerPoint deck to download, same storage as the PDFs.
+    createXlsx,
+    createPptx,
     // Mémoire — reversible in one click (soft delete), logged like any write.
     remember,
     updateMemory,

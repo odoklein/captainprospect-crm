@@ -20,7 +20,8 @@ import {
     NotFoundError,
 } from "@/lib/api-utils";
 import { createPortalAccountForInterlocuteur } from "@/lib/vault/portalAccounts";
-import { deleteCredential } from "@/lib/vault/service";
+import { revokeCommercialPortal } from "@/lib/clients/commercial-access";
+import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 
 export const POST = withErrorHandler(async (
     request: NextRequest,
@@ -78,18 +79,18 @@ export const DELETE = withErrorHandler(async (
         throw new NotFoundError('Aucun compte portail trouvé');
     }
 
-    // Drop the vault entry too, and do it first: a stored password for an
-    // account that no longer exists is worse than no entry at all. Deleting it
-    // through the service keeps the audit trail honest about why it went.
-    const credentials = await prisma.vaultCredential.findMany({
-        where: { userId: interlocuteur.portalUser.id, type: 'PORTAL' },
-        select: { id: true },
+    // Sessions killed and account disabled first, then the vault password, then
+    // the row itself (kept disabled and unlinked when history references it,
+    // instead of failing on the FK after the password was gone). (#119)
+    const revoked = await revokeCommercialPortal(interlocuteur.portalUser.id, session.user.id);
+
+    audit(request, session, {
+        action: AUDIT_ACTIONS.SESSION_REVOKE,
+        entityType: "User",
+        entityId: interlocuteur.portalUser.id,
+        summary: `Accès portail de ${interlocuteur.firstName} ${interlocuteur.lastName} révoqué`,
+        metadata: { ...revoked, interlocuteurId },
     });
-    for (const credential of credentials) {
-        await deleteCredential(credential.id, session.user.id);
-    }
 
-    await prisma.user.delete({ where: { id: interlocuteur.portalUser.id } });
-
-    return successResponse({ deleted: true, credentialsRemoved: credentials.length });
+    return successResponse({ deleted: true, credentialsRemoved: revoked.credentialsRemoved });
 });
