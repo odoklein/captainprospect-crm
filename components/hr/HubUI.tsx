@@ -9,7 +9,8 @@
 // ============================================
 
 import { forwardRef, useEffect, useRef, type ReactNode } from "react";
-import { AlertTriangle, ChevronDown, Search, X } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, ArrowLeft, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FOCUS_RING } from "@/components/ui/recipes";
 
@@ -167,6 +168,65 @@ export function Panel({ children, className, ...rest }: { children: ReactNode; c
         <section {...rest} className={cn("relative overflow-hidden rounded-2xl border border-line bg-surface", className)}>
             {children}
         </section>
+    );
+}
+
+/** Title row of a Panel on the detail screens: what the block is, a count or an action on the right. */
+export function PanelHeader({
+    title,
+    description,
+    meta,
+    actions,
+    id,
+    className,
+}: {
+    title: ReactNode;
+    description?: ReactNode;
+    /** Small grey note on the right ("12 missions"). */
+    meta?: ReactNode;
+    actions?: ReactNode;
+    /** For aria-labelledby on the Panel. */
+    id?: string;
+    className?: string;
+}) {
+    return (
+        <div className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-line-subtle px-5 py-3.5", className)}>
+            <div className="min-w-0">
+                <h2 id={id} className="text-sm font-semibold leading-5 text-ink">
+                    {title}
+                </h2>
+                {description && <p className="mt-0.5 text-xs leading-4 text-ink-3">{description}</p>}
+            </div>
+            {(meta || actions) && (
+                <div className="flex shrink-0 items-center gap-3">
+                    {meta && <span className="text-xs tabular-nums text-ink-3">{meta}</span>}
+                    {actions}
+                </div>
+            )}
+        </div>
+    );
+}
+
+/** Heading of a group of rows inside a Panel (a day, a category), with its count. */
+export function GroupHeading({ children, count, className }: { children: ReactNode; count?: ReactNode; className?: string }) {
+    return (
+        <h3 className={cn("flex items-baseline gap-2 border-b border-line-subtle bg-surface-2 px-5 py-2 text-[13px] font-semibold text-ink", className)}>
+            {children}
+            {count !== undefined && <span className="text-xs font-normal tabular-nums text-ink-3">{count}</span>}
+        </h3>
+    );
+}
+
+/** Way back from a detail screen to its list. */
+export function HubBackLink({ href, children }: { href: string; children: ReactNode }) {
+    return (
+        <Link
+            href={href}
+            className={cn("inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-ink-3 transition-colors hover:text-ink", FOCUS_RING)}
+        >
+            <ArrowLeft className="size-4" aria-hidden />
+            {children}
+        </Link>
     );
 }
 

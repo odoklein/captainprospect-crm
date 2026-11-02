@@ -1,10 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Briefcase, RefreshCw, User } from "lucide-react";
-import { Modal } from "@/components/ui/Modal";
+import { Briefcase, User } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Modal, ModalFooter } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Callout } from "@/components/ui/Callout";
+import { CONTROL_HEIGHT, FIELD_BASE, FIELD_ERROR } from "@/components/ui/recipes";
 import { ContractType, RemunerationMode } from "@/lib/hr/hr-types";
 import { formatEuros } from "@/lib/hr/hr-rules";
+import { PanelMessage, TextButton } from "./HubUI";
 import { HrHelpTip } from "./HrHelpTip";
 
 interface HrProfileModalProps {
@@ -20,6 +25,16 @@ const MODES = [
   { value: RemunerationMode.VARIABLE, label: "Variable uniquement", desc: "Une prime par rendez-vous" },
   { value: RemunerationMode.FIXE_PLUS_VARIABLE, label: "Fixe + variable", desc: "Salaire + prime par RDV" },
 ];
+
+const LABEL = "mb-1.5 flex items-center gap-1 text-[13px] font-medium text-ink-2";
+const field = (error?: string | null) => cn(FIELD_BASE, CONTROL_HEIGHT.md, "px-3", error && FIELD_ERROR);
+
+/** Radio rendered as a card: the selected one carries the primary outline. */
+const choiceCard = (selected: boolean) =>
+  cn(
+    "cursor-pointer rounded-xl border p-3 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-within:ring-2 focus-within:ring-focus focus-within:ring-offset-2 focus-within:ring-offset-surface",
+    selected ? "border-primary-500 bg-primary-50/60 shadow-[inset_0_0_0_1px_var(--color-primary-500)]" : "border-line bg-surface hover:border-line-strong"
+  );
 
 function toCents(input: string): number | null {
   const n = Number(input.replace(/\s/g, "").replace(",", ".") || "0");
@@ -152,30 +167,35 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
       size="lg"
     >
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 py-10 text-xs text-slate-500">
-          <RefreshCw className="h-4 w-4 animate-spin text-primary-600" />
-          Chargement…
+        <div className="space-y-5" aria-busy="true" aria-label="Chargement">
+          {[2, 3, 2].map((cols, i) => (
+            <div key={i} className="space-y-2">
+              <span className="block h-3 w-40 rounded bg-surface-3" />
+              <div className={cn("grid gap-3", cols === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2")}>
+                {Array.from({ length: cols }).map((_, j) => (
+                  <span key={j} className="block h-12 rounded-xl bg-surface-3" />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : loadError ? (
-        <div className="space-y-3">
-          <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+        <div className="rounded-xl border border-line">
+          <PanelMessage tone="error" action={<TextButton onClick={loadData}>Réessayer</TextButton>}>
             {loadError}
-          </p>
-          <button type="button" onClick={loadData} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">
-            Réessayer
-          </button>
+          </PanelMessage>
         </div>
       ) : (
         <form onSubmit={handleSave} className="space-y-5" noValidate>
           {isNew && (
-            <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
+            <Callout tone="info">
               Première configuration : tant que ces règles ne sont pas enregistrées, la paie de {displayName} est calculée à 0 €.
-            </p>
+            </Callout>
           )}
 
-          <fieldset className="space-y-1.5">
-            <legend className="mb-1.5 text-xs font-semibold text-slate-700">Type de contrat</legend>
-            <div className="grid grid-cols-2 gap-3">
+          <fieldset>
+            <legend className={LABEL}>Type de contrat</legend>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {[
                 { value: ContractType.SALARIE, label: "Salarié (CDI / CDD)", icon: Briefcase },
                 { value: ContractType.INDEPENDANT, label: "Indépendant / freelance", icon: User },
@@ -183,14 +203,9 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 const Icon = c.icon;
                 const selected = contractType === c.value;
                 return (
-                  <label
-                    key={c.value}
-                    className={`flex cursor-pointer items-center gap-2.5 rounded-xl border p-3 text-xs transition-all focus-within:ring-2 focus-within:ring-primary-500 ${
-                      selected ? "border-primary-600 bg-primary-50/50 font-semibold text-primary-950" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                    }`}
-                  >
+                  <label key={c.value} className={cn(choiceCard(selected), "flex items-center gap-2.5 text-[13px]", selected ? "font-semibold text-ink" : "text-ink-2")}>
                     <input type="radio" name="contractType" checked={selected} onChange={() => setContractType(c.value)} className="sr-only" />
-                    <Icon className="h-4 w-4 text-primary-600" />
+                    <Icon className={cn("size-4 shrink-0", selected ? "text-primary-600" : "text-ink-4")} aria-hidden />
                     {c.label}
                   </label>
                 );
@@ -198,21 +213,16 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
             </div>
           </fieldset>
 
-          <fieldset className="space-y-1.5">
-            <legend className="mb-1.5 text-xs font-semibold text-slate-700">Comment cette personne est-elle payée ?</legend>
+          <fieldset>
+            <legend className={LABEL}>Comment cette personne est-elle payée ?</legend>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {MODES.map((m) => {
                 const selected = remunerationMode === m.value;
                 return (
-                  <label
-                    key={m.value}
-                    className={`cursor-pointer rounded-xl border p-3 text-left transition-all focus-within:ring-2 focus-within:ring-primary-500 ${
-                      selected ? "border-primary-600 bg-primary-50/50 text-primary-950" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                    }`}
-                  >
+                  <label key={m.value} className={choiceCard(selected)}>
                     <input type="radio" name="remunerationMode" checked={selected} onChange={() => setRemunerationMode(m.value)} className="sr-only" />
-                    <span className="mb-0.5 block text-xs font-semibold">{m.label}</span>
-                    <span className="block text-[10px] text-slate-500">{m.desc}</span>
+                    <span className={cn("block text-[13px] font-semibold", selected ? "text-ink" : "text-ink-2")}>{m.label}</span>
+                    <span className="mt-0.5 block text-xs text-ink-3">{m.desc}</span>
                   </label>
                 );
               })}
@@ -241,8 +251,8 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
               />
             )}
 
-            <div className="space-y-1">
-              <label htmlFor="hr-quota" className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+            <div>
+              <label htmlFor="hr-quota" className={LABEL}>
                 Appels attendus par jour
                 <HrHelpTip title="Objectif d’appels">
                   <p>Si la personne fait moins d’appels qu’attendu un jour travaillé, ce jour vous sera signalé « à statuer ».</p>
@@ -257,13 +267,13 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 onChange={(e) => setQuotaInput(e.target.value)}
                 placeholder="Ex : 80"
                 aria-invalid={Boolean(fieldErrors.quota)}
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 aria-[invalid=true]:border-rose-400"
+                className={cn(field(fieldErrors.quota), "tabular-nums")}
               />
-              {fieldErrors.quota && <p className="text-[11px] text-rose-600">{fieldErrors.quota}</p>}
+              {fieldErrors.quota && <p role="alert" className="mt-1.5 text-xs font-medium text-danger-ink">{fieldErrors.quota}</p>}
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="hr-effective" className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+            <div>
+              <label htmlFor="hr-effective" className={LABEL}>
                 En vigueur depuis le
                 <HrHelpTip title="Date d’effet">
                   <p>Date à laquelle ces règles commencent, gardée pour l’historique.</p>
@@ -275,28 +285,23 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 type="date"
                 value={effectiveFrom}
                 onChange={(e) => setEffectiveFrom(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className={cn(field(fieldErrors.date), "tabular-nums")}
               />
             </div>
           </div>
 
           {example && (
-            <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-              En clair : <strong className="text-slate-900">{example}</strong>.
+            <p className="rounded-xl bg-surface-2 px-4 py-3 text-[13px] text-ink-2">
+              En clair : <strong className="font-semibold text-ink">{example}</strong>.
             </p>
           )}
 
-          <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 md:grid-cols-2">
-            <div className="space-y-1">
-              <label htmlFor="hr-manager" className="text-xs font-semibold text-slate-700">
+          <div className="grid grid-cols-1 gap-4 border-t border-line-subtle pt-5 md:grid-cols-2">
+            <div>
+              <label htmlFor="hr-manager" className={LABEL}>
                 Manager responsable
               </label>
-              <select
-                id="hr-manager"
-                value={managerId}
-                onChange={(e) => setManagerId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
+              <select id="hr-manager" value={managerId} onChange={(e) => setManagerId(e.target.value)} className={field()}>
                 <option value="">Aucun manager</option>
                 {managers.map((m) => (
                   <option key={m.id} value={m.id}>
@@ -305,9 +310,9 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <label htmlFor="hr-reason" className="text-xs font-semibold text-slate-700">
-                Raison du changement (pour l’historique)
+            <div>
+              <label htmlFor="hr-reason" className={LABEL}>
+                Raison du changement <span className="font-normal text-ink-3">(pour l’historique)</span>
               </label>
               <input
                 id="hr-reason"
@@ -315,29 +320,25 @@ export function HrProfileModal({ isOpen, onClose, userId, userName, onProfileSav
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Ex : augmentation annuelle, passage à temps plein…"
-                className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className={field()}
               />
             </div>
           </div>
 
           {error && (
-            <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs font-medium text-rose-600">
+            <p role="alert" className="rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13px] font-medium text-danger-ink">
               {error}
             </p>
           )}
 
-          <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100">
+          <ModalFooter className="mt-0">
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving || invalid}
-              className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-primary-700 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" size="sm" disabled={invalid} isLoading={isSaving}>
               {isSaving ? "Enregistrement…" : "Enregistrer les règles"}
-            </button>
-          </div>
+            </Button>
+          </ModalFooter>
         </form>
       )}
     </Modal>
@@ -360,8 +361,8 @@ function MoneyField({
   error: string | null;
 }) {
   return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="flex items-center gap-1 text-xs font-semibold text-slate-700">
+    <div>
+      <label htmlFor={id} className={LABEL}>
         {label}
         <HrHelpTip title={label}>
           <p>{tip}</p>
@@ -376,11 +377,11 @@ function MoneyField({
           onChange={(e) => onChange(e.target.value)}
           placeholder="0"
           aria-invalid={Boolean(error)}
-          className="w-full rounded-lg border border-slate-200 bg-white p-2.5 pr-8 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 aria-[invalid=true]:border-rose-400"
+          className={cn(field(error), "pr-8 tabular-nums")}
         />
-        <span className="absolute right-3 top-2.5 text-xs text-slate-400">€</span>
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-3">€</span>
       </div>
-      {error && <p className="text-[11px] text-rose-600">{error}</p>}
+      {error && <p role="alert" className="mt-1.5 text-xs font-medium text-danger-ink">{error}</p>}
     </div>
   );
 }
