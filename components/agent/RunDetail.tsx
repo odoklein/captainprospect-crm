@@ -217,7 +217,7 @@ function Section({ title, aside, children }: { title: string; aside?: ReactNode;
 
 const Count = ({ n }: { n: number }) => <span className="text-2xs font-semibold tabular-nums text-ink-4">{n}</span>;
 
-function RunDetailBody({ run }: { run: AgentRunDetail }) {
+export function RunDetailBody({ run, embedded = false }: { run: AgentRunDetail; embedded?: boolean }) {
     const live = isLiveStatus(run.status);
     const now = useNow(1000, live);
     const startRef = run.startedAt ?? run.createdAt;
@@ -229,7 +229,7 @@ function RunDetailBody({ run }: { run: AgentRunDetail }) {
     return (
         <div className="space-y-6">
             {/* Live status */}
-            <div
+            {!embedded && <div
                 className={cn(
                     "rounded-panel border p-4 motion-safe:animate-ds-enter",
                     live ? "border-accent-200 bg-accent-soft/50" : run.status === "FAILED" ? "border-danger-line bg-danger-soft/50" : "border-line bg-surface-2",
@@ -261,7 +261,10 @@ function RunDetailBody({ run }: { run: AgentRunDetail }) {
                     <MetaItem label="Coût">{formatEur(run.costEur)}</MetaItem>
                     <MetaItem label="Mode">{run.mode === "lite" ? "Réduit" : run.mode === "worker" ? "Worker" : run.mode}</MetaItem>
                 </dl>
-            </div>
+            </div>}
+
+            {embedded && run.summary && <p className="text-sm leading-relaxed text-ink-2">{run.summary}</p>}
+            {embedded && run.error && <p role="alert" className="text-sm text-danger-ink">{run.error}</p>}
 
             {run.goal && run.jobName && (
                 <Section title="Objectif">
@@ -269,7 +272,7 @@ function RunDetailBody({ run }: { run: AgentRunDetail }) {
                 </Section>
             )}
 
-            <BudgetBars run={run} elapsed={elapsed} toolCalls={toolCalls} live={live} />
+            {!embedded && <BudgetBars run={run} elapsed={elapsed} toolCalls={toolCalls} live={live} />}
 
             {run.plan && run.plan.steps.length > 0 && (
                 <Section title="Plan" aside={<Count n={run.plan.steps.length} />}>

@@ -2,7 +2,7 @@
 
 /**
  * The workspace rail: brand + new chat, search (opens the command palette),
- * then Vue agence, Agent, and the « Épinglés », « Récentes », « Dossiers »
+ * then Pilotage, Agent, and the « Épinglés », « Récentes », « Dossiers »
  * and « Clients » sections, with today's cost at the bottom.
  *
  * Sections fold (Collapsible) and remember it; conversation rows carry a
@@ -16,7 +16,11 @@ import Link from "next/link";
 import useSWR from "swr";
 import {
     ArrowDownAZ,
+    ArrowLeft,
     Bot,
+    BrainCircuit,
+    LayoutDashboard,
+    Workflow,
     Building2,
     ChevronRight,
     Clock3,
@@ -24,7 +28,6 @@ import {
     Folder,
     FolderInput,
     FolderPlus,
-    Globe2,
     Loader2,
     Lock,
     MessageSquare,
@@ -128,7 +131,7 @@ const CLIENTS_PREVIEW = 8;
 const RECENT_KEY = `${ASSISTANT_API.conversations}?limit=12`;
 
 const ROW = "group/item relative z-10 flex h-9 w-full min-w-0 items-center gap-2.5 rounded-xl px-2.5 text-left text-[13px] transition-[background-color,color] duration-200 ease-snappy";
-const rowTone = (active?: boolean) => (active ? "font-semibold text-ink" : "text-ink-2 hover:bg-surface-3/70 hover:text-ink");
+const rowTone = (active?: boolean) => (active ? "bg-accent-soft font-medium text-accent-600" : "text-ink-2 hover:bg-surface-3/70 hover:text-ink");
 
 function RailIcon({ active, busy, children }: { active?: boolean; busy?: boolean; children: ReactNode }) {
     return (
@@ -403,6 +406,8 @@ export interface RailProps {
     activeKey: string;
     isMac: boolean;
     onNewChat: () => void;
+    onOpenCaptain: () => void;
+    onOpenOperations: () => void;
     onOpenSearch: () => void;
     onOpenFolder: (folderId: string | null) => void;
     onOpenConversation: (id: string) => void;
@@ -413,7 +418,7 @@ export interface RailProps {
     mobile?: boolean;
 }
 
-export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSearch, onOpenFolder, onOpenConversation, onCollapse, onConversationDeleted, mobile }: RailProps) {
+export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenCaptain, onOpenOperations, onOpenSearch, onOpenFolder, onOpenConversation, onCollapse, onConversationDeleted, mobile }: RailProps) {
     const toast = useToast();
     const actions = useThreadActions();
     const pdf = usePdfExport();
@@ -588,6 +593,7 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
                 </Tooltip>
             </div>
 
+            <Link href="/manager/dashboard" className={cn("mx-3 mb-3 flex h-8 items-center gap-2 rounded-lg px-2 text-xs text-ink-3 hover:bg-surface-3 hover:text-ink", FOCUS_RING)}><ArrowLeft className="size-3.5" aria-hidden />Retour au CRM</Link>
             {/* Search → palette */}
             <div className="shrink-0 px-3 pb-2">
                 <button
@@ -620,12 +626,14 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenSear
                         />
 
                         <div className="space-y-0.5">
-                            <RailItem icon={<Globe2 />} label="Vue agence" active={activeKey === "agency"} onClick={() => onOpenFolder(null)} />
+                            <RailItem icon={<BrainCircuit />} label="Captain · Conversation" active={activeKey === "captain"} onClick={onOpenCaptain} />
+                            <RailItem icon={<LayoutDashboard />} label="Pilotage" active={activeKey === "agency"} onClick={() => onOpenFolder(null)} />
                             <RailItem
-                                icon={<Bot />}
-                                label="Agent"
-                                href="/manager/assistant/agent"
-                                title={agentCount > 0 ? `Agent — ${agentCount} élément(s) à traiter` : "Agent"}
+                                icon={<Workflow />}
+                                label="Opérations"
+                                active={activeKey === "operations"}
+                                onClick={onOpenOperations}
+                                title={agentCount > 0 ? `Opérations — ${agentCount} élément(s) à traiter` : "Opérations"}
                                 trailing={
                                     agentCount > 0 ? (
                                         <span
@@ -821,6 +829,8 @@ export const RailStrip = memo(function RailStrip({
     isMac,
     onExpand,
     onNewChat,
+    onOpenCaptain,
+    onOpenOperations,
     onOpenSearch,
     onOpenFolder,
 }: {
@@ -828,6 +838,8 @@ export const RailStrip = memo(function RailStrip({
     isMac: boolean;
     onExpand: () => void;
     onNewChat: () => void;
+    onOpenCaptain: () => void;
+    onOpenOperations: () => void;
     onOpenSearch: () => void;
     onOpenFolder: (folderId: string | null) => void;
 }) {
@@ -866,6 +878,7 @@ export const RailStrip = memo(function RailStrip({
 
     return (
         <div className="flex h-full w-full flex-col items-center gap-1 bg-surface-2 py-3">
+            {item("Retour au CRM", "Retour au CRM", <ArrowLeft aria-hidden />, { href: "/manager/dashboard" })}
             {item("Afficher le panneau", "Afficher le panneau", <PanelLeftOpen aria-hidden />, { onClick: onExpand })}
             {item(
                 <>
@@ -893,8 +906,9 @@ export const RailStrip = memo(function RailStrip({
                 { onClick: onOpenSearch },
             )}
             <div className="my-1 h-px w-6 bg-line" aria-hidden />
-            {item("Vue agence", "Vue agence", <Globe2 aria-hidden />, { onClick: () => onOpenFolder(null), active: activeKey === "agency" })}
-            {item(agentCount > 0 ? `Agent — ${agentCount} à traiter` : "Agent", "Agent", <Bot aria-hidden />, { href: "/manager/assistant/agent", badge: agentCount > 0 })}
+            {item("Captain · Conversation", "Captain · Conversation", <BrainCircuit aria-hidden />, { onClick: onOpenCaptain, active: activeKey === "captain" })}
+            {item("Pilotage", "Pilotage", <LayoutDashboard aria-hidden />, { onClick: () => onOpenFolder(null), active: activeKey === "agency" })}
+            {item(agentCount > 0 ? `Opérations — ${agentCount} à traiter` : "Opérations", "Opérations", <Workflow aria-hidden />, { onClick: onOpenOperations, active: activeKey === "operations", badge: agentCount > 0 })}
         </div>
     );
 });

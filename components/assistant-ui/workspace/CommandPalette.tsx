@@ -196,7 +196,7 @@ function PaletteBody({
                 shortcut: shortcutLabel(["mod", "shift", "O"], isMac),
                 run: onNewConversation,
             },
-            { key: "agency", label: "Vue agence", keywords: "agence accueil general tout", icon: <Globe />, run: () => onOpenFolder(null) },
+            { key: "agency", label: "Pilotage", keywords: "agence accueil general tout", icon: <Globe />, run: () => onOpenFolder(null) },
             {
                 key: "agent",
                 label: "Agent",
@@ -266,7 +266,7 @@ function PaletteBody({
                         key: `conversation:${c.id}`,
                         label: c.title || "Sans titre",
                         ranges: fuzzyMatch(q, c.title)?.ranges ?? [],
-                        sublabel: [c.folderId ? folderNames.get(c.folderId) : "Vue agence", c.snippet].filter(Boolean).join(" · "),
+                        sublabel: [c.folderId ? folderNames.get(c.folderId) : "Pilotage", c.snippet].filter(Boolean).join(" · "),
                         icon: <MessageSquare />,
                         recent: { kind: "conversation", id: c.id, label: c.title || "Sans titre", folderId: c.folderId },
                         run: () => onOpenConversation(c.id),

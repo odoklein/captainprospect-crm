@@ -197,7 +197,7 @@ export function AgencyHeader() {
             </span>
             <div className="min-w-0">
                 <p className={EYEBROW}>Captain AI</p>
-                <h1 className="truncate text-xl font-bold tracking-tight text-ink sm:text-2xl">Vue agence</h1>
+                <h1 className="truncate text-xl font-bold tracking-tight text-ink sm:text-2xl">Pilotage</h1>
                 <p className="mt-0.5 text-sm text-ink-3">Conversations hors dossier et mémoire commune de l&apos;agence.</p>
             </div>
         </Card>
