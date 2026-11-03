@@ -169,7 +169,7 @@ function normalizeGmaps(i: GmapsItem): SourcedLead {
 // GOOGLE MAPS (Serper.dev /maps, sync, 20 places per page)
 // ============================================
 
-interface SerperPlace {
+export interface SerperPlace {
     title?: string;
     address?: string;
     rating?: number;
@@ -185,7 +185,7 @@ interface SerperPlace {
     longitude?: number;
 }
 
-const SERPER_PAGE_SIZE = 20;
+export const SERPER_PAGE_SIZE = 20;
 
 /** "@lat,lng,zoomz" centred on page 1's places (median, so one outlier can't drag it). */
 function viewportOf(places: SerperPlace[], zoom: number): string | undefined {
@@ -197,14 +197,54 @@ function viewportOf(places: SerperPlace[], zoom: number): string | undefined {
     return `@${lat.toFixed(6)},${lng.toFixed(6)},${zoom}z`;
 }
 
+// Serper allows 5 requests per second per key. Every call in this process
+// takes the next 220 ms slot, so parallel tiles (and two managers sourcing at
+// once) queue up instead of bouncing off 429s.
+const SERPER_GAP_MS = 220;
+let serperNextSlot = 0;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function serperSlot() {
+    const now = Date.now();
+    const at = Math.max(now, serperNextSlot);
+    serperNextSlot = at + SERPER_GAP_MS;
+    if (at > now) await sleep(at - now);
+}
+
+/** One Serper /maps call (3 credits). Throws with Serper's own message on HTTP errors. */
+export async function serperMapsCall(
+    body: { q: string; gl: string; page: number; ll?: string },
+    signal?: AbortSignal,
+): Promise<{ places: SerperPlace[]; ll?: string }> {
+    const key = SERPER_KEY();
+    if (!key) throw new Error("Google Maps n'est pas configuré (SERPER_API_KEY)");
+    let res: Response;
+    for (let attempt = 0; ; attempt++) {
+        await serperSlot();
+        res = await fetch("https://google.serper.dev/maps", {
+            method: "POST",
+            headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+            body: JSON.stringify({ ...body, hl: "fr" }),
+            cache: "no-store",
+            signal,
+        });
+        if (res.status !== 429 || attempt >= 3) break;
+        await sleep(800 * (attempt + 1));
+    }
+    if (!res.ok) throw new Error(`Serper ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const json = (await res.json()) as { places?: SerperPlace[]; ll?: string; searchParameters?: { ll?: string } };
+    return { places: json.places ?? [], ll: json.ll ?? json.searchParameters?.ll };
+}
+
 /** One activity × location search, paged until perSearch places or Maps runs dry. */
 export async function searchSerperMaps(params: {
     activity: ActivityTerm;
     location: string;
     perSearch: number;
+    signal?: AbortSignal;
+    /** Called once per Serper call, for credit accounting. */
+    onCall?: () => boolean | void;
 }): Promise<SourcedLead[]> {
-    const key = SERPER_KEY();
-    if (!key) throw new Error("Google Maps n'est pas configuré (SERPER_API_KEY)");
     const { place, iso, zoom } = placeForMaps(params.location);
     const q = `${params.activity.label} ${place}`;
     const pages = Math.ceil(params.perSearch / SERPER_PAGE_SIZE);
@@ -216,22 +256,18 @@ export async function searchSerperMaps(params: {
 
     for (let page = 1; page <= pages; page++) {
         if (page > 1 && !ll) break;
-        const res = await fetch("https://google.serper.dev/maps", {
-            method: "POST",
-            headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-            body: JSON.stringify({ q, gl: iso.toLowerCase(), hl: "fr", page, ...(page > 1 ? { ll } : {}) }),
-            cache: "no-store",
-        });
-        if (!res.ok) {
-            const message = `Serper ${res.status}: ${(await res.text()).slice(0, 200)}`;
+        let places: SerperPlace[];
+        try {
+            if (params.signal?.aborted || params.onCall?.() === false) break;
+            const json = await serperMapsCall({ q, gl: iso.toLowerCase(), page, ...(page > 1 ? { ll } : {}) }, params.signal);
+            places = json.places;
+            if (page === 1) ll = json.ll ?? viewportOf(places, zoom);
+        } catch (e) {
             // A later page failing must not throw away what page 1 found.
-            if (page === 1) throw new Error(message);
-            console.warn(`[sourcing] ${q} page ${page}: ${message}`);
+            if (page === 1) throw e;
+            console.warn(`[sourcing] ${q} page ${page}: ${e instanceof Error ? e.message : e}`);
             break;
         }
-        const json = (await res.json()) as { places?: SerperPlace[]; ll?: string; searchParameters?: { ll?: string } };
-        const places = json.places ?? [];
-        if (page === 1) ll = json.ll ?? json.searchParameters?.ll ?? viewportOf(places, zoom);
         for (const p of places) {
             if (!p.title) continue;
             const lead = normalizeSerper(p, iso);
@@ -252,7 +288,7 @@ function splitAddress(address?: string): Pick<SourcedLead, "address" | "postalCo
     return { address: m[1].trim() || undefined, postalCode: m[2], city: m[3].trim() };
 }
 
-function normalizeSerper(p: SerperPlace, iso: string): SourcedLead {
+export function normalizeSerper(p: SerperPlace, iso: string): SourcedLead {
     const ref = p.placeId ?? p.cid ?? `${p.title}|${p.address ?? ""}`;
     const mapsUrl = p.placeId
         ? `https://www.google.com/maps/place/?q=place_id:${p.placeId}`
@@ -344,9 +380,11 @@ export async function searchAnnuaire(params: {
     perSearch: number;
     activeOnly: boolean;
     headcount?: string[];
+    /** Page cap (25 per page); deep runs raise it, the registry is free. */
+    maxPages?: number;
 }): Promise<SourcedLead[]> {
     const perPage = 25;
-    const pages = Math.min(Math.ceil(params.perSearch / perPage), 8);
+    const pages = Math.min(Math.ceil(params.perSearch / perPage), params.maxPages ?? 8);
     const out: SourcedLead[] = [];
 
     for (let page = 1; page <= pages; page++) {

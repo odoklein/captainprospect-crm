@@ -7,6 +7,7 @@ import { FOCUS_RING, EYEBROW } from "@/components/ui/recipes";
 import { cn } from "@/lib/utils";
 import { ACTIVITIES, HEADCOUNT_BANDS, SOURCES, parseNaf } from "@/lib/sourcing/catalog";
 import { LocationPicker } from "./LocationPicker";
+import { DepthPicker, PlanSummary, usePlan } from "./DepthPicker";
 import type { ActivityTerm, ProvidersStatus, SourceId, SourcingQuery } from "@/lib/sourcing/types";
 
 // ============================================
@@ -29,10 +30,12 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
     const searches = query.activities.length * query.locations.length;
     const usable = sources.filter((s) => providers?.[s]?.configured !== false);
     const canRun = searches > 0 && usable.length > 0 && !isRunning;
-    // Serper bills one credit per page of 20 places.
-    const serperCalls =
-        usable.includes("gmaps") && providers?.gmaps?.engine === "serper" ? searches * Math.ceil(query.perSearch / 20) : 0;
-    const heavy = searches > 150;
+    const serper = providers?.gmaps?.engine === "serper";
+    const mapsOn = usable.includes("gmaps");
+    // Deep modes cut zones into map tiles, which only the Serper engine can search.
+    const depth = serper || !providers ? (query.depth ?? "standard") : "standard";
+    const { plan, loading: planLoading, error: planError } = usePlan({ ...query, depth }, mapsOn && serper);
+    const heavy = (plan?.maxCredits ?? 0) > 3000 || (!serper && searches > 150);
 
     const toggleSource = (id: SourceId) =>
         onSourcesChange(sources.includes(id) ? sources.filter((s) => s !== id) : [...sources, id]);
@@ -47,7 +50,7 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
                     />
                 </Block>
 
-                <Block step={2} title="Où" hint="Pays, région, département, ville ou code postal. Chaque zone = une recherche.">
+                <Block step={2} title="Où" hint="Pays, région, département, ville ou code postal. Les résultats hors zone sont écartés.">
                     <LocationPicker
                         value={query.locations}
                         onChange={(locations) => onQueryChange({ locations })}
@@ -115,8 +118,13 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
                     </div>
                 </Block>
 
-                <Block step={4} title="Volume & filtres">
+                <Block step={4} title="Profondeur">
+                    <DepthPicker depth={depth} budget={query.creditBudget} serper={serper} onChange={onQueryChange} />
+                </Block>
+
+                <Block step={5} title="Filtres">
                     <div className="space-y-4">
+                        {depth === "standard" && (
                         <div className="flex items-center justify-between gap-3">
                             <span className="text-sm text-ink-2">Résultats par recherche</span>
                             <SegmentedControl
@@ -127,6 +135,7 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
                                 options={["25", "50", "100", "200"].map((v) => ({ value: v, label: v }))}
                             />
                         </div>
+                        )}
                         <Switch
                             size="sm"
                             checked={query.activeOnly}
@@ -171,33 +180,25 @@ export function QueryComposer({ query, sources, providers, isRunning, onQueryCha
             </div>
 
             <div className="mt-auto border-t border-line bg-surface-2 p-4 rounded-b-card">
-                <p className="mb-3 text-xs text-ink-3">
+                <div className="mb-3 text-xs text-ink-3">
                     {searches === 0 ? (
                         "Ajoutez au moins une activité et une localisation."
                     ) : (
                         <>
-                            <span className="font-semibold text-ink tabular-nums">{searches}</span> recherche
-                            {searches > 1 ? "s" : ""} × <span className="font-semibold text-ink tabular-nums">{usable.length}</span>{" "}
-                            source{usable.length > 1 ? "s" : ""} · jusqu&apos;à{" "}
-                            <span className="font-semibold text-ink tabular-nums">
-                                {(searches * query.perSearch).toLocaleString("fr-FR")}
-                            </span>{" "}
-                            sociétés par source
-                            {serperCalls > 0 && (
-                                <span className="mt-1 block text-ink-4">
-                                    Google Maps : jusqu&apos;à{" "}
-                                    <span className="font-medium text-ink-3 tabular-nums">{serperCalls.toLocaleString("fr-FR")}</span>{" "}
-                                    crédit{serperCalls > 1 ? "s" : ""} Serper
-                                </span>
-                            )}
+                            <span className="font-semibold text-ink tabular-nums">{query.activities.length}</span> activité
+                            {query.activities.length > 1 ? "s" : ""} × <span className="font-semibold text-ink tabular-nums">{query.locations.length}</span>{" "}
+                            zone{query.locations.length > 1 ? "s" : ""} × <span className="font-semibold text-ink tabular-nums">{usable.length}</span>{" "}
+                            source{usable.length > 1 ? "s" : ""}
+                            {mapsOn && serper && <PlanSummary plan={plan} loading={planLoading} />}
+                            {mapsOn && serper && planError && <p role="status" className="mt-2 text-warning-ink">{planError}</p>}
                             {heavy && (
-                                <span className="mt-1 block font-medium text-warning-ink">
-                                    Recherche lourde : comptez plusieurs minutes. Réduisez les activités ou les zones si possible.
+                                <span className="mt-1.5 block font-medium text-warning-ink">
+                                    Recherche lourde : comptez plusieurs minutes (Serper traite 5 appels par seconde). Vous pouvez arrêter à tout moment et garder les résultats.
                                 </span>
                             )}
                         </>
                     )}
-                </p>
+                </div>
                 <Button size="lg" className="w-full" disabled={!canRun} onClick={onRun}>
                     {isRunning ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                     {isRunning ? "Recherche en cours…" : "Lancer le sourcing"}
