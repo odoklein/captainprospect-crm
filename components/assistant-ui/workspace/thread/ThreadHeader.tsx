@@ -97,7 +97,7 @@ export function ThreadHeader({
     }, [renaming]);
 
     const folder = conversation?.folder ?? null;
-    const folderName = conversation ? (folder?.name ?? "Pilotage") : (draftFolder?.name ?? "Pilotage");
+    const folderName = conversation ? (folder?.name ?? "Vue agence") : (draftFolder?.name ?? "Vue agence");
     const folderKind = conversation ? (folder?.kind ?? "AGENCY") : (draftFolder?.kind ?? "AGENCY");
     const folderId = conversation ? (conversation.folderId ?? null) : (draftFolder?.id ?? null);
     const FolderIcon = folderKind === "CLIENT" ? Building2 : folderKind === "GENERAL" ? Folder : Globe2;

@@ -90,7 +90,7 @@ function MoveBody({
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value={AGENCY}>Pilotage</SelectItem>
+                        <SelectItem value={AGENCY}>Vue agence</SelectItem>
                         {generalFolders
                             .filter((f) => !f.id.startsWith("tmp-"))
                             .map((f) => (

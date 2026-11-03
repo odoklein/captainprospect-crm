@@ -6,7 +6,7 @@
  * infinite scroll, row menu: Ouvrir, Renommer, Épingler, Exporter en PDF).
  */
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowUp, ArrowUpRight, Download, Lock, MessageSquare, MoreHorizontal, Pencil, Pin, PinOff, Search, SquarePen, Users, X } from "lucide-react";
 import type { ConversationCard, FolderDetail } from "@/lib/assistant/api-contract";
 import { useFolderConversations } from "@/lib/assistant/client/folder-hooks";
@@ -32,8 +32,6 @@ import { Skeleton } from "@/components/ui/shadcn/skeleton";
 import { Textarea } from "@/components/ui/shadcn/textarea";
 import { FOCUS_RING } from "@/components/ui/recipes";
 import { useToast } from "@/components/ui/Toast";
-import { useDraftText } from "../useDraftText";
-import { useSession } from "next-auth/react";
 import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
 import { DegradedNotice, ENTER, EmptyState, ErrorState, InlineTitleInput, SectionTitle, Spinner, stagger } from "./parts";
@@ -45,17 +43,12 @@ export function ConversationsTab({
     detail,
     onOpenConversation,
     onStartConversation,
-    children,
-    listOnly = false,
 }: {
     folderId: string | null;
     detail: FolderDetail | null;
     onOpenConversation(id: string): void;
-    onStartConversation(opts: StartOpts): Promise<boolean>;
-    children?: ReactNode;
-    listOnly?: boolean;
+    onStartConversation(opts: StartOpts): void;
 }) {
-    const { data: session } = useSession();
     const isClient = detail?.kind === "CLIENT";
     const missions = isClient ? (detail?.missions ?? []) : [];
     const [mission, setMission] = useState<string>(ALL_MISSIONS);
@@ -78,18 +71,15 @@ export function ConversationsTab({
 
     const starters = starterQuestions(folderId === null ? "AGENCY" : (detail?.kind ?? "GENERAL"), detail?.starterQuestions);
 
-    if (listOnly) return <ConversationList folderId={folderId} q={debounced} rawQ={q} onQChange={setQ} onOpen={onOpenConversation} />;
-
     return (
-        <div className="@container space-y-6">
+        <div className="@container space-y-8">
             <Composer
                 textareaRef={composerRef}
-                draftKey={`captain-ai:draft:${session?.user?.id ?? "viewer"}:home:${folderId ?? "agency"}`}
                 placeholder={
                     folderId === null
-                        ? "Décrivez ce que vous voulez faire…"
+                        ? "Pose une question sur l'agence…"
                         : isClient
-                          ? `Que voulez-vous faire pour ${detail?.name ?? "ce client"} ?`
+                          ? `Pose une question sur ${detail?.name ?? "ce client"}…`
                           : `Pose une question dans « ${detail?.name ?? "ce dossier"} »…`
                 }
                 missions={missions}
@@ -98,22 +88,29 @@ export function ConversationsTab({
                 onSend={(text) => start(text)}
             />
 
-            {!children && <section aria-label="Suggestions de questions" className="space-y-3">
-                <div className="flex flex-wrap justify-center gap-2">
-                    {starters.slice(0, 3).map((s, i) => (
+            <section aria-labelledby="starters-title" className="space-y-3">
+                <SectionTitle id="starters-title">
+                    <AiMark className="size-3.5 text-accent-600" aria-hidden />
+                    Pour commencer
+                </SectionTitle>
+                <div className="grid gap-2.5 @lg:grid-cols-2 @4xl:grid-cols-4">
+                    {starters.map((s, i) => (
                         <button
                             key={s}
                             type="button"
                             onClick={() => start(s)}
                             style={stagger(i)}
                             className={cn(
-                                "group flex min-h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-left",
+                                "group flex min-h-[76px] items-start gap-3 rounded-panel border border-line bg-surface p-3.5 text-left shadow-2xs",
                                 "transition-[border-color,box-shadow,transform] duration-200 ease-snappy hover:-translate-y-px hover:border-line-strong hover:shadow-raised active:translate-y-0",
                                 "motion-reduce:hover:translate-y-0",
                                 ENTER,
                                 FOCUS_RING,
                             )}
                         >
+                            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-lg border border-accent-200 bg-accent-soft text-accent-soft-ink" aria-hidden>
+                                <MessageSquare className="size-3.5" />
+                            </span>
                             <span className="flex-1 text-[13px] font-medium leading-snug text-ink-2 transition-colors group-hover:text-ink">{s}</span>
                             <ArrowUpRight
                                 className="mt-0.5 size-3.5 shrink-0 text-ink-4 opacity-0 transition-[opacity,transform] duration-200 ease-snappy group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -122,16 +119,16 @@ export function ConversationsTab({
                         </button>
                     ))}
                 </div>
-            </section>}
-            {children}
+            </section>
 
-            <details className="border-t border-line-subtle pt-4"><summary className="cursor-pointer rounded-lg py-2 text-sm text-ink-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">Conversations récentes</summary><div className="pt-4"><ConversationList
+            <ConversationList
                 folderId={folderId}
                 q={debounced}
                 rawQ={q}
                 onQChange={setQ}
                 onOpen={onOpenConversation}
-            /></div></details>
+                onStart={() => composerRef.current?.focus()}
+            />
         </div>
     );
 }
@@ -142,7 +139,6 @@ export function ConversationsTab({
 
 function Composer({
     textareaRef,
-    draftKey,
     placeholder,
     missions,
     mission,
@@ -150,35 +146,23 @@ function Composer({
     onSend,
 }: {
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-    draftKey: string;
     placeholder: string;
     missions: Array<{ id: string; name: string }>;
     mission: string;
     onMissionChange(id: string): void;
-    onSend(text: string): Promise<boolean>;
+    onSend(text: string): void;
 }) {
-    const [text, setText] = useDraftText(draftKey);
+    const [text, setText] = useState("");
     const id = useId();
-    const [pending, setPending] = useState(false);
-    const [sendError, setSendError] = useState(false);
-    const lock = useRef(false);
 
-    const send = async () => {
-        if (lock.current) return;
+    const send = () => {
         const value = text.trim();
         if (!value) {
             textareaRef.current?.focus();
             return;
         }
-        lock.current = true;
-        setPending(true);
-        setSendError(false);
-        try {
-            const accepted = await onSend(value);
-            if (accepted) setText("");
-            else setSendError(true);
-        } catch { setSendError(true); }
-        finally { lock.current = false; setPending(false); }
+        onSend(value);
+        setText("");
     };
 
     return (
@@ -186,7 +170,7 @@ function Composer({
             role="group"
             aria-label="Nouvelle conversation"
             className={cn(
-                "gap-0 rounded-[24px] p-3 shadow-xs transition-[border-color,box-shadow] duration-200 ease-snappy",
+                "gap-0 p-2 transition-[border-color,box-shadow] duration-200 ease-snappy",
                 "focus-within:border-primary-400 focus-within:shadow-raised focus-within:ring-4 focus-within:ring-primary-500/10",
             )}
         >
@@ -198,7 +182,6 @@ function Composer({
                 ref={textareaRef}
                 rows={2}
                 value={text}
-                readOnly={pending}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -234,11 +217,10 @@ function Composer({
                     <Kbd>Entrée</Kbd> envoyer · <Kbd>Maj</Kbd>
                     <Kbd>Entrée</Kbd> ligne
                 </span>
-                <Button size="icon" onClick={send} disabled={!text.trim() || pending} aria-label={pending ? "Création en cours" : "Envoyer"} className="ml-auto rounded-full bg-accent-600 text-accent-fg hover:bg-accent-700 sm:ml-0">
+                <Button size="icon" onClick={send} disabled={!text.trim()} aria-label="Envoyer" className="ml-auto sm:ml-0">
                     <ArrowUp aria-hidden />
                 </Button>
             </div>
-            {sendError && <p role="alert" className="px-3 pb-2 text-xs text-danger-ink">La demande n’a pas été envoyée. Votre texte est conservé ; vous pouvez réessayer.</p>}
         </Card>
     );
 }
@@ -253,12 +235,14 @@ function ConversationList({
     rawQ,
     onQChange,
     onOpen,
+    onStart,
 }: {
     folderId: string | null;
     q: string;
     rawQ: string;
     onQChange(q: string): void;
     onOpen(id: string): void;
+    onStart(): void;
 }) {
     const { items, error, isLoading, isLoadingMore, hasMore, degraded, loadMore, reload } = useFolderConversations(folderId, q);
     const actions = useThreadActions();
@@ -354,7 +338,18 @@ function ConversationList({
                 searching ? (
                     <EmptyState compact icon={Search} title={`Aucun résultat pour « ${q.trim()} »`} hint="Essaie un autre mot, ou cherche partout avec Ctrl K." />
                 ) : (
-                    <p className="py-5 text-center text-sm text-ink-3">Vos conversations apparaîtront ici après votre première question.</p>
+                    <EmptyState
+                        icon={MessageSquare}
+                        tone="primary"
+                        title="Aucune conversation pour l'instant"
+                        hint="Pose une première question : elle restera rangée ici avec ses réponses, ses sources et ses graphiques."
+                        action={
+                            <Button variant="outline" size="sm" onClick={onStart}>
+                                <SquarePen aria-hidden />
+                                Démarrer une conversation
+                            </Button>
+                        }
+                    />
                 )
             ) : (
                 <ul className="space-y-2" aria-label="Conversations">
@@ -455,8 +450,8 @@ function ConversationRow({
         <div
             data-menu-open={menuOpen || undefined}
             className={cn(
-                "group relative flex items-start gap-3 rounded-xl border border-transparent bg-surface px-2 py-4",
-                "transition-colors duration-200 ease-snappy hover:bg-surface-2 data-[menu-open]:bg-surface-2",
+                "group relative flex items-start gap-3 rounded-panel border border-line bg-surface p-3.5 shadow-2xs",
+                "transition-[border-color,box-shadow] duration-200 ease-snappy hover:border-line-strong hover:shadow-raised data-[menu-open]:border-line-strong",
             )}
         >
             {leading}

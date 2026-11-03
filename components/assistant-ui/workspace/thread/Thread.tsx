@@ -37,8 +37,6 @@ import type { ChatStream, LiveSnapshot } from "../useChatStream";
 import { AssistantMessage } from "./AssistantMessage";
 import { ErrorTurn } from "./ErrorTurn";
 import { MessageList } from "./MessageList";
-import { ContextPanel } from "../folder/ContextPanel";
-import { ConversationContext } from "./ConversationContext";
 import { ThreadHeader } from "./ThreadHeader";
 import { UserMessage } from "./UserMessage";
 import { renderKeys } from "./handover";
@@ -85,7 +83,7 @@ export interface ThreadProps {
     stream: ChatStream;
     draft?: DraftScope | null;
     /** Draft only: create the conversation and send the first message. */
-    onStart?: (request: StartRequest) => Promise<boolean | void> | boolean | void;
+    onStart?: (request: StartRequest) => Promise<void> | void;
     onOpenConversation?: (id: string) => void;
     onOpenFolder?: (folderId: string | null) => void;
     onDeleted?: (folderId: string | null) => void;
@@ -97,7 +95,6 @@ export interface ThreadProps {
     leading?: ReactNode;
     trailing?: ReactNode;
     compact?: boolean;
-    inspector?: boolean;
     isMac?: boolean;
 }
 
@@ -126,7 +123,6 @@ export function Thread({
     leading,
     trailing,
     compact,
-    inspector = false,
     isMac,
 }: ThreadProps) {
     const toast = useToast();
@@ -149,7 +145,7 @@ export function Thread({
     const messages = useMemo<ThreadMessage[]>(() => thread?.messages ?? [], [thread]);
     const canWrite = thread?.canWrite ?? true;
     const folderId = conversation ? conversation.folderId : (draft?.folderId ?? null);
-    const folderName = conversation ? (conversation.folder?.name ?? "Pilotage") : (draft?.folderName ?? "Pilotage");
+    const folderName = conversation ? (conversation.folder?.name ?? "Vue agence") : (draft?.folderName ?? "Vue agence");
     const folderKind = conversation ? (conversation.folder?.kind ?? "AGENCY") : (draft?.folderKind ?? "AGENCY");
 
     const resolvedFolder = conversation ? (conversation.folderId ?? null) : undefined;
@@ -223,12 +219,9 @@ export function Thread({
             }
             if (!conversationId) {
                 const files = outgoingFiles(mentions);
-                if (!onStart) return false;
-                return Promise.resolve(onStart({ text, deep, attachments: files })).then((accepted) => {
-                    if (accepted === false) return false;
-                    attachments.clear();
-                    return true;
-                });
+                attachments.clear();
+                void onStart?.({ text, deep, attachments: files });
+                return;
             }
             void sendText(text, deep, editMessageId, mentions);
         },
@@ -477,11 +470,11 @@ export function Thread({
             <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-accent-soft text-accent-soft-ink shadow-2xs motion-safe:animate-ds-pop">
                 <AiMark className="size-6" aria-hidden />
             </span>
-            <h2 className={cn("mt-4 font-semibold tracking-tight text-ink motion-safe:animate-ds-enter", compact ? "text-lg" : "text-2xl")}>
-                {compact ? "Captain, à vos côtés" : `Bonjour${firstName ? ` ${firstName}` : ""}`}
+            <h2 className={cn("mt-4 font-display font-semibold tracking-tight text-ink motion-safe:animate-ds-enter", compact ? "text-lg" : "text-2xl")}>
+                Bonjour{firstName ? ` ${firstName}` : ""}
             </h2>
             <p className="mt-1 text-[15px] text-ink-3 motion-safe:animate-ds-enter [animation-delay:30ms]">
-                {folderKind === "AGENCY" ? "Analysez une situation, préparez un plan ou confiez un travail à Captain." : `Discutons de ${folderName} et préparons la prochaine étape.`}
+                {folderKind === "AGENCY" ? "Comment puis-je vous aider aujourd’hui ?" : `Que voulez-vous savoir sur ${folderName} ?`}
             </p>
             {canWrite && (
                 <div className={cn("mt-6 grid gap-2 text-left", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
@@ -515,7 +508,7 @@ export function Thread({
                     canWrite={false}
                     generalFolders={generalFolders}
                     leading={leading}
-                    trailing={<>{!compact && <ContextPanel key={folderId ?? "agency"} folderId={folderId} folderName={folderName} initialTab={folderId ? "overview" : "memoire"} onOpenConversation={(id) => onOpenConversation?.(id)} />}{trailing}</>}
+                    trailing={trailing}
                     compact={compact}
                     onRename={() => {}}
                     onTogglePin={() => {}}
@@ -549,7 +542,7 @@ export function Thread({
                     canWrite={canWrite}
                     generalFolders={generalFolders}
                     leading={leading}
-                    trailing={<>{!compact && <ContextPanel key={folderId ?? "agency"} folderId={folderId} folderName={folderName} initialTab={folderId ? "overview" : "memoire"} onOpenConversation={(id) => onOpenConversation?.(id)} />}{trailing}</>}
+                    trailing={trailing}
                     compact={compact}
                     forking={forking}
                     exportingPdf={conversationId !== null && pdf.busyKey === conversationId}
@@ -604,7 +597,6 @@ export function Thread({
                 {canWrite && (
                     <Composer
                         handleRef={composerRef}
-                        draftKey={`captain-ai:draft:${session?.user?.id ?? "viewer"}:${conversationId ?? `new:${folderId ?? "agency"}`}`}
                         sending={sending}
                         blockedReason={busyElsewhere ? "Une réponse est en cours d’écriture dans une autre conversation." : null}
                         onSubmit={handleSubmit}
@@ -620,8 +612,6 @@ export function Thread({
                     />
                 )}
             </section>
-
-            {inspector && !compact && !canvas && <ConversationContext key={folderId ?? "agency"} folderId={folderId} folderName={folderName} missionName={conversation?.missionName} onOpenConversation={id => onOpenConversation?.(id)} />}
 
             {canvas && (
                 <Canvas

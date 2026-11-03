@@ -576,11 +576,3 @@ export interface AgentOverview {
 /** GET findings?state=OPEN&folderId=&severity=&cursor= ; GET runs?status=&folderId=&kind=&cursor= */
 export type FindingsResponse = Page<AgentFindingItem>;
 export type RunsResponse = Page<AgentRunCard>;
-
-/** Live CRM context, fetched on demand; never copied into editable memories. */
-export interface ClientWorkspaceContext {
-    updatedAt: string;
-    client: { id: string; name: string; industry: string | null; email: string | null; status: string } | null;
-    missions: Array<{ id: string; name: string; objective: string; status: string }>;
-    activity: { month: string; calls: number; meetingsBooked: number; workedDays: number; plannedDays: number | null; estimatedPlan: boolean } | null;
-}

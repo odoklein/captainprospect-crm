@@ -67,7 +67,7 @@ export function DelegateComposer({
                             <AiMark className="size-[18px]" aria-hidden />
                         </span>
                         <div className="min-w-0">
-                            <SheetTitle>Confier un travail à Captain</SheetTitle>
+                            <SheetTitle>Déléguer une mission</SheetTitle>
                             <SheetDescription className="text-xs">
                                 {client ? `Pour ${client.name}` : "L’agent travaille en arrière-plan et te soumet ses propositions"}
                             </SheetDescription>
@@ -192,7 +192,7 @@ function ComposerBody({ client, onClose, onLaunched }: { client: ClientOption | 
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="max-h-72">
-                                <SelectItem value={AGENCY}>Tous les clients</SelectItem>
+                                <SelectItem value={AGENCY}>Vue agence</SelectItem>
                                 {clients.length > 0 && <SelectSeparator />}
                                 {clients.map((c) => (
                                     <SelectItem key={c.clientId} value={c.clientId}>
@@ -204,8 +204,6 @@ function ComposerBody({ client, onClose, onLaunched }: { client: ClientOption | 
                     )}
                 </FormField>
 
-                <div className="text-xs leading-relaxed text-ink-3">Limite de ce travail : {formatEur(MISSION_BUDGETS[budget].maxCostEur)} · {formatDuration(MISSION_BUDGETS[budget].deadlineMs)} maximum.</div>
-                <details className="space-y-4"><summary className="cursor-pointer rounded-lg py-2 text-sm text-ink-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">Options du travail</summary>
                 <fieldset className="grid gap-1.5">
                     <legend className="mb-1.5 text-xs font-semibold text-ink-2">Budget</legend>
                     <RadioGroup value={budget} onValueChange={(v) => setBudget(v as BudgetKey)} aria-label="Budget" className="grid gap-2 sm:grid-cols-3">
@@ -250,7 +248,6 @@ function ComposerBody({ client, onClose, onLaunched }: { client: ClientOption | 
                     </div>
                     <Switch id="agent-delegate-dry" checked={dryRun} onCheckedChange={setDryRun} className="mt-0.5" />
                 </div>
-                </details>
             </form>
             <SheetFooter className="mt-0 flex-row items-center gap-2">
                 <span className="hidden items-center gap-1.5 text-2xs text-ink-4 sm:inline-flex">

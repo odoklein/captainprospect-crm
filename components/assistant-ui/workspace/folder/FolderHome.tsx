@@ -1,54 +1,157 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { Building2, ChevronDown, Globe2, MessageSquare, Workflow } from "lucide-react";
+/**
+ * Folder home of the Captain AI workspace, shown when no conversation is open.
+ * Tabs (shadcn underline variant, sliding indicator): Conversations, Mémoire,
+ * Fichiers, Tableau, Agent. The agency view (folderId null) keeps
+ * Conversations (scope agency) and Mémoire (agency + user layers) only.
+ */
+
+import { useEffect, useRef } from "react";
+import { Brain, FileText, FolderX, LayoutGrid, MessageSquare, type LucideIcon } from "lucide-react";
 import { useFolderDetail } from "@/lib/assistant/client/folder-hooks";
-import { Button } from "@/components/ui/shadcn/button";
+import { FOLDER_TABS, resolveTab, tabCountLabel, visibleTabs, type FolderTabId } from "@/lib/assistant/client/folder-logic";
+import { Badge } from "@/components/ui/shadcn/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/shadcn/tabs";
+import { AiMark } from "@/components/ui/AiMark";
+import { cn } from "@/lib/utils";
+import { AgencyHeader, FolderHeader, FolderHeaderSkeleton, PulseDot } from "./FolderHeader";
 import { ConversationsTab } from "./ConversationsTab";
-import { DecisionDesk } from "./DecisionDesk";
-import { ClientMonthOverview } from "./ClientMonthOverview";
-import type { WorkspaceView } from "../workspace-state";
-import { ContextPanel } from "./ContextPanel";
+import { MemoryTab } from "./MemoryTab";
+import { FilesTab } from "./FilesTab";
+import { BoardTab } from "./BoardTab";
+import { AgentTab } from "./AgentTab";
 import { EmptyState } from "./parts";
 
+const TAB_ICON: Record<FolderTabId, LucideIcon> = {
+    conversations: MessageSquare,
+    memoire: Brain,
+    fichiers: FileText,
+    tableau: LayoutGrid,
+    agent: AiMark,
+};
+
 export function FolderHome(props: {
-    folderId: string | null; tab: string; onTabChange(tab: string): void;
+    folderId: string | null /* null = Vue agence */;
+    tab: string;
+    onTabChange(tab: string): void;
     onOpenConversation(id: string): void;
-    onStartConversation(opts: { folderId: string | null; clientId?: string | null; missionId?: string | null; firstMessage?: string }): Promise<boolean>;
-    onOpenFolder(id: string): void;
-    onOpenSearch?(): void; leading?: ReactNode;
-    view: WorkspaceView;
-    selectedRunId: string | null;
-    onSelectRun(id: string | null): void;
-    onDiscussConversation(id: string): void;
-    onOpenDiscussion(): void;
+    onStartConversation(opts: { folderId: string | null; clientId?: string | null; missionId?: string | null; firstMessage?: string }): void;
 }) {
-    const { folderId, tab, onTabChange, onOpenConversation, onStartConversation, onOpenSearch, leading, onOpenFolder, view, selectedRunId, onSelectRun, onDiscussConversation, onOpenDiscussion } = props;
+    const { folderId, tab, onTabChange, onOpenConversation, onStartConversation } = props;
+    const isAgency = folderId === null;
+    const active = resolveTab(tab ?? "", isAgency);
     const { data: detail, error, isLoading } = useFolderDetail(folderId);
-    const [contextOpen, setContextOpen] = useState(false);
-    const name = folderId ? (detail?.name ?? "Dossier") : "Captain AI";
-    const Icon = view === "operations" ? Workflow : folderId ? Building2 : Globe2;
-    const linkedTab = tab !== "conversations";
-    return <div className="flex h-full flex-col">
-        <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-line-subtle bg-surface px-3 py-2 sm:px-6">
-            <div className="flex min-w-0 items-center gap-1">{leading}<Button variant="ghost" onClick={onOpenSearch} className="min-w-0 gap-2 font-medium text-ink-2"><Icon className="size-4 text-ink-3" aria-hidden /><span className="truncate">{name}</span><ChevronDown className="size-3.5 text-ink-4" aria-hidden /></Button></div>
-            <div className="flex items-center gap-1"><Button data-captain-discussion-toggle size="sm" variant="outline" onClick={onOpenDiscussion}><MessageSquare aria-hidden /><span className="hidden sm:inline">Discuter avec</span> Captain</Button><ContextPanel key={`${folderId}:${linkedTab ? tab : "default"}`} folderId={folderId} folderName={name} onOpenConversation={onOpenConversation}
-                initialTab={!folderId ? "memoire" : linkedTab ? tab : "overview"} open={contextOpen || linkedTab}
-                onOpenChange={(open) => { setContextOpen(open); if (!open && linkedTab) onTabChange("conversations"); }} /></div>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div className="@container mx-auto w-full max-w-[1600px] space-y-7 px-4 py-6 sm:px-6 sm:py-8">
-                {error && folderId ? <EmptyState icon={Building2} title="Dossier indisponible" hint={error.message} /> : isLoading && folderId ? <p role="status" className="text-center text-sm text-ink-3">Chargement du contexte client…</p> : <>
-                    <div>
-                        <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-accent-600">{view === "operations" ? "Opérations" : folderId ? "Espace client et dossier" : "Pilotage"}</p>
-                        <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{view === "operations" ? "De la discussion au travail suivi." : folderId ? name : "Les décisions du jour"}</h1>
-                        <p className="mt-2 text-sm leading-relaxed text-ink-3">{view === "operations" ? "Retrouvez les plans, les propositions à valider et le résultat de chaque exécution." : folderId ? "Votre activité, vos missions et vos prochaines décisions, avec Captain à vos côtés." : "Les priorités de vos clients, prêtes à examiner avec Captain."}</p>
+    const listRef = useRef<HTMLDivElement>(null);
+
+    // A hidden or unknown tab in the URL is replaced by the first visible one
+    // (an empty tab already means the default, so the URL is left alone).
+    useEffect(() => {
+        if (tab && active !== tab) onTabChange(active);
+    }, [active, tab, onTabChange]);
+
+    // Phones: keep the active tab in view inside the horizontally scrolling bar.
+    useEffect(() => {
+        const el = listRef.current?.querySelector<HTMLElement>('[role="tab"][data-state="active"]');
+        el?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    }, [active]);
+
+    if (!isAgency && error) {
+        return (
+            <div className="h-full overflow-y-auto">
+                <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+                    <EmptyState
+                        icon={FolderX}
+                        title={error.status === 404 ? "Dossier introuvable" : "Dossier indisponible"}
+                        hint={error.status === 404 ? "Il a peut-être été supprimé, ou tu n'y as pas accès." : error.message}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    const tabs = visibleTabs(isAgency);
+    const counts: Partial<Record<FolderTabId, number>> = detail
+        ? { conversations: detail.counts.conversations, memoire: detail.counts.memories, fichiers: detail.counts.files, tableau: detail.counts.pins }
+        : {};
+    const agentAlert = !!detail?.hasAgentActivity;
+
+    return (
+        // The home owns its scroll: the shell gives it a fixed-height, overflow-hidden slot.
+        <div className="h-full overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+            <div className="mx-auto w-full max-w-5xl space-y-6 px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+                {isAgency ? (
+                    <AgencyHeader />
+                ) : detail ? (
+                    <FolderHeader detail={detail} onTabChange={onTabChange} />
+                ) : isLoading ? (
+                    <FolderHeaderSkeleton />
+                ) : null}
+
+                <Tabs value={active} onValueChange={onTabChange} className="gap-5">
+                    {/* The bar scrolls sideways on phones; its hairline spans the full width. */}
+                    {/* py-1 / -my-1: room for the triggers' focus ring inside the clipping scroller. */}
+                    <div className="-mx-4 -my-1 overflow-x-auto overflow-y-hidden px-4 py-1 [scrollbar-width:none] sm:-mx-1 sm:px-1 [&::-webkit-scrollbar]:hidden">
+                        <TabsList ref={listRef} variant="underline" aria-label="Sections du dossier" className="w-full min-w-max justify-start">
+                            {FOLDER_TABS.filter((t) => tabs.includes(t.id)).map((t) => {
+                                const Icon = TAB_ICON[t.id];
+                                const count = tabCountLabel(counts[t.id]);
+                                const selected = t.id === active;
+                                return (
+                                    <TabsTrigger key={t.id} value={t.id} className="group/tab">
+                                        <Icon
+                                            className={cn(
+                                                "transition-colors duration-150",
+                                                t.id === "agent" ? "text-accent-600" : selected ? "text-ink-2" : "text-ink-4 group-hover/tab:text-ink-3",
+                                            )}
+                                            aria-hidden
+                                        />
+                                        {t.label}
+                                        {count && (
+                                            <Badge
+                                                variant={selected ? "secondary" : "outline"}
+                                                className="h-[18px] min-w-[18px] px-1.5 text-3xs tabular-nums"
+                                                aria-label={`${count} élément${count === "1" ? "" : "s"}`}
+                                            >
+                                                {count}
+                                            </Badge>
+                                        )}
+                                        {t.id === "agent" && agentAlert && (
+                                            <>
+                                                <PulseDot />
+                                                <span className="sr-only">Activité à examiner</span>
+                                            </>
+                                        )}
+                                    </TabsTrigger>
+                                );
+                            })}
+                        </TabsList>
                     </div>
-                    {folderId && detail?.kind === "CLIENT" && view !== "operations" && <ClientMonthOverview key={folderId} folderId={folderId} onAsk={(firstMessage, missionId) => { void onStartConversation({ folderId, clientId: detail.clientId, missionId, firstMessage }); }} />}
-                    <DecisionDesk folderId={folderId} detail={detail ?? null} onOpenFolder={onOpenFolder} onStartConversation={onStartConversation} onDiscussConversation={onDiscussConversation} selectedRunId={selectedRunId} onSelectRun={onSelectRun} operations={view === "operations"} />
-                    <details className="rounded-xl border border-line bg-surface p-4"><summary className="cursor-pointer rounded-lg text-sm font-medium text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">Conversations du dossier</summary><div className="pt-5"><ConversationsTab listOnly folderId={folderId} detail={detail ?? null} onOpenConversation={onOpenConversation} onStartConversation={onStartConversation} /></div></details>
-                </>}
+
+                    {tabs.map((id) => (
+                        <TabsContent
+                            key={`${folderId ?? "agency"}:${id}`}
+                            value={id}
+                            className="motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:data-[state=active]:slide-in-from-bottom-1 motion-safe:duration-200 motion-safe:ease-snappy"
+                        >
+                            {id === "conversations" && (
+                                <ConversationsTab
+                                    folderId={folderId}
+                                    detail={detail ?? null}
+                                    onOpenConversation={onOpenConversation}
+                                    onStartConversation={onStartConversation}
+                                />
+                            )}
+                            {id === "memoire" && (
+                                <MemoryTab folderId={folderId} folderName={isAgency ? null : (detail?.name ?? "…")} onOpenConversation={onOpenConversation} />
+                            )}
+                            {id === "fichiers" && folderId && <FilesTab folderId={folderId} isClient={detail?.kind === "CLIENT"} />}
+                            {id === "tableau" && folderId && <BoardTab folderId={folderId} onOpenConversation={onOpenConversation} />}
+                            {id === "agent" && folderId && <AgentTab folderId={folderId} clientId={detail?.clientId ?? null} />}
+                        </TabsContent>
+                    ))}
+                </Tabs>
             </div>
         </div>
-    </div>;
+    );
 }

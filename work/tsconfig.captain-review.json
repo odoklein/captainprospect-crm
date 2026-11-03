@@ -1,1 +1,0 @@
-{"extends":"../tsconfig.json","compilerOptions":{"incremental":false},"include":["../next-env.d.ts","../lib/auth.ts","../components/assistant-ui/workspace/**/*.ts","../components/assistant-ui/workspace/**/*.tsx"],"exclude":["../node_modules","../.next","../work"]}
