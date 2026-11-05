@@ -13,6 +13,7 @@ import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
+import { SoftphoneProvider } from "@/components/telephony/SoftphoneProvider";
 import { Modal } from "@/components/ui";
 import { DailyReportModal } from "@/components/sdr/DailyReportModal";
 import { useSdrDailyReport } from "@/components/sdr/useSdrDailyReport";
@@ -365,7 +366,9 @@ export function AppLayoutShell(props: AppLayoutShellProps) {
     return (
         <SidebarProvider>
             <PermissionProvider>
-                <InnerLayout {...props} />
+                <SoftphoneProvider>
+                    <InnerLayout {...props} />
+                </SoftphoneProvider>
             </PermissionProvider>
         </SidebarProvider>
     );

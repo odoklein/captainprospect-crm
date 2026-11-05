@@ -33,6 +33,7 @@ export const GET = withErrorHandler(async (
             role: true,
             isActive: true,
             alloPhoneNumber: true,
+            twilioCallerId: true,
             createdAt: true,
             updatedAt: true,
             lastSignInAt: true,
@@ -89,6 +90,13 @@ const updateUserSchema = z.object({
     password: z.string().min(6).optional(),
     clientId: z.string().nullable().optional(),
     alloPhoneNumber: z.string().nullable().optional(),
+    // E.164 Twilio number presented to prospects by the in-app softphone; empty = workspace default.
+    twilioCallerId: z
+        .string()
+        .transform((v) => v.replace(/[\s.-]/g, ''))
+        .refine((v) => v === '' || /^\+[1-9]\d{6,14}$/.test(v), 'Numéro Twilio au format international (+33…)')
+        .nullable()
+        .optional(),
     preferences: z
         .object({
             sdrFeedback: z
@@ -120,6 +128,7 @@ export const PUT = withErrorHandler(async (
             isActive: true,
             clientId: true,
             alloPhoneNumber: true,
+            twilioCallerId: true,
             preferences: true,
         },
     });
@@ -153,6 +162,9 @@ export const PUT = withErrorHandler(async (
     if (data.alloPhoneNumber !== undefined) {
         updateData.alloPhoneNumber = data.alloPhoneNumber?.trim() || null;
     }
+    if (data.twilioCallerId !== undefined) {
+        updateData.twilioCallerId = data.twilioCallerId || null;
+    }
     if (data.password) {
         updateData.password = await bcrypt.hash(data.password, 10);
     }
@@ -179,6 +191,7 @@ export const PUT = withErrorHandler(async (
             role: true,
             isActive: true,
             alloPhoneNumber: true,
+            twilioCallerId: true,
             preferences: true,
             clientId: true,
             createdAt: true,

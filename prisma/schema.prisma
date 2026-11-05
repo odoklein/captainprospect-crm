@@ -477,6 +477,7 @@ model User {
   // Profile (all roles)
   phone           String?
   alloPhoneNumber String?
+  twilioCallerId  String? // E.164 Twilio number shown to prospects; null = workspace default (TWILIO_CALLER_ID)
   timezone        String? @default("Europe/Paris")
   preferences     Json? // notifications, appearance, workingHours
 
@@ -497,6 +498,9 @@ model User {
 
   // Inbound calls on this user's Allo line (screen-pop panel)
   incomingCalls IncomingCall[] @relation("SdrIncomingCalls")
+
+  // Outbound calls placed from the in-app Twilio softphone
+  telephonyCalls TelephonyCall[] @relation("SdrTelephonyCalls")
 
   // Advanced Planning: allocations, capacity, absences
   sdrDayAllocations        SdrDayAllocation[]       @relation("SdrDayAllocations")
@@ -1297,6 +1301,64 @@ model IncomingCall {
 
   @@index([sdrId, createdAt])
   @@index([sdrId, callerKey, startedAt])
+}
+
+// ============================================
+// TELEPHONY CALLS (in-app Twilio softphone)
+// ============================================
+
+enum TelephonyCallStatus {
+  INITIATED // row created, the browser is connecting to Twilio
+  RINGING // the prospect's phone is ringing
+  IN_PROGRESS // answered, in conversation
+  COMPLETED // answered then hung up
+  BUSY
+  NO_ANSWER
+  FAILED
+  CANCELED // the SDR hung up before the prospect answered
+}
+
+/// One row per outbound call placed from the browser softphone.
+/// The row is created first (POST /api/telephony/calls); the TwiML webhook only
+/// ever dials the number stored here, so the browser never chooses what Twilio
+/// dials. Status, duration and recording come from Twilio's signed callbacks.
+/// actionId links the call to the qualification the SDR saved right after.
+/// contactId / companyId / campaignId are plain ids (no FK), like IncomingCall,
+/// so the call log survives a list being deleted or re-imported.
+model TelephonyCall {
+  id       String @id @default(cuid())
+  provider String @default("twilio")
+  sdrId    String
+  sdr      User   @relation("SdrTelephonyCalls", fields: [sdrId], references: [id], onDelete: Cascade)
+
+  toNumber   String // E.164, validated before the row is created
+  fromNumber String // caller id presented to the prospect
+
+  contactId  String?
+  companyId  String?
+  campaignId String?
+  actionId   String? @unique
+
+  status        TelephonyCallStatus @default(INITIATED)
+  parentCallSid String?             @unique // browser leg (CA…)
+  childCallSid  String?             @unique // PSTN leg to the prospect (CA…)
+  errorCode     String?
+
+  startedAt   DateTime  @default(now())
+  answeredAt  DateTime?
+  endedAt     DateTime?
+  durationSec Int? // talk time (answered → hangup), from Twilio
+
+  recordingSid         String?
+  recordingUrl         String? // https://api.twilio.com/…/Recordings/RE….mp3 — streamed via /api/actions/[id]/recording
+  recordingDurationSec Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sdrId, createdAt])
+  @@index([sdrId, contactId, createdAt])
+  @@index([sdrId, companyId, createdAt])
 }
 
 // Config-driven action status definitions (per scope: GLOBAL, CLIENT, MISSION, CAMPAIGN)

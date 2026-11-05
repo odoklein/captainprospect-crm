@@ -20,6 +20,7 @@ import {
     X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTelLinkHandler } from "@/components/telephony/SoftphoneProvider";
 import type { CallerCandidate, CallerDossier } from "@/lib/incoming-calls/caller-lookup";
 import { CallerDossierView, type PhoneHistoryState } from "./CallerDossierView";
 import {
@@ -286,6 +287,7 @@ function IncomingCallDialog({
     const now = useNow(live || call.status === "MISSED");
     const [candidates, setCandidates] = useState<CallerCandidate[] | null>(null);
     const [selection, setSelection] = useState<Selection | null>(null);
+    const onTelClick = useTelLinkHandler();
     const [dossier, setDossier] = useState<CallerDossier | null>(null);
     const [dossierLoading, setDossierLoading] = useState(true);
     const [history, setHistory] = useState<PhoneHistoryState>({ loading: true, available: true, calls: [] });
@@ -473,6 +475,12 @@ function IncomingCallDialog({
                         {call.status === "MISSED" && (
                             <a
                                 href={`tel:${call.fromNumber}`}
+                                onClick={(e) => onTelClick(e, {
+                                    phone: call.fromNumber,
+                                    contactId: selection?.contactId ?? null,
+                                    companyId: selection?.companyId ?? null,
+                                    label: callerLabel(call),
+                                })}
                                 className="h-9 px-3.5 rounded-lg border border-line bg-white text-[13px] font-semibold text-ink hover:bg-slate-50 inline-flex items-center gap-1.5"
                             >
                                 <Phone className="w-4 h-4" /> Rappeler

@@ -40,6 +40,7 @@ import {
     Briefcase,
     FileText,
 } from "lucide-react";
+import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import dynamic from "next/dynamic";
@@ -993,6 +994,19 @@ export default function SDRActionPage() {
         return isRecent || hasComment;
     }, [session?.user?.id]);
 
+    // In-app softphone when Twilio is set up for this user, tel: (Allo) otherwise.
+    const { dial: softphoneDial } = useSoftphone();
+    const placeCall = useCallback((phone: string, context?: Pick<PhoneAttemptContext, "contactId" | "companyId" | "targetName" | "companyName">) => {
+        const handled = softphoneDial({
+            phone,
+            contactId: context?.contactId ?? null,
+            companyId: context?.companyId ?? null,
+            label: context?.targetName ?? null,
+            sublabel: context?.companyName && context.companyName !== context.targetName ? context.companyName : null,
+        });
+        if (!handled) window.location.href = `tel:${phone}`;
+    }, [softphoneDial]);
+
     const handlePhoneCallAttempt = useCallback((
         e: React.MouseEvent,
         phone: string,
@@ -1019,8 +1033,8 @@ export default function SDRActionPage() {
             return;
         }
 
-        window.location.href = `tel:${phone}`;
-    }, [isRecentlyContacted, session?.user?.id, statusLabels]);
+        placeCall(phone, context);
+    }, [isRecentlyContacted, session?.user?.id, statusLabels, placeCall]);
 
     const copyToClipboard = useCallback(async (
         value: string,
@@ -1057,7 +1071,12 @@ export default function SDRActionPage() {
         const { phone, actionIntent } = alreadyContactedModalInfo;
         setAlreadyContactedModalInfo(null);
         if (actionIntent === "CALL") {
-            window.location.href = `tel:${phone}`;
+            placeCall(phone, {
+                contactId: alreadyContactedDetailsTarget?.contactId,
+                companyId: alreadyContactedDetailsTarget?.companyId,
+                targetName: alreadyContactedModalInfo.targetName,
+                companyName: alreadyContactedModalInfo.companyName,
+            });
         } else {
             try {
                 await navigator.clipboard.writeText(phone);
@@ -1066,7 +1085,7 @@ export default function SDRActionPage() {
                 showError("Impossible de copier");
             }
         }
-    }, [alreadyContactedModalInfo, success, showError]);
+    }, [alreadyContactedModalInfo, alreadyContactedDetailsTarget, placeCall, success, showError]);
 
     const handleAlreadyContactedOpenDetails = useCallback(() => {
         if (alreadyContactedDetailsTarget?.contactId) {

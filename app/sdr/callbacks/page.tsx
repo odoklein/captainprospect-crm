@@ -42,6 +42,20 @@ import Link from "next/link";
 import { formatCallbackDateTime } from "@/lib/utils/parseDateFromNote";
 import { ACTION_RESULT_LABELS, type ActionResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useTelLinkHandler, type DialTarget } from "@/components/telephony/SoftphoneProvider";
+
+function callbackDialTarget(cb: Callback): DialTarget {
+    const name = [cb.contact?.firstName, cb.contact?.lastName].filter(Boolean).join(" ").trim();
+    const companyName = cb.contact?.company.name || cb.company?.name || null;
+    return {
+        phone: (cb.contact?.phone || cb.company?.phone) ?? "",
+        contactId: cb.contact?.id ?? null,
+        companyId: cb.contact?.company.id ?? cb.company?.id ?? null,
+        campaignId: cb.campaignId,
+        label: name || companyName,
+        sublabel: name ? companyName : null,
+    };
+}
 
 // ============================================
 // TYPES
@@ -231,6 +245,7 @@ function CallbacksStatsModalBody({
 
 export default function SDRCallbacksPage() {
     const { error: showError } = useToast();
+    const onTelClick = useTelLinkHandler();
     const [callbacks, setCallbacks] = useState<Callback[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [callbacksFetchError, setCallbacksFetchError] = useState<string | null>(null);
@@ -608,7 +623,7 @@ export default function SDRCallbacksPage() {
                 return (
                     <a
                         href={`tel:${phone}`}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => onTelClick(e, callbackDialTarget(cb))}
                         className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/60 rounded-md transition-all hover:shadow-xs group font-mono"
                         title="Cliquer pour appeler"
                     >
@@ -1054,7 +1069,7 @@ export default function SDRCallbacksPage() {
                                                 {(callback.contact?.phone || callback.company?.phone) && (
                                                     <a
                                                         href={`tel:${callback.contact?.phone || callback.company?.phone}`}
-                                                        onClick={(e) => e.stopPropagation()}
+                                                        onClick={(e) => onTelClick(e, callbackDialTarget(callback))}
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/60 rounded-md transition-all"
                                                     >
                                                         <PhoneCall className="w-3 h-3" />
