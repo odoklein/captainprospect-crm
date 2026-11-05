@@ -145,15 +145,17 @@ export function Drawer({
     const stackId = useRef(Symbol("drawer")).current;
 
     // Registered on open only (not on every render) so the stack order is the
-    // order drawers were actually opened in.
+    // order drawers were actually opened in. Non-modal drawers (side panels such
+    // as the SDR script) never handle Esc, so they must not sit on top of the
+    // stack and swallow it from the modal drawer underneath.
     useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen || !modal) return;
         openDrawers.push(stackId);
         return () => {
             const index = openDrawers.indexOf(stackId);
             if (index !== -1) openDrawers.splice(index, 1);
         };
-    }, [isOpen, stackId]);
+    }, [isOpen, modal, stackId]);
 
     // Handle ESC key — only the drawer on top reacts, so Esc in an edit form
     // doesn't also close the detail drawer it was opened from.

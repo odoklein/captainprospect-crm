@@ -1482,7 +1482,26 @@ export default function SDRActionPage() {
         if (item.missionId) setUnifiedDrawerMissionId(item.missionId);
     };
 
+    // The campaign script (left panel) and the action drawer (right) close
+    // independently. Closing the drawer keeps the script on screen, pinned to
+    // that mission; closing the script keeps it closed for the next prospects
+    // until the SDR reopens it from the drawer's « Script » button.
+    const [scriptDismissed, setScriptDismissed] = useState(false);
+    const [pinnedScript, setPinnedScript] = useState<{ missionId: string; missionName?: string; campaignId: string | null } | null>(null);
+    const scriptTarget = scriptDismissed
+        ? null
+        : unifiedDrawerOpen && unifiedDrawerMissionId
+            ? { missionId: unifiedDrawerMissionId, missionName: unifiedDrawerMissionName, campaignId: drawerRow?.campaignId ?? null }
+            : pinnedScript;
+
     const closeUnifiedDrawer = () => {
+        if (!scriptDismissed && unifiedDrawerOpen && unifiedDrawerMissionId) {
+            setPinnedScript({
+                missionId: unifiedDrawerMissionId,
+                missionName: unifiedDrawerMissionName,
+                campaignId: drawerRow?.campaignId ?? null,
+            });
+        }
         // Whatever was logged on an absent prospect may have cleared it.
         queryClient.invalidateQueries({ queryKey: ABSENTS_TO_TREAT_QUERY_KEY });
         setUnifiedDrawerOpen(false);
@@ -2573,6 +2592,7 @@ export default function SDRActionPage() {
                             preferredInterlocuteurIds={drawerRow?.preferredInterlocuteurIds ?? null}
                             onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
                             onAlloDialogOpenChange={setUnifiedAlloDialogOpen}
+                            onShowScript={scriptDismissed && unifiedDrawerMissionId ? () => setScriptDismissed(false) : undefined}
                             onContactSelect={(newContactId) => {
                                 setUnifiedDrawerContactId(newContactId);
                             }}
@@ -2610,18 +2630,17 @@ export default function SDRActionPage() {
                     )
                 }
 
-                {/* Script companion drawer (table view only), synchronized with unified drawer */}
-                {unifiedDrawerOpen && unifiedDrawerMissionId && (
+                {/* Script companion drawer (table view only): follows the open prospect, closes on its own */}
+                {scriptTarget && (
                     <ScriptCompanionDrawer
-                        isOpen={
-                            unifiedDrawerOpen &&
-                            !unifiedBookingDialogOpen &&
-                            !unifiedAlloDialogOpen
-                        }
-                        onClose={closeUnifiedDrawer}
-                        missionId={unifiedDrawerMissionId}
-                        missionName={unifiedDrawerMissionName}
-                        campaignId={drawerRow?.campaignId ?? null}
+                        isOpen={!unifiedBookingDialogOpen && !unifiedAlloDialogOpen}
+                        onClose={() => {
+                            setScriptDismissed(true);
+                            setPinnedScript(null);
+                        }}
+                        missionId={scriptTarget.missionId}
+                        missionName={scriptTarget.missionName}
+                        campaignId={scriptTarget.campaignId}
                     />
                 )}
 

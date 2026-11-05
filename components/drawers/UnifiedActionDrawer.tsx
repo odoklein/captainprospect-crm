@@ -159,6 +159,8 @@ interface UnifiedActionDrawerProps {
     onBookingDialogOpenChange?: (isOpen: boolean) => void;
     /** When the Allo call-picker modal opens, parent can hide overlapping UI (e.g. ScriptCompanionDrawer). */
     onAlloDialogOpenChange?: (isOpen: boolean) => void;
+    /** Shown as a « Script » quick action while the SDR has closed the campaign script panel. */
+    onShowScript?: () => void;
     enableGooglePhoneLookup?: boolean;
     /** AI web-search panel for incomplete company sheets. Defaults to the value of enableGooglePhoneLookup (same SDR pages). */
     enableCompanyAiEnrichment?: boolean;
@@ -480,6 +482,7 @@ export function UnifiedActionDrawer({
     onContactSelect,
     onBookingDialogOpenChange,
     onAlloDialogOpenChange,
+    onShowScript,
     enableGooglePhoneLookup = false,
     enableCompanyAiEnrichment,
     summary,
@@ -1742,6 +1745,18 @@ export function UnifiedActionDrawer({
                         )}
                         {contact?.linkedin ? "LinkedIn" : "Site web"}
                     </a>
+                )}
+
+                {onShowScript && (
+                    <button
+                        type="button"
+                        onClick={onShowScript}
+                        aria-label="Afficher le script de campagne"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98]"
+                    >
+                        <FileText className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                        Script
+                    </button>
                 )}
             </section>
 
