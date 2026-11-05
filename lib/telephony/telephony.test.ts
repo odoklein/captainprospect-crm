@@ -10,7 +10,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getExpectedTwilioSignature, validateRequest } from "twilio/lib/webhooks/webhooks";
-import { checkDialNumber, isE164, parseAllowedCountries } from "./phone";
+import { checkDialNumber, isE164, parseAllowedCountries, phonesInField, toE164 } from "./phone";
 import { mapTwilioStatus, nextStatus } from "./status";
 import { dialTwiml, identityFor, isTwilioRecordingUrl, recordingMediaUrl, userIdFromIdentity } from "./twilio";
 import { softphoneErrorMessage } from "./client-errors";
@@ -61,6 +61,14 @@ test("caller ids must be E.164", () => {
     assert.equal(isE164("0186761234"), false);
     assert.equal(isE164("+33 1 86"), false);
     assert.equal(isE164(null), false);
+});
+
+test("caller ids and CRM phone fields normalise however they were typed", () => {
+    assert.equal(toE164("06 12 34 56 78"), "+33612345678");
+    assert.equal(toE164("+33 1 86 76 12 34"), "+33186761234");
+    assert.equal(toE164("n/a"), null);
+    assert.deepEqual(phonesInField("07 57 59 24 77 / +33 1 42 68 53 00"), ["+33757592477", "+33142685300"]);
+    assert.deepEqual(phonesInField(null), []);
 });
 
 // ── status ──────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@
 import type { TelephonyCall } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { callerIdFor, type TwilioConfig } from "./config";
-import { checkDialNumber } from "./phone";
+import { checkDialNumber, phonesInField } from "./phone";
 import { isFinalStatus, mapTwilioStatus, nextStatus, parseSeconds, type TelephonyStatus } from "./status";
 import { recordingMediaUrl, userIdFromIdentity } from "./twilio";
 
@@ -232,6 +232,25 @@ async function syncLinkedAction(call: TelephonyCall): Promise<void> {
     if (Object.keys(data).length) await prisma.action.update({ where: { id: call.actionId }, data });
 }
 
+async function numbersForAction(action: { contactId?: string | null; companyId?: string | null }): Promise<string[]> {
+    const [contact, company] = await Promise.all([
+        action.contactId
+            ? prisma.contact.findUnique({
+                  where: { id: action.contactId },
+                  select: { phone: true, additionalPhones: true, company: { select: { phone: true } } },
+              })
+            : null,
+        action.companyId ? prisma.company.findUnique({ where: { id: action.companyId }, select: { phone: true } }) : null,
+    ]);
+    const fields = [
+        contact?.phone,
+        ...((contact?.additionalPhones as string[] | null | undefined) ?? []),
+        contact?.company?.phone,
+        company?.phone,
+    ];
+    return [...new Set(fields.flatMap((f) => phonesInField(typeof f === "string" ? f : null)))];
+}
+
 /**
  * The SDR saved a CALL action: attach the latest softphone call they placed to
  * that same contact (or company) in the last hours, if one is still unlinked.
@@ -249,16 +268,27 @@ export async function linkCallToAction(action: {
     ];
     if (targets.length === 0) return null;
 
-    const call = await prisma.telephonyCall.findFirst({
-        where: {
-            sdrId: action.sdrId,
-            actionId: null,
-            parentCallSid: { not: null }, // Twilio actually placed it
-            createdAt: { gte: new Date(Date.now() - LINK_WINDOW_MS) },
-            OR: targets,
-        },
+    const recent = {
+        sdrId: action.sdrId,
+        actionId: null,
+        parentCallSid: { not: null }, // Twilio actually placed it
+        createdAt: { gte: new Date(Date.now() - LINK_WINDOW_MS) },
+    };
+    let call = await prisma.telephonyCall.findFirst({
+        where: { ...recent, OR: targets },
         orderBy: { createdAt: "desc" },
     });
+
+    // Calls dialled from a plain tel: link carry no record id: match them by number.
+    if (!call) {
+        const numbers = await numbersForAction(action);
+        if (numbers.length > 0) {
+            call = await prisma.telephonyCall.findFirst({
+                where: { ...recent, contactId: null, companyId: null, toNumber: { in: numbers } },
+                orderBy: { createdAt: "desc" },
+            });
+        }
+    }
     if (!call) return null;
 
     // updateMany + actionId: null so two concurrent saves cannot both claim it.

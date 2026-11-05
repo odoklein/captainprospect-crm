@@ -12,7 +12,7 @@
 import type { CountryCode } from "libphonenumber-js";
 import { integrationKey } from "@/lib/integrations/keys";
 import { runtimeAppUrl, runtimeEnv } from "@/lib/runtime-config/env";
-import { isE164, parseAllowedCountries } from "./phone";
+import { parseAllowedCountries, toE164 } from "./phone";
 
 export interface TwilioConfig {
     accountSid: string;
@@ -47,7 +47,8 @@ export function getTwilioConfig(): TwilioConfig | null {
     const twimlAppSid = integrationKey("TWILIO_TWIML_APP_SID");
     if (!accountSid || !authToken || !apiKeySid || !apiKeySecret || !twimlAppSid) return null;
 
-    const callerId = integrationKey("TWILIO_CALLER_ID")?.replace(/\s+/g, "") ?? null;
+    // "06 12 34 56 78", "+33 6…", "0033…" all accepted: stored as typed, used as E.164.
+    const callerId = toE164(integrationKey("TWILIO_CALLER_ID"));
     const record = runtimeEnv("TWILIO_RECORD_CALLS");
     return {
         accountSid,
@@ -55,7 +56,7 @@ export function getTwilioConfig(): TwilioConfig | null {
         apiKeySid,
         apiKeySecret,
         twimlAppSid,
-        defaultCallerId: isE164(callerId) ? callerId : null,
+        defaultCallerId: callerId,
         record: record === "1" || record?.toLowerCase() === "true",
         allowedCountries: parseAllowedCountries(runtimeEnv("TWILIO_ALLOWED_COUNTRIES")),
         edge: runtimeEnv("TWILIO_EDGE") ?? "dublin",
@@ -64,9 +65,7 @@ export function getTwilioConfig(): TwilioConfig | null {
 
 /** The caller id for a user: their own Twilio number, else the workspace default. */
 export function callerIdFor(config: TwilioConfig, userCallerId: string | null | undefined): string | null {
-    const own = userCallerId?.replace(/\s+/g, "") ?? null;
-    if (isE164(own)) return own;
-    return config.defaultCallerId;
+    return toE164(userCallerId) ?? config.defaultCallerId;
 }
 
 /** Absolute URL Twilio must call back (webhooks are signed against it). */

@@ -2155,6 +2155,7 @@ export default function SDRActionPage() {
                         <div className="inline-flex items-center gap-1">
                             <a
                                 href={`tel:${phone}`}
+                                data-softphone="managed"
                                 onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 rounded-lg transition-all duration-150 hover:shadow-sm group"
                                 title="Cliquer pour appeler"
@@ -3010,7 +3011,8 @@ export default function SDRActionPage() {
                                                 <div className="flex items-stretch gap-2">
                                                     <a
                                                         href={`tel:${phone}`}
-                                                        onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
+                                                        data-softphone="managed"
+                                onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
                                                         className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                     >
                                                         <Phone className="w-4 h-4" />
@@ -3193,7 +3195,8 @@ export default function SDRActionPage() {
                                                     <div className="flex items-stretch gap-2">
                                                         <a
                                                             href={`tel:${currentAction.company.phone}`}
-                                                            onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
+                                                            data-softphone="managed"
+                                onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
                                                             className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                         >
                                                             <Phone className="w-4 h-4" />

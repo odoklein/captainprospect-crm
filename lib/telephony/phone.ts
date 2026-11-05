@@ -72,6 +72,26 @@ export function checkDialNumber(
     return { ok: true, e164: parsed.number, country };
 }
 
+/** E.164 form of a number as stored in the CRM, or null. No dial policy applied. */
+export function toE164(raw: string | null | undefined, defaultCountry: CountryCode = "FR"): string | null {
+    if (!raw?.trim()) return null;
+    let text = raw.trim();
+    if (text.startsWith("00")) text = `+${text.slice(2)}`;
+    const parsed = parsePhoneNumberFromString(text.replace(/\(0\)/g, ""), defaultCountry);
+    return parsed?.isValid() ? parsed.number : null;
+}
+
+/** All E.164 numbers found in a CRM phone field ("06 12… / +33 1 …"). */
+export function phonesInField(raw: string | null | undefined): string[] {
+    if (!raw) return [];
+    const out = new Set<string>();
+    for (const chunk of raw.split(/[\/;,|]|\bou\b/i)) {
+        const e164 = toE164(chunk);
+        if (e164) out.add(e164);
+    }
+    return [...out];
+}
+
 /** A caller id must be a plain E.164 number (it is shown to the prospect). */
 export function isE164(value: string | null | undefined): value is string {
     return typeof value === "string" && /^\+[1-9]\d{6,14}$/.test(value.trim());

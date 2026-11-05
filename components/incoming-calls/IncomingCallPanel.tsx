@@ -475,6 +475,7 @@ function IncomingCallDialog({
                         {call.status === "MISSED" && (
                             <a
                                 href={`tel:${call.fromNumber}`}
+                                data-softphone="managed"
                                 onClick={(e) => onTelClick(e, {
                                     phone: call.fromNumber,
                                     contactId: selection?.contactId ?? null,

@@ -89,6 +89,7 @@ import {
 import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openreplay/events";
 import { openReplayTracker } from "@/lib/openreplay/tracker";
 import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
+import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
 
 // ============================================
 // TYPES
@@ -1059,6 +1060,7 @@ export function UnifiedActionDrawer({
         );
     }, [statusLabels]);
 
+    const { dial: softphoneDial } = useSoftphone();
     const primaryPhone = useMemo(() => {
         if (contact?.phone) return { number: contact.phone, label: "Contact" };
         if (company?.phone) return { number: company.phone, label: "Société" };
@@ -1684,7 +1686,15 @@ export function UnifiedActionDrawer({
                         type="button"
                         aria-label={`Appeler ${primaryPhone.number}`}
                         onClick={() => {
-                            window.open(`tel:${primaryPhone.number}`, "_self");
+                            const handled = softphoneDial({
+                                phone: primaryPhone.number,
+                                contactId: primaryPhone.label === "Société" ? null : contactId,
+                                companyId,
+                                campaignId: campaigns[0]?.id ?? null,
+                                label: displayName,
+                                sublabel: company?.name && company.name !== displayName ? company.name : null,
+                            });
+                            if (!handled) window.open(`tel:${primaryPhone.number}`, "_self");
                         }}
                         className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
                     >

@@ -623,7 +623,8 @@ export default function SDRCallbacksPage() {
                 return (
                     <a
                         href={`tel:${phone}`}
-                        onClick={(e) => onTelClick(e, callbackDialTarget(cb))}
+                        data-softphone="managed"
+                                onClick={(e) => onTelClick(e, callbackDialTarget(cb))}
                         className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/60 rounded-md transition-all hover:shadow-xs group font-mono"
                         title="Cliquer pour appeler"
                     >
@@ -1069,7 +1070,8 @@ export default function SDRCallbacksPage() {
                                                 {(callback.contact?.phone || callback.company?.phone) && (
                                                     <a
                                                         href={`tel:${callback.contact?.phone || callback.company?.phone}`}
-                                                        onClick={(e) => onTelClick(e, callbackDialTarget(callback))}
+                                                        data-softphone="managed"
+                                onClick={(e) => onTelClick(e, callbackDialTarget(callback))}
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 border border-primary-200/60 rounded-md transition-all"
                                                     >
                                                         <PhoneCall className="w-3 h-3" />

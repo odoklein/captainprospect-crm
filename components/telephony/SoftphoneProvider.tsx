@@ -295,6 +295,28 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         setCall(null);
     }, []);
 
+    // Every plain tel: link in the app dials in-app once the softphone is on.
+    // Capture phase, so links whose onClick stops propagation are caught too.
+    // Links marked data-softphone="managed" call dial() themselves with the
+    // record's context; the rest optionally carry data-contact-id / data-company-id,
+    // and the server matches the call to the next qualification by number anyway.
+    useEffect(() => {
+        if (!enabled) return;
+        const onClick = (e: MouseEvent) => {
+            if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            const anchor = (e.target as Element | null)?.closest?.('a[href^="tel:"]') as HTMLAnchorElement | null;
+            if (!anchor || anchor.closest('[data-softphone="managed"]') || anchor.dataset.softphone === "off") return;
+            const phone = decodeURIComponent(anchor.getAttribute("href")!.slice(4)).trim();
+            if (!phone) return;
+            const scope = anchor.closest<HTMLElement>("[data-contact-id],[data-company-id]");
+            if (dial({ phone, contactId: scope?.dataset.contactId ?? null, companyId: scope?.dataset.companyId ?? null })) {
+                e.preventDefault();
+            }
+        };
+        document.addEventListener("click", onClick, true);
+        return () => document.removeEventListener("click", onClick, true);
+    }, [enabled, dial]);
+
     // A finished call stays on screen long enough to read its outcome.
     useEffect(() => {
         if (!call || isCallActive(call)) return;
