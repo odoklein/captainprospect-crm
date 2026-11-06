@@ -1903,6 +1903,8 @@ textarea::placeholder {
 }
 
 .cp-layout {
+    /* Width of the fixed sidebar, read by floating elements (FloatingDock). */
+    --cp-sidebar-w: 224px;
     height: calc(100vh - var(--softphone-dock-h));
     overflow: hidden;
     background: var(--ds-canvas);
@@ -1932,6 +1934,16 @@ textarea::placeholder {
     .cp-main-expanded,
     .cp-main-collapsed {
         margin-left: 0;
+    }
+}
+
+.cp-layout:has(.cp-main-collapsed) {
+    --cp-sidebar-w: 56px;
+}
+
+@media (max-width: 1023px) {
+    .cp-layout {
+        --cp-sidebar-w: 0px;
     }
 }
 

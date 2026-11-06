@@ -8,7 +8,6 @@ import { fr } from "date-fns/locale";
 import {
     BellRing,
     Check,
-    ChevronUp,
     Copy,
     ExternalLink,
     Minus,
@@ -21,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTelLinkHandler } from "@/components/telephony/SoftphoneProvider";
+import { DOCK_POPOVER_POSITION, useDockItem } from "@/components/layout/FloatingDock";
 import type { CallerCandidate, CallerDossier } from "@/lib/incoming-calls/caller-lookup";
 import { CallerDossierView, type PhoneHistoryState } from "./CallerDossierView";
 import {
@@ -531,9 +531,39 @@ function IncomingCallDock({
     const now = useNow(Boolean(live) || pending.length > 0);
     const [expanded, setExpanded] = useState(false);
 
+    // The live call and the calls left to handle are buttons of the floating dock.
+    useDockItem(
+        "incoming-live",
+        live
+            ? {
+                  label: `${callerLabel(live)} · ${statusText(live, now)}`,
+                  icon: PhoneCall,
+                  tone: "live",
+                  pulse: live.status === "RINGING",
+                  order: 10,
+                  onClick: () => onShow(live.id),
+              }
+            : null,
+    );
+    useDockItem(
+        "incoming-pending",
+        pending.length > 0
+            ? {
+                  label: `${pending.length} appel${pending.length > 1 ? "s" : ""} à traiter`,
+                  icon: PhoneMissed,
+                  tone: "danger",
+                  badge: pending.length,
+                  active: expanded,
+                  order: 20,
+                  onClick: () => setExpanded((v) => !v),
+              }
+            : null,
+    );
+
+    if (!expanded || pending.length === 0) return null;
+
     return (
-        <div className="fixed bottom-[calc(5rem+var(--softphone-dock-h,0px))] left-6 z-[90] flex flex-col items-start gap-2 max-w-[340px]">
-            {expanded && pending.length > 0 && (
+        <div className={cn(DOCK_POPOVER_POSITION, "max-w-[340px]")}>
                 <div className="w-[320px] rounded-2xl border border-line bg-white shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <div className="px-4 py-2.5 border-b border-line flex items-center justify-between">
                         <p className="text-[12px] font-bold text-ink">Appels à traiter</p>
@@ -573,41 +603,6 @@ function IncomingCallDock({
                         ))}
                     </ul>
                 </div>
-            )}
-
-            <div className="flex items-center gap-2">
-                {live && (
-                    <button
-                        type="button"
-                        onClick={() => onShow(live.id)}
-                        className={cn(
-                            "flex items-center gap-2.5 pl-2 pr-3.5 py-2 rounded-full text-white shadow-lg hover:shadow-xl transition-shadow",
-                            live.status === "RINGING" ? "bg-primary" : "bg-emerald-600",
-                        )}
-                        title="Afficher l'appel"
-                    >
-                        <span className="relative flex w-7 h-7 items-center justify-center rounded-full bg-white/20">
-                            {live.status === "RINGING" && <span className="absolute inset-0 rounded-full bg-white/40 animate-ping" />}
-                            <PhoneCall className="relative w-3.5 h-3.5" />
-                        </span>
-                        <span className="text-left">
-                            <span className="block text-[12px] font-bold leading-tight max-w-[180px] truncate">{callerLabel(live)}</span>
-                            <span className="block text-[10px] text-white/85 leading-tight tabular-nums">{statusText(live, now)}</span>
-                        </span>
-                    </button>
-                )}
-                {pending.length > 0 && (
-                    <button
-                        type="button"
-                        onClick={() => setExpanded((v) => !v)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white border border-rose-200 text-rose-600 text-[12px] font-bold shadow-lg hover:bg-rose-50"
-                    >
-                        <PhoneMissed className="w-3.5 h-3.5" />
-                        {pending.length} appel{pending.length > 1 ? "s" : ""} à traiter
-                        <ChevronUp className={cn("w-3.5 h-3.5 transition-transform", !expanded && "rotate-180")} />
-                    </button>
-                )}
-            </div>
         </div>
     );
 }

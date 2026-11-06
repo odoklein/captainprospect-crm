@@ -41,6 +41,7 @@ import {
     FileText,
 } from "lucide-react";
 import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { useDockItem } from "@/components/layout/FloatingDock";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import dynamic from "next/dynamic";
@@ -1484,15 +1485,37 @@ export default function SDRActionPage() {
 
     // The campaign script (left panel) and the action drawer (right) close
     // independently. Closing the drawer keeps the script on screen, pinned to
-    // that mission; closing the script keeps it closed for the next prospects
-    // until the SDR reopens it from the drawer's « Script » button.
-    const [scriptDismissed, setScriptDismissed] = useState(false);
+    // that mission. Closing the script hides it for this prospect only: the
+    // next contact opens with its script again. The floating dock's « Script »
+    // button toggles it in between.
+    const drawerProspectKey = `${unifiedDrawerContactId ?? ""}|${unifiedDrawerCompanyId ?? ""}`;
+    const [scriptHiddenFor, setScriptHiddenFor] = useState<string | null>(null);
     const [pinnedScript, setPinnedScript] = useState<{ missionId: string; missionName?: string; campaignId: string | null } | null>(null);
-    const scriptTarget = scriptDismissed
-        ? null
-        : unifiedDrawerOpen && unifiedDrawerMissionId
-            ? { missionId: unifiedDrawerMissionId, missionName: unifiedDrawerMissionName, campaignId: drawerRow?.campaignId ?? null }
-            : pinnedScript;
+    const drawerScript = unifiedDrawerOpen && unifiedDrawerMissionId
+        ? { missionId: unifiedDrawerMissionId, missionName: unifiedDrawerMissionName, campaignId: drawerRow?.campaignId ?? null }
+        : null;
+    const scriptDismissed = drawerScript ? scriptHiddenFor === drawerProspectKey : false;
+    const scriptTarget = drawerScript ? (scriptDismissed ? null : drawerScript) : pinnedScript;
+
+    useDockItem(
+        "script",
+        drawerScript || pinnedScript
+            ? {
+                  label: scriptTarget ? "Masquer le script" : "Script",
+                  icon: FileText,
+                  active: Boolean(scriptTarget),
+                  order: 30,
+                  onClick: () => {
+                      if (scriptTarget) {
+                          if (drawerScript) setScriptHiddenFor(drawerProspectKey);
+                          setPinnedScript(null);
+                      } else {
+                          setScriptHiddenFor(null);
+                      }
+                  },
+              }
+            : null,
+    );
 
     const closeUnifiedDrawer = () => {
         if (!scriptDismissed && unifiedDrawerOpen && unifiedDrawerMissionId) {
@@ -2592,7 +2615,6 @@ export default function SDRActionPage() {
                             preferredInterlocuteurIds={drawerRow?.preferredInterlocuteurIds ?? null}
                             onBookingDialogOpenChange={setUnifiedBookingDialogOpen}
                             onAlloDialogOpenChange={setUnifiedAlloDialogOpen}
-                            onShowScript={scriptDismissed && unifiedDrawerMissionId ? () => setScriptDismissed(false) : undefined}
                             onContactSelect={(newContactId) => {
                                 setUnifiedDrawerContactId(newContactId);
                             }}
@@ -2635,7 +2657,7 @@ export default function SDRActionPage() {
                     <ScriptCompanionDrawer
                         isOpen={!unifiedBookingDialogOpen && !unifiedAlloDialogOpen}
                         onClose={() => {
-                            setScriptDismissed(true);
+                            if (drawerScript) setScriptHiddenFor(drawerProspectKey);
                             setPinnedScript(null);
                         }}
                         missionId={scriptTarget.missionId}

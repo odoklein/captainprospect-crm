@@ -14,6 +14,7 @@ import { NotificationBell } from "@/components/ui/NotificationBell";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
 import { SoftphoneProvider } from "@/components/telephony/SoftphoneProvider";
+import { FloatingDock, FloatingDockProvider } from "@/components/layout/FloatingDock";
 import { Modal } from "@/components/ui";
 import { DailyReportModal } from "@/components/sdr/DailyReportModal";
 import { useSdrDailyReport } from "@/components/sdr/useSdrDailyReport";
@@ -358,6 +359,7 @@ function InnerLayout({
 
                 <IncomingCallPanel />
             </main>
+            <FloatingDock />
         </div>
     );
 }
@@ -367,7 +369,9 @@ export function AppLayoutShell(props: AppLayoutShellProps) {
         <SidebarProvider>
             <PermissionProvider>
                 <SoftphoneProvider>
-                    <InnerLayout {...props} />
+                    <FloatingDockProvider>
+                        <InnerLayout {...props} />
+                    </FloatingDockProvider>
                 </SoftphoneProvider>
             </PermissionProvider>
         </SidebarProvider>
