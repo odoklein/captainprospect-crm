@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { guardInstanceRequest, instanceError, instanceJson } from "@/lib/instance/respond";
 import { encodeSupportCursor, parseSupportListQuery, serializeSupportTicket, supportListWhere } from "@/lib/instance/support";
-import { getSupportCounts } from "@/lib/instance/support-server";
+import { findPlatformSupportUserId, getSupportCounts } from "@/lib/instance/support-server";
 import { TICKET_LIST_INCLUDE } from "@/lib/tickets/service";
 
 // Support Technique tickets of this agency, for the Console's fleet inbox. HMAC-signed.
@@ -35,7 +35,25 @@ export async function GET(request: NextRequest) {
         const page = rows.slice(0, q.limit);
         const last = page[page.length - 1];
         const nextCursor = rows.length > q.limit && last ? encodeSupportCursor({ updatedAt: last.updatedAt, id: last.id }) : null;
-        return instanceJson({ ok: true, tickets: page.map((t) => serializeSupportTicket(t)), nextCursor, counts, serverTime });
+
+        // When the platform last answered each ticket of the page: one grouped query, not one per ticket.
+        const platformUserId = page.length ? await findPlatformSupportUserId() : null;
+        const replies = platformUserId
+            ? await prisma.ticketComment.groupBy({
+                  by: ["ticketId"],
+                  where: { userId: platformUserId, ticketId: { in: page.map((t) => t.id) } },
+                  _max: { createdAt: true },
+              })
+            : [];
+        const lastReply = new Map(replies.map((r) => [r.ticketId, r._max.createdAt]));
+
+        return instanceJson({
+            ok: true,
+            tickets: page.map((t) => serializeSupportTicket(t, undefined, lastReply.get(t.id) ?? null)),
+            nextCursor,
+            counts,
+            serverTime,
+        });
     } catch (err) {
         console.error("[instance-api] support list", err);
         return instanceError(500, "database_error");

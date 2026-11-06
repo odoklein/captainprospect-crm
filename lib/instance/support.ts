@@ -226,8 +226,12 @@ export type SupportTicketRow = {
     _count?: { comments: number; attachments: number };
 };
 
-/** One list row. The description is cut to a preview: the inbox shows a line, not the ticket. */
-export function serializeSupportTicket(t: SupportTicketRow, previewLength = 280) {
+/**
+ * One list row. The description is cut to a preview: the inbox shows a line, not the ticket.
+ * `lastPlatformReplyAt`: last comment by the platform account, so the Console's "Sans réponse" view is right
+ * without opening every ticket.
+ */
+export function serializeSupportTicket(t: SupportTicketRow, previewLength = 280, lastPlatformReplyAt: Date | null = null) {
     const description = t.description ?? null;
     return {
         id: t.id,
@@ -250,6 +254,7 @@ export function serializeSupportTicket(t: SupportTicketRow, previewLength = 280)
         client: t.client ? { name: t.client.name } : null,
         comments: t._count?.comments ?? 0,
         attachments: t._count?.attachments ?? 0,
+        lastPlatformReplyAt: lastPlatformReplyAt?.toISOString() ?? null,
     };
 }
 

@@ -139,4 +139,6 @@ test("serialised row: reference, preview, overdue, no ids or emails of people", 
 
     assert.equal(serializeSupportTicket({ ...base, status: "COMPLETED" }).overdue, false);
     assert.equal(serializeSupportTicket({ ...base, description: null }).preview, null);
+    assert.equal(row.lastPlatformReplyAt, null);
+    assert.equal(serializeSupportTicket(base, 280, new Date("2026-11-03T08:00:00Z")).lastPlatformReplyAt, "2026-11-03T08:00:00.000Z");
 });
