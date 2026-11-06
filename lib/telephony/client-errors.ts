@@ -13,6 +13,7 @@ export function softphoneErrorMessage(code: number | undefined, fallback?: strin
         case 31204:
         case 31205:
             return "Session téléphonique expirée. Réessayez l'appel.";
+        case 31000: // signalling could not connect (firewall, blocked websocket)
         case 31005:
         case 31009:
         case 53000:

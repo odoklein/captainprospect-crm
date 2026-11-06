@@ -532,7 +532,7 @@ function IncomingCallDock({
     const [expanded, setExpanded] = useState(false);
 
     return (
-        <div className="fixed bottom-20 left-6 z-[90] flex flex-col items-start gap-2 max-w-[340px]">
+        <div className="fixed bottom-[calc(5rem+var(--softphone-dock-h,0px))] left-6 z-[90] flex flex-col items-start gap-2 max-w-[340px]">
             {expanded && pending.length > 0 && (
                 <div className="w-[320px] rounded-2xl border border-line bg-white shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
                     <div className="px-4 py-2.5 border-b border-line flex items-center justify-between">

@@ -60,6 +60,23 @@ an arbitrary number.
 | `TWILIO_ALLOWED_COUNTRIES` | `FR,BE,CH,LU,MC` | Destinations that may be dialled. Premium-rate / shared-cost numbers are always refused. |
 | `TWILIO_EDGE` | `dublin` | Twilio edge the browser connects to (EU latency). |
 
+## Browser requirements (next.config.ts)
+
+- CSP `connect-src` must allow `wss://*.twilio.com` (the SDK's signalling websocket,
+  `voice-js.<edge>.twilio.com`) and `media-src` `https://sdk.twilio.com` (ringback tones).
+  Symptom when missing: error 31000 and « Connexion… » in the dock.
+- `Permissions-Policy` must allow `microphone=(self)`. Symptom: error 31401.
+
+## The dock
+
+During a call the softphone is a full-width band docked at the bottom of the app
+(`components/telephony/CallBar.tsx`). It reserves its height through the CSS
+variable `--softphone-dock-h`: the shell, sidebar, drawers, modals and toasts end
+above it, so the action drawer and the script stay usable while calling.
+« Réduire » folds it into a pill and gives the space back. A new fixed element
+anchored to the bottom of the viewport should add `var(--softphone-dock-h,0px)`
+to its offset.
+
 ## Security notes
 
 - `/api/webhooks/twilio/*` are outside the auth middleware; `X-Twilio-Signature`

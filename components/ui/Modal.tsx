@@ -142,7 +142,7 @@ export function Modal({
 
     return (
         <div
-            className="fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6"
+            className="fixed inset-x-0 top-0 bottom-[var(--softphone-dock-h,0px)] z-[120] flex items-center justify-center p-4 sm:p-6"
             onPointerDown={handleOverlayPointerDown}
             onClick={handleOverlayClick}
         >

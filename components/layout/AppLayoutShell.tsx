@@ -265,7 +265,7 @@ function InnerLayout({
 
                 {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
-                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px)' }}>
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px - var(--softphone-dock-h, 0px))' }}>
                         {children}
                     </div>
                 ) : (

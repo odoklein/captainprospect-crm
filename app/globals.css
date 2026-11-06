@@ -1895,14 +1895,21 @@ textarea::placeholder {
    ============================================ */
 
 /* --- Layout Shell --- */
+/* Height of the softphone dock (components/telephony/CallBar) while a call is
+   on screen, 0 otherwise. The shell and every floating surface end above it,
+   so the call never covers the page the SDR is working in. */
+:root {
+    --softphone-dock-h: 0px;
+}
+
 .cp-layout {
-    height: 100vh;
+    height: calc(100vh - var(--softphone-dock-h));
     overflow: hidden;
     background: var(--ds-canvas);
 }
 
 .cp-main {
-    height: 100vh;
+    height: calc(100vh - var(--softphone-dock-h));
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -1988,7 +1995,7 @@ textarea::placeholder {
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
+    height: calc(100vh - var(--softphone-dock-h));
     z-index: 50;
     display: flex;
     flex-direction: column;

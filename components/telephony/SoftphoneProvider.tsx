@@ -102,6 +102,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
     const deviceRef = useRef<Device | null>(null);
     const twilioCallRef = useRef<Call | null>(null);
+    /** Routes Device "error" events to the call being placed. */
+    const deviceErrorRef = useRef<((e: { code?: number; message?: string }) => void) | null>(null);
     const keyRef = useRef(0);
     /** Calls the SDR hung up on before Twilio connected them. */
     const cancelledRef = useRef(new Set<number>());
@@ -153,6 +155,11 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         });
         device.on("tokenWillExpire", () => {
             fetchToken().then((t) => device.updateToken(t)).catch(() => undefined);
+        });
+        // Device-level failures (signalling blocked, network, token): without a
+        // listener the SDK throws them uncaught and the bar would hang on « Connexion… ».
+        device.on("error", (e: { code?: number; message?: string }) => {
+            deviceErrorRef.current?.(e);
         });
         deviceRef.current = device;
         return device;
@@ -212,6 +219,17 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         }
         if (cancelledRef.current.has(key)) return;
         patch(key, { callId, phase: "connecting" });
+
+        // A Device failure while this call is being placed ends it with a readable
+        // message; the broken Device is dropped so the next call starts clean.
+        deviceErrorRef.current = (e) => {
+            if (cancelledRef.current.has(key)) return;
+            cancelledRef.current.add(key);
+            twilioCallRef.current?.disconnect();
+            deviceRef.current?.destroy();
+            deviceRef.current = null;
+            finish(key, "failed", softphoneErrorMessage(e?.code, e?.message), callId);
+        };
 
         try {
             const device = await getDevice();

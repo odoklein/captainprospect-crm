@@ -197,7 +197,10 @@ export function Drawer({
     };
 
     return (
-        <div className={cn("fixed inset-0 z-[80] flex", modal ? "pointer-events-auto" : "pointer-events-none")}>
+        <div
+            className={cn("fixed inset-x-0 top-0 z-[80] flex", modal ? "pointer-events-auto" : "pointer-events-none")}
+            style={{ bottom: "var(--softphone-dock-h, 0px)" }}
+        >
             {/* Overlay */}
             {modal && (
                 <div
@@ -219,7 +222,7 @@ export function Drawer({
                 aria-modal={modal ? "true" : undefined}
                 aria-label={typeof title === "string" ? title : "Panneau latéral"}
                 className={cn(
-                    "fixed top-2 bottom-2 z-[81] flex w-[calc(100%-1rem)] flex-col outline-none sm:top-3 sm:bottom-3 sm:w-[calc(100%-1.5rem)]",
+                    "fixed top-2 bottom-[calc(0.5rem+var(--softphone-dock-h,0px))] z-[81] flex w-[calc(100%-1rem)] flex-col outline-none sm:top-3 sm:bottom-[calc(0.75rem+var(--softphone-dock-h,0px))] sm:w-[calc(100%-1.5rem)]",
                     DRAWER_PANEL_SURFACE_CLASS,
                     side === "right"
                         ? "right-2 sm:right-3 animate-drawer-in-right"

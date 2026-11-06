@@ -57,7 +57,7 @@ export function SdrSuggestionLauncher() {
     return (
         <>
             {/* Floating button on SDR interface */}
-            <div className="fixed bottom-6 left-6 z-40">
+            <div className="fixed bottom-[calc(1.5rem+var(--softphone-dock-h,0px))] left-6 z-40">
                 <button
                     type="button"
                     onClick={() => setIsOpen(true)}
