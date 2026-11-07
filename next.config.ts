@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
   // Document parsers for assistant folder files: loaded from node_modules at
   // runtime rather than bundled (unpdf ships pdf.js, exceljs/mammoth pull zip and xml libs).
   serverExternalPackages: ["pdfkit", "unpdf", "exceljs", "mammoth", "pptxgenjs", "twilio"],
+
   // unpdf loads pdf.js through a self-referencing dynamic import
   // (`import("unpdf/pdfjs")` in dist/index.mjs). Output file tracing resolves
   // it today, but a miss would only show at runtime in the standalone image

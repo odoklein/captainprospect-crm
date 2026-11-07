@@ -137,8 +137,8 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
                 callSummary: true,
                 callEnrichmentAt: true,
                 sdr: { select: { id: true, name: true } },
-                contact: { select: { id: true, firstName: true, lastName: true, title: true, phone: true, company: { select: { id: true, name: true, phone: true } } } },
-                company: { select: { id: true, name: true, phone: true } },
+                contact: { select: { id: true, firstName: true, lastName: true, title: true, phone: true, company: { select: { id: true, name: true, phone: true, website: true } } } },
+                company: { select: { id: true, name: true, phone: true, website: true } },
                 campaign: { select: { mission: { select: { id: true, name: true, client: { select: { name: true } } } } } },
             },
         }),
@@ -172,7 +172,7 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
             at: r.createdAt.toISOString(),
             sdr: { id: r.sdr.id, name: r.sdr.name },
             contact: r.contact ? { id: r.contact.id, name: fullName(r.contact.firstName, r.contact.lastName) || "Contact", title: r.contact.title } : null,
-            company: company ? { id: company.id, name: company.name } : null,
+            company: company ? { id: company.id, name: company.name, website: company.website } : null,
             phone: t?.toNumber ?? r.contact?.phone ?? company?.phone ?? null,
             mission: m ? { id: m.id, name: m.name, client: m.client?.name ?? null } : null,
             status: { code: s.code, label: s.label, color: s.color },
@@ -332,7 +332,7 @@ export async function getCallDetail(kind: "action" | "call", id: string): Promis
         if (!t) return null;
         const [contact, company] = await Promise.all([
             t.contactId ? prisma.contact.findUnique({ where: { id: t.contactId }, select: { id: true, firstName: true, lastName: true, title: true, email: true } }) : null,
-            t.companyId ? prisma.company.findUnique({ where: { id: t.companyId }, select: { id: true, name: true } }) : null,
+            t.companyId ? prisma.company.findUnique({ where: { id: t.companyId }, select: { id: true, name: true, website: true } }) : null,
         ]);
         return {
             id: t.id,
@@ -369,8 +369,8 @@ export async function getCallDetail(kind: "action" | "call", id: string): Promis
         where: { id, channel: "CALL" },
         include: {
             sdr: { select: { id: true, name: true } },
-            contact: { select: { id: true, firstName: true, lastName: true, title: true, email: true, phone: true, company: { select: { id: true, name: true, phone: true } } } },
-            company: { select: { id: true, name: true, phone: true } },
+            contact: { select: { id: true, firstName: true, lastName: true, title: true, email: true, phone: true, company: { select: { id: true, name: true, phone: true, website: true } } } },
+            company: { select: { id: true, name: true, phone: true, website: true } },
             campaign: { select: { mission: { select: { id: true, name: true, client: { select: { name: true } } } } } },
         },
     });
@@ -389,7 +389,7 @@ export async function getCallDetail(kind: "action" | "call", id: string): Promis
         at: a.createdAt.toISOString(),
         sdr: a.sdr,
         contact: a.contact ? { id: a.contact.id, name: fullName(a.contact.firstName, a.contact.lastName) || "Contact", title: a.contact.title, email: a.contact.email } : null,
-        company: company ? { id: company.id, name: company.name } : null,
+        company: company ? { id: company.id, name: company.name, website: company.website } : null,
         phone: t?.toNumber ?? a.contact?.phone ?? company?.phone ?? null,
         mission: m ? { id: m.id, name: m.name, client: m.client?.name ?? null } : null,
         status: { code: s.code, label: s.label, color: s.color },
@@ -428,13 +428,13 @@ async function callHistory(contactId: string | null, companyId: string | null, d
     ];
     if (who.length === 0) return [];
     const rows = await prisma.action.findMany({
-        where: { channel: "CALL", OR: who, ...(excludeActionId ? { id: { not: excludeActionId } } : {}) },
+        where: { OR: who, ...(excludeActionId ? { id: { not: excludeActionId } } : {}) },
         orderBy: { createdAt: "desc" },
-        take: 8,
-        select: { id: true, createdAt: true, result: true, duration: true, sdr: { select: { name: true } } },
+        take: 20,
+        select: { id: true, createdAt: true, result: true, duration: true, channel: true, note: true, callSummary: true, sdr: { select: { name: true } } },
     });
     return rows.map((r) => {
         const s = resolveStatus(r.result, defs);
-        return { id: r.id, at: r.createdAt.toISOString(), sdr: r.sdr.name, status: { code: s.code, label: s.label, color: s.color }, durationSec: r.duration };
+        return { id: r.id, at: r.createdAt.toISOString(), sdr: r.sdr.name, status: { code: s.code, label: s.label, color: s.color }, durationSec: r.duration, channel: r.channel, note: r.note, summary: r.callSummary };
     });
 }

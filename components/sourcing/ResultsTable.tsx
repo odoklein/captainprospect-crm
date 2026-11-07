@@ -3,10 +3,12 @@
 import { Fragment, useMemo, useState } from "react";
 import {
     ChevronDown,
+    Download,
     ExternalLink,
     Globe,
     Phone,
     Search,
+    Smartphone,
     Star,
     UserRound,
     Users,
@@ -26,7 +28,7 @@ import type { CrmMatch, SourcedLead, SourceId } from "@/lib/sourcing/types";
 
 type CrmFilter = "all" | "new" | "known";
 type Sort = "relevance" | "name" | "rating";
-type Facet = "phone" | "website" | "contact" | "multi";
+type Facet = "phone" | "mobile" | "website" | "contact" | "multi";
 
 const PAGE = 100;
 
@@ -38,6 +40,50 @@ export const SOURCE_DOT: Record<SourceId, string> = {
 
 function relevance(l: SourcedLead) {
     return l.sources.length * 3 + (l.phone ? 2 : 0) + (l.contacts.length ? 1 : 0) + (l.website ? 1 : 0);
+}
+
+/** CRM rule: only +33 6 / +33 7 are mobiles, everything else is a fixed line. */
+const isMobile = (p?: string) => !!p && /^\+33[67]\d{8}$/.test(p);
+
+function csvCell(v: unknown) {
+    const s = v == null ? "" : String(v);
+    return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Excel-friendly CSV (semicolons, BOM) of the rows as filtered on screen. */
+function exportCsv(rows: SourcedLead[], matches: Record<string, CrmMatch>) {
+    const head = ["Société", "Activité", "NAF", "Téléphone", "Type de ligne", "Site web", "Adresse", "Code postal", "Ville", "SIREN", "Effectif", "Note", "Avis", "Dirigeant", "Fonction", "Sources", "Déjà au CRM", "Fiche Maps"];
+    const lines = rows.map((l) => {
+        const c = l.contacts[0];
+        return [
+            l.name,
+            l.industry,
+            l.naf,
+            formatPhone(l.phone),
+            l.phone ? (isMobile(l.phone) ? "Mobile" : "Fixe") : "",
+            l.website,
+            l.address,
+            l.postalCode,
+            l.city,
+            l.siren,
+            l.headcount,
+            l.rating?.toString().replace(".", ","),
+            l.reviews,
+            c ? [c.firstName, c.lastName].filter(Boolean).join(" ") : "",
+            c?.title,
+            l.sources.map((s) => SOURCE_BY_ID[s].short).join(" + "),
+            matches[l.id]?.listName ?? "",
+            l.mapsUrl,
+        ]
+            .map(csvCell)
+            .join(";");
+    });
+    const blob = new Blob(["﻿" + [head.join(";"), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `sourcing-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function formatPhone(p?: string) {
@@ -82,6 +128,7 @@ export function ResultsTable({
         () => ({
             known: leads.filter((l) => matches[l.id]).length,
             phone: leads.filter((l) => l.phone).length,
+            mobile: leads.filter((l) => isMobile(l.phone)).length,
             website: leads.filter((l) => l.website).length,
             contact: leads.filter((l) => l.contacts.length).length,
             multi: leads.filter((l) => l.sources.length > 1).length,
@@ -97,6 +144,7 @@ export function ResultsTable({
             if (crm === "known" && !matches[l.id]) return false;
             if (hideClosed && l.closed) return false;
             if (facets.has("phone") && !l.phone) return false;
+            if (facets.has("mobile") && !isMobile(l.phone)) return false;
             if (facets.has("website") && !l.website) return false;
             if (facets.has("contact") && !l.contacts.length) return false;
             if (facets.has("multi") && l.sources.length < 2) return false;
@@ -230,6 +278,7 @@ export function ResultsTable({
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                     <FacetChip on={facets.has("phone")} onClick={() => toggleFacet("phone")} icon={Phone} label="Téléphone" count={counts.phone} />
+                    <FacetChip on={facets.has("mobile")} onClick={() => toggleFacet("mobile")} icon={Smartphone} label="Mobile" count={counts.mobile} />
                     <FacetChip on={facets.has("website")} onClick={() => toggleFacet("website")} icon={Globe} label="Site web" count={counts.website} />
                     <FacetChip on={facets.has("contact")} onClick={() => toggleFacet("contact")} icon={UserRound} label="Dirigeant / contact" count={counts.contact} />
                     <FacetChip on={facets.has("multi")} onClick={() => toggleFacet("multi")} icon={Users} label="Plusieurs sources" count={counts.multi} />
@@ -247,6 +296,15 @@ export function ResultsTable({
                             </span>
                         ))}
                     </span>
+                    <button
+                        type="button"
+                        onClick={() => exportCsv(rows, matches)}
+                        disabled={rows.length === 0}
+                        title="Exporte les lignes affichées avec les filtres actuels"
+                        className={cn("inline-flex h-7 items-center gap-1.5 rounded-control px-2 text-xs font-medium text-ink-3 hover:bg-surface-3 hover:text-ink disabled:opacity-40", FOCUS_RING)}
+                    >
+                        <Download className="size-3.5" /> CSV · {rows.length.toLocaleString("fr-FR")}
+                    </button>
                     {filtersActive && (
                         <button
                             type="button"
@@ -321,7 +379,14 @@ export function ResultsTable({
                                             </div>
                                         </td>
                                         <td className="whitespace-nowrap py-2.5 pr-3 text-[13px] tabular-nums">
-                                            {l.phone ? <span className="text-ink">{formatPhone(l.phone)}</span> : <Dash />}
+                                            {l.phone ? (
+                                                <span className="inline-flex items-center gap-1 text-ink">
+                                                    {formatPhone(l.phone)}
+                                                    {isMobile(l.phone) && <Smartphone className="size-3 text-ink-4" aria-label="Mobile" />}
+                                                </span>
+                                            ) : (
+                                                <Dash />
+                                            )}
                                         </td>
                                         <td className="max-w-0 py-2.5 pr-3 text-[13px]">
                                             {l.website ? (

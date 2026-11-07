@@ -17,7 +17,7 @@ export interface JournalRow {
     at: string;
     sdr: { id: string; name: string };
     contact: { id: string; name: string; title: string | null } | null;
-    company: { id: string; name: string } | null;
+    company: { id: string; name: string; website?: string | null } | null;
     phone: string | null;
     mission: { id: string; name: string; client: string | null } | null;
     /** The CRM status the SDR logged. Null on an unqualified call. */
@@ -70,7 +70,7 @@ export interface CallDetail {
     at: string;
     sdr: { id: string; name: string };
     contact: { id: string; name: string; title: string | null; email: string | null } | null;
-    company: { id: string; name: string } | null;
+    company: { id: string; name: string; website?: string | null } | null;
     phone: string | null;
     mission: { id: string; name: string; client: string | null } | null;
     status: JournalStatusRef | null;
@@ -95,6 +95,6 @@ export interface CallDetail {
         answeredAt: string | null;
         endedAt: string | null;
     } | null;
-    /** The prospect's other calls with this agency, newest first (max 8). */
-    history: { id: string; at: string; sdr: string; status: JournalStatusRef | null; durationSec: number | null }[];
+    /** The prospect’s recorded activities with this agency, newest first (max 20). */
+    history: { id: string; at: string; sdr: string; status: JournalStatusRef | null; durationSec: number | null; channel?: string; note?: string | null; summary?: string | null }[];
 }

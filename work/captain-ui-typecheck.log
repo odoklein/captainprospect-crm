@@ -1,0 +1,550 @@
+.next/dev/types/validator.ts(4221,31): error TS2344: Type 'typeof import("C:/Users/dell/Desktop/Desktop/CP/captainprospect-crm/app/api/manager/api-keys/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/manager/api-keys/[id]">'.
+  Types of property 'GET' are incompatible.
+    Type 'RouteHandlerWithParams<{ id: string; }>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters 'context' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type 'RouteContext<{ id: string; }>'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/app/api/manager/api-keys/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext<{ id: string; }>; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/manager/api-keys/[id]/route.ts(247,7): error TS2344: Type '{ __tag__: "DELETE"; __param_position__: "second"; __param_type__: RouteContext<{ id: string; }>; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/manager/api-keys/[id]/route.ts(286,7): error TS2344: Type '{ __tag__: "PATCH"; __param_position__: "second"; __param_type__: RouteContext<{ id: string; }>; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  The types of '__param_type__.params' are incompatible between these types.
+    Type '{ id: string; }' is missing the following properties from type 'Promise<any>': then, catch, finally, [Symbol.toStringTag]
+.next/types/app/api/session-tasks/route.ts(2,24): error TS2307: Cannot find module '../../../../../app/api/session-tasks/route.js' or its corresponding type declarations.
+.next/types/app/api/session-tasks/route.ts(7,29): error TS2307: Cannot find module '../../../../../app/api/session-tasks/route.js' or its corresponding type declarations.
+.next/types/app/api/v1/account/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/activities/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/appointments/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/calls/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/calls/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/campaigns/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/campaigns/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/clients/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/companies/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/companies/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/contacts/[id]/context/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/contacts/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/contacts/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/daily-reports/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/data-quality/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/exclusions/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/leads/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/leads/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/lists/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/lists/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/missions/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/missions/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/rdv-overview/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/reports/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/search/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/teams/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/teams/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/users/[id]/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/users/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/vault/call-actions/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/api/v1/vault/sdr-numbers/route.ts(52,7): error TS2344: Type '{ __tag__: "GET"; __param_position__: "second"; __param_type__: RouteContext | undefined; }' does not satisfy the constraint 'ParamCheck<RouteContext>'.
+  Types of property '__param_type__' are incompatible.
+    Type 'RouteContext | undefined' is not assignable to type 'RouteContext'.
+      Type 'undefined' is not assignable to type 'RouteContext'.
+.next/types/app/manager/clients/[id]/page.ts(14,13): error TS2344: Type 'OmitWithTag<typeof import("C:/Users/dell/Desktop/Desktop/CP/captainprospect-crm/app/manager/clients/[id]/page"), "default" | "metadata" | "config" | "runtime" | "revalidate" | "viewport" | ... 8 more ... | "generateViewport", "">' does not satisfy the constraint '{ [x: string]: never; }'.
+  Property 'buildCRPrompt' is incompatible with index signature.
+    Type '({ clientName, sessionType, sessionDate, transcript, crPublicUrl, notifyByEmail, brandName, }: { clientName: string; sessionType: string; sessionDate: string; transcript: string; crPublicUrl?: string | undefined; notifyByEmail?: boolean | undefined; brandName: string; }) => string' is not assignable to type 'never'.
+.next/types/validator.ts(3942,31): error TS2344: Type 'typeof import("C:/Users/dell/Desktop/Desktop/CP/captainprospect-crm/app/api/manager/api-keys/[id]/route")' does not satisfy the constraint 'RouteHandlerConfig<"/api/manager/api-keys/[id]">'.
+  Types of property 'GET' are incompatible.
+    Type 'RouteHandlerWithParams<{ id: string; }>' is not assignable to type '(request: NextRequest, context: { params: Promise<{ id: string; }>; }) => void | Response | Promise<void | Response>'.
+      Types of parameters 'context' and 'context' are incompatible.
+        Type '{ params: Promise<{ id: string; }>; }' is not assignable to type 'RouteContext<{ id: string; }>'.
+          Types of property 'params' are incompatible.
+            Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+.next/types/validator.ts(5390,39): error TS2307: Cannot find module '../../app/api/session-tasks/route.js' or its corresponding type declarations.
+app/api/actions/[id]/route.ts(154,13): error TS2322: Type '{ callbackDate?: Date | undefined; note?: string | undefined; result?: ActionResult | undefined; cancellationReason?: string | null | undefined; meetingType?: string | ... 1 more ... | undefined; ... 5 more ...; confirmationUpdatedAt?: Date | undefined; }' is not assignable to type '(Without<ActionUpdateInput, ActionUncheckedUpdateInput> & ActionUncheckedUpdateInput) | (Without<...> & ActionUpdateInput)'.
+  Type '{ callbackDate?: Date | undefined; note?: string | undefined; result?: ActionResult | undefined; cancellationReason?: string | null | undefined; meetingType?: string | ... 1 more ... | undefined; ... 5 more ...; confirmationUpdatedAt?: Date | undefined; }' is not assignable to type 'Without<ActionUncheckedUpdateInput, ActionUpdateInput> & ActionUpdateInput'.
+    Types of property 'confirmationStatus' are incompatible.
+      Type 'string | undefined' is not assignable to type 'MeetingConfirmationStatus | EnumMeetingConfirmationStatusFieldUpdateOperationsInput | undefined'.
+        Type 'string' is not assignable to type 'MeetingConfirmationStatus | EnumMeetingConfirmationStatusFieldUpdateOperationsInput | undefined'.
+app/api/ai/pitch/organize/route.ts(77,34): error TS2345: Argument of type 'ZodObject<{ rawText: ZodString; clientName: ZodOptional<ZodString>; channel: ZodOptional<ZodString>; icp: ZodOptional<ZodString>; }, $strip>' is not assignable to parameter of type 'Request'.
+  Type 'ZodObject<{ rawText: ZodString; clientName: ZodOptional<ZodString>; channel: ZodOptional<ZodString>; icp: ZodOptional<ZodString>; }, $strip>' is missing the following properties from type 'Request': cache, credentials, destination, headers, and 17 more.
+app/api/ai/pitch/organize/route.ts(82,47): error TS2339: Property 'rawText' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(83,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+app/api/ai/pitch/organize/route.ts(107,8): error TS2339: Property 'rawText' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(109,8): error TS2339: Property 'clientName' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(109,45): error TS2339: Property 'clientName' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(110,8): error TS2339: Property 'icp' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(110,36): error TS2339: Property 'icp' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(111,8): error TS2339: Property 'channel' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(111,34): error TS2339: Property 'channel' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(132,51): error TS2339: Property 'rawText' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(133,44): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+app/api/ai/pitch/organize/route.ts(146,12): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+app/api/ai/pitch/organize/route.ts(149,47): error TS2339: Property 'rawText' does not exist on type 'Promise<unknown>'.
+app/api/ai/pitch/organize/route.ts(150,40): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+app/api/analyse-ia/run/route.ts(136,38): error TS2339: Property 'jobTitle' does not exist on type '{ title: string | null; firstName: string | null; lastName: string | null; }'.
+app/api/auth/reset-password/route.ts(23,32): error TS2339: Property 'errors' does not exist on type 'ZodError<{ token: string; email: string; password: string; }>'.
+app/api/client/meetings/[id]/route.ts(14,40): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(handler: RouteHandlerWithParams<Promise<{ id: string; }>>): RouteHandlerWithParams<Promise<{ id: string; }>>', gave the following error.
+    Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<Response>' is not assignable to parameter of type 'RouteHandlerWithParams<Promise<{ id: string; }>>'.
+      Type 'Promise<Response>' is not assignable to type 'Promise<NextResponse<unknown>>'.
+        Type 'Response' is missing the following properties from type 'NextResponse<unknown>': cookies, [INTERNALS]
+  Overload 2 of 2, '(handler: RouteHandlerWithoutParams): RouteHandlerWithoutParams', gave the following error.
+    Argument of type '(request: NextRequest, { params }: { params: Promise<{ id: string; }>; }) => Promise<Response>' is not assignable to parameter of type 'RouteHandlerWithoutParams'.
+      Target signature provides too few arguments. Expected 2 or more, but got 1.
+app/api/client/onboarding-dismissed/route.ts(15,51): error TS2552: Cannot find name 'request'. Did you mean 'Request'?
+app/api/clients/[id]/rdv-email-test/route.ts(65,41): error TS2339: Property 'errors' does not exist on type 'ZodError<{ recipientType: "COMMERCIAL" | "CLIENT_USER"; userId?: string | undefined; interlocuteurId?: string | undefined; }>'.
+app/api/contacts/[id]/route.ts(172,9): error TS2322: Type '{ additionalEmails?: string[] | null | undefined; additionalPhones?: string[] | null | undefined; status: CompletenessStatus; firstName: string | null; lastName: string | null; email: string | null; phone: string | null; linkedin: string | null; title: string | null; }' is not assignable to type '(Without<ContactUpdateInput, ContactUncheckedUpdateInput> & ContactUncheckedUpdateInput) | (Without<...> & ContactUpdateInput)'.
+  Type '{ additionalEmails?: string[] | null | undefined; additionalPhones?: string[] | null | undefined; status: CompletenessStatus; firstName: string | null; lastName: string | null; email: string | null; phone: string | null; linkedin: string | null; title: string | null; }' is not assignable to type 'Without<ContactUncheckedUpdateInput, ContactUpdateInput> & ContactUpdateInput'.
+    Type '{ additionalEmails?: string[] | null | undefined; additionalPhones?: string[] | null | undefined; status: CompletenessStatus; firstName: string | null; lastName: string | null; email: string | null; phone: string | null; linkedin: string | null; title: string | null; }' is not assignable to type 'ContactUpdateInput'.
+      Types of property 'additionalPhones' are incompatible.
+        Type 'string[] | null | undefined' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+          Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+app/api/developer/stats/route.ts(45,27): error TS2353: Object literal may only specify known properties, and 'authorId' does not exist in type 'TicketWhereInput'.
+app/api/developer/stats/route.ts(54,27): error TS2353: Object literal may only specify known properties, and 'authorId' does not exist in type 'TicketWhereInput'.
+app/api/developer/stats/route.ts(56,39): error TS2322: Type '"RESOLVED"' is not assignable to type 'TicketStatus'.
+app/api/developer/stats/route.ts(56,51): error TS2322: Type '"CLOSED"' is not assignable to type 'TicketStatus'.
+app/api/email/webhooks/reachinbox/route.ts(44,5): error TS2322: Type '({ event: string | undefined; emailAccount: string | undefined; messageId: string | undefined; } | null)[]' is not assignable to type 'ReachInboxWebhookEvent[]'.
+  Type '{ event: string | undefined; emailAccount: string | undefined; messageId: string | undefined; } | null' is not assignable to type 'ReachInboxWebhookEvent'.
+    Type 'null' is not assignable to type 'ReachInboxWebhookEvent'.
+app/api/email/webhooks/reachinbox/route.ts(69,35): error TS2677: A type predicate's type must be assignable to its parameter's type.
+  Type 'ReachInboxWebhookEvent' is not assignable to type '{ event: string | undefined; emailAccount: string | undefined; messageId: string | undefined; }'.
+    Property 'event' is optional in type 'ReachInboxWebhookEvent' but required in type '{ event: string | undefined; emailAccount: string | undefined; messageId: string | undefined; }'.
+app/api/enrichment/company-ai/route.ts(341,38): error TS2345: Argument of type 'EphemeralLookup' is not assignable to parameter of type '{ id: string; suggestions: JsonValue; createdAt: Date; }'.
+  Types of property 'suggestions' are incompatible.
+    Type 'EnrichmentSuggestion[]' is not assignable to type 'JsonValue'.
+      Type 'EnrichmentSuggestion[]' is not assignable to type 'JsonArray'.
+        Type 'EnrichmentSuggestion' is not assignable to type 'JsonValue'.
+          Type 'EnrichmentSuggestion' is not assignable to type 'JsonObject'.
+            Index signature for type 'string' is missing in type 'EnrichmentSuggestion'.
+app/api/enrichment/company-ai/route.ts(359,43): error TS2345: Argument of type 'JsonValue | EnrichmentSuggestion[]' is not assignable to parameter of type 'JsonValue'.
+  Type 'EnrichmentSuggestion[]' is not assignable to type 'JsonValue'.
+    Type 'EnrichmentSuggestion[]' is not assignable to type 'JsonArray'.
+      Type 'EnrichmentSuggestion' is not assignable to type 'JsonValue'.
+        Type 'EnrichmentSuggestion' is not assignable to type 'JsonObject'.
+          Index signature for type 'string' is missing in type 'EnrichmentSuggestion'.
+app/api/files/[id]/share/route.ts(37,43): error TS2339: Property 'errors' does not exist on type 'ZodError<{ clientId: string; folderId?: string | null | undefined; }>'.
+app/api/folders/[id]/share/route.ts(36,43): error TS2339: Property 'errors' does not exist on type 'ZodError<{ clientId: string; }>'.
+app/api/integrations/messaging/slack/events/route.ts(39,13): error TS2353: Object literal may only specify known properties, and 'workspaceExternalId' does not exist in type '(Without<MessagingInboundEventCreateInput, MessagingInboundEventUncheckedCreateInput> & MessagingInboundEventUncheckedCreateInput) | (Without<...> & MessagingInboundEventCreateInput)'.
+app/api/lists/import/route.ts(875,86): error TS2339: Property 'data' does not exist on type '{ data: CompanyCreateManyInput | CompanyCreateManyInput[]; skipDuplicates?: boolean | undefined; } | undefined'.
+app/api/manager/broadcast-emails/route.ts(79,39): error TS2339: Property 'errors' does not exist on type 'ZodError<{ subject: string; bodyHtml: string; audienceType: "ALL_CLIENTS" | "ALL_COMMERCIALS" | "INTERNAL_TEAM" | "SELECTION"; recipientIds?: string[] | undefined; }>'.
+app/api/manager/prospection/action-queue/route.ts(20,37): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(handler: RouteHandlerWithParams<any>): RouteHandlerWithParams<any>', gave the following error.
+    Argument of type '(request: NextRequest) => Promise<Response>' is not assignable to parameter of type 'RouteHandlerWithParams<any>'.
+      Type 'Promise<Response>' is not assignable to type 'Promise<NextResponse<unknown>>'.
+        Type 'Response' is missing the following properties from type 'NextResponse<unknown>': cookies, [INTERNALS]
+  Overload 2 of 2, '(handler: RouteHandlerWithoutParams): RouteHandlerWithoutParams', gave the following error.
+    Argument of type '(request: NextRequest) => Promise<Response>' is not assignable to parameter of type 'RouteHandlerWithoutParams'.
+      Type 'Promise<Response>' is not assignable to type 'Promise<NextResponse<unknown>>'.
+        Type 'Response' is missing the following properties from type 'NextResponse<unknown>': cookies, [INTERNALS]
+app/api/manager/rdv/route.ts(98,36): error TS2339: Property 'channel' does not exist on type '{ id: string; callbackDate: Date | null; meetingType: string | null; meetingAddress: string | null; meetingJoinUrl: string | null; meetingPhone: string | null; interlocuteurId: string | null; contact: { ...; } | null; company: { ...; } | null; campaign: { ...; }; }'.
+app/api/missions/[id]/client-booking/route.ts(62,37): error TS2345: Argument of type '(bl: { label?: string; url?: string; durationMinutes?: number; }) => { label: string; url: string; durationMinutes: number; }' is not assignable to parameter of type '(value: JsonValue, index: number, array: JsonValue[]) => { label: string; url: string; durationMinutes: number; }'.
+  Types of parameters 'bl' and 'value' are incompatible.
+    Type 'JsonValue' is not assignable to type '{ label?: string | undefined; url?: string | undefined; durationMinutes?: number | undefined; }'.
+      Type 'null' is not assignable to type '{ label?: string | undefined; url?: string | undefined; durationMinutes?: number | undefined; }'.
+app/api/planning/holidays/route.ts(41,39): error TS2339: Property 'errors' does not exist on type 'ZodError<{ month?: string | undefined; scope?: "CLIENT" | "GLOBAL" | undefined; clientId?: string | undefined; }>'.
+app/api/planning/matrix/route.ts(52,39): error TS2339: Property 'errors' does not exist on type 'ZodError<{ month: string; sdrIds: string[] | undefined; missionIds: string[] | undefined; }>'.
+app/api/planning/phantom-blocks/route.ts(26,39): error TS2339: Property 'errors' does not exist on type 'ZodError<{ month: string; }>'.
+app/api/planning/route.ts(108,36): error TS2345: Argument of type '{ startDate?: Date | undefined; endDate?: Date | undefined; }' is not assignable to parameter of type '{ startDate: Date; }'.
+  Types of property 'startDate' are incompatible.
+    Type 'Date | undefined' is not assignable to type 'Date'.
+      Type 'undefined' is not assignable to type 'Date'.
+app/api/planning/route.ts(109,32): error TS2345: Argument of type '{ startDate?: Date | undefined; endDate?: Date | undefined; }' is not assignable to parameter of type '{ endDate: Date; }'.
+  Types of property 'endDate' are incompatible.
+    Type 'Date | undefined' is not assignable to type 'Date'.
+      Type 'undefined' is not assignable to type 'Date'.
+app/api/planning/sdrs/[id]/overrides/route.ts(41,11): error TS2339: Property 'date' does not exist on type '{ sdrId: string; }'.
+app/api/planning/weekly/route.ts(67,36): error TS2345: Argument of type '{ startDate?: Date | undefined; endDate?: Date | undefined; }' is not assignable to parameter of type '{ startDate: Date; }'.
+  Types of property 'startDate' are incompatible.
+    Type 'Date | undefined' is not assignable to type 'Date'.
+      Type 'undefined' is not assignable to type 'Date'.
+app/api/planning/weekly/route.ts(68,32): error TS2345: Argument of type '{ startDate?: Date | undefined; endDate?: Date | undefined; }' is not assignable to parameter of type '{ endDate: Date; }'.
+  Types of property 'endDate' are incompatible.
+    Type 'Date | undefined' is not assignable to type 'Date'.
+      Type 'undefined' is not assignable to type 'Date'.
+app/api/playbook/import/route.ts(159,9): error TS2322: Type 'string | number | boolean | InputJsonObject | InputJsonArray | { toJSON(): unknown; } | { sections: ParsedPlaybookScriptSection[]; }' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type '{ sections: ParsedPlaybookScriptSection[]; }' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+    Type '{ sections: ParsedPlaybookScriptSection[]; }' is not assignable to type 'InputJsonObject'.
+      Property 'sections' is incompatible with index signature.
+        Type 'ParsedPlaybookScriptSection[]' is not assignable to type 'InputJsonValue | null | undefined'.
+          Type 'ParsedPlaybookScriptSection[]' is not assignable to type 'InputJsonObject'.
+            Index signature for type 'string' is missing in type 'ParsedPlaybookScriptSection[]'.
+app/api/projects/route.ts(86,20): error TS2488: Type 'ProjectWhereInput | ProjectWhereInput[]' must have a '[Symbol.iterator]()' method that returns an iterator.
+app/api/prospects/intake/route.ts(18,14): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/prospects/intake/route.ts(161,40): error TS2339: Property 'errors' does not exist on type 'ZodError<unknown>'.
+app/api/prospects/rules/[id]/route.ts(19,16): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/prospects/rules/[id]/route.ts(20,13): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/prospects/rules/[id]/route.ts(89,5): error TS2322: Type '{ updatedById: string; version: { increment: number; }; name?: string | undefined; description?: string | undefined; priority?: number | undefined; condition?: Record<any, unknown> | undefined; action?: Record<...> | undefined; isActive?: boolean | undefined; }' is not assignable to type '(Without<ProspectRuleUpdateInput, ProspectRuleUncheckedUpdateInput> & ProspectRuleUncheckedUpdateInput) | (Without<...> & ProspectRuleUpdateInput)'.
+  Type '{ updatedById: string; version: { increment: number; }; name?: string | undefined; description?: string | undefined; priority?: number | undefined; condition?: Record<any, unknown> | undefined; action?: Record<...> | undefined; isActive?: boolean | undefined; }' is not assignable to type 'Without<ProspectRuleUpdateInput, ProspectRuleUncheckedUpdateInput> & ProspectRuleUncheckedUpdateInput'.
+    Type '{ updatedById: string; version: { increment: number; }; name?: string | undefined; description?: string | undefined; priority?: number | undefined; condition?: Record<any, unknown> | undefined; action?: Record<...> | undefined; isActive?: boolean | undefined; }' is not assignable to type 'ProspectRuleUncheckedUpdateInput'.
+      Types of property 'condition' are incompatible.
+        Type 'Record<any, unknown> | undefined' is not assignable to type 'JsonNull | InputJsonValue | undefined'.
+          Type 'Record<any, unknown>' is not assignable to type 'JsonNull | InputJsonValue | undefined'.
+app/api/prospects/rules/route.ts(22,16): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/prospects/rules/route.ts(23,13): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/prospects/rules/route.ts(91,5): error TS2322: Type '{ createdById: string; name: string; step: "INTAKE" | "NORMALIZE" | "VALIDATE" | "ENRICH" | "DEDUPLICATE" | "SCORE" | "ROUTE" | "ACTIVATE" | "HOLD" | "REJECT"; priority: number; condition: Record<...>; action: Record<...>; description?: string | undefined; clientId?: string | undefined; sourceId?: string | undefined...' is not assignable to type '(Without<ProspectRuleCreateInput, ProspectRuleUncheckedCreateInput> & ProspectRuleUncheckedCreateInput) | (Without<...> & ProspectRuleCreateInput)'.
+  Type '{ createdById: string; name: string; step: "INTAKE" | "NORMALIZE" | "VALIDATE" | "ENRICH" | "DEDUPLICATE" | "SCORE" | "ROUTE" | "ACTIVATE" | "HOLD" | "REJECT"; priority: number; condition: Record<...>; action: Record<...>; description?: string | undefined; clientId?: string | undefined; sourceId?: string | undefined...' is not assignable to type 'Without<ProspectRuleCreateInput, ProspectRuleUncheckedCreateInput> & ProspectRuleUncheckedCreateInput'.
+    Type '{ createdById: string; name: string; step: "INTAKE" | "NORMALIZE" | "VALIDATE" | "ENRICH" | "DEDUPLICATE" | "SCORE" | "ROUTE" | "ACTIVATE" | "HOLD" | "REJECT"; priority: number; condition: Record<...>; action: Record<...>; description?: string | undefined; clientId?: string | undefined; sourceId?: string | undefined...' is not assignable to type 'ProspectRuleUncheckedCreateInput'.
+      Types of property 'condition' are incompatible.
+        Type 'Record<any, unknown>' is not assignable to type 'JsonNull | InputJsonValue'.
+app/api/prospects/sources/[id]/route.ts(21,15): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/prospects/sources/[id]/route.ts(82,5): error TS2322: Type '{ defaultMissionId: string | null | undefined; name?: string | undefined; type?: "WEB_FORM" | "CSV_IMPORT" | "API" | "PARTNER_FEED" | "MANUAL_ENTRY" | undefined; autoActivate?: boolean | undefined; isActive?: boolean | undefined; metadata?: Record<...> | undefined; }' is not assignable to type '(Without<ProspectSourceUpdateInput, ProspectSourceUncheckedUpdateInput> & ProspectSourceUncheckedUpdateInput) | (Without<...> & ProspectSourceUpdateInput)'.
+  Type '{ defaultMissionId: string | null | undefined; name?: string | undefined; type?: "WEB_FORM" | "CSV_IMPORT" | "API" | "PARTNER_FEED" | "MANUAL_ENTRY" | undefined; autoActivate?: boolean | undefined; isActive?: boolean | undefined; metadata?: Record<...> | undefined; }' is not assignable to type 'Without<ProspectSourceUncheckedUpdateInput, ProspectSourceUpdateInput> & ProspectSourceUpdateInput'.
+    Type '{ defaultMissionId: string | null | undefined; name?: string | undefined; type?: "WEB_FORM" | "CSV_IMPORT" | "API" | "PARTNER_FEED" | "MANUAL_ENTRY" | undefined; autoActivate?: boolean | undefined; isActive?: boolean | undefined; metadata?: Record<...> | undefined; }' is not assignable to type 'Without<ProspectSourceUncheckedUpdateInput, ProspectSourceUpdateInput>'.
+      Types of property 'defaultMissionId' are incompatible.
+        Type 'string | null | undefined' is not assignable to type 'undefined'.
+          Type 'null' is not assignable to type 'undefined'.
+app/api/prospects/sources/route.ts(23,15): error TS2554: Expected 2-3 arguments, but got 1.
+app/api/sdr/activity/heartbeat/route.ts(72,30): error TS18047: 'updatedActivity' is possibly 'null'.
+app/api/sdr/callbacks/count/route.ts(71,17): error TS2322: Type '{ sdrId: string; result: { in: string[]; }; campaign?: { missionId: string; } | undefined; }' is not assignable to type 'ActionWhereInput'.
+  Types of property 'result' are incompatible.
+    Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action"> | ActionResult | undefined'.
+      Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action">'.
+        Types of property 'in' are incompatible.
+          Type 'string[]' is not assignable to type 'ActionResult[] | FieldRef<"Action", "ActionResult[]"> | undefined'.
+            Type 'string[]' is not assignable to type 'ActionResult[]'.
+              Type 'string' is not assignable to type 'ActionResult'.
+app/api/sdr/callbacks/count/route.ts(165,13): error TS2322: Type '{ sdrId?: string | undefined; result: { in: string[]; }; campaign?: { missionId: string | { in: string[]; }; } | undefined; OR?: ({ sdrId: string; campaign: { missionId: string | { in: string[]; }; }; } | { ...; })[] | undefined; }' is not assignable to type 'ActionWhereInput'.
+  Types of property 'result' are incompatible.
+    Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action"> | ActionResult | undefined'.
+      Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action">'.
+        Types of property 'in' are incompatible.
+          Type 'string[]' is not assignable to type 'ActionResult[] | FieldRef<"Action", "ActionResult[]"> | undefined'.
+            Type 'string[]' is not assignable to type 'ActionResult[]'.
+              Type 'string' is not assignable to type 'ActionResult'.
+app/api/sdr/callbacks/count/route.ts(170,13): error TS2322: Type '{ callbackDate: { gte: Date; }; sdrId?: string; result: { in: string[]; }; campaign?: { missionId: string | { in: string[]; }; }; OR?: Array<{ sdrId: string; campaign: { missionId: string | { in: string[]; }; }; } | { campaign: { missionId: string | { in: string[]; }; }; }>; }' is not assignable to type 'ActionWhereInput'.
+  Types of property 'result' are incompatible.
+    Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action"> | ActionResult | undefined'.
+      Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action">'.
+        Types of property 'in' are incompatible.
+          Type 'string[]' is not assignable to type 'ActionResult[] | FieldRef<"Action", "ActionResult[]"> | undefined'.
+            Type 'string[]' is not assignable to type 'ActionResult[]'.
+              Type 'string' is not assignable to type 'ActionResult'.
+app/api/sdr/callbacks/route.ts(177,13): error TS2322: Type '{ sdrId?: string | undefined; result: { in: string[]; }; campaign?: { missionId: string | { in: string[]; }; } | undefined; callbackDate?: { gte?: Date | undefined; lte?: Date | undefined; } | undefined; OR?: ({ ...; } | { ...; })[] | undefined; }' is not assignable to type 'ActionWhereInput'.
+  Types of property 'result' are incompatible.
+    Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action"> | ActionResult | undefined'.
+      Type '{ in: string[]; }' is not assignable to type 'EnumActionResultFilter<"Action">'.
+        Types of property 'in' are incompatible.
+          Type 'string[]' is not assignable to type 'ActionResult[] | FieldRef<"Action", "ActionResult[]"> | undefined'.
+            Type 'string[]' is not assignable to type 'ActionResult[]'.
+              Type 'string' is not assignable to type 'ActionResult'.
+app/api/sdr/callbacks/route.ts(241,42): error TS2339: Property 'contact' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'.
+app/api/sdr/callbacks/route.ts(242,42): error TS2339: Property 'company' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'.
+app/api/sdr/callbacks/route.ts(274,34): error TS2551: Property 'campaign' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'. Did you mean 'campaignId'?
+app/api/sdr/callbacks/route.ts(278,33): error TS2551: Property 'contact' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'. Did you mean 'contactId'?
+app/api/sdr/callbacks/route.ts(279,33): error TS2551: Property 'company' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'. Did you mean 'companyId'?
+app/api/sdr/callbacks/route.ts(280,33): error TS2551: Property 'campaign' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'. Did you mean 'campaignId'?
+app/api/sdr/callbacks/route.ts(281,32): error TS2551: Property 'campaign' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'. Did you mean 'campaignId'?
+app/api/sdr/callbacks/route.ts(282,34): error TS2551: Property 'campaign' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'. Did you mean 'campaignId'?
+app/api/sdr/callbacks/route.ts(283,36): error TS2551: Property 'campaign' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'. Did you mean 'campaignId'?
+app/api/sdr/callbacks/route.ts(286,39): error TS2339: Property 'sdr' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'.
+app/api/sdr/callbacks/route.ts(287,41): error TS2339: Property 'sdr' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'.
+app/api/sdr/callbacks/route.ts(287,62): error TS2339: Property 'sdr' does not exist on type '{ result: ActionResult; id: string; contactId: string | null; companyId: string | null; sdrId: string; campaignId: string; channel: Channel; note: string | null; ... 20 more ...; createdAt: Date; }'.
+app/api/sdr/email/route.ts(81,85): error TS2339: Property 'errors' does not exist on type 'ZodError<{ provider: "gmail" | "outlook" | "smtp"; smtpHost?: string | undefined; smtpPort?: number | undefined; smtpUser?: string | undefined; smtpPassword?: string | undefined; accessToken?: string | undefined; refreshToken?: string | undefined; expiresAt?: number | undefined; }>'.
+app/api/sdr/email/route.ts(147,31): error TS2304: Cannot find name 'getServerSession'.
+app/api/sdr/email/route.ts(147,48): error TS2304: Cannot find name 'authOptions'.
+app/api/sdr/email/route.ts(161,17): error TS2322: Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+app/api/sdr/meetings/import/route.ts(327,25): error TS2353: Object literal may only specify known properties, and 'cancellationReason' does not exist in type 'CreateActionInput'.
+app/api/system-config/master-password/route.ts(36,43): error TS2339: Property 'errors' does not exist on type 'ZodError<{ password: string; }>'.
+app/api/system-config/transactional-email/route.ts(45,39): error TS2339: Property 'errors' does not exist on type 'ZodError<{ from: string; }>'.
+app/api/system-templates/[key]/route.ts(105,39): error TS2339: Property 'errors' does not exist on type 'ZodError<{ subject: string; bodyHtml: string; }>'.
+app/api/users/me/password/route.ts(23,38): error TS2339: Property 'errors' does not exist on type 'ZodError<{ currentPassword: string; newPassword: string; }>'.
+app/bd/campaigns/page.tsx(78,59): error TS2339: Property 'id' does not exist on type '{ name: string; }'.
+app/bd/clients/[id]/page.tsx(318,29): error TS2322: Type 'unknown' is not assignable to type 'ReactNode'.
+app/bd/projects/page.tsx(82,50): error TS2339: Property 'id' does not exist on type '{ name: string; }'.
+app/manager/billing/page.tsx(356,37): error TS2322: Type '(value: number) => [string, "CA"]' is not assignable to type 'Formatter<number, "CA">'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+app/manager/clients/[id]/page.tsx(3386,57): error TS1345: An expression of type 'void' cannot be tested for truthiness.
+app/manager/clients/page.tsx(851,17): error TS2322: Type '(updatedClient: Client) => void' is not assignable to type '(client: Client) => void'.
+  Types of parameters 'updatedClient' and 'client' are incompatible.
+    Property 'missions' is missing in type 'Client' but required in type 'Client'.
+app/manager/comms/page.tsx(212,13): error TS18046: 'error' is of type 'unknown'.
+app/manager/comms/page.tsx(245,13): error TS18046: 'error' is of type 'unknown'.
+app/manager/comms/page.tsx(625,13): error TS18046: 'error' is of type 'unknown'.
+app/manager/missions/new/_components/ScriptBuilder.tsx(212,17): error TS2322: Type 'string' is not assignable to type 'undefined'.
+app/manager/prospects/[id]/page.tsx(331,89): error TS2367: This comparison appears to be unintentional because the types '"PENDING" | "APPROVED"' and '"ACTIVATED"' have no overlap.
+app/manager/rdv/_components/MeetingList.tsx(489,15): error TS2322: Type '{ title: string; description: string; }' is not assignable to type 'IntrinsicAttributes'.
+  Property 'title' does not exist on type 'IntrinsicAttributes'.
+app/manager/rdv/_components/modals/AddRdvModal.tsx(816,9): error TS2322: Type 'Dispatch<SetStateAction<"VISIO" | "PHYSIQUE" | "TELEPHONIQUE">>' is not assignable to type '(value: "" | "VISIO" | "PHYSIQUE" | "TELEPHONIQUE") => void'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type '"" | "VISIO" | "PHYSIQUE" | "TELEPHONIQUE"' is not assignable to type 'SetStateAction<"VISIO" | "PHYSIQUE" | "TELEPHONIQUE">'.
+      Type '""' is not assignable to type 'SetStateAction<"VISIO" | "PHYSIQUE" | "TELEPHONIQUE">'.
+app/sdr/action/page.tsx(1015,17): error TS2322: Type '{ result: string; note?: string | null | undefined; createdAt?: string | undefined; callbackDate?: string | null | undefined; scope?: "CONTACT" | "COMPANY" | null | undefined; }' is not assignable to type '{ result: string; note?: string | null | undefined; createdAt: string; callbackDate?: string | null | undefined; scope?: "CONTACT" | "COMPANY" | null | undefined; }'.
+  Types of property 'createdAt' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+app/sdr/action/page.tsx(1040,17): error TS2322: Type '{ result: string; note?: string | null | undefined; createdAt?: string | undefined; callbackDate?: string | null | undefined; scope?: "CONTACT" | "COMPANY" | null | undefined; }' is not assignable to type '{ result: string; note?: string | null | undefined; createdAt: string; callbackDate?: string | null | undefined; scope?: "CONTACT" | "COMPANY" | null | undefined; }'.
+  Types of property 'createdAt' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+app/sdr/action/page.tsx(2793,197): error TS2367: This comparison appears to be unintentional because the types '"card"' and '"table"' have no overlap.
+app/sdr/action/page.tsx(2874,197): error TS2367: This comparison appears to be unintentional because the types '"card"' and '"table"' have no overlap.
+app/sdr/action/page.tsx(3223,103): error TS18048: 'currentAction.company' is possibly 'undefined'.
+app/sdr/action/page.tsx(3845,30): error TS2304: Cannot find name 'X'.
+app/sdr/comms/page.tsx(155,13): error TS18046: 'error' is of type 'unknown'.
+app/sdr/comms/page.tsx(188,13): error TS18046: 'error' is of type 'unknown'.
+app/sdr/comms/page.tsx(434,13): error TS18046: 'error' is of type 'unknown'.
+components/billing/ClientSearch.tsx(61,30): error TS2554: Expected 1 arguments, but got 0.
+components/drawers/_sections/ClientCalCredentials.tsx(253,32): error TS2322: Type 'Promise<CalCredentialDTO>' is not assignable to type 'void | Promise<void>'.
+  Type 'Promise<CalCredentialDTO>' is not assignable to type 'Promise<void>'.
+    Type 'CalCredentialDTO' is not assignable to type 'void'.
+components/drawers/_sections/ClientCalCredentials.tsx(398,32): error TS2322: Type 'Promise<CalCredentialDTO>' is not assignable to type 'void | Promise<void>'.
+  Type 'Promise<CalCredentialDTO>' is not assignable to type 'Promise<void>'.
+    Type 'CalCredentialDTO' is not assignable to type 'void'.
+components/drawers/_sections/ClientCalCredentials.tsx(420,32): error TS2322: Type 'Promise<CalCredentialDTO>' is not assignable to type 'void | Promise<void>'.
+  Type 'Promise<CalCredentialDTO>' is not assignable to type 'Promise<void>'.
+    Type 'CalCredentialDTO' is not assignable to type 'void'.
+components/drawers/CompanyDrawer.tsx(871,45): error TS2322: Type 'boolean | ""' is not assignable to type 'boolean | undefined'.
+  Type '""' is not assignable to type 'boolean | undefined'.
+components/drawers/CompanyDrawer.tsx(979,29): error TS2554: Expected 1 arguments, but got 0.
+components/drawers/UnifiedActionDrawer.tsx(1215,76): error TS2304: Cannot find name 'channel'.
+components/drawers/UnifiedActionDrawer.tsx(3888,58): error TS2339: Property 'email' does not exist on type 'Company'.
+components/files/ManagerFilesWorkspace.tsx(1169,32): error TS2551: Property 'client' does not exist on type 'FileListItem'. Did you mean 'clientId'?
+components/files/ManagerFilesWorkspace.tsx(1170,50): error TS2551: Property 'client' does not exist on type 'FileListItem'. Did you mean 'clientId'?
+components/files/shared/FileWorkspacePrimitives.tsx(577,18): error TS2339: Property 'source' does not exist on type 'FileListItem | { id: string; name: string; createdAt?: string | null | undefined; }'.
+  Property 'source' does not exist on type '{ id: string; name: string; createdAt?: string | null | undefined; }'.
+components/lists/ListHealthDashboard.tsx(149,11): error TS2322: Type '{ count: number; status: string; }[]' is not assignable to type '{ count: number; status: StatusSegment; }[]'.
+  Type '{ count: number; status: string; }' is not assignable to type '{ count: number; status: StatusSegment; }'.
+    Types of property 'status' are incompatible.
+      Type 'string' is not assignable to type 'StatusSegment'.
+components/lists/ListHealthDashboard.tsx(589,15): error TS2322: Type '{ listId: string; listName: string; missionId: string; missionName: string; daysSinceLastAction: number; lastActionAt: null; coverageRate: number | null; totalContacts: number; severity: string; }[]' is not assignable to type 'StagnationAlert[]'.
+  Type '{ listId: string; listName: string; missionId: string; missionName: string; daysSinceLastAction: number; lastActionAt: null; coverageRate: number | null; totalContacts: number; severity: string; }' is not assignable to type 'StagnationAlert'.
+    Types of property 'severity' are incompatible.
+      Type 'string' is not assignable to type '"HIGH" | "CRITICAL" | "MODERATE"'.
+components/missions/MissionPlanForm.tsx(254,51): error TS18047: 'existingPlan' is possibly 'null'.
+components/missions/MissionPlanForm.tsx(260,30): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/projects/ProjectAnalytics.tsx(131,37): error TS2322: Type '(value: number, name: string) => [string, string]' is not assignable to type 'Formatter<number, string>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+components/projects/ProjectAnalytics.tsx(166,37): error TS2322: Type '(value: number, name: string) => [string, string]' is not assignable to type 'Formatter<number, string>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+components/projects/ProjectAnalytics.tsx(192,37): error TS2322: Type '(value: number, name: string) => [string, "Terminées" | "Restantes"]' is not assignable to type 'Formatter<number, string>'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+components/prospects/RuleWizard.tsx(387,70): error TS2345: Argument of type '"field"' is not assignable to parameter of type 'never'.
+components/prospects/RuleWizard.tsx(400,70): error TS2345: Argument of type '"operator"' is not assignable to parameter of type 'never'.
+components/prospects/RuleWizard.tsx(420,65): error TS2345: Argument of type '"value"' is not assignable to parameter of type 'never'.
+components/prospects/RuleWizard.tsx(427,78): error TS2345: Argument of type '"value"' is not assignable to parameter of type 'never'.
+components/prospects/RuleWizard.tsx(466,67): error TS2345: Argument of type '"type"' is not assignable to parameter of type 'never'.
+components/prospects/RuleWizard.tsx(486,75): error TS2345: Argument of type '"value"' is not assignable to parameter of type 'never'.
+components/prospects/RuleWizard.tsx(502,71): error TS2345: Argument of type '"reason"' is not assignable to parameter of type 'never'.
+components/reporting/ReportLayout.tsx(189,49): error TS2322: Type '(value: number) => [number, "RDV"]' is not assignable to type 'Formatter<number, "RDV">'.
+  Types of parameters 'value' and 'value' are incompatible.
+    Type 'number | undefined' is not assignable to type 'number'.
+      Type 'undefined' is not assignable to type 'number'.
+components/support/SupportBubble.tsx(64,43): error TS2339: Property 'paper' does not exist on type '{ paper: string; paperRaised: string; paperSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 16 more ...; shadowFab: string; } | { ...; }'.
+  Property 'paper' does not exist on type '{ surface: string; surfaceRaised: string; surfaceSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 9 more ...; radiusS: number; }'.
+components/support/SupportBubble.tsx(180,43): error TS2339: Property 'paperRaised' does not exist on type '{ paper: string; paperRaised: string; paperSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 16 more ...; shadowFab: string; } | { ...; }'.
+  Property 'paperRaised' does not exist on type '{ surface: string; surfaceRaised: string; surfaceSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 9 more ...; radiusS: number; }'.
+components/support/SupportBubble.tsx(347,44): error TS2339: Property 'paperRaised' does not exist on type '{ paper: string; paperRaised: string; paperSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 16 more ...; shadowFab: string; } | { ...; }'.
+  Property 'paperRaised' does not exist on type '{ surface: string; surfaceRaised: string; surfaceSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 9 more ...; radiusS: number; }'.
+components/tasks/KanbanBoard.tsx(139,63): error TS2353: Object literal may only specify known properties, and 'status' does not exist in type '{ id: string; position: number; }'.
+components/ui/HelpPanel.tsx(73,11): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(86,11): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(101,24): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(122,28): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(205,28): error TS2554: Expected 1 arguments, but got 0.
+components/ui/Tooltip.tsx(33,22): error TS2554: Expected 1 arguments, but got 0.
+components/ui/Tour.tsx(142,21): error TS2590: Expression produces a union type that is too complex to represent.
+lib/ai/agent/evidence/store.ts(177,29): error TS2352: Conversion of type 'DbNull | EvidencePeriod' to type 'InputJsonValue' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'EvidencePeriod' is not comparable to type 'InputJsonValue'.
+    Type 'EvidencePeriod' is not comparable to type 'InputJsonObject'.
+      Index signature for type 'string' is missing in type 'EvidencePeriod'.
+lib/billing/engagement-invoice-service.ts(152,13): error TS2322: Type 'MissionRdvBreakdown[] | undefined' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type 'MissionRdvBreakdown[]' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+    Type 'MissionRdvBreakdown[]' is not assignable to type 'InputJsonObject'.
+      Index signature for type 'string' is missing in type 'MissionRdvBreakdown[]'.
+lib/billing/facturx-service.ts(14,11): error TS2430: Interface 'ExtendedCompanyIssuer' incorrectly extends interface '{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; country: string; logo: string | null; legalName: string; address: string; city: string; ... 11 more ...; defaultEarlyPaymentDiscount: string | null; }'.
+  Types of property 'legalForm' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+lib/billing/facturx-service.ts(26,11): error TS2430: Interface 'ExtendedInvoice' incorrectly extends interface '{ id: string; createdAt: Date; updatedAt: Date; status: InvoiceStatus; dueDate: Date; createdById: string; sentAt: Date | null; notes: string | null; ... 30 more ...; cancelledAt: Date | null; }'.
+  Types of property 'notes' are incompatible.
+    Type 'string | null | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+lib/billing/payment-matching-service.ts(115,48): error TS2576: Property 'amountToDecimal' does not exist on type 'QontoService'. Did you mean to access the static member 'QontoService.amountToDecimal' instead?
+lib/billing/payment-matching-service.ts(212,50): error TS2576: Property 'amountToDecimal' does not exist on type 'QontoService'. Did you mean to access the static member 'QontoService.amountToDecimal' instead?
+lib/comms/service.ts(57,11): error TS2322: Type '{ type_missionId?: { type: string; missionId: null; } | undefined; groupId?: string | undefined; campaignId?: string | undefined; clientId?: string | undefined; missionId?: string | undefined; }' is not assignable to type 'CommsChannelWhereUniqueInput'.
+  Type '{ type_missionId?: { type: string; missionId: null; } | undefined; groupId?: string | undefined; campaignId?: string | undefined; clientId?: string | undefined; missionId?: string | undefined; }' is not assignable to type '{ id: string; missionId: string; clientId: string; campaignId: string; groupId: string; } & { id?: string | undefined; missionId?: string | undefined; clientId?: string | undefined; campaignId?: string | undefined; ... 14 more ...; threads?: CommsThreadListRelationFilter | undefined; }'.
+    Property 'id' is missing in type '{ type_missionId?: { type: string; missionId: null; } | undefined; groupId?: string | undefined; campaignId?: string | undefined; clientId?: string | undefined; missionId?: string | undefined; }' but required in type '{ id: string; missionId: string; clientId: string; campaignId: string; groupId: string; }'.
+lib/comms/service.ts(364,36): error TS2352: Conversion of type 'BroadcastAudience | undefined' to type 'InputJsonValue' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'BroadcastAudience' is not comparable to type 'InputJsonValue'.
+    Type 'BroadcastAudience' is not comparable to type 'InputJsonObject'.
+      Index signature for type 'string' is missing in type 'BroadcastAudience'.
+lib/email/index.ts(9,1): error TS2308: Module './providers' has already exported a member named 'SendResult'. Consider explicitly re-exporting to resolve the ambiguity.
+lib/email/providers/gmail.ts(94,13): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/gmail.ts(97,13): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/gmail.ts(113,13): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/gmail.ts(310,13): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/gmail.ts(339,13): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/gmail.ts(497,25): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/gmail.ts(497,31): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/gmail.ts(639,21): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/email/providers/reachinbox.ts(1024,13): error TS2322: Type '({ email: string; name?: undefined; } | { email: string | undefined; name: string | undefined; })[]' is not assignable to type '{ email: string; name?: string | undefined; }[]'.
+  Type '{ email: string; name?: undefined; } | { email: string | undefined; name: string | undefined; }' is not assignable to type '{ email: string; name?: string | undefined; }'.
+    Type '{ email: string | undefined; name: string | undefined; }' is not assignable to type '{ email: string; name?: string | undefined; }'.
+      Types of property 'email' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string'.
+          Type 'undefined' is not assignable to type 'string'.
+lib/email/services/audit-service.ts(64,21): error TS2322: Type 'Record<string, unknown>' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+  Type 'Record<string, unknown>' is missing the following properties from type 'readonly (InputJsonValue | null)[]': length, concat, join, slice, and 26 more.
+lib/email/services/audit-service.ts(266,74): error TS2339: Property 'where' does not exist on type '{ select?: EmailAuditLogSelect<DefaultArgs> | null | undefined; omit?: EmailAuditLogOmit<DefaultArgs> | null | undefined; ... 6 more ...; distinct?: EmailAuditLogScalarFieldEnum | ... 1 more ... | undefined; } | undefined'.
+lib/google-drive.ts(60,5): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/google-drive.ts(61,5): error TS2322: Type 'number | null | undefined' is not assignable to type 'number | undefined'.
+  Type 'null' is not assignable to type 'number | undefined'.
+lib/google-drive.ts(63,5): error TS2322: Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+lib/google-drive.ts(117,26): error TS2345: Argument of type '{ access_token: string; refresh_token: string | undefined; expiry_date: number | null | undefined; scope: string | undefined; token_type: string | null | undefined; }' is not assignable to parameter of type '{ access_token: string; refresh_token?: string | undefined; expiry_date?: number | undefined; scope?: string | undefined; token_type?: string | undefined; }'.
+  Types of property 'expiry_date' are incompatible.
+    Type 'number | null | undefined' is not assignable to type 'number | undefined'.
+      Type 'null' is not assignable to type 'number | undefined'.
+lib/integrations/messaging/adapters/slack/oauth.ts(67,7): error TS2561: Object literal may only specify known properties, but 'installedAt' does not exist in type '(Without<MessagingWorkspaceUpdateInput, MessagingWorkspaceUncheckedUpdateInput> & MessagingWorkspaceUncheckedUpdateInput) | (Without<...> & MessagingWorkspaceUpdateInput)'. Did you mean to write 'installedBy'?
+lib/integrations/messaging/adapters/slack/oauth.ts(76,7): error TS2561: Object literal may only specify known properties, but 'installedAt' does not exist in type '(Without<MessagingWorkspaceCreateInput, MessagingWorkspaceUncheckedCreateInput> & MessagingWorkspaceUncheckedCreateInput) | (Without<...> & MessagingWorkspaceCreateInput)'. Did you mean to write 'installedBy'?
+lib/integrations/messaging/render/rdv.ts(116,5): error TS2353: Object literal may only specify known properties, and 'color' does not exist in type 'RenderedMessage'.
+lib/integrations/messaging/render/support.ts(70,5): error TS2353: Object literal may only specify known properties, and 'blocks' does not exist in type 'RenderedMessage'.
+lib/integrations/messaging/render/support.ts(131,5): error TS2353: Object literal may only specify known properties, and 'blocks' does not exist in type 'RenderedMessage'.
+lib/integrations/messaging/render/support.ts(165,5): error TS2353: Object literal may only specify known properties, and 'blocks' does not exist in type 'RenderedMessage'.
+lib/listing/apify-service.ts(135,3): error TS2322: Type '{ company: { name: string; domain: string | undefined; industry: string | undefined; country: string | undefined; city: string | undefined; state: string | undefined; phone: string | undefined; address: string | undefined; }; source: "apify-google-maps"; confidence: number; metadata: { ...; }; }[]' is not assignable to type 'ApolloEnrichmentResult[]'.
+  Type '{ company: { name: string; domain: string | undefined; industry: string | undefined; country: string | undefined; city: string | undefined; state: string | undefined; phone: string | undefined; address: string | undefined; }; source: "apify-google-maps"; confidence: number; metadata: { ...; }; }' is not assignable to type 'ApolloEnrichmentResult'.
+    Types of property 'source' are incompatible.
+      Type '"apify-google-maps"' is not assignable to type '"apollo"'.
+lib/openreplay/tracker.ts(155,28): error TS2304: Cannot find name 'fallbackSrc'.
+lib/openreplay/tracker.ts(158,32): error TS2304: Cannot find name 'fallbackSrc'.
+lib/playbook/parser.ts(205,5): error TS2322: Type '{ name: string; channel: string; objective: string | null; }[]' is not assignable to type 'ParsedPlaybookMission[]'.
+  Type '{ name: string; channel: string; objective: string | null; }' is not assignable to type 'ParsedPlaybookMission'.
+    Types of property 'channel' are incompatible.
+      Type 'string' is not assignable to type '"CALL" | "EMAIL" | "LINKEDIN"'.
+lib/prospects/help-content.ts(6,10): error TS2614: Module '"@/components/ui/HelpPanel"' has no exported member 'HelpSection'. Did you mean to use 'import HelpSection from "@/components/ui/HelpPanel"' instead?
+lib/prospects/pipeline-service.ts(43,5): error TS2741: Property 'events' is missing in type 'Partial<{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; status: ProspectStatus; title: string | null; companyName: string | null; ... 21 more ...; activatedCompanyId: string | null; }>' but required in type '{ events: { id: string; createdAt: Date; errorMessage: string | null; outcome: $Enums.DecisionOutcome | null; sourceId: string; step: $Enums.ProspectPipelineStep; ... 5 more ...; decisionLogId: string | null; }[]; ... 29 more ...; activatedCompanyId: string | null; }'.
+lib/prospects/pipeline-service.ts(82,5): error TS2741: Property 'events' is missing in type 'Partial<{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; status: ProspectStatus; title: string | null; companyName: string | null; ... 21 more ...; activatedCompanyId: string | null; }>' but required in type '{ events: { id: string; createdAt: Date; errorMessage: string | null; outcome: $Enums.DecisionOutcome | null; sourceId: string; step: $Enums.ProspectPipelineStep; ... 5 more ...; decisionLogId: string | null; }[]; ... 29 more ...; activatedCompanyId: string | null; }'.
+lib/prospects/pipeline-service.ts(119,22): error TS2551: Property 'assignedMission' does not exist on type '{ events: { id: string; createdAt: Date; errorMessage: string | null; outcome: DecisionOutcome | null; sourceId: string; step: ProspectPipelineStep; ... 5 more ...; decisionLogId: string | null; }[]; ... 29 more ...; activatedCompanyId: string | null; }'. Did you mean 'assignedMissionId'?
+lib/prospects/pipeline-service.ts(144,5): error TS2322: Type '{ events: { id: string; createdAt: Date; errorMessage: string | null; outcome: $Enums.DecisionOutcome | null; sourceId: string; step: $Enums.ProspectPipelineStep; ... 5 more ...; decisionLogId: string | null; }[]; ... 29 more ...; activatedCompanyId: string | null; }' is not assignable to type '(Without<ProspectProfileUpdateInput, ProspectProfileUncheckedUpdateInput> & ProspectProfileUncheckedUpdateInput) | (Without<...> & ProspectProfileUpdateInput)'.
+  Type '{ events: { id: string; createdAt: Date; errorMessage: string | null; outcome: $Enums.DecisionOutcome | null; sourceId: string; step: $Enums.ProspectPipelineStep; ... 5 more ...; decisionLogId: string | null; }[]; ... 29 more ...; activatedCompanyId: string | null; }' is not assignable to type 'Without<ProspectProfileUpdateInput, ProspectProfileUncheckedUpdateInput> & ProspectProfileUncheckedUpdateInput'.
+    Type '{ events: { id: string; createdAt: Date; errorMessage: string | null; outcome: $Enums.DecisionOutcome | null; sourceId: string; step: $Enums.ProspectPipelineStep; ... 5 more ...; decisionLogId: string | null; }[]; ... 29 more ...; activatedCompanyId: string | null; }' is not assignable to type 'ProspectProfileUncheckedUpdateInput'.
+      Types of property 'customFields' are incompatible.
+        Type 'JsonValue' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+          Type 'null' is not assignable to type 'NullableJsonNullValueInput | InputJsonValue | undefined'.
+lib/prospects/pipeline-service.ts(145,7): error TS2783: 'currentStep' is specified more than once, so this usage will be overwritten.
+lib/prospects/pipeline-service.ts(248,29): error TS2551: Property 'assignedMission' does not exist on type '{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; status: ProspectStatus; title: string | null; companyName: string | null; ... 21 more ...; activatedCompanyId: string | null; }'. Did you mean 'assignedMissionId'?
+lib/prospects/pipeline-service.ts(435,9): error TS2322: Type 'ApolloEnrichmentResult' is not assignable to type 'JsonNull | InputJsonValue'.
+  Type 'ApolloEnrichmentResult' is not assignable to type 'InputJsonObject'.
+    Index signature for type 'string' is missing in type 'ApolloEnrichmentResult'.
+lib/prospects/pipeline-service.ts(503,29): error TS2551: Property 'assignedMission' does not exist on type '{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; status: ProspectStatus; title: string | null; companyName: string | null; ... 21 more ...; activatedCompanyId: string | null; }'. Did you mean 'assignedMissionId'?
+lib/prospects/pipeline-service.ts(539,13): error TS2551: Property 'assignedMission' does not exist on type '{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; status: ProspectStatus; title: string | null; companyName: string | null; ... 21 more ...; activatedCompanyId: string | null; }'. Did you mean 'assignedMissionId'?
+lib/prospects/queue/index.ts(74,3): error TS2322: Type 'Queue<any, any, string, any, any, string>' is not assignable to type 'Queue<T, any, string, ExtractDataType<T, T>, ExtractResultType<T, any>, ExtractNameType<T, string>>'.
+  The types returned by 'add(...)' are incompatible between these types.
+    Type 'Promise<Job<any, any, string>>' is not assignable to type 'Promise<Job<ExtractDataType<T, T>, ExtractResultType<T, any>, ExtractNameType<T, string>>>'.
+      Type 'Job<any, any, string>' is not assignable to type 'Job<ExtractDataType<T, T>, ExtractResultType<T, any>, ExtractNameType<T, string>>'.
+        Type 'string' is not assignable to type 'ExtractNameType<T, string>'.
+lib/prospects/routing-service.ts(23,7): error TS2353: Object literal may only specify known properties, and 'source' does not exist in type 'ProspectProfileInclude<DefaultArgs>'.
+lib/prospects/routing-service.ts(46,15): error TS2339: Property 'source' does not exist on type '{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; status: ProspectStatus; title: string | null; companyName: string | null; ... 21 more ...; activatedCompanyId: string | null; }'.
+lib/prospects/routing-service.ts(47,25): error TS2339: Property 'source' does not exist on type '{ id: string; createdAt: Date; email: string | null; phone: string | null; updatedAt: Date; status: ProspectStatus; title: string | null; companyName: string | null; ... 21 more ...; activatedCompanyId: string | null; }'.
+lib/prospects/routing-service.ts(91,9): error TS2353: Object literal may only specify known properties, and 'where' does not exist in type 'UserDefaultArgs<DefaultArgs>'.
+lib/query-client.ts(8,48): error TS2339: Property 'defaultOptions' does not exist on type 'QueryClientConfig | undefined'.
+prisma/reset.ts(262,7): error TS2739: Type '{ MANAGER: string[]; SDR: string[]; BUSINESS_DEVELOPER: string[]; CLIENT: string[]; DEVELOPER: string[]; }' is missing the following properties from type 'Record<UserRole, string[]>': BOOKER, COMMERCIAL

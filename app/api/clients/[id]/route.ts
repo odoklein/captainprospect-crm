@@ -24,6 +24,8 @@ const updateClientSchema = z.object({
     bookingUrl: z.string().url().optional().or(z.literal('')),
     portalShowCallHistory: z.boolean().optional(),
     portalShowDatabase: z.boolean().optional(),
+    /** Lets the client export its database from the portal (stored in onboardingData.portalAllowExport) */
+    portalAllowExport: z.boolean().optional(),
     rdvEmailNotificationsEnabled: z.boolean().optional(),
     /** Persona / ICP (Ideal Customer Profile) — stored in onboardingData.icp */
     icp: z.string().optional(),
@@ -287,7 +289,7 @@ export const PUT = withErrorHandler(async (
     const data = await validateRequest(request, updateClientSchema);
 
     // Clean up empty strings for client fields
-    const { icp, defaultMailboxId, ...rest } = data;
+    const { icp, defaultMailboxId, portalAllowExport, ...rest } = data;
     const cleanData = {
         ...rest,
         email: data.email || undefined,
@@ -302,7 +304,7 @@ export const PUT = withErrorHandler(async (
             data: cleanData,
         });
 
-        if (icp !== undefined || defaultMailboxId !== undefined) {
+        if (icp !== undefined || defaultMailboxId !== undefined || portalAllowExport !== undefined) {
             const existing = await tx.clientOnboarding.findUnique({
                 where: { clientId: id },
                 select: { onboardingData: true },
@@ -315,6 +317,9 @@ export const PUT = withErrorHandler(async (
             }
             if (defaultMailboxId !== undefined) {
                 merged.defaultMailboxId = defaultMailboxId === '' ? undefined : defaultMailboxId;
+            }
+            if (portalAllowExport !== undefined) {
+                merged.portalAllowExport = portalAllowExport;
             }
 
             await tx.clientOnboarding.upsert({

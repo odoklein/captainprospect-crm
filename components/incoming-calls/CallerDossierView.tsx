@@ -225,7 +225,7 @@ export function CallerDossierView({
                 <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
                     <AlertOctagon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                     <div className="min-w-0">
-                        <p className="text-[13px] font-bold text-rose-800">Ne plus contacter</p>
+                        <p className="text-[13px] font-bold text-rose-800">Blacklist</p>
                         <p className="text-[12px] text-rose-700 mt-0.5">
                             {dossier.exclusion.reason} — depuis le {when(dossier.exclusion.createdAt)}
                         </p>

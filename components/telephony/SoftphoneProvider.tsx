@@ -18,6 +18,7 @@ import type { Call, Device } from "@twilio/voice-sdk";
 import { softphoneErrorMessage } from "@/lib/telephony/client-errors";
 import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
 import { isFinalStatus, type TelephonyStatus } from "@/lib/telephony/status";
+import { isCurrentAttempt } from "@/lib/telephony/client-state";
 import { CallIsland } from "./CallIsland";
 
 export interface DialTarget {
@@ -174,6 +175,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     const [call, setCall] = useState<SoftphoneCall | null>(null);
 
     const deviceRef = useRef<Device | null>(null);
+    const devicePromiseRef = useRef<Promise<Device> | null>(null);
+    const lifetimeRef = useRef(0);
     const twilioCallRef = useRef<Call | null>(null);
     /** Routes Device "error" events to the call being placed. */
     const deviceErrorRef = useRef<((e: { code?: number; message?: string }) => void) | null>(null);
@@ -199,6 +202,10 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     }, [eligible, session?.user?.id]);
 
     useEffect(() => () => {
+        keyRef.current++;
+        lifetimeRef.current++;
+        deviceErrorRef.current = null;
+        twilioCallRef.current = null;
         deviceRef.current?.destroy();
         deviceRef.current = null;
     }, []);
@@ -220,7 +227,11 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         const existing = deviceRef.current;
         if (existing && existing.state !== "destroyed") return existing;
 
+        if (devicePromiseRef.current) return devicePromiseRef.current;
+        const lifetime = lifetimeRef.current;
+        const pending = (async () => {
         const [{ Device: TwilioDevice, Call: TwilioCall }, token] = await Promise.all([import("@twilio/voice-sdk"), fetchToken()]);
+        if (lifetime !== lifetimeRef.current) throw new Error("Téléphone fermé");
         const device = new TwilioDevice(token, {
             edge: config?.edge ?? "dublin",
             codecPreferences: [TwilioCall.Codec.Opus, TwilioCall.Codec.PCMU],
@@ -236,6 +247,11 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         });
         deviceRef.current = device;
         return device;
+        })();
+        devicePromiseRef.current = pending;
+        try { return await pending; } finally {
+            if (devicePromiseRef.current === pending) devicePromiseRef.current = null;
+        }
     }, [config?.edge, fetchToken]);
 
     /** After hang-up, ask the server what Twilio recorded as the outcome (busy, no answer…). */
@@ -246,6 +262,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         const delays = [1500, 4000, 9000];
         let attempt = 0;
         const tick = () => {
+            if (key !== keyRef.current) return;
             fetchJson<{ status: TelephonyStatus; durationSec: number | null }>(`/api/telephony/calls/${callId}`)
                 .then((view) => {
                     if (isFinalStatus(view.status)) {
@@ -260,7 +277,10 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     }, [patch]);
 
     const finish = useCallback((key: number, phase: "ended" | "failed", error: string | null = null, callId?: string | null) => {
+        if (key !== keyRef.current) return;
         twilioCallRef.current = null;
+        deviceErrorRef.current = null;
+        pushLevels(ZERO_LEVELS);
         patch(key, (c) => (LIVE_PHASES.has(c.phase) ? { phase, endedAt: Date.now(), error, muted: false } : {}));
         if (callId) settleOutcome(key, callId);
     }, [patch, settleOutcome]);
@@ -281,6 +301,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             });
             callId = created.id;
         } catch (err) {
+            if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
             const refused = err instanceof ApiError && [403, 404, 409, 422].includes(err.status);
             patch(key, {
                 phase: "failed",
@@ -290,13 +311,13 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             });
             return;
         }
-        if (cancelledRef.current.has(key)) return;
+        if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
         patch(key, { callId, phase: "connecting" });
 
         // A Device failure while this call is being placed ends it with a readable
         // message; the broken Device is dropped so the next call starts clean.
         deviceErrorRef.current = (e) => {
-            if (cancelledRef.current.has(key)) return;
+            if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
             cancelledRef.current.add(key);
             twilioCallRef.current?.disconnect();
             deviceRef.current?.destroy();
@@ -306,19 +327,23 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
         try {
             const device = await getDevice();
-            if (cancelledRef.current.has(key)) return;
+            if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
             const twilioCall = await device.connect({ params: { callId } });
-            if (cancelledRef.current.has(key)) {
+            if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) {
                 twilioCall.disconnect();
                 return;
             }
             twilioCallRef.current = twilioCall;
 
             twilioCall.on("ringing", () => patch(key, (c) => (c.phase === "connecting" ? { phase: "ringing" } : {})));
-            twilioCall.on("accept", () => patch(key, { phase: "live", answeredAt: Date.now() }));
+            twilioCall.on("accept", () => {
+                if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
+                patch(key, (c) => LIVE_PHASES.has(c.phase) ? { phase: "live", answeredAt: Date.now() } : {});
+            });
             twilioCall.on("mute", (muted: boolean) => patch(key, { muted }));
-            twilioCall.on("volume", (input: number, output: number) => pushLevels({ input, output }));
-            twilioCall.on("disconnect", () => pushLevels(ZERO_LEVELS));
+            twilioCall.on("volume", (input: number, output: number) => {
+                if (isCurrentAttempt(key, keyRef.current, cancelledRef.current)) pushLevels({ input, output });
+            });
             twilioCall.on("disconnect", () => finish(key, "ended", null, callId));
             twilioCall.on("cancel", () => finish(key, "ended", null, callId));
             twilioCall.on("reject", () => finish(key, "ended", null, callId));
@@ -326,6 +351,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
                 finish(key, "failed", softphoneErrorMessage(e?.code, e?.message), callId);
             });
         } catch (err) {
+            if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
             const e = err as { code?: number; message?: string };
             finish(key, "failed", softphoneErrorMessage(e?.code, e?.message), callId);
         }
@@ -363,13 +389,11 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     const hangup = useCallback(() => {
         const current = callRef.current;
         if (!current) return;
+        if (!LIVE_PHASES.has(current.phase)) return;
+        cancelledRef.current.add(current.key);
         const twilioCall = twilioCallRef.current;
-        if (twilioCall) {
-            twilioCall.disconnect(); // fires "disconnect" → finish()
-        } else if (LIVE_PHASES.has(current.phase)) {
-            cancelledRef.current.add(current.key);
-            finish(current.key, "ended", null, current.callId);
-        }
+        finish(current.key, "ended", null, current.callId);
+        twilioCall?.disconnect();
     }, [finish]);
 
     const toggleMute = useCallback(() => {

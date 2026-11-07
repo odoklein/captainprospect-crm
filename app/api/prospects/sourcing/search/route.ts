@@ -28,6 +28,9 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
     const leads: SourcedLead[] = [];
     const warnings: string[] = [];
+    // The registry is free: deep runs simply read further down its ranking.
+    const depth = query.depth ?? "standard";
+    const registryCap = depth === "max" ? { perSearch: 1000, maxPages: 40 } : depth === "deep" ? { perSearch: 500, maxPages: 20 } : null;
 
     for (const location of query.locations) {
         if (source === "annuaire") {
@@ -42,7 +45,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                         ...(await searchAnnuaire({
                             activity,
                             area,
-                            perSearch: query.perSearch,
+                            perSearch: registryCap?.perSearch ?? query.perSearch,
+                            maxPages: registryCap?.maxPages,
                             activeOnly: query.activeOnly,
                             headcount: query.headcount,
                         })),
@@ -54,7 +58,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         } else {
             for (const activity of query.activities) {
                 try {
-                    leads.push(...(await searchApollo({ activity, location, perSearch: query.perSearch })));
+                    leads.push(...(await searchApollo({ activity, location, perSearch: depth === "standard" ? query.perSearch : 100 })));
                 } catch (e) {
                     warnings.push(`${activity.label} · ${location} : ${e instanceof Error ? e.message : "échec"}`);
                 }

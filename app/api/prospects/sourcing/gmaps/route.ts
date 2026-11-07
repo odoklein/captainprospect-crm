@@ -1,21 +1,21 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { errorResponse, requireRole, successResponse, validateRequest, withErrorHandler } from "@/lib/api-utils";
-import { getGmapsRun, gmapsEngine, providersStatus, searchSerperMaps, startGmapsRun } from "@/lib/sourcing/providers.server";
+import { getGmapsRun, gmapsEngine, providersStatus, startGmapsRun } from "@/lib/sourcing/providers.server";
+import { runMaps } from "@/lib/sourcing/deep.server";
 import { querySchema } from "@/lib/sourcing/schemas";
-import type { SourcedLead } from "@/lib/sourcing/types";
+import type { GmapsEvent } from "@/lib/sourcing/types";
 
 // ============================================
 // Google Maps has two engines:
-// - Serper.dev (SERPER_API_KEY, preferred): synchronous, POST returns the
-//   leads directly plus one warning per activity × location pair that failed.
+// - Serper.dev (SERPER_API_KEY, preferred): POST streams NDJSON events
+//   (plan, leads, progress, warning, done | error, see GmapsEvent) while the
+//   deep engine works through its tiles; closing the request stops the run.
 // - Apify (APIFY_API_TOKEN): an actor run of 1-3 minutes; POST starts it for
 //   every pair, GET polls it and returns the normalized leads once done.
 // ============================================
 
-// Up to ~100 départements × activities when the whole of France is picked.
-export const maxDuration = 300;
-
-const SERPER_CONCURRENCY = 8;
+// A max-depth run on a région can take several minutes.
+export const maxDuration = 800;
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireRole(["MANAGER"], request);
@@ -25,29 +25,38 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
     if (gmapsEngine() !== "serper") return successResponse(await startGmapsRun(query));
 
-    const pairs = query.activities.flatMap((activity) => query.locations.map((location) => ({ activity, location })));
-    const leads: SourcedLead[] = [];
-    const warnings: string[] = [];
-    let next = 0;
-    const worker = async () => {
-        while (next < pairs.length) {
-            const { activity, location } = pairs[next++];
+    const abort = new AbortController();
+    request.signal.addEventListener("abort", () => abort.abort());
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+            const emit = (e: GmapsEvent) => {
+                if (abort.signal.aborted) return;
+                try {
+                    controller.enqueue(encoder.encode(JSON.stringify(e) + "\n"));
+                } catch {
+                    abort.abort();
+                }
+            };
             try {
-                const found = await searchSerperMaps({ activity, location, perSearch: query.perSearch });
-                if (found.length === 0) warnings.push(`${activity.label} · ${location} : aucun résultat`);
-                leads.push(...found);
+                await runMaps(query, emit, abort.signal);
             } catch (e) {
-                warnings.push(`${activity.label} · ${location} : ${e instanceof Error ? e.message : "échec"}`);
+                emit({ t: "error", message: e instanceof Error ? e.message : "Échec Google Maps" });
+            } finally {
+                try {
+                    controller.close();
+                } catch {
+                    // Client already gone.
+                }
             }
-        }
-    };
-    await Promise.all(Array.from({ length: Math.min(SERPER_CONCURRENCY, pairs.length) }, worker));
-
-    // Every pair failed (bad key, no credits): surface it as an error, not an empty run.
-    if (leads.length === 0 && warnings.length === pairs.length && warnings.some((w) => w.includes("Serper "))) {
-        return errorResponse(warnings[0].replace(/^.*? : /, ""), 502);
-    }
-    return successResponse({ leads, warnings, searches: pairs.length });
+        },
+        cancel() {
+            abort.abort();
+        },
+    });
+    return new NextResponse(stream, {
+        headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Accel-Buffering": "no" },
+    });
 });
 
 export const GET = withErrorHandler(async (request: NextRequest) => {

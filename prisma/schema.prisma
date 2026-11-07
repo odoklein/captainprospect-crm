@@ -1485,6 +1485,42 @@ model Exclusion {
   @@index([createdAt])
 }
 
+/// One bulk upload of a blacklist ("Importer une liste"). Kept as its own record
+/// so the file a manager or client sent can be read back later: every row with
+/// what became of it. The rules themselves live in Exclusion; `ruleIds` ties the
+/// two together without a foreign key, because a lifted rule must never take its
+/// import history with it.
+model ExclusionImport {
+  id String @id @default(cuid())
+
+  fileName String?
+  scope    ExclusionScope
+  scopeId  String?
+  reason   String          @db.Text
+  /// Key of EXCLUSION_DURATIONS ("permanent", "3m", ...).
+  duration String
+  source   ExclusionSource
+
+  totalRows      Int
+  createdCount   Int @default(0)
+  /// Repeated in the file, or already covered by an active rule of the same scope.
+  duplicateCount Int @default(0)
+  /// No usable name, website or phone.
+  rejectedCount  Int @default(0)
+  appliedCompanies Int @default(0)
+  appliedContacts  Int @default(0)
+
+  /// [{ line, companyName, website, phone, status, ruleId? }] as submitted.
+  rows    Json
+  ruleIds String[] @default([])
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([scope, scopeId, createdAt])
+  @@index([createdAt])
+}
+
 // Result categories for grouping statuses in reports and client portal (Activité)
 model ResultCategory {
   id          String   @id @default(cuid())

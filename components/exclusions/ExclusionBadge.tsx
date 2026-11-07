@@ -55,7 +55,7 @@ export function ExclusionBadge({
             )}
         >
             {isTemporary ? <Clock className="w-3 h-3" /> : <Ban className="w-3 h-3" />}
-            Ne plus contacter
+            Blacklist
         </span>
     );
 }

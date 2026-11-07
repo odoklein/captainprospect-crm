@@ -1,0 +1,26 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "../next-env.d.ts",
+    "../types/**/*.d.ts",
+    "../app/sdr/action/page.tsx",
+    "../app/sdr/focus/page.tsx",
+    "../app/sdr/appels/page.tsx",
+    "../components/telephony/**/*.tsx",
+    "../components/calls/**/*.tsx",
+    "../components/layout/AppLayoutShell.tsx",
+    "../components/sdr/CallingWorkspaceNav.tsx",
+    "../lib/telephony/client-state*.ts",
+    "../lib/calls-journal/service.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../work",
+    "../.next",
+    "../lead-hub",
+    "../console"
+  ]
+}

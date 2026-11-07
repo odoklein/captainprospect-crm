@@ -7,6 +7,7 @@ import {
     NotFoundError,
 } from "@/lib/api-utils";
 import { audit, AUDIT_ACTIONS } from "@/lib/audit";
+import { clientMayExport } from "@/lib/client-portal-export";
 
 // ============================================
 // GET /api/client/missions/[id]/export
@@ -23,6 +24,10 @@ export const GET = withErrorHandler(async (
     const clientId = (session.user as { clientId?: string })?.clientId;
     if (!clientId) {
         throw new AuthError("Accès non autorisé", 403);
+    }
+
+    if (!(await clientMayExport(clientId))) {
+        throw new AuthError("L'export des données n'est pas activé pour votre compte", 403);
     }
 
     const mission = await prisma.mission.findUnique({

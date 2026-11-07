@@ -8,6 +8,7 @@ import { SidebarProvider, useSidebar } from "./SidebarProvider";
 import { PermissionProvider } from "@/lib/permissions/PermissionProvider";
 import { GlobalSidebar, MobileMenuButton } from "./GlobalSidebar";
 import { GlobalSearchModal } from "./GlobalSearchModal";
+import { CallingWorkspaceNav } from "@/components/sdr/CallingWorkspaceNav";
 import { SectionTabs } from "./SectionTabs";
 import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
@@ -202,13 +203,13 @@ function InnerLayout({
     const currentPage = pageLabels[rawPage?.toLowerCase()] || rawPage;
 
     return (
-        <div className="cp-layout">
+        <div className={cn("cp-layout", pathname.startsWith("/sdr") && "sdr-studio")}>
             <GlobalSearchModal
                 open={searchOpen}
                 onClose={closeSearch}
                 navigation={navigation}
             />
-            <GlobalSidebar navigation={navigation} />
+            {!isAssistantChat && <GlobalSidebar navigation={navigation} />}
 
             <main
                 className={cn(
@@ -216,16 +217,16 @@ function InnerLayout({
                     // Hovering a collapsed sidebar only peeks it over the page
                     // (it has its own shadow for that): pushing the page aside
                     // on every pass of the pointer reflowed the whole screen.
-                    isCollapsed ? "cp-main-collapsed" : "cp-main-expanded"
+                    !isAssistantChat && (isCollapsed ? "cp-main-collapsed" : "cp-main-expanded")
                 )}
             >
-                <header className="cp-topbar">
+                {!isAssistantChat && <header className="cp-topbar">
                     <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
                         <MobileMenuButton />
-                        <SectionTabs
+                        {["/sdr/action", "/sdr/focus", "/sdr/appels"].includes(pathname) ? <CallingWorkspaceNav /> : <SectionTabs
                             navigation={navigation}
                             fallback={{ root: roleConfig?.label || "App", current: currentPage }}
-                        />
+                        />}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -266,11 +267,13 @@ function InnerLayout({
                         </button>
                         <NotificationBell />
                     </div>
-                </header>
+                </header>}
+                <div className="cp-call-space shrink-0" aria-hidden />
 
                 {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat || isCallWorkspace ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
-                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px - var(--softphone-dock-h, 0px))' }}>
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: isAssistantChat ? '100dvh' : 'calc(100dvh - 48px - var(--softphone-dock-h, 0px))' }}>
+
                         {children}
                     </div>
                 ) : (

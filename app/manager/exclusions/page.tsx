@@ -11,6 +11,7 @@ import {
     RotateCcw,
     Search,
     ShieldCheck,
+    Upload,
     User,
     Users,
 } from "lucide-react";
@@ -34,6 +35,8 @@ import {
     EXCLUSION_SOURCE_LABELS,
     EXCLUSION_TARGET_LABELS,
 } from "@/lib/exclusions/constants";
+import { ExclusionImportDialog } from "@/components/exclusions/ExclusionImportDialog";
+import { ExclusionImportHistory } from "@/components/exclusions/ExclusionImportHistory";
 import { cn } from "@/lib/utils";
 
 interface ExclusionRow {
@@ -70,6 +73,8 @@ export default function ManagerExclusionsPage() {
     const [state, setState] = useState<StateFilter>("active");
     const [search, setSearch] = useState("");
     const [isCreateOpen, setCreateOpen] = useState(false);
+    const [isImportOpen, setImportOpen] = useState(false);
+    const [importsKey, setImportsKey] = useState(0);
     const [liftTarget, setLiftTarget] = useState<ExclusionRow | null>(null);
 
     const load = useCallback(async () => {
@@ -106,16 +111,22 @@ export default function ManagerExclusionsPage() {
     return (
         <div className="p-6 space-y-6">
             <PageHeader
-                title="Ne plus contacter"
+                title="Blacklist"
                 subtitle="Les sociétés et contacts retirés de la prospection, et pourquoi"
                 icon={<Ban className="w-6 h-6" />}
                 onRefresh={load}
                 isRefreshing={isLoading}
                 actions={
-                    <Button onClick={() => setCreateOpen(true)}>
-                        <Plus className="w-4 h-4" />
-                        Exclure une société
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => setImportOpen(true)}>
+                            <Upload className="w-4 h-4" />
+                            Importer une liste
+                        </Button>
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="w-4 h-4" />
+                            Exclure une société
+                        </Button>
+                    </div>
                 }
             />
 
@@ -171,6 +182,19 @@ export default function ManagerExclusionsPage() {
                     ))}
                 </div>
             )}
+
+            <ExclusionImportHistory endpoint="/api/exclusions/import" refreshKey={importsKey} showScope />
+
+            <ExclusionImportDialog
+                isOpen={isImportOpen}
+                onClose={() => setImportOpen(false)}
+                onImported={() => {
+                    setImportsKey((k) => k + 1);
+                    load();
+                }}
+                endpoint="/api/exclusions/import"
+                withClientPicker
+            />
 
             <CreateExclusionModal
                 isOpen={isCreateOpen}

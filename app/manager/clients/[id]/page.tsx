@@ -148,7 +148,7 @@ interface Client {
     missions?: Mission[];
     users?: PortalUser[];
     interlocuteurs?: ClientInterlocuteur[];
-    onboarding?: { onboardingData?: { icp?: string } | null } | null;
+    onboarding?: { onboardingData?: { icp?: string; portalAllowExport?: boolean } | null } | null;
     insights?: {
         production: {
             month: string;
@@ -1195,6 +1195,28 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             }
         } catch {
             setClient((prev) => (prev ? { ...prev, [key]: previous } : prev));
+            showError("Erreur", "Impossible de mettre à jour le portail client");
+        } finally {
+            setIsSavingPortalSettings(false);
+        }
+    };
+
+    const handlePortalExportChange = async (value: boolean) => {
+        if (!client) return;
+        setIsSavingPortalSettings(true);
+        try {
+            const res = await fetch(`/api/clients/${client.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ portalAllowExport: value }),
+            });
+            const json = await res.json();
+            if (json.success) {
+                setClient((prev) => (prev ? { ...prev, ...json.data } : prev));
+            } else {
+                showError("Erreur", json.error || "Impossible de mettre à jour le portail client");
+            }
+        } catch {
             showError("Erreur", "Impossible de mettre à jour le portail client");
         } finally {
             setIsSavingPortalSettings(false);
@@ -2320,6 +2342,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                                                         label="Afficher la base de données dans le portail client"
                                                         checked={client.portalShowDatabase ?? false}
                                                         onChange={(next) => handlePortalVisibilityChange("portalShowDatabase", next)}
+                                                        disabled={isSavingPortalSettings}
+                                                    />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <span className="text-xs text-slate-700">Export de la base <span className="text-slate-400">(CSV)</span></span>
+                                                    <Toggle
+                                                        label="Autoriser le client à exporter sa base de données"
+                                                        checked={client.onboarding?.onboardingData?.portalAllowExport === true}
+                                                        onChange={handlePortalExportChange}
                                                         disabled={isSavingPortalSettings}
                                                     />
                                                 </div>

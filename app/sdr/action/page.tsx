@@ -67,6 +67,7 @@ import { QuickEmailModal } from "@/components/email/QuickEmailModal";
 import type { ActionResult, Channel } from "@/lib/types";
 import { ACTION_RESULT_LABELS, CHANNEL_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { matchesCallTarget } from "@/lib/telephony/client-state";
 import { contactedWarningContext } from "@/lib/sdr-queue/last-action";
 import {
     sdrActionQueueKey,
@@ -966,7 +967,7 @@ export default function SDRActionPage() {
         lastAction?: {
             result: string;
             note?: string | null;
-            createdAt?: string;
+            createdAt: string;
             callbackDate?: string | null;
             scope?: "CONTACT" | "COMPANY" | null;
         } | null;
@@ -1519,13 +1520,19 @@ export default function SDRActionPage() {
     const autoRowKey = drawerRow ? queueRowKey(drawerRow) : null;
     const autoPhone = rowPhone(drawerRow);
     const autoCallActive = isCallActive(softCall);
-    const autoCallIsOurs = Boolean(softCall && drawerRow && softCall.target.companyId === drawerRow.companyId);
-    if (autoMode && autoCallIsOurs && softCall?.callId && softCall.callId !== autoCallId) setAutoCallId(softCall.callId);
+    const autoCallIsOurs = Boolean(softCall && drawerRow && matchesCallTarget(softCall.target, {
+        companyId: drawerRow.companyId,
+        contactId: drawerRow.contact?.phone ? drawerRow.contactId : null,
+    }));
+    useEffect(() => {
+        if (autoMode && autoCallIsOurs && softCall?.callId) setAutoCallId(softCall.callId);
+    }, [autoMode, autoCallIsOurs, softCall?.callId]);
     const autoInsights = useCallTranscript(autoMode && insightsOn ? autoCallId : null, autoMode && insightsOn && Boolean(autoCallId));
     const autoSuggestion = autoInsights.summary.status === "done" ? autoInsights.summary.data.suggestedStatus : null;
 
     /** Opens the row after `fromKey` that has a number (or the first one). */
     const openAutoRow = (fromKey: string | null) => {
+        if (autoCallActive) return;
         const list = filteredQueueItems;
         let idx = fromKey ? list.findIndex((r) => queueRowKey(r) === fromKey) + 1 : 0;
         while (idx < list.length && !rowPhone(list[idx])) idx++;
@@ -1565,7 +1572,7 @@ export default function SDRActionPage() {
     };
 
     const autoDial = () => {
-        if (!drawerRow || !autoPhone) return;
+        if (!drawerRow || !autoPhone || autoCallActive || !autoMode || !unifiedDrawerOpen) return;
         autoDialedFor.current = autoRowKey;
         setAutoCountdown(null);
         softphoneDial({
@@ -1604,6 +1611,7 @@ export default function SDRActionPage() {
         if (!autoMode) return;
         const onKey = (e: KeyboardEvent) => {
             if (e.key === "Escape" && autoCountdown !== null) {
+                e.preventDefault();
                 e.stopPropagation();
                 cancelAutoDial();
             }
@@ -2930,7 +2938,7 @@ export default function SDRActionPage() {
                                 <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <User className="w-3.5 h-3.5" /> Carte
                                 </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <Building2 className="w-3.5 h-3.5" /> Tableau
                                 </button>
                             </div>
@@ -3011,7 +3019,7 @@ export default function SDRActionPage() {
                                 <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <User className="w-3.5 h-3.5" /> Carte
                                 </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
+                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", "text-white/60 hover:text-white hover:bg-white/10")}>
                                     <Building2 className="w-3.5 h-3.5" /> Tableau
                                 </button>
                             </div>
@@ -3362,7 +3370,7 @@ export default function SDRActionPage() {
                                                         <a
                                                             href={`tel:${currentAction.company.phone}`}
                                                             data-softphone="managed"
-                                onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
+                                onClick={(e) => handlePhoneCallAttempt(e, currentAction.company!.phone!, callContext)}
                                                             className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                         >
                                                             <Phone className="w-4 h-4" />

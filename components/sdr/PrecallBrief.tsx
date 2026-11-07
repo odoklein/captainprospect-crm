@@ -37,8 +37,10 @@ export function PrecallBrief({
     /** A section of a workspace pane (Mode Focus) rather than a card. */
     flat?: boolean;
 }) {
-    const [state, setState] = useState<State>({ status: "loading" });
     const [nonce, setNonce] = useState(0);
+    const requestKey = `${companyId}:${contactId ?? ""}:${missionId}:${nonce}`;
+    const [loaded, setLoaded] = useState<{ key: string; value: State } | null>(null);
+    const state: State = loaded?.key === requestKey ? loaded.value : { status: "loading" };
 
     useEffect(() => {
         const ctrl = new AbortController();
@@ -48,17 +50,22 @@ export function PrecallBrief({
         fetch(`/api/sdr/brief?${qs}`, { signal: ctrl.signal })
             .then((r) => r.json())
             .then((json) => {
-                if (json?.success) setState(json.data);
-                else setState({ status: "unavailable", reason: json?.error ?? "Brief indisponible" });
+                if (ctrl.signal.aborted) return;
+                const data = json?.data;
+                const validBrief = data?.status === "ready" && typeof data.brief?.context === "string"
+                    && typeof data.brief?.angle === "string"
+                    && [data.brief?.talkingPoints, data.brief?.questions, data.brief?.watchOut].every((items) => Array.isArray(items) && items.every((item) => typeof item === "string"));
+                const value: State = json?.success && (validBrief || data?.status === "unavailable")
+                    ? data : { status: "unavailable", reason: json?.error ?? "Brief indisponible" };
+                setLoaded({ key: requestKey, value });
             })
             .catch((e) => {
-                if ((e as Error).name !== "AbortError") setState({ status: "unavailable", reason: "Brief indisponible" });
+                if (!ctrl.signal.aborted && (e as Error).name !== "AbortError") setLoaded({ key: requestKey, value: { status: "unavailable", reason: "Brief indisponible" } });
             });
         return () => ctrl.abort();
-    }, [companyId, contactId, missionId, nonce]);
+    }, [companyId, contactId, missionId, nonce, requestKey]);
 
     const regenerate = () => {
-        setState({ status: "loading" });
         setNonce((n) => n + 1);
     };
 

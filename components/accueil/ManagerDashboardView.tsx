@@ -7,20 +7,21 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import {
-    Activity, ArrowUpRight, Bell, Calendar, CalendarCheck, ChevronDown, Flame, Loader2, Phone,
+    Activity, ArrowUpRight, Bell, Calendar, CalendarCheck, ChevronDown, Flame, Loader2,
     Plus, RefreshCw, Star, Target, TrendingUp, Trophy, Users,
 } from "lucide-react";
 import {
-    Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+    Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { DateRangeFilter, type DateRangeValue } from "@/components/dashboard/DateRangeFilter";
-import { groupOutcomes } from "@/lib/manager-home/outcomes";
+import { ACTION_RESULT_LABELS } from "@/lib/types";
+import { groupOutcomes, outcomeOf, prettyResult } from "@/lib/manager-home/outcomes";
 import { relativeChange } from "@/lib/manager-home/rules";
 import type { ManagerHomePeriod } from "@/lib/manager-home/types";
 import {
-    BADGE, CARD, ChartTooltip, Delta, EmptyBlock, FOCUS, HeroCard, HeroPill, HeroTile, ICON_BUTTON, IconTile, Initials,
-    KpiCard, PRIMARY_BUTTON, ProgressBar, ROW, SECONDARY_BUTTON, SectionHeader, SelectField, Shimmer, StatusPill, TextLink,
+    BADGE, CARD, ChartTooltip, Delta, EmptyBlock, FOCUS, HeroCard, ICON_BUTTON, Initials,
+    PRIMARY_BUTTON, ProgressBar, ROW, SECONDARY_BUTTON, SectionHeader, SelectField, Shimmer, TextLink,
     formatInt, relativeTime, type AccueilTone,
 } from "./AccueilUI";
 
@@ -28,6 +29,7 @@ import {
 
 export interface ManagerDashboardStats {
     totalActions: number;
+    totalCalls?: number;
     joinedCalls?: number;
     meetingsBooked: number;
     conversionRate: number;
@@ -118,6 +120,11 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
     } = props;
 
     const [dateFilterOpen, setDateFilterOpen] = useState(false);
+    const dateTrigger = useRef<HTMLButtonElement>(null);
+    const closeDateFilter = () => {
+        setDateFilterOpen(false);
+        dateTrigger.current?.focus();
+    };
 
     const meetings = stats?.meetingsBooked ?? 0;
     const actions = stats?.totalActions ?? 0;
@@ -125,7 +132,8 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
     const conversion = stats?.conversionRate ?? 0;
     const reach = stats?.reachRate ?? null;
     const joinedCalls = stats?.joinedCalls ?? 0;
-    const callsPerRdv = meetings > 0 ? Math.round(actions / meetings) : null;
+    const totalCalls = stats?.totalCalls;
+    const callsPerRdv = meetings > 0 && totalCalls != null ? Math.round(totalCalls / meetings) : null;
 
     // Comparison: both sides from /api/manager/home/period so they share one definition.
     const cur = period?.current;
@@ -156,67 +164,50 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
     const updatedLabel = updatedAt
         ? new Date(updatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
         : null;
-    const missionLabel = missionFilter
-        ? missions.find((m) => m.id === missionFilter)?.name ?? "Mission sélectionnée"
-        : "Toutes les missions";
-
     return (
         <div className="w-full space-y-6 pb-12 antialiased text-zinc-900">
             {/* ═══ 1. Header ═══ */}
             <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 pt-1">
                 <div className="space-y-1.5 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span
-                            aria-live="polite"
-                            className={cn(
-                                "inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-semibold border shadow-2xs whitespace-nowrap",
-                                isFetching ? "bg-slate-50 text-zinc-600 border-slate-200" : "bg-emerald-50 text-emerald-700 border-emerald-200/80",
-                            )}
-                        >
-                            {isFetching ? (
-                                <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" aria-hidden />
-                            ) : (
-                                <span className="relative flex w-2 h-2" aria-hidden>
-                                    <span className="absolute inset-0 rounded-full bg-emerald-500 opacity-60 motion-safe:animate-ping" />
-                                    <span className="relative w-2 h-2 rounded-full bg-emerald-500" />
-                                </span>
-                            )}
-                            {isFetching ? "Actualisation…" : updatedLabel ? `En direct · ${updatedLabel}` : "En direct"}
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-ink">Bonjour, {firstName}</h1>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-ink-3">
+                        <span>Tableau de bord de l’équipe</span>
+                        <span aria-live="polite" className="inline-flex items-center gap-1.5">
+                            {isFetching
+                                ? <Loader2 className="size-3 motion-safe:animate-spin" aria-hidden />
+                                : <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />}
+                            {isFetching ? "Actualisation…" : updatedLabel ? `Mis à jour à ${updatedLabel}` : "En attente de données"}
                         </span>
-                        <StatusPill tone="slate" icon={Calendar}>{periodLabel}</StatusPill>
-                        <StatusPill tone={missionFilter ? "indigo" : "slate"} icon={Target}>
-                            <span className="max-w-[220px] truncate">{missionLabel}</span>
-                        </StatusPill>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
-                        Bonjour, {firstName}
-                    </h1>
-                    <p className="text-xs sm:text-sm text-zinc-500 font-medium">
-                        Tableau de bord de l&apos;équipe : RDV, résultats d&apos;appels et missions.
-                    </p>
                 </div>
 
-                <div className="flex flex-wrap xl:flex-nowrap items-center gap-2 flex-shrink-0">
-                    <div className="relative">
+                <div className="relative flex flex-wrap items-center gap-2">
+                    <div>
                         <button
                             type="button"
+                            ref={dateTrigger}
                             onClick={() => setDateFilterOpen((o) => !o)}
                             aria-expanded={dateFilterOpen}
                             aria-haspopup="dialog"
                             className={SECONDARY_BUTTON}
                         >
                             <Calendar className="w-3.5 h-3.5 text-emerald-600" aria-hidden />
-                            <span>{dateRange.preset ? periodLabel : "Plage personnalisée"}</span>
+                            <span>{periodLabel}</span>
                             <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform", dateFilterOpen && "rotate-180")} aria-hidden />
                         </button>
                         {dateFilterOpen && (
                             <>
-                                <div className="fixed inset-0 z-40" aria-hidden onClick={() => setDateFilterOpen(false)} />
-                                <div className="absolute left-0 xl:left-auto xl:right-0 top-full mt-2 z-50 max-w-[calc(100vw-2rem)]">
+                                <div className="fixed inset-0 z-40" aria-hidden onClick={closeDateFilter} />
+                                <div role="dialog" aria-label="Choisir une période"
+                                    onKeyDown={(e) => { if (e.key === "Escape") closeDateFilter(); }}
+                                    className="absolute left-0 xl:left-auto xl:right-0 top-full mt-2 z-50 w-[780px] max-w-full">
                                     <DateRangeFilter
                                         value={dateRange}
-                                        onChange={onDateRangeChange}
-                                        onClose={() => setDateFilterOpen(false)}
+                                        onChange={(value) => {
+                                            onDateRangeChange(value);
+                                            if (value.preset) closeDateFilter();
+                                        }}
+                                        onClose={closeDateFilter}
                                         isOpen
                                     />
                                 </div>
@@ -250,52 +241,34 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
                 <RdvHero
                     className="xl:col-span-8"
                     meetings={meetings}
-                    actions={actions}
-                    joinedCalls={joinedCalls}
                     callsPerRdv={callsPerRdv}
-                    conversion={conversion}
                     periodLabel={periodLabel}
                     delta={deltas.meetings}
                     previousMeetings={prev?.meetings ?? null}
                     rangeDays={rangeDays}
                     period={period}
                 />
-                <div className="xl:col-span-4 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
-                    <KpiCard
-                        label="Appels effectués"
-                        value={<CountUp value={actions} />}
-                        sub={<Delta value={deltas.actions} suffix="vs période préc." />}
-                        visual={<IconTile icon={Phone} tone="emerald" size="lg" />}
-                    />
-                    <KpiCard
-                        label="Leads chauds"
-                        value={<CountUp value={hotLeads} />}
-                        badge={{ text: "Qualifiés", tone: "indigo" }}
-                        sub={<Delta value={deltas.hotLeads} suffix="vs période préc." />}
-                        visual={<IconTile icon={Flame} tone="indigo" size="lg" />}
-                    />
-                    <KpiCard
-                        label="Taux de conversion"
-                        value={pct1(conversion)}
-                        sub={
-                            <span className="tabular-nums">
-                                RDV / joints · {reach !== null ? `${pct1(reach)} de joints` : "pas encore de joints"}
-                            </span>
-                        }
-                        visual={<IconTile icon={TrendingUp} tone="teal" size="lg" />}
-                    />
-                </div>
+                <dl className={cn(CARD, "xl:col-span-4 grid min-w-0 divide-y divide-line-subtle overflow-hidden sm:grid-cols-3 sm:divide-x sm:divide-y-0 xl:grid-cols-1 xl:divide-x-0 xl:divide-y")}>
+                    <DashboardMetric label="Actions CRM" icon={Activity} value={<CountUp value={actions} />}>
+                        <Delta value={deltas.actions} suffix="vs période préc." />
+                    </DashboardMetric>
+                    <DashboardMetric label="Leads chauds" icon={Flame} value={<CountUp value={hotLeads} />}>
+                        <Delta value={deltas.hotLeads} suffix="vs période préc." />
+                    </DashboardMetric>
+                    <DashboardMetric label="Taux de conversion" icon={TrendingUp} value={joinedCalls > 0 ? pct1(conversion) : "—"}>
+                        {formatInt(joinedCalls)} appels joints{reach !== null && ` · ${pct1(reach)} des appels`}
+                    </DashboardMetric>
+                </dl>
             </div>
 
             {/* ═══ 3. Workspace ═══ */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
                 <div className="xl:col-span-8 space-y-6 min-w-0">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <ResultsCard slices={outcomes.slices} total={outcomes.total} meetings={meetings} />
+                        <ResultsCard slices={outcomes.slices} total={outcomes.total} breakdown={stats?.resultBreakdown ?? {}} />
                         <FollowUpCard callbacks={callbackCount} interested={interestedCount} />
                     </div>
                     <MissionsCard missions={missionsNearGoal} />
-                    <ProgressionCard period={period} meetings={meetings} previousMeetings={prev?.meetings ?? null} />
                 </div>
 
                 <div className="xl:col-span-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 gap-6 min-w-0">
@@ -307,6 +280,23 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
     );
 }
 
+function DashboardMetric({ label, icon: Icon, value, children }: {
+    label: string;
+    icon: typeof Activity;
+    value: ReactNode;
+    children: ReactNode;
+}) {
+    return (
+        <div className="min-w-0 px-5 py-4">
+            <dt className="flex items-center gap-2 text-xs font-semibold text-ink-2">
+                <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />{label}
+            </dt>
+            <dd className="mt-1.5 text-3xl font-semibold leading-none tracking-tight text-ink tabular-nums">{value}</dd>
+            <dd className="mt-1.5 text-xs text-ink-3">{children}</dd>
+        </div>
+    );
+}
+
 function CountUp({ value }: { value: number }) {
     const n = useCountUp(value);
     return <>{formatInt(n)}</>;
@@ -314,155 +304,142 @@ function CountUp({ value }: { value: number }) {
 
 // ─── Hero: RDV décrochés ────────────────────────────────────────────────────
 
-function RdvHero({ className, meetings, actions, joinedCalls, callsPerRdv, conversion, periodLabel, delta, previousMeetings, rangeDays, period }: {
+function RdvHero({ className, meetings, callsPerRdv, periodLabel, delta, previousMeetings, rangeDays, period }: {
     className?: string;
     meetings: number;
-    actions: number;
-    joinedCalls: number;
     callsPerRdv: number | null;
-    conversion: number;
     periodLabel: string;
     delta: number | null;
     previousMeetings: number | null;
     rangeDays: number;
     period: ManagerHomePeriod | null;
 }) {
-    const count = useCountUp(meetings);
-    const series = period?.series ?? [];
+    const [cumulative, setCumulative] = useState(false);
     const unit = period?.range.granularity === "week" ? "semaine" : "jour";
-    const perDay = rangeDays > 0 ? Math.round((meetings / rangeDays) * 10) / 10 : 0;
+    const data = useMemo(() => {
+        const series = period?.series ?? [];
+        let running = 0;
+        const points = [];
+        for (const [index, bucket] of series.entries()) {
+            running += bucket.meetings;
+            points.push({
+                ...bucket,
+                cumul: running,
+                pace: previousMeetings === null ? null : Math.round(previousMeetings * (index + 1) / series.length),
+            });
+        }
+        return points;
+    }, [period, previousMeetings]);
 
     return (
-        <HeroCard className={cn("flex flex-col justify-between gap-5", className)}>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                    <HeroPill icon={Trophy}>RDV décrochés</HeroPill>
-                    <span className="inline-flex items-center h-7 px-2.5 rounded-full text-[11px] font-bold bg-accent/15 text-inverse-ink-2 border border-emerald-400/20 tabular-nums">
-                        {pct1(Math.round(conversion * 10) / 10)} conv.
-                    </span>
+        <HeroCard className={cn("flex min-w-0 flex-col gap-5", className)}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h2 className="flex items-center gap-2 text-base font-semibold text-white">
+                        <CalendarCheck className="size-4 text-accent-300" aria-hidden /> RDV décrochés
+                    </h2>
+                    <p className="mt-1 text-xs text-inverse-ink-2">{periodLabel}</p>
                 </div>
-                <span className="text-xs text-accent-300 font-semibold">{periodLabel}</span>
+                <div role="group" aria-label="Affichage des RDV" className="inline-flex rounded-lg border border-inverse-line bg-inverse-raised p-0.5">
+                    {[false, true].map((mode) => (
+                        <button key={String(mode)} type="button" aria-pressed={cumulative === mode} onClick={() => setCumulative(mode)}
+                            className={cn("rounded-md px-3 py-1.5 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-emerald-300",
+                                cumulative === mode ? "bg-white text-zinc-900" : "text-inverse-ink-2 hover:text-white")}>
+                            {mode ? "Cumul" : `Par ${unit}`}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            <div className="flex items-end justify-between gap-6">
+            <div className="grid flex-1 items-center gap-4 sm:grid-cols-[minmax(8rem,1fr)_minmax(0,2fr)]">
+                <div>
+                    <p className="text-6xl font-semibold leading-none tracking-tighter text-white tabular-nums">{formatInt(meetings)}</p>
+                    <div className="mt-2"><Delta value={delta} onDark suffix="vs période préc." /></div>
+                </div>
                 <div className="min-w-0">
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-[56px] sm:text-[64px] font-black leading-[0.9] tracking-tighter text-white">
-                            {formatInt(count)}
-                        </span>
-                        <span className="text-lg font-black text-inverse-ink-3">RDV</span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <Delta value={delta} onDark suffix="vs période préc." />
-                        <span className="text-xs text-inverse-ink-2 font-medium">
-                            {previousMeetings !== null
-                                ? `contre ${formatInt(previousMeetings)} RDV sur la période précédente`
-                                : "pas de période de comparaison"}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Real RDV per day (or week) — replaces the evenly-spread fake sparkline. */}
-                <div className="hidden sm:block w-[46%] max-w-[340px] min-w-[180px]">
-                    <div className="h-[64px]" aria-label={`RDV par ${unit}`} role="img">
-                        {series.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                                <BarChart data={series} margin={{ top: 2, right: 0, bottom: 0, left: 0 }} barCategoryGap={2}>
-                                    <Tooltip
-                                        cursor={{ fill: "rgba(255,255,255,0.06)" }}
-                                        content={(p) => (
-                                            <ChartTooltip active={p.active} payload={p.payload} label={p.label} />
+                    {data.length ? (
+                        <>
+                            <div className="h-36" role="region" aria-label={cumulative ? "RDV cumulés" : `RDV par ${unit}`}>
+                                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                                    <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                                        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.12)" />
+                                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--ds-inverse-ink-2)" }} axisLine={false} tickLine={false} minTickGap={18} interval="preserveStartEnd" />
+                                        <YAxis allowDecimals={false} width={32} tickCount={3} tick={{ fontSize: 10, fill: "var(--ds-inverse-ink-2)" }} axisLine={false} tickLine={false} />
+                                        <Tooltip cursor={{ fill: "rgba(255,255,255,0.06)", stroke: "rgba(255,255,255,0.18)" }} content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} />} />
+                                        {cumulative && previousMeetings !== null && (
+                                            <Line dataKey="pace" name="Rythme précédent" stroke="#a1a1aa" strokeDasharray="4 4" dot={data.length === 1} isAnimationActive={false} />
                                         )}
-                                    />
-                                    <Bar dataKey="meetings" name="RDV" fill="#34D399" radius={[4, 4, 0, 0]} maxBarSize={18} minPointSize={2} isAnimationActive={false} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <div className="h-full rounded-xl bg-inverse-raised motion-safe:animate-pulse" />
-                        )}
-                    </div>
-                    <div className="h-px bg-white/10" />
-                    {series.length > 0 && (
-                        <div className="mt-1 flex justify-between text-[10px] font-semibold text-inverse-ink-3">
-                            <span className="capitalize">{series[0].label}</span>
-                            <span>RDV / {unit}</span>
-                            <span className="capitalize">{series[series.length - 1].label}</span>
-                        </div>
-                    )}
+                                        {cumulative
+                                            ? <Line dataKey="cumul" name="RDV cumulés" stroke="#6ee7b7" strokeWidth={3} dot={data.length === 1} isAnimationActive={false} />
+                                            : <Bar dataKey="meetings" name="RDV" fill="#6ee7b7" radius={[3, 3, 0, 0]} maxBarSize={24} isAnimationActive={false} />}
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </div>
+                            {cumulative && previousMeetings !== null && (
+                                <p className="flex items-center justify-end gap-2 text-[11px] text-inverse-ink-2">
+                                    <span className="w-4 border-t border-dashed" aria-hidden /> Rythme moyen de la période précédente
+                                </p>
+                            )}
+                        </>
+                    ) : <p className="grid h-36 place-items-center text-sm text-inverse-ink-2">Évolution indisponible</p>}
                 </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <HeroTile label="Période préc.">
-                    {previousMeetings !== null ? formatInt(previousMeetings) : "—"}
-                </HeroTile>
-                <HeroTile label="Rythme">
-                    <span className="text-accent-300">{perDay.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}</span>
-                    <span className="text-[10px] font-bold text-inverse-ink-3 ml-1">/ jour</span>
-                </HeroTile>
-                <HeroTile label="Rendement">
-                    {callsPerRdv ? `1 RDV / ${formatInt(callsPerRdv)} appels` : "—"}
-                </HeroTile>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[11px] font-semibold text-inverse-ink-2 tabular-nums">
-                <span>{formatInt(actions)} appels · {formatInt(joinedCalls)} joints</span>
-                <span>RDV / joints : {pct1(conversion)}</span>
-            </div>
+            <dl className="grid grid-cols-3 gap-3 border-t border-inverse-line pt-4">
+                {[
+                    ["Période préc.", previousMeetings === null ? "—" : formatInt(previousMeetings)],
+                    ["RDV / jour", rangeDays > 0 ? (meetings / rangeDays).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) : "—"],
+                    ["Appels / RDV", callsPerRdv === null ? "—" : formatInt(callsPerRdv)],
+                ].map(([label, value]) => (
+                    <div key={label}>
+                        <dt className="text-xs text-inverse-ink-2">{label}</dt>
+                        <dd className="mt-1 text-lg font-semibold leading-tight text-white tabular-nums">{value}</dd>
+                    </div>
+                ))}
+            </dl>
         </HeroCard>
     );
 }
 
-// ─── Résultats des appels ───────────────────────────────────────────────────
-
-function ResultsCard({ slices, total, meetings }: { slices: ReturnType<typeof groupOutcomes>["slices"]; total: number; meetings: number }) {
+function ResultsCard({ slices, total, breakdown }: {
+    slices: ReturnType<typeof groupOutcomes>["slices"];
+    total: number;
+    breakdown: Record<string, number>;
+}) {
+    const codes = Object.entries(breakdown).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
     return (
-        <section className={cn(CARD, "p-6 space-y-4 @container min-w-0")}>
-            <SectionHeader icon={Activity} tone="emerald" title="Résultats des appels" count={formatInt(total)} subtitle="Répartition des qualifications" />
+        <section className={cn(CARD, "p-5 sm:p-6 space-y-4 min-w-0")}>
+            <SectionHeader icon={Activity} tone="emerald" title="Qualifications" count={formatInt(total)} subtitle="Répartition des résultats par famille" />
             {slices.length === 0 ? (
                 <EmptyBlock compact icon={Activity} tone="slate" title="Aucun résultat sur cette période" />
             ) : (
-                <div className="flex flex-col @[22rem]:flex-row items-center gap-5">
-                    <div className="relative flex-shrink-0 w-[132px] h-[132px]">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                            <PieChart>
-                                <Pie
-                                    data={slices}
-                                    dataKey="count"
-                                    nameKey="label"
-                                    innerRadius={44}
-                                    outerRadius={64}
-                                    startAngle={90}
-                                    endAngle={-270}
-                                    stroke="#fff"
-                                    strokeWidth={2}
-                                    isAnimationActive={false}
-                                >
-                                    {slices.map((s) => <Cell key={s.key} fill={s.color} />)}
-                                </Pie>
-                                <Tooltip content={(p) => <ChartTooltip active={p.active} payload={p.payload} />} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-xl font-black text-zinc-900 leading-none">{formatInt(meetings)}</span>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5">RDV</span>
-                        </div>
+                <>
+                    <div aria-hidden className="flex h-3 overflow-hidden rounded-full">
+                        {slices.map((s) => <span key={s.key} style={{ width: `${s.count / total * 100}%`, backgroundColor: s.color }} />)}
                     </div>
-                    <ul className="flex-1 w-full min-w-0 space-y-1">
+                    <ul className="divide-y divide-line-subtle">
                         {slices.map((s) => (
-                            <li key={s.key} className="flex items-center justify-between gap-2 h-7 px-2 -mx-2 rounded-lg hover:bg-slate-50 transition-colors">
-                                <span className="flex items-center gap-2 min-w-0">
-                                    <span className="w-2.5 h-2.5 rounded-[3px] flex-shrink-0" style={{ background: s.color }} aria-hidden />
-                                    <span className="text-xs font-semibold text-zinc-600 truncate" title={s.label}>{s.label}</span>
-                                </span>
-                                <span className="flex items-baseline gap-2 flex-shrink-0 tabular-nums">
-                                    <span className="text-xs font-black text-zinc-900">{formatInt(s.count)}</span>
-                                    <span className="w-9 text-right text-[11px] font-bold text-zinc-400">{s.pct} %</span>
-                                </span>
+                            <li key={s.key}>
+                                <details className="group">
+                                    <summary className={cn("flex cursor-pointer list-none items-center gap-2 rounded-lg py-2.5 text-xs hover:bg-surface-2 [&::-webkit-details-marker]:hidden", FOCUS)}>
+                                        <span className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: s.color }} aria-hidden />
+                                        <span className="flex-1 font-medium text-ink-2">{s.label}</span>
+                                        <strong className="text-ink tabular-nums">{formatInt(s.count)}</strong>
+                                        <span className="w-10 text-right text-ink-3 tabular-nums">{s.pct} %</span>
+                                        <ChevronDown aria-hidden className="size-3.5 text-ink-3 group-open:rotate-180" />
+                                    </summary>
+                                    <ul className="mb-2 space-y-1 rounded-lg bg-surface-2 px-3 py-2">
+                                        {codes.filter(([code]) => outcomeOf(code) === s.key).map(([code, n]) => (
+                                            <li key={code} className="flex justify-between gap-3 text-xs text-ink-2">
+                                                <span className="min-w-0 break-words">{prettyResult(code, ACTION_RESULT_LABELS)}</span>
+                                                <span className="tabular-nums">{formatInt(n)}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </details>
                             </li>
                         ))}
                     </ul>
-                </div>
+                </>
             )}
         </section>
     );
@@ -647,96 +624,6 @@ function MiniTag({ tone, children }: { tone: AccueilTone; children: ReactNode })
     );
 }
 
-// ─── Progression (cumul réel vs période précédente) ─────────────────────────
-
-function ProgressionCard({ period, meetings, previousMeetings }: { period: ManagerHomePeriod | null; meetings: number; previousMeetings: number | null }) {
-    const data = useMemo(() => {
-        const series = period?.series ?? [];
-        // Repère = the previous period's pace, projected on this period's buckets.
-        const pace = previousMeetings !== null && series.length > 0 ? previousMeetings / series.length : null;
-        return series.reduce<{ label: string; cumul: number; repere: number | null }[]>((acc, b, i) => [
-            ...acc,
-            {
-                label: b.label,
-                cumul: (acc[i - 1]?.cumul ?? 0) + b.meetings,
-                repere: pace !== null ? Math.round(pace * (i + 1)) : null,
-            },
-        ], []);
-    }, [period, previousMeetings]);
-
-    return (
-        <section className={cn(CARD, "p-6 space-y-3 min-w-0")}>
-            <SectionHeader
-                icon={TrendingUp}
-                tone="teal"
-                title="Progression"
-                subtitle={previousMeetings !== null ? "Cumul des RDV vs rythme de la période précédente" : "Cumul des RDV sur la période"}
-                right={
-                    <span className="text-xs font-black text-zinc-900 tabular-nums whitespace-nowrap">
-                        {formatInt(meetings)}
-                        {previousMeetings !== null && (
-                            <span className="text-zinc-400 font-bold"> / {formatInt(previousMeetings)} RDV préc.</span>
-                        )}
-                    </span>
-                }
-            />
-            {data.length === 0 ? (
-                <Shimmer className="h-[184px] rounded-2xl" />
-            ) : (
-                <>
-                    <div className="h-[184px] -ml-2" role="img" aria-label="Cumul des RDV face à la période précédente">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                            <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
-                                <CartesianGrid vertical={false} stroke="var(--ds-line-subtle)" />
-                                <XAxis
-                                    dataKey="label"
-                                    tick={{ fontSize: 10, fill: "var(--ds-ink-4)", fontWeight: 600 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    interval="preserveStartEnd"
-                                    minTickGap={24}
-                                />
-                                <YAxis
-                                    width={32}
-                                    allowDecimals={false}
-                                    tick={{ fontSize: 10, fill: "var(--ds-ink-4)", fontWeight: 600 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    tickCount={4}
-                                />
-                                <Tooltip
-                                    cursor={{ stroke: "var(--ds-line)", strokeWidth: 1 }}
-                                    content={(p) => <ChartTooltip active={p.active} payload={p.payload} label={p.label} />}
-                                />
-                                <Line type="monotone" dataKey="repere" name="Période précédente" stroke="var(--ds-line-strong)" strokeWidth={1.5} strokeDasharray="4 4" dot={false} isAnimationActive={false} />
-                                <Line
-                                    type="monotone"
-                                    dataKey="cumul"
-                                    name="Réalisé"
-                                    stroke="#10B981"
-                                    strokeWidth={2}
-                                    strokeLinecap="round"
-                                    dot={false}
-                                    activeDot={{ r: 4, fill: "#10B981", stroke: "#fff", strokeWidth: 2 }}
-                                    isAnimationActive={false}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                    <div className="flex items-center gap-4 text-[11px] font-semibold text-zinc-500">
-                        <span className="flex items-center gap-1.5">
-                            <span className="w-3 h-0.5 rounded-full bg-emerald-500" aria-hidden /> Réalisé
-                        </span>
-                        <span className="flex items-center gap-1.5">
-                            <span className="w-3 border-t-[1.5px] border-dashed border-slate-300" aria-hidden /> Période précédente
-                        </span>
-                    </div>
-                </>
-            )}
-        </section>
-    );
-}
-
 // ─── Activité récente (RDV) ─────────────────────────────────────────────────
 
 const SAS_STATUS: Record<"PENDING" | "CONFIRMED" | "CANCELLED", { label: string; tone: AccueilTone }> = {
@@ -809,9 +696,9 @@ export function ManagerDashboardSkeleton() {
                         <Shimmer className="h-7 w-32 rounded-full" />
                     </div>
                     <Shimmer className="h-9 w-72 rounded-xl" />
-                    <Shimmer className="h-4 w-96 max-w-full rounded-lg" />
+                    <Shimmer className="h-4 w-64 max-w-full rounded-lg" />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <Shimmer className="h-9 w-36 rounded-xl" />
                     <Shimmer className="h-9 w-44 rounded-xl" />
                     <Shimmer className="h-11 w-40 rounded-2xl" />
@@ -819,8 +706,8 @@ export function ManagerDashboardSkeleton() {
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
                 <div className="xl:col-span-8 h-[300px] rounded-3xl bg-inverse/90 motion-safe:animate-pulse" />
-                <div className="xl:col-span-4 grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-4">
-                    {[0, 1, 2].map((i) => <Shimmer key={i} className="h-[92px] rounded-3xl" />)}
+                <div className={cn(CARD, "xl:col-span-4 grid sm:grid-cols-3 xl:grid-cols-1 overflow-hidden")}>
+                    {[0, 1, 2].map((i) => <Shimmer key={i} className="h-[100px] rounded-none" />)}
                 </div>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -830,7 +717,6 @@ export function ManagerDashboardSkeleton() {
                         <Shimmer className="h-[260px] rounded-3xl" />
                     </div>
                     <Shimmer className="h-[300px] rounded-3xl" />
-                    <Shimmer className="h-[280px] rounded-3xl" />
                 </div>
                 <div className="xl:col-span-4 space-y-6">
                     <Shimmer className="h-[440px] rounded-3xl" />

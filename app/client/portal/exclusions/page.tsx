@@ -10,6 +10,7 @@ import {
     RotateCcw,
     Search,
     ShieldCheck,
+    Upload,
     User,
 } from "lucide-react";
 import {
@@ -25,6 +26,8 @@ import {
     useToast,
 } from "@/components/ui";
 import { ExcludeDialog, type ExcludePayload } from "@/components/exclusions/ExcludeDialog";
+import { ExclusionImportDialog } from "@/components/exclusions/ExclusionImportDialog";
+import { ExclusionImportHistory } from "@/components/exclusions/ExclusionImportHistory";
 import { cn } from "@/lib/utils";
 
 interface ClientExclusion {
@@ -60,6 +63,8 @@ export default function ClientExclusionsPage() {
     const [rows, setRows] = useState<ClientExclusion[]>([]);
     const [isLoading, setLoading] = useState(true);
     const [isPickerOpen, setPickerOpen] = useState(false);
+    const [isImportOpen, setImportOpen] = useState(false);
+    const [importsKey, setImportsKey] = useState(0);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -85,16 +90,22 @@ export default function ClientExclusionsPage() {
     return (
         <div className="p-6 space-y-6">
             <PageHeader
-                title="Ne plus contacter"
+                title="Blacklist"
                 subtitle="Les sociétés et personnes que nos équipes ne solliciteront plus pour vous"
                 icon={<ShieldCheck className="w-6 h-6" />}
                 onRefresh={load}
                 isRefreshing={isLoading}
                 actions={
-                    <Button onClick={() => setPickerOpen(true)}>
-                        <Plus className="w-4 h-4" />
-                        Ajouter
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" onClick={() => setImportOpen(true)}>
+                            <Upload className="w-4 h-4" />
+                            Importer une liste
+                        </Button>
+                        <Button onClick={() => setPickerOpen(true)}>
+                            <Plus className="w-4 h-4" />
+                            Ajouter
+                        </Button>
+                    </div>
                 }
             />
 
@@ -145,6 +156,18 @@ export default function ClientExclusionsPage() {
                     )}
                 </div>
             )}
+
+            <ExclusionImportHistory endpoint="/api/client/exclusions/import" refreshKey={importsKey} />
+
+            <ExclusionImportDialog
+                isOpen={isImportOpen}
+                onClose={() => setImportOpen(false)}
+                onImported={() => {
+                    setImportsKey((k) => k + 1);
+                    load();
+                }}
+                endpoint="/api/client/exclusions/import"
+            />
 
             <CompanyPicker
                 isOpen={isPickerOpen}

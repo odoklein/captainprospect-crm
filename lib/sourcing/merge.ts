@@ -98,15 +98,22 @@ function mergeTwo(base: SourcedLead, extra: SourcedLead): SourcedLead {
  * Fold `incoming` into `current`. Matching order: phone, domain, SIREN,
  * then name + department (2 first postcode digits) so two "Boulangerie
  * du Centre" in different towns stay apart.
+ *
+ * Those keys only join leads from different sources. Inside one source a
+ * lead is its own place: every Franprix on Maps shares franprix.fr (and
+ * sometimes a central number), and folding them would leave one row per chain.
+ * Same-source leads merge only on the same id (a place found twice).
  */
 export function mergeLeads(current: SourcedLead[], incoming: SourcedLead[]): SourcedLead[] {
     const out = [...current];
+    const byId = new Map<string, number>();
     const byPhone = new Map<string, number>();
     const byDomain = new Map<string, number>();
     const bySiren = new Map<string, number>();
     const byName = new Map<string, number>();
 
     const index = (lead: SourcedLead, i: number) => {
+        byId.set(lead.id, i);
         const p = phoneKey(lead.phone);
         if (p) byPhone.set(p, i);
         if (lead.website) byDomain.set(lead.website, i);
@@ -119,15 +126,21 @@ export function mergeLeads(current: SourcedLead[], incoming: SourcedLead[]): Sou
     for (const lead of incoming) {
         const p = phoneKey(lead.phone);
         const n = nameKey(lead.name);
+        const crossSource = (i: number | undefined) =>
+            i !== undefined && !out[i].sources.some((s) => lead.sources.includes(s)) ? i : undefined;
         const hit =
-            (p !== undefined ? byPhone.get(p) : undefined) ??
-            (lead.website ? byDomain.get(lead.website) : undefined) ??
+            byId.get(lead.id) ??
+            crossSource(p !== undefined ? byPhone.get(p) : undefined) ??
+            crossSource(lead.website ? byDomain.get(lead.website) : undefined) ??
+            // One SIREN is one company whatever the source (a registry re-run hits its merged row).
             (lead.siren ? bySiren.get(lead.siren) : undefined) ??
-            (n ? byName.get(`${n}|${(lead.postalCode ?? "").slice(0, 2)}`) : undefined);
+            crossSource(n ? byName.get(`${n}|${(lead.postalCode ?? "").slice(0, 2)}`) : undefined);
 
         if (hit !== undefined) {
             out[hit] = mergeTwo(out[hit], lead);
             index(out[hit], hit);
+            // The merged row keeps the first id; remember this one too so a re-run finds it.
+            byId.set(lead.id, hit);
         } else {
             out.push(lead);
             index(lead, out.length - 1);

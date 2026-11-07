@@ -45,6 +45,7 @@ function openFeed(callId: string): Feed {
     if (existing) return existing;
 
     let cancelled = false;
+    const controller = new AbortController();
     let since: string | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let endedAt: number | null = null;
@@ -53,6 +54,7 @@ function openFeed(callId: string): Feed {
         listeners: new Set(),
         stop: () => {
             cancelled = true;
+            controller.abort();
             if (timer) clearTimeout(timer);
         },
     };
@@ -65,7 +67,7 @@ function openFeed(callId: string): Feed {
     };
     const tick = async () => {
         try {
-            const res = await fetch(`/api/telephony/calls/${callId}/transcript${since ? `?since=${encodeURIComponent(since)}` : ""}`);
+            const res = await fetch(`/api/telephony/calls/${callId}/transcript${since ? `?since=${encodeURIComponent(since)}` : ""}`, { signal: controller.signal });
             const json = await res.json();
             if (cancelled) return;
             if (!json?.success) return schedule(4000);
@@ -97,12 +99,12 @@ function openFeed(callId: string): Feed {
  * Components following the same call share one poller.
  */
 export function useCallTranscript(callId: string | null, enabled: boolean): TranscriptSnapshot {
-    const [snap, setSnap] = useState<TranscriptSnapshot>({ lines: [], summary: { status: "none" }, live: true });
+    const [current, setCurrent] = useState<{ callId: string; snap: TranscriptSnapshot } | null>(null);
 
     useEffect(() => {
         if (!callId || !enabled) return;
         const feed = openFeed(callId);
-        const listener = (s: TranscriptSnapshot) => setSnap(s);
+        const listener = (snap: TranscriptSnapshot) => setCurrent({ callId, snap });
         feed.listeners.add(listener);
         listener(feed.snap);
         return () => {
@@ -114,7 +116,9 @@ export function useCallTranscript(callId: string | null, enabled: boolean): Tran
         };
     }, [callId, enabled]);
 
-    return snap;
+    return enabled && callId && current?.callId === callId
+        ? current.snap
+        : { lines: [], summary: { status: "none" }, live: true };
 }
 
 // ── transcript ──────────────────────────────────────────────────────────────

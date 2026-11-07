@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suzalink VoIP — GPT Image prompt kit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#263460;
+    --navy-deep:#1b2547;
+    --magenta:#C64B8B;
+    --magenta-ink:#a83a72;
+    --magenta-deep:#b03a78;
+    --paper:#f7f5f2;
+    --sheet:#fbfaf7;
+    --card:#ffffff;
+    --ink:#151827;
+    --ink-2:#3c4157;
+    --muted:#646a80;
+    --line:#ded8cf;
+    --line-2:#ece7df;
+    --wash:#f0ebe4;
+    --ok:#2f6b4f;
+    --warn:#9a5b1e;
+    --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+    --body:"Inter","Segoe UI",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{color-scheme:light;-webkit-text-size-adjust:100%}
+  body{margin:0;background:#e6e0d7;color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .sheet{width:min(980px,calc(100% - 36px));margin:28px auto;background:var(--sheet);box-shadow:0 24px 70px rgba(24,20,14,.15);overflow:hidden}
+  p{margin:0 0 14px}
+  strong{font-weight:600;color:var(--ink)}
+  code{font-family:var(--mono);font-size:11.5px;background:var(--wash);border:1px solid var(--line-2);padding:1px 5px;overflow-wrap:anywhere}
+
+  /* cover */
+  .cover{background:var(--navy);color:#fff;padding:54px 64px 40px;position:relative;overflow:hidden}
+  .cover::after{content:"";position:absolute;right:-140px;top:-160px;width:420px;height:420px;border:1px solid rgba(255,255,255,.13);border-radius:50%}
+  .cover::before{content:"";position:absolute;right:-20px;top:-20px;width:180px;height:180px;border:1px solid rgba(198,75,139,.5);border-radius:50%}
+  .cover-top{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:56px;position:relative;z-index:1}
+  .mark{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:-.02em}
+  .mark span{color:#f19ac4}
+  .tag{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.62);font-weight:600}
+  .cover-kicker{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#f19ac4;font-weight:600;margin-bottom:16px;position:relative;z-index:1}
+  .cover h1{font-family:var(--display);font-weight:500;font-size:clamp(42px,6.4vw,66px);line-height:.98;letter-spacing:-.035em;margin:0 0 22px;max-width:100%;position:relative;z-index:1}
+  .cover h1 em{font-style:normal;color:#f3b2cf}
+  .cover-lede{font-size:17px;line-height:1.5;font-weight:300;color:rgba(255,255,255,.8);max-width:54ch;margin:0 0 38px;position:relative;z-index:1}
+  .cover-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.16);position:relative;z-index:1}
+  .cover-grid div{background:var(--navy);padding:14px 14px 16px}
+  .cover-grid b{display:block;font-family:var(--display);font-size:11px;letter-spacing:.1em;color:#f19ac4;margin-bottom:8px}
+  .cover-grid span{display:block;font-family:var(--display);font-size:14px;font-weight:600;line-height:1.2;margin-bottom:3px}
+  .cover-grid small{display:block;font-size:10.5px;line-height:1.35;color:rgba(255,255,255,.68)}
+  .cover-foot{display:flex;justify-content:space-between;gap:20px;margin-top:28px;font-size:10.5px;letter-spacing:.03em;color:rgba(255,255,255,.64);position:relative;z-index:1}
+
+  /* sections */
+  .body{padding:0 64px 54px}
+  section{padding-top:46px}
+  .sec-head{display:flex;gap:16px;align-items:baseline;border-top:1px solid var(--ink);padding-top:12px;margin-bottom:22px}
+  .sec-num{font-family:var(--display);font-size:11.5px;font-weight:600;letter-spacing:.1em;color:var(--magenta-ink);min-width:26px;padding-top:3px}
+  h2{font-family:var(--display);font-size:30px;line-height:1.12;letter-spacing:-.028em;font-weight:600;margin:0}
+  h3{font-family:var(--display);font-size:17px;line-height:1.3;font-weight:600;margin:24px 0 6px}
+  .lede{font-size:16.5px;line-height:1.58;color:var(--ink-2);max-width:68ch;margin-bottom:18px}
+  .small{font-size:12px;line-height:1.55;color:var(--muted)}
+  .kicker{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 8px}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}
+  .step{border:1px solid var(--line);background:var(--card);padding:18px}
+  .step b{display:block;font-family:var(--display);font-size:11px;letter-spacing:.1em;color:var(--magenta-ink);margin-bottom:9px}
+  .step h4{font-family:var(--display);font-size:15px;font-weight:600;margin:0 0 5px;line-height:1.25}
+  .step p{font-size:12.5px;line-height:1.5;color:var(--ink-2);margin:0}
+  .callout{border:1px solid var(--line);border-left:3px solid var(--navy);background:var(--card);padding:15px 18px;margin:18px 0;font-size:13px;line-height:1.55;color:var(--ink-2)}
+  .callout.mag{border-left-color:var(--magenta)}
+  .callout b{color:var(--ink)}
+
+  /* palette */
+  .palette{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:16px 0 8px}
+  .sw{border:1px solid var(--line);background:#fff}
+  .sw .chip{height:54px}
+  .sw .meta{padding:7px 8px 8px;font-size:10.5px;line-height:1.35;color:var(--muted)}
+  .sw .meta b{display:block;font-size:10px;color:var(--ink);font-weight:600;margin-bottom:1px}
+  .type-row{display:grid;grid-template-columns:120px 1fr 130px;gap:14px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:12.5px;color:var(--ink-2)}
+  .type-row b{font-family:var(--display);font-weight:600;color:var(--ink)}
+  .type-row span:last-child{font-size:10.5px;color:var(--muted);text-align:right}
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;margin:12px 0 0;padding:0;list-style:none}
+  .rules li{position:relative;padding:6px 0 6px 20px;font-size:12.6px;line-height:1.5;color:var(--ink-2);border-bottom:1px solid var(--line-2)}
+  .rules li::before{content:"→";position:absolute;left:0;top:6px;color:var(--magenta-ink);font-size:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .chip{display:inline-block;font-size:10.5px;line-height:1.3;padding:4px 8px;border:1px solid var(--line);background:#fff;color:var(--ink-2)}
+  .chip.dark{background:var(--navy);border-color:var(--navy);color:#fff}
+  .chip.mag{border-color:#e7bfd4;background:#f9edf4;color:var(--magenta-ink)}
+
+  /* screen section */
+  .screen-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-end;margin-bottom:12px}
+  .screen-head .num{font-family:var(--display);font-size:11px;letter-spacing:.12em;color:var(--magenta-ink);font-weight:600;margin-bottom:6px}
+  .screen-head h3{font-size:24px;margin:0;letter-spacing:-.02em}
+  .screen-head .role{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap;padding-bottom:4px}
+  .screen-intro{font-size:14px;line-height:1.55;color:var(--ink-2);max-width:70ch;margin-bottom:14px}
+
+  /* schematic map */
+  .map-scroll{max-width:100%;overflow-x:auto;border:1px solid var(--line);background:#fff;padding:10px;margin:12px 0 8px}
+  .map{min-width:800px;display:grid;gap:4px;background:var(--paper);padding:5px;aspect-ratio:16/9;font-family:var(--body)}
+  .map .rail{background:var(--navy);display:flex;flex-direction:column;align-items:center;gap:7px;padding-top:8px}
+  .map .rail i{display:block;width:12px;height:12px;border:1px solid rgba(255,255,255,.45);border-radius:2px}
+  .map .rail i.on{background:var(--magenta);border-color:var(--magenta)}
+  .map .top{background:#fff;border:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 8px;font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+  .map .top b{color:var(--ink);font-weight:600;font-size:10.5px}
+  .map .top .live{background:var(--magenta-deep);color:#fff;padding:2px 5px;font-size:10px;font-weight:600;letter-spacing:.06em}
+  .map .card{background:#fff;border:1px solid var(--line);padding:6px;min-width:0}
+  .map .lab{display:block;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:3px}
+  .map .t{display:block;font-size:10.5px;line-height:1.3;color:var(--ink);font-weight:600}
+  .map .s{display:block;font-size:10px;line-height:1.3;color:var(--muted)}
+  .map .pill{display:inline-block;font-size:10px;padding:1px 4px;border:1px solid var(--line);color:var(--muted);margin:1px 2px 0 0}
+  .map .pill.m{background:#f9edf4;border-color:#e7bfd4;color:var(--magenta-ink)}
+  .map .bar{background:var(--magenta);height:7px}
+  .map .ghost{border:1px dashed #cfc7bb;background:#faf8f4}
+  .map.cockpit{grid-template-columns:34px 118px 1fr 168px;grid-template-rows:28px 1fr 38px}
+  .map.cockpit .rail{grid-row:1/4;grid-column:1}
+  .map.cockpit .top{grid-column:2/5}
+  .map.cockpit .queue{grid-column:2;grid-row:2}
+  .map.cockpit .main{grid-column:3;grid-row:2;display:grid;grid-template-rows:auto 1fr;gap:4px}
+  .map.cockpit .panel{grid-column:4;grid-row:2;display:grid;grid-template-rows:auto auto 1fr;gap:4px}
+  .map.cockpit .call{grid-column:3/5;grid-row:3;background:var(--navy-deep);display:flex;align-items:center;gap:6px;padding:0 8px;color:#fff;font-size:10px}
+  .map.cockpit .call b{font-size:10.5px;letter-spacing:.04em}
+  .map.cockpit .call .end{background:var(--magenta-deep);padding:3px 6px;margin-left:auto;font-weight:600}
+  .map.queue{grid-template-columns:34px 150px 1fr 190px;grid-template-rows:28px 42px 1fr 34px}
+  .map.queue .rail{grid-row:1/5;grid-column:1}
+  .map.queue .top{grid-column:2/5}
+  .map.queue .kpis{grid-column:2/5;grid-row:2;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+  .map.queue .filters{grid-column:2;grid-row:3}
+  .map.queue .table{grid-column:3;grid-row:3}
+  .map.queue .next{grid-column:4;grid-row:3}
+  .map.queue .bottom{grid-column:2/5;grid-row:4;background:#fff;border:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 8px;font-size:10px;color:var(--muted)}
+  .map.wrap{grid-template-columns:34px 1fr 300px;grid-template-rows:28px 1fr 38px}
+  .map.wrap .rail{grid-row:1/4;grid-column:1}
+  .map.wrap .top{grid-column:2/4}
+  .map.wrap .sum{grid-column:2;grid-row:2;display:grid;grid-template-rows:auto 1fr;gap:4px}
+  .map.wrap .stack{grid-column:3;grid-row:2;display:grid;grid-template-rows:repeat(4,1fr);gap:4px}
+  .map.wrap .bottom{grid-column:2/4;grid-row:3;background:#fff;border:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 8px;font-size:10px}
+  .map.wrap .bottom .cta{background:var(--magenta-deep);color:#fff;padding:3px 8px;margin-left:auto;font-weight:600}
+  .map.manager{grid-template-columns:34px 1fr 230px;grid-template-rows:28px 46px 1fr 28px}
+  .map.manager .rail{grid-row:1/5;grid-column:1}
+  .map.manager .top{grid-column:2/4}
+  .map.manager .kpis{grid-column:2/4;grid-row:2;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+  .map.manager .floor{grid-column:2;grid-row:3}
+  .map.manager .side{grid-column:3;grid-row:3;display:grid;grid-template-rows:1fr 1fr;gap:4px}
+  .map.manager .events{grid-column:2/4;grid-row:4;background:#fff;border:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 8px;font-size:10px;color:var(--muted)}
+  .map .rows{display:grid;gap:3px;margin-top:4px}
+  .map .row{display:flex;justify-content:space-between;gap:4px;border-bottom:1px solid var(--line-2);padding-bottom:2px;font-size:10px;color:var(--ink-2)}
+  .map .row b{font-size:10px;color:var(--ink);font-weight:600}
+  .map .row .dot{width:5px;height:5px;border-radius:50%;background:var(--ok);display:inline-block}
+  .map .row .dot.w{background:var(--warn)}
+  .map .note{font-size:10px;line-height:1.35;color:var(--muted);margin-top:3px}
+
+  /* prompt block */
+  .prompt-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:20px 0 7px}
+  .prompt-head .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--magenta-ink);font-weight:600}
+  .prompt-head .hint{font-size:10.5px;color:var(--muted)}
+  pre.prompt{margin:0 0 6px;background:var(--navy-deep);color:#f2efe8;padding:22px 22px 20px;font-family:var(--mono);font-size:11.5px;line-height:1.68;white-space:pre-wrap;overflow-wrap:anywhere;border-radius:2px;tab-size:2}
+  pre.prompt strong{color:#fff;font-weight:500}
+  .prompt-note{font-size:11px;line-height:1.5;color:var(--muted);margin:6px 0 0}
+  .why{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin:14px 0 0}
+  .why div{border-top:1px solid var(--line-2);padding:9px 0;font-size:12.2px;line-height:1.5;color:var(--ink-2)}
+  .why b{color:var(--ink);font-weight:600}
+
+  /* negative */
+  .neg{background:#fff;border:1px solid var(--line);border-left:3px solid var(--warn);padding:16px 18px;font-size:12.4px;line-height:1.6;color:var(--ink-2)}
+  .iteration{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+  .it{border:1px solid var(--line);background:#fff;padding:15px 16px}
+  .it b{display:block;font-family:var(--display);font-size:13px;margin-bottom:4px}
+  .it p{font-size:12.2px;line-height:1.5;color:var(--ink-2);margin:0}
+  .endnote{border-top:1px solid var(--ink);margin-top:44px;padding:12px 0 0;display:flex;justify-content:space-between;gap:20px;font-size:10.5px;color:var(--muted)}
+
+  @media (max-width:760px){
+    .sheet{width:calc(100% - 18px);margin:9px auto}
+    .cover{padding:34px 22px 26px}
+    .cover-top{margin-bottom:36px}
+    .cover h1{font-size:42px}
+    .cover-grid{grid-template-columns:1fr 1fr}
+    .cover-foot{flex-direction:column;gap:6px}
+    .body{padding:0 22px 36px}
+    .steps,.rules,.why,.iteration{grid-template-columns:1fr}
+    .palette{grid-template-columns:repeat(3,1fr)}
+    .type-row{grid-template-columns:90px 1fr;gap:6px}
+    .type-row span:last-child{display:none}
+    .screen-head{flex-direction:column;align-items:flex-start;gap:2px}
+    h2{font-size:25px}
+    pre.prompt{font-size:10.8px;padding:16px 14px}
+  }
+  @page{size:A4;margin:14mm 13mm 15mm}
+  @media print{
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    body{background:#fff;font-size:9.6pt;line-height:1.45}
+    .sheet{width:100%;margin:0;box-shadow:none}
+    .cover{padding:34px 34px 26px}
+    .body{padding:0 34px 30px}
+    .cover h1{font-size:38pt}
+    section{padding-top:24px}
+    h2,h3,h4,.sec-head,.screen-head{break-after:avoid}
+    .map-scroll,.step,.callout,.neg,.it,.why div{break-inside:avoid}
+    pre.prompt{background:#fff;color:#151827;border:1px solid #cfc7bb;font-size:8.6pt;line-height:1.5;padding:12px 14px;break-inside:auto}
+    pre.prompt strong{color:#151827}
+    .prompt-head{break-after:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="cover">
+    <div class="cover-top">
+      <div class="mark">Suzalink<span>.</span></div>
+      <div class="tag">GPT Image prompt kit · v1</div>
+    </div>
+    <div class="cover-kicker">VoIP workspace · SDR + manager</div>
+    <h1>Four screens.<br><em>One call language.</em></h1>
+    <p class="cover-lede">Prompts that make GPT Image produce a coherent VoIP product for your CRM — not four unrelated dashboards. One locked design DNA, four screen briefs, ready to paste.</p>
+    <div class="cover-grid">
+      <div><b>01</b><span>Le Cockpit</span><small>Live call workspace</small></div>
+      <div><b>02</b><span>File d'appel</span><small>Intelligent calling queue</small></div>
+      <div><b>03</b><span>Zéro Admin</span><small>Post-call follow-up</small></div>
+      <div><b>04</b><span>Pilotage VoIP</span><small>Manager live floor</small></div>
+    </div>
+    <div class="cover-foot">
+      <span>1536×1024 · French UI · light theme · 8px grid</span>
+      <span>Based on the Suzalink / Captain Prospect design system</span>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <section>
+      <div class="sec-head"><div class="sec-num">01</div><h2>How to use this kit</h2></div>
+      <p class="lede">GPT Image is good at composition, hierarchy and atmosphere; it is unreliable at dense text. Treat each prompt as a art-direction brief for the layout, then rebuild the winning frame in Figma with real copy. That is faster than asking the model to invent a product.</p>
+
+      <div class="steps">
+        <div class="step"><b>STEP 01</b><h4>Paste the DNA first</h4><p>Every prompt starts with the same locked style block. That is what makes the four screens read as one product instead of four different SaaS templates.</p></div>
+        <div class="step"><b>STEP 02</b><h4>Add one screen brief</h4><p>Use the screen prompt exactly as written. Keep the sample French data: it gives the model a realistic density and stops it from filling space with invented widgets.</p></div>
+        <div class="step"><b>STEP 03</b><h4>Generate, then rebuild</h4><p>Ask for three variants. Pick the strongest hierarchy, then recreate it in Figma with your components. Generated text is a placeholder, never production copy.</p></div>
+      </div>
+
+      <div class="callout mag"><b>The one rule that saves hours.</b> Generate at 1536×1024 landscape, straight-on, with no device frame. The moment you ask for a laptop mockup or a presentation board, the model spends its detail budget on the frame instead of the interface.</div>
+
+      <p class="kicker">Prompt anatomy</p>
+      <div class="chips">
+        <span class="chip dark">01 · Style DNA</span><span class="chip">02 · Screen composition</span><span class="chip">03 · Exact content</span><span class="chip">04 · Negative list</span>
+      </div>
+      <p class="small">Each block below is complete: the style DNA is already included at the top, so you can paste one block and generate. The separate DNA section is there when you want to write a fifth screen yourself.</p>
+    </section>
+
+    <section>
+      <div class="sec-head"><div class="sec-num">02</div><h2>The design DNA</h2></div>
+      <p class="lede">A calm, editorial enterprise tool: warm paper, a deep navy rail, white working cards, and magenta used only where something is live or primary. Dense information, generous breathing room, no decorative noise.</p>
+
+      <div class="palette">
+        <div class="sw"><div class="chip" style="background:#263460"></div><div class="meta"><b>Navy</b>#263460<br>Rail, headers</div></div>
+        <div class="sw"><div class="chip" style="background:#C64B8B"></div><div class="meta"><b>Magenta</b>#C64B8B<br>Live, primary</div></div>
+        <div class="sw"><div class="chip" style="background:#f7f5f2;border-bottom:1px solid #ded8cf"></div><div class="meta"><b>Paper</b>#F7F5F2<br>Canvas</div></div>
+        <div class="sw"><div class="chip" style="background:#151827"></div><div class="meta"><b>Ink</b>#151827<br>Headings</div></div>
+        <div class="sw"><div class="chip" style="background:#2f6b4f"></div><div class="meta"><b>Success</b>#2F6B4F<br>Quality</div></div>
+        <div class="sw"><div class="chip" style="background:#9a5b1e"></div><div class="meta"><b>Warning</b>#9A5B1E<br>Attention</div></div>
+      </div>
+
+      <div class="type-row"><b>Page title</b><span>Bricolage Grotesque · 28px · 600</span><span>one per screen</span></div>
+      <div class="type-row"><b>Section</b><span>Bricolage Grotesque · 17px · 600</span><span>card titles</span></div>
+      <div class="type-row"><b>Body</b><span>Inter · 14px · 400</span><span>readable at a glance</span></div>
+      <div class="type-row"><b>Label</b><span>Inter · 12px · 600 · uppercase</span><span>0.08em tracking</span></div>
+      <div class="type-row"><b>Metric</b><span>Bricolage Grotesque · 44px · 500</span><span>KPI strip only</span></div>
+
+      <ul class="rules">
+        <li>Magenta means live, active or primary — never decoration.</li>
+        <li>One focal point per screen: the person, the next call, the review, the floor.</li>
+        <li>Cards are white on paper with a 1px hairline; no heavy shadows.</li>
+        <li>Initials avatars only. No stock portraits, no AI faces.</li>
+        <li>8px spacing grid, 12-column layout, everything aligned to a edge.</li>
+        <li>No gradients, glass, neon, 3D or floating blobs. Ever.</li>
+      </ul>
+
+      <p class="kicker" style="margin-top:20px">Component vocabulary</p>
+      <div class="chips">
+        <span class="chip">64px icon rail</span><span class="chip">1px card</span><span class="chip">status pill</span><span class="chip">segmented control</span><span class="chip">timeline</span><span class="chip">sparkline</span><span class="chip">ghost button</span><span class="chip">sticky call bar</span><span class="chip mag">live indicator</span>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head"><div class="sec-num">03</div><h2>Screen 01 — Le Cockpit</h2></div>
+      <div class="screen-head">
+        <div><div class="num">SCREEN 01</div><h3>The live call, without the tab hunt</h3></div>
+        <div class="role">SDR · during the call</div>
+      </div>
+      <p class="screen-intro">One workspace holds the person, the history, the objection they just raised, the next action and the call controls. The queue stays visible but quiet, so the SDR never loses the thread and never opens a second tab.</p>
+
+      <div class="map-scroll">
+        <div class="map cockpit">
+          <div class="rail"><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="top"><span><b>Appels</b> / Cockpit</span><span class="live">EN APPEL · 04:12</span></div>
+          <div class="card queue">
+            <span class="lab">File d'appel</span>
+            <div class="rows">
+              <div class="row"><b>Léa Martin</b><span class="pill m">Suivant</span></div>
+              <div class="row"><span>Nord Bat</span></div>
+              <div class="row"><b>Hugo Bernard</b></div>
+              <div class="row"><span>Studio 14</span></div>
+              <div class="row"><b>Inès Petit</b></div>
+              <div class="row"><span>Atelier B</span></div>
+            </div>
+            <div class="note">3 restants</div>
+          </div>
+          <div class="main">
+            <div class="card">
+              <span class="lab">Prospect</span>
+              <span class="t">Camille Roussel</span>
+              <span class="s">Directrice Marketing · Atelier Nord</span>
+              <span class="s">+33 6 12 44 87 21 · Paris 14e</span>
+              <span class="pill m">Chaude</span><span class="pill">Renouvellement Q1</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+              <div class="card">
+                <span class="lab">Derniers échanges</span>
+                <div class="rows"><div class="row"><span>Email ouvert</span><b>hier</b></div><div class="row"><span>Appel · 03:12</span><b>2 j</b></div><div class="row"><span>Note ajoutée</span><b>lun.</b></div></div>
+              </div>
+              <div class="card">
+                <span class="lab">Objections</span>
+                <span class="s">« Nous avons déjà un prestataire. »</span>
+                <div class="note" style="border-left:2px solid var(--magenta);padding-left:5px">Réponse suggérée : « Sur quel point… »</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="card"><span class="lab">Contexte compte</span><div class="rows"><div class="row"><span>42 salariés</span><span>Architecture</span></div><div class="row"><span>18 400 €</span><span>Décideur</span></div></div></div>
+            <div class="card"><span class="lab">Prochaine action</span><span class="t">Rappeler jeudi · 14:00</span></div>
+            <div class="card"><span class="lab">Script</span><span class="s">Ouverture · découverte · preuve</span></div>
+          </div>
+          <div class="call"><b>04:12</b><span>Muet · Attente · Clavier</span><span class="end">Terminer</span></div>
+        </div>
+      </div>
+      <p class="small">Layout map, not a visual reference. The prompt below is the art direction.</p>
+
+      <div class="why">
+        <div><b>Focal point.</b> The prospect's name and the live timer. Everything else is support.</div>
+        <div><b>Why it works.</b> The objection sits beside the suggested answer, so the SDR never searches for it mid-sentence.</div>
+      </div>
+
+      <div class="prompt-head"><div class="k">Prompt 01 · paste into GPT Image</div><div class="hint">1536×1024 landscape</div></div>
+      <pre class="prompt">High-fidelity desktop SaaS UI for Suzalink, a French B2B sales CRM. One straight-on 1536×1024 screenshot, no laptop or browser frame, no presentation board. Warm off-white #F7F5F2 canvas; 64px deep-navy #263460 icon rail; white cards with 1px #DED8CF borders and 12px radius; magenta #C64B8B only for live, active and primary states; ink #151827; muted #646A80; success #2F6B4F; warning #9A5B1E. Bricolage Grotesque headings, Inter UI text; 12px uppercase labels, 14px body, 28px page title, 44px KPI figures. Strict 8px grid, 12 columns, 1px hairlines, 4% ambient shadow, generous whitespace. French copy, initials avatars, no photographs of people. Crisp, aligned, dense but calm. No gradients, glassmorphism, 3D, neon, emoji, lorem ipsum, greeked text, extra logos or watermarks.
+
+SCREEN 01 — "LE COCKPIT", the SDR's live-call workspace.
+
+Composition: a 64px navy icon rail on the far left with six thin-line icons, the queue icon active in magenta. A 64px white top bar: breadcrumb "Appels / Cockpit" on the left; on the right a green dot with "Excellente", a magenta live pill "EN APPEL · 04:12", and the agent's initials "CR". Under the top bar, three zones: a 220px queue rail titled "File d'appel" with three compact prospect rows — Léa Martin / Nord Bat (highlighted, pill "Suivant"), Hugo Bernard / Studio 14, Inès Petit / Atelier B — and a muted "3 restants"; a fluid prospect workspace; a 340px context panel. An 84px sticky call bar spans the workspace and the panel.
+
+Prospect workspace: a white header card with a 56px initials avatar "CR", the name "Camille Roussel", the role "Directrice Marketing · Atelier Nord", the phone "+33 6 12 44 87 21", the location "Paris 14e · 10:42", and two pills, "Chaude" and "Renouvellement Q1". Below it, two equal cards: "Derniers échanges" with a three-item timeline (email opened yesterday, call two days ago · 03:12, note added); "Objections" with the quote "Nous avons déjà un prestataire." and a magenta-ruled "Réponse suggérée" block with two short lines. A "Prochaine action" card reads "Rappeler jeudi · 14:00".
+
+Context panel: "Contexte compte" with short rows (42 salariés, Architecture, 18 400 €, Décideur), a collapsed "Script" card with three bullets, and a "Notes" card with two lines.
+
+Call bar: the timer "04:12" in white, buttons "Muet", "Attente", "Clavier", "Transférer", a device selector, four audio-quality bars, and a magenta "Terminer" button on the right.
+
+The prospect and the live call are the only heroes: no charts, no tables, no secondary dashboard.</pre>
+      <p class="prompt-note">If the text comes back garbled, keep the layout and reduce the labels to the eight largest ones; rebuild the rest in Figma.</p>
+    </section>
+
+    <section>
+      <div class="sec-head"><div class="sec-num">04</div><h2>Screen 02 — La file d'appel</h2></div>
+      <div class="screen-head">
+        <div><div class="num">SCREEN 02</div><h3>The contacts list that decides who is next</h3></div>
+        <div class="role">SDR · between calls</div>
+      </div>
+      <p class="screen-intro">The calling queue and the contact list are the same surface. One session start, an ordered list with a visible reason for each priority, callbacks at the top, duplicate protection, and a next-call card that removes the "who do I dial now?" pause.</p>
+
+      <div class="map-scroll">
+        <div class="map queue">
+          <div class="rail"><i></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+          <div class="top"><span><b>Appels</b> / File d'appel</span><span class="pill m">Démarrer la session</span></div>
+          <div class="kpis">
+            <div class="card"><span class="lab">À appeler</span><span class="t">42</span></div>
+            <div class="card"><span class="lab">Rappels</span><span class="t">8</span></div>
+            <div class="card"><span class="lab">Priorité haute</span><span class="t">3</span></div>
+            <div class="card"><span class="lab">Sans réponse</span><span class="t">12</span></div>
+          </div>
+          <div class="card filters"><span class="lab">Filtres</span><div class="rows"><div class="row"><b>Tous</b><span>42</span></div><div class="row"><span>Prioritaires</span><span>3</span></div><div class="row"><span>Rappels</span><span>8</span></div><div class="row"><span>Jamais contactés</span><span>22</span></div><div class="row"><span>Sans réponse</span><span>12</span></div></div></div>
+          <div class="card table"><span class="lab">Contacts · 42</span><div class="rows"><div class="row"><b>Léa Martin</b><span class="pill m">P1</span></div><div class="row"><span>Nord Bat · +33 6 44…</span><span>Rappel dû</span></div><div class="row"><b>Hugo Bernard</b><span class="pill">P2</span></div><div class="row"><span>Studio 14 · +33 7 81…</span><span>Nouveau</span></div><div class="row"><b>Inès Petit</b><span class="pill">P3</span></div><div class="row"><span>Atelier B · +33 6 09…</span><span>Sans réponse</span></div><div class="row"><b>Marc Vidal</b><span class="pill">P2</span></div><div class="row"><span>Vidal &amp; Co · +33 1 42…</span><span>À rappeler</span></div></div><div class="note">Pourquoi maintenant : rappel promis hier · email ouvert 3× · score 92</div></div>
+          <div class="card next"><span class="lab">Prochain appel</span><span class="t">Léa Martin</span><span class="s">Nord Bat · Rappel promis hier</span><span class="s">Meilleur créneau : maintenant</span><div class="bar" style="margin-top:6px"></div><div class="note">Appeler maintenant</div></div>
+          <div class="bottom"><span>12 / 42</span><span>Prochain dans 3 s</span><span>A appeler · S passer · P pause</span></div>
+        </div>
+      </div>
+      <p class="small">The table is the contact list; the right card is the decision. No separate "contacts" module needed for the calling flow.</p>
+
+      <div class="why">
+        <div><b>Focal point.</b> The next-call card and the selected row. The eye lands on one decision, not forty-two.</div>
+        <div><b>Why it works.</b> Priority is explained inline, so the SDR trusts the order instead of second-guessing it.</div>
+      </div>
+
+      <div class="prompt-head"><div class="k">Prompt 02 · paste into GPT Image</div><div class="hint">1536×1024 landscape</div></div>
+      <pre class="prompt">High-fidelity desktop SaaS UI for Suzalink, a French B2B sales CRM. One straight-on 1536×1024 screenshot, no laptop or browser frame, no presentation board. Warm off-white #F7F5F2 canvas; 64px deep-navy #263460 icon rail; white cards with 1px #DED8CF borders and 12px radius; magenta #C64B8B only for live, active and primary states; ink #151827; muted #646A80; success #2F6B4F; warning #9A5B1E. Bricolage Grotesque headings, Inter UI text; 12px uppercase labels, 14px body, 28px page title, 44px KPI figures. Strict 8px grid, 12 columns, 1px hairlines, 4% ambient shadow, generous whitespace. French copy, initials avatars, no photographs of people. Crisp, aligned, dense but calm. No gradients, glassmorphism, 3D, neon, emoji, lorem ipsum, greeked text, extra logos or watermarks.
+
+SCREEN 02 — "FILE D'APPEL INTELLIGENTE", the SDR's calling queue and contact list.
+
+Composition: 64px navy icon rail; a white top bar with the breadcrumb "Appels / File d'appel" and, on the right, a ghost "Pause" button and a magenta "Démarrer la session" button.
+
+Header: page title "Session d'appels" at 28px, subtitle "42 prospects · 8 rappels · 3 priorités". A four-card KPI strip: "À appeler 42", "Rappels 8", "Priorité haute 3", "Sans réponse 12"; figures in Bricolage Grotesque at 32px, labels muted 12px.
+
+Body: a 220px filter rail with a search field and vertical filters "Tous" (active), "Prioritaires", "Rappels", "Jamais contactés", "Sans réponse"; a "Segment" block with the chip "B2B · Île-de-France". The center is a dense white table of eight rows with columns: checkbox, priority pill P1/P2/P3, contact and company, phone, "Dernier contact", status pill, and an "Appeler" text button. One row is selected with a pale magenta tint and an inline "Pourquoi maintenant" strip: "Rappel promis hier · email ouvert 3× · score 92". The right column is a 340px "Prochain appel" card with initials "LM", "Léa Martin", "Nord Bat", the reason "Rappel promis hier", "Meilleur créneau : maintenant", a two-line script, a full-width "Appeler maintenant" magenta button and a "Passer" link.
+
+Bottom fixed bar: progress "12 / 42", "Prochain dans 3 s" with a pause icon, and keyboard hints "A appeler · S passer · P pause".
+
+Dense but calm. No modal, no wizard, no illustration, no separate contact detail panel.</pre>
+      <p class="prompt-note">This is the screen that replaces the contact list, the call list and the "who next" spreadsheet at once.</p>
+    </section>
+
+    <section>
+      <div class="sec-head"><div class="sec-num">05</div><h2>Screen 03 — Zéro Admin</h2></div>
+      <div class="screen-head">
+        <div><div class="num">SCREEN 03</div><h3>One review, then the CRM is done</h3></div>
+        <div class="role">SDR · after the call</div>
+      </div>
+      <p class="screen-intro">The call ends and the work is already drafted: outcome, summary, follow-up date, email and CRM fields. The SDR reviews a stack of suggestions and confirms once. This is the screen that removes the end-of-day admin tax.</p>
+
+      <div class="map-scroll">
+        <div class="map wrap">
+          <div class="rail"><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div>
+          <div class="top"><span><b>Fin d'appel</b> · Camille Roussel · Atelier Nord</span><span class="pill m">06:48</span></div>
+          <div class="sum">
+            <div class="card">
+              <span class="lab">Résumé de l'appel · suggéré par l'IA</span>
+              <span class="s">Budget confirmé · décision en avril · 3 sites</span>
+              <div class="rows"><div class="row"><span>Intérêt pour l'offre</span><b>Fort</b></div><div class="row"><span>Objection</span><b>Prestataire actuel</b></div><div class="row"><span>Sentiment</span><b>Positif</b></div></div>
+            </div>
+            <div class="card">
+              <span class="lab">Points clés</span>
+              <span class="pill m">Budget confirmé</span><span class="pill">Décision avril</span><span class="pill">3 sites</span>
+              <div class="note">« Nous avons déjà un prestataire. »</div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card"><span class="lab">Résultat</span><span class="t">RDV pris</span><span class="s">Jeudi 14:00</span></div>
+            <div class="card"><span class="lab">Suite</span><span class="t">Jeudi 14:00</span><span class="s">Rappel · proposition</span></div>
+            <div class="card"><span class="lab">Email de suivi</span><span class="t">Votre projet d'agence</span><span class="s">Brouillon · 3 lignes</span></div>
+            <div class="card"><span class="lab">CRM</span><span class="t">RDV planifié</span><span class="s">18 400 € · proposition</span></div>
+          </div>
+          <div class="bottom"><span>1 action pour terminer</span><span>Enregistrer le brouillon</span><span class="cta">Tout confirmer</span></div>
+        </div>
+      </div>
+      <p class="small">Four suggestions, one confirmation. The right column is a review stack, not a form.</p>
+
+      <div class="why">
+        <div><b>Focal point.</b> The "Tout confirmer" action and the four selected defaults above it.</div>
+        <div><b>Why it works.</b> The SDR corrects exceptions instead of filling fields; the default path is one click.</div>
+      </div>
+
+      <div class="prompt-head"><div class="k">Prompt 03 · paste into GPT Image</div><div class="hint">1536×1024 landscape</div></div>
+      <pre class="prompt">High-fidelity desktop SaaS UI for Suzalink, a French B2B sales CRM. One straight-on 1536×1024 screenshot, no laptop or browser frame, no presentation board. Warm off-white #F7F5F2 canvas; 64px deep-navy #263460 icon rail; white cards with 1px #DED8CF borders and 12px radius; magenta #C64B8B only for live, active and primary states; ink #151827; muted #646A80; success #2F6B4F; warning #9A5B1E. Bricolage Grotesque headings, Inter UI text; 12px uppercase labels, 14px body, 28px page title, 44px KPI figures. Strict 8px grid, 12 columns, 1px hairlines, 4% ambient shadow, generous whitespace. French copy, initials avatars, no photographs of people. Crisp, aligned, dense but calm. No gradients, glassmorphism, 3D, neon, emoji, lorem ipsum, greeked text, extra logos or watermarks.
+
+SCREEN 03 — "ZÉRO ADMIN", the post-call follow-up review.
+
+Composition: 64px navy icon rail; a white top bar reading "Fin d'appel" with "Camille Roussel · Atelier Nord" and the timer "06:48". Below it, a full-width white recording card: play button, waveform, "06:48", and the label "Enregistrement".
+
+The body splits 60/40. Left: a "Résumé de l'appel" card with a small "Suggéré par l'IA" chip, four short bullet lines, a "Points clés" row of three chips ("Budget confirmé", "Décision en avril", "3 sites"), a quoted objection "Nous avons déjà un prestataire.", and a "Sentiment" pill "Positif". Every field is editable, with small pencil icons.
+
+Right: the heading "À confirmer" and four stacked cards. "Résultat": a segmented control with "RDV pris" selected. "Suite": date chips with "Jeudi 14:00" selected. "Email de suivi": a mini draft with the subject "Votre projet d'agence", three short lines and a "Modifier" link. "CRM": short rows for stage "RDV planifié", montant "18 400 €", prochaine action "Envoyer la proposition".
+
+A sticky bottom bar spans the screen: "1 action pour terminer" on the left, a ghost "Enregistrer le brouillon" and a magenta "Tout confirmer" on the right.
+
+The right column must read as a review stack, not a settings form: short rows, clear selected states, one primary action. No long form, no multi-step wizard, no empty fields.</pre>
+      <p class="prompt-note">This screen is the commercial argument: the SDR sees the admin disappear, not another form to fill.</p>
+    </section>
+
+    <section>
+      <div class="sec-head"><div class="sec-num">06</div><h2>Screen 04 — Pilotage VoIP</h2></div>
+      <div class="screen-head">
+        <div><div class="num">SCREEN 04</div><h3>The floor, the numbers, the calls at risk</h3></div>
+        <div class="role">Manager · live supervision</div>
+      </div>
+      <p class="screen-intro">A manager screen should answer three questions in one glance: who is on a call, which numbers are degrading, and where the queue is backing up. Supervision is an action on the row, not a separate tab.</p>
+
+      <div class="map-scroll">
+        <div class="map manager">
+          <div class="rail"><i></i><i></i><i></i><i class="on"></i><i></i><i></i></div>
+          <div class="top"><span><b>Pilotage VoIP</b> · Aujourd'hui 14:32</span><span class="pill m">● En direct</span></div>
+          <div class="kpis">
+            <div class="card"><span class="lab">Appels en cours</span><span class="t">14</span></div>
+            <div class="card"><span class="lab">Taux de réponse</span><span class="t">38 %</span></div>
+            <div class="card"><span class="lab">Durée moyenne</span><span class="t">06:24</span></div>
+            <div class="card"><span class="lab">À qualifier</span><span class="t" style="color:var(--warn)">7</span></div>
+          </div>
+          <div class="card floor">
+            <span class="lab">Équipe en direct</span>
+            <div class="rows">
+              <div class="row"><b>Sarah K.</b><span>En appel · Camille R.</span><span>04:12</span><span class="dot"></span></div>
+              <div class="row"><b>Yanis B.</b><span>Disponible</span><span>—</span><span class="dot"></span></div>
+              <div class="row"><b>Maya L.</b><span>Pause</span><span>12:08</span><span class="dot w"></span></div>
+              <div class="row"><b>Tom R.</b><span>En appel · Hugo B.</span><span>02:48</span><span class="dot w"></span></div>
+              <div class="row"><b>Nora S.</b><span>En appel · Inès P.</span><span>06:31</span><span class="dot"></span></div>
+            </div>
+            <div class="note">Écouter · Chuchoter · Prendre la main</div>
+          </div>
+          <div class="side">
+            <div class="card"><span class="lab">Santé des numéros</span><div class="rows"><div class="row"><span>06 12 44 87 21</span><b>41 %</b></div><div class="row"><span>09 72 18 40 02</span><b style="color:var(--warn)">12 %</b></div><div class="row"><span>01 84 60 22 19</span><b>37 %</b></div></div></div>
+            <div class="card"><span class="lab">Files</span><div class="rows"><div class="row"><span>Rappels</span><b>8</b></div><div class="row"><span>Sans réponse</span><b>12</b></div><div class="row"><span>Nouveaux</span><b>22</b></div></div></div>
+          </div>
+          <div class="events"><span>14:32 Sarah K. a pris l'appel</span><span>14:29 Tom R. · qualité faible</span><span>14:27 Nora S. · RDV pris</span></div>
+        </div>
+      </div>
+      <p class="small">Supervision lives on the row: listen, whisper, take over. No modal, no separate monitoring product.</p>
+
+      <div class="why">
+        <div><b>Focal point.</b> The live rows and the amber number. The manager sees risk before the daily report.</div>
+        <div><b>Why it works.</b> One screen joins people, numbers and queues; the action is where the problem is.</div>
+      </div>
+
+      <div class="prompt-head"><div class="k">Prompt 04 · paste into GPT Image</div><div class="hint">1536×1024 landscape</div></div>
+      <pre class="prompt">High-fidelity desktop SaaS UI for Suzalink, a French B2B sales CRM. One straight-on 1536×1024 screenshot, no laptop or browser frame, no presentation board. Warm off-white #F7F5F2 canvas; 64px deep-navy #263460 icon rail; white cards with 1px #DED8CF borders and 12px radius; magenta #C64B8B only for live, active and primary states; ink #151827; muted #646A80; success #2F6B4F; warning #9A5B1E. Bricolage Grotesque headings, Inter UI text; 12px uppercase labels, 14px body, 28px page title, 44px KPI figures. Strict 8px grid, 12 columns, 1px hairlines, 4% ambient shadow, generous whitespace. French copy, initials avatars, no photographs of people. Crisp, aligned, dense but calm. No gradients, glassmorphism, 3D, neon, emoji, lorem ipsum, greeked text, extra logos or watermarks.
+
+SCREEN 04 — "PILOTAGE VOIP", the sales manager's live floor.
+
+Composition: 64px navy icon rail; a white top bar with "Pilotage VoIP", the date "Aujourd'hui · 14:32", and on the right a magenta dot with "En direct" and a ghost "Exporter" button.
+
+A four-card KPI strip: "Appels en cours 14", "Taux de réponse 38 %", "Durée moyenne 06:24", "À qualifier 7" in warning color.
+
+Main area 65/35. Left: an "Équipe en direct" table with columns SDR, statut, prospect, entreprise, durée, qualité, actions. Six rows: Sarah K. · En appel · Camille R. · Atelier Nord · 04:12 · green dot · ear, whisper and takeover icons; Yanis B. · Disponible; Maya L. · Pause · 12:08; Tom R. · En appel · Hugo B. · 02:48 · amber dot; Nora S. · En appel · Inès P. · 06:31; one more. The live row is expanded with a mini waveform and three labeled actions: "Écouter", "Chuchoter", "Prendre la main". Right: "Santé des numéros" with four rows (number, answer rate, tiny sparkline), one amber row marked "À surveiller"; below it "Files" with "Rappels 8", "Sans réponse 12", "Nouveaux 22".
+
+A bottom strip: "Activité en direct" with four timestamped events.
+
+More data than the SDR screens, same calm: magenta only for live, amber only for attention, green only for healthy quality. No charts larger than a sparkline, no separate analytics dashboard.</pre>
+      <p class="prompt-note">This is the screen that makes the manager buy the product: risk is visible while there is still time to act.</p>
+    </section>
+
+    <section>
+      <div class="sec-head"><div class="sec-num">07</div><h2>Keep the set coherent</h2></div>
+      <p class="lede">Four separate generations drift. These are the guardrails that keep them looking like four views of one product rather than four competitors.</p>
+
+      <p class="kicker">Negative prompt · append to every generation</p>
+      <div class="neg">No gradients, glassmorphism, neon, 3D, isometric view, laptop mockup, browser chrome, hands, people, stock photography, emoji, lorem ipsum, greeked or blurred text, invented logos, watermarks, purple-blue AI gradients, oversized pill buttons, heavy drop shadows, tilted perspective, dark mode, cluttered panels, overlapping cards, cut-off text, floating decorative shapes.</div>
+
+      <p class="kicker" style="margin-top:22px">The consistency checklist</p>
+      <ul class="rules">
+        <li>Same 64px rail, same 64px top bar, same 12px card radius in every screen.</li>
+        <li>Magenta appears only on live, active or primary; if it is decorative, remove it.</li>
+        <li>One page title per screen, one primary action, no competing CTAs.</li>
+        <li>Keep the sample French names and companies across all four images.</li>
+        <li>Every screen uses the same three type sizes: 28, 17, 12.</li>
+        <li>No screen introduces a new accent color, chart style or icon family.</li>
+      </ul>
+
+      <p class="kicker" style="margin-top:22px">Iteration recipe</p>
+      <div class="iteration">
+        <div class="it"><b>01 · Three variants, one brief</b><p>Generate three images without changing the prompt. Pick the one with the clearest focal point, not the prettiest one.</p></div>
+        <div class="it"><b>02 · Fix the text after</b><p>Regenerate once if labels are garbled. If it persists, keep the layout and rebuild the copy in Figma; do not fight the model.</p></div>
+        <div class="it"><b>03 · Lock the grid</b><p>Use the same prompt prefix and the same 1536×1024 ratio for all four. Cropping one screen differently breaks the set.</p></div>
+        <div class="it"><b>04 · Judge at thumbnail size</b><p>Shrink the image to 25%. If the hierarchy disappears, the layout is too busy; remove a card, not the whitespace.</p></div>
+      </div>
+
+      <div class="callout mag"><b>The test of a good generation.</b> At thumbnail size you can still tell where to look: the person in the Cockpit, the next call in the Queue, the confirm button in Zéro Admin, the amber row in Pilotage. If everything competes, the screen has failed regardless of how polished it looks.</div>
+    </section>
+
+    <div class="endnote">
+      <div><b>Suzalink VoIP prompt kit</b> · Four screens, one design language</div>
+      <div>6 November 2026</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

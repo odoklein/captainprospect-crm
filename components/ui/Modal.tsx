@@ -109,6 +109,23 @@ export function Modal({
         };
     }, [isOpen, handleKeyDown]);
 
+    // The app shell scrolls inside .cp-main, not the body: lock it too, or its
+    // scrollbar stays live beside the dialog's own (two scrollbars). The padding
+    // stands in for the hidden scrollbar so the page behind doesn't shift.
+    useEffect(() => {
+        if (!isOpen) return;
+        const main = document.querySelector<HTMLElement>(".cp-main");
+        if (!main) return;
+        const prev = { overflowY: main.style.overflowY, paddingRight: main.style.paddingRight };
+        const scrollbar = main.offsetWidth - main.clientWidth;
+        main.style.overflowY = "hidden";
+        if (scrollbar > 0) main.style.paddingRight = `${scrollbar}px`;
+        return () => {
+            main.style.overflowY = prev.overflowY;
+            main.style.paddingRight = prev.paddingRight;
+        };
+    }, [isOpen]);
+
     // Focus: move into the dialog on open, restore to the trigger on close
     useEffect(() => {
         if (!isOpen) return;

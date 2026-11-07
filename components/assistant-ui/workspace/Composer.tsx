@@ -20,6 +20,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 import { AlertCircle, ArrowUp, Check, FileText, Loader2, Paperclip, Pencil, Square, X } from "lucide-react";
 import { FILE_ACCEPT, type FolderFile } from "@/lib/assistant/api-contract";
 import { useFolderFiles } from "@/lib/assistant/client/folder-hooks";
+import { useDraftText } from "./useDraftText";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
 import { Badge } from "@/components/ui/shadcn/badge";
@@ -144,6 +145,7 @@ type Menu =
 
 export function Composer({
     handleRef,
+    draftKey,
     sending,
     blockedReason,
     onSubmit,
@@ -158,12 +160,13 @@ export function Composer({
     isMac,
 }: {
     handleRef?: Ref<ComposerHandle>;
+    draftKey?: string;
     /** This thread's answer is being written. */
     sending: boolean;
     /** Why sending is not possible right now (read-only, another answer running…). */
     blockedReason: string | null;
     /** Return false to keep the text (the send was refused). */
-    onSubmit: (submit: ComposerSubmit) => boolean | void;
+    onSubmit: (submit: ComposerSubmit) => boolean | void | Promise<boolean | void>;
     onStop: () => void;
     onRequestEditLast?: () => { id: string; content: string } | null;
     attachments: ComposerAttachments | null;
@@ -176,7 +179,7 @@ export function Composer({
     autoFocus?: boolean;
     isMac?: boolean;
 }) {
-    const [text, setText] = useState("");
+    const [text, setText] = useDraftText(draftKey);
     const [caret, setCaret] = useState(0);
     const [deep, setDeep] = useState(false);
     const [editing, setEditing] = useState<{ messageId: string; original: string } | null>(null);
@@ -213,7 +216,7 @@ export function Composer({
             setText(original);
             requestAnimationFrame(focus);
         },
-        [focus],
+        [focus, setText],
     );
 
     useImperativeHandle(handleRef, () => ({ focus, startEdit }), [focus, startEdit]);
@@ -279,24 +282,33 @@ export function Composer({
         setText("");
     };
 
-    const submit = () => {
+    const submitLock = useRef(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState(false);
+    const submit = async () => {
         const value = text.trim();
-        if (!value || sending || blockedReason || attachments?.uploading) return;
+        if (!value || sending || blockedReason || attachments?.uploading || submitLock.current) return;
         const kept = keptMentions(value, mentions);
-        const result = onSubmit({ text: value, deep, editMessageId: editing?.messageId, mentions: kept.length > 0 ? kept : undefined });
-        if (result === false) return;
+        submitLock.current = true;
+        setSubmitting(true);
+        setSubmitError(false);
+        try {
+        const result = await onSubmit({ text: value, deep, editMessageId: editing?.messageId, mentions: kept.length > 0 ? kept : undefined });
+        if (result === false) { setSubmitError(true); return; }
         setText("");
         setCaret(0);
         setMentions([]);
         setEditing(null);
+        } catch { setSubmitError(true); }
+        finally { submitLock.current = false; setSubmitting(false); }
     };
 
-    const canSend = text.trim().length > 0 && !blockedReason && !attachments?.uploading;
+    const canSend = !submitting && text.trim().length > 0 && !blockedReason && !attachments?.uploading;
     const mod = isMac ? "⌘" : "Ctrl";
     const menuId = "captain-composer-menu";
 
     return (
-        <div className={cn("mx-auto w-full shrink-0", compact ? "px-3 pb-3" : "max-w-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6")}>
+        <div className={cn("mx-auto w-full shrink-0", compact ? "px-3 pb-3" : "max-w-[900px] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6")}>
             <form
                 onSubmit={(e) => {
                     e.preventDefault();
@@ -374,7 +386,7 @@ export function Composer({
 
                 <Card
                     className={cn(
-                        "gap-0 rounded-[22px] py-0 shadow-raised",
+                        "gap-0 rounded-[22px] py-0 shadow-xs",
                         "transition-[border-color,box-shadow] duration-200 ease-snappy",
                         editing ? "border-accent-300 ring-4 ring-accent-500/10" : "focus-within:border-line-strong focus-within:ring-4 focus-within:ring-primary-500/[0.06]",
                     )}
@@ -399,6 +411,7 @@ export function Composer({
 
                     <Textarea
                         ref={textareaRef}
+                        readOnly={submitting}
                         value={text}
                         onChange={(e) => {
                             const value = e.target.value;
@@ -540,7 +553,7 @@ export function Composer({
                                     size="icon"
                                     disabled={!canSend}
                                     aria-label={editing ? "Renvoyer la question modifiée" : "Envoyer"}
-                                    className={cn("rounded-full", !canSend && "bg-surface-3 text-ink-4 shadow-none disabled:opacity-100")}
+                                    className={cn("rounded-full bg-accent-600 text-accent-fg hover:bg-accent-700", !canSend && "bg-surface-3 text-ink-4 shadow-none disabled:opacity-100")}
                                 >
                                     <ArrowUp className={cn("transition-transform duration-200 ease-snappy", canSend && "motion-safe:-translate-y-px")} aria-hidden />
                                 </Button>
@@ -549,6 +562,7 @@ export function Composer({
                     </div>
                 </Card>
             </form>
+            {submitError && <p role="alert" className="mt-2 text-xs text-danger-ink">Envoi impossible. Votre demande est conservée ; réessayez.</p>}
             {blockedReason && !sending ? (
                 <p role="status" className="mt-2 text-center text-[11.5px] font-medium text-warning-ink motion-safe:animate-ds-enter">
                     {blockedReason}

@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/shadcn/skeleton";
 function WorkspaceFallback() {
     return (
         <div className="flex h-full w-full bg-canvas" aria-busy="true">
-            <div className="hidden w-[272px] shrink-0 flex-col gap-2 border-r border-line bg-surface-2 p-3 md:flex">
+            <div className="hidden w-[248px] shrink-0 flex-col gap-2 border-r border-line bg-surface-2 p-3 md:flex">
                 <Skeleton className="h-8 w-32" />
                 <Skeleton className="mt-2 h-9 w-full rounded-xl" />
                 {Array.from({ length: 6 }, (_, i) => (

@@ -1,0 +1,283 @@
+<title>Point plateforme agences</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column, a status strip up top, then sections; the client texts sit in framed "paper" panels with a copy button. */
+:root {
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --fg: #1b2420;
+  --muted: #5d6a64;
+  --line: #dde3df;
+  --accent: #17644f;
+  --accent-soft: #e3f0eb;
+  --ok: #1f7a4d; --ok-bg: #e2f3e9;
+  --warn: #9a6200; --warn-bg: #fbf0d9;
+  --risk: #a33a2b; --risk-bg: #f8e4e0;
+  --font-display: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111614; --surface: #19201d; --fg: #e6ece9; --muted: #9aa8a1; --line: #2b3531;
+    --accent: #5cc4a3; --accent-soft: #1d3029;
+    --ok: #6fd39d; --ok-bg: #173126; --warn: #e6b35a; --warn-bg: #33291a; --risk: #f08d7d; --risk-bg: #3a1f1b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #19201d; --fg: #e6ece9; --muted: #9aa8a1; --line: #2b3531;
+  --accent: #5cc4a3; --accent-soft: #1d3029;
+  --ok: #6fd39d; --ok-bg: #173126; --warn: #e6b35a; --warn-bg: #33291a; --risk: #f08d7d; --risk-bg: #3a1f1b;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 860px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; font-weight: 650; }
+h3 { font-size: 1.05rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+section { display: grid; gap: 16px; }
+header { display: grid; gap: 12px; }
+.lede { color: var(--muted); font-size: 1.05rem; }
+
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a { font-size: 0.875rem; text-decoration: none; border: 1px solid var(--line); background: var(--surface); padding: 4px 12px; border-radius: 999px; color: var(--fg); }
+nav.toc a:hover { border-color: var(--accent); }
+
+.addr { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.addr div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; min-width: 0; }
+.addr .k { font-size: 0.8rem; color: var(--muted); }
+.addr .v { font-family: var(--font-mono); font-size: 0.9rem; overflow-wrap: anywhere; }
+
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.figs div { padding: 14px 4px; display: grid; gap: 2px; }
+.figs b { font-family: var(--font-mono); font-weight: 500; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.figs span { font-size: 0.82rem; color: var(--muted); }
+
+ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 70ch; }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td:first-child { white-space: nowrap; }
+
+.pill { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { color: var(--ok); background: var(--ok-bg); }
+.pill.warn { color: var(--warn); background: var(--warn-bg); }
+.pill.risk { color: var(--risk); background: var(--risk-bg); }
+
+.decisions { display: grid; gap: 10px; counter-reset: d; }
+.decisions div { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; background: var(--accent-soft); border-radius: 8px; padding: 14px 16px; }
+.decisions div::before { counter-increment: d; content: counter(d); font-family: var(--font-mono); color: var(--accent); font-weight: 500; grid-row: span 2; }
+.decisions b { font-weight: 600; }
+.decisions span { color: var(--muted); font-size: 0.92rem; }
+
+.paper { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.paper-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.paper-head .eyebrow { margin: 0; }
+.paper pre { margin: 0; padding: 18px 20px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-body); font-size: 0.95rem; line-height: 1.65; }
+button.copy { font: inherit; font-size: 0.85rem; font-weight: 600; color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 6px; padding: 4px 12px; cursor: pointer; }
+button.copy:hover { background: var(--accent-soft); }
+.note { font-size: 0.9rem; color: var(--muted); border-left: 2px solid var(--warn); padding-left: 12px; max-width: 70ch; }
+footer { font-size: 0.82rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Suzalink · point du 26 octobre 2026</p>
+    <h1>Plateforme agences : où on en est</h1>
+    <p class="lede">Le CRM peut maintenant être livré à d'autres agences, chacune avec son adresse, sa base et sa marque. La première vraie agence, PingLead, a ses données copiées sur la nouvelle plateforme et attend la bascule.</p>
+    <nav class="toc" aria-label="Sections">
+      <a href="#resume">Résumé manager</a>
+      <a href="#risques">Risques</a>
+      <a href="#decisions">Décisions</a>
+      <a href="#message">Message PingLead</a>
+      <a href="#email">E-mail PingLead</a>
+    </nav>
+  </header>
+
+  <section id="resume">
+    <p class="eyebrow">Pour le manager</p>
+    <h2>Ce qui est en place</h2>
+    <p>Un seul logiciel sert toutes les agences. Chaque agence reçoit sa propre base de données, son espace de fichiers, son adresse en <code>&lt;agence&gt;.suzalink.com</code> et son logo. Une console interne crée, met à jour, sauvegarde et supprime ces agences sans passer par un développeur.</p>
+    <div class="addr">
+      <div><span class="k">Console (équipe Suzalink)</span><span class="v">console.suzalink.com</span></div>
+      <div><span class="k">CRM, version de test v02</span><span class="v">app.suzalink.com</span></div>
+      <div><span class="k">Agence de démonstration</span><span class="v">demo.suzalink.com</span></div>
+      <div><span class="k">PingLead, nouvelle plateforme</span><span class="v">pinglead.suzalink.com</span></div>
+    </div>
+
+    <h3>Testé pour de vrai sur le serveur</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>État</th><th>Fonction</th><th>Ce qu'on a constaté</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill ok">Fait</span></td><td>Créer une agence</td><td>PingLead créée depuis l'assistant de la console : base, fichiers, adresse, certificat HTTPS, compte manager.</td></tr>
+          <tr><td><span class="pill ok">Fait</span></td><td>Mettre à jour une agence</td><td>Démo passée à la dernière version par la console : sauvegarde, migration, déploiement, contrôle. 4 min 15 s.</td></tr>
+          <tr><td><span class="pill ok">Fait</span></td><td>Supprimer une agence</td><td>Une agence d'essai supprimée proprement depuis la console.</td></tr>
+          <tr><td><span class="pill ok">Fait</span></td><td>Reprendre une agence existante</td><td>La démo, créée à la main, est passée sous le contrôle de la console.</td></tr>
+          <tr><td><span class="pill ok">Fait</span></td><td>Marque blanche</td><td>Logo, couleurs et nom modifiables par l'agence dans Paramètres → Identité.</td></tr>
+          <tr><td><span class="pill warn">Pas encore</span></td><td>Restaurer, suspendre, exporter</td><td>Codé et testé hors serveur, jamais exécuté sur une vraie agence.</td></tr>
+          <tr><td><span class="pill warn">Pas encore</span></td><td>E-mails, IA, appels Allo</td><td>Clés non branchées sur les agences : pas d'e-mail « mot de passe oublié » pour l'instant.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Migration PingLead</h3>
+    <p>Le CRM actuel de PingLead (crm.ping-leadagency.fr) a été sauvegardé en entier, puis copié dans leur nouvelle agence. Les chiffres des tables principales sont identiques entre l'ancien et le nouveau, sans aucune donnée orpheline.</p>
+    <div class="figs">
+      <div><b>3 948</b><span>sociétés</span></div>
+      <div><b>1 977</b><span>contacts</span></div>
+      <div><b>2 617</b><span>actions</span></div>
+      <div><b>76</b><span>opportunités</span></div>
+      <div><b>71</b><span>créneaux planning</span></div>
+      <div><b>11</b><span>utilisateurs</span></div>
+    </div>
+    <ul class="plain">
+      <li>9 863 lignes copiées sur 9 897. Les 34 restantes appartiennent à des modules que la nouvelle version a refaits : conversations de l'assistant, tickets support, rapports clients journaliers, invitations en attente. Elles restent dans la sauvegarde.</li>
+      <li>Les utilisateurs gardent leur e-mail et leur mot de passe. 3 missions, 3 clients, 2 managers, 6 SDR, 3 comptes clients.</li>
+      <li>C'est une photo prise le 26 octobre à 12 h 22 (heure de Paris). L'ancien CRM continue de tourner : avant la bascule, on refait une copie finale, ce qui écrasera tout ce qui aura été saisi sur le nouveau site entre-temps.</li>
+      <li>Les réglages de téléphonie (Ringover, OnOff) ne sont pas repris et seront à refaire.</li>
+    </ul>
+
+    <h3>Coût et fonctionnement</h3>
+    <ul class="plain">
+      <li>Tout tourne sur le serveur existant (173.212.225.37). Une agence légère consomme environ 230 Mo de mémoire.</li>
+      <li>GitHub Actions est bloqué par la facturation : les nouvelles versions sont construites sur le serveur lui-même, environ 25 minutes par version. Aucun coût ajouté.</li>
+    </ul>
+  </section>
+
+  <section id="risques">
+    <h2>Risques et points ouverts</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Niveau</th><th>Sujet</th><th>Détail</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill risk">Élevé</span></td><td>Un seul serveur</td><td>Agences, console et sauvegardes sont sur la même machine. Une panne disque emporte tout. Il faut copier les sauvegardes ailleurs.</td></tr>
+          <tr><td><span class="pill risk">Élevé</span></td><td>Accès à renouveler</td><td>Le mot de passe root du serveur et la clé Dokploy ont circulé dans une conversation. À changer.</td></tr>
+          <tr><td><span class="pill risk">Élevé</span></td><td>Clé de chiffrement de la console</td><td>Elle protège les secrets de chaque agence et n'existe que sur le serveur. À ranger dans le coffre de l'équipe.</td></tr>
+          <tr><td><span class="pill warn">Moyen</span></td><td>Intégrations absentes</td><td>Pas d'envoi d'e-mails, d'IA ni d'appels Allo sur les agences tant que les clés ne sont pas branchées.</td></tr>
+          <tr><td><span class="pill warn">Moyen</span></td><td>Isolation incomplète</td><td>Les agences partagent une clé de stockage de fichiers, et le serveur de messagerie temps réel n'est pas encore cloisonné par agence.</td></tr>
+          <tr><td><span class="pill warn">Moyen</span></td><td>app.suzalink.com remplacé</td><td>L'ancienne application « Suzalink CRM » qui répondait à cette adresse est masquée par la v02. Réversible en une minute.</td></tr>
+          <tr><td><span class="pill warn">Moyen</span></td><td>Code pas encore poussé</td><td>Un dernier commit du CRM n'est pas en ligne, et la console n'a pas encore de dépôt distant.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="decisions">
+    <h2>Décisions à prendre</h2>
+    <div class="decisions">
+      <div><b>Date de bascule PingLead</b><span>On refait la copie finale et on coupe l'ancien CRM le même jour.</span></div>
+      <div><b>Adresse de PingLead</b><span>Garder pinglead.suzalink.com ou passer sur leur domaine (par exemple crm.ping-leadagency.fr). La question leur est posée dans le message ci-dessous.</span></div>
+      <div><b>Clés d'intégration</b><span>Quel compte d'envoi d'e-mails, quelle clé IA et quelle ligne Allo utiliser pour les agences.</span></div>
+      <div><b>Construction des versions</b><span>Rester sur le serveur (gratuit, 25 min) ou régler GitHub pour des versions automatiques.</span></div>
+    </div>
+  </section>
+
+  <section id="message">
+    <p class="eyebrow">À envoyer à PingLead</p>
+    <h2>Message court</h2>
+    <p class="note">Pour WhatsApp ou LinkedIn. Remplacez les crochets avant l'envoi.</p>
+    <div class="paper">
+      <div class="paper-head"><p class="eyebrow">Message</p><button class="copy" type="button" data-target="txt-message" id="copy-message">Copier</button></div>
+<pre id="txt-message">Bonjour [Prénom],
+
+Bonne nouvelle : votre nouveau CRM PingLead est prêt.
+https://pinglead.suzalink.com
+
+Vos sociétés, contacts, actions, missions et opportunités y sont déjà. Vous vous connectez avec le même e-mail et le même mot de passe qu'aujourd'hui.
+
+Jetez-y un œil dès que possible et dites-nous si quelque chose manque. D'ici la bascule du [date], continuez à travailler sur l'ancien CRM : on refera une copie finale juste avant.
+
+Une question : préférez-vous garder cette adresse ou utiliser votre propre domaine, par exemple crm.ping-leadagency.fr ? On s'occupe de tout, il suffit d'ajouter un enregistrement DNS.
+
+Je vous envoie le détail par e-mail.
+[Signature]</pre>
+    </div>
+  </section>
+
+  <section id="email">
+    <h2>E-mail d'onboarding</h2>
+    <div class="paper">
+      <div class="paper-head"><p class="eyebrow">Objet : Votre nouveau CRM PingLead est prêt</p><button class="copy" type="button" data-target="txt-email" id="copy-email">Copier</button></div>
+<pre id="txt-email">Objet : Votre nouveau CRM PingLead est prêt
+
+Bonjour [Prénom],
+
+Votre CRM a déménagé sur notre nouvelle plateforme. Il est en ligne ici :
+
+    https://pinglead.suzalink.com
+
+Ce qui change pour vous
+• La version la plus récente du CRM, avec les dernières fonctionnalités.
+• Une adresse dédiée à PingLead, avec votre logo et vos couleurs.
+• Une base de données propre à PingLead, séparée de celles des autres agences.
+
+Ce qui a été repris
+Nous avons copié votre CRM actuel tel qu'il était le 26 octobre à 12 h 22 :
+• 3 948 sociétés, 1 977 contacts et 2 617 actions
+• vos 3 missions, 3 clients, 76 opportunités et votre planning
+• les comptes de toute l'équipe, avec les mêmes identifiants
+
+Les éléments suivants ne sont pas affichés dans la nouvelle version, mais restent dans notre sauvegarde et peuvent être récupérés sur demande : les conversations avec l'assistant, les tickets support, les rapports clients journaliers et les invitations en attente. Les réglages de téléphonie (Ringover, OnOff) seront à reconfigurer avec nous.
+
+Vos premiers pas
+1. Ouvrez https://pinglead.suzalink.com
+2. Connectez-vous avec votre e-mail et votre mot de passe habituels.
+3. Vérifiez vos listes, vos missions et vos contacts : tout doit être là.
+4. Dans Paramètres → Identité, ajoutez votre logo et vos couleurs si vous le souhaitez.
+5. Répondez à cet e-mail avec tout ce qui manque ou vous paraît faux.
+
+Important avant la bascule
+Jusqu'au [date de bascule], continuez à travailler sur votre CRM actuel (crm.ping-leadagency.fr). Ce jour-là, nous recopierons vos dernières données sur la nouvelle plateforme. Tout ce qui aura été saisi sur le nouveau site d'ici là sera remplacé : utilisez-le pour découvrir et vérifier, pas encore pour travailler.
+
+Si un membre de l'équipe a oublié son mot de passe, écrivez-nous : l'envoi automatique de réinitialisation sera activé très bientôt.
+
+Votre propre adresse ?
+Votre CRM peut aussi s'afficher sur votre domaine, par exemple crm.ping-leadagency.fr. Si cela vous intéresse :
+• dites-nous l'adresse souhaitée ;
+• ajoutez chez votre hébergeur de domaine un enregistrement CNAME : nom « crm », valeur « pinglead.suzalink.com » ;
+• nous activons l'adresse et le certificat de sécurité le jour de la bascule.
+Vous pouvez aussi garder pinglead.suzalink.com : les deux fonctionnent.
+
+Nous restons disponibles pour un appel de 20 minutes afin de faire le tour ensemble. Dites-nous quel créneau vous convient.
+
+Bien à vous,
+[Signature]
+Suzalink</pre>
+    </div>
+    <p class="note">Avant l'envoi : fixez la date de bascule. Les e-mails automatiques (mot de passe oublié) ne partent pas encore depuis la nouvelle plateforme.</p>
+  </section>
+
+  <footer>Sources : comptages lus sur l'ancienne base et sur la nouvelle le 26 octobre 2026 après l'import ; journal de la console pour les durées.</footer>
+</div>
+
+<script>
+document.querySelectorAll('button.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var el = document.getElementById(btn.dataset.target);
+    var text = el.textContent;
+    function done(label) { btn.textContent = label; setTimeout(function () { btn.textContent = 'Copier'; }, 1800); }
+    function selectIt() {
+      var r = document.createRange(); r.selectNodeContents(el);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      done('Sélectionné, Ctrl+C');
+    }
+    try {
+      navigator.clipboard.writeText(text).then(function () { done('Copié'); }, selectIt);
+    } catch (e) { selectIt(); }
+  });
+});
+</script>

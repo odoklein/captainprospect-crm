@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
-import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useState, useMemo, useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type DateRangePreset =
@@ -140,7 +140,6 @@ export function DateRangeFilter({
     const [selectingEnd, setSelectingEnd] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const endDate = value.endDate ? parseISODate(value.endDate) : new Date();
     const rightMonth = useMemo(() => {
         const next = new Date(leftMonth);
         next.setMonth(next.getMonth() + 1);
@@ -211,20 +210,20 @@ export function DateRangeFilter({
             ref={containerRef}
             className={cn(
                 "bg-white rounded-3xl border border-slate-200/90 shadow-[0_12px_40px_rgba(15,23,42,0.12)] overflow-hidden",
-                "w-full max-w-[780px] min-w-[360px]",
+                "@container w-[780px] max-w-[min(100%,calc(100vw-2rem))] max-h-[70dvh] overflow-y-auto",
                 className
             )}
         >
-            <div className="flex">
+            <div className="flex flex-col @[32rem]:flex-row">
                 {/* Left: Presets */}
-                <div className="w-[220px] shrink-0 border-r border-slate-100 bg-slate-50/70 p-2 space-y-0.5">
+                <div className="grid grid-cols-2 gap-0.5 border-b border-slate-100 bg-slate-50/70 p-2 @[32rem]:block @[32rem]:w-44 @[32rem]:shrink-0 @[32rem]:border-b-0 @[32rem]:border-r">
                     {PRESETS.map((p) => (
                         <button
                             key={p.key}
                             type="button"
                             onClick={() => applyPreset(p.key)}
                             className={cn(
-                                "w-full text-left px-3 h-9 rounded-xl text-[13px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45",
+                                "w-full text-left px-2 h-9 rounded-xl text-[13px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45",
                                 preset === p.key
                                     ? "bg-white text-zinc-900 font-bold shadow-[0_1px_2px_rgba(15,23,42,0.08),0_0_0_1px_rgba(15,23,42,0.04)]"
                                     : "text-zinc-600 hover:bg-white/80 hover:text-zinc-900"
@@ -265,7 +264,7 @@ export function DateRangeFilter({
                     </div>
 
                     {/* Two calendars */}
-                    <div className="flex gap-8">
+                    <div className="grid gap-6 @[45rem]:grid-cols-2 [&>:nth-child(2)]:hidden @[45rem]:[&>:nth-child(2)]:flex">
                         <MonthCalendar
                             year={leftMonth.getFullYear()}
                             month={leftMonth.getMonth()}
@@ -348,6 +347,7 @@ function MonthCalendar({
             <div className="flex items-center justify-between mb-3">
                 <button
                     type="button"
+                    aria-label="Mois précédent"
                     onClick={onPrev}
                     className="p-1.5 rounded-lg text-zinc-400 hover:bg-slate-100 hover:text-zinc-900 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45"
                 >
@@ -358,6 +358,7 @@ function MonthCalendar({
                 </span>
                 <button
                     type="button"
+                    aria-label="Mois suivant"
                     onClick={onNext}
                     className="p-1.5 rounded-lg text-zinc-400 hover:bg-slate-100 hover:text-zinc-900 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45"
                 >
@@ -410,7 +411,7 @@ function MonthCalendar({
                             type="button"
                             onClick={() => onDayClick(year, month, cell.day!)}
                             className={cn(
-                                "min-w-[32px] min-h-[32px] w-8 h-8 flex items-center justify-center text-[13px] font-semibold rounded-lg transition-colors tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45",
+                                "min-w-0 min-h-[32px] w-full h-8 flex items-center justify-center text-[13px] font-semibold rounded-lg transition-colors tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45",
                                 !cell.isCurrent && "text-zinc-300",
                                 cell.isCurrent && "text-zinc-800 hover:bg-slate-100",
                                 isStart && "bg-zinc-950 text-white font-black hover:bg-zinc-800",

@@ -4,7 +4,7 @@
 // CALL ISLAND — the only call surface, top centre, like iOS's Dynamic Island.
 //
 //   live      compact: who, phase / timer, real audio levels; a new
-//             transcribed sentence grows one line. Expanded (hover / click):
+//             transcribed sentence grows one line. Expanded (click / keyboard):
 //             the conversation, Micro, Clavier, Raccrocher.
 //   after     the island turns into a light outcome card: Twilio's result,
 //             the AI summary and its suggested status, Rappeler / Fermer.
@@ -116,7 +116,7 @@ function Pill({ action, dark }: { action: IslandAction; dark: boolean }) {
                 action.onClick();
             }}
             className={cn(
-                "cp-press h-7 shrink-0 rounded-full px-2.5 text-[12px] font-semibold",
+                "cp-press relative z-20 h-7 shrink-0 rounded-full px-2.5 text-[12px] font-semibold",
                 tone === "success" && "bg-emerald-500 text-white hover:bg-emerald-600",
                 tone === "primary" && "bg-primary text-primary-fg hover:bg-primary-hover",
                 tone === "accent" && "bg-accent text-white hover:brightness-110",
@@ -135,37 +135,39 @@ function IslandShell({
     radius,
     children,
     label,
-    onMouseEnter,
-    onMouseLeave,
     onClick,
+    expanded,
+    keypad = false,
 }: {
     dark: boolean;
     width: string;
     radius: string;
     children: React.ReactNode;
     label: string;
-    onMouseEnter?: () => void;
-    onMouseLeave?: () => void;
     onClick?: () => void;
+    expanded?: boolean;
+    keypad?: boolean;
 }) {
     return (
         // Centred over the page, not over a docked pane (--cp-pane-w).
-        <div className="pointer-events-none fixed inset-x-0 top-2 z-[126] flex justify-center px-3" style={{ right: "var(--cp-pane-w, 0px)" }}>
+        <div className="pointer-events-none cp-call-island-position fixed inset-x-0 top-14 z-[126] flex justify-center px-3" style={{ right: "var(--cp-pane-w, 0px)" }}>
             <div
-                role="status"
-                aria-live="polite"
+                role="region"
+                data-call-keypad={keypad || undefined}
                 aria-label={label}
-                onMouseEnter={onMouseEnter}
-                onMouseLeave={onMouseLeave}
-                onClick={onClick}
                 className={cn(
-                    "cp-island pointer-events-auto overflow-hidden transition-colors duration-300",
+                    "cp-island relative pointer-events-auto overflow-hidden transition-colors duration-300",
                     onClick && "cursor-pointer",
                     dark ? "bg-black text-white shadow-[0_10px_30px_-10px_rgba(0,0,0,0.6)]" : "border border-line bg-surface text-ink shadow-overlay",
                     width,
                     radius,
                 )}
             >
+                {onClick && (
+                    <button type="button" onClick={onClick} aria-expanded={expanded}
+                        aria-label={expanded ? "Réduire les détails de l’appel" : "Afficher les détails de l’appel"}
+                        className="absolute inset-x-0 top-0 z-10 h-10 rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400" />
+                )}
                 {children}
             </div>
         </div>
@@ -177,7 +179,6 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
     const active = isCallActive(call);
     const now = useNow(active);
     const [expanded, setExpanded] = useState(false);
-    const [hovered, setHovered] = useState(false);
     const [keypad, setKeypad] = useState(false);
     const [typed, setTyped] = useState("");
 
@@ -190,6 +191,11 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
     const live = call?.phase === "live";
     const summaryReady = summary.status === "done";
 
+    useEffect(() => {
+        document.documentElement.dataset.callIsland = "";
+        return () => { delete document.documentElement.dataset.callIsland; };
+    }, []);
+
     // Mode auto: the outcome opens by itself once the call ends.
     const [autoOpened, setAutoOpened] = useState(false);
     if (ended && call?.target.showOutcome && followed && !autoOpened) {
@@ -198,8 +204,8 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
     }
     // Reading the outcome keeps it on screen.
     useEffect(() => {
-        if (ended && (expanded || hovered)) pin();
-    }, [ended, expanded, hovered, pin]);
+        if (ended && expanded) pin();
+    }, [ended, expanded, pin]);
 
     // Échap folds; digits feed DTMF while the keypad is open.
     useEffect(() => {
@@ -208,16 +214,19 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
             const el = e.target as HTMLElement | null;
             if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
             if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
                 setExpanded(false);
                 setKeypad(false);
             } else if (keypad && live && /^[0-9*#]$/.test(e.key)) {
                 e.preventDefault();
+                e.stopPropagation();
                 sendDigit(e.key);
                 setTyped((t) => (t + e.key).slice(-16));
             }
         };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
     }, [expanded, keypad, live, sendDigit]);
 
     // ── Between calls: the page's own status (Mode auto) ─────────────────
@@ -244,7 +253,7 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
 
     // ── After the call: the island becomes the outcome card ──────────────
     if (ended) {
-        const open = expanded || hovered;
+        const open = expanded;
         const failed = call.phase === "failed" || Boolean(call.outcome && call.outcome !== "COMPLETED");
         const target = call.target;
         const actions: IslandAction[] = [
@@ -267,8 +276,8 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                 width={open ? "w-[min(500px,calc(100vw-24px))]" : "w-[min(400px,calc(100vw-24px))]"}
                 radius={open ? "rounded-[24px]" : "rounded-[22px]"}
                 label={`Appel avec ${name} : ${outcomeText(call)}`}
-                onMouseEnter={() => setHovered(true)}
-                onMouseLeave={() => setHovered(false)}
+                expanded={open}
+                keypad={keypad}
                 onClick={() => setExpanded((v) => !v)}
             >
                 <div className="flex h-10 items-center gap-2.5 px-1.5">
@@ -301,19 +310,20 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                         }}
                         aria-label="Fermer"
                         className={cn(
-                            "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                            "relative z-20 flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
                             open ? "text-ink-3 hover:bg-surface-2 hover:text-ink" : "text-white/60 hover:bg-white/10 hover:text-white",
                         )}
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>
                 </div>
-                <div className={cn("cp-island-reveal", open ? "max-h-[70vh] opacity-100" : "max-h-0 opacity-0")}>
+                <div inert={!open} className={cn("cp-island-reveal", open ? "max-h-[70vh] opacity-100" : "max-h-0 opacity-0")}>
                     <div className="max-h-[calc(70vh-48px)] overflow-y-auto border-t border-line-subtle px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        {call.error && <p role="alert" className="mb-3 rounded-lg bg-danger-soft p-3 text-[12px] text-danger-ink">{call.error}</p>}
                         {followed ? (
                             <AiSummaryView state={summary.status === "none" ? { status: "pending" } : summary} />
                         ) : (
-                            <p className="text-[12px] text-ink-3">Pas de résumé : transcription et enregistrement désactivés.</p>
+                            <p className="text-[12px] text-ink-3">{call.phase === "failed" ? "Aucun résumé disponible pour cet appel." : "Pas de résumé : transcription et enregistrement désactivés."}</p>
                         )}
                         {actions.length > 0 && (
                             <div className="mt-3.5 flex flex-wrap justify-end gap-1.5">
@@ -329,16 +339,16 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
     }
 
     // ── During the call ──────────────────────────────────────────────────
-    const open = expanded || hovered;
+    const open = expanded;
     return (
         <IslandShell
             dark
-            width={open ? "w-[min(480px,calc(100vw-24px))]" : showLine ? "w-[min(440px,calc(100vw-24px))]" : "w-[min(320px,calc(100vw-24px))]"}
+            width={open ? "w-[min(480px,calc(100vw-24px))]" : showLine ? "w-[min(440px,calc(100vw-24px))]" : "w-[min(400px,calc(100vw-24px))]"}
             radius={open ? "rounded-[28px]" : showLine ? "rounded-[24px]" : "rounded-[22px]"}
             label={`Appel avec ${name}`}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            onClick={() => setExpanded((v) => !v)}
+            expanded={open}
+                keypad={keypad}
+                onClick={() => setExpanded((v) => !v)}
         >
             <div className="flex h-10 items-center gap-2.5 pl-1.5 pr-3.5">
                 <span
@@ -353,6 +363,15 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                 {call.muted && <MicOff className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Micro coupé" />}
                 <span className={cn("shrink-0 text-[12px] tabular-nums", live ? "text-emerald-300" : "text-white/60")}>{liveText(call, now)}</span>
                 {live ? <LevelBars /> : <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-300" aria-hidden />}
+                <button type="button" onClick={toggleMute} disabled={!live} aria-pressed={call.muted}
+                    aria-label={call.muted ? "Réactiver le microphone" : "Couper le microphone"}
+                    className="relative z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40">
+                    {call.muted ? <MicOff className="h-3.5 w-3.5 text-amber-300" /> : <Mic className="h-3.5 w-3.5" />}
+                </button>
+                <button type="button" onClick={hangup} aria-label="Raccrocher"
+                    className="relative z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600">
+                    <PhoneOff className="h-3.5 w-3.5" />
+                </button>
             </div>
 
             {/* What is being said — the last sentence, compact */}
@@ -366,7 +385,7 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
             </div>
 
             {/* Expanded: conversation or keypad, then controls */}
-            <div className={cn("cp-island-reveal", open ? "max-h-[420px] opacity-100" : "max-h-0 opacity-0")}>
+            <div inert={!open} className={cn("cp-island-reveal", open ? "max-h-[420px] opacity-100" : "max-h-0 opacity-0")}>
                 <div className="border-t border-white/10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     {call.target.sublabel && <p className="mb-2 truncate text-[11px] text-white/50">{call.target.sublabel}</p>}
                     {keypad ? (

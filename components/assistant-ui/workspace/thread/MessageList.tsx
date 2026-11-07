@@ -187,7 +187,7 @@ export function MessageList({
                 aria-label="Messages"
                 aria-busy={loading || live !== null}
             >
-                <div ref={contentRef} className={cn("mx-auto flex w-full flex-col gap-7 px-4 pb-8 pt-6", compact ? "max-w-none gap-6 px-3 pt-4" : "max-w-3xl sm:px-6")}>
+                <div ref={contentRef} className={cn("mx-auto flex w-full flex-col gap-7 px-4 pb-8 pt-6", compact ? "max-w-none gap-6 px-3 pt-4" : "max-w-[900px] sm:px-8")}>
                     {olderCursor && !loading && (
                         <div className="flex justify-center">
                             <Button type="button" variant="outline" size="xs" className="rounded-chip" onClick={() => void loadOlder()} disabled={loadingOlder}>

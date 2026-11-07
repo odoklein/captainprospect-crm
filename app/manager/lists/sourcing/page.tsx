@@ -8,6 +8,7 @@ import { FOCUS_RING } from "@/components/ui/recipes";
 import { cn } from "@/lib/utils";
 import { QueryComposer } from "@/components/sourcing/QueryComposer";
 import { RunStrip } from "@/components/sourcing/RunStrip";
+import { CoveragePanel } from "@/components/sourcing/CoveragePanel";
 import { ResultsTable } from "@/components/sourcing/ResultsTable";
 import { ImportDrawer } from "@/components/sourcing/ImportDrawer";
 import { useSourcing } from "@/components/sourcing/useSourcing";
@@ -37,10 +38,6 @@ export default function SourcingPage() {
             .catch(() => {});
     }, []);
 
-    // Drop the selection when a new run starts.
-    const runKey = Object.values(s.runs).map((r) => r?.startedAt).join();
-    useEffect(() => setSelected(new Set()), [runKey]);
-
     const selectedLeads = useMemo(() => s.leads.filter((l) => selected.has(l.id)), [s.leads, selected]);
     const selPhones = selectedLeads.filter((l) => l.phone).length;
     const selContacts = selectedLeads.reduce((n, l) => n + l.contacts.length, 0);
@@ -60,7 +57,7 @@ export default function SourcingPage() {
                 icon={<ScanSearch />}
                 actions={
                     hasRun && !s.isRunning ? (
-                        <Button variant="secondary" onClick={s.reset}>
+                        <Button variant="secondary" onClick={() => { setSelected(new Set()); s.reset(); }}>
                             <RotateCcw className="size-4" /> Nouvelle recherche
                         </Button>
                     ) : null
@@ -76,12 +73,33 @@ export default function SourcingPage() {
                         isRunning={s.isRunning}
                         onQueryChange={s.setQuery}
                         onSourcesChange={s.setSources}
-                        onRun={s.run}
+                        onRun={() => { setSelected(new Set()); void s.run(); }}
                     />
                 </aside>
 
                 <main className="min-w-0 space-y-4">
+                    {hasRun && s.leads.length > 0 && (
+                        <section aria-label="Qualité des résultats" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                            {[
+                                { label: "Sociétés uniques", value: s.leads.length, detail: "Après fusion des sources" },
+                                { label: "Avec téléphone", value: s.leads.filter((l) => l.phone).length, detail: "Prêtes à être appelées" },
+                                { label: "Avec site web", value: s.leads.filter((l) => l.website).length, detail: "Pour préparer l’approche" },
+                                { label: "Déjà au CRM", value: Object.keys(s.matches).length, detail: "Doublons potentiels signalés" },
+                            ].map((metric) => (
+                                <div key={metric.label} className="rounded-panel border border-line bg-surface px-4 py-3 shadow-2xs">
+                                    <p className="text-xs font-medium text-ink-3">{metric.label}</p>
+                                    <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{metric.value.toLocaleString("fr-FR")}</p>
+                                    <p className="mt-1 text-2xs text-ink-4">{metric.detail}</p>
+                                </div>
+                            ))}
+                        </section>
+                    )}
                     <RunStrip runs={s.runs} onCancelGmaps={s.cancelGmaps} />
+                    <CoveragePanel
+                        run={s.runs.gmaps}
+                        isRunning={s.isRunning}
+                        onDigDeeper={(patch) => void s.run({ append: true, patch: { ...s.ranQuery, ...patch }, sources: ["gmaps"] })}
+                    />
 
                     {s.leads.length > 0 && (
                         <>
@@ -102,8 +120,8 @@ export default function SourcingPage() {
                         <div className="rounded-card border border-line bg-surface px-6 py-14 text-center shadow-card">
                             <p className="text-base font-semibold text-ink">Aucune société trouvée</p>
                             <p className="mx-auto mt-1 max-w-md text-sm text-ink-3">
-                                Élargissez la zone (département plutôt que ville), essayez un autre intitulé d&apos;activité ou
-                                ajoutez une source.
+                                Élargissez la zone (département plutôt que ville), passez en profondeur Approfondi, essayez un
+                                autre intitulé d&apos;activité ou ajoutez une source.
                             </p>
                         </div>
                     )}
@@ -190,7 +208,7 @@ function RunningPlaceholder() {
 
 function Intro({ onExample }: { onExample: (q: Partial<SourcingQuery>) => void }) {
     const steps = [
-        { icon: MapPinned, title: "Décrivez la cible", text: "Une ou plusieurs activités, une ou plusieurs zones. Chaque combinaison devient une recherche." },
+        { icon: MapPinned, title: "Décrivez la cible", text: "Une ou plusieurs activités, une ou plusieurs zones. En Approfondi, chaque zone est découpée en communes et en carreaux de carte pour aller au-delà des ~100 premiers résultats de Maps." },
         { icon: Combine, title: "Croisez les sources", text: "Maps apporte le standard et le site, le Registre le SIREN et les dirigeants. Une société trouvée deux fois n'apparaît qu'une fois." },
         { icon: ListPlus, title: "Versez dans une liste", text: "Les sociétés déjà au CRM sont signalées. L'import garde téléphone, adresse et contacts." },
     ];

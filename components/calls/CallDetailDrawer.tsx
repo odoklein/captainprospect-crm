@@ -8,14 +8,15 @@
 // ============================================
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Clock, FileText, Headphones, History, Phone, PhoneIncoming, User, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Clock, FileText, Headphones, Phone, PhoneIncoming, User, X } from "lucide-react";
 import { Drawer, Kbd } from "@/components/ui";
-import { cn } from "@/lib/utils";
 import type { CallDetail } from "@/lib/calls-journal/types";
 import { CALL_SOURCE_LABELS } from "@/lib/calls-journal/filters";
 import { TELEPHONY_STATUS_LABELS } from "@/lib/telephony/status";
 import { formatDuration, formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { AiSummaryView, Highlighted, TranscriptView } from "@/components/telephony/CallInsights";
+import { ActivityTimeline } from "@/components/sdr/workspace/ActivityTimeline";
+import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
 import { CallPlayer } from "./CallPlayer";
 import { StatusLabel } from "./StatusLabel";
 
@@ -49,10 +50,11 @@ function useCallDetail(apiBase: string, target: Target) {
         fetch(`${apiBase}/${target.id}?kind=${target.kind}`, { signal: ctrl.signal })
             .then((r) => r.json())
             .then((json) => {
+                if (ctrl.signal.aborted) return;
                 setLoaded(json?.success ? { key, detail: json.data, error: null } : { key, detail: null, error: json?.error ?? "Appel introuvable" });
             })
             .catch((e) => {
-                if ((e as Error).name !== "AbortError") setLoaded({ key, detail: null, error: "Chargement impossible" });
+                if (!ctrl.signal.aborted && (e as Error).name !== "AbortError") setLoaded({ key, detail: null, error: "Chargement impossible" });
             });
         return () => ctrl.abort();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- key identifies the target
@@ -93,7 +95,6 @@ function CallDetailBody({
     d,
     highlight,
     resolveStatus,
-    onOpenCall,
 }: {
     d: CallDetail;
     highlight?: string;
@@ -193,46 +194,16 @@ function CallDetailBody({
                 </Section>
             )}
 
-            <Section title="Autres appels avec ce prospect" icon={History}>
-                {d.history.length === 0 ? (
-                    <p className="text-[13px] text-ink-3">Aucun autre appel enregistré.</p>
-                ) : (
-                    <ol className="relative space-y-0.5 before:absolute before:bottom-2 before:left-[5px] before:top-2 before:w-px before:bg-line">
-                        {d.history.map((h) => (
-                            <li key={h.id}>
-                                <button
-                                    type="button"
-                                    onClick={() => onOpenCall(h.id)}
-                                    className="relative grid w-full grid-cols-[12px_1fr_auto] items-center gap-3 rounded-control py-1.5 pr-2 text-left text-[13px] hover:bg-surface-2"
-                                >
-                                    <span
-                                        className="relative z-10 h-[11px] w-[11px] rounded-full border-2 border-surface"
-                                        style={{ background: h.status?.color ?? "var(--ds-line-strong)" }}
-                                        aria-hidden
-                                    />
-                                    <span className="min-w-0 truncate">
-                                        <span className="text-ink">{h.status?.label ?? "—"}</span>
-                                        <span className="text-ink-3"> · {h.sdr}</span>
-                                    </span>
-                                    <span className={cn("text-[12px] tabular-nums text-ink-3")}>
-                                        {new Date(h.at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
-                                        {h.durationSec ? ` · ${formatDuration(h.durationSec)}` : ""}
-                                    </span>
-                                </button>
-                            </li>
-                        ))}
-                    </ol>
-                )}
-            </Section>
+            <div className="px-5 py-5"><ActivityTimeline companyId={d.company?.id} title="Activité du prospect" events={d.history.map(h=>({id:h.id,at:h.at,kind:h.status?.code.startsWith("MEETING_") ? "meeting" : h.channel==="EMAIL" ? "email" : !h.channel || h.channel==="CALL" ? "call" : "status",title:h.status?.label ?? "Échange enregistré",actor:h.sdr,note:h.note,summary:h.summary,duration:h.durationSec}))} /></div>
         </div>
     );
 }
 
 /** Narrow screens: the call opens over the list. */
 export function CallDetailDrawer({ apiBase = "/api/manager/calls", target, onClose, onOpenCall, highlight, resolveStatus }: DetailProps) {
-    const { d, error, who, description } = useCallDetail(apiBase, target);
+    const { d, error, who } = useCallDetail(apiBase, target);
     return (
-        <Drawer isOpen={Boolean(target)} onClose={onClose} size="lg" title={d ? who : "Appel"} description={description}>
+        <Drawer isOpen={Boolean(target)} onClose={onClose} size="lg" title={d ? <ProspectIdentity name={d.contact?.name} company={d.company?.name ?? who} role={d.contact?.title} website={d.company?.website} compact /> : "Appel"}>
             {!d && !error && <DetailSkeleton />}
             {error && <p className="p-6 text-[13px] text-danger-ink">{error}</p>}
             {d && (
@@ -259,14 +230,13 @@ export function CallDetailPane({
     onPrev,
     onNext,
 }: DetailProps & { onPrev?: () => void; onNext?: () => void }) {
-    const { d, error, who, description } = useCallDetail(apiBase, target);
+    const { d, error, who } = useCallDetail(apiBase, target);
     const key = target ? `${target.kind}:${target.id}` : "";
     return (
         <aside className="cp-pane-in flex h-full min-h-0 w-[420px] shrink-0 flex-col border-l border-line bg-surface 2xl:w-[500px]" aria-label="Détail de l'appel">
             <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line-subtle pl-5 pr-2">
                 <div className="min-w-0 flex-1">
-                    <h2 className="truncate text-[14px] font-semibold leading-tight text-ink">{d ? who : "Appel"}</h2>
-                    {description && <p className="truncate text-[12px] text-ink-3">{description}</p>}
+                    <ProspectIdentity name={d?.contact?.name} company={d?.company?.name ?? who} role={d?.contact?.title} website={d?.company?.website} compact />
                 </div>
                 <div className="flex items-center gap-0.5">
                     <PaneButton onClick={onPrev} label="Appel précédent (k)" disabled={!onPrev}>

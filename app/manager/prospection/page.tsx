@@ -893,14 +893,34 @@ export default function ManagerProspectionPage() {
 
     const displayActions = viewMode === "latest_per_contact" ? latestActionPerContact : actions;
 
+    // ── rows in scope: everything except the result chips ────────────────────
+    // The chip counts must follow the SDR / search / date filters, otherwise a
+    // chip reads 188 while the list under it holds 86.
+    const scopedActions = useMemo(() => {
+        const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
+        const toTs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
+        return displayActions.filter(a => {
+            if (sdrFilter && a.sdr?.id !== sdrFilter) return false;
+            if (search && !a._searchKey?.includes(search.toLowerCase())) return false;
+            if (fromTs || toTs) {
+                const ts = new Date((a.callbackDate as string | null) || a.createdAt).getTime();
+                if (fromTs && ts < fromTs) return false;
+                if (toTs && ts > toTs) return false;
+            }
+            return true;
+        });
+    }, [displayActions, sdrFilter, search, dateFrom, dateTo]);
+
     // ── result counts ────────────────────────────────────────────────────────
     const resultCounts = useMemo(() => {
         const map: Record<string, number> = {};
-        displayActions.forEach(a => { map[a.result] = (map[a.result] || 0) + 1; });
+        scopedActions.forEach(a => { map[a.result] = (map[a.result] || 0) + 1; });
         return map;
-    }, [displayActions]);
+    }, [scopedActions]);
 
     // ── unique results present in data ───────────────────────────────────────
+    // Built from the unfiltered rows so a chip does not vanish (and cannot be
+    // un-toggled) when the current date range happens to hold none of it.
     const uniqueResults = useMemo(() =>
         Array.from(new Set(displayActions.map(a => a.result))).sort(),
         [displayActions]);
@@ -936,19 +956,7 @@ export default function ManagerProspectionPage() {
 
     // ── filtered + sorted ─────────────────────────────────────────────────────
     const processed = useMemo(() => {
-        const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
-        const toTs = dateTo ? new Date(dateTo + "T23:59:59").getTime() : null;
-        const rows = displayActions.filter(a => {
-            if (sdrFilter && a.sdr?.id !== sdrFilter) return false;
-            if (resultFilters.size && !resultFilters.has(a.result)) return false;
-            if (search && !a._searchKey?.includes(search.toLowerCase())) return false;
-            if (fromTs || toTs) {
-                const ts = new Date((a.callbackDate as string | null) || a.createdAt).getTime();
-                if (fromTs && ts < fromTs) return false;
-                if (toTs && ts > toTs) return false;
-            }
-            return true;
-        });
+        const rows = scopedActions.filter(a => !resultFilters.size || resultFilters.has(a.result));
 
         rows.sort((a, b) => {
             let cmp = 0;
@@ -968,7 +976,7 @@ export default function ManagerProspectionPage() {
             return sortDir === "asc" ? cmp : -cmp;
         });
         return rows;
-    }, [displayActions, sdrFilter, resultFilters, search, dateFrom, dateTo, sortKey, sortDir]);
+    }, [scopedActions, resultFilters, sortKey, sortDir]);
 
     const totalPages = Math.max(1, Math.ceil(processed.length / pageSize));
     const pageRows = processed.slice((page - 1) * pageSize, page * pageSize);

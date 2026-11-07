@@ -22,6 +22,8 @@ export const DRAWER_PANEL_SURFACE_CLASS =
 
 /** Open drawers, oldest first; the last one owns the Escape key. */
 const openDrawers: symbol[] = [];
+const modalDrawers = new Set<symbol>();
+let bodyOverflowBeforeDrawers = "";
 
 interface DrawerProps {
     isOpen: boolean;
@@ -203,33 +205,43 @@ export function Drawer({
     // doesn't also close the detail drawer it was opened from.
     const handleKeyDown = useCallback(
         (e: KeyboardEvent) => {
-            if (e.key === "Escape" && closeOnEscape && openDrawers[openDrawers.length - 1] === stackId) {
+            if (e.key === "Escape" && !e.defaultPrevented && closeOnEscape && openDrawers[openDrawers.length - 1] === stackId) {
+                e.preventDefault();
                 onClose();
             }
         },
         [closeOnEscape, onClose, stackId]
     );
 
-    // Lock body scroll when drawer is open
+    // Non-modal companions also own Escape when they are on top of the stack.
     useEffect(() => {
-        if (isOpen && blocking) document.body.style.overflow = "hidden";
-        else document.body.style.overflow = "";
-        if (isOpen && ownsEscape) document.addEventListener("keydown", handleKeyDown);
+        if (!isOpen || !ownsEscape) return;
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [isOpen, ownsEscape, handleKeyDown]);
 
+
+    // Only the last modal drawer releases the lock. Non-modal companions must
+    // never clear a sibling's lock, including when they close or rerender.
+    useEffect(() => {
+        if (!isOpen || !blocking) return;
+        if (modalDrawers.size === 0) {
+            bodyOverflowBeforeDrawers = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+        }
+        modalDrawers.add(stackId);
         return () => {
-            document.body.style.overflow = "";
-            document.removeEventListener("keydown", handleKeyDown);
+            modalDrawers.delete(stackId);
+            if (modalDrawers.size === 0) {
+                document.body.style.overflow = bodyOverflowBeforeDrawers;
+            }
         };
-    }, [isOpen, blocking, ownsEscape, handleKeyDown]);
+    }, [isOpen, blocking, stackId]);
 
-    // Docked: the page makes room for the pane (see .cp-main in globals.css).
     useEffect(() => {
         if (!isOpen || !docked) return;
-        const root = document.documentElement;
-        root.dataset.paneDocked = "";
-        return () => {
-            delete root.dataset.paneDocked;
-        };
+        document.documentElement.dataset.paneDocked = "";
+        return () => { delete document.documentElement.dataset.paneDocked; };
     }, [isOpen, docked]);
 
     // Focus trap

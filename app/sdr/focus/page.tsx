@@ -15,15 +15,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
-    AlertTriangle, Building2, CalendarClock, ChevronDown, Crosshair, ExternalLink, FileText, Globe, History, Keyboard,
+    AlertTriangle, CalendarClock, ChevronDown, Crosshair, ExternalLink, FileText, History, Keyboard,
     LogOut, Pause, Phone, PhoneOff, Play, RefreshCw, SkipForward, X,
 } from "lucide-react";
 import { Kbd, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { matchesCallTarget } from "@/lib/telephony/client-state";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { AiSummaryView, useCallTranscript } from "@/components/telephony/CallInsights";
 import { PrecallBrief } from "@/components/sdr/PrecallBrief";
+import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
 import { DockList } from "@/components/layout/FloatingDock";
 import {
     EMPTY_STATS, callbackPresets, connectRate, dispositionKeys, isTypingTarget, parseLocalCallback, type SessionStats,
@@ -125,10 +127,6 @@ function personName(n: NextProspect): string {
     return name || n.company.name;
 }
 
-function initials(label: string): string {
-    return label.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
-}
-
 function relativeDay(iso?: string | null): string {
     if (!iso) return "";
     const d = new Date(iso);
@@ -176,11 +174,14 @@ export default function FocusPage() {
 
     const [countdown, setCountdown] = useState<number | null>(null);
     const [phoneChoice, setPhoneChoice] = useState<"contact" | "company">("contact");
-    const [drawer, setDrawer] = useState<{ initialResult?: string } | null>(null);
+    const [drawer, setDrawer] = useState<{ initialResult?: string; contactId?: string } | null>(null);
     const [helpOpen, setHelpOpen] = useState(false);
 
     // The integrated-phone call placed to the prospect on screen (kept after the dock is closed).
     const [ourCallId, setOurCallId] = useState<string | null>(null);
+    const nextRequest = useRef<AbortController | null>(null);
+    const saveLock = useRef(false);
+    useEffect(() => () => nextRequest.current?.abort(), []);
     const noteRef = useRef<HTMLTextAreaElement>(null);
     // Prospect whose automatic call is used up: dialled, or cancelled by the SDR.
     // Only a new prospect re-arms the countdown (closing the fiche or the help never does).
@@ -203,9 +204,12 @@ export default function FocusPage() {
 
     useEffect(() => {
         if (!missionId) return;
-        getJson<{ statuses: Status[] }>(`/api/config/action-statuses?missionId=${encodeURIComponent(missionId)}`)
-            .then((c) => setStatuses(c.statuses))
-            .catch(() => setStatuses([]));
+        const controller = new AbortController();
+        setStatuses([]);
+        getJson<{ statuses: Status[] }>(`/api/config/action-statuses?missionId=${encodeURIComponent(missionId)}`, { signal: controller.signal })
+            .then((c) => { if (!controller.signal.aborted) setStatuses(c.statuses); })
+            .catch(() => { if (!controller.signal.aborted) setStatuses([]); });
+        return () => controller.abort();
     }, [missionId]);
 
     useEffect(() => {
@@ -225,8 +229,13 @@ export default function FocusPage() {
     const companyPhone = prospect?.company.phone?.trim() || null;
     const phone = phoneChoice === "company" ? companyPhone ?? contactPhone : contactPhone ?? companyPhone;
     const inCall = isCallActive(call);
-    const callIsOurs = Boolean(call && prospect && call.target.companyId === prospect.company.id);
-    if (callIsOurs && call?.callId && call.callId !== ourCallId) setOurCallId(call.callId);
+    const callIsOurs = Boolean(call && prospect && matchesCallTarget(call.target, {
+        companyId: prospect.company.id,
+        contactId: phoneChoice === "company" || !contactPhone ? null : prospect.contact?.id,
+    }));
+    useEffect(() => {
+        if (callIsOurs && call?.callId) setOurCallId(call.callId);
+    }, [callIsOurs, call?.callId]);
     const insights = useCallTranscript(insightsOn ? ourCallId : null, insightsOn && Boolean(ourCallId));
     const suggestedStatus = insights.summary.status === "done" ? insights.summary.data.suggestedStatus : null;
 
@@ -234,6 +243,10 @@ export default function FocusPage() {
     const loadNext = useCallback(
         async (skip = skipped) => {
             if (!missionId) return;
+            nextRequest.current?.abort();
+            const controller = new AbortController();
+            nextRequest.current = controller;
+            setProspect(null);
             setPhase("loading");
             setSelected(null);
             setNote("");
@@ -247,7 +260,8 @@ export default function FocusPage() {
             skip.contacts.forEach((id) => qs.append("skipContact", id));
             skip.companies.forEach((id) => qs.append("skipCompany", id));
             try {
-                const data = await getJson<NextProspect | { hasNext: false; message?: string }>(`/api/actions/next?${qs}`);
+                const data = await getJson<NextProspect | { hasNext: false; message?: string }>(`/api/actions/next?${qs}`, { signal: controller.signal });
+                if (controller.signal.aborted) return;
                 if (!data.hasNext) {
                     setProspect(null);
                     setEmptyMessage(data.message || "Plus personne à appeler sur cette mission pour le moment.");
@@ -257,6 +271,7 @@ export default function FocusPage() {
                 setProspect(data);
                 setPhase("ready");
             } catch (e) {
+                if (controller.signal.aborted) return;
                 setEmptyMessage(e instanceof Error ? e.message : "Impossible de charger le prochain prospect");
                 setPhase("error");
             }
@@ -274,12 +289,12 @@ export default function FocusPage() {
     };
 
     const placeCall = useCallback(() => {
-        if (!prospect || !phone) return;
+        if (!prospect || !phone || inCall || saving || phase !== "ready") return;
         setCountdown(null);
         dialedFor.current = prospectKey;
         const handled = dial({
             phone,
-            contactId: phoneChoice === "company" ? null : prospect.contact?.id ?? null,
+            contactId: phoneChoice === "company" || !contactPhone ? null : prospect.contact?.id ?? null,
             companyId: prospect.company.id,
             campaignId: prospect.campaignId,
             label: personName(prospect),
@@ -287,7 +302,7 @@ export default function FocusPage() {
         });
         if (!handled) window.location.href = `tel:${phone}`;
         setStats((s) => ({ ...s, dials: s.dials + 1 }));
-    }, [prospect, phone, phoneChoice, prospectKey, dial]);
+    }, [prospect, phone, phoneChoice, prospectKey, dial, inCall, saving, phase, contactPhone]);
 
     // Auto-dial: a visible, cancellable countdown once a prospect is on screen.
     useEffect(() => {
@@ -318,14 +333,14 @@ export default function FocusPage() {
     }, [call?.answeredAt, call?.key, callIsOurs]);
 
     const skip = useCallback(() => {
-        if (!prospect || inCall) return;
+        if (!prospect || inCall || saving || phase !== "ready") return;
         const next = prospect.contact
             ? { ...skipped, contacts: [...skipped.contacts, prospect.contact.id] }
             : { ...skipped, companies: [...skipped.companies, prospect.company.id] };
         setSkipped(next);
         setStats((s) => ({ ...s, skipped: s.skipped + 1 }));
         void loadNext(next);
-    }, [prospect, inCall, skipped, loadNext]);
+    }, [prospect, inCall, skipped, loadNext, saving, phase]);
 
     const cancelAutoDial = useCallback(() => {
         dialedFor.current = prospectKey;
@@ -342,7 +357,7 @@ export default function FocusPage() {
     };
 
     const save = useCallback(async () => {
-        if (!prospect || !selected || saving) return;
+        if (!prospect || !selected || saving || saveLock.current || phase !== "ready") return;
         if (selected === "MEETING_BOOKED") {
             setDrawer({ initialResult: "MEETING_BOOKED" });
             return;
@@ -357,13 +372,14 @@ export default function FocusPage() {
         if (s?.triggersCallback) {
             const preset = presets.find((p) => p.id === callbackChoice);
             callbackDate = preset?.at ?? (callbackChoice === "custom" ? parseLocalCallback(customCallback) ?? undefined : undefined);
-            if (!callbackDate) {
+            if (!callbackDate || new Date(callbackDate).getTime() <= Date.now()) {
                 setFormError("Choisissez quand rappeler (une date à venir).");
                 return;
             }
         }
         if (inCall && callIsOurs) hangup();
 
+        saveLock.current = true;
         setSaving(true);
         try {
             await getJson("/api/actions", {
@@ -385,19 +401,22 @@ export default function FocusPage() {
         } catch (e) {
             setFormError(e instanceof Error ? e.message : "Enregistrement impossible");
         } finally {
+            saveLock.current = false;
             setSaving(false);
         }
-    }, [prospect, selected, saving, statusOf, note, presets, callbackChoice, customCallback, inCall, callIsOurs, hangup, success, loadNext]);
+    }, [prospect, selected, saving, statusOf, note, presets, callbackChoice, customCallback, inCall, callIsOurs, hangup, success, loadNext, phase]);
 
     // ── keyboard ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (phase !== "ready" && phase !== "empty") return;
         const onKey = (e: KeyboardEvent) => {
-            if (drawer) return;
+            if (drawer || e.defaultPrevented || e.repeat) return;
             if (helpOpen) {
                 if (e.key === "Escape" || e.key === "?") setHelpOpen(false);
                 return;
             }
+            if (document.querySelector('[aria-modal="true"], [data-call-keypad="true"]')) return;
+            if ((e.target as HTMLElement | null)?.closest("button, a, [role=button]")) return;
             const typing = isTypingTarget(e.target);
             if (typing) {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -487,19 +506,21 @@ export default function FocusPage() {
     // Three panes, each scrolling on its own: the session (rail), the prospect
     // (what to read), the outcome (what to do). Nothing floats over them.
     return (
-        <div className="flex h-full min-h-0 w-full flex-col bg-canvas lg:flex-row">
+        <div className="cp-calling-workspace flex h-full min-h-0 w-full flex-col bg-canvas lg:flex-row">
             {/* ── Rail: the session ── */}
-            <aside className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-2.5 lg:w-[228px] lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0 lg:border-b-0 lg:border-r lg:p-0">
+            <aside className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-2.5 lg:w-[200px] lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0 lg:border-b-0 lg:border-r lg:p-0">
                 <div className="flex min-w-0 items-center gap-2.5 lg:px-4 lg:pb-4 lg:pt-5">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-primary text-primary-fg">
                         <Crosshair className="h-4 w-4" aria-hidden />
                     </span>
                     <div className="min-w-0">
                         <p className="text-[13px] font-semibold leading-tight text-ink">Mode Focus</p>
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-ink-4">Session d’appels</span>
                         <button
                             type="button"
-                            onClick={() => setPhase("setup")}
-                            className="flex max-w-[170px] items-center gap-1 text-[12px] text-ink-3 hover:text-ink"
+                            onClick={() => { nextRequest.current?.abort(); setPhase("setup"); }}
+                            disabled={inCall || saving}
+                            className="flex max-w-full items-center gap-1 text-[12px] text-ink-3 hover:text-ink"
                             title="Changer de mission"
                         >
                             <span className="truncate">{mission?.name ?? prospect?.missionName ?? "Mission"}</span>
@@ -585,40 +606,12 @@ export default function FocusPage() {
                             <header className="sticky top-0 z-10 border-b border-line-subtle bg-canvas/85 backdrop-blur-md">
                                 <div className="mx-auto flex max-w-[860px] flex-col gap-4 px-6 pb-4 pt-6 lg:px-10">
                                     <div className="flex items-start gap-4">
-                                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[14px] font-semibold text-primary-soft-ink">
-                                            {initials(personName(prospect))}
-                                        </span>
                                         <div className="min-w-0 flex-1">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h1 className="truncate text-[22px] font-semibold leading-tight tracking-[-0.015em] text-ink">{personName(prospect)}</h1>
-                                                {PRIORITY[prospect.priority] && (
-                                                    <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", PRIORITY[prospect.priority].tone)}>
-                                                        {PRIORITY[prospect.priority].label}
-                                                    </span>
-                                                )}
+                                            <ProspectIdentity heading name={prospect.contact ? personName(prospect) : null} company={prospect.company.name} role={prospect.contact?.title} website={prospect.company.website} />
+                                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                                                {PRIORITY[prospect.priority] && <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-medium", PRIORITY[prospect.priority].tone)}>{PRIORITY[prospect.priority].label}</span>}
+                                                <span className="text-[11px] text-ink-3">{prospect.sourceListName || prospect.missionName}</span>
                                             </div>
-                                            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-2">
-                                                {prospect.contact?.title && <span>{prospect.contact.title}</span>}
-                                                {prospect.contact?.title && <span className="text-ink-4">·</span>}
-                                                <Building2 className="h-3.5 w-3.5 text-ink-3" aria-hidden />
-                                                <span className="font-medium text-ink">{prospect.company.name}</span>
-                                                {prospect.company.industry && <span className="text-ink-3">· {prospect.company.industry}</span>}
-                                                {prospect.company.website && (
-                                                    <a
-                                                        href={prospect.company.website.startsWith("http") ? prospect.company.website : `https://${prospect.company.website}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-0.5 text-link hover:underline"
-                                                    >
-                                                        <Globe className="h-3 w-3" /> site
-                                                    </a>
-                                                )}
-                                                <span className="text-ink-4">·</span>
-                                                <span className="text-ink-3">
-                                                    {prospect.strategyName || prospect.missionName}
-                                                    {prospect.sourceListName ? ` · ${prospect.sourceListName}` : ""}
-                                                </span>
-                                            </p>
                                         </div>
                                         <button
                                             type="button"
@@ -867,7 +860,8 @@ export default function FocusPage() {
                 <UnifiedActionDrawer
                     isOpen
                     onClose={() => setDrawer(null)}
-                    contactId={prospect.contact?.id ?? null}
+                    contactId={drawer.contactId ?? prospect.contact?.id ?? null}
+                    onContactSelect={(id) => setDrawer(current => current ? { ...current, contactId: id } : null)}
                     companyId={prospect.company.id}
                     missionId={missionId ?? undefined}
                     missionName={prospect.missionName}

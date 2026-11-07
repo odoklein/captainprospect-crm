@@ -1,0 +1,27 @@
+components/drawers/_sections/ClientCalCredentials.tsx(253,32): error TS2322: Type 'Promise<CalCredentialDTO>' is not assignable to type 'void | Promise<void>'.
+  Type 'Promise<CalCredentialDTO>' is not assignable to type 'Promise<void>'.
+    Type 'CalCredentialDTO' is not assignable to type 'void'.
+components/drawers/_sections/ClientCalCredentials.tsx(398,32): error TS2322: Type 'Promise<CalCredentialDTO>' is not assignable to type 'void | Promise<void>'.
+  Type 'Promise<CalCredentialDTO>' is not assignable to type 'Promise<void>'.
+    Type 'CalCredentialDTO' is not assignable to type 'void'.
+components/drawers/_sections/ClientCalCredentials.tsx(420,32): error TS2322: Type 'Promise<CalCredentialDTO>' is not assignable to type 'void | Promise<void>'.
+  Type 'Promise<CalCredentialDTO>' is not assignable to type 'Promise<void>'.
+    Type 'CalCredentialDTO' is not assignable to type 'void'.
+components/drawers/CompanyDrawer.tsx(871,45): error TS2322: Type 'boolean | ""' is not assignable to type 'boolean | undefined'.
+  Type '""' is not assignable to type 'boolean | undefined'.
+components/drawers/CompanyDrawer.tsx(979,29): error TS2554: Expected 1 arguments, but got 0.
+components/support/SupportBubble.tsx(64,43): error TS2339: Property 'paper' does not exist on type '{ paper: string; paperRaised: string; paperSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 16 more ...; shadowFab: string; } | { ...; }'.
+  Property 'paper' does not exist on type '{ surface: string; surfaceRaised: string; surfaceSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 9 more ...; radiusS: number; }'.
+components/support/SupportBubble.tsx(180,43): error TS2339: Property 'paperRaised' does not exist on type '{ paper: string; paperRaised: string; paperSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 16 more ...; shadowFab: string; } | { ...; }'.
+  Property 'paperRaised' does not exist on type '{ surface: string; surfaceRaised: string; surfaceSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 9 more ...; radiusS: number; }'.
+components/support/SupportBubble.tsx(347,44): error TS2339: Property 'paperRaised' does not exist on type '{ paper: string; paperRaised: string; paperSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 16 more ...; shadowFab: string; } | { ...; }'.
+  Property 'paperRaised' does not exist on type '{ surface: string; surfaceRaised: string; surfaceSunken: string; line: string; lineSoft: string; ink: string; ink2: string; ink3: string; ink4: string; brand: string; brandStrong: string; brandSoft: string; ... 9 more ...; radiusS: number; }'.
+components/ui/HelpPanel.tsx(73,11): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(86,11): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(101,24): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(122,28): error TS2554: Expected 1 arguments, but got 0.
+components/ui/HelpPanel.tsx(205,28): error TS2554: Expected 1 arguments, but got 0.
+components/ui/Tooltip.tsx(33,22): error TS2554: Expected 1 arguments, but got 0.
+components/ui/Tour.tsx(142,21): error TS2590: Expression produces a union type that is too complex to represent.
+lib/openreplay/tracker.ts(155,28): error TS2304: Cannot find name 'fallbackSrc'.
+lib/openreplay/tracker.ts(158,32): error TS2304: Cannot find name 'fallbackSrc'.

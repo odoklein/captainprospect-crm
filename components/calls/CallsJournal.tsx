@@ -10,14 +10,15 @@
 // ============================================
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Headphones, Mic, PhoneCall, RotateCcw, Search, Sparkles, X } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Headphones, Mic, PhoneCall, RefreshCw, RotateCcw, Search, Sparkles, X } from "lucide-react";
 import { Kbd } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { activeFilterCount, journalQuery, parseJournalFilters, todayParis, type JournalFilters } from "@/lib/calls-journal/filters";
 import type { JournalResponse, JournalRow } from "@/lib/calls-journal/types";
 import { TELEPHONY_STATUS_LABELS, isFinalStatus } from "@/lib/telephony/status";
 import { formatDuration, formatPhone } from "@/components/incoming-calls/useIncomingCalls";
+import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
 import { StatusLabel } from "@/components/calls/StatusLabel";
 import { StatusDistribution } from "@/components/calls/StatusDistribution";
 import { CallDetailDrawer, CallDetailPane } from "@/components/calls/CallDetailDrawer";
@@ -85,7 +86,6 @@ export function CallsJournal(props: CallsJournalProps) {
 }
 
 function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, refreshKey = 0 }: CallsJournalProps) {
-    const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
@@ -97,9 +97,10 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
     const setFilters = useCallback(
         (patch: Partial<JournalFilters>, opts: { keepPage?: boolean } = {}) => {
             const next = { ...filters, ...patch, page: opts.keepPage ? patch.page ?? filters.page : patch.page ?? 1 };
-            router.replace(`${pathname}?${journalQuery(next)}`, { scroll: false });
+            // These filters only drive client data; avoid a server navigation per keystroke.
+            window.history.replaceState(null, "", `${pathname}?${journalQuery(next)}`);
         },
-        [filters, pathname, router],
+        [filters, pathname],
     );
 
     // ── data ───────────────────────────────────────────────────────────────
@@ -109,7 +110,8 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
     // and the previous results stay visible (dimmed) instead of flashing empty.
     const [loadedQuery, setLoadedQuery] = useState<string | null>(null);
     const query = journalQuery(filters);
-    const requestKey = `${query}#${refreshKey}`;
+    const [reload, setReload] = useState(0);
+    const requestKey = `${apiBase}?${query}#${refreshKey}:${reload}`;
     const loading = loadedQuery !== requestKey;
 
     useEffect(() => {
@@ -117,6 +119,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
         fetch(`${apiBase}?${query}`, { signal: ctrl.signal })
             .then((r) => r.json())
             .then((json) => {
+                if (ctrl.signal.aborted) return;
                 if (json?.success) {
                     setData(json.data);
                     setError(null);
@@ -124,7 +127,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                 setLoadedQuery(requestKey);
             })
             .catch((e) => {
-                if ((e as Error).name !== "AbortError") {
+                if (!ctrl.signal.aborted && (e as Error).name !== "AbortError") {
                     setError("Chargement impossible");
                     setLoadedQuery(requestKey);
                 }
@@ -184,7 +187,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                 return;
             }
             // The drawer (narrow screens) or another modal owns the keyboard.
-            if ((open && !wide) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('[aria-modal="true"]')) return;
+            if (loading || e.defaultPrevented || (e.key !== "Escape" && el?.closest("button, a, [role=button]")) || el?.closest("[data-call-keypad]") || (open && !wide) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('[aria-modal="true"]')) return;
             if (e.key === "Escape" && open) {
                 setOpen(null);
             } else if (e.key === "/") {
@@ -202,7 +205,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [rows, cursor, open, wide, move]);
+    }, [rows, cursor, open, wide, move, loading]);
 
     useEffect(() => {
         document.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" });
@@ -219,7 +222,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
     const firstRow = data ? (data.page - 1) * data.limit + 1 : 0;
     const lastRow = data ? Math.min(data.total, data.page * data.limit) : 0;
 
-    const showPane = Boolean(open) && wide;
+    const showPane = Boolean(open) && wide === true;
     const resolveStatus = (code: string) => statusMeta.get(code) ?? null;
     const resetFilters = () => {
         setQ("");
@@ -229,7 +232,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
     // A workspace, edge to edge: slim header and toolbar, the list scrolling
     // under them, the call beside it (wide screens) instead of over it.
     return (
-        <div className="flex h-full min-h-0 w-full bg-canvas">
+        <div className="cp-calling-workspace flex h-full min-h-0 w-full bg-canvas">
             <div className="flex min-w-0 flex-1 flex-col">
                 {/* ── Header + views ── */}
                 <header className="shrink-0 border-b border-line bg-surface px-6">
@@ -239,6 +242,11 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                             <p className="mt-0.5 truncate text-[12px] text-ink-3">{subtitle}</p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={() => setReload((n) => n + 1)} disabled={loading}
+                                aria-label="Actualiser les appels" title="Actualiser les appels"
+                                className="flex h-8 w-8 items-center justify-center rounded-control border border-line text-ink-3 hover:bg-surface-2 disabled:opacity-50">
+                                <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin motion-reduce:animate-none")} />
+                            </button>
                             {headerActions}
                             <div className="flex rounded-control bg-surface-3/70 p-0.5" role="radiogroup" aria-label="Période">
                                 {periodPresets.map((p) => (
@@ -359,7 +367,9 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                 </div>
 
                 {/* ── Numbers + list (one scroll; room at the end to clear the floating dock) ── */}
-                <div className="min-h-0 flex-1 overflow-auto pb-12">
+                <div className="relative min-h-0 flex-1 overflow-auto pb-12" aria-busy={loading}>
+                    <div className={cn("sticky top-0 z-10 h-0.5 bg-primary transition-opacity motion-reduce:transition-none", loading ? "opacity-100" : "opacity-0")} />
+                    <span className="sr-only" role="status">{loading ? "Chargement des appels…" : error ? "Erreur de chargement" : `${data?.total ?? 0} appels`}</span>
                     {data && (
                         <section className={cn("border-b border-line-subtle px-6 py-4 transition-opacity", loading && "opacity-60")}>
                             <dl className="flex flex-wrap gap-x-10 gap-y-3">
@@ -387,7 +397,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                                 />
                             </dl>
                             {!unqualified && data.facets.statuses.length > 0 && (
-                                <div className="mt-4">
+                                <div className="mt-4 hidden sm:block">
                                     <StatusDistribution
                                         items={data.facets.statuses}
                                         selected={filters.results}
@@ -405,7 +415,10 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                         </section>
                     )}
 
-                    {error && <p className="px-6 py-4 text-[13px] text-danger-ink">{error}</p>}
+                    {error && <div role="alert" className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13px] text-danger-ink">
+                        <span>{error}{data ? " · Les derniers résultats restent affichés." : ""}</span>
+                        <button type="button" onClick={() => setReload((n) => n + 1)} className="rounded-lg border border-current px-3 py-1.5 font-semibold">Réessayer</button>
+                    </div>}
                     {!data && !error && <TableSkeleton />}
                     {data && rows.length === 0 && (
                         <EmptyState unqualified={unqualified} filtered={filtered} telephonyEnabled={data.telephonyEnabled} onReset={resetFilters} />
@@ -415,22 +428,22 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                             className={cn(
                                 "w-full border-collapse bg-surface text-[13px] transition-opacity",
                                 // Beside the pane: fixed columns, the prospect and status truncate instead of scrolling sideways.
-                                showPane ? "table-fixed" : "min-w-[880px]",
+                                showPane ? "table-fixed" : "table-fixed sm:table-auto",
                                 loading && "opacity-60",
                             )}
                         >
                             <thead className="sticky top-0 z-[1]">
                                 <tr className="bg-surface-2/95 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-3 shadow-[inset_0_-1px_0_var(--ds-line)] backdrop-blur">
-                                    <th className={cn("py-2 pl-6 pr-3 font-semibold", showPane ? (multiDay ? "w-[110px]" : "w-[76px]") : "w-[92px]")}>{multiDay ? "Date" : "Heure"}</th>
+                                    <th className={cn("py-2 pl-4 pr-2 font-semibold sm:pl-6 sm:pr-3", showPane ? (multiDay ? "w-[110px]" : "w-[76px]") : "w-[68px] sm:w-[92px]")}>{multiDay ? "Date" : "Heure"}</th>
                                     <th className="px-3 py-2 font-semibold">Prospect</th>
-                                    <th className={cn("px-3 py-2 font-semibold", showPane && "w-[140px]")}>{unqualified ? "Issue" : "Statut"}</th>
-                                    <th className={cn("px-3 py-2 text-right font-semibold", showPane ? "w-[76px]" : "w-[84px]")}>Durée</th>
+                                    <th className={cn("w-[112px] px-2 py-2 font-semibold sm:w-auto sm:px-3", showPane && "sm:w-[140px]")}>{unqualified ? "Issue" : "Statut"}</th>
+                                    <th className={cn("hidden px-3 py-2 text-right font-semibold sm:table-cell", showPane ? "w-[76px]" : "w-[84px]")}>Durée</th>
                                     {scope === "team" && <th className={cn("px-3 py-2 font-semibold", showPane && "w-[52px]")}>SDR</th>}
-                                    {!unqualified && !showPane && <th className="px-3 py-2 font-semibold">Mission</th>}
-                                    <th className={cn("py-2 pl-3 pr-6 text-right font-semibold", onQualify && unqualified ? "w-[150px]" : showPane ? "w-[72px]" : "w-[80px]")} aria-label="Contenu" />
+                                    {!unqualified && !showPane && <th className="hidden px-3 py-2 font-semibold xl:table-cell">Mission</th>}
+                                    <th className={cn("hidden py-2 pl-3 pr-6 text-right font-semibold sm:table-cell", onQualify && unqualified ? "w-[150px]" : showPane ? "w-[72px]" : "w-[80px]")} aria-label="Contenu" />
                                 </tr>
                             </thead>
-                            <tbody key={loadedQuery ?? ""}>
+                            <tbody>
                                 {rows.map((r, i) => (
                                     <Row
                                         key={r.id}
@@ -443,8 +456,9 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                                         showSdr={scope === "team"}
                                         showMission={!showPane}
                                         compact={showPane}
-                                        onQualify={unqualified && onQualify ? () => onQualify(r) : undefined}
+                                        onQualify={!loading && unqualified && onQualify ? () => onQualify(r) : undefined}
                                         onOpen={() => {
+                                            if (loading) return;
                                             setCursor(i);
                                             setOpen({ id: r.id, kind: r.kind });
                                         }}
@@ -466,10 +480,10 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                         </span>
                         {data.total > data.limit && (
                             <div className="flex gap-1">
-                                <PagerButton disabled={data.page <= 1} onClick={() => setFilters({ page: data.page - 1 }, { keepPage: true })}>
+                                <PagerButton disabled={loading || data.page <= 1} onClick={() => setFilters({ page: data.page - 1 }, { keepPage: true })}>
                                     Précédent
                                 </PagerButton>
-                                <PagerButton disabled={lastRow >= data.total} onClick={() => setFilters({ page: data.page + 1 }, { keepPage: true })}>
+                                <PagerButton disabled={loading || lastRow >= data.total} onClick={() => setFilters({ page: data.page + 1 }, { keepPage: true })}>
                                     Suivant
                                 </PagerButton>
                             </div>
@@ -594,22 +608,20 @@ function Row({
             onClick={onOpen}
             style={{ ["--i" as string]: index }}
             className={cn(
-                "cp-rise group cursor-pointer scroll-mt-9 border-b border-line-subtle transition-colors duration-150",
+                "cp-journal-row group cursor-pointer scroll-mt-9 border-b border-line-subtle transition-colors duration-150",
                 opened ? "bg-primary-soft" : active ? "bg-primary-soft/50" : "hover:bg-surface-2",
             )}
         >
-            <td className={cn("whitespace-nowrap py-2.5 pl-6 pr-3 tabular-nums text-ink-2", (active || opened) && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
+            <td className={cn("whitespace-nowrap py-3 pl-4 pr-2 text-[11px] tabular-nums text-ink-2 sm:pl-6 sm:pr-3 sm:text-[13px]", (active || opened) && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
                 {multiDay && <span className="mr-1.5 text-ink-3">{at.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</span>}
                 {at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </td>
             <td className="max-w-[320px] px-3 py-2.5">
-                <p className="truncate font-medium text-ink">{who}</p>
-                <p className="truncate text-[12px] text-ink-3">
-                    {r.contact ? r.company?.name : r.company && r.phone ? formatPhone(r.phone) : ""}
-                    {r.note && !unqualified ? <span className="text-ink-4"> · {r.note}</span> : null}
-                </p>
+                <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className="block w-full min-w-0 text-left" aria-label={`Ouvrir l’appel de ${who}`}><ProspectIdentity name={r.contact?.name} company={r.company?.name ?? who} role={r.contact?.title} website={r.company?.website} compact /></button>
+                {r.note && !unqualified && <p className="mt-1 truncate text-[11px] text-ink-3 sm:pl-[47px]">{r.note}</p>}
+                {onQualify && <button type="button" disabled={!r.company} onClick={(e) => { e.stopPropagation(); onQualify(); }} className="mt-1.5 rounded-control bg-primary px-2.5 py-1 text-[12px] font-semibold text-primary-fg disabled:opacity-40 sm:hidden">Qualifier</button>}
             </td>
-            <td className="max-w-[220px] px-3 py-2.5">
+            <td className="max-w-[220px] px-2 py-2.5 text-[11px] sm:px-3 sm:text-[13px]">
                 {r.status ? (
                     <StatusLabel label={r.status.label} color={r.status.color} />
                 ) : r.telephonyStatus ? (
@@ -621,7 +633,7 @@ function Row({
                     <span className="text-ink-4">—</span>
                 )}
             </td>
-            <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-ink-2">
+            <td className="hidden whitespace-nowrap px-3 py-2.5 text-right sm:table-cell tabular-nums text-ink-2">
                 {r.durationSec === null ? (
                     <span className="text-ink-4">—</span>
                 ) : (
@@ -639,9 +651,9 @@ function Row({
                 </td>
             )}
             {!unqualified && showMission && <td className="max-w-[200px] truncate px-3 py-2.5 text-ink-3">{r.mission?.name ?? "—"}</td>}
-            <td className="py-2.5 pl-3 pr-6">
+            <td className="hidden py-2.5 pl-3 pr-6 sm:table-cell">
                 <span className="flex items-center justify-end gap-1.5 text-ink-3">
-                    {onQualify && (
+                  {onQualify && (
                         <button
                             type="button"
                             onClick={(e) => {

@@ -115,7 +115,8 @@ export const MANAGER_NAV: NavSection[] = [
           { href: "/manager/lists/sourcing", icon: ScanSearch, label: "Sourcing", permission: "pages.prospects", description: "Trouver des sociétés sur Google Maps, le registre et Apollo" },
           { href: "/manager/prospection", icon: Phone, label: "Appels", permission: "pages.missions", description: "Activité d'appel des SDR, mission par mission" },
           { href: "/manager/appels", icon: Headphones, label: "Journal d'appels", permission: "pages.missions", description: "Chaque appel avec son statut, son enregistrement, sa transcription et son résumé IA" },
-          { href: "/manager/exclusions", icon: Ban, label: "BlackList", permission: "pages.prospects", description: "Sociétés et contacts à ne jamais rappeler" },
+          { href: "/manager/exclusions", icon: Ban, label: "Blacklist", permission: "pages.prospects", description: "Sociétés et contacts à ne jamais rappeler" },
+
         ],
       },
       {
@@ -601,7 +602,7 @@ export const CLIENT_NAV: NavSection[] = [
       {
         href: "/client/portal/exclusions",
         icon: Ban,
-        label: "Ne plus contacter",
+        label: "Blacklist",
         permission: "pages.dashboard",
       },
     ],

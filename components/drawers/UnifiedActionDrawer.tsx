@@ -88,8 +88,12 @@ import {
 } from "@/lib/query-keys";
 import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openreplay/events";
 import { openReplayTracker } from "@/lib/openreplay/tracker";
+import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
+import { AccountMap } from "@/components/sdr/workspace/AccountMap";
+import { ActivityTimeline, actionsToEvents } from "@/components/sdr/workspace/ActivityTimeline";
 import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
 import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
+
 
 // ============================================
 // TYPES
@@ -111,6 +115,7 @@ interface Contact {
 }
 
 interface Company {
+    email?: string | null;
     id: string;
     name: string;
     industry: string | null;
@@ -175,6 +180,7 @@ interface UnifiedActionDrawerProps {
     docked?: boolean;
     /** Content of the « Script » tab (docked only), e.g. <ScriptCompanionContent />. */
     script?: ReactNode;
+
 }
 
 interface AlloCallItem {
@@ -495,6 +501,7 @@ export function UnifiedActionDrawer({
     summary,
     docked = false,
     script,
+
 }: UnifiedActionDrawerProps) {
     const { success, error: showError, info: showInfo } = useToast();
     const { data: session } = useSession();
@@ -510,6 +517,8 @@ export function UnifiedActionDrawer({
         createdAt: string;
         callbackDate?: string | null;
         channel?: string;
+        duration?: number | null;
+        callSummary?: string | null;
         meetingType?: string | null;
         meetingAddress?: string | null;
         campaign?: { name: string };
@@ -772,7 +781,7 @@ export function UnifiedActionDrawer({
         enabled: isOpen && !!companyId,
         staleTime: 60_000,
     });
-    const canAddProspect = !!prospectContext && prospectContext.mode !== "OFF" && prospectContext.lists.length > 0;
+    const canAddProspect = !!prospectContext && prospectContext.mode !== "OFF" && (prospectContext.lists?.length ?? 0) > 0;
     const prospectOrigin = prospectContext?.origin ?? null;
 
     const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
@@ -1182,7 +1191,7 @@ export function UnifiedActionDrawer({
         },
         onSuccess: (rule) => {
             success(
-                "Ne plus contacter",
+                "Blacklist",
                 `${rule?.label ?? "Exclusion enregistrée"} — retiré de la file d'appel.`
             );
             setExcludeDialogOpen(false);
@@ -1243,7 +1252,7 @@ export function UnifiedActionDrawer({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     text: payload.text || undefined,
-                    channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : channel,
+                    channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : (campaigns[0]?.mission?.channel ?? "CALL"),
                     resultCode: newActionResult || undefined,
                     resultLabel: newActionResult ? (statusLabels[newActionResult] ?? newActionResult) : undefined,
                     callSummary: payload.linkedCall?.summary ?? undefined,
@@ -1709,6 +1718,7 @@ export function UnifiedActionDrawer({
     // action form by default; below the form when a summary is passed (RDV view).
     const ficheSections = (
         <>
+            {company && inPane("fiche") && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact={["BAD_CONTACT","MAUVAIS_INTERLOCUTEUR"].includes(newActionResult)} onSelect={onContactSelect} />}
             {/* ── Quick Action Bar ── */}
             <section
                 aria-label="Actions rapides"
@@ -2839,11 +2849,12 @@ export function UnifiedActionDrawer({
         <Drawer
             isOpen={isOpen}
             onClose={onClose}
-            title={displayName}
+            title={<ProspectIdentity name={contact ? displayName : null} company={company?.name} role={contact?.title} website={company?.website} compact />}
             description={missionName ? `Mission : ${missionName}` : undefined}
             size="lg"
             docked={docked}
             bodyClassName={docked ? "p-0" : undefined}
+
         >
             <style>{`
                 @keyframes uadSectionIn {
@@ -2957,11 +2968,14 @@ export function UnifiedActionDrawer({
                                 title={contactId ? "Blacklister ce contact ou toute la société" : "Blacklister cette société"}
                             >
                                 <Ban className="w-3.5 h-3.5" aria-hidden="true" />
-                                Ne plus contacter
+                                Blacklister
                             </button>
                         </div>
                     )}
 
+                    <div className={cn(docked && "order-3", !inPane("appel") && "hidden")}>
+                        <ActivityTimeline companyId={companyId ?? undefined} events={actionsToEvents(actions,statusLabels)} loading={actionsLoading} />
+                        <details className="sdr-history-management"><summary>Gérer les activités · modifier ou supprimer</summary>
                     {/* ── Unified history section (moved to top) ── */}
                     <section
                         aria-label="Historique des actions"
@@ -3039,7 +3053,7 @@ export function UnifiedActionDrawer({
                             {actionsLoading ? (
                                 <div role="status" aria-label="Chargement de l'historique">
                                     <ListSkeleton items={3} hasAvatar={false} className="py-1" />
-                                    <span className="sr-only">Chargement de l'historique...</span>
+                                    <span className="sr-only">Chargement de l’historique…</span>
                                 </div>
                             ) : actions.length === 0 ? (
                                 <div className="flex flex-col items-center py-10 text-slate-400">
@@ -3325,6 +3339,9 @@ export function UnifiedActionDrawer({
                         </div>
                     </section>
 
+                        </details>
+                    </div>
+
                     {!summary && ficheSections}
 
                     {/* ── Record Action Section ── */}
@@ -3354,6 +3371,7 @@ export function UnifiedActionDrawer({
                         </div>
 
                         <div className="p-4">
+                            {company && ["BAD_CONTACT", "MAUVAIS_INTERLOCUTEUR"].includes(newActionResult) && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact onSelect={onContactSelect} />}
                             {campaignsLoading ? (
                                 <div className="space-y-3 py-2">
                                     <TextSkeleton lines={1} className="h-9 w-full" />
