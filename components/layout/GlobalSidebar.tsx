@@ -457,9 +457,9 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                     >
                         <div className="flex items-center">
                             {isExpanded ? (
-                                <BrandLogo tone="inverse" height={26} priority />
+                                <BrandLogo tone="inverse" height={40} priority />
                             ) : (
-                                <BrandLogo variant="mark" tone="inverse" height={26} priority />
+                                <BrandLogo variant="mark" tone="inverse" height={34} priority />
                             )}
                         </div>
                     </Link>

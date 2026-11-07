@@ -399,7 +399,7 @@ export default function LoginForm() {
             />
 
             <header className="relative z-10 pt-12 sm:pt-16 flex justify-center">
-                <BrandLogo height={28} priority />
+                <BrandLogo height={56} priority />
             </header>
 
             <main className="relative z-10 flex-1 w-full flex items-center justify-center px-4 py-10">

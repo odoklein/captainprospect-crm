@@ -13,9 +13,9 @@
 export const brandConfig = {
     identity: {
         /** The brand people see: sidebar, login, emails, PDFs. */
-        name: "Captain Prospect",
+        name: "Captain Soft",
         /** Product name for <title>, browser tabs, calendar PRODID, notifications. */
-        productName: "Captain Prospect CRM",
+        productName: "Captain Soft CRM",
         /** One-line positioning, used under the logo and in meta descriptions. */
         tagline: "Plateforme d'exécution commerciale",
         /** What the agency does, as AI prompts should describe it. */
@@ -35,7 +35,7 @@ export const brandConfig = {
 
     email: {
         /** Display name on automatic emails ("Captain Prospect" <…>). */
-        senderName: "Captain Prospect",
+        senderName: "Captain Soft",
         /** Default sender for notifications when no SMTP sender is configured. */
         notificationsAddress: "notifications@captainprospect.fr",
         /** Where blocked or lost users are told to write. */
@@ -56,10 +56,14 @@ export const brandConfig = {
          * Structure colour: sidebar, hero cards, primary buttons. Pick the
          * darkest colour of the logo; it lands on the shade that matches its
          * lightness (navy #263460 → primary-900).
+         *
+         * Captain Soft brand system: Marine for structure, Magenta for the
+         * signal (the action that matters, focus, progress). The accent never
+         * carries meaning on its own: always with an icon or a label.
          */
-        primary: "#263460",
+        primary: "#0E1B3D",
         /** Highlight colour: active nav, selection, focus ring, AI features. */
-        accent: "#C64B8B",
+        accent: "#FF006E",
         /** How much of the primary hue tints the greys: 0 = pure grey, 1 = slate-like. */
         neutralTint: 1,
     },
@@ -77,8 +81,8 @@ export const brandConfig = {
         /** Browser tab icon and apple-touch icon. */
         favicon: "/brand/favicon.png",
         /** Intrinsic size of `full` (keeps next/image from shifting layout). */
-        fullWidth: 2460,
-        fullHeight: 758,
+        fullWidth: 1723,
+        fullHeight: 600,
     },
 } as const;
 
