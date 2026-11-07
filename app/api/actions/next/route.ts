@@ -77,6 +77,20 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         ? `AND m.id IN (${sdrTodayMissionIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(",")})`
         : '';
 
+    // Focus Mode « Passer » : prospects skipped in this session, never ranked again
+    // in it. Ids are validated (cuid charset) before they reach the SQL string.
+    const SKIP_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+    const skipIds = (key: string) =>
+        [...new Set(searchParams.getAll(key).flatMap((v) => v.split(",")).map((v) => v.trim()).filter((v) => SKIP_ID_RE.test(v)))].slice(0, 200);
+    const skipContactIds = skipIds('skipContact');
+    const skipCompanyIds = skipIds('skipCompany');
+    const contactSkipFilter = skipContactIds.length
+        ? `AND c.id NOT IN (${skipContactIds.map((id) => `'${id}'`).join(",")})`
+        : '';
+    const companySkipFilter = skipCompanyIds.length
+        ? `AND co.id NOT IN (${skipCompanyIds.map((id) => `'${id}'`).join(",")})`
+        : '';
+
     const shouldBypassAssignmentGate = Boolean(missionId);
 
     // Booker and mission-filtered requests: no SDRAssignment join
@@ -186,6 +200,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               ${sdrTodayMissionFilter}
               ${listFilter}
               ${channelFilter}
+              ${contactSkipFilter}
         ),
         sdr_companies AS (
             -- Get companies that can be called directly
@@ -247,6 +262,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
               ${sdrTodayMissionFilter}
               ${listFilter}
               ${channelFilter}
+              ${companySkipFilter}
         ),
         all_targets AS (
             -- Combine contacts and companies

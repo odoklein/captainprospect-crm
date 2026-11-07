@@ -45,6 +45,7 @@ import {
   Settings2,
   Tag,
   ListChecks,
+  Crosshair,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { AiMark } from "@/components/ui/AiMark";
@@ -245,6 +246,12 @@ export const SDR_NAV: NavSection[] = [
         href: "/sdr/action",
         icon: Phone,
         label: "Appeler",
+        permission: "pages.action",
+      },
+      {
+        href: "/sdr/focus",
+        icon: Crosshair,
+        label: "Mode Focus",
         permission: "pages.action",
       },
       {
