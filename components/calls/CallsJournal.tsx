@@ -264,7 +264,7 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                             <span
                                 className={cn(
                                     "rounded-full px-1.5 text-[11px] tabular-nums",
-                                    id === "unqualified" ? "bg-warning-soft text-warning-ink" : "bg-surface-3 text-ink-2",
+                                    id === "unqualified" ? "bg-primary text-primary-fg" : "bg-surface-3 text-ink-3",
                                 )}
                             >
                                 {count}

@@ -2740,7 +2740,9 @@ export default function SDRActionPage() {
                     <div
                         role="status"
                         aria-live="polite"
-                        className="cp-glass cp-pop fixed left-1/2 top-3 z-[100] flex max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pl-3 pr-1.5 text-[13px]"
+                        className={cn("cp-glass cp-pop fixed left-1/2 z-[100] flex transition-[top] duration-300", softCall ? "top-[58px]" : "top-3",
+                            "max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pl-3 pr-1.5 text-[13px]",
+                        )}
                     >
                         <span className="flex items-center gap-1.5 font-semibold text-ink">
                             <span className={cn("h-2 w-2 rounded-full", softCall?.phase === "live" && autoCallIsOurs ? "cp-halo bg-success" : autoCallActive ? "animate-pulse bg-warning" : "bg-primary")} />

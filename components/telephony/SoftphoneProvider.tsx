@@ -12,13 +12,14 @@
 // real call, and the microphone is only requested then.
 // ============================================
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import type { Call, Device } from "@twilio/voice-sdk";
 import { softphoneErrorMessage } from "@/lib/telephony/client-errors";
 import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
 import { isFinalStatus, type TelephonyStatus } from "@/lib/telephony/status";
 import { CallBar } from "./CallBar";
+import { CallIsland } from "./CallIsland";
 
 export interface DialTarget {
     phone: string;
@@ -82,6 +83,41 @@ interface SoftphoneContextValue {
 }
 
 const SoftphoneContext = createContext<SoftphoneContextValue | null>(null);
+
+// ── Live audio levels ─────────────────────────────────────────────────────
+// Twilio emits the microphone (input) and speaker (output) levels every 50 ms.
+// They live outside React context so 20 updates a second only re-render the
+// components that draw them (the Island's level bars), never the pages.
+export interface CallLevels {
+    /** The SDR's microphone, 0..1. */
+    input: number;
+    /** The prospect's voice, 0..1. */
+    output: number;
+}
+const levelListeners = new Set<() => void>();
+let levels: CallLevels = { input: 0, output: 0 };
+let levelFrame: number | null = null;
+function pushLevels(next: CallLevels) {
+    levels = next;
+    if (levelFrame !== null) return;
+    levelFrame = requestAnimationFrame(() => {
+        levelFrame = null;
+        levelListeners.forEach((l) => l());
+    });
+}
+const ZERO_LEVELS: CallLevels = { input: 0, output: 0 };
+
+/** Live microphone / speaker levels of the current call (zero when no call). */
+export function useCallLevels(): CallLevels {
+    return useSyncExternalStore(
+        (cb) => {
+            levelListeners.add(cb);
+            return () => levelListeners.delete(cb);
+        },
+        () => levels,
+        () => ZERO_LEVELS,
+    );
+}
 
 const LIVE_PHASES = new Set<CallPhase>(["preparing", "connecting", "ringing", "live"]);
 const AUTO_DISMISS_MS = 60_000;
@@ -255,6 +291,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             twilioCall.on("ringing", () => patch(key, (c) => (c.phase === "connecting" ? { phase: "ringing" } : {})));
             twilioCall.on("accept", () => patch(key, { phase: "live", answeredAt: Date.now() }));
             twilioCall.on("mute", (muted: boolean) => patch(key, { muted }));
+            twilioCall.on("volume", (input: number, output: number) => pushLevels({ input, output }));
+            twilioCall.on("disconnect", () => pushLevels(ZERO_LEVELS));
             twilioCall.on("disconnect", () => finish(key, "ended", null, callId));
             twilioCall.on("cancel", () => finish(key, "ended", null, callId));
             twilioCall.on("reject", () => finish(key, "ended", null, callId));
@@ -381,6 +419,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         <SoftphoneContext.Provider value={value}>
             {children}
             {call && <CallBar key={call.key} />}
+            {call && <CallIsland key={`island-${call.key}`} />}
         </SoftphoneContext.Provider>
     );
 }
