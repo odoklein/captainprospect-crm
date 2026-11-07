@@ -101,3 +101,41 @@ to its offset.
   (migration `20261105100000_add_telephony_calls`)
 
 Tests: `npm run test:telephony`
+
+## Live transcription & AI summary (`TWILIO_TRANSCRIBE_CALLS=1`)
+
+- `<Start><Transcription>` (fr-FR, both tracks, engine/model via
+  `TWILIO_TRANSCRIPTION_ENGINE` / `TWILIO_TRANSCRIPTION_MODEL`, default
+  `google` / `telephony`) runs before `<Dial>`; the prospect hears the notice.
+- `/api/webhooks/twilio/transcription` stores final sentences
+  (`TelephonyTranscriptLine`, speaker `sdr` = inbound track, `prospect` =
+  outbound track). The dock's « Transcription » panel follows them.
+- When Twilio stops the transcription (or lazily, 20 s after the call ended,
+  if that callback was lost), `lib/telephony/summary` writes the summary:
+  summary, key points, objections, next steps, **qualification** (need,
+  current solution, timing, decision-maker, budget — null when not said) and a
+  **suggested status** chosen only among the mission's statuses. Runs once
+  (claim on `aiSummaryStatus`); too-short calls are `skipped`, never padded.
+- Copied onto the qualification (`Action.callSummary` / `callTranscription`)
+  without overwriting what the SDR wrote.
+
+## SDR: Mode Focus (`/sdr/focus`)
+
+One prospect at a time from the smart queue (`/api/actions/next`, which now
+accepts `skipContact` / `skipCompany`). AI pre-call brief, cancellable
+auto-dial, outcome by key 1–9, callback presets, Entrée = save and next, the
+AI's suggested outcome tagged « IA » with « Appliquer ». Shortcuts: `?`.
+
+Pre-call brief: `GET /api/sdr/brief` (`lib/sdr-assistant/brief`), built from
+the CRM only, cached per prospect × mission against a hash of its inputs
+(`ProspectBrief`).
+
+## Manager: Journal d'appels (`/manager/appels`)
+
+Every logged call with status, duration, recording, AI summary and
+transcript; filters in the URL; facets by status / SDR / mission; search
+also matches what was said (transcripts, summaries, notes). « Sans statut »
+lists integrated-phone calls with no status after 10 minutes.
+API: `GET /api/manager/calls`, `GET /api/manager/calls/[id]`.
+
+Migrations: `20261107100000_add_call_transcripts`, `20261108100000_add_prospect_briefs`.

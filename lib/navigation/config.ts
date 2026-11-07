@@ -46,6 +46,7 @@ import {
   Tag,
   ListChecks,
   Crosshair,
+  Headphones,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { AiMark } from "@/components/ui/AiMark";
@@ -113,6 +114,7 @@ export const MANAGER_NAV: NavSection[] = [
           { href: "/manager/lists", icon: Database, label: "Listes", permission: "pages.prospects", description: "Fichiers de prospects et leur préparation" },
           { href: "/manager/lists/sourcing", icon: ScanSearch, label: "Sourcing", permission: "pages.prospects", description: "Trouver des sociétés sur Google Maps, le registre et Apollo" },
           { href: "/manager/prospection", icon: Phone, label: "Appels", permission: "pages.missions", description: "Activité d'appel des SDR, mission par mission" },
+          { href: "/manager/appels", icon: Headphones, label: "Journal d'appels", permission: "pages.missions", description: "Chaque appel avec son statut, son enregistrement, sa transcription et son résumé IA" },
           { href: "/manager/exclusions", icon: Ban, label: "BlackList", permission: "pages.prospects", description: "Sociétés et contacts à ne jamais rappeler" },
         ],
       },

@@ -194,6 +194,8 @@ function InnerLayout({
         emails: "Email Hub",
         assistant: "Captain AI",
         agent: "Captain Agent",
+        appels: "Journal d'appels",
+        focus: "Mode Focus",
     };
     const currentPage = pageLabels[rawPage?.toLowerCase()] || rawPage;
 

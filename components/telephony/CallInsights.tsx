@@ -117,6 +117,26 @@ export function useCallTranscript(callId: string | null, enabled: boolean): Tran
 
 // ── transcript ──────────────────────────────────────────────────────────────
 
+/** Wraps case-insensitive matches of `term` in <mark>. */
+export function Highlighted({ text, term }: { text: string; term?: string }) {
+    const t = term?.trim();
+    if (!t || t.length < 2) return <>{text}</>;
+    const parts = text.split(new RegExp(`(${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+    return (
+        <>
+            {parts.map((part, i) =>
+                i % 2 === 1 ? (
+                    <mark key={i} className="rounded-sm bg-warning-soft px-0.5 text-ink">
+                        {part}
+                    </mark>
+                ) : (
+                    part
+                ),
+            )}
+        </>
+    );
+}
+
 function clock(ms: number): string {
     const s = Math.max(0, Math.floor(ms / 1000));
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -129,6 +149,7 @@ export function TranscriptView({
     startedAt,
     className,
     emptyText = "Aucune transcription pour cet appel.",
+    highlight,
 }: {
     lines: TranscriptLine[];
     names: { sdr: string; prospect: string };
@@ -137,6 +158,8 @@ export function TranscriptView({
     startedAt?: string | number | null;
     className?: string;
     emptyText?: string;
+    /** Search term to highlight in the lines. */
+    highlight?: string;
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const stickRef = useRef(true);
@@ -177,7 +200,9 @@ export function TranscriptView({
                                             {sdr ? names.sdr : names.prospect}
                                         </p>
                                     )}
-                                    <p className="text-[13px] leading-relaxed text-ink-2">{l.text}</p>
+                                    <p className="text-[13px] leading-relaxed text-ink-2">
+                                        <Highlighted text={l.text} term={highlight} />
+                                    </p>
                                 </div>
                             </li>
                         );
