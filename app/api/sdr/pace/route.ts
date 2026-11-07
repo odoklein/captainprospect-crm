@@ -1,25 +1,14 @@
 import { NextResponse } from "next/server";
-import { DateTime } from "luxon";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { getPaceConfig } from "@/lib/sdr-pace/config";
-import { computeEffectiveTime, computePace, type Interval } from "@/lib/sdr-pace/pace";
-import { fetchAlloMetricsForLine } from "@/lib/call-enrichment/allo-metrics";
+import { computeSdrPaceFor } from "@/lib/sdr-pace/server";
 
 // ============================================
 // GET /api/sdr/pace
 // Where the SDR stands against today's call pace: calls done, calls expected at
 // this point of their effective calling time, and the resulting status.
+// The computation lives in lib/sdr-pace/server.ts (shared with the agent).
 // ============================================
-
-const APP_TIMEZONE = "Europe/Paris";
-
-function minuteOfDay(hhmm: string): number | null {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
-    if (!m) return null;
-    return Number(m[1]) * 60 + Number(m[2]);
-}
 
 export async function GET() {
     try {
@@ -27,69 +16,7 @@ export async function GET() {
         if (!session?.user?.id) {
             return NextResponse.json({ success: false, error: "Non autorisé" }, { status: 401 });
         }
-        const sdrId = session.user.id;
-
-        const now = DateTime.now().setZone(APP_TIMEZONE);
-        const startOfDay = now.startOf("day");
-        const todayKey = now.toFormat("yyyy-MM-dd");
-        const tomorrowKey = now.plus({ days: 1 }).toFormat("yyyy-MM-dd");
-        // ScheduleBlock.date is a @db.Date: compare against UTC midnight of the Paris day
-        // (same convention as /api/sdr/today-blocks).
-        const dayStart = new Date(`${todayKey}T00:00:00.000Z`);
-        const dayEnd = new Date(`${tomorrowKey}T00:00:00.000Z`);
-
-        const [config, calls, scheduleBlocks, user] = await Promise.all([
-            getPaceConfig(),
-            prisma.action.findMany({
-                where: { sdrId, channel: "CALL", createdAt: { gte: startOfDay.toJSDate() } },
-                select: { createdAt: true },
-            }),
-            prisma.scheduleBlock.findMany({
-                where: {
-                    sdrId,
-                    date: { gte: dayStart, lt: dayEnd },
-                    status: { not: "CANCELLED" },
-                    OR: [{ suggestionStatus: null }, { suggestionStatus: "CONFIRMED" }],
-                },
-                select: { startTime: true, endTime: true },
-            }),
-            prisma.user.findUnique({
-                where: { id: sdrId },
-                select: { alloPhoneNumber: true },
-            }),
-        ]);
-
-        let alloCallsCount = 0;
-        if (user?.alloPhoneNumber) {
-            const alloMetrics = await fetchAlloMetricsForLine(
-                user.alloPhoneNumber,
-                startOfDay.toJSDate(),
-                now.endOf("day").toJSDate()
-            );
-            alloCallsCount = alloMetrics.calls;
-        }
-
-        const blocks: Interval[] = [];
-        for (const b of scheduleBlocks) {
-            const start = minuteOfDay(b.startTime);
-            const end = minuteOfDay(b.endTime);
-            if (start !== null && end !== null && end > start) blocks.push({ start, end });
-        }
-
-        const callMinutes = calls.map((c) => {
-            const t = DateTime.fromJSDate(c.createdAt, { zone: APP_TIMEZONE });
-            return t.hour * 60 + t.minute + t.second / 60;
-        });
-        const nowMinute = now.hour * 60 + now.minute + now.second / 60;
-
-        const time = computeEffectiveTime({ blocks, callMinutes, nowMinute });
-        const effectiveCallsDone = Math.max(calls.length, alloCallsCount);
-        const pace = computePace({
-            callsDone: effectiveCallsDone,
-            dailyQuota: config.dailyQuota,
-            targetHours: config.targetHours,
-            time,
-        });
+        const { pace, time, config } = await computeSdrPaceFor(session.user.id, new Date());
 
         return NextResponse.json({
             success: true,

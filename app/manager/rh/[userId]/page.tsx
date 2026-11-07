@@ -3,9 +3,26 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Briefcase, Calendar, ChevronRight, History, ListChecks, RefreshCw, Wallet } from "lucide-react";
+import { ChevronRight, Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
+import { Callout } from "@/components/ui/Callout";
+import { FOCUS_RING } from "@/components/ui/recipes";
+import {
+  HubBackLink,
+  HubHeader,
+  Metric,
+  MetricPlaceholder,
+  MetricStrip,
+  Panel,
+  PanelHeader,
+  PanelMessage,
+  SkeletonRows,
+  TextButton,
+} from "@/components/hr/HubUI";
 import { ContractType, HrMonthStatus, RemunerationMode } from "@/lib/hr/hr-types";
-import { REMUNERATION_LABELS, STATUS_LABELS, formatEuros, formatMonthLabel } from "@/lib/hr/hr-rules";
+import { REMUNERATION_LABELS, STATUS_LABELS, formatEuros, formatMonthLabel, isLockedStatus } from "@/lib/hr/hr-rules";
 import { AuditTone, HrAuditEntry, describeAuditEntry } from "@/lib/hr/hr-audit-labels";
 import { HrProfileModal } from "@/components/hr/HrProfileModal";
 
@@ -45,19 +62,27 @@ interface DossierData {
   months: MonthSummary[];
 }
 
+// Same step marks as the Paie list.
 const STATUS_STYLES: Record<HrMonthStatus, string> = {
-  DRAFT: "bg-slate-100 text-slate-700",
-  TO_VERIFY: "bg-amber-50 text-amber-800",
-  VALIDATED: "bg-primary-50 text-primary-700",
-  PAID: "bg-emerald-50 text-emerald-700",
+  DRAFT: "bg-surface-3 text-ink-2 border-line",
+  TO_VERIFY: "bg-warning-soft text-warning-ink border-warning-line",
+  VALIDATED: "bg-primary-50 text-primary-700 border-primary-200",
+  PAID: "bg-success-soft text-success-ink border-success-line",
+};
+
+const BAR: Record<HrMonthStatus, string> = {
+  DRAFT: "bg-line-strong",
+  TO_VERIFY: "bg-line-strong",
+  VALIDATED: "bg-primary-500",
+  PAID: "bg-success",
 };
 
 const TONE_DOT: Record<AuditTone, string> = {
-  slate: "bg-slate-300",
+  slate: "bg-line-strong",
   indigo: "bg-primary-500",
-  emerald: "bg-emerald-500",
-  amber: "bg-amber-500",
-  rose: "bg-rose-500",
+  emerald: "bg-success",
+  amber: "bg-warning",
+  rose: "bg-danger",
 };
 
 const AUDIT_PAGE = 15;
@@ -75,6 +100,7 @@ export default function UserHrPage() {
   const [auditPage, setAuditPage] = useState(1);
   const [auditHasMore, setAuditHasMore] = useState(false);
   const [auditLoading, setAuditLoading] = useState(false);
+  const [auditFailedPage, setAuditFailedPage] = useState<number | null>(null);
 
   const fetchProfile = useCallback(async () => {
     setIsLoading(true);
@@ -94,13 +120,19 @@ export default function UserHrPage() {
   const fetchAudit = useCallback(
     async (page: number) => {
       setAuditLoading(true);
+      setAuditFailedPage(null);
       try {
         const res = await fetch(`/api/hr/audit?userId=${encodeURIComponent(userId)}&page=${page}&limit=${AUDIT_PAGE}`);
         const json = await res.json().catch(() => ({}));
-        if (!res.ok || !json.success) return;
+        if (!res.ok || !json.success) {
+          setAuditFailedPage(page);
+          return;
+        }
         setAudit((prev) => (page === 1 ? json.data : [...prev, ...json.data]));
         setAuditPage(page);
         setAuditHasMore(Boolean(json.pagination?.hasMore));
+      } catch {
+        setAuditFailedPage(page);
       } finally {
         setAuditLoading(false);
       }
@@ -114,25 +146,40 @@ export default function UserHrPage() {
     fetchAudit(1);
   }, [userId, fetchProfile, fetchAudit]);
 
+  const backLink = <HubBackLink href="/manager/rh">Paie de l’équipe</HubBackLink>;
+
   if (isLoading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 py-20">
-        <RefreshCw className="h-6 w-6 animate-spin text-primary-600" />
-        <p className="text-xs text-slate-500">Chargement du dossier…</p>
+      <div className="space-y-4 pb-2" aria-busy="true" aria-label="Chargement du dossier">
+        {backLink}
+        <div className="flex items-center gap-4">
+          <span className="size-11 shrink-0 rounded-full bg-surface-3" />
+          <div className="min-w-0 space-y-2">
+            <span className="block h-6 w-48 rounded bg-surface-3" />
+            <span className="block h-3.5 w-72 max-w-[60vw] rounded bg-surface-3" />
+          </div>
+        </div>
+        <MetricStrip className="grid-cols-1 sm:grid-cols-3">
+          {["Contrat", "Rémunération", "Objectif"].map((label) => (
+            <Metric key={label} label={label} value={<MetricPlaceholder wide />} />
+          ))}
+        </MetricStrip>
+        <Panel>
+          <SkeletonRows rows={5} columns={[20, 10, 12, 18, 12]} pitch="py-3.5" />
+        </Panel>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="space-y-3">
-        <BackLink />
-        <div role="alert" className="flex items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">
-          {error || "Collaborateur introuvable"}
-          <button type="button" onClick={fetchProfile} className="rounded-lg bg-white px-3 py-1.5 font-semibold ring-1 ring-rose-200 hover:bg-rose-100">
-            Réessayer
-          </button>
-        </div>
+      <div className="space-y-4 pb-2">
+        {backLink}
+        <Panel>
+          <PanelMessage tone="error" action={<TextButton onClick={fetchProfile}>Réessayer</TextButton>}>
+            {error || "Collaborateur introuvable"}
+          </PanelMessage>
+        </Panel>
       </div>
     );
   }
@@ -143,221 +190,246 @@ export default function UserHrPage() {
   const paidTotal = months.filter((m) => m.status === HrMonthStatus.PAID).reduce((s, m) => s + m.totalAmountCents, 0);
   const avgTotal = months.length ? Math.round(months.reduce((s, m) => s + m.totalAmountCents, 0) / months.length) : 0;
   const chronological = [...months].reverse();
+  const shortMonth = (m: string) => new Date(`${m}-01T00:00:00Z`).toLocaleDateString("fr-FR", { month: "short", timeZone: "UTC" });
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <BackLink />
-        <button
-          type="button"
-          onClick={() => setIsEditOpen(true)}
-          className="rounded-xl bg-primary-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-primary-700"
-        >
-          {configured ? "Modifier les règles de paie" : "Configurer les règles de paie"}
-        </button>
-      </div>
+    <div className="space-y-4 pb-2">
+      {backLink}
 
       {/* Identity */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-primary-100 bg-primary-50 text-lg font-bold text-primary-700" aria-hidden>
-            {user.name
-              .split(" ")
-              .map((p) => p[0])
-              .slice(0, 2)
-              .join("")
-              .toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-slate-900">{user.name}</h1>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
-              <span className="truncate">{user.email}</span>
-              <span aria-hidden>·</span>
-              <span className="font-semibold text-primary-600">{user.role === "MANAGER" ? "Manager" : user.role}</span>
-            </p>
-          </div>
-        </div>
-        <div className="sm:text-right">
-          <span className="block text-[11px] text-slate-400">Manager</span>
-          <span className="text-xs font-semibold text-slate-800">{user.manager?.name || "Aucun"}</span>
-        </div>
+      <div className="flex items-start gap-4">
+        <Avatar name={user.name} size="lg" shape="circle" className="mt-0.5" />
+        <HubHeader
+          className="min-w-0 flex-1"
+          title={user.name}
+          finding={
+            <>
+              {user.role === "MANAGER" ? "Manager" : user.role}
+              {" · "}
+              <span className="break-all">{user.email}</span>
+              {" · "}Manager : {user.manager?.name || "Aucun"}
+            </>
+          }
+          actions={
+            <Button size="sm" onClick={() => setIsEditOpen(true)}>
+              {configured ? "Modifier les règles de paie" : "Configurer les règles de paie"}
+            </Button>
+          }
+        />
       </div>
 
       {!configured && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+        <Callout tone="danger">
           Les règles de paie ne sont pas encore renseignées : la paie de {user.name} est calculée à 0 €.
-        </div>
+        </Callout>
       )}
 
       {/* Rules */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <InfoCard icon={<Briefcase className="h-4 w-4 text-primary-500" />} label="Contrat">
-          <p className="text-sm font-bold text-slate-900">{profile.contractType === ContractType.SALARIE ? "Salarié (CDI / CDD)" : "Indépendant"}</p>
-          <span className="block text-xs text-slate-500">{REMUNERATION_LABELS[profile.remunerationMode]}</span>
-        </InfoCard>
-        <InfoCard icon={<Wallet className="h-4 w-4 text-emerald-500" />} label="Rémunération">
-          <p className="text-lg font-bold tabular-nums text-emerald-700">
-            {profile.remunerationMode === RemunerationMode.VARIABLE ? "Pas de fixe" : `${formatEuros(profile.fixedSalaryCents)} / mois`}
-          </p>
-          <span className="block text-xs text-slate-500">
-            {profile.remunerationMode === RemunerationMode.FIXE ? "Pas de prime par rendez-vous" : `+ ${formatEuros(profile.variablePerRdvCents)} par rendez-vous pris`}
-          </span>
-        </InfoCard>
-        <InfoCard icon={<Calendar className="h-4 w-4 text-accent-500" />} label="Objectif">
-          <p className="text-sm font-bold text-slate-900">{profile.dailyQuota > 0 ? `${profile.dailyQuota} appels / jour` : "Pas d’objectif d’appels"}</p>
-          <span className="block text-xs text-slate-500">
-            {configured
+      <MetricStrip className="grid-cols-1 sm:grid-cols-3">
+        <Metric
+          label="Contrat"
+          value={profile.contractType === ContractType.SALARIE ? "Salarié (CDI / CDD)" : "Indépendant"}
+          hint={REMUNERATION_LABELS[profile.remunerationMode]}
+        />
+        <Metric
+          label="Rémunération"
+          value={profile.remunerationMode === RemunerationMode.VARIABLE ? "Pas de fixe" : formatEuros(profile.fixedSalaryCents)}
+          unit={profile.remunerationMode === RemunerationMode.VARIABLE ? undefined : "/ mois"}
+          hint={profile.remunerationMode === RemunerationMode.FIXE ? "Pas de prime par rendez-vous" : `+ ${formatEuros(profile.variablePerRdvCents)} par rendez-vous pris`}
+        />
+        <Metric
+          label="Objectif"
+          value={profile.dailyQuota > 0 ? profile.dailyQuota : "Pas d’objectif d’appels"}
+          unit={profile.dailyQuota > 0 ? "appels / jour" : undefined}
+          hint={
+            configured
               ? `En vigueur depuis le ${new Date(profile.effectiveFrom).toLocaleDateString("fr-FR", { timeZone: "UTC" })}`
-              : "Règles pas encore configurées"}
-          </span>
-        </InfoCard>
-      </div>
+              : "Règles pas encore configurées"
+          }
+        />
+      </MetricStrip>
 
       {/* Pay history */}
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs" aria-labelledby="pay-history">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h2 id="pay-history" className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <Wallet className="h-4 w-4 text-primary-600" />
-            Historique de paie
-          </h2>
-          {months.length > 0 && (
-            <p className="text-[11px] text-slate-500">
-              Moyenne : <strong className="tabular-nums text-slate-800">{formatEuros(avgTotal)}</strong> · Déjà versé :{" "}
-              <strong className="tabular-nums text-emerald-700">{formatEuros(paidTotal)}</strong>
-            </p>
-          )}
-        </div>
+      <Panel>
+        <PanelHeader
+          title="Historique de paie"
+          meta={
+            months.length > 0 ? (
+              <>
+                Moyenne : <strong className="font-semibold text-ink">{formatEuros(avgTotal)}</strong> · Déjà versé :{" "}
+                <strong className="font-semibold text-ink">{formatEuros(paidTotal)}</strong>
+              </>
+            ) : undefined
+          }
+        />
 
         {months.length === 0 ? (
-          <p className="text-xs italic text-slate-400">Aucun mois enregistré pour l’instant. Il apparaîtra après « Recalculer le mois ».</p>
+          <PanelMessage>Aucun mois enregistré pour l’instant. Il apparaîtra après « Recalculer le mois ».</PanelMessage>
         ) : (
           <>
-            <div className="flex h-28 items-end gap-1.5" role="img" aria-label="Montant à payer par mois">
-              {chronological.map((m) => (
-                <Link
-                  key={m.id}
-                  href={`/manager/rh?month=${m.month}`}
-                  title={`${formatMonthLabel(m.month)} : ${formatEuros(m.totalAmountCents)} (${STATUS_LABELS[m.status]})`}
-                  className="group flex h-full flex-1 flex-col justify-end"
-                >
-                  <div
-                    className={`w-full rounded-t-md transition-opacity group-hover:opacity-80 ${
-                      m.status === HrMonthStatus.PAID ? "bg-emerald-500" : m.status === HrMonthStatus.VALIDATED ? "bg-primary-500" : "bg-slate-300"
-                    }`}
-                    style={{ height: `${Math.max(4, (m.totalAmountCents / maxTotal) * 100)}%` }}
-                  />
-                  <span className="mt-1 block truncate text-center text-[9px] capitalize text-slate-400">
-                    {new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString("fr-FR", { month: "short", timeZone: "UTC" })}
-                  </span>
-                </Link>
-              ))}
+            <div className="border-b border-line-subtle px-5 pb-3 pt-4">
+              <div className="flex h-28 items-end gap-1.5" aria-label="Montant à payer par mois">
+                {chronological.map((m) => {
+                  const label = `${formatMonthLabel(m.month)} : ${formatEuros(m.totalAmountCents)} (${STATUS_LABELS[m.status]})`;
+                  return (
+                    <Link
+                      key={m.id}
+                      href={`/manager/rh?month=${m.month}`}
+                      title={label}
+                      aria-label={label}
+                      className={cn("group flex h-full min-w-0 flex-1 flex-col justify-end rounded-sm", FOCUS_RING)}
+                    >
+                      <div
+                        className={cn("mx-auto w-full max-w-10 rounded-t transition-opacity group-hover:opacity-80", BAR[m.status])}
+                        style={{ height: `${Math.max(4, (m.totalAmountCents / maxTotal) * 100)}%` }}
+                      />
+                      <span className="mt-1 block truncate text-center text-[10px] capitalize text-ink-3">{shortMonth(m.month)}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+              <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3">
+                <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-success" aria-hidden />Payé</span>
+                <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-primary-500" aria-hidden />Validé</span>
+                <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-sm bg-line-strong" aria-hidden />Brouillon ou à vérifier</span>
+              </p>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-100">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-600">
-                  <tr>
-                    <th scope="col" className="px-3 py-2 font-medium">Mois</th>
-                    <th scope="col" className="px-3 py-2 font-medium">Étape</th>
-                    <th scope="col" className="px-3 py-2 font-medium">Jours payés</th>
-                    <th scope="col" className="px-3 py-2 font-medium">Activité</th>
-                    <th scope="col" className="px-3 py-2 text-right font-medium">Total</th>
-                    <th scope="col" className="px-3 py-2"><span className="sr-only">Ouvrir</span></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {months.map((m) => (
-                    <tr key={m.id} className="hover:bg-slate-50">
-                      <td className="px-3 py-2 font-medium capitalize text-slate-900">{formatMonthLabel(m.month)}</td>
-                      <td className="px-3 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_STYLES[m.status]}`}>{STATUS_LABELS[m.status]}</span>
-                      </td>
-                      <td className="px-3 py-2 tabular-nums text-slate-700">
-                        {m.workingDays} j{m.absenceDays > 0 && <span className="text-amber-700"> · {m.absenceDays} abs.</span>}
-                      </td>
-                      <td className="px-3 py-2 tabular-nums text-slate-700">
+            {/* Phones: one line per month */}
+            <ul className="divide-y divide-line-subtle md:hidden">
+              {months.map((m) => (
+                <li key={m.id}>
+                  <Link href={`/manager/rh?month=${m.month}`} className={cn("flex items-start justify-between gap-3 px-4 py-3.5", FOCUS_RING, "focus-visible:ring-inset focus-visible:ring-offset-0")}>
+                    <div className="min-w-0 space-y-1.5">
+                      <p className="text-sm font-semibold capitalize text-ink">{formatMonthLabel(m.month)}</p>
+                      <StatusPill status={m.status} />
+                      <p className="text-xs tabular-nums text-ink-3">
+                        {m.workingDays} j{m.absenceDays > 0 && <span className="text-warning-ink"> · {m.absenceDays} abs.</span>} ·{" "}
                         {m.totalCalls.toLocaleString("fr-FR")} appels · {m.totalRdv} RDV
-                      </td>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{formatEuros(m.totalAmountCents)}</td>
-                      <td className="px-3 py-2 text-right">
-                        <Link href={`/manager/rh?month=${m.month}`} aria-label={`Ouvrir ${formatMonthLabel(m.month)}`} className="inline-flex rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-primary-700">
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ink">{formatEuros(m.totalAmountCents)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            <table className="hidden w-full border-collapse text-left text-[13px] md:table">
+              <thead className="border-b border-line text-xs text-ink-3">
+                <tr>
+                  <th scope="col" className="py-2.5 pl-5 pr-3 font-medium">Mois</th>
+                  <th scope="col" className="px-3 py-2.5 font-medium">Étape</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Jours payés</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Activité</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Total</th>
+                  <th scope="col" className="w-12 py-2.5 pl-1 pr-4">
+                    <span className="sr-only">Ouvrir</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {months.map((m) => (
+                  <tr key={m.id} className="border-b border-line-subtle transition-colors duration-100 last:border-b-0 hover:bg-surface-2/70">
+                    <td className="py-3 pl-5 pr-3">
+                      <Link href={`/manager/rh?month=${m.month}`} className={cn("rounded-sm font-medium capitalize text-ink hover:text-primary-700", FOCUS_RING)}>
+                        {formatMonthLabel(m.month)}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusPill status={m.status} />
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-ink">
+                      {m.workingDays} j
+                      {m.absenceDays > 0 && <span className="text-warning-ink"> · {m.absenceDays} abs.</span>}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-ink-2">
+                      {m.totalCalls.toLocaleString("fr-FR")} <span className="text-ink-3">appels</span>
+                      <span className="text-ink-4"> · </span>
+                      {m.totalRdv} <span className="text-ink-3">RDV</span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-[14px] font-semibold tabular-nums text-ink">{formatEuros(m.totalAmountCents)}</td>
+                    <td className="py-2 pl-1 pr-4 text-right">
+                      <Link
+                        href={`/manager/rh?month=${m.month}`}
+                        aria-label={`Ouvrir ${formatMonthLabel(m.month)}`}
+                        className={cn("inline-flex size-8 items-center justify-center rounded-lg text-ink-4 hover:bg-surface-3 hover:text-ink", FOCUS_RING)}
+                      >
+                        <ChevronRight className="size-4" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </>
         )}
-      </section>
+      </Panel>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {/* Rule changes */}
-        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs" aria-labelledby="rule-history">
-          <h2 id="rule-history" className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <History className="h-4 w-4 text-primary-600" />
-            Anciennes règles
-          </h2>
+        <Panel>
+          <PanelHeader title="Anciennes règles" />
           {profile.snapshots.length > 0 ? (
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-100 text-xs">
+            <ul className="divide-y divide-line-subtle">
               {profile.snapshots.map((s) => (
-                <li key={s.id} className="flex items-start justify-between gap-3 p-3">
-                  <div className="space-y-0.5">
-                    <p className="font-semibold text-slate-800">
+                <li key={s.id} className="flex items-start justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-[13px] font-medium tabular-nums text-ink">
                       Fixe {formatEuros(s.fixedSalaryCents)} · Prime {formatEuros(s.variablePerRdvCents)} · {s.dailyQuota} appels/j
                     </p>
-                    <p className="text-[11px] text-slate-400">{s.reason || "Modification"}</p>
+                    <p className="text-xs text-ink-3">{s.reason || "Modification"}</p>
                   </div>
-                  <time className="shrink-0 text-[11px] text-slate-400" dateTime={s.changedAt}>
+                  <time className="shrink-0 text-xs tabular-nums text-ink-3" dateTime={s.changedAt}>
                     {new Date(s.changedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
                   </time>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-xs italic text-slate-400">Aucune modification depuis la première configuration.</p>
+            <PanelMessage className="py-10">Aucune modification depuis la première configuration.</PanelMessage>
           )}
-        </section>
+        </Panel>
 
         {/* Activity log */}
-        <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs" aria-labelledby="activity-log">
-          <h2 id="activity-log" className="flex items-center gap-2 text-sm font-bold text-slate-900">
-            <ListChecks className="h-4 w-4 text-primary-600" />
-            Qui a fait quoi
-          </h2>
-          {audit.length === 0 && !auditLoading ? (
-            <p className="text-xs italic text-slate-400">Aucune action enregistrée pour l’instant.</p>
+        <Panel>
+          <PanelHeader title="Qui a fait quoi" />
+          {audit.length === 0 && auditLoading ? (
+            <SkeletonRows rows={3} columns={[40, 24]} pitch="py-3" />
+          ) : audit.length === 0 && auditFailedPage !== null ? (
+            <PanelMessage className="py-10" tone="error" action={<TextButton onClick={() => fetchAudit(1)}>Réessayer</TextButton>}>
+              L’historique des actions n’a pas pu être chargé.
+            </PanelMessage>
+          ) : audit.length === 0 ? (
+            <PanelMessage className="py-10">Aucune action enregistrée pour l’instant.</PanelMessage>
           ) : (
-            <ol className="relative space-y-3 border-l border-slate-200 pl-4">
+            <ol className="divide-y divide-line-subtle">
               {audit.map((entry) => {
                 const d = describeAuditEntry(entry);
                 return (
-                  <li key={entry.id} className="relative">
-                    <span className={`absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-white ${TONE_DOT[d.tone]}`} aria-hidden />
-                    <p className="text-xs font-semibold text-slate-800">{d.title}</p>
-                    {d.detail && <p className="text-[11px] text-slate-500">{d.detail}</p>}
-                    <p className="text-[10px] text-slate-400">
-                      {entry.actorName ?? "Système"} ·{" "}
-                      {new Date(entry.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
-                    </p>
+                  <li key={entry.id} className="flex items-start gap-3 px-5 py-3">
+                    <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", TONE_DOT[d.tone])} aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-medium text-ink first-letter:uppercase">{d.title}</p>
+                      {d.detail && <p className="text-xs text-ink-2">{d.detail}</p>}
+                      <p className="mt-0.5 text-xs tabular-nums text-ink-3">
+                        {entry.actorName ?? "Système"} ·{" "}
+                        {new Date(entry.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}
+                      </p>
+                    </div>
                   </li>
                 );
               })}
             </ol>
           )}
-          {auditHasMore && (
-            <button
-              type="button"
-              onClick={() => fetchAudit(auditPage + 1)}
-              disabled={auditLoading}
-              className="w-full rounded-lg bg-slate-50 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-            >
-              {auditLoading ? "Chargement…" : "Voir plus"}
-            </button>
+          {audit.length > 0 && (auditHasMore || auditFailedPage !== null) && (
+            <div className="flex items-center justify-center gap-2 border-t border-line-subtle px-5 py-2.5 text-[13px]">
+              {auditFailedPage !== null && <span className="text-danger-ink">La suite n’a pas pu être chargée.</span>}
+              <TextButton onClick={() => fetchAudit(auditFailedPage ?? auditPage + 1)} disabled={auditLoading}>
+                {auditLoading ? "Chargement…" : auditFailedPage !== null ? "Réessayer" : "Voir plus"}
+              </TextButton>
+            </div>
           )}
-        </section>
+        </Panel>
       </div>
 
       {isEditOpen && (
@@ -376,23 +448,11 @@ export default function UserHrPage() {
   );
 }
 
-function BackLink() {
+function StatusPill({ status }: { status: HrMonthStatus }) {
   return (
-    <Link href="/manager/rh" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900">
-      <ArrowLeft className="h-4 w-4" />
-      Retour à la paie de l’équipe
-    </Link>
-  );
-}
-
-function InfoCard({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-        {icon}
-        {label}
-      </div>
-      {children}
-    </div>
+    <span className={cn("inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-medium", STATUS_STYLES[status])}>
+      {isLockedStatus(status) && <Lock className="size-3" aria-hidden />}
+      {STATUS_LABELS[status]}
+    </span>
   );
 }

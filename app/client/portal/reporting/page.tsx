@@ -9,7 +9,8 @@ import {
 } from "lucide-react";
 import type { ReportData, ReportingOverview } from "@/lib/reporting/types";
 import s from "./reporting.module.css";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
+import type { Brand } from "@/lib/brand";
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES & HELPERS
@@ -95,7 +96,7 @@ function formatDelta(value: number | null | undefined, unit: "%" | "pts" = "%") 
     return `${sign}${Math.abs(value)}${unit === "%" ? " %" : " pt" + (Math.abs(value) > 1 ? "s" : "")}`;
 }
 
-function summaryText(d: ReportData, compare: boolean): string {
+function summaryText(d: ReportData, compare: boolean, brand: Brand): string {
     const delta = (v: number | null | undefined, unit: "%" | "pts" = "%") => {
         const f = compare ? formatDelta(v, unit) : null;
         return f ? ` (${f} vs période précédente)` : "";
@@ -280,6 +281,7 @@ function SessionRow({ session, open, onToggle }: { session: ClientSession; open:
 ═══════════════════════════════════════════════════════════════ */
 
 export default function ClientPortalReportingPage() {
+    const brand = useBrand();
     const toast = useToast();
     const builderRef = useRef<HTMLDivElement>(null);
     const [today] = useState(() => DateTime.now().setZone(ZONE).startOf("day"));
@@ -386,7 +388,7 @@ export default function ClientPortalReportingPage() {
 
     const copySummary = async () => {
         if (!preview || !previewReady) return;
-        await navigator.clipboard.writeText(summaryText(preview.data, compare));
+        await navigator.clipboard.writeText(summaryText(preview.data, compare, brand));
         flash("summary");
         toast.success("Résumé copié", "Prêt à coller dans un email.");
     };

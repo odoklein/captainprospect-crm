@@ -88,6 +88,8 @@ import {
 } from "@/lib/query-keys";
 import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openreplay/events";
 import { openReplayTracker } from "@/lib/openreplay/tracker";
+import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
+import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
 
 // ============================================
 // TYPES
@@ -1058,6 +1060,7 @@ export function UnifiedActionDrawer({
         );
     }, [statusLabels]);
 
+    const { dial: softphoneDial } = useSoftphone();
     const primaryPhone = useMemo(() => {
         if (contact?.phone) return { number: contact.phone, label: "Contact" };
         if (company?.phone) return { number: company.phone, label: "Société" };
@@ -1683,7 +1686,15 @@ export function UnifiedActionDrawer({
                         type="button"
                         aria-label={`Appeler ${primaryPhone.number}`}
                         onClick={() => {
-                            window.open(`tel:${primaryPhone.number}`, "_self");
+                            const handled = softphoneDial({
+                                phone: primaryPhone.number,
+                                contactId: primaryPhone.label === "Société" ? null : contactId,
+                                companyId,
+                                campaignId: campaigns[0]?.id ?? null,
+                                label: displayName,
+                                sublabel: company?.name && company.name !== displayName ? company.name : null,
+                            });
+                            if (!handled) window.open(`tel:${primaryPhone.number}`, "_self");
                         }}
                         className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
                     >
@@ -2604,10 +2615,20 @@ export function UnifiedActionDrawer({
                                             className="w-full mt-0.5 px-2 py-1 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-400/30"
                                         />
                                     ) : (
-                                        <p className="text-sm font-medium text-slate-700">{company.size || "—"}</p>
+                                        <p className="text-sm font-medium text-slate-700">{companyHeadcountText(company.size, company.customData) || "—"}</p>
                                     )}
                                 </div>
                             </div>
+                            {/* CA comes from an imported column (#118); shown only when one exists. */}
+                            {!isEditingCompany && companyRevenueText(company.customData) && (
+                                <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
+                                    <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                                    <div className="w-full">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Chiffre d&apos;affaires</p>
+                                        <p className="text-sm font-medium text-slate-700">{companyRevenueText(company.customData)}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Company custom data */}

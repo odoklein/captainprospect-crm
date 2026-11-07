@@ -1,6 +1,6 @@
 import * as nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 export interface TransactionalEmailOptions {
   to: string | string[];
@@ -51,6 +51,7 @@ async function getConfiguredFromAddress(): Promise<string> {
     console.error("[transactional-email] Failed to read sender from settings:", error);
   }
 
+  const brand = await getBrand();
   return (
     process.env.SYSTEM_SMTP_FROM ||
     process.env.SMTP_FROM ||

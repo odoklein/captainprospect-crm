@@ -5,7 +5,7 @@
 // ============================================
 
 import { EmailBlock, KeyValueItem } from "./types";
-import { brand, brandUrl } from "@/lib/brand";
+import { brand as defaultBrand, brandUrl, type Brand } from "@/lib/brand";
 
 const METADATA_PREFIX = "<!-- __BROADCAST_METADATA_START__";
 const METADATA_SUFFIX = "__BROADCAST_METADATA_END__ -->";
@@ -40,10 +40,13 @@ function formatContent(text?: string): string {
 export function compileBlocksToHtml(
   subject: string,
   blocks: EmailBlock[],
-  accentColor = brand.palette.primarySeed
+  accentColorArg?: string,
+  /** Instance brand (getBrand()); defaults to brand/brand.config.ts. */
+  brand: Brand = defaultBrand
 ): string {
+  const accentColor = accentColorArg || brand.palette.primarySeed;
   const renderedBlocksHtml = blocks
-    .map((block) => renderSingleBlock(block, accentColor))
+    .map((block) => renderSingleBlock(block, accentColor, brand))
     .join("\n");
 
   const metadataJson = JSON.stringify({
@@ -92,7 +95,7 @@ export function compileBlocksToHtml(
 /**
  * Render individual block to HTML snippet
  */
-function renderSingleBlock(block: EmailBlock, accentColor: string): string {
+function renderSingleBlock(block: EmailBlock, accentColor: string, brand: Brand): string {
   const align = block.props?.align || "left";
 
   switch (block.type) {
@@ -196,7 +199,7 @@ function renderSingleBlock(block: EmailBlock, accentColor: string): string {
 
     case "button": {
       const btnText = block.props?.buttonText || "Accéder à mon espace";
-      const btnUrl = block.props?.buttonUrl || brandUrl("/");
+      const btnUrl = block.props?.buttonUrl || brandUrl("/", brand);
       const btnColor = block.props?.buttonColor || accentColor;
 
       return `

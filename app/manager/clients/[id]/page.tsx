@@ -53,7 +53,7 @@ import { ReachInboxWorkspace } from "@/components/emailing/ReachInboxWorkspace";
 import { EditMissionDialog } from "@/components/missions/EditMissionDialog";
 import { MISSION_STATUS_CONFIG } from "@/lib/constants/missionStatus";
 import type { MissionStatusValue } from "@/lib/constants/missionStatus";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 import { WeeklyBilanFromUrl } from "@/components/reporting/WeeklyBilanFromUrl";
 
 // ============================================================
@@ -362,6 +362,7 @@ export function buildCRPrompt({
     transcript,
     crPublicUrl = "[URL_ESPACE_CLIENT]",
     notifyByEmail = false,
+    brandName,
 }: {
     clientName: string;
     sessionType: string;
@@ -369,8 +370,10 @@ export function buildCRPrompt({
     transcript: string;
     crPublicUrl?: string;
     notifyByEmail?: boolean;
+    /** Agency name as the AI should present it (runtime brand). */
+    brandName: string;
 }): string {
-    return `Tu es un assistant expert en relation client B2B pour une agence de prospection commerciale (${brand.name}).
+    return `Tu es un assistant expert en relation client B2B pour une agence de prospection commerciale (${brandName}).
 À partir de la transcription intégrale ci-dessous d'une session de type "${sessionType}" avec le client "${clientName}" (${sessionDate}), produis EXACTEMENT deux blocs séparés par le séparateur "---EMAIL_START---".
 
 ════════════════════════════════════════
@@ -387,7 +390,7 @@ Rédige un compte rendu structuré, détaillé et fidèle au déroulé de la ré
 ════════════════════════════════════════
 BLOC 2 — MAIL DE SYNTHÈSE DIRIGEANTS
 ════════════════════════════════════════
-Rédige un mail extrêmement concis, humain et professionnel dans l'esprit ${brand.name}.
+Rédige un mail extrêmement concis, humain et professionnel dans l'esprit ${brandName}.
 Règles impératives :
 - Commence UNIQUEMENT par le prénom du contact principal suivi d'une virgule
 - Phrase d'intro naturelle type "Merci pour notre échange, voici l'essentiel à retenir" (varier la tournure à chaque fois)
@@ -421,6 +424,7 @@ FORMAT DE RÉPONSE OBLIGATOIRE
 // ============================================================
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const brand = useBrand();
     const resolvedParams = use(params);
     const router = useRouter();
     const { success, error: showError } = useToast();
@@ -841,8 +845,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                 sessionType: sessionTypeLabel,
                 sessionDate,
                 transcript: transcriptText,
-                crPublicUrl: `${process.env.NEXT_PUBLIC_APP_URL}/client/sessions/[SESSION_ID]`,
+                crPublicUrl: `${brand.appUrl}/client/sessions/[SESSION_ID]`,
                 notifyByEmail: newSessionForm.notifyByEmail,
+                brandName: brand.name,
             });
 
             // 3. Call AI endpoint

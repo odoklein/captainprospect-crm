@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui";
+import { useBrand } from "@/lib/brand/client";
 import {
     Search,
     UserPlus,
@@ -36,6 +37,7 @@ interface SDR {
 // ============================================
 
 export default function SDRsPage() {
+    const brand = useBrand();
     const { success, error: showError } = useToast();
     const [sdrs, setSDRs] = useState<SDR[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -372,7 +374,7 @@ export default function SDRsPage() {
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                    placeholder="marie.l@suzali.com"
+                                    placeholder={`marie.l@${brand.email.domains[0] ?? "exemple.fr"}`}
                                     className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm placeholder:text-slate-500 focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 transition-all"
                                 />
                                 {formErrors.email && (

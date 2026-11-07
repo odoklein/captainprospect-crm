@@ -3,6 +3,8 @@
 // controls, so unlike the provider calls it replaces, it can't 429 and needs no retry/backoff
 // dance on this side.
 
+import { peekFeature } from "@/lib/license/peek";
+
 export interface VaultCallMatch {
   callId: string;
   fromNumber: string;
@@ -20,7 +22,9 @@ const VAULT_API_URL = process.env.VAULT_API_URL;
 const VAULT_API_KEY = process.env.VAULT_API_KEY;
 
 export function isVaultConfigured(): boolean {
-  return Boolean(VAULT_API_URL && VAULT_API_KEY);
+  // The license can switch the call vault off per pack (peek: synchronous, from the cached license;
+  // a cold process allows it until the first page or health probe has loaded the license).
+  return Boolean(VAULT_API_URL && VAULT_API_KEY) && peekFeature("callVault");
 }
 
 /**

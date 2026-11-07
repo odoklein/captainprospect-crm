@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { canEditTask, TASK_ACCESS_INCLUDE } from "@/lib/tasks/access";
 
 // PATCH /api/tasks/bulk - Bulk update tasks
 export async function PATCH(req: NextRequest) {
@@ -34,26 +35,32 @@ export async function PATCH(req: NextRequest) {
             updateData.completedAt = null;
         }
 
-        const result = await prisma.task.updateMany({
+        // Only the tasks this user may edit are touched; the rest are skipped silently.
+        const candidates = await prisma.task.findMany({
             where: { id: { in: taskIds } },
+            select: {
+                id: true, projectId: true,
+                createdById: true, assigneeId: true, audienceRole: true,
+                ...TASK_ACCESS_INCLUDE,
+            },
+        });
+        const tasks = candidates.filter((t) => canEditTask(session.user, t));
+
+        const result = await prisma.task.updateMany({
+            where: { id: { in: tasks.map((t) => t.id) } },
             data: updateData,
         });
 
         // Log activities
         if (status) {
-            const tasks = await prisma.task.findMany({
-                where: { id: { in: taskIds } },
-                select: { id: true, projectId: true },
-            });
-
-            const projectIds = [...new Set(tasks.map((t) => t.projectId))];
+            const projectIds = [...new Set(tasks.map((t) => t.projectId).filter((p): p is string => !!p))];
             for (const projectId of projectIds) {
                 await prisma.projectActivity.create({
                     data: {
                         projectId,
                         userId: session.user.id,
                         action: "bulk_status_change",
-                        details: { taskCount: taskIds.length, status },
+                        details: { taskCount: tasks.length, status },
                     },
                 });
             }

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { ceDebug, isCallEnrichmentDebug } from './debug';
 import { callProvider } from './provider';
 import { acquireAlloSlot } from './allo-semaphore';
+import { integrationKey } from "@/lib/integrations/keys";
 
 const DEFAULT_COUNTRY = (process.env.PHONE_DEFAULT_COUNTRY ?? 'FR') as Parameters<typeof isValidPhoneNumber>[1];
 const WINDOW_BEFORE_MS = parseInt(process.env.CALL_ENRICHMENT_WINDOW_BEFORE_MS ?? '3600000', 10); // 60 min (call happens before action is saved)
@@ -158,7 +159,7 @@ export async function enrichActionFromCallProvider(
   options?: EnrichActionOptions,
 ): Promise<void> {
   const force = options?.force === true;
-  const hasKey = !!process.env.ALLO_API_KEY?.trim();
+  const hasKey = !!integrationKey("ALLO_API_KEY")?.trim();
   console.log(
     `[call-enrichment] ▶ start actionId=${actionId}${force ? " (force)" : ""} ALLO_API_KEY=${hasKey ? "set" : "MISSING"} CALL_ENRICHMENT_DEBUG=${isCallEnrichmentDebug() ? "on" : "off"}`,
   );

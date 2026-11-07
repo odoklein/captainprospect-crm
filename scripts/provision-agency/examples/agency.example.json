@@ -1,0 +1,29 @@
+{
+  "slug": "demo",
+  "name": "Agence Démo",
+  "companyName": "Agence Démo SAS",
+  "companyShortName": "Démo",
+  "manager": { "email": "premier.manager@agence-demo.fr", "name": "Prénom Nom" },
+  "domain": "crm.agence-demo.fr",
+  "brand": {
+    "primaryColor": "#1F3A5F",
+    "accentColor": "#E4572E",
+    "fontPreset": "inter",
+    "senderName": "Agence Démo",
+    "notificationsAddress": "notifications@crm-agence.fr",
+    "supportAddress": "support@agence-demo.fr",
+    "emailDomains": ["agence-demo.fr"],
+    "timeZone": "Europe/Paris"
+  },
+  "logos": {
+    "full": "logo-full.png",
+    "fullInverse": "logo-full-inverse.png",
+    "mark": "logo-mark.png",
+    "favicon": "favicon.png"
+  },
+  "license": {
+    "plan": "starter",
+    "seatLimit": 8,
+    "features": { "callVault": false }
+  }
+}

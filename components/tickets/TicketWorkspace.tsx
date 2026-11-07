@@ -21,7 +21,7 @@ import { Button, Input, EmptyState, LoadingState, useToast } from "@/components/
 import { TicketStatusBadge, TicketPriorityBadge, TicketCategoryBadge } from "./TicketBadges";
 import { TicketThread } from "./TicketThread";
 import { TicketSidePanel } from "./TicketSidePanel";
-import { TicketFormModal } from "./TicketFormModal";
+import { TicketFormDrawer } from "./TicketFormDrawer";
 import { TicketValidationModal } from "./TicketValidationModal";
 import { TicketDrawer } from "./TicketDrawer";
 import type {
@@ -1008,7 +1008,7 @@ export function TicketWorkspace({
             />
 
             {isManager && (
-                <TicketFormModal
+                <TicketFormDrawer
                     isOpen={isFormOpen}
                     onClose={() => setIsFormOpen(false)}
                     onSaved={refreshAll}

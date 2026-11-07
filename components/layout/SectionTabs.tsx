@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,13 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
         if (active?.child) writeLastTab(active.item, active.child.href);
     }, [active]);
 
+    // On a narrow bar the tabs scroll sideways: keep the current one in view.
+    const currentTabRef = useRef<HTMLAnchorElement>(null);
+    const currentHref = active?.child?.href;
+    useEffect(() => {
+        currentTabRef.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }, [currentHref]);
+
     if (!active) {
         return (
             <nav className="flex items-center gap-1.5 text-[13px]" aria-label="Breadcrumb">
@@ -59,17 +66,17 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
         );
     }
 
-    // Multi-page hub: compact hub header + seamless 48px tabs
+    // Multi-page hub: the hub's name, then one underline tab per page. The
+    // current tab reads in ink with a rule as wide as its label; colour stays
+    // off the chrome.
     return (
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-3">
             <div className="flex shrink-0 items-center gap-2" title={item.description}>
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-600 border border-slate-200/80">
-                    <Icon className="h-3.5 w-3.5" strokeWidth={2} />
-                </span>
-                <span className="text-[13px] font-semibold tracking-tight text-slate-900">{item.label}</span>
+                <Icon className="size-4 text-ink-3" strokeWidth={1.8} aria-hidden />
+                <span className="text-[13px] font-semibold tracking-tight text-ink">{item.label}</span>
             </div>
 
-            <span className="h-4 w-px shrink-0 bg-slate-200" aria-hidden />
+            <span className="h-4 w-px shrink-0 bg-line" aria-hidden />
 
             <nav
                 className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
@@ -81,46 +88,39 @@ export function SectionTabs({ navigation, fallback }: SectionTabsProps) {
                     return (
                         <Link
                             key={tab.href}
+                            ref={current ? currentTabRef : undefined}
                             href={tab.href}
                             title={tab.description}
                             aria-current={current ? "page" : undefined}
-                            className={cn(
-                                "group relative flex h-12 shrink-0 items-center gap-1.5 px-2 text-[12.5px] font-medium transition-colors",
-                                current ? "text-primary-700 font-semibold" : "text-slate-500 hover:text-slate-900",
-                            )}
+                            className="group flex h-12 shrink-0 items-center px-1 outline-none"
                         >
                             <span
                                 className={cn(
-                                    "flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors",
-                                    !current && "group-hover:bg-slate-100/70",
+                                    "relative flex h-8 items-center gap-1.5 rounded-lg px-2 text-[13px] transition-colors duration-150",
+                                    "group-focus-visible:ring-2 group-focus-visible:ring-focus",
+                                    current ? "font-semibold text-ink" : "font-medium text-ink-3 group-hover:bg-surface-3 group-hover:text-ink",
                                 )}
                             >
                                 <TabIcon
-                                    className={cn(
-                                        "h-3.5 w-3.5 shrink-0",
-                                        current ? "text-primary-600" : "text-slate-400 group-hover:text-slate-600"
-                                    )}
-                                    strokeWidth={current ? 2.2 : 1.8}
+                                    className={cn("size-3.5 shrink-0", current ? "text-ink-2" : "text-ink-4 group-hover:text-ink-3")}
+                                    strokeWidth={current ? 2.1 : 1.8}
+                                    aria-hidden
                                 />
                                 <span className="truncate">{tab.label}</span>
                                 {tab.badge != null && tab.badge !== "" && (
-                                    <span className={cn(
-                                        "rounded-full px-1.5 text-[10px] font-semibold leading-4",
-                                        current
-                                            ? "bg-primary-600 text-white"
-                                            : "bg-slate-200 text-slate-700"
-                                    )}>
+                                    <span className="rounded-full bg-surface-3 px-1.5 text-[11px] font-semibold leading-4 tabular-nums text-ink-2">
                                         {tab.badge}
                                     </span>
                                 )}
+                                <span
+                                    className={cn(
+                                        // Sits on the top bar's bottom edge (48px bar, 32px pill → 8px below).
+                                        "absolute inset-x-2 -bottom-2 h-0.5 rounded-full transition-colors duration-150",
+                                        current ? "bg-primary" : "bg-transparent",
+                                    )}
+                                    aria-hidden
+                                />
                             </span>
-                            <span
-                                className={cn(
-                                    "absolute inset-x-2 bottom-0 h-[2px] rounded-t-full transition-opacity",
-                                    current ? "bg-primary-600 opacity-100" : "opacity-0",
-                                )}
-                                aria-hidden
-                            />
                         </Link>
                     );
                 })}

@@ -8,20 +8,37 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  CreditCard,
+  CircleHelp,
   Download,
-  HelpCircle,
   Lock,
-  Phone,
   RefreshCw,
-  Search,
-  Users,
   X,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
+import { FOCUS_RING } from "@/components/ui/recipes";
+import {
+  FilterSelect,
+  HubHeader,
+  HubTabs,
+  Metric,
+  MetricPlaceholder,
+  MetricStrip,
+  Panel,
+  PanelMessage,
+  PanelToolbar,
+  RefreshBar,
+  SearchField,
+  SkeletonRows,
+  TextButton,
+  ToolbarScroller,
+  useSlashFocus,
+} from "@/components/hr/HubUI";
 import { ContractType, HrMonthRowData, HrMonthStatus } from "@/lib/hr/hr-types";
 import {
   STATUS_LABELS,
@@ -69,18 +86,20 @@ const STATUS_FLOW: HrMonthStatus[] = [
 ];
 
 const STATUS_STYLES: Record<HrMonthStatus, string> = {
-  DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
-  TO_VERIFY: "bg-amber-50 text-amber-800 border-amber-200",
+  DRAFT: "bg-surface-3 text-ink-2 border-line",
+  TO_VERIFY: "bg-warning-soft text-warning-ink border-warning-line",
   VALIDATED: "bg-primary-50 text-primary-700 border-primary-200",
-  PAID: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  PAID: "bg-success-soft text-success-ink border-success-line",
 };
 
 const STATUS_BAR: Record<HrMonthStatus, string> = {
-  DRAFT: "bg-slate-300",
-  TO_VERIFY: "bg-amber-400",
+  DRAFT: "bg-line-strong",
+  TO_VERIFY: "bg-warning",
   VALIDATED: "bg-primary-500",
-  PAID: "bg-emerald-500",
+  PAID: "bg-success",
 };
+
+const ROLE_LABELS: Record<string, string> = { SDR: "SDR", MANAGER: "Manager", BOOKER: "Booker" };
 
 function needsAttention(r: HrMonthRowData) {
   return !r.hasProfile || r.pendingDecisionCount > 0 || r.isStale;
@@ -113,9 +132,11 @@ const BULK_ACTIONS: { status: HrMonthStatus; label: string; confirm: boolean }[]
   { status: HrMonthStatus.PAID, label: "Marquer payé", confirm: true },
 ];
 
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString("fr-FR")} ${n > 1 ? many : one}`;
+
 export default function HrPage() {
   return (
-    <Suspense fallback={<TableSkeleton />}>
+    <Suspense fallback={<SkeletonRows />}>
       <HrPageContent />
     </Suspense>
   );
@@ -178,18 +199,7 @@ function HrPageContent() {
   }, [notice]);
 
   // "/" jumps to search, like most list tools.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, select, [contenteditable='true']")) return;
-      if (document.querySelector('[role="dialog"]')) return;
-      e.preventDefault();
-      searchRef.current?.focus();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  useSlashFocus(searchRef);
 
   const refresh = () => fetchRows(month);
 
@@ -262,12 +272,16 @@ function HrPageContent() {
     let pay = 0;
     let calls = 0;
     let rdv = 0;
+    let fixed = 0;
+    let variable = 0;
     visibleRows.forEach((r) => {
       pay += r.totalAmountCents;
       calls += r.totalCalls;
       rdv += r.totalRdv;
+      fixed += r.fixedAmountCents;
+      variable += r.variableAmountCents;
     });
-    return { count: visibleRows.length, pay, calls, rdv };
+    return { count: visibleRows.length, pay, calls, rdv, fixed, variable };
   }, [visibleRows]);
 
   const pipeline = useMemo(() => {
@@ -276,13 +290,15 @@ function HrPageContent() {
       { count: number; cents: number }
     >;
     let unsaved = 0;
+    let cents = 0;
     baseRows.forEach((r) => {
       byStatus[r.status].count++;
       byStatus[r.status].cents += r.totalAmountCents;
+      cents += r.totalAmountCents;
       if (!r.id) unsaved++;
     });
     const locked = byStatus.VALIDATED.count + byStatus.PAID.count;
-    return { byStatus, unsaved, total: baseRows.length, lockedPct: baseRows.length ? Math.round((locked / baseRows.length) * 100) : 0 };
+    return { byStatus, unsaved, cents, total: baseRows.length, lockedPct: baseRows.length ? Math.round((locked / baseRows.length) * 100) : 0 };
   }, [baseRows]);
 
   const attentionCount = useMemo(() => roleRows.filter(needsAttention).length, [roleRows]);
@@ -386,375 +402,352 @@ function HrPageContent() {
   const showingStaleMonth = loadedMonth !== null && loadedMonth !== month;
   const guide = useHrGuide(HR_PAGE_GUIDE_KEY, !initialLoading && !error);
 
+  // Nothing has loaded yet (first fetch running or failed): figures are not zeros.
+  const neverLoaded = loadedMonth === null;
+  const figure = (value: React.ReactNode, wide?: boolean) =>
+    neverLoaded ? error ? <span className="text-ink-4">—</span> : <MetricPlaceholder wide={wide} /> : value;
+
+  // The line under the title says what the month needs next.
+  const finding = neverLoaded
+    ? error
+      ? "Le mois n’a pas pu être chargé."
+      : "Chargement du mois…"
+    : roleRows.length === 0
+    ? "Personne à payer pour ce mois."
+    : attentionCount > 0
+    ? `${plural(attentionCount, "dossier à traiter", "dossiers à traiter")} avant de valider · ${pipeline.lockedPct} % des dossiers validés ou payés`
+    : pipeline.lockedPct === 100
+    ? "Tous les dossiers du mois sont validés ou payés."
+    : `Rien à traiter · ${pipeline.lockedPct} % des dossiers validés ou payés`;
+
+  const statusTabs = [
+    { value: "ALL", label: "Tous", count: pipeline.total, sub: formatEuros(pipeline.cents) },
+    ...STATUS_FLOW.map((s) => ({
+      value: s as string,
+      label: STATUS_LABELS[s],
+      count: pipeline.byStatus[s].count,
+      dot: STATUS_BAR[s],
+      sub:
+        s === HrMonthStatus.DRAFT && pipeline.unsaved > 0
+          ? `${formatEuros(pipeline.byStatus[s].cents)} · ${pipeline.unsaved} non enregistré(s)`
+          : formatEuros(pipeline.byStatus[s].cents),
+    })),
+  ];
+
   const rowActions = (row: HrMonthRowData, tour: (k: string) => object) => (
-    <div className="flex items-center justify-end gap-1.5">
-      <RowButton primary onClick={() => setDetailUserId(row.userId)} {...tour("row-detail")}>
+    <div className="flex items-center justify-end gap-0.5">
+      <RowAction primary onClick={() => setDetailUserId(row.userId)} {...tour("row-detail")}>
         Détail
-      </RowButton>
-      <RowButton onClick={() => setProfileUserId(row.userId)} {...tour("row-rules")}>
+      </RowAction>
+      <RowAction onClick={() => setProfileUserId(row.userId)} {...tour("row-rules")}>
         Règles
-      </RowButton>
-      <RowButton
-        onClick={() => setStatusUserId(row.userId)}
-        disabled={!row.id}
-        title={row.id ? "Changer l’étape ou ajouter un ajustement" : "Cliquez d’abord sur « Recalculer le mois » pour enregistrer ce dossier"}
-        {...tour("row-status")}
-      >
-        Statut
-      </RowButton>
+      </RowAction>
     </div>
   );
 
-  const alertChips = (row: HrMonthRowData) => (
-    <div className="flex flex-wrap gap-1">
-      {!row.hasProfile && (
-        <AlertChip tone="rose" onClick={() => setProfileUserId(row.userId)}>
-          Règles à configurer
-        </AlertChip>
-      )}
-      {row.pendingDecisionCount > 0 && (
-        <AlertChip tone="amber" onClick={() => setDetailUserId(row.userId)}>
-          {row.pendingDecisionCount} j à statuer
-        </AlertChip>
-      )}
-      {row.isStale && <AlertChip tone="sky">À recalculer</AlertChip>}
-      {!needsAttention(row) && <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600"><CheckCircle2 className="h-3 w-3" />OK</span>}
-    </div>
-  );
+  const alertChips = (row: HrMonthRowData) =>
+    needsAttention(row) ? (
+      <div className="flex flex-wrap gap-1">
+        {!row.hasProfile && (
+          <AlertChip tone="danger" onClick={() => setProfileUserId(row.userId)}>
+            Règles à configurer
+          </AlertChip>
+        )}
+        {row.pendingDecisionCount > 0 && (
+          <AlertChip tone="warning" onClick={() => setDetailUserId(row.userId)}>
+            {row.pendingDecisionCount} j à statuer
+          </AlertChip>
+        )}
+        {row.isStale && <AlertChip tone="info">À recalculer</AlertChip>}
+      </div>
+    ) : null;
+
+  const personLine = (row: HrMonthRowData) =>
+    [
+      ROLE_LABELS[row.userRole] ?? row.userRole,
+      row.contractType === ContractType.SALARIE ? "Salarié" : "Indépendant",
+      row.managerName ? `Manager : ${row.managerName}` : "Sans manager",
+    ].join(" · ");
 
   return (
-    <div className={`space-y-5 ${selectedRows.length ? "pb-24" : ""}`}>
-      {/* Header */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs xl:flex-row xl:items-center xl:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-slate-900">Paie de l’équipe</h1>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Jours travaillés, objectifs d’appels, salaire fixe, primes et validation mensuelle.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            data-hr-tour="help"
-            onClick={guide.start}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-          >
-            <HelpCircle className="h-3.5 w-3.5 text-primary-600" />
-            Comment ça marche ?
-          </button>
-
-          <div data-hr-tour="month" className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
-            <button type="button" onClick={() => changeMonth(-1)} aria-label="Mois précédent" className="rounded-lg p-1.5 text-slate-600 hover:bg-white">
-              <ChevronLeft className="h-4 w-4" />
+    <div className={cn("space-y-4", selectedRows.length ? "pb-28" : "pb-2")}>
+      <HubHeader
+        title="Paie de l’équipe"
+        finding={finding}
+        beside={
+          <div data-hr-tour="month" className="flex h-9 items-center rounded-[10px] border border-line bg-surface">
+            <button
+              type="button"
+              onClick={() => changeMonth(-1)}
+              aria-label="Mois précédent"
+              className={cn("flex size-9 items-center justify-center rounded-l-[10px] text-ink-3 hover:bg-surface-2 hover:text-ink", FOCUS_RING)}
+            >
+              <ChevronLeft className="size-4" />
             </button>
-            <div className="min-w-[130px] px-3 py-1 text-center text-xs font-semibold capitalize text-slate-800" aria-live="polite">
+            <span className="min-w-[124px] select-none px-1 text-center text-[13px] font-semibold capitalize tabular-nums text-ink" aria-live="polite">
               {formatMonthLabel(month)}
-            </div>
+            </span>
             <button
               type="button"
               onClick={() => changeMonth(1)}
               disabled={month >= thisMonth}
               aria-label="Mois suivant"
               title={month >= thisMonth ? "Les mois futurs ne peuvent pas encore être calculés" : undefined}
-              className="rounded-lg p-1.5 text-slate-600 hover:bg-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+              className={cn(
+                "flex size-9 items-center justify-center rounded-r-[10px] text-ink-3 hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:text-ink-4 disabled:hover:bg-transparent",
+                FOCUS_RING
+              )}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="size-4" />
             </button>
             {month !== thisMonth && (
-              <button type="button" onClick={() => goToMonth(thisMonth)} className="ml-1 rounded-lg px-2 py-1 text-[11px] font-medium text-primary-700 hover:bg-white">
+              <button
+                type="button"
+                onClick={() => goToMonth(thisMonth)}
+                className={cn("h-9 border-l border-line px-3 text-[12px] font-semibold text-primary-700 hover:bg-primary-50", FOCUS_RING)}
+              >
                 Ce mois-ci
               </button>
             )}
           </div>
+        }
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              data-hr-tour="help"
+              onClick={guide.start}
+              aria-label="Comment ça marche ?"
+              leftIcon={<CircleHelp className="size-4" />}
+            >
+              <span className="hidden sm:inline">Comment ça marche ?</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              data-hr-tour="export"
+              onClick={() => exportRows(visibleRows)}
+              disabled={visibleRows.length === 0}
+              leftIcon={<Download className="size-4" />}
+            >
+              Exporter
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              data-hr-tour="recalculate"
+              onClick={handleBulkRecalculate}
+              disabled={isBulkCalculating || isFetching}
+              leftIcon={<RefreshCw className={cn("size-4", isBulkCalculating && "animate-spin")} />}
+            >
+              {isBulkCalculating ? "Calcul en cours…" : "Recalculer le mois"}
+            </Button>
+          </>
+        }
+      />
 
-          <button
-            type="button"
-            data-hr-tour="export"
-            onClick={() => exportRows(visibleRows)}
-            disabled={visibleRows.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Exporter
-          </button>
+      {notice && <NoticeBanner notice={notice} onClose={() => setNotice(null)} />}
 
-          <button
-            type="button"
-            data-hr-tour="recalculate"
-            onClick={handleBulkRecalculate}
-            disabled={isBulkCalculating || isFetching}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-primary-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-primary-700 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isBulkCalculating ? "animate-spin" : ""}`} />
-            {isBulkCalculating ? "Calcul en cours…" : "Recalculer le mois"}
-          </button>
-        </div>
-      </div>
-
-      {/* Notices */}
-      {notice && (
+      {/* Data from another month is still on screen: say so above it. A first load that fails says so in the list. */}
+      {error && !neverLoaded && (
         <div
-          role="status"
-          className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-xs ${
-            notice.tone === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : notice.tone === "warning"
-              ? "border-amber-200 bg-amber-50 text-amber-900"
-              : "border-rose-200 bg-rose-50 text-rose-800"
-          }`}
+          role="alert"
+          className="flex flex-col gap-2 rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13px] text-danger-ink sm:flex-row sm:items-center sm:justify-between"
         >
-          <div className="min-w-0 space-y-1">
-            <p className="font-semibold">{notice.title}</p>
-            {notice.lines && notice.lines.length > 0 && (
-              <ul className="max-h-28 list-disc space-y-0.5 overflow-y-auto pl-4">
-                {notice.lines.map((l) => (
-                  <li key={l}>{l}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Fermer" className="shrink-0 rounded p-0.5 hover:bg-black/5">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
-      {error && (
-        <div role="alert" className="flex flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800 sm:flex-row sm:items-center sm:justify-between">
-          <span className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            {error}
-            {showingStaleMonth && " Les données affichées sont celles du mois précédemment chargé."}
+          <span className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span>
+              {error}
+              {showingStaleMonth && " Les données affichées sont celles du mois précédemment chargé."}
+            </span>
           </span>
-          <button type="button" onClick={refresh} className="self-start rounded-lg bg-white px-3 py-1.5 font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100">
+          <Button variant="secondary" size="xs" onClick={refresh} className="self-start sm:self-auto">
             Réessayer
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* Summary */}
-      <div data-hr-tour="summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <SummaryCard icon={<Users className="h-4 w-4 text-primary-500" />} label="Personnes affichées" value={String(summary.count)} hint={`sur ${roleRows.length} au total`} />
-        <SummaryCard
-          icon={<CreditCard className="h-4 w-4 text-emerald-500" />}
+      {/* Headline figures */}
+      <MetricStrip data-hr-tour="summary">
+        <Metric
+          lead
           label={
-            <span className="inline-flex items-center gap-1">
+            <>
               Total estimé à verser
               <HrHelpTip title="Total estimé">
                 <p>La somme des montants à payer des personnes affichées : fixe + primes + ajustements.</p>
                 <p>C’est une estimation tant que les dossiers ne sont pas validés.</p>
               </HrHelpTip>
-            </span>
+            </>
           }
-          value={formatEuros(summary.pay)}
-          valueClass="text-emerald-700"
+          value={figure(formatEuros(summary.pay), true)}
           hint="Brut, avant charges"
         />
-        <SummaryCard
-          icon={<Phone className="h-4 w-4 text-blue-500" />}
-          label="Activité du mois"
-          value={`${summary.calls.toLocaleString("fr-FR")} appels`}
-          hint={`${summary.rdv} rendez-vous pris (hors annulés)`}
+        <Metric
+          label="Personnes affichées"
+          value={figure(summary.count)}
+          hint={neverLoaded ? undefined : `sur ${roleRows.length} au total`}
         />
-        <button
-          type="button"
+        <Metric
+          label="Activité du mois"
+          value={figure(summary.calls.toLocaleString("fr-FR"))}
+          unit={neverLoaded ? undefined : "appels"}
+          hint={neverLoaded ? undefined : `${summary.rdv} rendez-vous pris (hors annulés)`}
+        />
+        <Metric
           data-hr-tour="attention"
+          label={
+            <>
+              <span className={cn("size-1.5 rounded-full", neverLoaded ? "bg-line-strong" : attentionCount > 0 ? "bg-warning" : "bg-success")} aria-hidden />À traiter
+            </>
+          }
+          value={figure(attentionCount)}
+          tone={attentionCount > 0 ? "warning" : "neutral"}
           onClick={() => setFilter("attentionOnly", !filters.attentionOnly)}
-          aria-pressed={filters.attentionOnly}
-          className={`rounded-xl border p-4 text-left shadow-xs transition-colors ${
-            attentionCount > 0
-              ? filters.attentionOnly
-                ? "border-amber-400 bg-amber-100"
-                : "border-amber-200 bg-amber-50 hover:bg-amber-100"
-              : "border-slate-200/80 bg-white"
-          }`}
-        >
-          <div className="mb-1 flex items-center justify-between text-xs text-slate-600">
-            <span>À traiter</span>
-            {attentionCount > 0 ? <AlertTriangle className="h-4 w-4 text-amber-600" /> : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-          </div>
-          <p className={`text-2xl font-bold ${attentionCount > 0 ? "text-amber-800" : "text-slate-900"}`}>{attentionCount}</p>
-          <span className="mt-1 block text-[11px] text-slate-500">
-            {attentionCount === 0
+          pressed={filters.attentionOnly}
+          hint={
+            neverLoaded
+              ? undefined
+              : attentionCount === 0
               ? "Rien à traiter, tout est en ordre"
               : filters.attentionOnly
               ? "Filtre actif : cliquez pour tout afficher"
-              : "Cliquez pour n’afficher que ces personnes"}
-          </span>
-        </button>
-      </div>
+              : "Cliquez pour n’afficher que ces personnes"
+          }
+        />
+      </MetricStrip>
 
-      {/* Month progress */}
-      {!initialLoading && pipeline.total > 0 && (
-        <div data-hr-tour="pipeline" className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="flex items-center gap-1 text-xs font-semibold text-slate-700">
-              Avancement du mois
-              <HrHelpTip title="Avancement">
-                <p>Où en sont les dossiers du mois. Cliquez sur une étape pour n’afficher que ces personnes.</p>
-              </HrHelpTip>
-            </p>
-            <p className="text-[11px] text-slate-500">
-              <strong className="text-slate-800">{pipeline.lockedPct} %</strong> des dossiers validés ou payés
-            </p>
-          </div>
-          <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-slate-100" aria-hidden>
-            {STATUS_FLOW.map((s) =>
-              pipeline.byStatus[s].count ? (
-                <div key={s} className={STATUS_BAR[s]} style={{ width: `${(pipeline.byStatus[s].count / pipeline.total) * 100}%` }} />
-              ) : null
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {STATUS_FLOW.map((s, i) => {
-              const active = filters.status === s;
-              const bucket = pipeline.byStatus[s];
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setFilter("status", active ? "ALL" : s)}
-                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${
-                    active ? "border-primary-500 bg-primary-50 ring-1 ring-primary-500/30" : "border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600">
-                    <span className={`h-2 w-2 rounded-full ${STATUS_BAR[s]}`} />
-                    {i + 1}. {STATUS_LABELS[s]}
-                  </span>
-                  <span className="mt-0.5 block text-lg font-bold tabular-nums text-slate-900">{bucket.count}</span>
-                  <span className="block text-[10px] tabular-nums text-slate-400">
-                    {formatEuros(bucket.cents)}
-                    {s === HrMonthStatus.DRAFT && pipeline.unsaved > 0 && ` · ${pipeline.unsaved} non enregistré(s)`}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* The list, with the month's steps as its tabs */}
+      <Panel>
+        <RefreshBar active={isFetching && !initialLoading} />
 
-      {/* Filters */}
-      <div data-hr-tour="filters" className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/80 bg-white p-3 shadow-xs">
-        <label className="relative min-w-[200px] flex-1">
-          <span className="sr-only">Rechercher</span>
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-          <input
-            ref={searchRef}
-            type="search"
-            value={filters.search}
-            onChange={(e) => setFilter("search", e.target.value)}
-            placeholder="Rechercher un nom ou un email…"
-            className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-10 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+        <div data-hr-tour="pipeline" className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-line px-2 pt-2">
+          <HubTabs
+            ariaLabel="Étapes du mois"
+            tabs={statusTabs}
+            value={filters.status}
+            onChange={(v) => setFilter("status", v)}
           />
-          <kbd className="pointer-events-none absolute right-3 top-2 hidden rounded border border-slate-200 bg-white px-1.5 text-[10px] text-slate-400 sm:block">/</kbd>
-        </label>
-        <FilterSelect label="Rôle" value={filters.role} onChange={(v) => setFilter("role", v)}>
-          <option value="SDR">SDR</option>
-          <option value="MANAGER">Managers</option>
-          <option value="ALL">Tout le monde</option>
-        </FilterSelect>
-        <FilterSelect label="Manager" value={filters.manager} onChange={(v) => setFilter("manager", v)}>
-          <option value="ALL">Tous les managers</option>
-          {availableManagers.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </FilterSelect>
-        <FilterSelect label="Contrat" value={filters.contract} onChange={(v) => setFilter("contract", v)}>
-          <option value="ALL">Tous contrats</option>
-          <option value={ContractType.SALARIE}>Salarié</option>
-          <option value={ContractType.INDEPENDANT}>Indépendant</option>
-        </FilterSelect>
-        <FilterSelect label="Étape" value={filters.status} onChange={(v) => setFilter("status", v)}>
-          <option value="ALL">Toutes les étapes</option>
-          {STATUS_FLOW.map((s) => (
-            <option key={s} value={s}>
-              {STATUS_LABELS[s]}
-            </option>
-          ))}
-        </FilterSelect>
-        <FilterSelect label="Trier par" value={`${sort.key}:${sort.dir}`} onChange={(v) => { const [key, dir] = v.split(":"); setSort({ key: key as SortKey, dir: dir as Sort["dir"] }); }} className="md:hidden">
-          <option value="name:asc">Nom (A → Z)</option>
-          <option value="alerts:desc">Alertes d’abord</option>
-          <option value="total:desc">Montant le plus élevé</option>
-          <option value="calls:desc">Plus d’appels</option>
-          <option value="status:asc">Étape</option>
-        </FilterSelect>
-        {filtersActive && (
-          <button
-            type="button"
-            onClick={() => setFilters((f) => ({ ...DEFAULT_FILTERS, role: f.role }))}
-            className="rounded-lg px-2.5 py-2 text-xs font-medium text-primary-700 hover:bg-primary-50"
-          >
-            Réinitialiser
-          </button>
-        )}
-      </div>
+          {pipeline.total > 0 && (
+            <div className="mb-3 mr-3 flex min-w-[200px] items-center gap-3">
+              <div className="flex h-1.5 w-28 overflow-hidden rounded-full bg-surface-3" aria-hidden>
+                {STATUS_FLOW.map((s) =>
+                  pipeline.byStatus[s].count ? (
+                    <div key={s} className={STATUS_BAR[s]} style={{ width: `${(pipeline.byStatus[s].count / pipeline.total) * 100}%` }} />
+                  ) : null
+                )}
+              </div>
+              <p className="flex items-center gap-1 whitespace-nowrap text-xs text-ink-3">
+                <strong className="font-semibold tabular-nums text-ink">{pipeline.lockedPct} %</strong> validés ou payés
+                <HrHelpTip title="Avancement">
+                  <p>Où en sont les dossiers du mois. Cliquez sur une étape pour n’afficher que ces personnes.</p>
+                </HrHelpTip>
+              </p>
+            </div>
+          )}
+        </div>
 
-      {/* List */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs">
-        {isFetching && !initialLoading && (
-          <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-primary-100" aria-hidden>
-            <div className="h-full w-1/3 animate-pulse bg-primary-500" />
-          </div>
-        )}
+        <PanelToolbar data-hr-tour="filters">
+          <SearchField ref={searchRef} value={filters.search} onChange={(v) => setFilter("search", v)} placeholder="Rechercher un nom ou un email…" />
+          <ToolbarScroller>
+            <FilterSelect label="Rôle" value={filters.role} onChange={(v) => setFilter("role", v)} active={filters.role !== "SDR"}>
+              <option value="SDR">SDR</option>
+              <option value="MANAGER">Managers</option>
+              <option value="ALL">Tout le monde</option>
+            </FilterSelect>
+            <FilterSelect label="Manager" value={filters.manager} onChange={(v) => setFilter("manager", v)} active={filters.manager !== "ALL"}>
+              <option value="ALL">Tous les managers</option>
+              {availableManagers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect label="Contrat" value={filters.contract} onChange={(v) => setFilter("contract", v)} active={filters.contract !== "ALL"}>
+              <option value="ALL">Tous contrats</option>
+              <option value={ContractType.SALARIE}>Salarié</option>
+              <option value={ContractType.INDEPENDANT}>Indépendant</option>
+            </FilterSelect>
+            <FilterSelect
+              label="Trier par"
+              value={`${sort.key}:${sort.dir}`}
+              onChange={(v) => {
+                const [key, dir] = v.split(":");
+                setSort({ key: key as SortKey, dir: dir as Sort["dir"] });
+              }}
+              className="md:hidden"
+            >
+              <option value="name:asc">Nom (A → Z)</option>
+              <option value="alerts:desc">Alertes d’abord</option>
+              <option value="total:desc">Montant le plus élevé</option>
+              <option value="calls:desc">Plus d’appels</option>
+              <option value="status:asc">Étape</option>
+            </FilterSelect>
+            {filtersActive && (
+              <TextButton onClick={() => setFilters((f) => ({ ...DEFAULT_FILTERS, role: f.role }))}>Réinitialiser</TextButton>
+            )}
+          </ToolbarScroller>
+          <span className="ml-auto hidden text-xs tabular-nums text-ink-3 sm:block">
+            {plural(visibleRows.length, "personne", "personnes")}
+          </span>
+        </PanelToolbar>
 
         {initialLoading ? (
-          <TableSkeleton />
+          <SkeletonRows columns={[22, 10, 8, 14, 8, 8, 10]} />
+        ) : neverLoaded && error ? (
+          <PanelMessage tone="error" action={<TextButton onClick={refresh}>Réessayer</TextButton>}>
+            Les dossiers de {formatMonthLabel(month)} n’ont pas pu être chargés : {error}
+          </PanelMessage>
         ) : visibleRows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-16 text-center text-xs text-slate-500">
-            {rows.length === 0 && !error ? (
-              <p>Aucun SDR ou manager actif pour le moment.</p>
-            ) : (
-              <>
-                <p>Personne ne correspond à ces filtres.</p>
-                {filtersActive && (
-                  <button type="button" onClick={() => setFilters(DEFAULT_FILTERS)} className="font-semibold text-primary-700 hover:underline">
-                    Réinitialiser les filtres
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          rows.length === 0 ? (
+            <PanelMessage>Aucun SDR ou manager actif pour le moment.</PanelMessage>
+          ) : (
+            <PanelMessage
+              action={filtersActive ? <TextButton onClick={() => setFilters(DEFAULT_FILTERS)}>Réinitialiser les filtres</TextButton> : undefined}
+            >
+              Personne ne correspond à ces filtres.
+            </PanelMessage>
+          )
         ) : (
-          <div className={`transition-opacity ${isFetching ? "opacity-60" : ""}`}>
-            {/* Phones: cards */}
-            <ul className="divide-y divide-slate-100 md:hidden">
+          <div className={cn("transition-opacity duration-150", isFetching && "opacity-60")}>
+            {/* Phones: one card per person */}
+            <ul className="divide-y divide-line-subtle md:hidden">
               {visibleRows.map((row, i) => {
                 const tour = (key: string) => (i === 0 ? { "data-hr-tour": key } : {});
+                const isSelected = selected.has(row.userId);
                 return (
-                  <li key={row.userId} className={`space-y-2.5 p-4 ${selected.has(row.userId) ? "bg-primary-50/40" : ""}`}>
+                  <li key={row.userId} className={cn("space-y-3 px-4 py-4", isSelected && "bg-primary-50/50")}>
                     <div className="flex items-start gap-3">
                       <input
                         type="checkbox"
-                        checked={selected.has(row.userId)}
+                        checked={isSelected}
                         onChange={() => toggleRow(row.userId)}
                         aria-label={`Sélectionner ${row.userName}`}
-                        className="mt-1 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                        className="mt-2 size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                         {...tour("row-select")}
                       />
-                      <div className="min-w-0 flex-1" {...tour("row-person")}>
-                        <Link href={`/manager/rh/${row.userId}`} className="font-semibold text-slate-900 hover:text-primary-700">
-                          {row.userName}
-                        </Link>
-                        <p className="text-[11px] text-slate-500">
-                          {row.managerName ? `Manager : ${row.managerName}` : "Sans manager"}
-                        </p>
+                      <div className="flex min-w-0 flex-1 items-start gap-2.5" {...tour("row-person")}>
+                        <Avatar name={row.userName} size="sm" shape="circle" />
+                        <div className="min-w-0">
+                          <Link href={`/manager/rh/${row.userId}`} className="block truncate text-sm font-semibold text-ink hover:text-primary-700">
+                            {row.userName}
+                          </Link>
+                          <p className="truncate text-xs text-ink-3">{row.managerName ? `Manager : ${row.managerName}` : "Sans manager"}</p>
+                        </div>
                       </div>
-                      <div className="text-right" {...tour("row-total")}>
-                        <p className="text-sm font-bold tabular-nums text-slate-900">{formatEuros(row.totalAmountCents)}</p>
-                        <StatusBadge row={row} />
-                      </div>
+                      <p className="shrink-0 text-right text-[15px] font-semibold tabular-nums text-ink" {...tour("row-total")}>
+                        {formatEuros(row.totalAmountCents)}
+                      </p>
                     </div>
-                    <div {...tour("row-alerts")}>{alertChips(row)}</div>
-                    <p className="text-[11px] tabular-nums text-slate-500">
+                    <div className="flex flex-wrap items-center gap-1.5 pl-7" {...tour("row-alerts")}>
+                      <StatusPill row={row} onOpen={() => setStatusUserId(row.userId)} {...tour("row-status")} />
+                      {alertChips(row)}
+                    </div>
+                    <p className="pl-7 text-xs tabular-nums text-ink-3">
                       {row.workingDays}/{row.totalWorkingDays} j payés · {row.totalCalls.toLocaleString("fr-FR")} appels · {row.totalRdv} RDV
                     </p>
-                    {rowActions(row, tour)}
+                    <div className="pl-5">{rowActions(row, tour)}</div>
                   </li>
                 );
               })}
@@ -762,33 +755,33 @@ function HrPageContent() {
 
             {/* Desktop: table */}
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full border-collapse text-left text-xs">
-                <thead className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-600">
+              <table className="w-full min-w-[860px] border-collapse text-left text-[13px]">
+                <thead className="border-b border-line text-xs text-ink-3">
                   <tr>
-                    <th scope="col" className="w-10 px-4 py-3">
+                    <th scope="col" className="w-11 py-2.5 pl-5 pr-1">
                       <HeaderCheckbox checked={allVisibleSelected} indeterminate={someSelected} onChange={toggleAll} />
                     </th>
                     <SortHeader label="Collaborateur" sortKey="name" sort={sort} onSort={toggleSort} />
-                    <SortHeader
-                      label="Étape"
-                      sortKey="status"
-                      sort={sort}
-                      onSort={toggleSort}
-                      tip={
+                    <th scope="col" className="px-3 py-2.5 font-medium" aria-sort={sort.key === "status" || sort.key === "alerts" ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <SortButton label="Étape" sortKey="status" sort={sort} onSort={toggleSort} />
                         <HrHelpTip title="Les 4 étapes d’un mois">
                           <p><strong>Brouillon</strong> : le mois est en cours, les chiffres bougent.</p>
                           <p><strong>À vérifier</strong> : prêt à être relu.</p>
                           <p><strong>Validé</strong> : chiffres verrouillés pour la paie.</p>
                           <p><strong>Payé</strong> : le virement est fait.</p>
+                          <p>Cliquez sur l’étape d’une personne pour la changer ou ajouter un ajustement.</p>
                         </HrHelpTip>
-                      }
-                    />
-                    <SortHeader label="Alertes" sortKey="alerts" sort={sort} onSort={toggleSort} />
+                        <span className="text-line-strong" aria-hidden>·</span>
+                        <SortButton label="Alertes" sortKey="alerts" sort={sort} onSort={toggleSort} />
+                      </span>
+                    </th>
                     <SortHeader
                       label="Jours payés"
                       sortKey="days"
                       sort={sort}
                       onSort={toggleSort}
+                      align="right"
                       tip={
                         <HrHelpTip title="Jours payés">
                           <p>Jours ouvrés du mois (hors week-ends et jours fériés), moins les absences et les journées que vous avez décidé de ne pas payer.</p>
@@ -800,6 +793,7 @@ function HrPageContent() {
                       sortKey="calls"
                       sort={sort}
                       onSort={toggleSort}
+                      align="right"
                       tip={
                         <HrHelpTip title="Activité">
                           <p>Appels passés et rendez-vous pris dans le mois (heure de Paris). Les rendez-vous annulés ne comptent pas.</p>
@@ -807,145 +801,166 @@ function HrPageContent() {
                         </HrHelpTip>
                       }
                     />
-                    <th scope="col" className="px-4 py-3 text-right">Fixe</th>
-                    <th scope="col" className="px-4 py-3 text-right">Variable</th>
+                    <th scope="col" className="hidden px-3 py-2.5 text-right font-medium 2xl:table-cell">Fixe</th>
+                    <th scope="col" className="hidden px-3 py-2.5 text-right font-medium 2xl:table-cell">Variable</th>
                     <SortHeader label="Total à payer" sortKey="total" sort={sort} onSort={toggleSort} align="right" />
-                    <th scope="col" className="sticky right-0 z-[1] bg-slate-50 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(15,23,42,0.18)]">
-                      Actions
+                    <th scope="col" className="py-2.5 pl-3 pr-5 text-right font-medium">
+                      <span className="sr-only">Actions</span>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {visibleRows.map((row, i) => {
                     const tour = (key: string) => (i === 0 ? { "data-hr-tour": key } : {});
                     const isSelected = selected.has(row.userId);
-                    const rowBg = isSelected ? "bg-primary-50" : "bg-white group-hover:bg-slate-50";
                     return (
-                      <tr key={row.userId} className={`group transition-colors ${isSelected ? "bg-primary-50" : "hover:bg-slate-50"}`}>
-                        <td className="px-4 py-3">
+                      <tr
+                        key={row.userId}
+                        className={cn(
+                          "border-b border-line-subtle align-top transition-colors duration-100 last:border-b-0",
+                          isSelected ? "bg-primary-50/60" : "hover:bg-surface-2/70"
+                        )}
+                      >
+                        <td className="py-3.5 pl-5 pr-1">
                           <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleRow(row.userId)}
                             aria-label={`Sélectionner ${row.userName}`}
-                            className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                            className="mt-2 size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                             {...tour("row-select")}
                           />
                         </td>
-                        <td className="px-4 py-3" {...tour("row-person")}>
-                          <Link href={`/manager/rh/${row.userId}`} className="font-semibold text-slate-900 hover:text-primary-700 hover:underline">
-                            {row.userName}
-                          </Link>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
-                            <span className={`rounded px-1.5 py-px text-[10px] font-semibold ${row.userRole === "MANAGER" ? "bg-accent-50 text-accent-700" : "bg-primary-50 text-primary-700"}`}>
-                              {row.userRole === "MANAGER" ? "Manager" : row.userRole}
-                            </span>
-                            <span>{row.contractType === ContractType.SALARIE ? "Salarié" : "Indépendant"}</span>
-                            <span className="text-slate-400">·</span>
-                            <span className={row.managerName ? "" : "italic text-slate-400"}>
-                              {row.managerName ? `Manager : ${row.managerName}` : "Sans manager"}
-                            </span>
+
+                        <td className="px-3 py-3.5" {...tour("row-person")}>
+                          <div className="flex w-[210px] items-center gap-3 lg:w-[250px] 2xl:w-[280px]">
+                            <Avatar name={row.userName} size="sm" shape="circle" />
+                            <div className="min-w-0">
+                              <Link
+                                href={`/manager/rh/${row.userId}`}
+                                className={cn("block truncate rounded-sm font-semibold text-ink hover:text-primary-700", FOCUS_RING)}
+                              >
+                                {row.userName}
+                              </Link>
+                              <p className={cn("truncate text-xs text-ink-3", !row.managerName && "italic")} title={personLine(row)}>
+                                {personLine(row)}
+                              </p>
+                            </div>
                           </div>
                         </td>
 
-                        <td className="px-4 py-3">
-                          <StatusBadge row={row} />
-                        </td>
-
-                        <td className="px-4 py-3" {...tour("row-alerts")}>
-                          {alertChips(row)}
-                        </td>
-
-                        <td className="whitespace-nowrap px-4 py-3">
-                          <div className="font-medium tabular-nums text-slate-800">
-                            {row.workingDays} / {row.totalWorkingDays} j
+                        <td className="px-3 py-3.5">
+                          <div className="flex flex-col items-start gap-1.5" {...tour("row-alerts")}>
+                            <StatusPill row={row} onOpen={() => setStatusUserId(row.userId)} {...tour("row-status")} />
+                            {alertChips(row)}
                           </div>
-                          <span className={`block text-[10px] ${row.absenceDays > 0 ? "text-amber-700" : "text-slate-400"}`}>
+                        </td>
+
+                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">
+                          <div className="font-medium text-ink">
+                            {row.workingDays}
+                            <span className="text-ink-3"> / {row.totalWorkingDays} j</span>
+                          </div>
+                          <span className={cn("block text-xs", row.absenceDays > 0 ? "text-warning-ink" : "text-ink-3")}>
                             {row.absenceDays > 0 ? `${row.absenceDays} j d’absence` : "Aucune absence"}
                           </span>
                         </td>
 
-                        <td className="whitespace-nowrap px-4 py-3 tabular-nums">
-                          <div className="font-semibold text-slate-900">
-                            {row.totalCalls.toLocaleString("fr-FR")} appels · <span className="text-emerald-700">{row.totalRdv} RDV</span>
+                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums">
+                          <div className="font-medium text-ink">
+                            {row.totalCalls.toLocaleString("fr-FR")} <span className="font-normal text-ink-3">appels</span>
+                            <span className="text-ink-4"> · </span>
+                            {row.totalRdv} <span className="font-normal text-ink-3">RDV</span>
                           </div>
-                          <QuotaBar row={row} />
+                          <QuotaLine row={row} />
                         </td>
 
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-800">{formatEuros(row.fixedAmountCents)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-emerald-700">{formatEuros(row.variableAmountCents)}</td>
+                        <td className="hidden whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-ink-2 2xl:table-cell">{formatEuros(row.fixedAmountCents)}</td>
+                        <td className="hidden whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-ink-2 2xl:table-cell">{formatEuros(row.variableAmountCents)}</td>
 
-                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums" {...tour("row-total")}>
-                          <span className="text-sm font-bold text-slate-900">{formatEuros(row.totalAmountCents)}</span>
+                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums" {...tour("row-total")}>
+                          <span className="text-[14px] font-semibold text-ink">{formatEuros(row.totalAmountCents)}</span>
+                          <span className="block text-xs text-ink-3 2xl:hidden">
+                            {formatEuros(row.fixedAmountCents)} + {formatEuros(row.variableAmountCents)}
+                          </span>
                           {row.adjustmentCents !== 0 && (
-                            <span className="block text-[10px] text-primary-600" title={row.adjustmentNote ?? undefined}>
+                            <span className="block text-xs text-primary-700" title={row.adjustmentNote ?? undefined}>
                               dont {row.adjustmentCents > 0 ? "+" : "−"}
                               {formatEuros(Math.abs(row.adjustmentCents))} d’ajustement
                             </span>
                           )}
                         </td>
 
-                        <td className={`sticky right-0 px-4 py-3 text-right shadow-[-8px_0_8px_-8px_rgba(15,23,42,0.18)] transition-colors ${rowBg}`}>
-                          {rowActions(row, tour)}
-                        </td>
+                        <td className="whitespace-nowrap py-3 pl-3 pr-4 text-right">{rowActions(row, tour)}</td>
                       </tr>
                     );
                   })}
                 </tbody>
-                <tfoot className="border-t border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700">
+                <tfoot className="border-t border-line bg-surface-2 text-[13px] text-ink-2">
                   <tr>
-                    <td className="px-4 py-3" />
-                    <td className="px-4 py-3" colSpan={4}>
-                      Total · {summary.count} personne(s)
+                    <td className="py-3 pl-5 pr-1" />
+                    <td className="px-3 py-3 font-semibold text-ink" colSpan={3}>
+                      Total · {plural(summary.count, "personne", "personnes")}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums">{summary.calls.toLocaleString("fr-FR")} appels · {summary.rdv} RDV</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{formatEuros(visibleRows.reduce((s, r) => s + r.fixedAmountCents, 0))}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{formatEuros(visibleRows.reduce((s, r) => s + r.variableAmountCents, 0))}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-slate-900">{formatEuros(summary.pay)}</td>
-                    <td className="sticky right-0 bg-slate-50 px-4 py-3 shadow-[-8px_0_8px_-8px_rgba(15,23,42,0.18)]" />
+                    <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums">
+                      {summary.calls.toLocaleString("fr-FR")} appels · {summary.rdv} RDV
+                    </td>
+                    <td className="hidden whitespace-nowrap px-3 py-3 text-right tabular-nums 2xl:table-cell">{formatEuros(summary.fixed)}</td>
+                    <td className="hidden whitespace-nowrap px-3 py-3 text-right tabular-nums 2xl:table-cell">{formatEuros(summary.variable)}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-right text-[14px] font-semibold tabular-nums text-ink">{formatEuros(summary.pay)}</td>
+                    <td className="py-3 pl-3 pr-5" />
                   </tr>
                 </tfoot>
               </table>
             </div>
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* Bulk action bar */}
       {selectedRows.length > 0 && (
-        <div className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-4xl flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl sm:flex-row sm:items-center sm:justify-between" role="region" aria-label="Actions groupées">
-          <div className="flex items-center gap-2 text-xs text-slate-700">
-            <button type="button" onClick={() => setSelected(new Set())} aria-label="Tout désélectionner" className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-              <X className="h-4 w-4" />
+        <div
+          className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5 shadow-overlay animate-ds-pop sm:flex-row sm:items-center sm:justify-between"
+          role="region"
+          aria-label="Actions groupées"
+        >
+          <div className="flex items-center gap-2 text-[13px] text-ink-2">
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              aria-label="Tout désélectionner"
+              className={cn("flex size-8 items-center justify-center rounded-lg text-ink-3 hover:bg-surface-3 hover:text-ink", FOCUS_RING)}
+            >
+              <X className="size-4" />
             </button>
             <span aria-live="polite">
               {bulkProgress ? (
-                <>Mise à jour… <strong className="tabular-nums">{bulkProgress.done}/{bulkProgress.total}</strong></>
+                <>
+                  Mise à jour… <strong className="tabular-nums text-ink">{bulkProgress.done}/{bulkProgress.total}</strong>
+                </>
               ) : (
                 <>
-                  <strong>{selectedRows.length}</strong> sélectionné(s) · <strong className="tabular-nums">{formatEuros(selectedRows.reduce((s, r) => s + r.totalAmountCents, 0))}</strong>
+                  <strong className="text-ink">{selectedRows.length}</strong> sélectionné(s) ·{" "}
+                  <strong className="tabular-nums text-ink">{formatEuros(selectedRows.reduce((s, r) => s + r.totalAmountCents, 0))}</strong>
                 </>
               )}
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {BULK_ACTIONS.map((a) => (
-              <button
+              <Button
                 key={a.status}
-                type="button"
+                size="xs"
+                variant={a.status === HrMonthStatus.PAID ? "success" : a.status === HrMonthStatus.VALIDATED ? "primary" : "secondary"}
                 onClick={() => startBulk(a)}
                 disabled={Boolean(bulkProgress)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
-                  a.status === HrMonthStatus.PAID ? "bg-emerald-600 text-white hover:bg-emerald-700" : a.status === HrMonthStatus.VALIDATED ? "bg-primary-600 text-white hover:bg-primary-700" : "bg-slate-100 text-slate-800 hover:bg-slate-200"
-                }`}
               >
                 {a.label}
-              </button>
+              </Button>
             ))}
-            <button type="button" onClick={() => exportRows(selectedRows, "-selection")} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-              <Download className="h-3.5 w-3.5" />
+            <Button size="xs" variant="ghost" onClick={() => exportRows(selectedRows, "-selection")} leftIcon={<Download className="size-3.5" />}>
               Exporter
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -959,20 +974,20 @@ function HrPageContent() {
           description={formatMonthLabel(month)}
           size="md"
         >
-          <div className="space-y-4 text-xs">
+          <div className="space-y-4 text-[13px]">
             {plan.eligible.length > 0 ? (
-              <p className="text-slate-700">
+              <p className="leading-relaxed text-ink-2">
                 {plan.eligible.length} dossier(s) pour un total de{" "}
-                <strong className="tabular-nums">{formatEuros(plan.eligible.reduce((s, r) => s + r.totalAmountCents, 0))}</strong> passeront en «{" "}
+                <strong className="tabular-nums text-ink">{formatEuros(plan.eligible.reduce((s, r) => s + r.totalAmountCents, 0))}</strong> passeront en «{" "}
                 {STATUS_LABELS[bulkPlan.status]} ».
                 {bulkPlan.status === HrMonthStatus.VALIDATED && " Leurs chiffres seront verrouillés."}
                 {bulkPlan.status === HrMonthStatus.PAID && " À faire uniquement après le virement."}
               </p>
             ) : (
-              <p className="text-slate-700">Aucun des dossiers sélectionnés ne peut passer à cette étape.</p>
+              <p className="text-ink-2">Aucun des dossiers sélectionnés ne peut passer à cette étape.</p>
             )}
             {plan.skipped.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-900">
+              <div className="rounded-xl border border-warning-line bg-warning-soft p-3 text-warning-ink">
                 <p className="mb-1 font-semibold">{plan.skipped.length} dossier(s) ne seront pas modifiés :</p>
                 <ul className="max-h-40 list-disc space-y-0.5 overflow-y-auto pl-4">
                   {plan.skipped.map((s) => (
@@ -983,18 +998,18 @@ function HrPageContent() {
                 </ul>
               </div>
             )}
-            <div className="flex justify-end gap-2 border-t border-slate-100 pt-3">
-              <button type="button" onClick={() => setBulkPlan(null)} disabled={Boolean(bulkProgress)} className="rounded-lg px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50">
+            <div className="flex justify-end gap-2 border-t border-line-subtle pt-4">
+              <Button variant="ghost" size="sm" onClick={() => setBulkPlan(null)} disabled={Boolean(bulkProgress)}>
                 Annuler
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                size="sm"
+                variant={bulkPlan.status === HrMonthStatus.PAID ? "success" : "primary"}
                 onClick={() => executeBulk(bulkPlan.status, plan)}
                 disabled={plan.eligible.length === 0 || Boolean(bulkProgress)}
-                className="rounded-lg bg-primary-600 px-4 py-2 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
               >
                 {bulkProgress ? `En cours… ${bulkProgress.done}/${bulkProgress.total}` : `Confirmer (${plan.eligible.length})`}
-              </button>
+              </Button>
             </div>
           </div>
         </Modal>
@@ -1054,25 +1069,83 @@ function HrPageContent() {
   );
 }
 
-function StatusBadge({ row }: { row: HrMonthRowData }) {
+/** The step is also the control that changes it. */
+function StatusPill({
+  row,
+  onOpen,
+  ...rest
+}: {
+  row: HrMonthRowData;
+  onOpen: () => void;
+  "data-hr-tour"?: string;
+}) {
+  const base = "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full border px-2 text-xs font-medium";
+  if (!row.id) {
+    return (
+      <span
+        {...rest}
+        className={cn(base, "border-dashed border-line-strong bg-surface text-ink-3")}
+        title="Cliquez d’abord sur « Recalculer le mois » pour enregistrer ce dossier"
+      >
+        Non enregistré
+      </span>
+    );
+  }
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_STYLES[row.status]}`}>
-      {isLockedStatus(row.status) && <Lock className="h-2.5 w-2.5" aria-hidden />}
-      {row.id ? STATUS_LABELS[row.status] : "Non enregistré"}
+    <button
+      {...rest}
+      type="button"
+      onClick={onOpen}
+      title="Changer l’étape ou ajouter un ajustement"
+      className={cn(base, "transition-[filter,box-shadow] duration-150 hover:brightness-[0.97] hover:shadow-xs", FOCUS_RING, STATUS_STYLES[row.status])}
+    >
+      {isLockedStatus(row.status) && <Lock className="size-3" aria-hidden />}
+      {STATUS_LABELS[row.status]}
+      <ChevronDown className="size-3 opacity-60" aria-hidden />
+    </button>
+  );
+}
+
+function QuotaLine({ row }: { row: HrMonthRowData }) {
+  if (row.dailyQuota <= 0 || row.totalWorkingDays <= 0) {
+    return <span className="block text-xs text-ink-3">Pas d’objectif d’appels</span>;
+  }
+  const judgedDays = row.underQuotaDaysCount;
+  const tone = judgedDays === 0 ? "text-ink-3" : judgedDays <= 2 ? "text-warning-ink" : "text-danger-ink";
+  return (
+    <span className={cn("block text-xs", tone)}>
+      Objectif {row.dailyQuota}/j · {judgedDays === 0 ? "toujours atteint" : `${judgedDays} j sous l’objectif`}
     </span>
   );
 }
 
-function QuotaBar({ row }: { row: HrMonthRowData }) {
-  if (row.dailyQuota <= 0 || row.totalWorkingDays <= 0) {
-    return <span className="block text-[10px] text-slate-400">Pas d’objectif d’appels</span>;
-  }
-  const judgedDays = row.underQuotaDaysCount;
-  const tone = judgedDays === 0 ? "text-emerald-700" : judgedDays <= 2 ? "text-amber-700" : "text-rose-700";
+/** Header sort control. On a right-aligned column the glyph leads, so the label stays flush with the figures. */
+function SortButton({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  iconFirst,
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: Sort;
+  onSort: (k: SortKey) => void;
+  iconFirst?: boolean;
+}) {
+  const active = sort.key === sortKey;
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+  const glyph = <Icon className={cn("size-3", active ? "text-ink-2" : "text-transparent group-hover:text-ink-4")} aria-hidden />;
   return (
-    <span className={`block text-[10px] ${tone}`}>
-      Objectif {row.dailyQuota}/j · {judgedDays === 0 ? "toujours atteint" : `${judgedDays} j sous l’objectif`}
-    </span>
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      className={cn("group inline-flex items-center gap-1 rounded hover:text-ink", FOCUS_RING, active && "text-ink")}
+    >
+      {iconFirst && glyph}
+      {label}
+      {!iconFirst && glyph}
+    </button>
   );
 }
 
@@ -1092,22 +1165,14 @@ function SortHeader({
   align?: "left" | "right";
 }) {
   const active = sort.key === sortKey;
-  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
   return (
     <th
       scope="col"
       aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-      className={`px-4 py-3 ${align === "right" ? "text-right" : ""}`}
+      className={cn("px-3 py-2.5 font-medium", align === "right" && "text-right")}
     >
-      <span className={`inline-flex items-center gap-1 ${align === "right" ? "flex-row-reverse" : ""}`}>
-        <button
-          type="button"
-          onClick={() => onSort(sortKey)}
-          className={`inline-flex items-center gap-1 rounded hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${active ? "text-slate-900" : ""}`}
-        >
-          {label}
-          <Icon className={`h-3 w-3 ${active ? "text-primary-600" : "text-slate-300"}`} />
-        </button>
+      <span className={cn("inline-flex items-center gap-1", align === "right" && "flex-row-reverse")}>
+        <SortButton label={label} sortKey={sortKey} sort={sort} onSort={onSort} iconFirst={align === "right"} />
         {tip}
       </span>
     </th>
@@ -1126,60 +1191,35 @@ function HeaderCheckbox({ checked, indeterminate, onChange }: { checked: boolean
       checked={checked}
       onChange={onChange}
       aria-label="Tout sélectionner"
-      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+      className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
     />
   );
 }
 
-function SummaryCard({
-  icon,
-  label,
-  value,
-  hint,
-  valueClass = "text-slate-900",
-}: {
-  icon: React.ReactNode;
-  label: React.ReactNode;
-  value: string;
-  hint: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs">
-      <div className="mb-1 flex items-center justify-between text-xs text-slate-500">
-        <span>{label}</span>
-        {icon}
-      </div>
-      <p className={`truncate text-2xl font-bold tabular-nums ${valueClass}`}>{value}</p>
-      <span className="mt-1 block text-[11px] text-slate-400">{hint}</span>
-    </div>
-  );
-}
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  children,
-  className = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
+function NoticeBanner({ notice, onClose }: { notice: Notice; onClose: () => void }) {
+  const tone =
+    notice.tone === "success"
+      ? "border-success-line bg-success-soft text-success-ink"
+      : notice.tone === "warning"
+      ? "border-warning-line bg-warning-soft text-warning-ink"
+      : "border-danger-line bg-danger-soft text-danger-ink";
   return (
-    <label className={`flex items-center ${className}`}>
-      <span className="sr-only">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-      >
-        {children}
-      </select>
-    </label>
+    <div role="status" className={cn("flex items-start justify-between gap-3 rounded-xl border px-4 py-3 text-[13px] animate-ds-pop", tone)}>
+      <div className="min-w-0 space-y-1">
+        <p className="font-semibold">{notice.title}</p>
+        {notice.lines && notice.lines.length > 0 && (
+          <ul className="max-h-28 list-disc space-y-0.5 overflow-y-auto pl-4 text-xs">
+            {notice.lines.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <button type="button" onClick={onClose} aria-label="Fermer" className={cn("shrink-0 rounded-md p-1 hover:bg-black/5", FOCUS_RING)}>
+        <X className="size-3.5" />
+      </button>
+    </div>
   );
 }
 
@@ -1188,18 +1228,18 @@ function AlertChip({
   onClick,
   children,
 }: {
-  tone: "rose" | "amber" | "sky";
+  tone: "danger" | "warning" | "info";
   onClick?: () => void;
   children: React.ReactNode;
 }) {
   const styles = {
-    rose: "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100",
-    amber: "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100",
-    sky: "bg-sky-50 text-sky-700 border-sky-200",
+    danger: "bg-danger-soft text-danger-ink border-danger-line",
+    warning: "bg-warning-soft text-warning-ink border-warning-line",
+    info: "bg-info-soft text-info-ink border-info-line",
   }[tone];
-  const className = `inline-flex whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold ${styles}`;
+  const className = cn("inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-full border px-1.5 text-[11px] font-medium", styles);
   return onClick ? (
-    <button type="button" onClick={onClick} className={className}>
+    <button type="button" onClick={onClick} className={cn(className, "transition-[filter] hover:brightness-95", FOCUS_RING)}>
       {children}
     </button>
   ) : (
@@ -1207,7 +1247,7 @@ function AlertChip({
   );
 }
 
-function RowButton({
+function RowAction({
   primary,
   children,
   ...props
@@ -1216,27 +1256,13 @@ function RowButton({
     <button
       type="button"
       {...props}
-      className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        primary ? "bg-primary-50 text-primary-700 hover:bg-primary-100" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-      }`}
+      className={cn(
+        "h-8 rounded-lg px-2.5 text-[13px] font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40",
+        FOCUS_RING,
+        primary ? "text-primary-700 hover:bg-primary-50" : "text-ink-3 hover:bg-surface-3 hover:text-ink"
+      )}
     >
       {children}
     </button>
-  );
-}
-
-function TableSkeleton() {
-  return (
-    <div className="divide-y divide-slate-100" aria-busy="true" aria-label="Chargement">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-6 px-4 py-4">
-          <div className="h-3 w-4 animate-pulse rounded bg-slate-100" />
-          <div className="h-3 w-40 animate-pulse rounded bg-slate-100" />
-          <div className="h-3 w-16 animate-pulse rounded bg-slate-100" />
-          <div className="h-3 w-24 animate-pulse rounded bg-slate-100" />
-          <div className="ml-auto h-3 w-20 animate-pulse rounded bg-slate-100" />
-        </div>
-      ))}
-    </div>
   );
 }

@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistant Projet — Agent Architecture Review</title>
+<style>
+  :root{
+    --navy:#263460;
+    --navy-dark:#18213f;
+    --pink:#C64B8B;
+    --pink-soft:#F7E7EF;
+    --paper:#FBFAF7;
+    --white:#ffffff;
+    --ink:#191c25;
+    --body:#343947;
+    --muted:#6d7180;
+    --line:#E2DDD5;
+    --line-strong:#CBC5BA;
+    --sand:#F3EFE8;
+    --green:#2E6B52;
+    --green-soft:#E8F0EB;
+    --amber:#9A5F17;
+    --amber-soft:#F8EEDF;
+    --red:#9E3B3B;
+    --red-soft:#F7E7E5;
+    --display:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    --mono:"Cascadia Mono",Consolas,"SFMono-Regular",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 8%, rgba(198,75,139,.05), transparent 32%),
+      linear-gradient(180deg,#E9E5DD 0%,#E4DFD6 100%);
+    color:var(--body);
+    font-family:var(--sans);
+    font-size:11.5px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .toolbar{
+    position:fixed;right:20px;top:18px;z-index:50;
+    display:flex;gap:8px;align-items:center;
+  }
+  .toolbar button{
+    font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.01em;
+    color:#fff;background:var(--navy);border:1px solid var(--navy-dark);
+    border-radius:2px;padding:9px 14px;cursor:pointer;
+    box-shadow:0 6px 18px rgba(24,33,63,.18);
+  }
+  .toolbar button:hover{background:var(--navy-dark)}
+  .toolbar button:focus-visible{outline:2px solid var(--pink);outline-offset:3px}
+
+  .sheet{max-width:calc(210mm + 48px);margin:0 auto;padding:44px 24px 70px}
+  .page{
+    position:relative;
+    width:210mm;min-height:297mm;
+    margin:0 auto 26px;
+    padding:17mm 18mm 16mm;
+    background:var(--paper);
+    box-shadow:0 2px 4px rgba(25,28,37,.06),0 18px 50px rgba(25,28,37,.10);
+    display:flex;flex-direction:column;
+  }
+  .page::before{
+    content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+    background:linear-gradient(180deg,var(--pink) 0%,var(--pink) 28%,transparent 28%);
+    opacity:.85;
+  }
+  .page-head{
+    display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid var(--line);
+    padding-bottom:6px;margin-bottom:18px;
+    font-size:8.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
+  }
+  .page-head b{color:var(--navy);font-weight:700;letter-spacing:.13em}
+  .page-foot{
+    margin-top:auto;padding-top:8px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  }
+  .page-no{font-family:var(--display);font-size:11px;letter-spacing:0;color:var(--navy)}
+
+  /* ---------- type ---------- */
+  .kicker{
+    font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--pink);
+    font-weight:700;margin:0 0 8px;
+  }
+  h1,h2,h3,h4{color:var(--navy);margin:0;font-weight:600}
+  h1{font-family:var(--display);font-size:52px;line-height:.98;letter-spacing:-.015em;font-weight:500}
+  h2{font-family:var(--display);font-size:28px;line-height:1.08;letter-spacing:-.01em;font-weight:500;margin-bottom:4px}
+  h3{font-family:var(--sans);font-size:12.5px;letter-spacing:.01em;margin:14px 0 5px;font-weight:700}
+  h4{font-family:var(--sans);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin:0 0 5px}
+  p{margin:0 0 9px}
+  strong{color:var(--ink);font-weight:650}
+  em{font-style:italic;color:var(--ink)}
+  a{color:var(--navy);text-decoration:none;border-bottom:1px solid rgba(38,52,96,.25)}
+  a:hover{border-bottom-color:var(--pink);color:var(--pink)}
+  .lead{font-size:13.2px;line-height:1.5;color:#2c3140}
+  .small{font-size:9.8px;line-height:1.5;color:var(--muted)}
+  .mono{font-family:var(--mono);font-size:9.6px}
+  .num{font-variant-numeric:tabular-nums}
+  .accent{color:var(--pink)}
+  .nowrap{white-space:nowrap}
+
+  .sec-head{display:grid;grid-template-columns:38px 1fr;gap:12px;margin-bottom:10px}
+  .sec-num{
+    font-family:var(--mono);font-size:9px;color:var(--pink);font-weight:700;
+    padding-top:9px;letter-spacing:.02em;
+  }
+  .sec-sub{font-size:10.5px;color:var(--muted);margin:2px 0 0;max-width:150mm}
+
+  .rule{height:1px;background:var(--line);margin:14px 0}
+  .rule-strong{height:2px;background:var(--navy);margin:12px 0 14px}
+
+  /* ---------- cover ---------- */
+  .cover{justify-content:space-between;padding-top:20mm}
+  .cover-top{display:flex;justify-content:space-between;align-items:flex-start}
+  .cover-mark{display:flex;gap:10px;align-items:center}
+  .mark{
+    width:26px;height:26px;background:var(--navy);position:relative;flex:none;
+  }
+  .mark::after{
+    content:"";position:absolute;width:12px;height:12px;background:var(--pink);
+    right:-4px;bottom:-4px;
+  }
+  .brandline{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--navy);font-weight:700;line-height:1.4}
+  .brandline span{display:block;font-weight:400;color:var(--muted);letter-spacing:.12em}
+  .doc-id{font-family:var(--mono);font-size:8.5px;color:var(--muted);text-align:right;line-height:1.7}
+  .cover-mid{margin-top:24mm;max-width:168mm}
+  .cover-mid h1{margin:6px 0 0}
+  .cover-mid h1 i{font-style:italic;color:var(--pink)}
+  .standfirst{
+    margin-top:14px;font-family:var(--display);font-size:16px;line-height:1.42;color:#3a3f4d;
+    max-width:140mm;
+  }
+  .cover-meta{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+    border-top:1px solid var(--line-strong);border-bottom:1px solid var(--line-strong);
+    margin:16mm 0 0;padding:0;
+  }
+  .cover-meta div{padding:9px 12px 10px 0;border-right:1px solid var(--line)}
+  .cover-meta div:last-child{border-right:none}
+  .cover-meta dt{font-size:7.6px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+  .cover-meta dd{margin:0;font-size:10.5px;color:var(--ink);line-height:1.35;font-weight:600}
+  .cover-diagram{margin-top:12mm}
+  .cover-caption{font-size:8.5px;color:var(--muted);letter-spacing:.04em;margin-top:6px}
+
+  /* ---------- callouts ---------- */
+  .callout{
+    border-left:3px solid var(--pink);background:#fff;
+    padding:11px 14px 10px;margin:12px 0;
+  }
+  .callout.navy{border-left-color:var(--navy)}
+  .callout.green{border-left-color:var(--green)}
+  .callout.amber{border-left-color:var(--amber);background:#FCF8F1}
+  .callout h4{color:var(--pink)}
+  .callout.navy h4{color:var(--navy)}
+  .callout.green h4{color:var(--green)}
+  .callout.amber h4{color:var(--amber)}
+  .callout p:last-child{margin-bottom:0}
+
+  .evidence{
+    background:#F5F2EB;border:1px solid #E6E0D6;border-left:3px solid var(--navy);
+    padding:9px 12px;margin:10px 0;font-family:var(--mono);font-size:8.9px;line-height:1.5;color:#363b48;
+  }
+  .evidence .src{display:block;margin-top:5px;font-family:var(--sans);font-size:8px;color:var(--muted);letter-spacing:.04em}
+
+  .quote{
+    font-family:var(--display);font-size:13px;line-height:1.45;color:var(--navy);
+    border-left:2px solid var(--pink);padding-left:12px;margin:12px 0;
+  }
+
+  /* ---------- tables ---------- */
+  .table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:9.6px;line-height:1.42}
+  th{
+    text-align:left;font-size:7.8px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--navy);font-weight:700;padding:0 7px 5px;border-bottom:1.5px solid var(--navy);
+    vertical-align:bottom;font-size:8.2px;
+  }
+  td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--body)}
+  tr:last-child td{border-bottom:1px solid var(--line-strong)}
+  td.key{color:var(--ink);font-weight:650}
+  td.center,th.center{text-align:center}
+  td.right,th.right{text-align:right}
+  .tag{
+    display:inline-block;font-size:8px;letter-spacing:.09em;text-transform:uppercase;
+    padding:1px 5px;border:1px solid currentColor;border-radius:1px;font-weight:700;white-space:nowrap;
+  }
+  .tag.strong{color:var(--green);background:var(--green-soft)}
+  .tag.ok{color:var(--navy);background:#EDF0F7}
+  .tag.weak{color:var(--amber);background:var(--amber-soft)}
+  .tag.absent{color:var(--red);background:var(--red-soft)}
+
+  /* ---------- components ---------- */
+  .stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line-strong);border:1px solid var(--line-strong);margin:10px 0 12px}
+  .stat{background:#fff;padding:9px 10px}
+  .stat b{display:block;font-family:var(--display);font-size:24px;line-height:1;color:var(--navy);font-weight:500}
+  .stat span{display:block;font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:4px;line-height:1.3}
+
+  .cols-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .cols-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .panel{background:#fff;border:1px solid var(--line);padding:11px 13px}
+  .panel.tint{background:var(--sand);border-color:#E5DFD3}
+  .panel h4{margin-bottom:5px}
+  .panel p{font-size:10px;margin-bottom:6px}
+  .panel p:last-child{margin-bottom:0}
+
+  .findings{list-style:none;margin:4px 0 0;padding:0;counter-reset:f}
+  .findings li{
+    counter-increment:f;position:relative;padding:7px 0 7px 26px;
+    border-top:1px solid var(--line);font-size:10.6px;line-height:1.45;
+  }
+  .findings li:first-child{border-top:none}
+  .findings li::before{
+    content:counter(f,decimal-leading-zero);position:absolute;left:0;top:7px;
+    font-family:var(--mono);font-size:8px;color:var(--pink);font-weight:700;
+  }
+  .findings li b{color:var(--ink)}
+
+  .principles{list-style:none;padding:0;margin:4px 0 0}
+  .principles li{position:relative;padding:5px 0 5px 16px;font-size:10.2px;border-bottom:1px dashed #DED8CD}
+  .principles li:last-child{border-bottom:none}
+  .principles li::before{content:"→";position:absolute;left:0;top:5px;color:var(--pink);font-size:10px}
+
+  .grid-8{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line-strong);border:1px solid var(--line-strong);margin:8px 0 4px}
+  .prim{background:#fff;padding:9px 10px;min-height:84px}
+  .prim .n{font-family:var(--mono);font-size:8.5px;color:var(--pink);letter-spacing:.05em}
+  .prim h4{font-size:9.4px;letter-spacing:.02em;text-transform:none;margin:2px 0 4px;line-height:1.25}
+  .prim p{font-size:8.6px;line-height:1.4;margin:0;color:var(--muted)}
+
+  .two-powers{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line-strong);margin:8px 0 12px}
+  .power{padding:12px 14px;background:#fff}
+  .power + .power{border-left:1px solid var(--line-strong);background:#FBF8F3}
+  .power .k{font-family:var(--mono);font-size:8.5px;color:var(--muted);letter-spacing:.09em;text-transform:uppercase}
+  .power h3{font-family:var(--display);font-size:19px;font-weight:500;margin:2px 0 4px;line-height:1.1}
+  .power p{font-size:9.6px;margin-bottom:7px}
+  .power ul{margin:0;padding-left:12px;font-size:9.2px;color:var(--body)}
+  .power li{margin-bottom:2px}
+
+  .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0}
+  .flow .node{
+    background:#fff;border:1px solid var(--line-strong);padding:8px 8px 7px;position:relative;min-height:54px;
+  }
+  .flow .node:not(:last-child)::after{
+    content:"›";position:absolute;right:-7px;top:50%;transform:translateY(-50%);
+    color:var(--pink);font-size:12px;line-height:1;background:transparent;
+    width:8px;text-align:center;z-index:1;pointer-events:none;
+  }
+  .flow .node b{display:block;font-size:8.8px;color:var(--navy);line-height:1.25}
+  .flow .node span{display:block;font-size:7.6px;color:var(--muted);margin-top:2px;line-height:1.3}
+  .flow .node.hot{border-color:var(--pink);background:var(--pink-soft)}
+  .flow .node.ghost{border-style:dashed;background:transparent}
+  .flow .node.ghost b{color:var(--muted)}
+
+  .tree{
+    font-family:var(--mono);font-size:8.4px;line-height:1.6;background:#1E2433;color:#D9DEEA;
+    padding:12px 14px;margin:8px 0;overflow-x:auto;white-space:pre;
+  }
+  .tree .c{color:#8E97AD}
+  .tree .p{color:#F0A6C8}
+  .tree .n{color:#E8D9A8}
+
+  .phase{
+    display:grid;grid-template-columns:52px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--line);
+  }
+  .phase:first-of-type{border-top:1.5px solid var(--navy)}
+  .phase .ph{font-family:var(--mono);font-size:8px;color:var(--pink);font-weight:700;padding-top:2px}
+  .phase h4{font-size:9.8px;text-transform:none;letter-spacing:0;margin-bottom:2px}
+  .phase p{font-size:9.4px;margin:0 0 3px}
+  .phase .acc{font-size:8.6px;color:var(--muted)}
+  .phase .acc b{color:var(--green);font-weight:650}
+
+  .note{
+    font-size:8.8px;color:var(--muted);border-top:1px solid var(--line);padding-top:6px;margin-top:auto;
+  }
+  .note b{color:var(--body)}
+
+  .toc{list-style:none;margin:0;padding:0;columns:2;column-gap:22px}
+  .toc li{break-inside:avoid;border-top:1px solid var(--line);padding:5px 0;font-size:9.6px}
+  .toc a{display:flex;gap:7px;border:none;color:var(--body)}
+  .toc a b{font-family:var(--mono);font-size:8px;color:var(--pink);flex:none;padding-top:2px}
+  .toc a span{color:var(--muted);margin-left:auto;font-size:8.4px;text-align:right}
+
+  svg{display:block;width:100%;height:auto}
+  .fig{margin:8px 0 4px}
+  .fig-cap{font-size:8px;color:var(--muted);letter-spacing:.03em;margin-top:3px}
+
+  @media (max-width:860px){
+    body{font-size:12.5px}
+    .toolbar{right:12px;top:10px}
+    .toolbar button{font-size:11px;padding:8px 10px}
+    .sheet{padding:50px 10px 30px}
+    .page{width:100%;min-height:0;margin-bottom:14px;padding:26px 18px 24px}
+    .page::before{width:2px}
+    h1{font-size:38px}
+    h2{font-size:23px}
+    .cover-mid{margin-top:12mm}
+    .standfirst{font-size:14px}
+    .cover-meta{grid-template-columns:1fr 1fr;margin-top:10mm}
+    .cover-meta div:nth-child(2){border-right:none}
+    .stat-strip{grid-template-columns:1fr 1fr}
+    .cols-2,.cols-3,.two-powers{grid-template-columns:1fr}
+    .power + .power{border-left:none;border-top:1px solid var(--line-strong)}
+    .grid-8{grid-template-columns:1fr 1fr}
+    .flow{grid-template-columns:1fr 1fr}
+    .flow .node:not(:last-child)::after{display:none}
+    .toc{columns:1}
+    .sec-head{grid-template-columns:28px 1fr;gap:8px}
+    table{font-size:11px}
+    td,th{padding-left:5px;padding-right:5px}
+    th{font-size:8.8px}
+    .small,.panel p{font-size:11.5px;line-height:1.5}
+    .evidence{font-size:10.5px;line-height:1.5}
+    .evidence .src{font-size:9.5px}
+    .fig-cap{font-size:10px}
+    .tag{font-size:9px}
+    .power .k,.prim .n{font-size:9px}
+    .cover-meta dt{font-size:8.5px}
+    .page-foot{font-size:8.5px}
+  }
+  @media print{
+    @page{size:A4;margin:0}
+    body{background:#fff;font-size:10.6px}
+    .toolbar{display:none}
+    .sheet{padding:0;max-width:none}
+    .page{margin:0;box-shadow:none;width:210mm;min-height:297mm;break-after:page;page-break-after:always}
+    .page:last-child{break-after:auto;page-break-after:auto}
+    a{border:none;color:inherit}
+    .page::before{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .table-wrap,.tree{overflow:visible}
+    .tree{white-space:pre-wrap;font-size:7.8px}
+    td,th,.mono{overflow-wrap:anywhere}
+    table{font-size:9.8px}
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button type="button" onclick="window.print()">Print / save PDF</button>
+</div>
+
+<div class="sheet">
+
+<!-- ================= COVER ================= -->
+<section class="page cover">
+  <div class="cover-top">
+    <div class="cover-mark">
+      <div class="mark" aria-hidden="true"></div>
+      <div class="brandline">Captain Prospect<span>Plateforme d'exécution commerciale</span></div>
+    </div>
+    <div class="doc-id">
+      TECH-REV-01<br>
+      25 OCT 2026<br>
+      INTERNAL
+    </div>
+  </div>
+
+  <div class="cover-mid">
+    <p class="kicker">Agent architecture review</p>
+    <h1>Assistant Projet:<br>permission without <i>proof</i>.</h1>
+    <p class="standfirst">
+      The agent inside this CRM is unusually well governed — scoped, permissioned,
+      audited, and unable to send anything without a human click. It is not yet an
+      agent that can plan, remember its evidence, or check its own answer. This
+      review maps what exists, isolates what makes frontier agents feel powerful,
+      and specifies the structure that would close the gap without widening the risk.
+    </p>
+  </div>
+
+  <dl class="cover-meta">
+    <div><dt>Subject</dt><dd>Assistant Projet<br>34 tools, 1 bound project</dd></div>
+    <div><dt>Evidence base</dt><dd>Static read of<br><span class="mono" style="font-size:8.6px">lib/ai</span>, <span class="mono" style="font-size:8.6px">app/api/manager/assistant</span></dd></div>
+    <div><dt>Verdict</dt><dd>Strong control plane<br>Thin reasoning loop</dd></div>
+    <div><dt>Companion</dt><dd>ASSISTANT_V2_BLUEPRINT.md<br>Implementation spec</dd></div>
+  </dl>
+
+  <div class="cover-diagram">
+    <svg viewBox="0 0 720 128" role="img" aria-label="Today the assistant runs a short tool loop inside a permission envelope; missing are evidence, verification and memory.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#263460"/>
+        </marker>
+        <marker id="arp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#C64B8B"/>
+        </marker>
+      </defs>
+      <text x="0" y="10" font-family="Segoe UI, sans-serif" font-size="7.5" letter-spacing="1.6" fill="#6d7180">TODAY — A SUPERVISED TOOL LOOP</text>
+      <g font-family="Segoe UI, sans-serif" font-size="8.6">
+        <rect x="0" y="20" width="104" height="38" fill="#fff" stroke="#CBC5BA"/>
+        <text x="10" y="36" fill="#263460" font-weight="600">Envelope</text>
+        <text x="10" y="49" fill="#6d7180" font-size="7.4">role · project · budget</text>
+
+        <rect x="122" y="20" width="104" height="38" fill="#fff" stroke="#CBC5BA"/>
+        <text x="132" y="36" fill="#263460" font-weight="600">Model</text>
+        <text x="132" y="49" fill="#6d7180" font-size="7.4">gpt-4o-mini</text>
+
+        <rect x="244" y="20" width="104" height="38" fill="#fff" stroke="#CBC5BA"/>
+        <text x="254" y="36" fill="#263460" font-weight="600">Guard</text>
+        <text x="254" y="49" fill="#6d7180" font-size="7.4">pure allow / deny</text>
+
+        <rect x="366" y="20" width="104" height="38" fill="#fff" stroke="#CBC5BA"/>
+        <text x="376" y="36" fill="#263460" font-weight="600">Tool</text>
+        <text x="376" y="49" fill="#6d7180" font-size="7.4">scoped Prisma</text>
+
+        <rect x="488" y="20" width="104" height="38" fill="#F7E7EF" stroke="#C64B8B"/>
+        <text x="498" y="36" fill="#263460" font-weight="600">Human click</text>
+        <text x="498" y="49" fill="#8a4a6b" font-size="7.4">confirm actions</text>
+
+        <rect x="610" y="20" width="104" height="38" fill="#fff" stroke="#CBC5BA"/>
+        <text x="620" y="36" fill="#263460" font-weight="600">Audit</text>
+        <text x="620" y="49" fill="#6d7180" font-size="7.4">actor · args · outcome</text>
+
+        <path d="M104 39 L120 39" stroke="#263460" stroke-width="1" marker-end="url(#ar)"/>
+        <path d="M226 39 L242 39" stroke="#263460" stroke-width="1" marker-end="url(#ar)"/>
+        <path d="M348 39 L364 39" stroke="#263460" stroke-width="1" marker-end="url(#ar)"/>
+        <path d="M470 39 L486 39" stroke="#263460" stroke-width="1" marker-end="url(#ar)"/>
+        <path d="M592 39 L608 39" stroke="#263460" stroke-width="1" marker-end="url(#ar)"/>
+
+        <text x="0" y="86" font-size="7.5" letter-spacing="1.6" fill="#6d7180">ABSENT — WHAT WOULD MAKE IT AN AGENT</text>
+        <g fill="none" stroke="#C64B8B" stroke-dasharray="3 3">
+          <rect x="0" y="96" width="150" height="26"/>
+          <rect x="166" y="96" width="150" height="26"/>
+          <rect x="332" y="96" width="150" height="26"/>
+          <rect x="498" y="96" width="150" height="26"/>
+        </g>
+        <g fill="#8a4a6b" font-size="8.2">
+          <text x="10" y="113">Evidence ledger</text>
+          <text x="176" y="113">Planner / horizon</text>
+          <text x="342" y="113">Verifier</text>
+          <text x="508" y="113">Project memory</text>
+        </g>
+      </g>
+    </svg>
+    <p class="cover-caption">Figure 0 — The control plane is built. The cognition layer is not.</p>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">01</span>
+  </div>
+</section>
+
+<!-- ================= EXEC SUMMARY ================= -->
+<section class="page" id="summary">
+  <div class="page-head"><span><b>Assistant Projet</b> · architecture review</span><span>Executive summary</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">00</div>
+    <div>
+      <h2>The short version</h2>
+      <p class="sec-sub">What the agent is, what it is worth, and where its ceiling comes from.</p>
+    </div>
+  </div>
+
+  <p class="lead">
+    Assistant Projet is a <strong>supervised tool-using assistant</strong>, not an autonomous agent.
+    That is a strength before it is a limitation: the hard part of putting a model inside a CRM is
+    not making it clever, it is making it safe to leave switched on. This codebase has solved the
+    hard part. The ceiling now comes from the loop around the model, not from the model itself.
+  </p>
+
+  <div class="stat-strip">
+    <div class="stat"><b>34</b><span>tools · 23 read<br>3 safe-write · 8 confirm</span></div>
+    <div class="stat"><b>5</b><span>model round-trips<br>maximum per message</span></div>
+    <div class="stat"><b>8</b><span>tool calls maximum<br>per message</span></div>
+    <div class="stat"><b>20</b><span>messages of history<br>text only, no evidence</span></div>
+  </div>
+
+  <div class="cols-2">
+    <div class="panel">
+      <h4 style="color:var(--green)">What is genuinely strong</h4>
+      <p><strong>Scope is structural.</strong> The active project is resolved server-side and every query derives its <span class="mono">where</span> from the envelope, not from model arguments.</p>
+      <p><strong>Irreversible work needs a human.</strong> Confirm tools stop the loop; the card is rebuilt from the database, and the stored action is re-read and re-validated on execution.</p>
+      <p><strong>Secrets bypass the model.</strong> Password-shaped keys are stripped from every payload; a revealed password travels server → UI only.</p>
+      <p><strong>Every write leaves a trace.</strong> Actor, arguments, project, outcome and cost are recorded.</p>
+    </div>
+    <div class="panel tint">
+      <h4 style="color:var(--amber)">What caps it</h4>
+      <p><strong>No evidence memory.</strong> Tool results are discarded after the turn; the model is instructed to re-fetch facts it already had.</p>
+      <p><strong>No verification.</strong> Nothing checks that a number in the answer came from a tool result.</p>
+      <p><strong>No plan.</strong> Five iterations, one tool at a time, no explicit decomposition for multi-part questions.</p>
+      <p><strong>No behavioural evals.</strong> The test suite protects permissions, not answer quality, prompt changes or regressions.</p>
+      <p><strong>No resilience.</strong> No timeout, retry, fallback provider or streaming on the provider call.</p>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+  <h3 style="margin-top:0">Five findings</h3>
+  <ol class="findings">
+    <li><b>The power is in the harness, not the model.</b> Frontier agents feel different because they plan, manage context, act in an environment that answers back, verify with real checks, and remember across sessions. This agent does one turn of tool use at a time.</li>
+    <li><b>Trust is this agent's moat, and it is real.</b> Most product agents enforce scope in a prompt. This one enforces it in a context object, a pure guard, and a stored pending action. That is harder to build than a longer loop.</li>
+    <li><b>Evidence is the missing middle.</b> Without a persisted ledger, the agent cannot cite, cannot stay consistent across follow-ups, and cannot prove an answer. Everything else — verification, memory, evals — depends on this one addition.</li>
+    <li><b>The default model is a cost decision that became an architecture decision.</b> One cheap model does planning, tool selection, writing and judgement; there is no routing, fallback or escalation.</li>
+    <li><b>The documented design has drifted from the code.</b> The architecture doc names Mistral, 6 tool calls and 4 round-trips; the implementation runs OpenAI, 8 calls and 5 iterations. The code is the truth; the doc is now a risk.</li>
+  </ol>
+
+  <div class="callout navy" style="margin-top:10px">
+    <h4>Recommendation</h4>
+    <p>
+      Do not chase generality. Make this a <strong>bounded, evidence-first agent</strong>:
+      every factual answer carries evidence ids, every complex request gets a small explicit plan,
+      every answer passes a groundedness check, and context is compiled to a budget instead of
+      accumulated. Keep the envelope, the guard and the click exactly as they are.
+    </p>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">02</span>
+  </div>
+</section>
+<!-- ================= 1. WHAT IS BUILT ================= -->
+<section class="page" id="built">
+  <div class="page-head"><span><b>01</b> · What is actually built</span><span>Code, not intent</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">01</div>
+    <div>
+      <h2>A supervised tool loop inside a permission envelope</h2>
+      <p class="sec-sub">One manager, one bound project, one model, thirty-four named capabilities.</p>
+    </div>
+  </div>
+
+  <p class="lead">
+    The assistant is not a chatbot with database access. It is a request envelope, a model that can
+    only name tools, a pure authorization gate, a scoped executor, and a human click for anything
+    irreversible. The design is coherent end to end; the interesting question is what it deliberately
+    leaves out.
+  </p>
+
+  <div class="flow" style="margin-top:12px">
+    <div class="node"><b>Panel</b><span>project picker · thread · cards</span></div>
+    <div class="node"><b>/chat</b><span>auth · conversation · history</span></div>
+    <div class="node"><b>Envelope</b><span>role · permissions · project</span></div>
+    <div class="node hot"><b>Loop</b><span>model ↔ tool, max 5 rounds</span></div>
+    <div class="node"><b>/execute</b><span>stored action · click · audit</span></div>
+  </div>
+  <p class="fig-cap">Figure 1 — The whole request path, from panel to audit. There is no planner, no evidence store and no verification stage between the loop and the answer.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:17%">Layer</th><th style="width:31%">Where</th><th>What it actually does</th></tr></thead>
+    <tbody>
+      <tr><td class="key">Entry</td><td class="mono">app/api/manager/assistant/chat/route.ts</td><td>Manager-only. Loads the conversation, rebuilds context server-side, replays the last 20 messages as plain text.</td></tr>
+      <tr><td class="key">Envelope</td><td class="mono">lib/ai/tools/context.ts</td><td>Resolves user, role, effective permissions, client and mission. A mission from another client is rejected, not dropped.</td></tr>
+      <tr><td class="key">Registry</td><td class="mono">lib/ai/tools/registry.ts</td><td>34 tools: 23 read, 3 safe-write, 8 confirm. Anything absent cannot be reached by the model.</td></tr>
+      <tr><td class="key">Guard</td><td class="mono">lib/ai/tools/guard.ts</td><td>Pure checks: active account, role, permission codes, project binding, automatic-write budget, then zod parsing of arguments.</td></tr>
+      <tr><td class="key">Executor</td><td class="mono">lib/ai/tools/executor.ts</td><td>Runs one call, logs writes, scrubs the payload, returns failures as data rather than exceptions.</td></tr>
+      <tr><td class="key">Loop</td><td class="mono">lib/ai/tools/loop.ts</td><td>Up to 5 model round-trips, 8 tool calls, 3 automatic writes. Stops dead on a confirm tool.</td></tr>
+      <tr><td class="key">Actions</td><td class="mono">app/api/manager/assistant/execute/route.ts</td><td>Re-reads the stored action, rejects replays with 409, re-validates arguments, executes, logs, returns the secret to the browser only.</td></tr>
+      <tr><td class="key">Memory</td><td class="mono">AssistantMessage</td><td>Role + text + tool trace + action state. Tool results themselves are not persisted or replayed.</td></tr>
+      <tr><td class="key">Surface</td><td class="mono">components/assistant-ui</td><td>Thread, tool trace, thinking state, confirmation cards, markdown rendered as React nodes.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout green">
+    <h4>Why this is above the market, not behind it</h4>
+    <p>
+      Most product agents put scope in the system prompt and hope. Here the binding is part of the
+      request object, every tool derives its query from it, the guard cannot fail open because it does
+      no I/O, the confirmation card is rebuilt from the database, and the execution route refuses a
+      second click. Those four decisions are why this assistant can hold client data at all.
+    </p>
+  </div>
+
+  <div class="callout amber">
+    <h4>Documentation drift — a real operational risk</h4>
+    <p>
+      <span class="mono">AI_ASSISTANT_ARCHITECTURE.md</span> describes “Mistral Large”, a maximum of
+      6 tool calls and 4 model round-trips. The code runs <span class="mono">gpt-4o-mini</span>, caps
+      8 calls and 5 round-trips, and the doc's own header still says “Nothing below is implemented yet
+      except where marked [built]”. Anyone tuning the assistant from the document will tune the wrong
+      system.
+    </p>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">03</span>
+  </div>
+</section>
+
+<!-- ================= 2. MECHANICS ================= -->
+<section class="page" id="mechanics">
+  <div class="page-head"><span><b>02</b> · Mechanics</span><span>One turn, step by step</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">02</div>
+    <div>
+      <h2>What happens between a question and an answer</h2>
+      <p class="sec-sub">The loop is a clean ReAct pattern with hard budgets and one human interrupt.</p>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h3 style="margin-top:0">The turn</h3>
+      <ol style="margin:0;padding-left:14px;font-size:10.4px;line-height:1.5">
+        <li style="margin-bottom:5px"><strong>Load.</strong> The route reads the conversation from the database and refuses a conversation the caller does not own.</li>
+        <li style="margin-bottom:5px"><strong>Resolve.</strong> Context is rebuilt: user, role, permissions, bound client and mission, date, write budget.</li>
+        <li style="margin-bottom:5px"><strong>Compose.</strong> A 73-line French system prompt plus an 8-rule tool-usage prompt. No retrieved examples, no project brief, no few-shot tool traces.</li>
+        <li style="margin-bottom:5px"><strong>Call.</strong> The model sees all accessible tool schemas and picks zero or more. Reads and safe-writes run immediately, sequentially.</li>
+        <li style="margin-bottom:5px"><strong>Interrupt.</strong> A confirm tool stops the turn. Its card is built from a database lookup, not from the model's description.</li>
+        <li style="margin-bottom:0"><strong>Persist.</strong> User and assistant messages are written in one transaction, with the trace, cost and pending action.</li>
+      </ol>
+    </div>
+    <div>
+      <h3 style="margin-top:0">The envelope the model cannot argue with</h3>
+      <div class="evidence">
+        role, isActive, permissions[]
+        project: { clientId, missionId }
+        resolvedAt, autoWriteBudget, conversationId
+        <span class="src">AssistantContext · lib/ai/tools/types.ts:50–72</span>
+      </div>
+      <p class="small" style="margin-bottom:8px">
+        Every project tool derives its <span class="mono">where</span> clause from this object. If the
+        model passes another client's id, the tool ignores it or refuses. The isolation is a property
+        of the request, not a promise in the prompt.
+      </p>
+      <div class="evidence">
+        MAX_LOOP_ITERATIONS = 5
+        MAX_TOOL_CALLS_PER_REQUEST = 8
+        MAX_AUTO_WRITES_PER_REQUEST = 3
+        max_tokens = 1500 · temperature = 0.3
+        <span class="src">loop.ts:29 · executor.ts:23 · context.ts:16 · openai.ts:92–97</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <h3 style="margin-top:0">Four design decisions worth keeping</h3>
+  <div class="cols-2" style="gap:10px 16px">
+    <div>
+      <h4>Failures are data</h4>
+      <p class="small">A denied or invalid tool call goes back to the model as a structured error with a note telling it not to invent data. The loop continues; the manager gets an explanation, not a stack trace.</p>
+      <h4>Risk is declared, not judged</h4>
+      <p class="small">Each tool carries <span class="mono">risk: read | safe_write | confirm</span>. The loop's behaviour follows the declaration, so a new sensitive tool cannot accidentally run itself.</p>
+      <h4>Secrets have a separate path</h4>
+      <p class="small">Credential-shaped keys are stripped recursively; a revealed password goes server → card, is shown once, and is never written into the transcript.</p>
+    </div>
+    <div>
+      <h4>Replay is treated as an attack</h4>
+      <p class="small">The execute route reads the pending action from the stored message, rejects anything not <span class="mono">pending</span> with 409, and re-checks that the tool is confirm-class. A stale tab cannot send twice.</p>
+      <h4>Cards are facts, not summaries</h4>
+      <p class="small">The onboarding card resolves recipients, exclusions and the exact warning from the database. The model proposes the action; the UI shows what will actually happen.</p>
+      <h4>Cost is measured per turn</h4>
+      <p class="small">Prompt, completion and total tokens are accumulated across iterations and priced into euros, then stored with the trace. This is the raw material for a real budget policy.</p>
+    </div>
+  </div>
+
+  <div class="callout navy" style="margin-top:4px">
+    <h4>The one sentence that explains the ceiling</h4>
+    <p>
+      The tool-usage prompt tells the model: “les résultats d'outils des tours précédents ne sont PAS
+      dans ton contexte, seul le texte de tes réponses l'est” — so the agent re-fetches facts it already
+      retrieved. That is a deliberate workaround for not persisting evidence, and it is the single
+      highest-leverage thing to change.
+    </p>
+  </div>
+
+  <p class="small" style="margin-top:2px">
+    <strong>Not present in the request path:</strong> streaming, cancellation, provider timeout,
+    retry, fallback model, parallel read execution, response schema for answers, citation of tool
+    results, and any post-generation check. The UI waits for the full JSON response.
+  </p>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">04</span>
+  </div>
+</section>
+
+<!-- ================= 3. FRONTIER POWERS ================= -->
+<section class="page" id="frontier">
+  <div class="page-head"><span><b>03</b> · Frontier agents</span><span>Where the power comes from</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">03</div>
+    <div>
+      <h2>Eight primitives, one of which is the model</h2>
+      <p class="sec-sub">Model quality sets the ceiling. The harness decides how much of that ceiling is reached.</p>
+    </div>
+  </div>
+
+  <p class="lead">
+    The felt difference between a demo agent and a powerful one is rarely the model alone. It is a
+    stack of eight capabilities that reinforce each other: a goal held across time, context managed
+    instead of accumulated, tools that behave like an interface, an environment that answers back,
+    verification against reality, memory outside the window, and measurement that catches regressions.
+  </p>
+
+  <div class="grid-8">
+    <div class="prim"><div class="n">01 / MODEL</div><h4>Reasoning that holds a goal</h4><p>Long context, reliable tool selection, the ability to notice its own mistake and change approach. Necessary, not sufficient.</p></div>
+    <div class="prim"><div class="n">02 / HORIZON</div><h4>A loop that can keep going</h4><p>Plan → act → observe → revise until an exit condition is met. State lives outside the prompt, so a long task survives a context reset.</p></div>
+    <div class="prim"><div class="n">03 / CONTEXT</div><h4>Compiled, not accumulated</h4><p>Select the relevant tools and evidence, compress history, isolate sub-tasks, retrieve just in time. Context is a budget, not a transcript.</p></div>
+    <div class="prim"><div class="n">04 / TOOLS</div><h4>An interface, not a dump</h4><p>Few, orthogonal, typed tools with examples, machine-readable errors, idempotency and a clear cost. The tool list is part of the prompt.</p></div>
+    <div class="prim"><div class="n">05 / ENVIRONMENT</div><h4>Something that answers back</h4><p>Files, shell, browser, APIs, tests. The agent gets ground truth from execution instead of grading its own homework.</p></div>
+    <div class="prim"><div class="n">06 / VERIFY</div><h4>“Done” is checked</h4><p>Run the test, open the page, compare the number to the source, ask a second reader. The verification step is part of the loop, not a hope.</p></div>
+    <div class="prim"><div class="n">07 / MEMORY</div><h4>State that outlives the chat</h4><p>Notes, project facts, decisions, prior attempts. Retrieval when needed, not a 20-message window replayed forever.</p></div>
+    <div class="prim"><div class="n">08 / EVALS</div><h4>Measurement as a feature</h4><p>Golden tasks, expected tool calls, groundedness checks, cost and latency budgets, trace review. Improvement without regression.</p></div>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="cols-2">
+    <div>
+      <h3 style="margin-top:0">The four loops frontier agents close</h3>
+      <p style="font-size:10.3px"><strong>Plan loop.</strong> The task is decomposed before tools are called, and the plan is revised when a step fails. This is what makes a ten-part request feel handled rather than truncated.</p>
+      <p style="font-size:10.3px"><strong>Context loop.</strong> The harness decides what the model sees at each step: which tools, which evidence, which summary. A bigger window is not a strategy; compaction is.</p>
+      <p style="font-size:10.3px"><strong>Reality loop.</strong> Environment feedback — a compiler error, a failing test, a rendered page — tells the agent whether its action worked. Without it, the model's confidence is the only signal.</p>
+      <p style="font-size:10.3px"><strong>Improvement loop.</strong> Traces become eval cases; eval cases gate prompt and model changes. The product gets better because failure is measurable.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Why “just use a better model” is not the answer</h3>
+      <p style="font-size:10.3px">
+        A stronger model inside this harness would write better sentences, choose tools more reliably,
+        and recover from a bad argument more often. It would still forget the evidence after one turn,
+        still stop at five iterations, still have no way to prove a number, and still be untestable
+        beyond permissions.
+      </p>
+      <p style="font-size:10.3px">
+        The reverse is also true: the best harness in the world cannot make a weak model reason about
+        a ambiguous request. The two multiply. Today this product has invested almost entirely in the
+        multiplier that protects the business — and almost nothing in the multiplier that makes the
+        agent capable.
+      </p>
+      <div class="callout" style="margin-top:8px">
+        <h4>Reading note</h4>
+        <p class="small" style="margin:0">
+          This section describes an architectural pattern, not the internals of any vendor's product.
+          No claim is made about a specific unreleased model. A model named “GPT Astra” could not be
+          verified, so the comparison is against the Claude/GPT-class agent pattern as it appears in
+          shipped agent products.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">05</span>
+  </div>
+</section>
+
+<!-- ================= 4. TWO POWERS ================= -->
+<section class="page" id="compare">
+  <div class="page-head"><span><b>04</b> · Comparison</span><span>Two kinds of power</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">04</div>
+    <div>
+      <h2>Reach versus trust</h2>
+      <p class="sec-sub">They are not levels of the same thing. They are different bets about what an agent is for.</p>
+    </div>
+  </div>
+
+  <div class="two-powers">
+    <div class="power">
+      <div class="k">Power A</div>
+      <h3>Reach</h3>
+      <p>The general agent: an open-ended harness that can act on a computer, recover from failure,
+      and keep a goal alive across hundreds of steps.</p>
+      <ul>
+        <li>Wins on novel, multi-step, ambiguous work</li>
+        <li>Improves through its own failures</li>
+        <li>Trusts the environment to tell it the truth</li>
+        <li>Costs latency and tokens; hard to bound</li>
+        <li>Dangerous when pointed at irreversible actions</li>
+      </ul>
+    </div>
+    <div class="power">
+      <div class="k">Power B</div>
+      <h3>Trust</h3>
+      <p>The product agent: a narrow, typed, audited surface that knows one domain and cannot leave it.</p>
+      <ul>
+        <li>Wins on permissioned data and real actions</li>
+        <li>Deterministic where it matters: scope, secrets, sends</li>
+        <li>Fits the workflow instead of replacing it</li>
+        <li>Cheap to run, easy to audit</li>
+        <li>Cannot recover from a failed step on its own</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:19%">Dimension</th><th style="width:31%">General agent (Claude / GPT-class)</th><th style="width:29%">Assistant Projet</th><th>Consequence here</th></tr></thead>
+    <tbody>
+      <tr><td class="key">Horizon</td><td>Long task, many steps, state carried outside the window</td><td>5 model turns, 8 tool calls, then a refusal</td><td>Multi-part questions get truncated or answered from partial data.</td></tr>
+      <tr><td class="key">Planning</td><td>Explicit plan, revised on failure</td><td>Implicit, one turn at a time</td><td>No decomposition of “compare, explain, then draft”.</td></tr>
+      <tr><td class="key">Context</td><td>Compaction, retrieval, sub-agents, just-in-time tools</td><td>20 raw messages; all 34 schemas every call</td><td>Token bloat, stale ids, weaker tool choice.</td></tr>
+      <tr><td class="key">Tools</td><td>Small core plus code, files, browser, APIs</td><td>34 deep domain tools, typed and scoped</td><td>Deeper than a general agent on this CRM; narrower everywhere else.</td></tr>
+      <tr><td class="key">Environment</td><td>Real feedback: tests, compiler, rendered page</td><td>Database reads only</td><td>No ground truth beyond the query result.</td></tr>
+      <tr><td class="key">Verification</td><td>Runs checks, reads the result, retries</td><td>None between model and answer</td><td>A wrong number is indistinguishable from a right one.</td></tr>
+      <tr><td class="key">Memory</td><td>Files, notes, project facts, session summaries</td><td>Per-project thread, no facts, no summary</td><td>Each thread restarts from zero.</td></tr>
+      <tr><td class="key">Autonomy</td><td>Acts and recovers; approval can be coarse</td><td>Reads freely, writes budgeted, human for irreversible</td><td>Safe, but brittle when a read fails.</td></tr>
+      <tr><td class="key">Observability</td><td>Traces, eval suites, cost and latency budgets</td><td>Tool trace and cost per turn</td><td>Visibility into activity, not into quality.</td></tr>
+      <tr><td class="key">Fit</td><td>Generic; the user adapts</td><td>Project picker, French tone, confirmation cards, audit</td><td>This is the part a general agent cannot copy.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout">
+    <h4>The asymmetry that matters</h4>
+    <p>
+      A general agent can fail and try again. This agent can fail and must ask the manager. That is
+      the correct trade for sending an email or revealing a password. It is the wrong trade for reading
+      data: a failed read should trigger a different query, not a question to the user. The design
+      currently applies one caution level to both.
+    </p>
+  </div>
+
+  <div class="cols-2" style="margin-top:6px">
+    <div class="panel">
+      <h4 style="color:var(--green)">Copy from the frontier</h4>
+      <p class="small" style="margin:0">Explicit plans for complex requests · an evidence ledger with citations · a context compiler with a token budget · a groundedness verifier · golden evals in CI · project memory · parallel reads · streaming · model routing and fallback.</p>
+    </div>
+    <div class="panel">
+      <h4 style="color:var(--red)">Do not copy</h4>
+      <p class="small" style="margin:0">Open-ended autonomy · shell or filesystem access · cross-project memory (it breaks the one-project rule) · autonomous external sends · self-graded success · unbounded loops.</p>
+    </div>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">06</span>
+  </div>
+</section>
+<!-- ================= 5. GAPS ================= -->
+<section class="page" id="gaps">
+  <div class="page-head"><span><b>05</b> · Gap analysis</span><span>Ranked by consequence</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">05</div>
+    <div>
+      <h2>Eight gaps, only one of which is the model</h2>
+      <p class="sec-sub">Each gap is observable in the code, and each has a concrete consequence for a manager using the panel.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:4%">#</th><th style="width:19%">Gap</th><th style="width:34%">Evidence in the code</th><th style="width:31%">Consequence</th><th style="width:12%">Priority</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">1</td><td class="key">Evidence is discarded</td>
+        <td>Only <span class="mono">role</span> and <span class="mono">content</span> are replayed; the prompt tells the model earlier tool results are not in context.</td>
+        <td>Follow-ups re-query and can return different numbers. No answer can cite what it used.</td>
+        <td><span class="tag absent">Critical</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2</td><td class="key">No verification</td>
+        <td>The loop returns the model's text directly. Nothing cross-checks a figure against a tool result.</td>
+        <td>A fluent wrong number looks exactly like a right one.</td>
+        <td><span class="tag absent">Critical</span></td>
+      </tr>
+      <tr>
+        <td class="mono">3</td><td class="key">Short horizon, no plan</td>
+        <td>5 model turns and 8 tool calls, hard stop; no decomposition step.</td>
+        <td>Multi-part questions are truncated or answered from partial data.</td>
+        <td><span class="tag weak">High</span></td>
+      </tr>
+      <tr>
+        <td class="mono">4</td><td class="key">Context is a dump</td>
+        <td>All 34 tool schemas on every call; 20 raw messages; 1 500 output tokens.</td>
+        <td>Token cost, weaker tool choice, stale ids carried forward.</td>
+        <td><span class="tag weak">High</span></td>
+      </tr>
+      <tr>
+        <td class="mono">5</td><td class="key">No behavioural evals</td>
+        <td><span class="mono">test:ai-tools</span> covers permissions, redaction and argument parsing only.</td>
+        <td>Prompt or model changes cannot regress visibly; quality is anecdotal.</td>
+        <td><span class="tag weak">High</span></td>
+      </tr>
+      <tr>
+        <td class="mono">6</td><td class="key">One model, no resilience</td>
+        <td><span class="mono">gpt-4o-mini</span> by default; no timeout, retry, fallback or streaming on the fetch.</td>
+        <td>A slow provider stalls the panel; no way to escalate a hard question.</td>
+        <td><span class="tag ok">Medium</span></td>
+      </tr>
+      <tr>
+        <td class="mono">7</td><td class="key">No project memory</td>
+        <td>No summary, no facts, no decisions. A new thread starts from nothing.</td>
+        <td>The assistant cannot remember what was agreed last week.</td>
+        <td><span class="tag ok">Medium</span></td>
+      </tr>
+      <tr>
+        <td class="mono">8</td><td class="key">Regex-only injection defence</td>
+        <td>Seven patterns neutralise known phrases; the payload wrapper is the only boundary.</td>
+        <td>A paraphrased injection is not caught. Layered, but not a security boundary.</td>
+        <td><span class="tag ok">Medium</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="rule"></div>
+
+  <h3 style="margin-top:0">Three requests, three different outcomes</h3>
+  <div class="cols-3">
+    <div class="panel">
+      <h4>“What is at risk this week?”</h4>
+      <p class="small"><strong>Works.</strong> One agency tool returns flagged clients with reasons. The model narrates. No verification, but the data is one call deep.</p>
+      <p class="small" style="color:var(--green)">Outcome: useful in seconds.</p>
+    </div>
+    <div class="panel">
+      <h4>“Compare Q2 and Q3, per SDR, then explain the drop.”</h4>
+      <p class="small"><strong>Struggles.</strong> Two periods × per-SDR detail can consume the 8-call budget before synthesis; no plan allocates it. The answer may stop at the first table.</p>
+      <p class="small" style="color:var(--amber)">Outcome: partial or a request to reformulate.</p>
+    </div>
+    <div class="panel">
+      <h4>“Draft the access email and send it to the three new commerciaux.”</h4>
+      <p class="small"><strong>Works well.</strong> Draft is a safe write; send is a confirm card rebuilt from the database with recipients and exclusions; the click is the authorisation.</p>
+      <p class="small" style="color:var(--green)">Outcome: exactly the flow the product was built for.</p>
+    </div>
+  </div>
+
+  <div class="callout navy">
+    <h4>What the pattern says</h4>
+    <p>
+      The assistant is strongest when the task is <strong>one tool deep and one action wide</strong>.
+      It is weakest when the task needs synthesis across several sources, or a second attempt after a
+      failed lookup. Those are exactly the tasks a manager calls “analysis”.
+    </p>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">07</span>
+  </div>
+</section>
+
+<!-- ================= 6. TARGET ARCHITECTURE ================= -->
+<section class="page" id="architecture">
+  <div class="page-head"><span><b>06</b> · Target architecture</span><span>Evidence-first, still bounded</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">06</div>
+    <div>
+      <h2>Assistant Projet v2: close the loop on evidence</h2>
+      <p class="sec-sub">Keep the envelope, the guard, the risk tiers and the click. Add the four loops the agent is missing.</p>
+    </div>
+  </div>
+
+  <p class="lead">
+    The target is not a general agent. It is a <strong>bounded agent with a memory of what it saw and
+    a check before it speaks</strong>. Reads stay free, writes stay budgeted, irreversible actions
+    still wait for a human. What changes is the cognition: plan, evidence, verification, memory.
+  </p>
+
+  <div class="fig" style="max-width:95%;margin-left:auto;margin-right:auto">
+    <svg viewBox="0 0 720 374" role="img" aria-label="Target architecture: envelope and policy at the top, planner and context compiler, execution runtime with tools and evidence ledger, verifier and answer, with memory and action broker at the sides.">
+      <defs>
+        <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#263460"/>
+        </marker>
+        <marker id="a2p" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#C64B8B"/>
+        </marker>
+      </defs>
+
+      <rect x="0" y="0" width="720" height="46" fill="#263460"/>
+      <text x="14" y="19" font-family="Segoe UI, sans-serif" font-size="8" letter-spacing="1.6" fill="#B9C3DC">LAYER 0 · POLICY — EXISTS TODAY</text>
+      <text x="14" y="35" font-family="Segoe UI, sans-serif" font-size="10.5" fill="#fff" font-weight="600">Envelope · role · permissions · project binding · risk tier · budgets · audit</text>
+
+      <rect x="0" y="62" width="336" height="86" fill="#fff" stroke="#CBC5BA"/>
+      <text x="12" y="80" font-family="Segoe UI, sans-serif" font-size="7.4" letter-spacing="1.3" fill="#6d7180">LAYER 1 · COGNITION — NEW</text>
+      <text x="12" y="96" font-family="Segoe UI, sans-serif" font-size="10" fill="#263460" font-weight="600">Planner</text>
+      <text x="12" y="109" font-family="Segoe UI, sans-serif" font-size="8.2" fill="#4b5060">classify simple / complex · typed PlanStep[]</text>
+      <text x="12" y="121" font-family="Segoe UI, sans-serif" font-size="8.2" fill="#4b5060">max 6 steps · revise on failed step</text>
+      <text x="12" y="138" font-family="Segoe UI, sans-serif" font-size="7.6" fill="#8a4a6b">exit: verifier passes, or budget spent</text>
+
+      <rect x="352" y="62" width="368" height="86" fill="#F7E7EF" stroke="#C64B8B"/>
+      <text x="364" y="80" font-family="Segoe UI, sans-serif" font-size="7.4" letter-spacing="1.3" fill="#8a4a6b">LAYER 1 · COGNITION — NEW</text>
+      <text x="364" y="96" font-family="Segoe UI, sans-serif" font-size="10" fill="#263460" font-weight="600">Context compiler</text>
+      <text x="364" y="109" font-family="Segoe UI, sans-serif" font-size="8.2" fill="#4b5060">tool group + project brief + rolling summary</text>
+      <text x="364" y="121" font-family="Segoe UI, sans-serif" font-size="8.2" fill="#4b5060">+ evidence digests, fitted to a token budget</text>
+      <text x="364" y="138" font-family="Segoe UI, sans-serif" font-size="7.6" fill="#8a4a6b">one budget for system, tools, history, evidence</text>
+
+      <rect x="0" y="164" width="720" height="94" fill="#fff" stroke="#CBC5BA"/>
+      <text x="12" y="182" font-family="Segoe UI, sans-serif" font-size="7.4" letter-spacing="1.3" fill="#6d7180">LAYER 2 · EXECUTION — EVOLVES</text>
+      <text x="12" y="198" font-family="Segoe UI, sans-serif" font-size="10" fill="#263460" font-weight="600">Runtime</text>
+      <text x="12" y="211" font-family="Segoe UI, sans-serif" font-size="8.2" fill="#4b5060">parallel reads · timeouts</text>
+      <text x="12" y="223" font-family="Segoe UI, sans-serif" font-size="8.2" fill="#4b5060">retry with backoff · cancel</text>
+
+      <rect x="196" y="178" width="150" height="64" fill="#FBFAF7" stroke="#CBC5BA"/>
+      <text x="206" y="194" font-family="Segoe UI, sans-serif" font-size="8.6" fill="#263460" font-weight="600">Registry + guard</text>
+      <text x="206" y="207" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#4b5060">34 tools, 3 risk tiers</text>
+      <text x="206" y="219" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#4b5060">zod · scope from ctx</text>
+      <text x="206" y="234" font-family="Segoe UI, sans-serif" font-size="7.4" fill="#2E6B52">unchanged</text>
+
+      <rect x="366" y="178" width="164" height="64" fill="#FBFAF7" stroke="#CBC5BA"/>
+      <text x="376" y="194" font-family="Segoe UI, sans-serif" font-size="8.6" fill="#263460" font-weight="600">Tools</text>
+      <text x="376" y="207" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#4b5060">scoped Prisma queries</text>
+      <text x="376" y="219" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#4b5060">errors as data</text>
+      <text x="376" y="234" font-family="Segoe UI, sans-serif" font-size="7.4" fill="#2E6B52">unchanged</text>
+
+      <rect x="550" y="178" width="170" height="64" fill="#E8F0EB" stroke="#2E6B52"/>
+      <text x="560" y="194" font-family="Segoe UI, sans-serif" font-size="8.6" fill="#1f4b39" font-weight="600">Evidence ledger</text>
+      <text x="560" y="207" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#3b5a4c">hash · tool · args · time</text>
+      <text x="560" y="219" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#3b5a4c">summary + payload ref</text>
+      <text x="560" y="234" font-family="Segoe UI, sans-serif" font-size="7.4" fill="#2E6B52">new — the keystone</text>
+
+      <path d="M120 148 L120 162" stroke="#263460" stroke-width="1" marker-end="url(#a2)"/>
+      <path d="M352 148 L352 162" stroke="#263460" stroke-width="1" marker-end="url(#a2)"/>
+      <path d="M540 210 L548 210" stroke="#263460" stroke-width="1" marker-end="url(#a2)"/>
+      <path d="M366 210 L362 210" stroke="#263460" stroke-width="1" marker-end="url(#a2)"/>
+
+      <rect x="0" y="272" width="470" height="58" fill="#fff" stroke="#CBC5BA"/>
+      <text x="12" y="289" font-family="Segoe UI, sans-serif" font-size="7.4" letter-spacing="1.3" fill="#6d7180">LAYER 3 · ASSURANCE — NEW</text>
+      <text x="12" y="305" font-family="Segoe UI, sans-serif" font-size="9.4" fill="#263460" font-weight="600">Verifier</text>
+      <text x="12" y="319" font-family="Segoe UI, sans-serif" font-size="8" fill="#4b5060">every number traced to an evidence id · scope re-check · card matches args · optional second reader</text>
+
+      <rect x="486" y="272" width="234" height="58" fill="#263460"/>
+      <text x="498" y="289" font-family="Segoe UI, sans-serif" font-size="7.4" letter-spacing="1.3" fill="#B9C3DC">OUTPUT</text>
+      <text x="498" y="306" font-family="Segoe UI, sans-serif" font-size="9.6" fill="#fff" font-weight="600">Answer + citations</text>
+      <text x="498" y="320" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#C9D1E4">or a clarification, or a card</text>
+
+      <rect x="0" y="344" width="720" height="28" fill="#F3EFE8" stroke="#E2DDD5"/>
+      <text x="12" y="362" font-family="Segoe UI, sans-serif" font-size="7.8" fill="#4b5060"><tspan font-weight="600" fill="#263460">Cross-cutting:</tspan> project memory (facts, decisions, summary) · action broker (outbox, idempotency, undo) · traces and evals</text>
+
+      <path d="M352 272 L352 260" stroke="#263460" stroke-width="1" marker-end="url(#a2)"/>
+      <path d="M170 344 L170 330" stroke="#C64B8B" stroke-width="1" stroke-dasharray="2 2"/>
+      <path d="M620 272 L620 244" stroke="#2E6B52" stroke-width="1" marker-end="url(#a2)"/>
+    </svg>
+    <p class="fig-cap">Figure 2 — Solid = exists; pink fill = new cognitive layer; the evidence ledger is what makes verification, citations and memory possible.</p>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:18%">Component</th><th style="width:42%">Responsibility</th><th style="width:14%">Status</th><th>Failure it prevents</th></tr></thead>
+    <tbody>
+      <tr><td class="key">Envelope</td><td>Resolve user, permissions, project, budgets once per request.</td><td><span class="tag strong">Keep</span></td><td>Scope drift, cross-project answers.</td></tr>
+      <tr><td class="key">Planner</td><td>Classify the request; produce a typed plan of 1–6 steps with dependencies and an exit condition.</td><td><span class="tag absent">New</span></td><td>Truncated multi-part answers.</td></tr>
+      <tr><td class="key">Context compiler</td><td>Choose tool group, assemble project brief, summary and evidence digests within a token budget.</td><td><span class="tag absent">New</span></td><td>Schema bloat, stale history, cost spikes.</td></tr>
+      <tr><td class="key">Runtime</td><td>Execute steps, parallelise independent reads, enforce timeouts, retry transient failures, cancel cleanly.</td><td><span class="tag weak">Evolve</span></td><td>Stalls, sequential latency.</td></tr>
+      <tr><td class="key">Registry + guard</td><td>Allowlist, risk tiers, pure authorization, schema validation.</td><td><span class="tag strong">Keep</span></td><td>Unreviewed capability, injection into SQL.</td></tr>
+      <tr><td class="key">Evidence ledger</td><td>Persist every tool result as a digest with id, hash, timestamp and payload reference.</td><td><span class="tag absent">New</span></td><td>Re-fetching, inconsistency, uncited claims.</td></tr>
+      <tr><td class="key">Verifier</td><td>Check numbers against evidence, scope against envelope, card against stored args; block or repair the answer.</td><td><span class="tag absent">New</span></td><td>Confident fabrication.</td></tr>
+      <tr><td class="key">Memory</td><td>Rolling project summary, durable facts and decisions with expiry; never crosses projects.</td><td><span class="tag absent">New</span></td><td>Starting from zero each thread.</td></tr>
+      <tr><td class="key">Action broker</td><td>Outbox, idempotency key, expiry, undo for safe writes, audit for all writes.</td><td><span class="tag weak">Evolve</span></td><td>Duplicate sends, orphaned pending cards.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">08</span>
+  </div>
+</section>
+
+<!-- ================= 7. STRUCTURE ================= -->
+<section class="page" id="structure">
+  <div class="page-head"><span><b>07</b> · Structure</span><span>Files, types, flows</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">07</div>
+    <div>
+      <h2>A layout that lets each concern fail alone</h2>
+      <p class="sec-sub">The current framework is good; it needs seams, not a rewrite.</p>
+    </div>
+  </div>
+
+  <div class="tree"><span class="c">// target layout — existing modules move, new ones are added</span>
+lib/ai/
+  <span class="n">agent/</span>          envelope · planner · runtime · models
+  <span class="n">context/</span>        compiler · budget · tool-groups
+  <span class="n">tools/</span>          registry · guard · executor · definitions
+  <span class="n">evidence/</span>       ledger · citation
+  <span class="n">verify/</span>         extract · checks · verifier
+  <span class="n">memory/</span>         summary · facts
+  <span class="n">actions/</span>        broker
+  <span class="n">observability/</span>  trace · metrics
+<span class="n">evals/agent/</span>     golden/*.json · run.ts · judge.ts</div>
+  <p class="fig-cap">New: planner, compiler, evidence, verification, memory, action broker. Kept as-is: registry, guard, executor, all 34 definitions. The full tree and every interface are in the companion blueprint.</p>
+
+  <div class="cols-2" style="margin-top:8px">
+    <div>
+      <h3 style="margin-top:0">The five types that carry the design</h3>
+      <div class="evidence">
+type PlanStep = {
+  id: string; intent: string
+  tool?: string; args?: unknown
+  dependsOn?: string[]
+}
+
+type EvidenceItem = {
+  id: string; tool: string
+  argsHash: string; at: string
+  summary: string
+  payloadRef: string   <span style="color:#8a4a6b">// never the model</span>
+}
+
+type AgentAnswer = {
+  text: string
+  citations: string[]  <span style="color:#8a4a6b">// evidence ids</span>
+  plan: PlanStep[]
+  action?: PendingAction
+  verified: boolean
+}
+        <span class="src">Proposed contracts — companion blueprint has the full definitions</span>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-top:0">The invariant to enforce in code</h3>
+      <p style="font-size:10.2px">
+        <strong>No factual sentence without an evidence id.</strong> The verifier extracts numbers,
+        dates and named entities from the draft and checks each one against the evidence attached to
+        the turn. A number that cannot be traced is either removed or the answer is regenerated with
+        the evidence made explicit.
+      </p>
+      <p style="font-size:10.2px">
+        This is deliberately narrower than “the model must be right”. It is a mechanical property:
+        every figure in the answer appears in a tool result the manager could open. That is what makes
+        the answer auditable, and it is the one property this CRM can offer that a general agent cannot.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <h3 style="margin-top:0">Three request lifecycles</h3>
+  <div class="cols-3">
+    <div class="panel">
+      <h4>A · Simple read</h4>
+      <p class="small">Classify → compiler picks one tool group → 1–3 parallel reads → ledger append → verifier → answer with citations.</p>
+      <p class="small"><strong>Same latency as today</strong>, plus one cheap check. The planner is skipped.</p>
+    </div>
+    <div class="panel">
+      <h4>B · Synthesis</h4>
+      <p class="small">Classify → plan 3–6 steps → batch independent reads → compress evidence → draft → verify each figure → answer or repair once.</p>
+      <p class="small"><strong>New capability.</strong> Budget is spent by the plan, not by improvisation.</p>
+    </div>
+    <div class="panel">
+      <h4>C · Action</h4>
+      <p class="small">Propose → broker creates a pending action with idempotency key → card from DB → click → execute in a transaction → audit → undo token.</p>
+      <p class="small"><strong>Today's flow, hardened.</strong> Duplicate and stale clicks already blocked; add expiry and undo.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:6px">
+  <table>
+    <thead><tr><th style="width:18%">New table</th><th style="width:48%">Fields</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td class="key">AgentRun</td><td class="mono">id, conversationId, plan, status, tokens, cost, latencyMs, verdict</td><td>One row per request; the unit of trace and eval.</td></tr>
+      <tr><td class="key">EvidenceItem</td><td class="mono">id, runId, tool, argsHash, summary, payloadRef, createdAt, expiresAt</td><td>What the answer was built from; digest in context, payload on demand.</td></tr>
+      <tr><td class="key">ProjectFact</td><td class="mono">id, clientId, missionId, key, value, sourceEvidenceId, confidence, expiresAt</td><td>Durable project knowledge, never cross-project.</td></tr>
+      <tr><td class="key">PendingAction</td><td class="mono">id, messageId, tool, args, idempotencyKey, state, expiresAt, undoToken</td><td>Outbox semantics for every confirm tool.</td></tr>
+      <tr><td class="key">EvalCase</td><td class="mono">id, category, input, expectedTools[], forbiddenTools[], expectedFacts[], rubric</td><td>Behavioural regression, run in CI.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">09</span>
+  </div>
+</section>
+<!-- ================= 8. ROADMAP ================= -->
+<section class="page" id="roadmap">
+  <div class="page-head"><span><b>08</b> · Roadmap</span><span>Order of work</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">08</div>
+    <div>
+      <h2>Five phases, each with a testable exit</h2>
+      <p class="sec-sub">Sequence by dependency, not by ambition. Evidence comes before verification; verification before memory.</p>
+    </div>
+  </div>
+
+  <p class="lead">
+    Phase 0 removes the operational sharp edges. Phase 1 adds the ledger every later phase reads from.
+    Phase 2 makes the agent economical and able to plan. Phase 3 makes it check itself and makes quality
+    measurable. Phase 4 gives it continuity and hardens the action path. Effort is indicative: S is a
+    focused change, M is a module, L is a programme of work.
+  </p>
+
+  <div class="phase">
+    <div class="ph">P0<br><span class="tag ok" style="margin-top:4px">S</span></div>
+    <div>
+      <h4>Stop the sharp edges</h4>
+      <p>Add an abort signal and timeout to the provider call, one retry with backoff on 429/5xx, an env-driven model and a fallback model, and streaming in the panel. Align the architecture document with the code.</p>
+      <p class="acc"><b>Exit:</b> no request can hang indefinitely; a transient provider failure produces a typed error or a retry; the manager sees tokens before the turn ends; the doc names the real model, caps and provider.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph">P1<br><span class="tag absent" style="margin-top:4px">M</span></div>
+    <div>
+      <h4>Evidence ledger and citations</h4>
+      <p>Wrap every tool result in an <span class="mono">EvidenceItem</span>. Store the digest with the run; put a compact digest, not the payload, into the next turn's context. Return citations with the answer and show them in the panel's source tray.</p>
+      <p class="acc"><b>Exit:</b> every figure in an answer maps to an evidence id; a follow-up reuses the prior evidence instead of re-querying identical data; the manager can open the source of any claim.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph">P2<br><span class="tag weak" style="margin-top:4px">M</span></div>
+    <div>
+      <h4>Context compiler and planner</h4>
+      <p>Introduce tool groups and a token budget per section. Add a planner for requests that need more than one source, with 1–6 typed steps, dependency ordering and parallel reads. Keep the single-tool path untouched.</p>
+      <p class="acc"><b>Exit:</b> system, tools, history and evidence fit a declared budget; only the relevant tool group is advertised; multi-part questions produce a plan that is visible in the trace and completes or fails explicitly.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph">P3<br><span class="tag absent" style="margin-top:4px">L</span></div>
+    <div>
+      <h4>Verifier and behavioural evals</h4>
+      <p>Extract numbers, dates and entities from the draft; require each to appear in the turn's evidence. Add scope and card checks. Build the 40-case golden set and run it in CI on every prompt, tool or model change.</p>
+      <p class="acc"><b>Exit:</b> an unsupported number blocks or repairs the answer before it is stored; a prompt change that regresses a golden case fails the build; groundedness and re-fetch rate are visible per run.</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="ph">P4<br><span class="tag ok" style="margin-top:4px">M</span></div>
+    <div>
+      <h4>Memory and action broker</h4>
+      <p>Add a rolling project summary and durable facts with source evidence and expiry. Move confirm actions to an outbox with idempotency keys, expiry and an undo token for safe writes.</p>
+      <p class="acc"><b>Exit:</b> a new thread knows the project's agreed facts and decisions; a duplicated or expired click cannot execute; a safe write can be undone from the trace.</p>
+    </div>
+  </div>
+
+  <div class="callout navy" style="margin-top:10px">
+    <h4>Sequencing rule</h4>
+    <p>
+      Do P0 and P1 before touching the model. A stronger model on top of a harness that forgets its
+      evidence produces more convincing unverifiable answers — the worst possible outcome for a CRM
+      that sends client email.
+    </p>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">10</span>
+  </div>
+</section>
+
+<!-- ================= 9. MOVES ================= -->
+<section class="page" id="moves">
+  <div class="page-head"><span><b>09</b> · Implementation</span><span>Twelve moves, ranked</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">09</div>
+    <div>
+      <h2>What to change, in what order</h2>
+      <p class="sec-sub">Ranked by leverage per unit of change. Nothing here requires rewriting the tool catalogue.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:4%">#</th><th style="width:37%">Move</th><th style="width:28%">Where</th><th style="width:16%">Impact</th><th style="width:9%">Effort</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">1</td><td class="key">Persist tool evidence and inject a digest into the next turn</td><td class="mono">new lib/ai/evidence · chat route · executor</td><td><span class="tag absent">Critical</span></td><td class="center">M</td></tr>
+      <tr><td class="mono">2</td><td class="key">Groundedness verifier before the answer is stored</td><td class="mono">new lib/ai/verify · chat route</td><td><span class="tag absent">Critical</span></td><td class="center">M</td></tr>
+      <tr><td class="mono">3</td><td class="key">Context compiler with a token budget and tool groups</td><td class="mono">new lib/ai/context · registry</td><td><span class="tag weak">High</span></td><td class="center">M</td></tr>
+      <tr><td class="mono">4</td><td class="key">Planner for multi-source requests, typed steps, max 6</td><td class="mono">new lib/ai/agent/planner.ts</td><td><span class="tag weak">High</span></td><td class="center">M</td></tr>
+      <tr><td class="mono">5</td><td class="key">Golden eval set and CI gate</td><td class="mono">evals/agent · package.json</td><td><span class="tag weak">High</span></td><td class="center">S/M</td></tr>
+      <tr><td class="mono">6</td><td class="key">Streaming response and cancellation</td><td class="mono">chat route · ChatWorkspace</td><td><span class="tag ok">Medium</span></td><td class="center">M</td></tr>
+      <tr><td class="mono">7</td><td class="key">Timeout, retry with backoff, fallback model</td><td class="mono">lib/ai/openai.ts · models.ts</td><td><span class="tag ok">Medium</span></td><td class="center">S</td></tr>
+      <tr><td class="mono">8</td><td class="key">Model routing: strong planner/verifier, cheap extraction</td><td class="mono">new lib/ai/agent/models.ts</td><td><span class="tag ok">Medium</span></td><td class="center">S</td></tr>
+      <tr><td class="mono">9</td><td class="key">Project summary and durable facts, with expiry</td><td class="mono">new lib/ai/memory</td><td><span class="tag ok">Medium</span></td><td class="center">M</td></tr>
+      <tr><td class="mono">10</td><td class="key">Outbox, idempotency key, expiry and undo token</td><td class="mono">new lib/ai/actions · execute route</td><td><span class="tag ok">Medium</span></td><td class="center">M</td></tr>
+      <tr><td class="mono">11</td><td class="key">Parallel execution for independent reads</td><td class="mono">runtime.ts</td><td><span class="tag ok">Medium</span></td><td class="center">S</td></tr>
+      <tr><td class="mono">12</td><td class="key">Tool descriptions with examples; prompt and doc sync</td><td class="mono">definitions/* · systemPrompt · MD</td><td><span class="tag ok">Medium</span></td><td class="center">S</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="cols-2" style="margin-top:6px">
+    <div class="panel">
+      <h4>Why evidence first</h4>
+      <p class="small" style="margin-bottom:0">
+        Verification reads the ledger. Memory writes to the ledger. Citations point at the ledger.
+        Evals assert against the ledger. Each later feature is a consumer of this one table; building
+        any of them first means building a second source of truth.
+      </p>
+    </div>
+    <div class="panel">
+      <h4>Why not a rewrite</h4>
+      <p class="small" style="margin-bottom:0">
+        The registry, guard, executor, risk tiers, confirmation cards and audit are the expensive,
+        correct parts. They stay. The change is additive: new modules around the loop, one field on
+        the tool result, one stage after generation.
+      </p>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <h3 style="margin-top:0">The prompt is a product surface, not a string</h3>
+  <p style="font-size:10.2px">
+    Today the system prompt is 73 lines of role, domain, method and tone, plus 8 usage rules. It is
+    well written, but it carries no examples, no project brief, no schema for the answer and no
+    instruction to cite. Three additions matter more than length: <strong>two worked tool traces</strong>
+    (one read, one confirm), <strong>the expected answer shape</strong> (figures with periods, sources,
+    explicit unknowns), and <strong>a rule for what to do when a verification fails</strong> — repair
+    once with the evidence, then say plainly what could not be confirmed.
+  </p>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">11</span>
+  </div>
+</section>
+
+<!-- ================= 10. OPERATING MODEL ================= -->
+<section class="page" id="operating">
+  <div class="page-head"><span><b>10</b> · Operating model</span><span>How it stays good</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">10</div>
+    <div>
+      <h2>Measure the agent like a product, not a demo</h2>
+      <p class="sec-sub">A small eval set reviewed weekly beats a large one reviewed never.</p>
+    </div>
+  </div>
+
+  <div class="cols-2">
+    <div>
+      <h3 style="margin-top:0">The proposed eval set — 40 cases</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:52%">Category</th><th class="center" style="width:14%">Cases</th><th>Asserts</th></tr></thead>
+        <tbody>
+          <tr><td class="key">Single-fact lookup</td><td class="center num">8</td><td>Right tool, exact figure, period stated.</td></tr>
+          <tr><td class="key">Multi-source synthesis</td><td class="center num">8</td><td>Plan covers all parts; every figure traced.</td></tr>
+          <tr><td class="key">Follow-up and coreference</td><td class="center num">6</td><td>Reuses evidence; no invented id.</td></tr>
+          <tr><td class="key">Action proposal</td><td class="center num">8</td><td>Confirm card, correct recipients, no execution.</td></tr>
+          <tr><td class="key">Scope and refusal</td><td class="center num">6</td><td>Refuses cross-project, explains, offers switch.</td></tr>
+          <tr><td class="key">Injection and secrecy</td><td class="center num">4</td><td>No secret in output; injected text not obeyed.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="small">Each case stores input, required tools, forbidden tools, required facts and a short rubric. Rule checks run first; a model judge is used only for tone or explanation quality. Counts are a proposal, not a measurement.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Six metrics worth a dashboard</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:44%">Metric</th><th>Definition</th></tr></thead>
+        <tbody>
+          <tr><td class="key">Grounded answer rate</td><td>Share of answers whose figures all map to evidence.</td></tr>
+          <tr><td class="key">Tool success rate</td><td>Successful executions ÷ attempts, by tool.</td></tr>
+          <tr><td class="key">Re-fetch rate</td><td>Identical query repeated within a conversation.</td></tr>
+          <tr><td class="key">Plan completion</td><td>Steps completed ÷ steps planned, per run.</td></tr>
+          <tr><td class="key">Cost per resolved question</td><td>Total tokens priced in euros, including retries.</td></tr>
+          <tr><td class="key">Confirmation acceptance</td><td>Confirmed ÷ proposed actions; a falling rate is a signal.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="small">Latency should be reported as median and p95, never as an average alone. Cost should be split by phase — plan, tools, draft, verify — or it cannot be optimised.</p>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="cols-2">
+    <div>
+      <h3 style="margin-top:0">Weekly trace review — 20 runs, 30 minutes</h3>
+      <ol style="margin:0;padding-left:14px;font-size:9.8px;line-height:1.5">
+        <li style="margin-bottom:3px">Sample 20 runs across managers and projects, including refusals.</li>
+        <li style="margin-bottom:3px">Label each failure: wrong tool, right tool wrong args, right data wrong reasoning, unsupported claim, correct refusal, latency.</li>
+        <li style="margin-bottom:3px">Promote every new failure shape into a golden case.</li>
+        <li style="margin-bottom:0">Review cost and p95 for the week; investigate any step change.</li>
+      </ol>
+      <h3>Model policy</h3>
+      <p class="small" style="margin-bottom:0">
+        Planner and verifier run on the strongest available model; extraction and formatting run on the
+        cheap one; drafting runs on a mid tier. Writes never depend on model confidence — only on a
+        validated schema and a human click. Every model id is configuration, never a literal in a route.
+      </p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">Risk register</h3>
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:46%">Risk</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td class="key">Stale evidence reused</td><td>Timestamp every item; expiry per tool class; re-query on expiry.</td></tr>
+          <tr><td class="key">Cross-project leak via memory</td><td>Memory keyed by client and mission; guard checks the key, not the prompt.</td></tr>
+          <tr><td class="key">Duplicate send</td><td>Idempotency key unique per action; outbox state machine; 409 on replay.</td></tr>
+          <tr><td class="key">Injection through documents</td><td>Provenance tags, untrusted envelope, verifier ignores instructions found in data.</td></tr>
+          <tr><td class="key">Cost spike</td><td>Per-run token ceiling, per-user daily cap, alert on p95 cost.</td></tr>
+          <tr><td class="key">Prompt drift</td><td>Version the prompt, eval it, review the diff like code.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="callout green" style="margin-top:6px">
+        <h4>The one-line test for every new capability</h4>
+        <p class="small" style="margin:0">
+          Can the agent do it with a read tool, inside the envelope, without a new permission? If not,
+          it is a product decision, not a prompt change.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review</span>
+    <span class="page-no">12</span>
+  </div>
+</section>
+
+<!-- ================= APPENDIX ================= -->
+<section class="page" id="appendix">
+  <div class="page-head"><span><b>A</b> · Appendix</span><span>Evidence ledger</span></div>
+
+  <div class="sec-head">
+    <div class="sec-num">A</div>
+    <div>
+      <h2>What this review is built on</h2>
+      <p class="sec-sub">Every claim about the CRM below is a verbatim quote from the repository, read on 25 October 2026.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th style="width:26%">Claim</th><th style="width:52%">Quote</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td class="key">Default model</td><td class="mono">export const DEFAULT_LOW_COST_MODEL = "gpt-4o-mini";</td><td class="mono">lib/ai/openai.ts:6</td></tr>
+      <tr><td class="key">Generation settings</td><td class="mono">temperature: options.temperature ?? 0.3, max_tokens: options.maxTokens ?? 1500</td><td class="mono">lib/ai/openai.ts:95–96</td></tr>
+      <tr><td class="key">Loop cap</td><td class="mono">export const MAX_LOOP_ITERATIONS = 5;</td><td class="mono">lib/ai/tools/loop.ts:29</td></tr>
+      <tr><td class="key">Tool-call cap</td><td class="mono">export const MAX_TOOL_CALLS_PER_REQUEST = 8;</td><td class="mono">lib/ai/tools/executor.ts:23</td></tr>
+      <tr><td class="key">Automatic-write cap</td><td class="mono">export const MAX_AUTO_WRITES_PER_REQUEST = 3;</td><td class="mono">lib/ai/tools/context.ts:16</td></tr>
+      <tr><td class="key">No Prisma access</td><td class="mono">The model never touches Prisma. It can only name a tool from the registry</td><td class="mono">lib/ai/tools/types.ts:4–6</td></tr>
+      <tr><td class="key">Risk tiers</td><td class="mono">read — no side effect · safe_write — reversible, budgeted · confirm — never runs from the loop</td><td class="mono">lib/ai/tools/types.ts:16–27</td></tr>
+      <tr><td class="key">History window</td><td class="mono">Only the last 20 turns travel to the model</td><td class="mono">app/api/manager/assistant/chat/route.ts:72–73</td></tr>
+      <tr><td class="key">Evidence not replayed</td><td class="mono">les résultats d'outils des tours précédents ne sont PAS dans ton contexte</td><td class="mono">lib/ai/tools/loop.ts:98</td></tr>
+      <tr><td class="key">Confirm stops the loop</td><td class="mono">A confirm-class tool anywhere in the batch ends the turn: it needs a human.</td><td class="mono">lib/ai/tools/loop.ts:158</td></tr>
+      <tr><td class="key">Stored-action execution</td><td class="mono">The pending action is read from the stored message rather than the request</td><td class="mono">app/api/manager/assistant/execute/route.ts:9–10</td></tr>
+      <tr><td class="key">Replay guard</td><td class="mono">if (stored.state !== "pending") … “Cette action a déjà été traitée.”</td><td class="mono">app/api/manager/assistant/execute/route.ts:71–74</td></tr>
+      <tr><td class="key">Errors as data</td><td class="mono">Failures are returned, not thrown.</td><td class="mono">lib/ai/tools/executor.ts:4</td></tr>
+      <tr><td class="key">Card from database</td><td class="mono">describe…resolved from the database rather than echoed from the model's arguments</td><td class="mono">lib/ai/tools/types.ts:109–112</td></tr>
+      <tr><td class="key">Injection defence</td><td class="mono">INJECTION_PATTERNS — seven regular expressions, then a wrapped payload</td><td class="mono">lib/ai/tools/redact.ts:46–53, 81–88</td></tr>
+      <tr><td class="key">Doc drift</td><td class="mono">Mistral Large · max 6 tool calls · max 4 model round-trips</td><td class="mono">AI_ASSISTANT_ARCHITECTURE.md:73, 232–233</td></tr>
+      <tr><td class="key">Eval scope</td><td class="mono">"test:ai-tools": "tsx --test lib/ai/tools/guard.test.ts"</td><td class="mono">package.json</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="cols-2" style="margin-top:4px">
+    <div>
+      <h3 style="margin-top:0">Method and limits</h3>
+      <p class="small">
+        This is a static review of the repository: the assistant routes, tool framework, definitions,
+        prompt, UI components, package scripts and the architecture document. The application was not
+        run, no database was queried, and no provider call was made, so runtime behaviour and current
+        data quality are not measured here.
+      </p>
+      <p class="small">
+        The frontier-agent comparison is an architectural analysis of shipped agent patterns, not a
+        description of any vendor's internals and not a benchmark. No model named “GPT Astra” could be
+        verified; the comparison is deliberately framed as Claude/GPT-class.
+      </p>
+      <p class="small" style="margin-bottom:0">
+        Counts (34 / 23 / 3 / 8) come from the registry and its comments. Proposed eval counts, target
+        metrics and effort labels are proposals for approval, not findings.
+      </p>
+    </div>
+    <div>
+      <h3 style="margin-top:0">The decision this review asks for</h3>
+      <div class="callout navy" style="margin-top:0">
+        <p style="margin-bottom:6px">
+          <strong>Approve P0 and P1.</strong> They are small, additive, and they make every later
+          improvement measurable. P0 removes the failure modes a manager feels today — a hanging
+          panel, a provider hiccup, a blank wait. P1 creates the evidence layer that turns a fluent
+          answer into an auditable one.
+        </p>
+        <p style="margin-bottom:0" class="small">
+          Defer the planner and the stronger models until the ledger exists. Capability added before
+          proof is capability you cannot trust.
+        </p>
+      </div>
+      <p class="small" style="margin-top:8px">
+        Companion file: <span class="mono">ASSISTANT_V2_BLUEPRINT.md</span> — full interfaces, module
+        responsibilities, schema, eval format and phase checklist.
+      </p>
+    </div>
+  </div>
+
+  <div class="page-foot">
+    <span>Captain Prospect · internal technical review · 25 October 2026</span>
+    <span class="page-no">13</span>
+  </div>
+</section>
+</div>
+</body>
+</html>

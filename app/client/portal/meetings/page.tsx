@@ -18,8 +18,8 @@ import {
   isNoShowReportWindowOpen,
   NO_SHOW_REPORT_WINDOW_HOURS,
 } from "@/lib/meetings/noShowWindow";
-import { brand } from "@/lib/brand";
-import { brandIcsProdId } from "@/lib/brand";
+import { brandIcsProdId, type Brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 /* ═══════════════════════════════════════════════════════════════
    DESIGN TOKENS  — single source of truth
@@ -620,7 +620,7 @@ const getChannelLabel = (channel?: string | null) => {
 /* ═══════════════════════════════════════════════════════════════
    EXPORT UTILS
 ═══════════════════════════════════════════════════════════════ */
-function genICS(m: Meeting) {
+function genICS(m: Meeting, brand: Brand) {
   const nameParts = m.contact ? [m.contact.firstName, m.contact.lastName].filter(Boolean) as string[] : [];
   const name = nameParts.join(" ") || m.company?.name || "Contact entreprise";
   const dt = m.callbackDate ? new Date(m.callbackDate) : new Date();
@@ -633,7 +633,7 @@ function genICS(m: Meeting) {
   const f = (d: Date) => { const pp=parisParts(d); return `${pp.y}${pp.M}${pp.d}T${pp.h}${pp.m}00`; };
   const end = new Date(dt.getTime()+30*60000);
   const companyName = m.contact?.company?.name ?? m.company?.name ?? "Client";
-  const txt = ["BEGIN:VCALENDAR","VERSION:2.0",brandIcsProdId(),
+  const txt = ["BEGIN:VCALENDAR","VERSION:2.0",brandIcsProdId("RDV", brand),
     "BEGIN:VEVENT",`DTSTART:${f(dt)}`,`DTEND:${f(end)}`,
     `SUMMARY:RDV - ${name} (${companyName})`,
     `DESCRIPTION:${(m.note||"").replace(/\n/g,"\\n").slice(0,200)}`,
@@ -1714,6 +1714,7 @@ function FbModal({ m, onClose, out, note, done, sub, onOut, onNote, onSubmit }: 
   out:string; note:string; done:boolean; sub:boolean;
   onOut:(v:string)=>void; onNote:(v:string)=>void; onSubmit:()=>void;
 }) {
+  const brand = useBrand();
   const name = m.contact ? [m.contact.firstName,m.contact.lastName].filter(Boolean).join(" ") || "Contact" : m.company?.name ?? "Contact entreprise";
   const companyName = m.contact?.company?.name ?? m.company?.name ?? "Entreprise inconnue";
   const outcomeOpts = OUTCOME_OPTS.filter(o => o.value !== "NO_SHOW");

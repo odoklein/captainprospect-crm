@@ -7,6 +7,7 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // SCHEMAS
@@ -179,7 +180,7 @@ Réponds en JSON avec ce format exact:
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     if (!apiKey) {
         return errorResponse('Configuration OpenAI manquante. Contactez l\'administrateur.', 500);
     }

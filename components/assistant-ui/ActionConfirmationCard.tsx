@@ -1,8 +1,26 @@
 "use client";
 
-import { Check, KeyRound, Loader2, X, AlertTriangle } from "lucide-react";
+/**
+ * An action the assistant proposes and the manager confirms: what it will do
+ * (title + details), the warning, then Annuler / Confirmer. A dangerous action
+ * asks once more in an AlertDialog before running.
+ */
+
+import { useState } from "react";
+import { AlertTriangle, Check, KeyRound, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Button from "@/components/ui/Button";
+import { Button, buttonVariants } from "@/components/ui/shadcn/button";
+import { Card } from "@/components/ui/shadcn/card";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/shadcn/alert-dialog";
 import type { StoredAction } from "./types";
 
 interface ActionConfirmationCardProps {
@@ -13,102 +31,113 @@ interface ActionConfirmationCardProps {
     className?: string;
 }
 
-export function ActionConfirmationCard({
-    action,
-    busy = false,
-    onConfirm,
-    onCancel,
-    className,
-}: ActionConfirmationCardProps) {
+export function ActionConfirmationCard({ action, busy = false, onConfirm, onCancel, className }: ActionConfirmationCardProps) {
+    const [confirming, setConfirming] = useState(false);
     const isPending = action.state === "pending";
     const isConfirmed = action.state === "confirmed";
     const isCancelled = action.state === "cancelled";
     const isFailed = action.state === "failed";
+    const danger = action.card.danger;
+    const confirmLabel = action.card.confirmLabel || "Confirmer";
 
     return (
-        <div
+        <Card
             className={cn(
-                "my-3 rounded-2xl border p-4 text-xs transition-all shadow-sm",
-                isPending && action.card.danger && "border-amber-300 bg-amber-50/40",
-                isPending && !action.card.danger && "border-slate-200 bg-slate-50/70",
-                isConfirmed && "border-emerald-200 bg-emerald-50/40",
-                isCancelled && "border-slate-200 bg-slate-100/60 opacity-80",
-                isFailed && "border-red-200 bg-red-50/40",
-                className
+                "my-3 gap-0 rounded-panel p-4 text-xs shadow-2xs transition-[background-color,border-color,opacity] duration-200 ease-snappy",
+                isPending && danger && "border-warning-line bg-warning-soft/50",
+                isPending && !danger && "bg-surface-2",
+                isConfirmed && "border-success-line bg-success-soft/50",
+                isCancelled && "bg-surface-3/60 opacity-80",
+                isFailed && "border-danger-line bg-danger-soft/50",
+                className,
             )}
         >
-            <div className="flex items-center gap-2 font-semibold text-slate-900 text-sm">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white shadow-xs border border-slate-200/80">
-                    <KeyRound className="h-3.5 w-3.5 text-accent-600" />
+            <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <span className="flex size-6 items-center justify-center rounded-lg border border-line bg-surface shadow-2xs">
+                    <KeyRound className="size-3.5 text-accent-600" aria-hidden />
                 </span>
                 <span>{action.card.title}</span>
             </div>
 
             {action.card.details && action.card.details.length > 0 && (
-                <dl className="mt-3 divide-y divide-slate-100 rounded-xl bg-white p-3 border border-slate-200/70 shadow-2xs">
+                <dl className="mt-3 divide-y divide-line-subtle rounded-control border border-line bg-surface p-3 shadow-2xs">
                     {action.card.details.map((detail, idx) => (
-                        <div
-                            key={`${detail.label}-${idx}`}
-                            className="flex items-center justify-between py-1.5 first:pt-0 last:pb-0 text-xs"
-                        >
-                            <dt className="text-slate-500 font-medium">{detail.label}</dt>
-                            <dd className="font-semibold text-slate-800 text-right">{detail.value}</dd>
+                        <div key={`${detail.label}-${idx}`} className="flex items-center justify-between gap-3 py-1.5 text-xs first:pt-0 last:pb-0">
+                            <dt className="font-medium text-ink-3">{detail.label}</dt>
+                            <dd className="text-right font-semibold text-ink">{detail.value}</dd>
                         </div>
                     ))}
                 </dl>
             )}
 
             {action.card.warning && isPending && (
-                <div className="mt-2.5 flex items-start gap-2 rounded-lg bg-amber-100/60 px-3 py-2 text-amber-800 text-[11.5px] border border-amber-200/70">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-600" />
+                <div className="mt-2.5 flex items-start gap-2 rounded-lg border border-warning-line bg-warning-soft px-3 py-2 text-[11.5px] text-warning-ink">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
                     <span>{action.card.warning}</span>
                 </div>
             )}
 
-            {/* Actions for pending state */}
             {isPending && (
-                <div className="mt-3.5 flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={onCancel}
-                        disabled={busy}
-                    >
+                <div className="mt-3.5 flex items-center justify-end gap-2 border-t border-line-subtle pt-3">
+                    <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={busy}>
                         Annuler
                     </Button>
                     <Button
                         type="button"
-                        variant={action.card.danger ? "danger" : "primary"}
+                        variant={danger ? "destructive" : "default"}
                         size="sm"
-                        onClick={onConfirm}
+                        onClick={() => (danger ? setConfirming(true) : onConfirm())}
                         disabled={busy}
-                        icon={busy ? <Loader2 className="h-3 w-3 animate-spin" /> : undefined}
                     >
-                        {busy ? "Exécution…" : action.card.confirmLabel || "Confirmer"}
+                        {busy && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
+                        {busy ? "Exécution…" : confirmLabel}
                     </Button>
                 </div>
             )}
 
-            {/* Settled state outcomes */}
             {isConfirmed && (
-                <div className="mt-2.5 flex items-center gap-1.5 font-medium text-emerald-700 text-xs">
-                    <Check className="h-4 w-4" />
+                <div className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-success-ink">
+                    <Check className="size-4" aria-hidden />
                     <span>{action.outcome ?? "Action exécutée avec succès"}</span>
                 </div>
             )}
             {isCancelled && (
-                <div className="mt-2.5 flex items-center gap-1.5 font-medium text-slate-500 text-xs">
-                    <X className="h-4 w-4" />
+                <div className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-ink-3">
+                    <X className="size-4" aria-hidden />
                     <span>Action annulée par le manager</span>
                 </div>
             )}
             {isFailed && (
-                <div className="mt-2.5 flex items-center gap-1.5 font-medium text-red-600 text-xs">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span>{action.outcome ?? "L'action a échoué"}</span>
+                <div className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-danger-ink">
+                    <AlertTriangle className="size-4" aria-hidden />
+                    <span>{action.outcome ?? "L’action a échoué"}</span>
                 </div>
             )}
-        </div>
+
+            {danger && (
+                <AlertDialog open={confirming} onOpenChange={setConfirming}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>{action.card.title}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                {action.card.warning ?? "Cette action modifie des données et ne pourra pas être annulée depuis Captain AI."}
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction
+                                className={buttonVariants({ variant: "destructive" })}
+                                onClick={() => {
+                                    setConfirming(false);
+                                    onConfirm();
+                                }}
+                            >
+                                {confirmLabel}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
+        </Card>
     );
 }

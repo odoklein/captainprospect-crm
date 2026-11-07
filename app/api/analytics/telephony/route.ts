@@ -4,6 +4,7 @@ import { errorResponse, requireRole, successResponse, withErrorHandler } from "@
 import { parsePeriodRange } from "@/lib/manager-home/rules";
 import { fetchAlloMetricsForLine } from "@/lib/call-enrichment/allo-metrics";
 import type { AlloSdrMetrics, TelephonyResponse } from "@/lib/stats/types";
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // GET /api/analytics/telephony?startDate=&endDate=[&sdrIds[]=…]
@@ -21,7 +22,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     if (!range) return errorResponse("Période invalide", 400);
 
     const empty: TelephonyResponse = { available: false, bySdr: {}, totals: { alloCalls: 0, connectedCalls: 0, talkTimeSeconds: 0 } };
-    const apiKey = process.env.ALLO_API_KEY;
+    const apiKey = integrationKey("ALLO_API_KEY");
     if (!apiKey) return successResponse(empty);
 
     const sdrIds = searchParams.getAll("sdrIds[]");

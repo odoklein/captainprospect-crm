@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProspectSourceType } from "@prisma/client";
+import { useBrand } from "@/lib/brand/client";
 
 // ============================================
 // WIZARD STEPS
@@ -118,6 +119,7 @@ interface SourceSetupWizardProps {
 }
 
 export function SourceSetupWizard({ isOpen, onClose, onSuccess }: SourceSetupWizardProps) {
+    const brand = useBrand();
     const router = useRouter();
     const { success, error: showError } = useToast();
     const [currentStep, setCurrentStep] = useState(0);
@@ -426,7 +428,7 @@ export function SourceSetupWizard({ isOpen, onClose, onSuccess }: SourceSetupWiz
                                         Endpoint URL
                                     </label>
                                     <code className="block px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm">
-                                        {process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}
+                                        {brand.appUrl}
                                         /api/prospects/intake
                                     </code>
                                 </div>

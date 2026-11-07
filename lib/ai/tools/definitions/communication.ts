@@ -23,7 +23,7 @@ import {
     resolveOnboardingRecipients,
     sendOnboardingEmails,
 } from "@/lib/vault/onboardingEmail";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 // ============================================
 // DRAFTS (artifacts)
@@ -178,6 +178,7 @@ export const sendOnboardingEmailsTool = defineConfirmTool({
             );
         }
 
+        const brand = await getBrand();
         return {
             title: `Envoyer l'email d'accès — ${ready.length} destinataire${ready.length > 1 ? "s" : ""}`,
             details: [
@@ -215,7 +216,7 @@ export const sendOnboardingEmailsTool = defineConfirmTool({
             data: {
                 kind: "EMAIL_DRAFT",
                 title: `Email d'accès — ${project.clientName}`,
-                subject: `Ton accès à la plateforme ${brand.name}`,
+                subject: `Ton accès à la plateforme ${(await getBrand()).name}`,
                 body: "Email d'accès standard (lien, identifiant, mot de passe, calendrier, chat en direct).",
                 clientId: project.clientId,
                 missionId: project.missionId,

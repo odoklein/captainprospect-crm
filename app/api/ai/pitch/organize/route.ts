@@ -7,6 +7,7 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { integrationKey } from "@/lib/integrations/keys";
 
 const organizePitchSchema = z.object({
     rawText: z.string().min(1, 'Texte à organiser requis'),
@@ -75,7 +76,7 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     const body = await req.json();
     const data = validateRequest(organizePitchSchema, body);
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
 
     if (!apiKey) {
         const result = heuristicOrganize(data.rawText);

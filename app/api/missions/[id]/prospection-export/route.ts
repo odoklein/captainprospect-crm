@@ -6,7 +6,7 @@ import { parseExportFilters } from '@/lib/prospection-export/filters';
 import { loadProspectionExportData } from '@/lib/prospection-export/load';
 import { buildExportCsv, buildExportSheets } from '@/lib/prospection-export/workbook';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 // Large missions (tens of thousands of lines, full history) take a while to build.
 export const maxDuration = 300;
@@ -57,14 +57,17 @@ export const GET = withErrorHandler(async (
         body = buildExportCsv(data);
         contentType = 'text/csv; charset=utf-8';
     } else {
+        const brand = await getBrand();
         const sheets = buildExportSheets(data, {
             includeSummary: searchParams.get('summary') !== '0',
             includeHistory: searchParams.get('history') !== '0',
             exportedAt,
+            brand,
         });
         body = buildXlsx(sheets, {
             title: `Export prospection — ${data.mission.name}`,
             creator: brand.name,
+            brand,
         });
         contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     }

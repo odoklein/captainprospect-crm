@@ -3,6 +3,7 @@
 // ============================================
 
 import { EmailProvider as PrismaEmailProvider } from '@prisma/client';
+import { relayRedirectUri } from '@/lib/oauth-relay/redirect';
 
 // ============================================
 // OAUTH TYPES
@@ -330,12 +331,12 @@ export function getProviderConfig(): ProviderConfig {
         gmail: {
             clientId: process.env.GOOGLE_CLIENT_ID || '',
             clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-            redirectUri: process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXTAUTH_URL}/api/email/oauth/gmail/callback`,
+            redirectUri: process.env.GOOGLE_REDIRECT_URI || relayRedirectUri('gmail') || `${process.env.NEXTAUTH_URL}/api/email/oauth/gmail/callback`,
         },
         outlook: {
             clientId: process.env.MICROSOFT_CLIENT_ID || '',
             clientSecret: process.env.MICROSOFT_CLIENT_SECRET || '',
-            redirectUri: process.env.MICROSOFT_REDIRECT_URI || `${process.env.NEXTAUTH_URL}/api/email/oauth/outlook/callback`,
+            redirectUri: process.env.MICROSOFT_REDIRECT_URI || relayRedirectUri('outlook') || `${process.env.NEXTAUTH_URL}/api/email/oauth/outlook/callback`,
             tenantId: process.env.MICROSOFT_TENANT_ID || 'common',
         },
     };

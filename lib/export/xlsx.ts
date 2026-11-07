@@ -14,7 +14,7 @@
 
 import { deflateRawSync } from "node:zlib";
 import { DateTime } from "luxon";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 
 // ============================================
 // PUBLIC TYPES
@@ -72,6 +72,8 @@ export interface XlsxOptions {
     /** Written to docProps/core.xml. */
     title?: string;
     creator?: string;
+    /** Brand for the coloured fills (instance brand: getBrand()); defaults to brand/brand.config.ts. */
+    brand?: Brand;
 }
 
 /** Excel caps a cell at 32 767 characters. */
@@ -107,14 +109,15 @@ const STYLE_INDEX: Record<XlsxStyle, number> = {
     totalPercent: 20,
 };
 
-// Brand-coloured fills (brand/brand.config.ts): the agency's tracking columns
+// Brand-coloured fills (instance brand): the agency's tracking columns
 // use the accent, section titles the primary.
 const argb = (hex: string) => `FF${hex.replace("#", "").toUpperCase()}`;
-const BRAND_TITLE = argb(brand.palette.primary[700]);
-const BRAND_HEAD = argb(brand.palette.accent[600]);
-const BRAND_SOFT = argb(brand.palette.accent[50]);
 
-const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+function stylesXml(brand: Brand): string {
+    const BRAND_TITLE = argb(brand.palette.primary[700]);
+    const BRAND_HEAD = argb(brand.palette.accent[600]);
+    const BRAND_SOFT = argb(brand.palette.accent[50]);
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy hh:mm"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy"/></numFmts>
 <fonts count="7">
@@ -165,6 +168,7 @@ const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
+}
 
 // ============================================
 // HELPERS
@@ -498,7 +502,7 @@ export function buildXlsx(sheets: XlsxSheet[], options: XlsxOptions = {}): Buffe
         { name: "docProps/core.xml", data: Buffer.from(core, "utf8") },
         { name: "xl/workbook.xml", data: Buffer.from(workbook, "utf8") },
         { name: "xl/_rels/workbook.xml.rels", data: Buffer.from(workbookRels, "utf8") },
-        { name: "xl/styles.xml", data: Buffer.from(STYLES_XML, "utf8") },
+        { name: "xl/styles.xml", data: Buffer.from(stylesXml(options.brand ?? defaultBrand), "utf8") },
         ...sheets.map((s, i) => ({
             name: `xl/worksheets/sheet${i + 1}.xml`,
             data: Buffer.from(renderSheet(s, timeZone, i === 0), "utf8"),

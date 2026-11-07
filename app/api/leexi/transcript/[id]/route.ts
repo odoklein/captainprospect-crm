@@ -5,7 +5,8 @@ import {
   requireRole,
   withErrorHandler,
 } from '@/lib/api-utils';
-import { fetchLeexiCallById, isLeexiAvailable } from '@/lib/leexi/service';
+import { getLeexiCall } from '@/lib/leexi/service';
+import { leexiErrorResponse } from '@/lib/leexi/route-helpers';
 
 // ============================================
 // GET /api/leexi/transcript/[id]
@@ -20,20 +21,17 @@ export const GET = withErrorHandler(
   ) => {
     await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
 
-    if (!(await isLeexiAvailable())) {
-      return errorResponse('Leexi non configuré', 503);
-    }
-
     const { id } = await context.params;
 
-    const call = await fetchLeexiCallById(id);
+    let call;
+    try {
+      ({ data: call } = await getLeexiCall(id));
+    } catch (err) {
+      return leexiErrorResponse(err);
+    }
 
-    // Priority: full transcript > recap > summary
-    const transcript =
-      call.transcript ||
-      call.recap ||
-      call.summary ||
-      '';
+    // Priority: full transcript > summary
+    const transcript = call.transcript || call.summary;
 
     if (!transcript) {
       return errorResponse(
@@ -44,9 +42,9 @@ export const GET = withErrorHandler(
 
     return successResponse({
       transcript,
-      title: call.title || 'Appel sans titre',
-      date: call.date || null,
-      duration: call.duration || 0,
+      title: call.title,
+      date: call.date,
+      duration: call.duration,
     });
   },
 );

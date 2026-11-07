@@ -11,6 +11,7 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { integrationKey } from "@/lib/integrations/keys";
 
 const taskEnhanceSchema = z.object({
     title: z.string().max(200),
@@ -24,7 +25,7 @@ const MISTRAL_MODEL = 'gpt-4.1-mini';
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireAuth(request);
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     if (!apiKey) {
         return errorResponse('OPENAI_API_KEY non configurée', 503);
     }

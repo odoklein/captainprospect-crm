@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronUp, LogOut, Settings2, ShieldCheck, ShieldOff, Sparkles, User } from "lucide-react";
+import { ChevronUp, LogOut, Settings2, ShieldCheck, ShieldOff, User } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
@@ -205,16 +205,13 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     {showAiUsage && (
                     <div className="mx-1 my-1 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-[11px]">
                         <div className="flex items-center justify-between text-slate-300">
-                            <span className="flex items-center gap-1.5 font-medium">
-                                <Sparkles className="w-3 h-3 text-amber-400" />
-                                IA OpenAI
-                            </span>
-                            <span className="font-semibold text-emerald-400">
+                            <span className="font-medium">IA aujourd&apos;hui</span>
+                            <span className="font-semibold tabular-nums text-slate-100">
                                 {formatTokens(usage?.today?.tokens ?? 0)} tok.
                             </span>
                         </div>
                         <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
-                            <span>Aujourd&apos;hui : <strong className="text-slate-200">{formatEuros(usage?.today?.costEur ?? 0)}</strong></span>
+                            <span>Coût : <strong className="text-slate-200">{formatEuros(usage?.today?.costEur ?? 0)}</strong></span>
                             <span className="text-slate-500 font-mono text-[9.5px]">{usage?.defaultModel ?? "gpt-4o-mini"}</span>
                         </div>
                         {usage && usage.total.tokens > 0 && (
@@ -253,33 +250,21 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     "group w-full flex items-center gap-2.5 rounded-xl border text-left transition-[background-color,border-color] duration-150 outline-none",
                     "focus-visible:ring-2 focus-visible:ring-accent-400/60",
                     isExpanded ? "p-1.5 pr-2" : "p-1 justify-center",
-                    open ? "bg-white/[0.08] border-white/[0.10]" : "bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.07] hover:border-white/[0.10]",
+                    // Today's AI usage lives in the menu (and beside Captain AI's history), not on the trigger.
+                    open ? "bg-white/[0.08] border-white/[0.08]" : "border-transparent hover:bg-white/[0.06]",
                 )}
             >
-                <span className="relative flex-shrink-0">
-                    <UserAvatar
-                        name={name}
-                        src={avatar?.url}
-                        className={cn("rounded-[10px] text-[11px] ring-1 ring-white/10", isExpanded ? "w-9 h-9" : "w-8 h-8")}
-                        fallbackClassName="bg-primary text-white"
-                    />
-                    <span aria-hidden className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-inverse" />
-                </span>
+                <UserAvatar
+                    name={name}
+                    src={avatar?.url}
+                    className="w-8 h-8 flex-shrink-0 rounded-lg text-[11px] ring-1 ring-white/10"
+                    fallbackClassName="bg-primary text-white"
+                />
                 {isExpanded && (
                     <>
                         <span className="min-w-0 flex-1">
                             <span className="block text-[12.5px] font-semibold text-white truncate leading-tight">{name}</span>
-                            <span className="block text-[10.5px] text-slate-400 truncate leading-tight mt-0.5">
-                                {roleLabel}
-                                <span className="text-slate-500"> · </span>
-                                <span className="group-hover:text-accent-300 transition-colors">Mon compte</span>
-                            </span>
-                            {showAiUsage && usage && (
-                                <span className="flex items-center gap-1 text-[10px] text-slate-400 mt-0.5 leading-tight truncate">
-                                    <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-                                    <span>IA : <strong className="text-emerald-400 font-medium">{formatTokens(usage.today.tokens)}</strong> tok.</span>
-                                </span>
-                            )}
+                            <span className="block text-[11px] text-slate-400 truncate leading-tight mt-0.5">{roleLabel}</span>
                         </span>
                         <ChevronUp
                             className={cn("w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-150 flex-shrink-0", !open && "rotate-180")}

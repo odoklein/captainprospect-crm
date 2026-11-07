@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
   Megaphone,
@@ -31,18 +31,15 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
+import type { BroadcastItemView } from "@/lib/broadcast/service";
 import {
-  BroadcastItemView,
-} from "@/lib/broadcast/service";
-import {
-  BROADCAST_VARIABLES_REGISTRY,
+  broadcastVariablesRegistry,
   EmailBlock,
 } from "@/lib/broadcast/types";
 import { VisualEmailEditor } from "@/components/broadcast/VisualEmailEditor";
 import { LivePreviewModal } from "@/components/broadcast/LivePreviewModal";
 import { SendTestEmailModal } from "@/components/broadcast/SendTestEmailModal";
-import { brand } from "@/lib/brand";
-import { brandUrl } from "@/lib/brand";
+import { useBrandHelpers } from "@/lib/brand/client";
 
 // ============================================
 // AUDIENCE DEFINITIONS FOR CAMPAIGNS
@@ -113,6 +110,8 @@ const AUDIENCE_OPTIONS: {
 ];
 
 export default function ManagerBroadcastsHubPage() {
+  const { brand, url: brandUrl } = useBrandHelpers();
+  const BROADCAST_VARIABLES_REGISTRY = useMemo(() => broadcastVariablesRegistry(brand), [brand]);
   const [activeTab, setActiveTab] = useState<
     "automated" | "campaign" | "templates" | "history"
   >("automated");

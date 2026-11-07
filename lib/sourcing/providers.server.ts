@@ -5,6 +5,7 @@ import { ACTIVITIES, HEADCOUNT_LABEL } from "./catalog";
 import { placeForMaps, placeName, parseLocation } from "./france";
 import { cleanDomain } from "./merge";
 import type { ActivityTerm, ProviderStatus, ProvidersStatus, SourcedContact, SourcedLead } from "./types";
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // SOURCING — provider adapters (server only).
@@ -12,8 +13,8 @@ import type { ActivityTerm, ProviderStatus, ProvidersStatus, SourcedContact, Sou
 // results can stream in as each provider finishes.
 // ============================================
 
-const APIFY_TOKEN = () => process.env.APIFY_API_TOKEN;
-const SERPER_KEY = () => process.env.SERPER_API_KEY;
+const APIFY_TOKEN = () => integrationKey("APIFY_API_TOKEN");
+const SERPER_KEY = () => integrationKey("SERPER_API_KEY");
 const GMAPS_ACTOR = "compass~crawler-google-places";
 
 /** Serper answers in seconds, so it wins over the Apify actor when both are set. */

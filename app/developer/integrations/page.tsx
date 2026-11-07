@@ -15,7 +15,7 @@ import {
     Inbox,
     Server,
 } from "lucide-react";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 interface EmailAccount {
     id: string;
@@ -54,6 +54,7 @@ const PROVIDER_INFO = {
 };
 
 export default function IntegrationsPage() {
+    const brand = useBrand();
     const { data: session } = useSession();
     const [accounts, setAccounts] = useState<EmailAccount[]>([]);
     const [isLoading, setIsLoading] = useState(true);

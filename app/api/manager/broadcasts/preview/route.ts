@@ -10,8 +10,9 @@ import {
   compileBlocksToHtml,
   substituteVariables,
 } from "@/lib/broadcast/compiler";
-import { BROADCAST_VARIABLES_REGISTRY } from "@/lib/broadcast/types";
+import { broadcastVariablesRegistry } from "@/lib/broadcast/types";
 import { brandUrl } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 const previewSchema = z.object({
   key: z.string().optional(),
@@ -34,9 +35,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   const { key, subject, blocks, rawHtml, accentColor, useSampleData } = parsed.data;
 
+  const brand = await getBrand();
   let baseHtml = rawHtml;
   if (!baseHtml && blocks && blocks.length > 0) {
-    baseHtml = compileBlocksToHtml(subject, blocks, accentColor);
+    baseHtml = compileBlocksToHtml(subject, blocks, accentColor, brand);
   } else if (!baseHtml) {
     baseHtml = "<p>Aucun contenu</p>";
   }
@@ -45,9 +47,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   let finalHtml = baseHtml;
 
   if (useSampleData) {
+    const variables = broadcastVariablesRegistry(brand);
     const registry =
-      (key && BROADCAST_VARIABLES_REGISTRY[key]) ||
-      BROADCAST_VARIABLES_REGISTRY.general ||
+      (key && variables[key]) ||
+      variables.general ||
       [];
     const sampleMap: Record<string, string> = {};
     for (const v of registry) {
@@ -63,8 +66,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     sampleMap.scheduledTime = sampleMap.scheduledTime || "14:30";
     sampleMap.meetingType = sampleMap.meetingType || "Visioconférence";
     sampleMap.meetingJoinUrl = sampleMap.meetingJoinUrl || "https://meet.google.com/xyz";
-    sampleMap.portalUrl = sampleMap.portalUrl || brandUrl("/client/portal/meetings");
-    sampleMap.resetUrl = sampleMap.resetUrl || brandUrl("/reset-password?token=example");
+    sampleMap.portalUrl = sampleMap.portalUrl || brandUrl("/client/portal/meetings", brand);
+    sampleMap.resetUrl = sampleMap.resetUrl || brandUrl("/reset-password?token=example", brand);
     sampleMap.otpCode = sampleMap.otpCode || "729 481";
     sampleMap.expiryMinutes = sampleMap.expiryMinutes || "60";
 

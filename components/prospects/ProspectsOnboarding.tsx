@@ -49,7 +49,7 @@ export function ProspectsOnboarding({ tourId = "complete", autoStart = false }: 
   return (
     <>
       {!hasCompletedTour && !isTourOpen && (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="fixed bottom-[calc(1rem+var(--softphone-dock-h,0px))] right-4 z-50">
           <Card className="p-4 shadow-lg max-w-sm">
             <h3 className="font-semibold text-slate-900 mb-2">Visite guidée de Prospects</h3>
             <p className="text-sm text-slate-600 mb-3">

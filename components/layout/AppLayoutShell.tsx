@@ -13,6 +13,8 @@ import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
+import { SoftphoneProvider } from "@/components/telephony/SoftphoneProvider";
+import { FloatingDock, FloatingDockProvider } from "@/components/layout/FloatingDock";
 import { Modal } from "@/components/ui";
 import { DailyReportModal } from "@/components/sdr/DailyReportModal";
 import { useSdrDailyReport } from "@/components/sdr/useSdrDailyReport";
@@ -191,6 +193,9 @@ function InnerLayout({
         projects: "Projets",
         emails: "Email Hub",
         assistant: "Captain AI",
+        agent: "Captain Agent",
+        appels: "Journal d'appels",
+        focus: "Mode Focus",
     };
     const currentPage = pageLabels[rawPage?.toLowerCase()] || rawPage;
 
@@ -263,7 +268,7 @@ function InnerLayout({
 
                 {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
-                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px)' }}>
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px - var(--softphone-dock-h, 0px))' }}>
                         {children}
                     </div>
                 ) : (
@@ -356,6 +361,7 @@ function InnerLayout({
 
                 <IncomingCallPanel />
             </main>
+            <FloatingDock />
         </div>
     );
 }
@@ -364,7 +370,11 @@ export function AppLayoutShell(props: AppLayoutShellProps) {
     return (
         <SidebarProvider>
             <PermissionProvider>
-                <InnerLayout {...props} />
+                <SoftphoneProvider>
+                    <FloatingDockProvider>
+                        <InnerLayout {...props} />
+                    </FloatingDockProvider>
+                </SoftphoneProvider>
             </PermissionProvider>
         </SidebarProvider>
     );

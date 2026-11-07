@@ -520,7 +520,6 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                                 <AiMark className="w-3.5 h-3.5" />
                             </span>
                             <span>Captain AI</span>
-                            <span className="cp-ai-trigger-tag">IA</span>
                         </Link>
                     ) : (
                         <Link

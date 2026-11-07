@@ -25,7 +25,8 @@ export interface TodayTask {
     priority: string;
     isOnboarding: boolean;
     section: string | null;
-    project: { id: string; name: string };
+    /** null for a personal task outside any project */
+    project: { id: string; name: string } | null;
     client: { id: string; name: string } | null;
 }
 
@@ -44,10 +45,14 @@ async function loadTasks(userId: string, today: string): Promise<{ tasks: TodayT
         where: {
             status: { not: "DONE" },
             dueDate: { lt: parisMidnight(addDay(today, 1)) },
-            project: { archivedAt: null, status: { not: "ARCHIVED" } },
-            OR: [
-                { assigneeId: userId },
-                { assigneeId: null, OR: [{ createdById: userId }, { project: { ownerId: userId } }] },
+            AND: [
+                { OR: [{ projectId: null }, { project: { archivedAt: null, status: { not: "ARCHIVED" } } }] },
+                {
+                    OR: [
+                        { assigneeId: userId },
+                        { assigneeId: null, OR: [{ createdById: userId }, { project: { ownerId: userId } }] },
+                    ],
+                },
             ],
         },
         select: {
@@ -57,6 +62,7 @@ async function loadTasks(userId: string, today: string): Promise<{ tasks: TodayT
             priority: true,
             labels: true,
             parentTask: { select: { title: true } },
+            client: { select: { id: true, name: true } },
             project: { select: { id: true, name: true, client: { select: { id: true, name: true } } } },
         },
         take: 200,
@@ -73,8 +79,8 @@ async function loadTasks(userId: string, today: string): Promise<{ tasks: TodayT
             priority: row.priority,
             isOnboarding,
             section: isOnboarding ? (row.parentTask?.title ?? null) : null,
-            project: { id: row.project.id, name: row.project.name },
-            client: row.project.client ? { id: row.project.client.id, name: row.project.client.name } : null,
+            project: row.project ? { id: row.project.id, name: row.project.name } : null,
+            client: row.client ?? row.project?.client ?? null,
         };
     });
     const { shown, more } = capTasks(sortTodayTasks(tasks, today));

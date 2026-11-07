@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -18,14 +18,15 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { EmailBlock } from "@/lib/broadcast/types";
-import { BROADCAST_VARIABLES_REGISTRY } from "@/lib/broadcast/types";
+import { broadcastVariablesRegistry } from "@/lib/broadcast/types";
 import { VisualEmailEditor } from "@/components/broadcast/VisualEmailEditor";
 import { LivePreviewModal } from "@/components/broadcast/LivePreviewModal";
 import { SendTestEmailModal } from "@/components/broadcast/SendTestEmailModal";
-import { brand } from "@/lib/brand";
-import { brandUrl } from "@/lib/brand";
+import { useBrandHelpers } from "@/lib/brand/client";
 
 export default function NewBroadcastWizardPage() {
+  const { brand, url: brandUrl } = useBrandHelpers();
+  const BROADCAST_VARIABLES_REGISTRY = useMemo(() => broadcastVariablesRegistry(brand), [brand]);
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 

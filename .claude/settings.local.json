@@ -46,7 +46,15 @@
       "Bash(node \"C:/Users/dell/AppData/Local/Temp/claude/C--Users-dell-Desktop-Desktop-CP-captainprospect-crm/6c70cf69-3cf0-4070-9a7b-1a78b60a0ed5/scratchpad/allo-check.mjs\" \"C:/Users/dell/Desktop/Desktop/CP/captainprospect-crm/.env\")",
       "Bash(grep -v \"lists/\\\\${\")",
       "Bash(sed -i 's#\"test:sdr-queue\": \"tsx --test lib/sdr-queue/last-action.test.ts\"#\"test:sdr-queue\": \"tsx --test lib/sdr-queue/last-action.test.ts lib/sdr-queue/shared-phone.test.ts\"#' package.json)",
-      "Bash(npx tsx *)"
+      "Bash(npx tsx *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git branch *)",
+      "Bash(git reset *)",
+      "Bash(git push *)",
+      "Bash(cd \"/c/Users/dell/.claude/projects/C--Users-dell-Desktop-Desktop-CP-captainprospect-crm/memory\" && cat local-db-is-not-prod.md crm-mcp-admin-tools.md accueil-design-system.md brand-design-system.md de-slop-pass.md tsc-preexisting-debt.md stats-redesign.md)",
+      "Bash(python -)",
+      "PowerShell(git push origin feat/assistant-brain)"
     ]
   }
 }

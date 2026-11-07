@@ -1,4 +1,5 @@
 import test from "node:test";
+import { Prisma } from "@prisma/client";
 import assert from "node:assert/strict";
 import { ADMIN_DB_TOOLS, redactSensitive } from "./admin-db-tools";
 import type { Principal } from "./auth";
@@ -86,7 +87,7 @@ test("admin-db: admin_db_overview returns all categorized tables and counts", as
   );
 
   const result: any = await tool.run({ p: SUPER_ADMIN, db: fakeDb }, {});
-  assert.equal(result.total_tables, 138);
+  assert.equal(result.total_tables, Object.keys(Prisma.ModelName).length);
   assert.ok(result.domains.core_crm);
   assert.ok(result.domains.billing_finance);
   assert.ok(result.domains.planning_hr);
@@ -148,17 +149,25 @@ test("admin-db: admin_db_sql enforces read-only (rejects mutations) and redacts 
   const tool = ADMIN_DB_TOOLS.find((t) => t.name === "admin_db_sql")!;
   assert.ok(tool);
 
-  const fakeDb: any = {
+  const statements: string[] = [];
+  const tx = {
+    $executeRawUnsafe: async (sql: string) => statements.push(sql),
     $queryRawUnsafe: async (sql: string) => {
-      return [{ id: "1", email: "admin@test.com", password: "$2a$10$hash", count: 42 }];
+      statements.push(sql);
+      return [{ id: "1", email: "admin@test.com", password: "$2a$10$hash", count: BigInt(42) }];
     },
   };
+  const fakeDb: any = { $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) };
 
   // Safe SELECT executes and redacts
   const safeRes: any = await tool.run({ p: SUPER_ADMIN, db: fakeDb }, { sql: "SELECT * FROM \"User\" LIMIT 1" });
   assert.equal(safeRes.row_count, 1);
   assert.equal(safeRes.data[0].password, "[REDACTED_SECRET]");
   assert.equal(safeRes.data[0].email, "admin@test.com");
+  assert.equal(safeRes.data[0].count, 42, "BigInt count is a JSON number");
+  assert.equal(statements[0], "SET TRANSACTION READ ONLY");
+  assert.match(statements[1], /statement_timeout/);
+  assert.match(statements[2], /LIMIT 1001$/);
 
   // Destructive statements rejected
   await assert.rejects(

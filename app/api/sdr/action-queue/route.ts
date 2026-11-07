@@ -40,6 +40,15 @@ function buildCallbackResultCodes(config: { statuses: Array<{ code: string; labe
 
 const COMPANY_PHONE_SQL = `COALESCE(NULLIF(co.phone, ''), NULLIF(co."customData"->'additionalPhones'->>0, ''))`;
 
+// Headcount and revenue for the SDR filters (#118). Imports put them under free
+// keys of customData (TAILLE, Effectif, CA, Chiffre d'affaires…), so the first
+// matching key is read when the typed column is empty. Parsing into buckets
+// happens in lib/sdr-queue/company-facets.ts.
+const customValueSql = (keyRegex: string) =>
+    `CASE WHEN jsonb_typeof(co."customData"::jsonb) = 'object' THEN (SELECT NULLIF(e.value, '') FROM jsonb_each_text(co."customData"::jsonb) e WHERE e.key ~* '${keyRegex}' ORDER BY e.key LIMIT 1) END`;
+const COMPANY_SIZE_SQL = `COALESCE(NULLIF(co.size, ''), ${customValueSql("^(effectif|taille|tranche|headcount|employees|nb_?salari)")})`;
+const COMPANY_REVENUE_SQL = customValueSql("(chiffre|^ca([ _]|$)|revenu|turnover)");
+
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["SDR", "BUSINESS_DEVELOPER", "BOOKER"], request);
     const { searchParams } = new URL(request.url);
@@ -102,6 +111,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             company_industry: string | null;
             company_website: string | null;
             company_country: string | null;
+            company_size: string | null;
+            company_revenue: string | null;
             company_phone: string | null;
             contact_first_name: string | null;
             contact_last_name: string | null;
@@ -141,6 +152,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 co.industry as company_industry,
                 co.website as company_website,
                 co.country as company_country,
+                ${COMPANY_SIZE_SQL} as company_size,
+                ${COMPANY_REVENUE_SQL} as company_revenue,
                 ${COMPANY_PHONE_SQL} as company_phone,
                 c."firstName" as contact_first_name,
                 c."lastName" as contact_last_name,
@@ -209,6 +222,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 co.industry as company_industry,
                 co.website as company_website,
                 co.country as company_country,
+                ${COMPANY_SIZE_SQL} as company_size,
+                ${COMPANY_REVENUE_SQL} as company_revenue,
                 ${COMPANY_PHONE_SQL} as company_phone,
                 NULL::text as contact_first_name,
                 NULL::text as contact_last_name,
@@ -381,6 +396,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             industry: row.company_industry,
             website: row.company_website,
             country: row.company_country,
+            size: row.company_size,
+            revenue: row.company_revenue,
             phone: row.company_phone || null,
         },
         campaignId: row.campaign_id,

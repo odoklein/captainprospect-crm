@@ -1,4 +1,4 @@
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 /**
  * Modern SaaS-style PDF report — HTML template for Puppeteer.
  * Design: Stripe / Linear / Notion — minimal, airy, strong hierarchy.
@@ -62,7 +62,7 @@ function lineChartPath(points: Array<{ label: string; count: number }>, width: n
     return coords.map(([x, y], i) => `${i === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
 }
 
-export function getReportHtml(data: ReportTemplateData): string {
+export function getReportHtml(data: ReportTemplateData, brand: Brand = defaultBrand): string {
     const d = data;
     const periodUpper = esc(d.periodLabel).toUpperCase();
     const chartW = 520;

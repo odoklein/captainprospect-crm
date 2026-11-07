@@ -100,6 +100,8 @@ interface LeexiRecapsData {
     unmatched: LeexiRecapItem[];
     totalRecaps: number;
     totalMatched: number;
+    /** The saved Leexi key was refused and the server key answered. */
+    warning?: string | null;
 }
 
 const STATUS_CONFIG: Record<
@@ -189,7 +191,7 @@ function ClientsPageInner() {
 
     // Onboarding modal
     const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-    const [initialRecapText, setInitialRecapText] = useState<string | undefined>(undefined);
+    const [initialLeexiCallId, setInitialLeexiCallId] = useState<string | undefined>(undefined);
 
     // Drawer state — mirrored in the URL so a mission is linkable and the
     // back button closes what it opened.
@@ -313,8 +315,8 @@ function ClientsPageInner() {
         queryClient.invalidateQueries({ queryKey: LEEXI_RECAPS_QUERY_KEY });
     };
 
-    const handleCreateFromRecap = (recapTextContent: string) => {
-        setInitialRecapText(recapTextContent);
+    const handleCreateFromRecap = (leexiCallId: string) => {
+        setInitialLeexiCallId(leexiCallId);
         setShowOnboardingModal(true);
     };
 
@@ -534,7 +536,7 @@ function ClientsPageInner() {
                                                 <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                                                     <span className="text-[10px] text-slate-400 flex items-center gap-1">
                                                         <Clock className="w-3 h-3" />
-                                                        {new Date(recap.date).toLocaleDateString("fr-FR")}
+                                                        {recap.date ? new Date(recap.date).toLocaleDateString("fr-FR") : ""}
                                                     </span>
                                                     {expandedRecapId === recap.id ? (
                                                         <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
@@ -583,7 +585,7 @@ function ClientsPageInner() {
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            handleCreateFromRecap(recap.recapText);
+                                                            handleCreateFromRecap(recap.id);
                                                         }}
                                                         className="text-[10px] font-medium px-2 py-0.5 bg-primary-50 text-primary-600 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
                                                     >
@@ -591,7 +593,7 @@ function ClientsPageInner() {
                                                     </button>
                                                     <span className="text-[10px] text-slate-400 flex items-center gap-1">
                                                         <Clock className="w-3 h-3" />
-                                                        {new Date(recap.date).toLocaleDateString("fr-FR")}
+                                                        {recap.date ? new Date(recap.date).toLocaleDateString("fr-FR") : ""}
                                                     </span>
                                                     {expandedRecapId === recap.id ? (
                                                         <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
@@ -607,7 +609,7 @@ function ClientsPageInner() {
                                                         {recap.recapText.length > 800 && "..."}
                                                     </p>
                                                     <button
-                                                        onClick={() => handleCreateFromRecap(recap.recapText)}
+                                                        onClick={() => handleCreateFromRecap(recap.id)}
                                                         className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
                                                     >
                                                         <Plus className="w-3.5 h-3.5" />
@@ -634,6 +636,12 @@ function ClientsPageInner() {
             {leexiError && (
                 <div className="text-xs text-red-500 flex items-center gap-1">
                     Leexi: {leexiError}
+                </div>
+            )}
+
+            {leexiData?.warning && (
+                <div className="text-xs text-amber-700 flex items-center gap-1">
+                    Leexi : {leexiData.warning}
                 </div>
             )}
 
@@ -869,10 +877,15 @@ function ClientsPageInner() {
                 isOpen={showOnboardingModal}
                 onClose={() => {
                     setShowOnboardingModal(false);
-                    setInitialRecapText(undefined);
+                    setInitialLeexiCallId(undefined);
                 }}
                 onSuccess={handleOnboardingSuccess}
-                initialRecapText={initialRecapText}
+                onOpenClient={(clientId) => {
+                    setShowOnboardingModal(false);
+                    setInitialLeexiCallId(undefined);
+                    setDrawerUrl({ client: clientId, mission: null, tab: null });
+                }}
+                initialLeexiCallId={initialLeexiCallId}
             />
         </div>
     );

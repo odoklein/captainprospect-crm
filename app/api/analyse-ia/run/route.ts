@@ -11,6 +11,7 @@ import { prisma } from '@/lib/prisma';
 import { AiCallError, callJsonModel } from '@/lib/ai/json-call';
 import { friendlyAiError } from '@/lib/analyse-ia/errors';
 import { addDay, parisMidnight } from '@/lib/manager-home/today-rules';
+import { integrationKey } from "@/lib/integrations/keys";
 
 // ============================================
 // SCHEMA
@@ -498,7 +499,7 @@ async function generate(analysisId: string, body: z.infer<typeof runAnalysisSche
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(['MANAGER', 'BUSINESS_DEVELOPER'], request);
-    if (!process.env.OPENAI_API_KEY) {
+    if (!integrationKey("OPENAI_API_KEY")) {
         const friendly = friendlyAiError('MISSING_KEY: OPENAI_API_KEY non configurée');
         return errorResponse(`${friendly.title} — ${friendly.detail}`, 503);
     }

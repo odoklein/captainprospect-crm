@@ -14,7 +14,8 @@ import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/encryption";
 import { NotFoundError, ValidationError } from "@/lib/api-utils";
 import type { VaultAuditEventDTO, VaultCredentialDTO } from "./types";
-import { VAULT_TYPE_LABELS } from "./types";
+import { vaultTypeLabels } from "./types";
+import { getBrand } from "@/lib/brand/server";
 
 // ============================================
 // Password generation
@@ -278,7 +279,7 @@ export async function createCredential(
 ): Promise<VaultCredentialDTO> {
     const client = await assertScope(input);
 
-    const label = input.label?.trim() || `${VAULT_TYPE_LABELS[input.type]} — ${input.login}`;
+    const label = input.label?.trim() || `${vaultTypeLabels(await getBrand())[input.type]} — ${input.login}`;
 
     const row = await prisma.vaultCredential.create({
         data: {

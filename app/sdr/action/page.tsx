@@ -40,6 +40,8 @@ import {
     Briefcase,
     FileText,
 } from "lucide-react";
+import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { useDockItem } from "@/components/layout/FloatingDock";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import dynamic from "next/dynamic";
@@ -113,6 +115,9 @@ interface NextActionData {
         website?: string;
         country?: string;
         phone?: string | null;
+        /** Queue rows only: headcount / revenue read for the filters (#118). */
+        size?: string | null;
+        revenue?: string | null;
     };
     campaignId?: string;
     strategyName?: string | null;
@@ -990,6 +995,19 @@ export default function SDRActionPage() {
         return isRecent || hasComment;
     }, [session?.user?.id]);
 
+    // In-app softphone when Twilio is set up for this user, tel: (Allo) otherwise.
+    const { dial: softphoneDial } = useSoftphone();
+    const placeCall = useCallback((phone: string, context?: Pick<PhoneAttemptContext, "contactId" | "companyId" | "targetName" | "companyName">) => {
+        const handled = softphoneDial({
+            phone,
+            contactId: context?.contactId ?? null,
+            companyId: context?.companyId ?? null,
+            label: context?.targetName ?? null,
+            sublabel: context?.companyName && context.companyName !== context.targetName ? context.companyName : null,
+        });
+        if (!handled) window.location.href = `tel:${phone}`;
+    }, [softphoneDial]);
+
     const handlePhoneCallAttempt = useCallback((
         e: React.MouseEvent,
         phone: string,
@@ -1016,8 +1034,8 @@ export default function SDRActionPage() {
             return;
         }
 
-        window.location.href = `tel:${phone}`;
-    }, [isRecentlyContacted, session?.user?.id, statusLabels]);
+        placeCall(phone, context);
+    }, [isRecentlyContacted, session?.user?.id, statusLabels, placeCall]);
 
     const copyToClipboard = useCallback(async (
         value: string,
@@ -1054,7 +1072,12 @@ export default function SDRActionPage() {
         const { phone, actionIntent } = alreadyContactedModalInfo;
         setAlreadyContactedModalInfo(null);
         if (actionIntent === "CALL") {
-            window.location.href = `tel:${phone}`;
+            placeCall(phone, {
+                contactId: alreadyContactedDetailsTarget?.contactId,
+                companyId: alreadyContactedDetailsTarget?.companyId,
+                targetName: alreadyContactedModalInfo.targetName,
+                companyName: alreadyContactedModalInfo.companyName,
+            });
         } else {
             try {
                 await navigator.clipboard.writeText(phone);
@@ -1063,7 +1086,7 @@ export default function SDRActionPage() {
                 showError("Impossible de copier");
             }
         }
-    }, [alreadyContactedModalInfo, success, showError]);
+    }, [alreadyContactedModalInfo, alreadyContactedDetailsTarget, placeCall, success, showError]);
 
     const handleAlreadyContactedOpenDetails = useCallback(() => {
         if (alreadyContactedDetailsTarget?.contactId) {
@@ -1460,7 +1483,48 @@ export default function SDRActionPage() {
         if (item.missionId) setUnifiedDrawerMissionId(item.missionId);
     };
 
+    // The campaign script (left panel) and the action drawer (right) close
+    // independently. Closing the drawer keeps the script on screen, pinned to
+    // that mission. Closing the script hides it for this prospect only: the
+    // next contact opens with its script again. The floating dock's « Script »
+    // button toggles it in between.
+    const drawerProspectKey = `${unifiedDrawerContactId ?? ""}|${unifiedDrawerCompanyId ?? ""}`;
+    const [scriptHiddenFor, setScriptHiddenFor] = useState<string | null>(null);
+    const [pinnedScript, setPinnedScript] = useState<{ missionId: string; missionName?: string; campaignId: string | null } | null>(null);
+    const drawerScript = unifiedDrawerOpen && unifiedDrawerMissionId
+        ? { missionId: unifiedDrawerMissionId, missionName: unifiedDrawerMissionName, campaignId: drawerRow?.campaignId ?? null }
+        : null;
+    const scriptDismissed = drawerScript ? scriptHiddenFor === drawerProspectKey : false;
+    const scriptTarget = drawerScript ? (scriptDismissed ? null : drawerScript) : pinnedScript;
+
+    useDockItem(
+        "script",
+        drawerScript || pinnedScript
+            ? {
+                  label: scriptTarget ? "Masquer le script" : "Script",
+                  icon: FileText,
+                  active: Boolean(scriptTarget),
+                  order: 30,
+                  onClick: () => {
+                      if (scriptTarget) {
+                          if (drawerScript) setScriptHiddenFor(drawerProspectKey);
+                          setPinnedScript(null);
+                      } else {
+                          setScriptHiddenFor(null);
+                      }
+                  },
+              }
+            : null,
+    );
+
     const closeUnifiedDrawer = () => {
+        if (!scriptDismissed && unifiedDrawerOpen && unifiedDrawerMissionId) {
+            setPinnedScript({
+                missionId: unifiedDrawerMissionId,
+                missionName: unifiedDrawerMissionName,
+                campaignId: drawerRow?.campaignId ?? null,
+            });
+        }
         // Whatever was logged on an absent prospect may have cleared it.
         queryClient.invalidateQueries({ queryKey: ABSENTS_TO_TREAT_QUERY_KEY });
         setUnifiedDrawerOpen(false);
@@ -2133,6 +2197,7 @@ export default function SDRActionPage() {
                         <div className="inline-flex items-center gap-1">
                             <a
                                 href={`tel:${phone}`}
+                                data-softphone="managed"
                                 onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
                                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 rounded-lg transition-all duration-150 hover:shadow-sm group"
                                 title="Cliquer pour appeler"
@@ -2587,18 +2652,17 @@ export default function SDRActionPage() {
                     )
                 }
 
-                {/* Script companion drawer (table view only), synchronized with unified drawer */}
-                {unifiedDrawerOpen && unifiedDrawerMissionId && (
+                {/* Script companion drawer (table view only): follows the open prospect, closes on its own */}
+                {scriptTarget && (
                     <ScriptCompanionDrawer
-                        isOpen={
-                            unifiedDrawerOpen &&
-                            !unifiedBookingDialogOpen &&
-                            !unifiedAlloDialogOpen
-                        }
-                        onClose={closeUnifiedDrawer}
-                        missionId={unifiedDrawerMissionId}
-                        missionName={unifiedDrawerMissionName}
-                        campaignId={drawerRow?.campaignId ?? null}
+                        isOpen={!unifiedBookingDialogOpen && !unifiedAlloDialogOpen}
+                        onClose={() => {
+                            if (drawerScript) setScriptHiddenFor(drawerProspectKey);
+                            setPinnedScript(null);
+                        }}
+                        missionId={scriptTarget.missionId}
+                        missionName={scriptTarget.missionName}
+                        campaignId={scriptTarget.campaignId}
                     />
                 )}
 
@@ -2988,7 +3052,8 @@ export default function SDRActionPage() {
                                                 <div className="flex items-stretch gap-2">
                                                     <a
                                                         href={`tel:${phone}`}
-                                                        onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
+                                                        data-softphone="managed"
+                                onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
                                                         className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                     >
                                                         <Phone className="w-4 h-4" />
@@ -3171,7 +3236,8 @@ export default function SDRActionPage() {
                                                     <div className="flex items-stretch gap-2">
                                                         <a
                                                             href={`tel:${currentAction.company.phone}`}
-                                                            onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
+                                                            data-softphone="managed"
+                                onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
                                                             className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                         >
                                                             <Phone className="w-4 h-4" />

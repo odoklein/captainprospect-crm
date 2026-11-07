@@ -134,3 +134,32 @@ export async function notifyTicketRequestDecided(
         link: `/sdr/support-technique?ticket=${ticket.id}`,
     });
 }
+
+/**
+ * A reply from the platform's support team (the Console) is what the agency
+ * waits for: the requester, the assignee and every manager hear about it, so
+ * the answer is read even when the ticket was filed by someone who left.
+ */
+export async function notifyTicketPlatformReply(
+    ticket: TicketRef,
+    actorId: string,
+    recipients: { requesterId: string; assigneeId: string | null },
+) {
+    const managerIds = await getActiveManagerIds(actorId);
+    const targets = new Set(
+        [recipients.requesterId, recipients.assigneeId, ...managerIds].filter(
+            (id): id is string => Boolean(id) && id !== actorId,
+        ),
+    );
+    await Promise.all(
+        [...targets].map((userId) =>
+            createNotification({
+                userId,
+                title: "Réponse du support plateforme",
+                message: `${formatTicketRef(ticket.number)} · "${ticket.title}" — nouvelle réponse du support`,
+                type: "info",
+                link: managerLink(ticket.id),
+            }),
+        ),
+    );
+}

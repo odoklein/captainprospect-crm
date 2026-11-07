@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { sanitizeUntrusted } from "../redact";
 import { defineReadTool, frDate, params, rate } from "../helpers";
+import { collectClientAttention } from "@/lib/agent/watch/signals/client-attention";
 
 function sinceDate(days: number): Date {
     const date = new Date();
@@ -79,84 +80,18 @@ export const listClientsNeedingAttention = defineReadTool({
     schema: z.object({ days: z.number().int().min(1).max(180).optional() }),
     requiresProject: false,
     execute: async (args) => {
-        const days = args.days ?? 14;
-        const since = sinceDate(days);
-
-        const clients = await prisma.client.findMany({
-            where: { archivedAt: null, status: "ACTIVE" },
-            select: {
-                id: true,
-                name: true,
-                contractedDaysPerWeek: true,
-                missions: {
-                    where: { isActive: true },
-                    select: { id: true, name: true },
-                },
-                interlocuteurs: {
-                    where: { isActive: true },
-                    select: { id: true, portalUser: { select: { id: true } } },
-                },
-            },
-        });
-
-        // One grouped query rather than one per client: this tool runs on every
-        // "how are things going" question and must stay cheap.
-        const recentMeetings = await prisma.action.groupBy({
-            by: ["campaignId"],
-            where: { result: "MEETING_BOOKED", createdAt: { gte: since } },
-            _count: { _all: true },
-        });
-        const campaigns = await prisma.campaign.findMany({
-            where: { id: { in: recentMeetings.map((m) => m.campaignId) } },
-            select: { id: true, missionId: true },
-        });
-        const missionMeetingCount = new Map<string, number>();
-        for (const row of recentMeetings) {
-            const missionId = campaigns.find((c) => c.id === row.campaignId)?.missionId;
-            if (!missionId) continue;
-            missionMeetingCount.set(
-                missionId,
-                (missionMeetingCount.get(missionId) ?? 0) + row._count._all,
-            );
-        }
-
-        const flagged = clients
-            .map((client) => {
-                const meetings = client.missions.reduce(
-                    (sum, m) => sum + (missionMeetingCount.get(m.id) ?? 0),
-                    0,
-                );
-                const sansAcces = client.interlocuteurs.filter((i) => !i.portalUser).length;
-
-                const alertes: string[] = [];
-                if (client.missions.length > 0 && meetings === 0) {
-                    alertes.push(`aucun RDV depuis ${days} jours`);
-                }
-                if (client.contractedDaysPerWeek === null) {
-                    alertes.push("jours/semaine non renseignés");
-                }
-                if (sansAcces > 0) {
-                    alertes.push(`${sansAcces} commercial(aux) sans accès portail`);
-                }
-                if (client.missions.length === 0) {
-                    alertes.push("aucune mission active");
-                }
-
-                return {
-                    clientId: client.id,
-                    nom: client.name,
-                    missionsActives: client.missions.length,
-                    rdvSurLaPeriode: meetings,
-                    alertes,
-                };
-            })
-            .filter((c) => c.alertes.length > 0)
-            .sort((a, b) => b.alertes.length - a.alertes.length);
-
+        // Same signals as the agent's `client_at_risk` watch rule (lib/agent/watch/signals).
+        const result = await collectClientAttention({ days: args.days ?? 14 });
         return {
-            periodeJours: days,
-            clientsAvecAlerte: flagged.slice(0, 25),
-            totalClientsActifs: clients.length,
+            periodeJours: result.periodeJours,
+            clientsAvecAlerte: result.clients.slice(0, 25).map((c) => ({
+                clientId: c.clientId,
+                nom: c.nom,
+                missionsActives: c.missionsActives,
+                rdvSurLaPeriode: c.rdvSurLaPeriode,
+                alertes: c.alertes,
+            })),
+            totalClientsActifs: result.totalClientsActifs,
         };
     },
 });

@@ -303,6 +303,8 @@ export async function startChecklist(
             const parent = await tx.task.create({
                 data: {
                     projectId: project.id,
+                    clientId,
+                    source: "ONBOARDING",
                     title: section.title,
                     status: "TODO",
                     priority: "MEDIUM",
@@ -316,6 +318,8 @@ export async function startChecklist(
                 await tx.task.create({
                     data: {
                         projectId: project.id,
+                        clientId,
+                        source: "ONBOARDING",
                         parentTaskId: parent.id,
                         title: step.title,
                         status: "TODO",
@@ -377,6 +381,8 @@ export async function addStep(
         await prisma.task.create({
             data: {
                 projectId,
+                clientId,
+                source: "ONBOARDING",
                 title,
                 status: "TODO",
                 position,
@@ -393,6 +399,8 @@ export async function addStep(
     await prisma.task.create({
         data: {
             projectId,
+            clientId,
+            source: "ONBOARDING",
             parentTaskId: parent.id,
             title,
             status: "TODO",

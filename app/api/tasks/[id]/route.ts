@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { createTaskReassignmentNotification } from "@/lib/notifications";
 import { syncSectionStatus } from "@/lib/onboarding/checklist-service";
+import { canDeleteTask, canEditTask, canViewTask } from "@/lib/tasks/access";
 
 // GET /api/tasks/[id] - Get task details
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -77,6 +78,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             return NextResponse.json({ success: false, error: "Tâche non trouvée" }, { status: 404 });
         }
 
+        if (!canViewTask(session.user, task)) {
+            return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
+        }
+
         return NextResponse.json({ success: true, data: task });
     } catch (error) {
         console.error("GET /api/tasks/[id] error:", error);
@@ -109,6 +114,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
         if (!task) {
             return NextResponse.json({ success: false, error: "Tâche non trouvée" }, { status: 404 });
+        }
+
+        if (!canEditTask(session.user, task)) {
+            return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
         }
 
         const previousAssigneeId = task.assigneeId;
@@ -185,7 +194,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             });
         }
 
-        if (activities.length > 0) {
+        // Activity is a project feed: a task outside any project has none.
+        if (task.projectId && activities.length > 0) {
             await prisma.projectActivity.createMany({ data: activities });
         }
 
@@ -199,7 +209,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             await createTaskReassignmentNotification({
                 assigneeId,
                 taskTitle: updated.title,
-                projectName: updated.project.name,
+                projectName: updated.project?.name ?? null,
                 assignedByName: session.user.name || "Un utilisateur",
             });
         }
@@ -232,27 +242,21 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
             return NextResponse.json({ success: false, error: "Tâche non trouvée" }, { status: 404 });
         }
 
-        const isCreator = task.createdById === session.user.id;
-        const isAssignee = task.assigneeId === session.user.id;
-        const isProjectOwner = task.project.ownerId === session.user.id;
-        const isProjectAdmin = task.project.members.some(
-            (m) => m.userId === session.user.id && ["owner", "admin"].includes(m.role)
-        );
-        const isManager = session.user.role === "MANAGER";
-
-        if (!isCreator && !isAssignee && !isProjectOwner && !isProjectAdmin && !isManager) {
+        if (!canDeleteTask(session.user, task)) {
             return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
         }
 
         // Log before deleting
-        await prisma.projectActivity.create({
-            data: {
-                projectId: task.projectId,
-                userId: session.user.id,
-                action: "task_deleted",
-                details: { title: task.title },
-            },
-        });
+        if (task.projectId) {
+            await prisma.projectActivity.create({
+                data: {
+                    projectId: task.projectId,
+                    userId: session.user.id,
+                    action: "task_deleted",
+                    details: { title: task.title },
+                },
+            });
+        }
 
         await prisma.task.delete({ where: { id } });
 

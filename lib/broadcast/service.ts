@@ -5,8 +5,8 @@
 
 import { prisma } from "@/lib/prisma";
 import {
-  SYSTEM_BROADCAST_DEFINITIONS,
-  BROADCAST_VARIABLES_REGISTRY,
+  systemBroadcastDefinitions,
+  broadcastVariablesRegistry,
   BroadcastDefinition,
   EmailBlock,
 } from "./types";
@@ -16,14 +16,15 @@ import {
   substituteVariables,
 } from "./compiler";
 import { sendTransactionalEmail } from "@/lib/email/transactional";
-import { DEFAULT_RDV_TEMPLATE_HTML, DEFAULT_RDV_TEMPLATE_SUBJECT } from "@/lib/email/templates/rdv-notification";
+import { defaultRdvTemplateHtml, DEFAULT_RDV_TEMPLATE_SUBJECT } from "@/lib/email/templates/rdv-notification";
 import {
   DEFAULT_PASSWORD_RECOVERY_HTML,
-  DEFAULT_PASSWORD_RECOVERY_SUBJECT,
+  defaultPasswordRecoverySubject,
   DEFAULT_PASSWORD_OTP_HTML,
-  DEFAULT_PASSWORD_OTP_SUBJECT,
+  defaultPasswordOtpSubject,
 } from "@/lib/email/templates/security-auth";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 export interface BroadcastItemView {
   key: string;
@@ -47,32 +48,32 @@ export interface BroadcastItemView {
 /**
  * Returns default subject and HTML for system keys
  */
-export function getDefaultSystemContent(key: string): {
+export function getDefaultSystemContent(key: string, brand: Brand = defaultBrand): {
   subject: string;
   bodyHtml: string;
 } {
   if (key === "rdv_notification") {
     return {
       subject: DEFAULT_RDV_TEMPLATE_SUBJECT,
-      bodyHtml: DEFAULT_RDV_TEMPLATE_HTML,
+      bodyHtml: defaultRdvTemplateHtml(brand),
     };
   }
   if (key === "password_recovery") {
     return {
-      subject: DEFAULT_PASSWORD_RECOVERY_SUBJECT,
+      subject: defaultPasswordRecoverySubject(brand),
       bodyHtml: DEFAULT_PASSWORD_RECOVERY_HTML,
     };
   }
   if (key === "password_otp") {
     return {
-      subject: DEFAULT_PASSWORD_OTP_SUBJECT,
+      subject: defaultPasswordOtpSubject(brand),
       bodyHtml: DEFAULT_PASSWORD_OTP_HTML,
     };
   }
-  const found = SYSTEM_BROADCAST_DEFINITIONS.find((d) => d.key === key);
+  const found = systemBroadcastDefinitions(brand).find((d) => d.key === key);
   return {
     subject: found?.defaultSubject || `Notification ${brand.name}`,
-    bodyHtml: found ? compileBlocksToHtml(found.defaultSubject, found.defaultBlocks) : "",
+    bodyHtml: found ? compileBlocksToHtml(found.defaultSubject, found.defaultBlocks, undefined, brand) : "",
   };
 }
 
@@ -86,11 +87,12 @@ export async function getAllBroadcasts(): Promise<BroadcastItemView[]> {
   );
 
   const result: BroadcastItemView[] = [];
+  const brand = await getBrand();
 
   // 1. Process known system broadcasts
-  for (const def of SYSTEM_BROADCAST_DEFINITIONS) {
+  for (const def of systemBroadcastDefinitions(brand)) {
     const dbRecord = dbMap.get(def.key);
-    const defaults = getDefaultSystemContent(def.key);
+    const defaults = getDefaultSystemContent(def.key, brand);
 
     const isCustomized = Boolean(dbRecord);
     const subject = dbRecord?.subject || defaults.subject;
@@ -155,8 +157,9 @@ export async function getBroadcastByKey(key: string): Promise<BroadcastItemView 
     where: { key },
   });
 
-  const sysDef = SYSTEM_BROADCAST_DEFINITIONS.find((d) => d.key === key);
-  const defaults = getDefaultSystemContent(key);
+  const brand = await getBrand();
+  const sysDef = systemBroadcastDefinitions(brand).find((d) => d.key === key);
+  const defaults = getDefaultSystemContent(key, brand);
 
   if (!sysDef && !dbRecord) {
     return null;
@@ -200,13 +203,14 @@ export async function saveBroadcast(
     accentColor?: string;
   }
 ) {
-  const sysDef = SYSTEM_BROADCAST_DEFINITIONS.find((d) => d.key === key);
+  const brand = await getBrand();
+  const sysDef = systemBroadcastDefinitions(brand).find((d) => d.key === key);
   const displayName = data.name || sysDef?.name || key;
 
   // Decide HTML body: if blocks are provided, compile them
   let finalHtml = data.rawHtml || "";
   if (data.blocks && data.blocks.length > 0) {
-    finalHtml = compileBlocksToHtml(data.subject, data.blocks, data.accentColor);
+    finalHtml = compileBlocksToHtml(data.subject, data.blocks, data.accentColor, brand);
   }
 
   if (!finalHtml.trim()) {
@@ -254,6 +258,7 @@ export async function sendTestBroadcast(
     accentColor?: string;
   }
 ): Promise<{ ok: boolean; message: string }> {
+  const brand = await getBrand();
   const broadcast = await getBroadcastByKey(key);
   const subject = overrideData?.subject || broadcast?.subject || "Test Broadcast";
 
@@ -262,15 +267,16 @@ export async function sendTestBroadcast(
     bodyHtml = compileBlocksToHtml(
       subject,
       overrideData.blocks,
-      overrideData.accentColor
+      overrideData.accentColor,
+      brand
     );
   } else if (!bodyHtml) {
     bodyHtml = broadcast?.bodyHtml || "";
   }
 
   // Build realistic sample values map from registry
-  const variablesRegistry =
-    BROADCAST_VARIABLES_REGISTRY[key] || BROADCAST_VARIABLES_REGISTRY.general || [];
+  const registry = broadcastVariablesRegistry(brand);
+  const variablesRegistry = registry[key] || registry.general || [];
 
   const sampleMap: Record<string, string> = {};
   for (const v of variablesRegistry) {

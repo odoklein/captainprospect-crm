@@ -1,13 +1,20 @@
 /**
- * One JSON-mode chat completion against OpenAI, with a timeout and errors a
- * person can act on. Used by Analyse IA and the weekly client bilan.
+ * One JSON-mode completion through the provider layer, with a timeout and
+ * errors a person can act on. Used by Analyse IA, the weekly client bilan and
+ * the sales playbook generator.
  *
  * The error code is stored in front of the raw message ("QUOTA: …") so the UI
  * can say « Crédits OpenAI épuisés » instead of a generic failure — in Sept–Oct
  * 2026 every run failed on an empty OpenAI balance and nobody could see why.
+ *
+ * Every call is recorded in the AiUsage ledger under its `surface`.
  */
 
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+import { recordAiUsage } from "./ledger";
+import { ProviderError } from "./providers/errors";
+import { providerChatFn } from "./providers";
+import type { DataClass } from "./providers/types";
+
 export const DEFAULT_JSON_MODEL = "gpt-4o";
 
 export type AiErrorCode =
@@ -62,6 +69,23 @@ export function classifyOpenAiFailure(status: number, code: string | undefined, 
     return "UNKNOWN";
 }
 
+function fromProviderError(error: ProviderError): AiCallError {
+    switch (error.kind) {
+        case "not_configured":
+            return new AiCallError("MISSING_KEY", error.userMessage, 503);
+        case "timeout":
+            return new AiCallError("TIMEOUT", "L'IA n'a pas répondu à temps", 504);
+        case "network":
+            return new AiCallError("NETWORK", error.message || "Réseau indisponible");
+        case "empty":
+            return new AiCallError("EMPTY", "Réponse vide de l'IA");
+        case "cancelled":
+            return new AiCallError("TIMEOUT", "Appel annulé", 499);
+        default:
+            return new AiCallError(classifyOpenAiFailure(error.status, error.code, error.message), `${error.provider ?? "AI"} API error: ${error.message}`, error.status);
+    }
+}
+
 export interface JsonCallOptions {
     system: string;
     user: string;
@@ -69,54 +93,65 @@ export interface JsonCallOptions {
     maxTokens?: number;
     temperature?: number;
     timeoutMs?: number;
+    /** Ledger surface: "analyse_ia", "weekly_bilan", "sales_playbook", … */
+    surface?: string;
+    /** What the prompt contains; CRM rows by default, so only EU/US endpoints qualify. */
+    dataClass?: DataClass;
+    /** Attribution for the ledger. */
+    userId?: string | null;
+    clientId?: string | null;
+    missionId?: string | null;
 }
 
 export async function callJsonModel(
     options: JsonCallOptions,
 ): Promise<{ parsed: any; tokens: number | null; model: string }> {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new AiCallError("MISSING_KEY", "OPENAI_API_KEY non configurée", 503);
-
     const model = options.model ?? DEFAULT_JSON_MODEL;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 120_000);
+    const dataClass = options.dataClass ?? "raw_crm";
+    const chat = providerChatFn({ dataClass });
+    const startedAt = Date.now();
 
-    let response: Response;
+    let text: string | null;
+    let usage;
+    let servedModel = model;
     try {
-        response = await fetch(OPENAI_API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-            body: JSON.stringify({
-                model,
-                messages: [
-                    { role: "system", content: options.system },
-                    { role: "user", content: options.user },
-                ],
-                temperature: options.temperature ?? 0.3,
-                max_tokens: options.maxTokens ?? 4000,
-                response_format: { type: "json_object" },
-            }),
-            signal: controller.signal,
+        const res = await chat({
+            model,
+            messages: [
+                { role: "system", content: options.system },
+                { role: "user", content: options.user },
+            ],
+            temperature: options.temperature ?? 0.3,
+            maxOutputTokens: options.maxTokens ?? 4000,
+            reasoningEffort: "none",
+            responseFormat: "json",
+            timeoutMs: options.timeoutMs ?? 120_000,
         });
+        text = res.text;
+        usage = res.usage;
+        servedModel = res.model || model;
     } catch (err) {
-        if ((err as Error)?.name === "AbortError") throw new AiCallError("TIMEOUT", "L'IA n'a pas répondu à temps", 504);
-        throw new AiCallError("NETWORK", (err as Error)?.message || "Réseau indisponible");
-    } finally {
-        clearTimeout(timer);
+        if (err instanceof ProviderError) throw fromProviderError(err);
+        throw new AiCallError("UNKNOWN", (err as Error)?.message || "Erreur inconnue");
     }
 
-    if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        const message = body?.error?.message || response.statusText || `HTTP ${response.status}`;
-        throw new AiCallError(classifyOpenAiFailure(response.status, body?.error?.code, message), `OpenAI API error: ${message}`, response.status);
+    if (usage) {
+        recordAiUsage({
+            surface: options.surface ?? "json_call",
+            model: servedModel,
+            usage,
+            latencyMs: Date.now() - startedAt,
+            dataClass,
+            userId: options.userId ?? null,
+            clientId: options.clientId ?? null,
+            missionId: options.missionId ?? null,
+        });
     }
 
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content;
-    if (!content) throw new AiCallError("EMPTY", "Réponse vide de l'IA");
+    if (!text) throw new AiCallError("EMPTY", "Réponse vide de l'IA");
 
     try {
-        return { parsed: safeParseJsonFromModel(content), tokens: result.usage?.total_tokens ?? null, model };
+        return { parsed: safeParseJsonFromModel(text), tokens: usage?.totalTokens ?? null, model: servedModel };
     } catch {
         throw new AiCallError("UNPARSABLE", "Impossible de lire la réponse JSON de l'IA");
     }

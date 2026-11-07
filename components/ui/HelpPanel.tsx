@@ -105,7 +105,7 @@ export function HelpPanel({
       <div
         ref={panelRef}
         className={cn(
-          "fixed top-0 bottom-0 w-full max-w-md bg-surface shadow-2xl z-50",
+          "fixed top-0 bottom-[var(--softphone-dock-h,0px)] w-full max-w-md bg-surface shadow-2xl z-50",
           "flex flex-col",
           position === "right" ? "right-0" : "left-0",
           "animate-slide-in-right",

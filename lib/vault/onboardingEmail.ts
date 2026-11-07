@@ -15,7 +15,8 @@ import { decrypt } from "@/lib/encryption";
 import { sendTransactionalEmail } from "@/lib/email/transactional";
 import { recordVaultAudit } from "./service";
 import { portalLoginUrl } from "./portalAccounts";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 function escapeHtml(value: string): string {
     return value
@@ -53,7 +54,7 @@ interface TemplateInput {
     senderName: string;
 }
 
-export function buildOnboardingEmailHtml(input: TemplateInput): string {
+export function buildOnboardingEmailHtml(input: TemplateInput, brand: Brand = defaultBrand): string {
     const rows: Array<[string, string]> = [
         ["Adresse de connexion", input.loginUrl],
         ["Identifiant", input.login],
@@ -174,16 +175,17 @@ async function sendOne(
         return { ...base, sent: false, error: "Mot de passe illisible (clé de chiffrement changée)" };
     }
 
+    const brand = await getBrand();
     const html = buildOnboardingEmailHtml({
         recipientName: recipient.name,
         clientName: context.clientName,
         login: recipient.login,
         password,
-        loginUrl: credential.url || portalLoginUrl(),
+        loginUrl: credential.url || portalLoginUrl(brand),
         bookingLink: recipient.bookingLink,
         intro: context.intro,
         senderName: context.senderName,
-    });
+    }, brand);
 
     const sent = await sendTransactionalEmail({
         to: recipient.email,
@@ -194,7 +196,7 @@ async function sendOne(
             "",
             context.intro ?? "Voici ton acces personnel a la plateforme.",
             "",
-            `Connexion : ${credential.url || portalLoginUrl()}`,
+            `Connexion : ${credential.url || portalLoginUrl(brand)}`,
             `Identifiant : ${recipient.login}`,
             `Mot de passe : ${password}`,
             "",

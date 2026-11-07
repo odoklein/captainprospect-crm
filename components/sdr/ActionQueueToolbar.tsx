@@ -3,7 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Briefcase, ChevronDown, ListChecks, Phone, Search, SlidersHorizontal, X } from "lucide-react";
-import { Kbd, SegmentedControl } from "@/components/ui";
+import { Kbd, MultiSelect, SegmentedControl } from "@/components/ui";
 import { FIELD_BASE, FOCUS_RING } from "@/components/ui/recipes";
 import { cn } from "@/lib/utils";
 import {
@@ -19,6 +19,15 @@ import {
     type QueueRowLike,
     type QueueRowType,
 } from "@/lib/sdr-queue/queue-filters";
+import {
+    REVENUE_BUCKETS,
+    SIZE_BUCKETS,
+    revenueBucketOf,
+    sectorOptions,
+    sizeBucketOf,
+    type RevenueBucket,
+    type SizeBucket,
+} from "@/lib/sdr-queue/company-facets";
 
 // Compact filter bar of the SDR action table: context (mission/list) + search
 // + type on one line, priority chips + active filters on the second, phone and
@@ -128,6 +137,21 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
         return { type, priority, priorityAll };
     }, [items, deferred]);
 
+    // Company facets (#118): options and counts over the whole queue, so a
+    // sector never disappears from the list once another filter is picked.
+    const companyFacets = useMemo(() => {
+        const sizes: Record<string, number> = {};
+        const revenues: Record<string, number> = {};
+        for (const row of items) {
+            const size = sizeBucketOf(row.company.size);
+            if (size) sizes[size] = (sizes[size] ?? 0) + 1;
+            const revenue = revenueBucketOf(row.company.revenue);
+            if (revenue) revenues[revenue] = (revenues[revenue] ?? 0) + 1;
+        }
+        return { sectors: sectorOptions(items), sizes, revenues };
+    }, [items]);
+    const sectorLabel = useMemo(() => new Map(companyFacets.sectors.map((o) => [o.value, o.label])), [companyFacets]);
+
     const typeOptions: { value: QueueRowType; label: string; count: number }[] = [
         { value: "contact", label: "Contacts", count: facets.type.contact },
         { value: "company", label: "Sociétés", count: facets.type.company },
@@ -158,6 +182,19 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
     }
     if (filters.phoneAvailability) {
         activeChips.push({ key: "avail", label: AVAILABILITY_LABELS[filters.phoneAvailability], clear: { phoneAvailability: "" } });
+    }
+    const sectors = filters.sectors ?? [];
+    if (sectors.length > 0) {
+        const first = sectorLabel.get(sectors[0]) ?? sectors[0];
+        activeChips.push({ key: "sectors", label: `Secteur : ${first}${sectors.length > 1 ? ` +${sectors.length - 1}` : ""}`, clear: { sectors: [] } });
+    }
+    if ((filters.sizes ?? []).length > 0) {
+        const labels = SIZE_BUCKETS.filter((b) => filters.sizes.includes(b.value)).map((b) => b.label);
+        activeChips.push({ key: "sizes", label: `Effectif : ${labels.join(", ")}`, clear: { sizes: [] } });
+    }
+    if ((filters.revenues ?? []).length > 0) {
+        const labels = REVENUE_BUCKETS.filter((b) => filters.revenues.includes(b.value)).map((b) => b.label);
+        activeChips.push({ key: "revenues", label: `CA : ${labels.join(", ")}`, clear: { revenues: [] } });
     }
 
     const anyFilter = hasAnyQueueFilter(filters);
@@ -322,6 +359,38 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
                             value={filters.channel}
                             onChange={(channel) => onChange({ channel })}
                             options={[{ value: "", label: "Tous" }, ...Object.entries(channelLabels).map(([value, label]) => ({ value, label }))]}
+                        />
+                    </FilterField>
+                </div>
+            )}
+
+            {/* Advanced — company facets: sector, headcount, revenue (#118). Combine with
+                « Type de ligne : Mobile » for "CA + secteur + mobile" lists. */}
+            {advancedOpen && (
+                <div className="grid gap-3 border-t border-line-subtle bg-surface-2/60 px-3 py-3 sm:grid-cols-3">
+                    <FilterField label="Secteur" hint="Plusieurs secteurs possibles : une société d'un des secteurs choisis.">
+                        <MultiSelect
+                            value={sectors}
+                            onChange={(v) => onChange({ sectors: v })}
+                            placeholder={companyFacets.sectors.length ? "Tous les secteurs" : "Aucun secteur renseigné"}
+                            disabled={companyFacets.sectors.length === 0}
+                            options={companyFacets.sectors.map((o) => ({ value: o.value, label: `${o.label} (${nf.format(o.count)})` }))}
+                        />
+                    </FilterField>
+                    <FilterField label="Effectif" hint="Lu dans le champ Effectif de la société, ou dans une colonne importée (Taille, Effectif, Tranche…).">
+                        <MultiSelect
+                            value={filters.sizes ?? []}
+                            onChange={(v) => onChange({ sizes: v as SizeBucket[] })}
+                            placeholder="Tous les effectifs"
+                            options={SIZE_BUCKETS.map((b) => ({ value: b.value, label: `${b.label} (${nf.format(companyFacets.sizes[b.value] ?? 0)})` }))}
+                        />
+                    </FilterField>
+                    <FilterField label="Chiffre d'affaires" hint="Lu dans une colonne importée (CA, Chiffre d'affaires, Revenue…). Une société sans CA renseigné est exclue quand ce filtre est actif.">
+                        <MultiSelect
+                            value={filters.revenues ?? []}
+                            onChange={(v) => onChange({ revenues: v as RevenueBucket[] })}
+                            placeholder={Object.keys(companyFacets.revenues).length ? "Tous les CA" : "Aucun CA renseigné dans cette file"}
+                            options={REVENUE_BUCKETS.map((b) => ({ value: b.value, label: `${b.label} (${nf.format(companyFacets.revenues[b.value] ?? 0)})` }))}
                         />
                     </FilterField>
                 </div>

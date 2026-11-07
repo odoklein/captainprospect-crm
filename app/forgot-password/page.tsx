@@ -12,9 +12,10 @@ import {
     Shield,
     KeyRound
 } from "lucide-react";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 export default function ForgotPasswordPage() {
+    const brand = useBrand();
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [error, setError] = useState("");
