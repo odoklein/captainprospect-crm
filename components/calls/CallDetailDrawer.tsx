@@ -84,14 +84,14 @@ export function CallDetailDrawer({
             {!d && !error && (
                 <div className="space-y-3 p-6" aria-busy="true">
                     {[70, 100, 90, 60].map((w, i) => (
-                        <div key={i} className="h-3 animate-pulse rounded bg-surface-3" style={{ width: `${w}%` }} />
+                        <div key={i} className="cp-shimmer h-3 rounded" style={{ width: `${w}%` }} />
                     ))}
                 </div>
             )}
             {error && <p className="p-6 text-[13px] text-danger-ink">{error}</p>}
 
             {d && (
-                <div className="-m-6">
+                <div className="cp-stagger -m-6">
                     {/* Facts line */}
                     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-6 pb-5 pt-5 text-[13px]">
                         {d.status ? (

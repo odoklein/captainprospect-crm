@@ -486,7 +486,7 @@ export default function FocusPage() {
     return (
         <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4 px-1 pb-6">
             {/* ── Session bar ── */}
-            <header className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-panel border border-line bg-surface px-4 py-3 shadow-card">
+            <header className="cp-glass sticky top-[56px] z-30 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-panel px-4 py-3">
                 <div className="flex min-w-0 items-center gap-2.5">
                     <span className="flex h-8 w-8 items-center justify-center rounded-control bg-primary text-primary-fg">
                         <Crosshair className="h-4 w-4" aria-hidden />
@@ -579,7 +579,7 @@ export default function FocusPage() {
             {phase === "ready" && prospect && (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
                     {/* ── Prospect ── */}
-                    <section className="flex min-w-0 flex-col gap-4">
+                    <section key={prospectKey ?? ""} className="cp-stagger flex min-w-0 flex-col gap-4">
                         <div className="rounded-panel border border-line bg-surface shadow-card">
                             <div className="flex items-start gap-4 p-5">
                                 <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[15px] font-semibold text-primary-soft-ink">
@@ -639,7 +639,8 @@ export default function FocusPage() {
                                 </div>
                                 <div className="ml-auto flex items-center gap-2">
                                     {countdown !== null && (
-                                        <span className="flex items-center gap-2 text-[12px] text-ink-2" aria-live="polite">
+                                        <span className="cp-pop flex items-center gap-2 text-[12px] text-ink-2" aria-live="polite">
+                                            <CountdownRing key={prospectKey ?? ""} seconds={AUTO_DIAL_SECONDS} />
                                             Appel dans <span className="tabular-nums font-semibold text-ink">{countdown}</span>
                                             <button type="button" onClick={cancelAutoDial} className="rounded-control px-1.5 py-0.5 text-ink-3 hover:bg-surface-3 hover:text-ink">
                                                 Annuler <Kbd className="ml-1">Échap</Kbd>
@@ -647,7 +648,7 @@ export default function FocusPage() {
                                         </span>
                                     )}
                                     {inCall && callIsOurs ? (
-                                        <button type="button" onClick={hangup} className="inline-flex h-10 items-center gap-2 rounded-control bg-danger px-4 text-[13px] font-semibold text-white hover:bg-red-700">
+                                        <button type="button" onClick={hangup} className="cp-press inline-flex h-10 items-center gap-2 rounded-control bg-danger px-4 text-[13px] font-semibold text-white hover:bg-red-700">
                                             <PhoneOff className="h-4 w-4" /> Raccrocher <Kbd className="border-white/30 bg-white/10 text-white">H</Kbd>
                                         </button>
                                     ) : (
@@ -655,7 +656,7 @@ export default function FocusPage() {
                                             type="button"
                                             onClick={placeCall}
                                             disabled={!phone || inCall}
-                                            className="inline-flex h-10 items-center gap-2 rounded-control bg-success px-4 text-[13px] font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="cp-press inline-flex h-10 items-center gap-2 rounded-control bg-success px-4 text-[13px] font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <Phone className="h-4 w-4" /> Appeler <Kbd className="border-white/30 bg-white/10 text-white">Espace</Kbd>
                                         </button>
@@ -683,7 +684,7 @@ export default function FocusPage() {
                     </section>
 
                     {/* ── Outcome ── */}
-                    <aside className="flex flex-col gap-3 self-start rounded-panel border border-line bg-surface p-4 shadow-card lg:sticky lg:top-16">
+                    <aside className="flex flex-col gap-3 self-start rounded-panel border border-line bg-surface p-4 shadow-card lg:sticky lg:top-[136px]">
                         {ourCallId && transcription && !(inCall && callIsOurs) && insights.summary.status !== "none" && (
                             <div className="-mx-4 -mt-4 mb-1 border-b border-line-subtle bg-surface-2/50 px-4 py-4">
                                 <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Résumé de l&apos;appel</p>
@@ -715,8 +716,10 @@ export default function FocusPage() {
                                         onClick={() => choose(status.code)}
                                         aria-pressed={active}
                                         className={cn(
-                                            "flex h-9 items-center gap-2.5 rounded-control border px-2.5 text-left text-[13px] transition-colors",
-                                            active ? "border-primary bg-primary-soft text-primary-soft-ink" : "border-line text-ink-2 hover:border-line-strong hover:bg-surface-2 hover:text-ink",
+                                            "cp-press flex h-9 items-center gap-2.5 rounded-control border px-2.5 text-left text-[13px] transition-colors duration-150",
+                                            active
+                                                ? "cp-flash border-primary bg-primary-soft text-primary-soft-ink"
+                                                : "border-line text-ink-2 hover:border-line-strong hover:bg-surface-2 hover:text-ink",
                                         )}
                                     >
                                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: status.color ?? "var(--ds-line-strong)" }} aria-hidden />
@@ -734,7 +737,7 @@ export default function FocusPage() {
                         </div>
 
                         {selectedStatus?.triggersCallback && (
-                            <fieldset className="rounded-control border border-line-subtle bg-surface-2/60 p-2.5">
+                            <fieldset className="cp-pop rounded-control border border-line-subtle bg-surface-2/60 p-2.5">
                                 <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Rappeler</legend>
                                 <div className="flex flex-wrap gap-1.5">
                                     {presets.map((p) => (
@@ -804,7 +807,7 @@ export default function FocusPage() {
                             type="button"
                             onClick={() => void save()}
                             disabled={!selected || saving}
-                            className="inline-flex h-10 items-center justify-center gap-2 rounded-control bg-primary px-4 text-[13px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                            className="cp-press inline-flex h-10 items-center justify-center gap-2 rounded-control bg-primary px-4 text-[13px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {saving
                                 ? "Enregistrement…"
@@ -860,6 +863,28 @@ export default function FocusPage() {
 }
 
 // ── pieces ──────────────────────────────────────────────────────────────────
+
+/** Drains over the auto-dial delay: the call is coming, at a glance. */
+function CountdownRing({ seconds }: { seconds: number }) {
+    const r = 7;
+    const length = 2 * Math.PI * r;
+    return (
+        <svg className="h-[18px] w-[18px] -rotate-90" viewBox="0 0 18 18" aria-hidden>
+            <circle cx="9" cy="9" r={r} fill="none" stroke="var(--ds-line)" strokeWidth="2" />
+            <circle
+                cx="9"
+                cy="9"
+                r={r}
+                fill="none"
+                stroke="var(--ds-success)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeDasharray={length}
+                style={{ animation: `cp-ring ${seconds}s linear forwards`, ["--ring-length" as string]: length }}
+            />
+        </svg>
+    );
+}
 
 function Stat({ label, value, strong }: { label: string; value: string | number; strong?: boolean }) {
     return (

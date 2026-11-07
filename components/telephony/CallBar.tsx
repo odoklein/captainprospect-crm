@@ -145,7 +145,7 @@ export function CallBar() {
             <div
                 role="region"
                 aria-label="Appel téléphonique (réduit)"
-                className="fixed bottom-3 left-1/2 z-[125] flex -translate-x-1/2 items-center gap-1 rounded-full border border-inverse-line bg-inverse py-1 pl-1 pr-1 text-inverse-ink shadow-overlay animate-in fade-in slide-in-from-bottom-2 duration-150"
+                className="cp-glass-dark cp-pop fixed bottom-3 left-1/2 z-[125] flex -translate-x-1/2 items-center gap-1 rounded-full py-1 pl-1 pr-1 text-inverse-ink"
             >
                 <button
                     type="button"
@@ -189,7 +189,7 @@ export function CallBar() {
             style={{ height: DOCK_HEIGHT }}
         >
             {showKeypad && (
-                <div className="absolute bottom-full left-1/2 mb-2 w-[216px] -translate-x-1/2 rounded-panel border border-inverse-line bg-inverse p-3 shadow-overlay animate-in fade-in slide-in-from-bottom-1 duration-150">
+                <div className="cp-glass-dark cp-pop absolute bottom-full left-1/2 mb-2 w-[216px] -translate-x-1/2 rounded-panel p-3">
                     <div
                         className="mb-2 h-7 truncate rounded-control bg-inverse-raised px-2 text-center font-mono text-[15px] leading-7 tracking-[0.2em] tabular-nums"
                         aria-live="polite"
@@ -202,7 +202,7 @@ export function CallBar() {
                                 key={k}
                                 type="button"
                                 onClick={() => press(k)}
-                                className="h-10 rounded-control bg-inverse-raised font-mono text-[15px] font-semibold hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                                className="cp-press h-10 rounded-control bg-white/[0.07] font-mono text-[15px] font-semibold hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                             >
                                 {k}
                             </button>
@@ -212,7 +212,7 @@ export function CallBar() {
             )}
 
             {insights && followed && (
-                <div className="absolute bottom-full right-3 mb-2 flex max-h-[min(520px,calc(100vh-120px))] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden rounded-panel border border-line bg-surface text-ink shadow-overlay animate-in fade-in slide-in-from-bottom-1 duration-150">
+                <div className="absolute bottom-full right-3 mb-2 flex max-h-[min(520px,calc(100vh-120px))] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden rounded-panel border border-line bg-surface text-ink shadow-overlay cp-pop">
                     <div className="flex items-center gap-1 border-b border-line-subtle px-2 py-1.5">
                         {(
                             [
@@ -348,7 +348,7 @@ export function CallBar() {
                             type="button"
                             onClick={hangup}
                             aria-label="Raccrocher"
-                            className="inline-flex h-9 items-center gap-1.5 rounded-control bg-danger px-3 text-[12px] font-semibold text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:px-4"
+                            className="cp-press inline-flex h-9 items-center gap-1.5 rounded-control bg-danger px-3 text-[12px] font-semibold text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 sm:px-4"
                         >
                             <PhoneOff className="h-4 w-4" />
                             <span className="hidden sm:inline">Raccrocher</span>
@@ -359,7 +359,7 @@ export function CallBar() {
                                 <button
                                     type="button"
                                     onClick={redial}
-                                    className="inline-flex h-9 items-center gap-1.5 rounded-control border border-inverse-line px-3 text-[12px] font-semibold hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                                    className="cp-press inline-flex h-9 items-center gap-1.5 rounded-control border border-inverse-line px-3 text-[12px] font-semibold hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
                                 >
                                     <RotateCcw className="h-3.5 w-3.5" />
                                     {failed ? "Réessayer" : "Rappeler"}
@@ -395,7 +395,7 @@ function StatusGlyph({ call, small }: { call: SoftphoneCall; small?: boolean }) 
         >
             {waiting && <span className="absolute inset-0 rounded-full bg-white/15 animate-ping" />}
             {live ? (
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <span className="cp-halo h-2.5 w-2.5 rounded-full bg-emerald-400" />
             ) : failed ? (
                 <PhoneOff className="h-3.5 w-3.5 text-red-200" />
             ) : (
@@ -429,7 +429,7 @@ function DockToggle({
             aria-pressed={pressed}
             title={label}
             className={cn(
-                "inline-flex h-9 items-center gap-1.5 rounded-control px-2.5 text-[12px] font-medium text-inverse-ink-2 hover:bg-white/10 hover:text-inverse-ink",
+                "cp-press inline-flex h-9 items-center gap-1.5 rounded-control px-2.5 text-[12px] font-medium text-inverse-ink-2 hover:bg-white/10 hover:text-inverse-ink",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 disabled:pointer-events-none disabled:opacity-40",
                 pressed && "bg-white/15 text-inverse-ink",
             )}

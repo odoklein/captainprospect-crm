@@ -68,7 +68,7 @@ export function PrecallBrief({
     }
 
     return (
-        <section className={cn("rounded-panel border border-line bg-surface shadow-card", className)} aria-busy={state.status === "loading"}>
+        <section className={cn("cp-ai-edge rounded-panel border border-line bg-surface shadow-card", className)} aria-busy={state.status === "loading"}>
             <header className="flex items-center gap-2 px-5 pt-4">
                 <Sparkles className="h-4 w-4 text-accent" aria-hidden />
                 <h2 className="text-[13px] font-semibold text-ink">Brief avant l&apos;appel</h2>
@@ -81,7 +81,7 @@ export function PrecallBrief({
                         <button
                             type="button"
                             onClick={regenerate}
-                            className="ml-auto flex h-7 w-7 items-center justify-center rounded-control text-ink-3 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                            className="cp-press ml-auto flex h-7 w-7 items-center justify-center rounded-control text-ink-3 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                             aria-label="Régénérer le brief"
                             title="Régénérer le brief"
                         >
@@ -95,14 +95,14 @@ export function PrecallBrief({
                 <div className="space-y-2.5 px-5 pb-5 pt-3">
                     <p className="text-[12px] text-ink-3">Préparation du brief…</p>
                     {[96, 88, 72, 80].map((w, i) => (
-                        <div key={i} className="h-2.5 animate-pulse rounded bg-surface-3" style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
+                        <div key={i} className="cp-shimmer h-2.5 rounded" style={{ width: `${w}%` }} />
                     ))}
                 </div>
             ) : (
                 <div className="space-y-4 px-5 pb-5 pt-2.5">
-                    <p className="text-[13px] leading-relaxed text-ink-2">{state.brief.context}</p>
+                    <p className="cp-rise text-[13px] leading-relaxed text-ink-2">{state.brief.context}</p>
                     {state.brief.angle && (
-                        <div className="flex gap-2.5 rounded-control border-l-2 border-accent bg-accent-50/60 px-3 py-2">
+                        <div className="cp-rise flex gap-2.5 rounded-control border-l-2 border-accent bg-accent-50/60 px-3 py-2" style={{ ["--i" as string]: 1 }}>
                             <MessageSquareQuote className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
                             <div>
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-3">Accroche</p>
@@ -110,11 +110,13 @@ export function PrecallBrief({
                             </div>
                         </div>
                     )}
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="cp-rise grid gap-4 sm:grid-cols-2" style={{ ["--i" as string]: 2 }}>
                         <BriefList icon={Target} title="À mettre en avant" items={state.brief.talkingPoints} />
                         <BriefList icon={HelpCircle} title="Questions à poser" items={state.brief.questions} />
                     </div>
-                    <BriefList icon={ShieldAlert} title="Points de vigilance" items={state.brief.watchOut} tone="warn" />
+                    <div className="cp-rise" style={{ ["--i" as string]: 3 }}>
+                        <BriefList icon={ShieldAlert} title="Points de vigilance" items={state.brief.watchOut} tone="warn" />
+                    </div>
                 </div>
             )}
         </section>

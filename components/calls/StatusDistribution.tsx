@@ -37,7 +37,7 @@ export function StatusDistribution({
                 {items.map((i, idx) => (
                     <span
                         key={i.id}
-                        className={cn("h-full transition-opacity duration-150", filtering && !selected.includes(i.id) && "opacity-25")}
+                        className={cn("cp-grow-x h-full transition-opacity duration-200", filtering && !selected.includes(i.id) && "opacity-25")}
                         style={{ width: `${(i.count / total) * 100}%`, background: colorOf(i, idx) }}
                         title={`${i.label} : ${i.count}`}
                     />
@@ -53,7 +53,7 @@ export function StatusDistribution({
                                 onClick={() => onToggle(i.id)}
                                 aria-pressed={on}
                                 className={cn(
-                                    "flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px] transition-colors",
+                                    "cp-lift cp-press flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-[12px]",
                                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                                     on
                                         ? "border-ink bg-ink text-surface"

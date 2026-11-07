@@ -157,7 +157,8 @@ export function CallPlayer({ src, className, durationHint }: { src: string; clas
                     onClick={toggle}
                     disabled={error}
                     aria-label={playing ? "Pause" : "Lire l'enregistrement"}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40"
+                    style={{ ["--halo" as string]: "var(--ds-primary)" }}
+                    className={cn("cp-press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-40", playing && "cp-halo")}
                 >
                     {playing ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
                 </button>
@@ -188,15 +189,14 @@ export function CallPlayer({ src, className, durationHint }: { src: string; clas
                                 return (
                                     <span
                                         key={i}
-                                        className={cn("min-w-[1px] flex-1 rounded-full transition-colors duration-100", played ? "bg-primary" : "bg-line-strong")}
-                                        style={{ height: `${Math.round(p * 100)}%` }}
+                                        className={cn("cp-grow-y min-w-[1px] flex-1 rounded-full transition-colors duration-150", played ? "bg-primary" : "bg-line-strong")}
+                                        style={{ height: `${Math.round(p * 100)}%`, ["--i" as string]: i }}
                                     />
                                 );
                             })}
                         </div>
                     ) : (
-                        <div className="relative h-1 w-full overflow-hidden rounded-full bg-surface-3" aria-hidden>
-                            {peaks === null && <div className="absolute inset-0 animate-pulse bg-line" />}
+                        <div className={cn("relative h-1 w-full overflow-hidden rounded-full bg-surface-3", peaks === null && "cp-shimmer")} aria-hidden>
                             <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${progress * 100}%` }} />
                         </div>
                     )}
@@ -216,7 +216,7 @@ export function CallPlayer({ src, className, durationHint }: { src: string; clas
                 <button
                     type="button"
                     onClick={() => setSpeed((s) => SPEEDS[(SPEEDS.indexOf(s) + 1) % SPEEDS.length])}
-                    className="h-7 shrink-0 rounded-control border border-line px-1.5 text-[11px] font-semibold tabular-nums text-ink-2 hover:bg-surface-2"
+                    className="cp-press h-7 shrink-0 rounded-control border border-line px-1.5 text-[11px] font-semibold tabular-nums text-ink-2 hover:bg-surface-2"
                     aria-label={`Vitesse de lecture ${speed}×`}
                     title="Vitesse de lecture"
                 >

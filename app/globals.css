@@ -5947,3 +5947,114 @@ textarea::placeholder {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ============================================================================
+   MOTION & GLASS — calling surfaces (dock, Mode Focus, journal, insights).
+   One easing for everything that enters; glass only on small surfaces that
+   float over content. Every animation stops under prefers-reduced-motion.
+   ============================================================================ */
+:root {
+    --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes cp-rise {
+    from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+    to   { opacity: 1; transform: none; filter: none; }
+}
+@keyframes cp-pop {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes cp-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+@keyframes cp-halo {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--halo, #34d399) 60%, transparent); }
+    100% { box-shadow: 0 0 0 7px transparent; }
+}
+@keyframes cp-grow-x {
+    from { transform: scaleX(0); }
+    to   { transform: none; }
+}
+@keyframes cp-grow-y {
+    from { transform: scaleY(0.1); opacity: 0.2; }
+    to   { transform: none; opacity: 1; }
+}
+@keyframes cp-flash {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ds-primary) 40%, transparent); }
+    100% { box-shadow: 0 0 0 7px transparent; }
+}
+@keyframes cp-ring {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: var(--ring-length, 100); }
+}
+
+/* Entrances. --i staggers siblings (capped, so long lists never crawl). */
+.cp-rise { animation: cp-rise 340ms var(--ease-out-soft) both; animation-delay: calc(min(var(--i, 0), 12) * 32ms); }
+.cp-pop { animation: cp-pop 240ms var(--ease-out-soft) both; }
+.cp-grow-x { transform-origin: left center; animation: cp-grow-x 700ms var(--ease-out-soft) both; }
+.cp-grow-y { animation: cp-grow-y 520ms var(--ease-out-soft) both; animation-delay: calc(var(--i, 0) * 5ms); }
+.cp-flash { animation: cp-flash 450ms ease-out; }
+.cp-halo { animation: cp-halo 1.6s var(--ease-out-soft) infinite; }
+
+/* Children rise one after another (drawers, panels). */
+.cp-stagger > * { animation: cp-rise 360ms var(--ease-out-soft) both; }
+.cp-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.cp-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.cp-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.cp-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.cp-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.cp-stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+/* Skeleton: a soft sweep instead of a blink. */
+.cp-shimmer {
+    background: linear-gradient(90deg, var(--ds-surface-3) 0%, color-mix(in oklab, var(--ds-surface-3) 45%, var(--ds-surface)) 50%, var(--ds-surface-3) 100%);
+    background-size: 200% 100%;
+    animation: cp-shimmer 1.6s linear infinite;
+}
+
+/* Tactile controls. */
+.cp-press { transition: transform 140ms var(--ease-out-soft), background-color 150ms, box-shadow 150ms, filter 150ms; }
+.cp-press:active:not(:disabled) { transform: scale(0.97); }
+.cp-lift { transition: transform 180ms var(--ease-out-soft), box-shadow 180ms var(--ease-out-soft), border-color 150ms; }
+.cp-lift:hover { transform: translateY(-1px); box-shadow: 0 4px 12px -6px color-mix(in oklab, var(--ds-shadow-color) 25%, transparent); }
+
+/* Glass — small floating surfaces only. Falls back to solid where unsupported. */
+.cp-glass {
+    background: color-mix(in oklab, var(--ds-surface) 74%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid color-mix(in oklab, var(--ds-line) 75%, transparent);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.6),
+        0 10px 28px -14px color-mix(in oklab, var(--ds-shadow-color) 35%, transparent);
+}
+.cp-glass-dark {
+    background: color-mix(in oklab, var(--ds-inverse) 80%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    backdrop-filter: blur(16px) saturate(170%);
+    border: 1px solid var(--ds-inverse-line);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.08),
+        0 12px 32px -14px rgb(0 0 0 / 0.5);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .cp-glass { background: var(--ds-surface); }
+    .cp-glass-dark { background: var(--ds-inverse); }
+}
+
+/* A hairline of accent on top of AI surfaces — the only « AI » decoration. */
+.cp-ai-edge { position: relative; }
+.cp-ai-edge::before {
+    content: "";
+    position: absolute;
+    inset: 0 16px auto;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--ds-accent) 55%, transparent), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cp-rise, .cp-pop, .cp-grow-x, .cp-grow-y, .cp-flash, .cp-halo, .cp-shimmer, .cp-stagger > * { animation: none !important; }
+    .cp-press:active:not(:disabled), .cp-lift:hover { transform: none; }
+}

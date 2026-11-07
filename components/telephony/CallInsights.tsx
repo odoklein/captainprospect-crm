@@ -190,7 +190,7 @@ export function TranscriptView({
                         const sdr = l.speaker === "sdr";
                         const sameAsPrev = i > 0 && lines[i - 1].speaker === l.speaker;
                         return (
-                            <li key={l.id ?? `${l.at}-${i}`} className={cn("grid grid-cols-[44px_1fr] gap-2", sameAsPrev && "-mt-1.5")}>
+                            <li key={l.id ?? `${l.at}-${i}`} className={cn("cp-rise grid grid-cols-[44px_1fr] gap-2", sameAsPrev && "-mt-1.5")}>
                                 <span className="pt-0.5 text-right text-[10px] tabular-nums text-ink-4">
                                     {sameAsPrev ? "" : clock(new Date(l.at).getTime() - origin)}
                                 </span>
@@ -233,10 +233,10 @@ export function summaryAsText(s: CallAiSummary): string {
     return `${s.summary}${block("Points clés", s.keyPoints)}${block("Objections", s.objections)}${block("Prochaines étapes", s.nextSteps)}${block("Qualification", qual)}`;
 }
 
-function Section({ icon: Icon, title, items }: { icon: typeof ListChecks; title: string; items: string[] }) {
+function Section({ icon: Icon, title, items, order = 0 }: { icon: typeof ListChecks; title: string; items: string[]; order?: number }) {
     if (items.length === 0) return null;
     return (
-        <section>
+        <section className="cp-rise" style={{ ["--i" as string]: order }}>
             <h4 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">
                 <Icon className="h-3.5 w-3.5" aria-hidden />
                 {title}
@@ -259,7 +259,7 @@ function QualificationGrid({ q }: { q: Qualification | undefined }) {
     const keys = (Object.keys(QUALIFICATION_LABELS) as (keyof Qualification)[]).filter((k) => q[k]);
     if (keys.length === 0) return null;
     return (
-        <section>
+        <section className="cp-rise" style={{ ["--i" as string]: 4 }}>
             <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Qualification</h4>
             <dl className="divide-y divide-line-subtle rounded-control border border-line-subtle">
                 {keys.map((k) => (
@@ -298,7 +298,7 @@ export function AiSummaryView({
                     Résumé en cours de rédaction…
                 </p>
                 {[92, 80, 64].map((w) => (
-                    <div key={w} className="h-2.5 animate-pulse rounded bg-surface-3" style={{ width: `${w}%` }} />
+                    <div key={w} className="cp-shimmer h-2.5 rounded" style={{ width: `${w}%` }} />
                 ))}
             </div>
         );
@@ -313,7 +313,7 @@ export function AiSummaryView({
     return (
         <div className={cn("space-y-4", className)}>
             {suggested && s.suggestedStatus && (
-                <div className="flex items-center gap-2 rounded-control border border-accent-200 bg-accent-50 px-3 py-2 text-[13px]">
+                <div className="cp-pop flex items-center gap-2 rounded-control border border-accent-200 bg-accent-50 px-3 py-2 text-[13px]">
                     <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />
                     <span className="text-ink-2">Statut suggéré</span>
                     <StatusLabel label={suggested.label} color={suggested.color} className="font-medium" />
@@ -328,7 +328,7 @@ export function AiSummaryView({
                     )}
                 </div>
             )}
-            <div className="flex items-start justify-between gap-3">
+            <div className="cp-rise flex items-start justify-between gap-3">
                 <p className="text-[13px] leading-relaxed text-ink">{s.summary}</p>
                 <button
                     type="button"
@@ -338,16 +338,16 @@ export function AiSummaryView({
                             setTimeout(() => setCopied(false), 1500);
                         });
                     }}
-                    className="flex h-7 shrink-0 items-center gap-1 rounded-control border border-line px-2 text-[11px] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    className="cp-press flex h-7 shrink-0 items-center gap-1 rounded-control border border-line px-2 text-[11px] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
                     title="Copier le résumé (à coller dans la note)"
                 >
                     {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
                     {copied ? "Copié" : "Copier"}
                 </button>
             </div>
-            <Section icon={ListChecks} title="Points clés" items={s.keyPoints} />
-            <Section icon={ShieldAlert} title="Objections" items={s.objections} />
-            <Section icon={ArrowRight} title="Prochaines étapes" items={s.nextSteps} />
+            <Section icon={ListChecks} title="Points clés" items={s.keyPoints} order={1} />
+            <Section icon={ShieldAlert} title="Objections" items={s.objections} order={2} />
+            <Section icon={ArrowRight} title="Prochaines étapes" items={s.nextSteps} order={3} />
             <QualificationGrid q={s.qualification} />
         </div>
     );

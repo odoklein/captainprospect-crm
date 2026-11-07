@@ -108,10 +108,9 @@ export function FloatingDock() {
             aria-label="Raccourcis"
             className={cn(
                 "fixed z-[90] left-[calc(var(--cp-sidebar-w,0px)+1rem)] bottom-[calc(1rem+var(--softphone-dock-h,0px))]",
-                "flex items-center gap-0.5 rounded-full border border-line bg-surface/90 p-1 shadow-raised backdrop-blur-md",
-                "transition-[transform,box-shadow] duration-200 ease-snappy hover:-translate-y-0.5 hover:shadow-overlay",
+                "cp-glass cp-pop flex items-center gap-0.5 rounded-full p-1",
+                "transition-transform duration-200 ease-snappy hover:-translate-y-0.5",
                 "motion-reduce:transition-none motion-reduce:hover:translate-y-0",
-                "animate-in fade-in slide-in-from-bottom-2 duration-200",
             )}
         >
             {items.map((item) => (
@@ -140,13 +139,13 @@ function DockButton({ item }: { item: DockItem }) {
             aria-label={item.badge ? `${item.label} (${item.badge})` : item.label}
             aria-pressed={item.active}
             className={cn(
-                "group relative flex h-10 min-w-10 items-center rounded-full px-[11px] text-[12px] font-semibold",
-                "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                "cp-press group relative flex h-10 min-w-10 items-center rounded-full px-[11px] text-[12px] font-semibold",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                 live
                     ? "bg-success text-white hover:brightness-110"
                     : item.active
                       ? "bg-primary-soft text-primary-soft-ink"
-                      : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                      : "text-ink-2 hover:bg-surface/80 hover:text-ink",
             )}
         >
             <span className="relative flex h-[18px] w-[18px] shrink-0 items-center justify-center">
@@ -159,7 +158,10 @@ function DockButton({ item }: { item: DockItem }) {
                     aria-hidden
                 />
                 {item.badge ? (
-                    <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white tabular-nums ring-2 ring-surface">
+                    <span
+                        key={item.badge}
+                        className="cp-pop absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-none text-white tabular-nums ring-2 ring-surface"
+                    >
                         {item.badge > 99 ? "99+" : item.badge}
                     </span>
                 ) : null}

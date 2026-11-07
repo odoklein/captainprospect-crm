@@ -21,6 +21,7 @@ import { formatDuration, formatPhone } from "@/components/incoming-calls/useInco
 import { StatusLabel } from "@/components/calls/StatusLabel";
 import { StatusDistribution } from "@/components/calls/StatusDistribution";
 import { CallDetailDrawer } from "@/components/calls/CallDetailDrawer";
+import { useCountUp } from "@/components/calls/useCountUp";
 
 // ── period presets (Paris days) ─────────────────────────────────────────────
 
@@ -193,7 +194,7 @@ function Journal() {
                                 aria-checked={activePreset === p.id}
                                 onClick={() => setFilters({ start: p.start, end: p.end })}
                                 className={cn(
-                                    "h-7 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors",
+                                    "cp-press h-7 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors duration-200",
                                     activePreset === p.id ? "bg-ink text-surface" : "text-ink-2 hover:text-ink",
                                 )}
                             >
@@ -321,23 +322,26 @@ function Journal() {
             {data && (
                 <section className={cn("rounded-panel border border-line bg-surface shadow-card transition-opacity", loading && "opacity-60")}>
                     <dl className="grid grid-cols-2 divide-line-subtle sm:grid-cols-3 lg:grid-cols-5 lg:divide-x">
-                        <Metric label={unqualified ? "Appels sans statut" : "Appels"} value={k!.calls.toLocaleString("fr-FR")} />
+                        <Metric label={unqualified ? "Appels sans statut" : "Appels"} value={<AnimatedNumber value={k!.calls} format={int} />} />
                         {!unqualified && (
                             <Metric
                                 label="RDV"
-                                value={k!.meetings.toLocaleString("fr-FR")}
+                                value={<AnimatedNumber value={k!.meetings} format={int} />}
                                 hint={k!.calls ? `${((k!.meetings / k!.calls) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % des appels` : undefined}
                             />
                         )}
                         <Metric
                             label="Temps de parole"
-                            value={k!.measuredCalls ? hms(k!.talkSeconds) : "—"}
+                            value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds} format={(v) => hms(Math.round(v))} /> : "—"}
                             hint={k!.measuredCalls ? `${k!.measuredCalls} appel${k!.measuredCalls > 1 ? "s" : ""} mesuré${k!.measuredCalls > 1 ? "s" : ""}` : "aucune durée connue"}
                         />
-                        <Metric label="Durée moyenne" value={k!.measuredCalls ? formatDuration(Math.round(k!.talkSeconds / k!.measuredCalls)) : "—"} />
+                        <Metric
+                            label="Durée moyenne"
+                            value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds / k!.measuredCalls} format={(v) => formatDuration(Math.round(v))} /> : "—"}
+                        />
                         <Metric
                             label="Enregistrés"
-                            value={k!.withRecording.toLocaleString("fr-FR")}
+                            value={<AnimatedNumber value={k!.withRecording} format={int} />}
                             hint={k!.calls ? `${Math.round((k!.withRecording / k!.calls) * 100)} %` : undefined}
                         />
                     </dl>
@@ -389,7 +393,7 @@ function Journal() {
                                     <th className="w-[72px] px-4 py-2.5 text-right font-semibold" aria-label="Contenu" />
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody key={loadedQuery ?? ""}>
                                 {rows.map((r, i) => (
                                     <Row
                                         key={r.id}
@@ -444,7 +448,14 @@ function Journal() {
 
 // ── pieces ──────────────────────────────────────────────────────────────────
 
-function Metric({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/** A number that eases to its new value when the filters change. */
+function AnimatedNumber({ value, format }: { value: number; format: (v: number) => string }) {
+    return <>{format(useCountUp(value))}</>;
+}
+
+const int = (v: number) => Math.round(v).toLocaleString("fr-FR");
+
+function Metric({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
     return (
         <div className="px-5 py-4">
             <dt className="text-[12px] text-ink-3">{label}</dt>
@@ -511,8 +522,9 @@ function Row({
         <tr
             data-row={index}
             onClick={onOpen}
+            style={{ ["--i" as string]: index }}
             className={cn(
-                "group cursor-pointer border-b border-line-subtle last:border-b-0",
+                "cp-rise group cursor-pointer border-b border-line-subtle transition-colors duration-150 last:border-b-0",
                 active ? "bg-primary-soft/60" : "hover:bg-surface-2",
             )}
         >
@@ -584,10 +596,10 @@ function TableSkeleton() {
         <div className="divide-y divide-line-subtle" aria-busy="true">
             {Array.from({ length: 8 }, (_, i) => (
                 <div key={i} className="flex items-center gap-6 px-4 py-3.5">
-                    <div className="h-3 w-12 animate-pulse rounded bg-surface-3" />
-                    <div className="h-3 w-48 animate-pulse rounded bg-surface-3" />
-                    <div className="h-3 w-28 animate-pulse rounded bg-surface-3" />
-                    <div className="ml-auto h-3 w-16 animate-pulse rounded bg-surface-3" />
+                    <div className="cp-shimmer h-3 w-12 rounded" />
+                    <div className="cp-shimmer h-3 w-48 rounded" />
+                    <div className="cp-shimmer h-3 w-28 rounded" />
+                    <div className="cp-shimmer ml-auto h-3 w-16 rounded" />
                 </div>
             ))}
         </div>
