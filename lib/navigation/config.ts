@@ -257,6 +257,12 @@ export const SDR_NAV: NavSection[] = [
         permission: "pages.action",
       },
       {
+        href: "/sdr/appels",
+        icon: Headphones,
+        label: "Mes appels",
+        permission: "pages.action",
+      },
+      {
         href: "/sdr/callbacks",
         icon: CalendarClock,
         label: "Rappels",

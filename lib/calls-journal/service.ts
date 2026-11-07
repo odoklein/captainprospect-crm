@@ -264,7 +264,13 @@ async function journalUnqualified(f: JournalFilters, range: PeriodRange, telepho
     const companyIds = [...new Set(rows.map((r) => r.companyId).filter((v): v is string => Boolean(v)))];
     const [contacts, companies, sdrNames] = await Promise.all([
         contactIds.length ? prisma.contact.findMany({ where: { id: { in: contactIds } }, select: { id: true, firstName: true, lastName: true, title: true } }) : [],
-        companyIds.length ? prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, name: true } }) : [],
+        // The company's list gives the mission the call can be qualified in.
+        companyIds.length
+            ? prisma.company.findMany({
+                  where: { id: { in: companyIds } },
+                  select: { id: true, name: true, list: { select: { mission: { select: { id: true, name: true, client: { select: { name: true } } } } } } },
+              })
+            : [],
         sdrGroups.length ? prisma.user.findMany({ where: { id: { in: sdrGroups.map((g) => g.sdrId) } }, select: { id: true, name: true } }) : [],
     ]);
     const contactOf = new Map(contacts.map((c) => [c.id, c]));
@@ -282,7 +288,7 @@ async function journalUnqualified(f: JournalFilters, range: PeriodRange, telepho
             contact: c ? { id: c.id, name: fullName(c.firstName, c.lastName) || "Contact", title: c.title } : null,
             company: co ? { id: co.id, name: co.name } : null,
             phone: r.toNumber,
-            mission: null,
+            mission: co?.list.mission ? { id: co.list.mission.id, name: co.list.mission.name, client: co.list.mission.client?.name ?? null } : null,
             status: null,
             telephonyStatus: r.status,
             durationSec: r.durationSec,
@@ -412,7 +418,7 @@ export async function getCallDetail(kind: "action" | "call", id: string): Promis
 }
 
 function lines(rows: { speaker: string; text: string; at: Date }[]): CallDetail["transcript"] {
-    return rows.map((l) => ({ speaker: l.speaker === "sdr" ? "sdr" : "prospect", text: l.text, at: l.at.toISOString() }));
+    return rows.map((l) => ({ speaker: l.speaker === "sdr" || l.speaker === "mixed" ? l.speaker : "prospect", text: l.text, at: l.at.toISOString() }));
 }
 
 async function callHistory(contactId: string | null, companyId: string | null, defs: Defs, excludeActionId: string | null) {

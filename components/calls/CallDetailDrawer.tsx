@@ -37,12 +37,15 @@ function Section({ title, icon: Icon, children, aside }: { title: string; icon: 
 }
 
 export function CallDetailDrawer({
+    apiBase = "/api/manager/calls",
     target,
     onClose,
     onOpenCall,
     highlight,
     resolveStatus,
 }: {
+    /** Journal endpoint the detail is read from (`${apiBase}/[id]`). */
+    apiBase?: string;
     target: { id: string; kind: "action" | "call" } | null;
     onClose: () => void;
     /** Opens another call (from the prospect's history). */
@@ -57,7 +60,7 @@ export function CallDetailDrawer({
     useEffect(() => {
         if (!target || !key) return;
         const ctrl = new AbortController();
-        fetch(`/api/manager/calls/${target.id}?kind=${target.kind}`, { signal: ctrl.signal })
+        fetch(`${apiBase}/${target.id}?kind=${target.kind}`, { signal: ctrl.signal })
             .then((r) => r.json())
             .then((json) => {
                 setLoaded(json?.success ? { key, detail: json.data, error: null } : { key, detail: null, error: json?.error ?? "Appel introuvable" });
@@ -66,7 +69,7 @@ export function CallDetailDrawer({
                 if ((e as Error).name !== "AbortError") setLoaded({ key, detail: null, error: "Chargement impossible" });
             });
         return () => ctrl.abort();
-    }, [target, key]);
+    }, [target, key, apiBase]);
 
     const current = loaded && loaded.key === key ? loaded : null;
     const d = current?.detail ?? null;

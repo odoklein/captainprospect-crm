@@ -36,7 +36,10 @@ export async function POST(req: NextRequest) {
                 await summarizeCall(callId).catch((e) => console.error("[webhooks/twilio/transcription] summary", e));
             });
         } else if (event.kind === "error") {
-            console.warn(`[webhooks/twilio/transcription] ${callId}: ${event.message}`);
+            // The error payload is not documented in the SDK typings: log every field (minus the account) to diagnose.
+            const { AccountSid: _account, ...fields } = params;
+            void _account;
+            console.warn(`[webhooks/twilio/transcription] ${callId}: ${event.message}`, JSON.stringify(fields));
         }
         return new Response(null, { status: 204 });
     } catch (error) {

@@ -11,6 +11,8 @@
 // ============================================
 
 export type Speaker = "sdr" | "prospect";
+/** "mixed": transcribed from the recording, both voices together. */
+export type LineSpeaker = Speaker | "mixed";
 
 export type TranscriptionEvent =
     | { kind: "line"; speaker: Speaker; seq: number; text: string; confidence: number | null; at: Date; final: boolean }
@@ -72,6 +74,6 @@ export interface TranscriptLineLike {
 
 /** Plain-text transcript, as stored on the Action (callTranscription). */
 export function transcriptText(lines: TranscriptLineLike[], names: { sdr?: string; prospect?: string } = {}): string {
-    const label = (s: string) => (s === "sdr" ? names.sdr || "SDR" : names.prospect || "Prospect");
+    const label = (s: string) => (s === "sdr" ? names.sdr || "SDR" : s === "mixed" ? "Conversation" : names.prospect || "Prospect");
     return lines.map((l) => `${label(l.speaker)} : ${l.text}`).join("\n");
 }

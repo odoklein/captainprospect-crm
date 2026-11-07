@@ -9,15 +9,17 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/telephony/calls/[id]/recording — audio of a softphone call that has
- * no qualification (so no /api/actions/[id]/recording). Manager only; the
+ * no qualification (so no /api/actions/[id]/recording). Managers, or the call's own SDR; the
  * Twilio credentials never leave the server.
  */
 export const GET = withErrorHandler(
     async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
-        await requireRole(["MANAGER"], request);
+        const session = await requireRole(["MANAGER", "SDR", "BUSINESS_DEVELOPER", "BOOKER"], request);
         const { id } = await params;
 
-        const call = await prisma.telephonyCall.findUnique({ where: { id }, select: { recordingUrl: true } });
+        const call = await prisma.telephonyCall.findUnique({ where: { id }, select: { recordingUrl: true, sdrId: true } });
+        // Managers hear every call; anyone else only their own.
+        if (call && session.user.role !== "MANAGER" && call.sdrId !== session.user.id) throw new NotFoundError("Enregistrement introuvable");
         const sid = integrationKey("TWILIO_ACCOUNT_SID");
         const token = integrationKey("TWILIO_AUTH_TOKEN");
         if (!call?.recordingUrl || !sid || !token) throw new NotFoundError("Enregistrement introuvable");

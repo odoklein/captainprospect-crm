@@ -35,6 +35,8 @@ const createActionSchema = z.object({
     meetingAddress: z.string().max(500).optional(),
     meetingJoinUrl: z.string().url('Lien de rejoindre invalide').max(2000).optional(),
     meetingPhone: z.string().max(50).optional(),
+    /** Integrated-phone call this outcome qualifies (« Mes appels » → Sans statut). */
+    telephonyCallId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
     /**
      * Optional "ne plus contacter" carried by the same call, so an SDR closing a
      * refusal does it in one gesture instead of a second trip through a manager.
@@ -166,6 +168,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             viaSoftphone = Boolean(await linkCallToAction({
                 id: action.id,
                 sdrId: session.user.id,
+                callId: data.telephonyCallId,
                 contactId: data.contactId,
                 companyId: data.companyId,
             }));

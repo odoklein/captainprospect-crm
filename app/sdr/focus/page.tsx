@@ -149,7 +149,7 @@ function clock(totalSec: number): string {
 
 export default function FocusPage() {
     const { success } = useToast();
-    const { enabled: softphoneOn, transcription, call, dial, hangup, toggleMute } = useSoftphone();
+    const { enabled: softphoneOn, insights: insightsOn, call, dial, hangup, toggleMute } = useSoftphone();
 
     const [missions, setMissions] = useState<Mission[] | null>(null);
     const [missionId, setMissionId] = useState<string | null>(null);
@@ -227,7 +227,7 @@ export default function FocusPage() {
     const inCall = isCallActive(call);
     const callIsOurs = Boolean(call && prospect && call.target.companyId === prospect.company.id);
     if (callIsOurs && call?.callId && call.callId !== ourCallId) setOurCallId(call.callId);
-    const insights = useCallTranscript(transcription ? ourCallId : null, transcription && Boolean(ourCallId));
+    const insights = useCallTranscript(insightsOn ? ourCallId : null, insightsOn && Boolean(ourCallId));
     const suggestedStatus = insights.summary.status === "done" ? insights.summary.data.suggestedStatus : null;
 
     // ── queue ──────────────────────────────────────────────────────────────
@@ -685,7 +685,7 @@ export default function FocusPage() {
 
                     {/* ── Outcome ── */}
                     <aside className="flex flex-col gap-3 self-start rounded-panel border border-line bg-surface p-4 shadow-card lg:sticky lg:top-[136px]">
-                        {ourCallId && transcription && !(inCall && callIsOurs) && insights.summary.status !== "none" && (
+                        {ourCallId && insightsOn && !(inCall && callIsOurs) && insights.summary.status !== "none" && (
                             <div className="-mx-4 -mt-4 mb-1 border-b border-line-subtle bg-surface-2/50 px-4 py-4">
                                 <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Résumé de l&apos;appel</p>
                                 <AiSummaryView

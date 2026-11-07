@@ -1,5 +1,6 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { applyRecording } from "@/lib/telephony/service";
+import { summarizeCall } from "@/lib/telephony/summary";
 import { gateTwilioWebhook } from "@/lib/telephony/webhook";
 
 export const runtime = "nodejs";
@@ -12,7 +13,9 @@ export async function POST(req: NextRequest) {
     const { config, params, callId } = gate.ctx;
     if (!callId) return new Response(null, { status: 204 });
     try {
-        await applyRecording(config, callId, params);
+        const call = await applyRecording(config, callId, params);
+        // The recording is the transcript of last resort: (re)start the summary now it exists.
+        if (call?.recordingUrl) after(() => summarizeCall(callId).catch((e) => console.error("[webhooks/twilio/recording] summary", e)));
         return new Response(null, { status: 204 });
     } catch (error) {
         console.error("[webhooks/twilio/recording] failed", error);

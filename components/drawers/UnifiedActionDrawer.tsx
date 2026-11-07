@@ -159,6 +159,8 @@ interface UnifiedActionDrawerProps {
     onBookingDialogOpenChange?: (isOpen: boolean) => void;
     /** When the Allo call-picker modal opens, parent can hide overlapping UI (e.g. ScriptCompanionDrawer). */
     onAlloDialogOpenChange?: (isOpen: boolean) => void;
+    /** The integrated-phone call this drawer qualifies: the saved outcome is linked to it exactly. */
+    telephonyCallId?: string | null;
     enableGooglePhoneLookup?: boolean;
     /** AI web-search panel for incomplete company sheets. Defaults to the value of enableGooglePhoneLookup (same SDR pages). */
     enableCompanyAiEnrichment?: boolean;
@@ -480,6 +482,7 @@ export function UnifiedActionDrawer({
     onContactSelect,
     onBookingDialogOpenChange,
     onAlloDialogOpenChange,
+    telephonyCallId,
     enableGooglePhoneLookup = false,
     enableCompanyAiEnrichment,
     summary,
@@ -913,6 +916,7 @@ export function UnifiedActionDrawer({
                 body: JSON.stringify({
                     contactId: targetContactId || contactId || undefined,
                     companyId: (targetContactId || contactId) ? undefined : companyId,
+                    ...(telephonyCallId ? { telephonyCallId } : {}),
                     campaignId,
                     channel,
                     result: "BAD_CONTACT",
@@ -1350,6 +1354,7 @@ export function UnifiedActionDrawer({
                     contactId: contactId || undefined,
                     companyId: contactId ? undefined : companyId,
                     campaignId,
+                    ...(telephonyCallId && newActionResult !== "ENVOIE_MAIL" ? { telephonyCallId } : {}),
                     channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : channel,
                     result: newActionResult,
                     note: newActionNote.trim() || undefined,

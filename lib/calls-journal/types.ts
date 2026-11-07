@@ -86,7 +86,7 @@ export interface CallDetail {
     /** Structured AI summary of an integrated-phone call. */
     ai: SummaryState;
     /** Speaker-labelled live transcript of an integrated-phone call. */
-    transcript: { speaker: "sdr" | "prospect"; text: string; at: string }[];
+    transcript: { speaker: "sdr" | "prospect" | "mixed"; text: string; at: string }[];
     telephony: {
         status: TelephonyStatus;
         from: string;

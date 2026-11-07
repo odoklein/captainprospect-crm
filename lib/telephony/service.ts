@@ -262,7 +262,23 @@ export async function linkCallToAction(action: {
     sdrId: string;
     contactId?: string | null;
     companyId?: string | null;
+    /** The exact call being qualified (« Mes appels » → Sans statut). Must be this SDR's, unlinked. */
+    callId?: string | null;
 }): Promise<TelephonyCall | null> {
+    if (action.callId) {
+        const claimed = await prisma.telephonyCall.updateMany({
+            where: { id: action.callId, sdrId: action.sdrId, actionId: null, parentCallSid: { not: null } },
+            data: { actionId: action.id },
+        });
+        if (claimed.count === 0) return null;
+        const linked = await prisma.telephonyCall.findUnique({ where: { id: action.callId } });
+        if (linked) {
+            await syncLinkedAction(linked);
+            await syncSummaryToAction(linked.id);
+        }
+        return linked;
+    }
+
     const targets = [
         ...(action.contactId ? [{ contactId: action.contactId }] : []),
         ...(action.companyId ? [{ companyId: action.companyId }] : []),

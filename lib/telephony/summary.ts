@@ -13,6 +13,59 @@ import { prisma } from "@/lib/prisma";
 import { AiCallError, callJsonModel } from "@/lib/ai/json-call";
 import { transcriptText } from "./transcription";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
+import { transcribeAudioFr } from "@/lib/ai/mistral-transcribe";
+import { integrationKey } from "@/lib/integrations/keys";
+import { getTwilioConfig } from "./config";
+import { isTwilioRecordingUrl } from "./twilio";
+
+/** How long an answered call may wait for Twilio's recording before we give up on it. */
+const RECORDING_WAIT_MS = 5 * 60_000;
+
+type RecordingTranscript = { status: "done" } | { status: "waiting" } | { status: "unavailable"; reason: string };
+
+/**
+ * Fallback when the live transcription produced nothing usable: transcribe the
+ * call's Twilio recording (both voices mixed) and store it as one line,
+ * speaker "mixed". Needs TWILIO_RECORD_CALLS=1.
+ */
+async function transcriptFromRecording(call: {
+    id: string;
+    answeredAt: Date | null;
+    startedAt: Date;
+    endedAt: Date | null;
+    recordingUrl: string | null;
+}): Promise<RecordingTranscript> {
+    const config = getTwilioConfig();
+    if (!call.recordingUrl) {
+        const recent = call.endedAt && Date.now() - call.endedAt.getTime() < RECORDING_WAIT_MS;
+        if (config?.record && call.answeredAt && recent) return { status: "waiting" };
+        return { status: "unavailable", reason: config?.record ? "Aucun enregistrement reçu pour cet appel" : "Transcription en direct vide et enregistrement désactivé (TWILIO_RECORD_CALLS)" };
+    }
+    const sid = integrationKey("TWILIO_ACCOUNT_SID");
+    const token = integrationKey("TWILIO_AUTH_TOKEN");
+    let url: URL;
+    try {
+        url = new URL(call.recordingUrl);
+    } catch {
+        return { status: "unavailable", reason: "Enregistrement illisible" };
+    }
+    if (!sid || !token || !isTwilioRecordingUrl(url, sid)) return { status: "unavailable", reason: "Enregistrement illisible" };
+
+    const res = await fetch(url, { headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}` } });
+    if (!res.ok) return { status: "unavailable", reason: `Enregistrement indisponible (HTTP ${res.status})` };
+    const audio = Buffer.from(await res.arrayBuffer());
+    const result = await transcribeAudioFr(audio, "appel.mp3", "audio/mpeg");
+    if (!result.ok) return { status: "unavailable", reason: result.message };
+    const text = result.text.trim();
+    if (!text) return { status: "unavailable", reason: "Enregistrement sans parole détectée" };
+
+    await prisma.telephonyTranscriptLine.upsert({
+        where: { callId_speaker_seq: { callId: call.id, speaker: "mixed", seq: 0 } },
+        create: { callId: call.id, speaker: "mixed", seq: 0, text: text.slice(0, 60_000), at: call.answeredAt ?? call.startedAt },
+        update: { text: text.slice(0, 60_000) },
+    });
+    return { status: "done" };
+}
 
 import { QUALIFICATION_LABELS, type CallAiSummary, type Qualification, type SummaryState } from "./summary-shape";
 export { QUALIFICATION_LABELS, type CallAiSummary, type Qualification, type SummaryState };
@@ -160,14 +213,38 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
         return call ? readSummaryState(call) : { status: "none" };
     }
 
-    const call = await prisma.telephonyCall.findUnique({
-        where: { id: callId },
-        include: { transcript: { orderBy: [{ at: "asc" }, { seq: "asc" }] }, sdr: { select: { id: true, name: true } } },
-    });
+    const load = () =>
+        prisma.telephonyCall.findUnique({
+            where: { id: callId },
+            include: { transcript: { orderBy: [{ at: "asc" }, { seq: "asc" }] }, sdr: { select: { id: true, name: true } } },
+        });
+    let call = await load();
     if (!call) return { status: "none" };
 
+    const countWords = (c: NonNullable<typeof call>) => transcriptText(c.transcript, { sdr: "SDR", prospect: "Prospect" }).split(/\s+/).filter(Boolean).length;
+    let fallbackReason: string | null = null;
+
+    // Live transcription empty or too thin: fall back on the recording.
+    if (countWords(call) < MIN_WORDS && call.answeredAt) {
+        let fromRecording: RecordingTranscript;
+        try {
+            fromRecording = await transcriptFromRecording(call);
+        } catch (err) {
+            console.error("[telephony/summary] recording transcription failed", err);
+            fromRecording = { status: "unavailable", reason: "Transcription de l'enregistrement impossible" };
+        }
+        if (fromRecording.status === "waiting") {
+            // Release the claim: the recording webhook will start the summary again.
+            await prisma.telephonyCall.update({ where: { id: callId }, data: { aiSummaryStatus: null } });
+            return { status: "pending" };
+        }
+        if (fromRecording.status === "done") call = (await load()) ?? call;
+        else fallbackReason = fromRecording.reason;
+    }
+
+    const mixed = call.transcript.some((l) => l.speaker === "mixed");
     const text = transcriptText(call.transcript, { sdr: "SDR", prospect: "Prospect" });
-    const words = text.split(/\s+/).filter(Boolean).length;
+    const words = countWords(call);
 
     const finish = async (data: { aiSummaryStatus: string; aiSummary?: object; aiSummaryError?: string | null }) => {
         const updated = await prisma.telephonyCall.update({
@@ -179,7 +256,14 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
     };
 
     if (words < MIN_WORDS) {
-        return finish({ aiSummaryStatus: "skipped", aiSummaryError: call.transcript.length ? "Conversation trop courte pour un résumé" : "Aucune transcription pour cet appel" });
+        return finish({
+            aiSummaryStatus: "skipped",
+            aiSummaryError: !call.answeredAt
+                ? "Appel non décroché"
+                : call.transcript.length
+                  ? "Conversation trop courte pour un résumé"
+                  : fallbackReason ?? "Aucune transcription pour cet appel",
+        });
     }
 
     // The mission's own statuses: the only ones the AI may suggest.
@@ -192,7 +276,7 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
     try {
         const { parsed } = await callJsonModel({
             system: SYSTEM,
-            user: `STATUTS (code : libellé)\n${statusList || "(aucun)"}\n\nTranscription de l'appel :\n\n${text.slice(0, 24_000)}`,
+            user: `STATUTS (code : libellé)\n${statusList || "(aucun)"}\n\nTranscription de l'appel${mixed ? " (issue de l'enregistrement : les deux voix sont mélangées, sans indication de qui parle)" : ""} :\n\n${text.slice(0, 24_000)}`,
             maxTokens: 900,
             temperature: 0.2,
             timeoutMs: 45_000,

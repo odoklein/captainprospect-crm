@@ -197,10 +197,10 @@ export function TranscriptView({
                                 <div className="min-w-0">
                                     {!sameAsPrev && (
                                         <p className={cn("mb-0.5 text-[11px] font-semibold", sdr ? "text-primary-soft-ink" : "text-ink")}>
-                                            {sdr ? names.sdr : names.prospect}
+                                            {sdr ? names.sdr : l.speaker === "mixed" ? "Conversation (enregistrement)" : names.prospect}
                                         </p>
                                     )}
-                                    <p className="text-[13px] leading-relaxed text-ink-2">
+                                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink-2">
                                         <Highlighted text={l.text} term={highlight} />
                                     </p>
                                 </div>

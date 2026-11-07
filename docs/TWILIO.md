@@ -139,3 +139,29 @@ lists integrated-phone calls with no status after 10 minutes.
 API: `GET /api/manager/calls`, `GET /api/manager/calls/[id]`.
 
 Migrations: `20261107100000_add_call_transcripts`, `20261108100000_add_prospect_briefs`.
+
+## When live transcription gives nothing: the recording fallback
+
+If the call was answered and the live transcript is empty or too short, the
+summary engine transcribes the **Twilio recording** instead
+(`transcribeAudioFr`: `WHISPER_API_URL` if set, else OpenAI), stores it as one
+line (speaker `mixed`, « Conversation (enregistrement) »), then summarises it.
+It needs `TWILIO_RECORD_CALLS=1`. While the recording is not delivered yet the
+summary waits; the recording webhook restarts it.
+
+Manager → Journal d'appels → **Diagnostic** shows each prerequisite and, for
+the last calls, what Twilio actually delivered (reached Twilio, answered,
+recording, transcript lines, summary state and reason). Transcription errors
+sent by Twilio are logged in full (`[webhooks/twilio/transcription]`).
+
+## SDR: Mes appels (`/sdr/appels`) and Mode auto
+
+- « Mes appels » is the journal limited to the signed-in SDR
+  (`GET /api/sdr/calls`). Under « Sans statut », « Qualifier » opens the action
+  drawer for that call; the saved result is linked to **that exact call**
+  (`telephonyCallId` on `POST /api/actions`), whatever its age.
+- Appeler (table view) → **Mode auto**: opens the next row with a number,
+  calls it after a 3 s countdown (Échap cancels), shows the outcome when the
+  call ends (AI summary; its suggested status is applied only on « Appliquer »),
+  and moves to the next row once a result is saved. « Passer » skips,
+  « Arrêter » or closing the drawer stops.

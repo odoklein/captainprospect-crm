@@ -29,6 +29,8 @@ export interface DialTarget {
     label?: string | null;
     /** Second line ("Acme SAS"). */
     sublabel?: string | null;
+    /** Open the outcome (AI summary) by itself when the call ends — Mode auto. */
+    showOutcome?: boolean;
 }
 
 export type CallPhase = "preparing" | "connecting" | "ringing" | "live" | "ended" | "failed";
@@ -66,6 +68,8 @@ interface SoftphoneContextValue {
     recording: boolean;
     /** Live transcription + AI summary are on for this agency. */
     transcription: boolean;
+    /** A transcript, hence an AI summary, can exist after the call: live transcription or recording. */
+    insights: boolean;
     callerId: string | null;
     call: SoftphoneCall | null;
     dial: (target: DialTarget) => boolean;
@@ -360,6 +364,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             enabled,
             recording: Boolean(config?.recording),
             transcription: Boolean(config?.transcription),
+            insights: Boolean(config?.transcription || config?.recording),
             callerId: config?.callerId ?? null,
             call,
             dial,
@@ -384,6 +389,7 @@ const DISABLED: SoftphoneContextValue = {
     enabled: false,
     recording: false,
     transcription: false,
+    insights: false,
     callerId: null,
     call: null,
     dial: () => false,

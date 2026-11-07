@@ -39,8 +39,12 @@ import {
     ThumbsUp,
     Briefcase,
     FileText,
+    Pause,
+    Play,
+    X,
 } from "lucide-react";
-import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { useCallTranscript } from "@/components/telephony/CallInsights";
 import { useDockItem } from "@/components/layout/FloatingDock";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
@@ -996,7 +1000,7 @@ export default function SDRActionPage() {
     }, [session?.user?.id]);
 
     // In-app softphone when Twilio is set up for this user, tel: (Allo) otherwise.
-    const { dial: softphoneDial } = useSoftphone();
+    const { dial: softphoneDial, enabled: softphoneOn, insights: insightsOn, call: softCall } = useSoftphone();
     const placeCall = useCallback((phone: string, context?: Pick<PhoneAttemptContext, "contactId" | "companyId" | "targetName" | "companyName">) => {
         const handled = softphoneDial({
             phone,
@@ -1535,7 +1539,121 @@ export default function SDRActionPage() {
         setUnifiedDrawerCompanyId(null);
         setUnifiedDrawerMissionId(undefined);
         setUnifiedDrawerMissionName(undefined);
+        // Closing the drawer by hand ends the automatic session.
+        setAutoMode(false);
+        setAutoCountdown(null);
     };
+
+    // ============================================
+    // MODE AUTO (table view) — open the next row, call it after a visible
+    // countdown, show the outcome (AI summary of the transcript) when the
+    // call ends, move on once the SDR has saved a result.
+    // ============================================
+    const AUTO_DIAL_SECONDS = 3;
+    const [autoMode, setAutoMode] = useState(false);
+    const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
+    const [autoCallId, setAutoCallId] = useState<string | null>(null);
+    const [appliedSuggestion, setAppliedSuggestion] = useState<string | null>(null);
+    // Row whose automatic call is used up (dialled or cancelled): only a new row re-arms it.
+    const autoDialedFor = useRef<string | null>(null);
+
+    const rowPhone = (row: QueueItem | null) => (row ? row.contact?.phone || row.company?.phone || null : null);
+    const autoRowKey = drawerRow ? queueRowKey(drawerRow) : null;
+    const autoPhone = rowPhone(drawerRow);
+    const autoCallActive = isCallActive(softCall);
+    const autoCallIsOurs = Boolean(softCall && drawerRow && softCall.target.companyId === drawerRow.companyId);
+    if (autoMode && autoCallIsOurs && softCall?.callId && softCall.callId !== autoCallId) setAutoCallId(softCall.callId);
+    const autoInsights = useCallTranscript(autoMode && insightsOn ? autoCallId : null, autoMode && insightsOn && Boolean(autoCallId));
+    const autoSuggestion = autoInsights.summary.status === "done" ? autoInsights.summary.data.suggestedStatus : null;
+
+    /** Opens the row after `fromKey` that has a number (or the first one). */
+    const openAutoRow = (fromKey: string | null) => {
+        const list = filteredQueueItems;
+        let idx = fromKey ? list.findIndex((r) => queueRowKey(r) === fromKey) + 1 : 0;
+        while (idx < list.length && !rowPhone(list[idx])) idx++;
+        autoDialedFor.current = null;
+        setAutoCallId(null);
+        setAppliedSuggestion(null);
+        if (idx <= 0 && fromKey) idx = list.length; // current row vanished from the list
+        if (idx >= list.length) {
+            setAutoMode(false);
+            setAutoCountdown(null);
+            closeUnifiedDrawer();
+            success("Mode auto terminé", "Plus de prospect avec un numéro dans la liste affichée.");
+            return;
+        }
+        openDrawerForRow(list[idx]);
+    };
+
+    const startAutoMode = () => {
+        setAutoMode(true);
+        if (drawerRow) {
+            autoDialedFor.current = null;
+            setAutoCallId(null);
+            setAppliedSuggestion(null);
+        } else {
+            openAutoRow(null);
+        }
+    };
+
+    const stopAutoMode = () => {
+        setAutoMode(false);
+        setAutoCountdown(null);
+    };
+
+    const cancelAutoDial = () => {
+        autoDialedFor.current = autoRowKey;
+        setAutoCountdown(null);
+    };
+
+    const autoDial = () => {
+        if (!drawerRow || !autoPhone) return;
+        autoDialedFor.current = autoRowKey;
+        setAutoCountdown(null);
+        softphoneDial({
+            phone: autoPhone,
+            contactId: drawerRow.contact?.phone ? drawerRow.contactId : null,
+            companyId: drawerRow.companyId,
+            campaignId: drawerRow.campaignId,
+            label: drawerRow._displayName ?? drawerRow.company?.name ?? null,
+            sublabel: drawerRow.contactId ? drawerRow._companyName ?? drawerRow.company?.name ?? null : null,
+            showOutcome: true,
+        });
+    };
+
+    // Arm the countdown when an auto row is on screen and has not been called yet.
+    useEffect(() => {
+        if (!autoMode || !unifiedDrawerOpen || !autoPhone || !softphoneOn || autoCallActive || unifiedBookingDialogOpen) {
+            setAutoCountdown(null);
+            return;
+        }
+        if (autoDialedFor.current === autoRowKey) return;
+        setAutoCountdown(AUTO_DIAL_SECONDS);
+    }, [autoMode, unifiedDrawerOpen, autoPhone, softphoneOn, autoCallActive, unifiedBookingDialogOpen, autoRowKey]);
+
+    useEffect(() => {
+        if (autoCountdown === null) return;
+        if (autoCountdown <= 0) {
+            autoDial();
+            return;
+        }
+        const t = setTimeout(() => setAutoCountdown((c) => (c === null ? null : c - 1)), 1000);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoCountdown]);
+
+    useEffect(() => {
+        if (!autoMode) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && autoCountdown !== null) {
+                e.stopPropagation();
+                cancelAutoDial();
+            }
+        };
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoMode, autoCountdown, autoRowKey]);
 
     const [emailModalPreferredMailboxId, setEmailModalPreferredMailboxId] = useState<string | null>(null);
 
@@ -2470,6 +2588,24 @@ export default function SDRActionPage() {
                                     </span>
                                 )}
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => (autoMode ? stopAutoMode() : startAutoMode())}
+                                disabled={!softphoneOn || filteredQueueItems.length === 0}
+                                aria-pressed={autoMode}
+                                title={
+                                    softphoneOn
+                                        ? "Ouvre chaque prospect de la liste et l'appelle automatiquement"
+                                        : "Nécessite le téléphone intégré"
+                                }
+                                className={cn(
+                                    "cp-press inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-40",
+                                    autoMode ? "border-primary bg-primary text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                                )}
+                            >
+                                {autoMode ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                                Mode auto
+                            </button>
                             <IconButton icon={BarChart2} label="Statistiques" variant="outline" onClick={() => setShowStatsModal(true)} />
                             <IconButton icon={RefreshCw} label="Actualiser la file" variant="outline" onClick={() => refreshQueue()} />
                             <SegmentedControl<"card" | "table">
@@ -2599,6 +2735,68 @@ export default function SDRActionPage() {
                     )}
                 </div>
 
+                {/* Mode auto: what happens next, always one click from stopping */}
+                {autoMode && drawerRow && (
+                    <div
+                        role="status"
+                        aria-live="polite"
+                        className="cp-glass cp-pop fixed left-1/2 top-3 z-[100] flex max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pl-3 pr-1.5 text-[13px]"
+                    >
+                        <span className="flex items-center gap-1.5 font-semibold text-ink">
+                            <span className={cn("h-2 w-2 rounded-full", softCall?.phase === "live" && autoCallIsOurs ? "cp-halo bg-success" : autoCallActive ? "animate-pulse bg-warning" : "bg-primary")} />
+                            Mode auto
+                        </span>
+                        <span className="min-w-0 truncate text-ink-2">
+                            {autoCountdown !== null
+                                ? `Appel de ${drawerRow._displayName ?? drawerRow.company?.name ?? "ce prospect"} dans ${autoCountdown} s`
+                                : autoCallActive && autoCallIsOurs
+                                  ? softCall?.phase === "live"
+                                      ? `En ligne avec ${drawerRow._displayName ?? drawerRow.company?.name ?? "le prospect"}`
+                                      : softCall?.phase === "ringing"
+                                        ? `Ça sonne chez ${drawerRow._displayName ?? drawerRow.company?.name ?? "le prospect"}…`
+                                        : "Connexion…"
+                                  : !autoPhone
+                                    ? "Pas de numéro pour ce prospect"
+                                    : autoSuggestion && appliedSuggestion !== autoSuggestion
+                                      ? `IA : ${statusLabels[autoSuggestion] ?? autoSuggestion}`
+                                      : autoInsights.summary.status === "pending"
+                                        ? "Résumé de l'appel en cours…"
+                                        : "Enregistrez le résultat pour passer au suivant"}
+                        </span>
+                        {autoCountdown !== null && (
+                            <button type="button" onClick={cancelAutoDial} className="cp-press h-7 rounded-full px-2.5 text-[12px] font-medium text-ink-2 hover:bg-surface-2">
+                                Annuler
+                            </button>
+                        )}
+                        {autoCountdown === null && !autoCallActive && autoPhone && autoDialedFor.current === autoRowKey && !autoCallId && (
+                            <button type="button" onClick={autoDial} className="cp-press h-7 rounded-full bg-success px-2.5 text-[12px] font-semibold text-white">
+                                Appeler
+                            </button>
+                        )}
+                        {autoSuggestion && appliedSuggestion !== autoSuggestion && !autoCallActive && (
+                            <button
+                                type="button"
+                                onClick={() => setAppliedSuggestion(autoSuggestion)}
+                                className="cp-press h-7 rounded-full bg-accent px-2.5 text-[12px] font-semibold text-white"
+                            >
+                                Appliquer
+                            </button>
+                        )}
+                        {!autoCallActive && (
+                            <button
+                                type="button"
+                                onClick={() => openAutoRow(autoRowKey)}
+                                className="cp-press h-7 rounded-full px-2.5 text-[12px] font-medium text-ink-2 hover:bg-surface-2"
+                            >
+                                Passer
+                            </button>
+                        )}
+                        <button type="button" onClick={stopAutoMode} className="cp-press h-7 rounded-full px-2.5 text-[12px] font-medium text-ink-3 hover:bg-surface-2 hover:text-ink">
+                            Arrêter
+                        </button>
+                    </div>
+                )}
+
                 {/* Unified Action Drawer — mount only when open to avoid heavy effects when closed */}
                 {unifiedDrawerOpen && unifiedDrawerCompanyId && (
                         <UnifiedActionDrawer
@@ -2608,6 +2806,8 @@ export default function SDRActionPage() {
                             companyId={unifiedDrawerCompanyId}
                             missionId={unifiedDrawerMissionId}
                             missionName={unifiedDrawerMissionName}
+                            initialResult={autoMode ? appliedSuggestion ?? undefined : undefined}
+                            telephonyCallId={autoMode ? autoCallId : undefined}
                             enableGooglePhoneLookup
                             clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                             clientInterlocuteurs={unifiedDrawerInterlocuteurs}
@@ -2624,6 +2824,8 @@ export default function SDRActionPage() {
                                     queryClient.invalidateQueries({ queryKey: queueQueryKey });
                                     setActionsCompleted((c) => c + 1);
                                 }
+                                // Mode auto: the result is saved, next row (computed before the queue refreshes).
+                                if (autoMode && !autoCallActive) openAutoRow(autoRowKey);
                                 refreshQueue();
                             }}
                             onProspectAdded={() => {
@@ -2635,6 +2837,8 @@ export default function SDRActionPage() {
                                 setUnifiedDrawerContactId(contactId ?? null);
                             }}
                             onValidateAndNext={() => {
+                                // Mode auto already moved on when the result was recorded.
+                                if (autoMode) return;
                                 if (!drawerRow) return;
                                 const key = queueRowKey(drawerRow);
                                 const idx = filteredQueueItems.findIndex((row) => queueRowKey(row) === key);

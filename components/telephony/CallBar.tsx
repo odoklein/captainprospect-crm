@@ -76,7 +76,7 @@ function isTypingTarget(el: EventTarget | null): boolean {
 }
 
 export function CallBar() {
-    const { call, recording, transcription, callerId, hangup, toggleMute, sendDigit, dismiss, dial, pin } = useSoftphone();
+    const { call, recording, transcription, insights: insightsOn, callerId, hangup, toggleMute, sendDigit, dismiss, dial, pin } = useSoftphone();
     const active = isCallActive(call);
     const now = useNow(active);
     // The provider keys this component by call: keypad and minimized state start fresh each call.
@@ -85,8 +85,9 @@ export function CallBar() {
     const [minimized, setMinimized] = useState(false);
     const [insights, setInsights] = useState<"transcript" | "summary" | null>(null);
 
-    // Transcript and summary follow the call from the moment Twilio connects it.
-    const followed = transcription && Boolean(call?.callId) && call?.phase !== "failed";
+    // Transcript and summary follow the call from the moment Twilio connects it
+    // (live transcription, or the recording transcribed after the call).
+    const followed = insightsOn && Boolean(call?.callId) && call?.phase !== "failed";
     const { lines, summary } = useCallTranscript(followed ? call!.callId : null, followed);
 
     const live = call?.phase === "live";
@@ -96,6 +97,18 @@ export function CallBar() {
         if (!isCallActive(call)) pin();
     };
     const showKeypad = keypadOpen && live && !minimized;
+
+    // Mode auto: the outcome opens by itself once the call ends.
+    const [outcomeShown, setOutcomeShown] = useState(false);
+    const autoOutcome = Boolean(ended && followed && call?.target.showOutcome);
+    if (autoOutcome && !outcomeShown) {
+        setOutcomeShown(true);
+        setInsights("summary");
+        setMinimized(false);
+    }
+    useEffect(() => {
+        if (autoOutcome) pin();
+    }, [autoOutcome, pin]);
 
     useDockSpace(Boolean(call) && !minimized);
 
@@ -308,7 +321,7 @@ export function CallBar() {
                         >
                             <Grid3x3 className="h-4 w-4" />
                         </DockToggle>
-                        {followed && (
+                        {followed && transcription && (
                             <DockToggle
                                 label={insights === "transcript" ? "Masquer la transcription" : "Transcription en direct"}
                                 text="Transcription"
