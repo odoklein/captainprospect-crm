@@ -9,12 +9,13 @@
 //   linkCallToAction()     POST /api/actions                (the SDR saves the qualification)
 // ============================================
 
-import type { TelephonyCall } from "@prisma/client";
+import type { Prisma, TelephonyCall } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { callerIdFor, type TwilioConfig } from "./config";
 import { checkDialNumber, phonesInField } from "./phone";
 import { isFinalStatus, mapTwilioStatus, nextStatus, parseSeconds, type TelephonyStatus } from "./status";
 import { recordingMediaUrl, userIdFromIdentity } from "./twilio";
+import { syncSummaryToAction } from "./summary";
 
 /** Twilio must ask for TwiML within this delay of the row being created. */
 const VOICE_REQUEST_WINDOW_MS = 2 * 60 * 1000;
@@ -148,7 +149,7 @@ async function applyStatus(
 
     const at = extra.at ?? new Date();
     const status = nextStatus(call.status, incoming);
-    const data: Partial<TelephonyCall> = {};
+    const data: Prisma.TelephonyCallUncheckedUpdateInput = {};
     if (status !== call.status) data.status = status;
     if (extra.childCallSid && !call.childCallSid) data.childCallSid = extra.childCallSid;
     if (status === "IN_PROGRESS" && !call.answeredAt) data.answeredAt = at;
@@ -300,5 +301,7 @@ export async function linkCallToAction(action: {
 
     const linked = { ...call, actionId: action.id };
     await syncLinkedAction(linked);
+    // A summary/transcript may already exist (the SDR qualified after the AI finished).
+    await syncSummaryToAction(call.id);
     return linked;
 }

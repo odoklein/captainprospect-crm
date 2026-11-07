@@ -1353,12 +1353,37 @@ model TelephonyCall {
   recordingUrl         String? // https://api.twilio.com/…/Recordings/RE….mp3 — streamed via /api/actions/[id]/recording
   recordingDurationSec Int?
 
+  // AI summary built from the live transcript once the call ends (lib/telephony/summary)
+  aiSummary       Json? // { summary, keyPoints[], objections[], nextSteps[] }
+  aiSummaryStatus String? // pending | done | skipped | failed
+  aiSummaryError  String?
+  aiSummaryAt     DateTime?
+
+  transcript TelephonyTranscriptLine[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([sdrId, createdAt])
   @@index([sdrId, contactId, createdAt])
   @@index([sdrId, companyId, createdAt])
+}
+
+/// One final sentence of a softphone call's live transcription (Twilio
+/// <Start><Transcription>), posted by /api/webhooks/twilio/transcription.
+model TelephonyTranscriptLine {
+  id         String        @id @default(cuid())
+  callId     String
+  call       TelephonyCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+  speaker    String // sdr | prospect
+  seq        Int // Twilio SequenceId
+  text       String        @db.Text
+  confidence Float?
+  at         DateTime // when Twilio heard it
+  createdAt  DateTime      @default(now())
+
+  @@unique([callId, speaker, seq])
+  @@index([callId, at])
 }
 
 // Config-driven action status definitions (per scope: GLOBAL, CLIENT, MISSION, CAMPAIGN)

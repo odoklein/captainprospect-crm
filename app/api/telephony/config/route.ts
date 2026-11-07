@@ -25,5 +25,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         callerId,
         edge: config.edge,
         recording: config.record,
+        transcription: Boolean(config.transcription),
     });
 });

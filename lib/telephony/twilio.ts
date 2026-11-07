@@ -110,10 +110,10 @@ export function emptyTwiml(): VoiceResponse {
     return new VoiceResponse();
 }
 
-/** Played to the prospect after they pick up, before the bridge — only when recording. */
+/** Played to the prospect after they pick up, before the bridge — only when recording or transcribing. */
 export function recordingNoticeTwiml(): VoiceResponse {
     const vr = new VoiceResponse();
-    vr.say({ language: "fr-FR" }, "Bonjour. Cet appel est susceptible d'être enregistré.");
+    vr.say({ language: "fr-FR" }, "Bonjour. Cet appel est susceptible d'être enregistré et transcrit.");
     return vr;
 }
 
@@ -121,9 +121,27 @@ export function dialTwiml(params: {
     to: string;
     callerId: string;
     record: boolean;
-    urls: { dialAction: string; legStatus: string; recording: string; notice: string };
+    transcription?: { engine: string; model: string; language: string } | null;
+    urls: { dialAction: string; legStatus: string; recording: string; notice: string; transcription?: string };
 }): VoiceResponse {
     const vr = new VoiceResponse();
+    // Live transcription runs on the browser leg: inbound = the SDR, outbound = the prospect.
+    if (params.transcription && params.urls.transcription) {
+        vr.start().transcription({
+            name: "crm-live",
+            track: "both_tracks",
+            languageCode: params.transcription.language,
+            transcriptionEngine: params.transcription.engine,
+            speechModel: params.transcription.model,
+            partialResults: false,
+            enableAutomaticPunctuation: true,
+            inboundTrackLabel: "sdr",
+            outboundTrackLabel: "prospect",
+            statusCallbackUrl: params.urls.transcription,
+            statusCallbackMethod: "POST",
+        });
+    }
+    const informed = params.record || Boolean(params.transcription);
     const dial = vr.dial({
         callerId: params.callerId,
         answerOnBridge: true, // the browser hears real ringback; "accept" fires when the prospect answers
@@ -145,7 +163,7 @@ export function dialTwiml(params: {
             statusCallback: params.urls.legStatus,
             statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
             statusCallbackMethod: "POST",
-            ...(params.record ? { url: params.urls.notice, method: "POST" } : {}),
+            ...(informed ? { url: params.urls.notice, method: "POST" } : {}),
         },
         params.to,
     );

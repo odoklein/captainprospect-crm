@@ -29,7 +29,9 @@ export async function POST(req: NextRequest) {
                 to: decision.call.toNumber,
                 callerId: decision.call.fromNumber,
                 record: config.record,
+                transcription: config.transcription,
                 urls: {
+                    transcription: `${base}/api/webhooks/twilio/transcription?${q}`,
                     dialAction: `${base}/api/webhooks/twilio/status?leg=dial&${q}`,
                     legStatus: `${base}/api/webhooks/twilio/status?leg=child&${q}`,
                     recording: `${base}/api/webhooks/twilio/recording?${q}`,

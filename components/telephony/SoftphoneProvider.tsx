@@ -48,6 +48,8 @@ export interface SoftphoneCall {
     error: string | null;
     /** False when the server refused the number (country, premium rate…): retrying would fail the same way. */
     retryable: boolean;
+    /** The SDR is reading its transcript/summary: the ended call stays on screen. */
+    pinned: boolean;
 }
 
 interface SoftphoneConfig {
@@ -55,12 +57,15 @@ interface SoftphoneConfig {
     callerId?: string;
     edge?: string;
     recording?: boolean;
+    transcription?: boolean;
 }
 
 interface SoftphoneContextValue {
     /** True when phone links dial from the browser. */
     enabled: boolean;
     recording: boolean;
+    /** Live transcription + AI summary are on for this agency. */
+    transcription: boolean;
     callerId: string | null;
     call: SoftphoneCall | null;
     dial: (target: DialTarget) => boolean;
@@ -68,6 +73,8 @@ interface SoftphoneContextValue {
     toggleMute: () => void;
     sendDigit: (digit: string) => void;
     dismiss: () => void;
+    /** Keeps the current (ended) call on screen until dismissed. */
+    pin: () => void;
 }
 
 const SoftphoneContext = createContext<SoftphoneContextValue | null>(null);
@@ -277,6 +284,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             durationSec: null,
             error: null,
             retryable: true,
+            pinned: false,
         };
         callRef.current = next;
         setCall(next);
@@ -337,16 +345,21 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
     // A finished call stays on screen long enough to read its outcome.
     useEffect(() => {
-        if (!call || isCallActive(call)) return;
+        if (!call || isCallActive(call) || call.pinned) return;
         const key = call.key;
         const t = setTimeout(() => setCall((c) => (c && c.key === key && !isCallActive(c) ? null : c)), AUTO_DISMISS_MS);
         return () => clearTimeout(t);
     }, [call]);
 
+    const pin = useCallback(() => {
+        setCall((c) => (c && !c.pinned ? { ...c, pinned: true } : c));
+    }, []);
+
     const value = useMemo<SoftphoneContextValue>(
         () => ({
             enabled,
             recording: Boolean(config?.recording),
+            transcription: Boolean(config?.transcription),
             callerId: config?.callerId ?? null,
             call,
             dial,
@@ -354,8 +367,9 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             toggleMute,
             sendDigit,
             dismiss,
+            pin,
         }),
-        [enabled, config?.recording, config?.callerId, call, dial, hangup, toggleMute, sendDigit, dismiss],
+        [enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, toggleMute, sendDigit, dismiss, pin],
     );
 
     return (
@@ -369,6 +383,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 const DISABLED: SoftphoneContextValue = {
     enabled: false,
     recording: false,
+    transcription: false,
     callerId: null,
     call: null,
     dial: () => false,
@@ -376,6 +391,7 @@ const DISABLED: SoftphoneContextValue = {
     toggleMute: () => undefined,
     sendDigit: () => undefined,
     dismiss: () => undefined,
+    pin: () => undefined,
 };
 
 /** Safe outside the provider (portals, public pages): behaves as "softphone off". */

@@ -15,11 +15,12 @@
 // ============================================
 
 import { useEffect, useLayoutEffect, useState } from "react";
-import { ChevronDown, Grid3x3, Maximize2, Mic, MicOff, Phone, PhoneOff, RotateCcw, X } from "lucide-react";
+import { Captions, ChevronDown, Grid3x3, Maximize2, Mic, MicOff, Phone, PhoneOff, RotateCcw, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClock, formatDuration, formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { TELEPHONY_STATUS_LABELS } from "@/lib/telephony/status";
 import { isCallActive, useSoftphone, type SoftphoneCall } from "./SoftphoneProvider";
+import { AiSummaryView, TranscriptView, useCallTranscript } from "./CallInsights";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"] as const;
 const DOCK_HEIGHT = "56px";
@@ -75,15 +76,25 @@ function isTypingTarget(el: EventTarget | null): boolean {
 }
 
 export function CallBar() {
-    const { call, recording, callerId, hangup, toggleMute, sendDigit, dismiss, dial } = useSoftphone();
+    const { call, recording, transcription, callerId, hangup, toggleMute, sendDigit, dismiss, dial, pin } = useSoftphone();
     const active = isCallActive(call);
     const now = useNow(active);
     // The provider keys this component by call: keypad and minimized state start fresh each call.
     const [keypadOpen, setKeypadOpen] = useState(false);
     const [typed, setTyped] = useState("");
     const [minimized, setMinimized] = useState(false);
+    const [insights, setInsights] = useState<"transcript" | "summary" | null>(null);
+
+    // Transcript and summary follow the call from the moment Twilio connects it.
+    const followed = transcription && Boolean(call?.callId) && call?.phase !== "failed";
+    const { lines, summary } = useCallTranscript(followed ? call!.callId : null, followed);
 
     const live = call?.phase === "live";
+    const ended = call?.phase === "ended";
+    const openInsights = (tab: "transcript" | "summary") => {
+        setInsights((cur) => (cur === tab ? null : tab));
+        if (!isCallActive(call)) pin();
+    };
     const showKeypad = keypadOpen && live && !minimized;
 
     useDockSpace(Boolean(call) && !minimized);
@@ -116,6 +127,8 @@ export function CallBar() {
     const number = target.label?.trim() ? formatPhone(target.phone) : null;
     const failed = call.phase === "failed";
     const status = statusLine(call, now);
+    const prospectName = target.label?.trim().split(/\s+/)[0] || "Prospect";
+    const summaryReady = summary.status === "done";
 
     const press = (digit: string) => {
         sendDigit(digit);
@@ -198,6 +211,58 @@ export function CallBar() {
                 </div>
             )}
 
+            {insights && followed && (
+                <div className="absolute bottom-full right-3 mb-2 flex max-h-[min(520px,calc(100vh-120px))] w-[min(420px,calc(100vw-24px))] flex-col overflow-hidden rounded-panel border border-line bg-surface text-ink shadow-overlay animate-in fade-in slide-in-from-bottom-1 duration-150">
+                    <div className="flex items-center gap-1 border-b border-line-subtle px-2 py-1.5">
+                        {(
+                            [
+                                ["transcript", "Transcription", Captions],
+                                ["summary", "Résumé IA", Sparkles],
+                            ] as const
+                        ).map(([id, label, Icon]) => (
+                            <button
+                                key={id}
+                                type="button"
+                                onClick={() => setInsights(id)}
+                                disabled={id === "summary" && !ended}
+                                aria-pressed={insights === id}
+                                title={id === "summary" && !ended ? "Disponible à la fin de l'appel" : undefined}
+                                className={cn(
+                                    "flex h-8 items-center gap-1.5 rounded-control px-2.5 text-[12px] font-semibold",
+                                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-40",
+                                    insights === id ? "bg-surface-2 text-ink" : "text-ink-3 hover:text-ink",
+                                )}
+                            >
+                                <Icon className="h-3.5 w-3.5" aria-hidden />
+                                {label}
+                                {id === "transcript" && live && <span className="h-1.5 w-1.5 rounded-full bg-danger animate-pulse" aria-label="en direct" />}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={() => setInsights(null)}
+                            aria-label="Fermer le panneau"
+                            className="ml-auto flex h-8 w-8 items-center justify-center rounded-control text-ink-3 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                    {insights === "transcript" ? (
+                        <TranscriptView
+                            lines={lines}
+                            names={{ sdr: "Vous", prospect: prospectName }}
+                            live={live}
+                            className="min-h-[140px] flex-1 px-3 py-3"
+                            emptyText={live ? "La transcription s'affiche ici dès que la conversation démarre." : "Aucune transcription pour cet appel."}
+                        />
+                    ) : (
+                        <div className="min-h-[120px] flex-1 overflow-y-auto px-4 py-4">
+                            <AiSummaryView state={summary.status === "none" && ended ? { status: "pending" } : summary} />
+                        </div>
+                    )}
+                </div>
+            )}
+
             <div className="flex h-full items-center gap-3 border-t border-inverse-line bg-inverse px-3 shadow-[0_-8px_24px_-16px_rgba(0,0,0,0.35)] animate-in slide-in-from-bottom-full duration-200 sm:gap-4 sm:px-4">
                 {/* Who and where the call is */}
                 <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -243,7 +308,32 @@ export function CallBar() {
                         >
                             <Grid3x3 className="h-4 w-4" />
                         </DockToggle>
+                        {followed && (
+                            <DockToggle
+                                label={insights === "transcript" ? "Masquer la transcription" : "Transcription en direct"}
+                                text="Transcription"
+                                pressed={insights === "transcript"}
+                                onClick={() => openInsights("transcript")}
+                            >
+                                <Captions className="h-4 w-4" />
+                            </DockToggle>
+                        )}
                     </div>
+                )}
+                {ended && followed && (
+                    <DockToggle
+                        label={summaryReady ? "Résumé IA prêt" : "Résumé IA"}
+                        text="Résumé IA"
+                        pressed={insights === "summary"}
+                        onClick={() => openInsights("summary")}
+                    >
+                        <span className="relative">
+                            <Sparkles className="h-4 w-4" />
+                            {summaryReady && insights !== "summary" && (
+                                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent ring-2 ring-inverse" aria-hidden />
+                            )}
+                        </span>
+                    </DockToggle>
                 )}
 
                 {/* Primary action, line, fold */}

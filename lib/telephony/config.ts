@@ -7,6 +7,9 @@
 //                                   prospect then hears a recording notice first)
 //   TWILIO_ALLOWED_COUNTRIES=FR,BE  destinations that may be dialled (default FR,BE,CH,LU,MC)
 //   TWILIO_EDGE=dublin              Twilio edge the browser connects to (default dublin, EU)
+//   TWILIO_TRANSCRIBE_CALLS=1       live transcription + AI summary at the end (off by default;
+//                                   the prospect hears the notice first, like for recording)
+//   TWILIO_TRANSCRIPTION_ENGINE / TWILIO_TRANSCRIPTION_MODEL   default google / telephony (fr-FR)
 // ============================================
 
 import type { CountryCode } from "libphonenumber-js";
@@ -22,6 +25,7 @@ export interface TwilioConfig {
     twimlAppSid: string;
     defaultCallerId: string | null;
     record: boolean;
+    transcription: { engine: string; model: string; language: string } | null;
     allowedCountries: CountryCode[];
     edge: string;
 }
@@ -50,6 +54,7 @@ export function getTwilioConfig(): TwilioConfig | null {
     // "06 12 34 56 78", "+33 6…", "0033…" all accepted: stored as typed, used as E.164.
     const callerId = toE164(integrationKey("TWILIO_CALLER_ID"));
     const record = runtimeEnv("TWILIO_RECORD_CALLS");
+    const transcribe = runtimeEnv("TWILIO_TRANSCRIBE_CALLS");
     return {
         accountSid,
         authToken,
@@ -58,6 +63,14 @@ export function getTwilioConfig(): TwilioConfig | null {
         twimlAppSid,
         defaultCallerId: callerId,
         record: record === "1" || record?.toLowerCase() === "true",
+        transcription:
+            transcribe === "1" || transcribe?.toLowerCase() === "true"
+                ? {
+                      engine: runtimeEnv("TWILIO_TRANSCRIPTION_ENGINE") ?? "google",
+                      model: runtimeEnv("TWILIO_TRANSCRIPTION_MODEL") ?? "telephony",
+                      language: runtimeEnv("TWILIO_TRANSCRIPTION_LANGUAGE") ?? "fr-FR",
+                  }
+                : null,
         allowedCountries: parseAllowedCountries(runtimeEnv("TWILIO_ALLOWED_COUNTRIES")),
         edge: runtimeEnv("TWILIO_EDGE") ?? "dublin",
     };

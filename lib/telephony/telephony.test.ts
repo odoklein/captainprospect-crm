@@ -154,3 +154,84 @@ test("SDK errors read in French", () => {
     assert.match(softphoneErrorMessage(99999, "boom"), /boom/);
     assert.equal(softphoneErrorMessage(undefined), "Appel interrompu.");
 });
+
+// ── live transcription & AI summary ─────────────────────────────────────────
+
+import { parseTranscriptionCallback, speakerOfTrack, transcriptText } from "./transcription";
+import { normalizeSummary, readSummaryState, summaryText } from "./summary";
+
+test("transcription callbacks become lines with the right speaker", () => {
+    const line = parseTranscriptionCallback({
+        TranscriptionEvent: "transcription-content",
+        Track: "outbound_track",
+        Final: "true",
+        SequenceId: "7",
+        Timestamp: "2026-11-07T10:00:05.000Z",
+        TranscriptionData: JSON.stringify({ transcript: "Oui, je suis le gérant.", confidence: 0.91 }),
+    });
+    assert.equal(line.kind, "line");
+    if (line.kind === "line") {
+        assert.equal(line.speaker, "prospect");
+        assert.equal(line.seq, 7);
+        assert.equal(line.text, "Oui, je suis le gérant.");
+        assert.equal(line.confidence, 0.91);
+        assert.equal(line.at.toISOString(), "2026-11-07T10:00:05.000Z");
+        assert.equal(line.final, true);
+    }
+    assert.equal(speakerOfTrack("inbound_track"), "sdr");
+    assert.equal(speakerOfTrack("both_tracks"), null);
+});
+
+test("malformed or partial transcription callbacks are not stored as lines", () => {
+    assert.equal(parseTranscriptionCallback({ TranscriptionEvent: "transcription-content", Track: "inbound_track", TranscriptionData: "{not json" }).kind, "ignored");
+    assert.equal(parseTranscriptionCallback({ TranscriptionEvent: "transcription-content", Track: "inbound_track", TranscriptionData: '{"transcript":"  "}' }).kind, "ignored");
+    assert.equal(parseTranscriptionCallback({ TranscriptionEvent: "transcription-content", Track: "weird", TranscriptionData: '{"transcript":"x"}' }).kind, "ignored");
+    const partial = parseTranscriptionCallback({ TranscriptionEvent: "transcription-content", Track: "inbound_track", Final: "false", TranscriptionData: '{"transcript":"bonj"}' });
+    assert.equal(partial.kind === "line" && partial.final, false);
+    assert.equal(parseTranscriptionCallback({ TranscriptionEvent: "transcription-stopped" }).kind, "stopped");
+    assert.equal(parseTranscriptionCallback({}).kind, "ignored");
+});
+
+test("transcript text labels each speaker", () => {
+    assert.equal(
+        transcriptText([{ speaker: "sdr", text: "Bonjour" }, { speaker: "prospect", text: "Oui ?" }], { sdr: "Kevin" }),
+        "Kevin : Bonjour\nProspect : Oui ?",
+    );
+});
+
+test("AI summaries are validated, capped and never padded", () => {
+    assert.equal(normalizeSummary({ summary: "  " }), null);
+    assert.equal(normalizeSummary("text"), null);
+    const s = normalizeSummary({ summary: "Le gérant accepte un RDV.", keyPoints: ["a", "b", "c", "d", "e"], objections: [42, "Pas le temps"], nextSteps: "envoyer" });
+    assert.deepEqual(s, { summary: "Le gérant accepte un RDV.", keyPoints: ["a", "b", "c", "d"], objections: ["Pas le temps"], nextSteps: [] });
+    assert.match(summaryText(s!), /Points clés :\n• a/);
+    assert.doesNotMatch(summaryText(s!), /Prochaines étapes/);
+});
+
+test("summary state reads every stored status", () => {
+    const base = { aiSummary: null, aiSummaryError: null, aiSummaryAt: null };
+    assert.equal(readSummaryState({ ...base, aiSummaryStatus: null }).status, "none");
+    assert.equal(readSummaryState({ ...base, aiSummaryStatus: "pending" }).status, "pending");
+    assert.equal(readSummaryState({ ...base, aiSummaryStatus: "done" }).status, "failed"); // done but unreadable
+    const done = readSummaryState({ ...base, aiSummaryStatus: "done", aiSummary: { summary: "ok" } });
+    assert.equal(done.status, "done");
+    assert.deepEqual(readSummaryState({ ...base, aiSummaryStatus: "skipped" }), { status: "skipped", reason: "Conversation trop courte" });
+});
+
+test("transcription TwiML starts before the dial and informs the prospect", () => {
+    const urls = {
+        dialAction: "https://a.example/s?leg=dial",
+        legStatus: "https://a.example/s?leg=child",
+        recording: "https://a.example/r",
+        notice: "https://a.example/n",
+        transcription: "https://a.example/api/webhooks/twilio/transcription?callId=c1",
+    };
+    const xml = dialTwiml({ to: "+33612345678", callerId: "+33423490783", record: false, transcription: { engine: "google", model: "telephony", language: "fr-FR" }, urls }).toString();
+    assert.match(xml, /<Start><Transcription [^>]*track="both_tracks"/);
+    assert.match(xml, /languageCode="fr-FR"/);
+    assert.match(xml, /statusCallbackUrl="https:\/\/a\.example\/api\/webhooks\/twilio\/transcription\?callId=c1"/);
+    assert.ok(xml.indexOf("<Start>") < xml.indexOf("<Dial"), "transcription must start before the dial");
+    assert.match(xml, /url="https:\/\/a\.example\/n"/); // notice played even without recording
+    const plain = dialTwiml({ to: "+33612345678", callerId: "+33423490783", record: false, transcription: null, urls }).toString();
+    assert.doesNotMatch(plain, /Transcription|url="https:\/\/a\.example\/n"/);
+});
