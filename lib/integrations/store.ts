@@ -113,7 +113,7 @@ export async function listIntegrationKeys(): Promise<IntegrationKeyStatus[]> {
         const rec = records.get(def.name);
         const env = process.env[def.name]?.trim();
         const source: IntegrationKeySource = rec ? "stored" : env ? "env" : "none";
-        const envHint = !rec && env ? keyHint(env) : null;
+        const envHint = !rec && env ? keyHint(env, def.name) : null;
         const d = def as typeof def & { placeholder?: string; docsUrl?: string };
         return {
             name: def.name,
@@ -168,8 +168,8 @@ export async function setIntegrationKeys(changes: IntegrationChanges, actor: Int
                 ? prisma.systemConfig.deleteMany({ where: { key: PREFIX + name } })
                 : prisma.systemConfig.upsert({
                       where: { key: PREFIX + name },
-                      update: { value: JSON.stringify({ c: encrypt(value), hint: keyHint(value), by, at } satisfies StoredRecord) },
-                      create: { key: PREFIX + name, value: JSON.stringify({ c: encrypt(value), hint: keyHint(value), by, at } satisfies StoredRecord) },
+                      update: { value: JSON.stringify({ c: encrypt(value), hint: keyHint(value, name), by, at } satisfies StoredRecord) },
+                      create: { key: PREFIX + name, value: JSON.stringify({ c: encrypt(value), hint: keyHint(value, name), by, at } satisfies StoredRecord) },
                   }),
         ),
     );

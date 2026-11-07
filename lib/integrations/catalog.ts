@@ -61,6 +61,16 @@ export const INTEGRATION_KEYS = [
         placeholder: "sk-…",
         docsUrl: "https://platform.deepseek.com/api_keys",
     },
+    // Not a secret: which model the call features use. Switching back is
+    // changing this one value (live in about a second, no redeploy).
+    {
+        name: "CALL_AI_MODEL",
+        label: "Modèle IA des appels",
+        group: "ai",
+        usedFor:
+            "Résumé de fin d'appel, résultat suggéré sous l'île d'appel et brief avant l'appel. « deepseek-chat » pour DeepSeek, « gpt-4o » pour OpenAI (défaut si vide). Si DeepSeek échoue ou n'est pas autorisé pour les données CRM, OpenAI prend le relais",
+        placeholder: "deepseek-chat ou gpt-4o",
+    },
     {
         name: "ALLO_API_KEY",
         label: "Allo — clé API",
@@ -239,7 +249,11 @@ export function checkIntegrationValue(name: IntegrationKeyName, raw: string): { 
     return { ok: true, value };
 }
 
-/** "••••a1b2" — enough to recognise a key, never enough to use it. */
-export function keyHint(value: string): string {
+/** Settings that are not secrets: shown in full, so you can see which one is active. */
+export const PLAIN_SETTINGS: ReadonlySet<string> = new Set(["CALL_AI_MODEL"]);
+
+/** "••••a1b2" — enough to recognise a key, never enough to use it. Plain settings show their value. */
+export function keyHint(value: string, name?: string): string {
+    if (name && PLAIN_SETTINGS.has(name)) return value.slice(0, 64);
     return value.length >= 16 ? `••••${value.slice(-4)}` : "••••";
 }

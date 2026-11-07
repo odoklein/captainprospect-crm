@@ -10,6 +10,7 @@ import dynamic from "next/dynamic";
 import { CallsJournal } from "@/components/calls/CallsJournal";
 import type { JournalRow } from "@/lib/calls-journal/types";
 import { useToast } from "@/components/ui";
+import { useCallQualified } from "@/components/telephony/PostCallSuggestion";
 
 const UnifiedActionDrawer = dynamic(
     () => import("@/components/drawers/UnifiedActionDrawer").then((m) => ({ default: m.UnifiedActionDrawer })),
@@ -20,6 +21,8 @@ export default function MyCallsPage() {
     const { success } = useToast();
     const [qualifying, setQualifying] = useState<JournalRow | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    // A call qualified from the island shows up here at once.
+    useCallQualified(() => setRefreshKey((k) => k + 1));
 
     return (
         <>

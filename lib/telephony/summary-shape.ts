@@ -26,6 +26,8 @@ export interface CallAiSummary {
     qualification: Qualification;
     /** One of the mission's status codes the AI would log, or null. A suggestion: the SDR decides. */
     suggestedStatus: string | null;
+    /** Callback agreed during the call, Paris wall time "YYYY-MM-DDTHH:MM"; null when none was. */
+    callbackAt?: string | null;
 }
 
 export type SummaryState =

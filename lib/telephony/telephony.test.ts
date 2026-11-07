@@ -220,6 +220,7 @@ test("AI summaries are validated, capped and never padded", () => {
         nextSteps: [],
         qualification: { need: "Un alternant en caisse", currentSolution: null, timing: null, decisionMaker: null, budget: null },
         suggestedStatus: "MEETING_BOOKED",
+        callbackAt: null,
     });
     assert.match(summaryText(s!), /Qualification :\n• Besoin : Un alternant en caisse/);
     // A status the mission does not have is never suggested.

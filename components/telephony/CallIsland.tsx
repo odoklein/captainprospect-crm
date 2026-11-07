@@ -7,7 +7,9 @@
 //             transcribed sentence grows one line. Expanded (click / keyboard):
 //             the conversation, Micro, Clavier, Raccrocher.
 //   after     the island turns into a light outcome card: Twilio's result,
-//             the AI summary and its suggested status, Rappeler / Fermer.
+//             the AI summary, Rappeler / Fermer — and under it, the result to
+//             confirm (PostCallSuggestion): « Pas de réponse » at once when
+//             nobody answered, the AI's result and note after a conversation.
 //   between   a page can show its own status (Mode auto: « Appel de X dans
 //             3 s », Annuler, Passer, Arrêter) through useIslandExtra().
 //
@@ -28,6 +30,7 @@ import {
     type SoftphoneCall,
 } from "./SoftphoneProvider";
 import { AiSummaryView, useCallTranscript } from "./CallInsights";
+import { PostCallSuggestion } from "./PostCallSuggestion";
 
 /** How long a new sentence keeps its line open in compact mode. */
 const LINE_HOLD_MS = 6000;
@@ -138,6 +141,7 @@ function IslandShell({
     onClick,
     expanded,
     keypad = false,
+    below,
 }: {
     dark: boolean;
     width: string;
@@ -147,10 +151,12 @@ function IslandShell({
     onClick?: () => void;
     expanded?: boolean;
     keypad?: boolean;
+    /** Hangs under the island (the post-call suggestion). */
+    below?: React.ReactNode;
 }) {
     return (
         // Centred over the page, not over a docked pane (--cp-pane-w).
-        <div className="pointer-events-none cp-call-island-position fixed inset-x-0 top-14 z-[126] flex justify-center px-3" style={{ right: "var(--cp-pane-w, 0px)" }}>
+        <div className="pointer-events-none cp-call-island-position fixed inset-x-0 top-14 z-[126] flex flex-col items-center gap-2 px-3" style={{ right: "var(--cp-pane-w, 0px)" }}>
             <div
                 role="region"
                 data-call-keypad={keypad || undefined}
@@ -170,6 +176,7 @@ function IslandShell({
                 )}
                 {children}
             </div>
+            {below}
         </div>
     );
 }
@@ -279,6 +286,7 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                 expanded={open}
                 keypad={keypad}
                 onClick={() => setExpanded((v) => !v)}
+                below={<PostCallSuggestion key={call.key} call={call} onDone={dismiss} onEngage={pin} />}
             >
                 <div className="flex h-10 items-center gap-2.5 px-1.5">
                     <span

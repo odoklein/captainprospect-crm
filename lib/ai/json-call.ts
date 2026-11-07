@@ -101,12 +101,31 @@ export interface JsonCallOptions {
     userId?: string | null;
     clientId?: string | null;
     missionId?: string | null;
+    /**
+     * Tried once when `model` fails (provider down, key missing, data refused,
+     * unreadable answer). Lets a DeepSeek setup fall back to OpenAI instead of
+     * losing the summary.
+     */
+    fallbackModel?: string | null;
 }
 
-export async function callJsonModel(
-    options: JsonCallOptions,
-): Promise<{ parsed: any; tokens: number | null; model: string }> {
+/** `parsed` is whatever JSON the model returned: each caller validates it. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type JsonCallResult = { parsed: any; tokens: number | null; model: string };
+
+export async function callJsonModel(options: JsonCallOptions): Promise<JsonCallResult> {
     const model = options.model ?? DEFAULT_JSON_MODEL;
+    const fallback = options.fallbackModel && options.fallbackModel !== model ? options.fallbackModel : null;
+    try {
+        return await callJsonModelOnce(options, model);
+    } catch (err) {
+        if (!fallback || !(err instanceof AiCallError)) throw err;
+        console.warn(`[ai/json-call] ${options.surface ?? "json_call"}: ${model} failed (${err.code}: ${err.message}); retrying with ${fallback}`);
+        return callJsonModelOnce(options, fallback);
+    }
+}
+
+async function callJsonModelOnce(options: JsonCallOptions, model: string): Promise<JsonCallResult> {
     const dataClass = options.dataClass ?? "raw_crm";
     const chat = providerChatFn({ dataClass });
     const startedAt = Date.now();

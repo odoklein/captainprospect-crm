@@ -13,6 +13,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { AiCallError, callJsonModel } from "@/lib/ai/json-call";
+import { callModelOptions } from "@/lib/ai/call-model";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
 
 export interface PrecallBrief {
@@ -198,6 +199,7 @@ export async function getPrecallBrief(args: {
             dataClass: "raw_crm",
             userId: args.userId,
             missionId: args.missionId,
+            ...callModelOptions(),
         });
         const brief = normalizeBrief(parsed);
         if (!brief) return { status: "unavailable", reason: "Réponse de l'IA inutilisable" };

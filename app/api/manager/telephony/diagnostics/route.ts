@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { integrationKey } from "@/lib/integrations/keys";
+import { callModelChoice } from "@/lib/ai/call-model";
 import { runtimeAppUrl } from "@/lib/runtime-config/env";
 import { getTwilioConfig, missingTwilioKeys } from "@/lib/telephony/config";
 
@@ -19,6 +20,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const appUrl = runtimeAppUrl() ?? null;
     const ai = Boolean(integrationKey("OPENAI_API_KEY"));
     const whisper = Boolean(process.env.WHISPER_API_URL);
+    const callModel = callModelChoice();
 
     const checks = [
         {
@@ -55,9 +57,19 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         },
         {
             id: "ai",
-            label: "IA (résumés, transcription de l'enregistrement)",
+            label: "Transcription de l'enregistrement",
             ok: ai || whisper,
-            detail: ai ? "Clé OpenAI présente" : whisper ? "Service Whisper local (résumés : clé OpenAI requise)" : "OPENAI_API_KEY absente",
+            detail: whisper ? "Service Whisper local" : ai ? "OpenAI (DeepSeek ne transcrit pas l'audio)" : "OPENAI_API_KEY ou WHISPER_API_URL absente",
+        },
+        {
+            id: "callModel",
+            label: "IA des appels (résumé, résultat proposé, brief)",
+            ok: !callModel.reason || callModel.model !== callModel.requested,
+            detail: callModel.reason
+                ? callModel.model !== callModel.requested
+                    ? `${callModel.requested} demandé, ${callModel.model} utilisé : ${callModel.reason}`
+                    : `${callModel.requested} inutilisable : ${callModel.reason}`
+                : `${callModel.model}${callModel.fallback ? ` (relais : ${callModel.fallback})` : ""} · réglable dans Intégrations (CALL_AI_MODEL)`,
         },
     ];
 

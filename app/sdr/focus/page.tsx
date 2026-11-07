@@ -24,6 +24,7 @@ import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProv
 import { matchesCallTarget } from "@/lib/telephony/client-state";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { AiSummaryView, useCallTranscript } from "@/components/telephony/CallInsights";
+import { useCallQualified } from "@/components/telephony/PostCallSuggestion";
 import { PrecallBrief } from "@/components/sdr/PrecallBrief";
 import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
 import { DockList } from "@/components/layout/FloatingDock";
@@ -341,6 +342,13 @@ export default function FocusPage() {
         setStats((s) => ({ ...s, skipped: s.skipped + 1 }));
         void loadNext(next);
     }, [prospect, inCall, skipped, loadNext, saving, phase]);
+
+    // Result confirmed from the island's suggestion: counted, and the next prospect comes up.
+    useCallQualified((q) => {
+        if (!prospect || q.companyId !== prospect.company.id) return;
+        setStats((st) => ({ ...st, saved: st.saved + 1 }));
+        void loadNext();
+    });
 
     const cancelAutoDial = useCallback(() => {
         dialedFor.current = prospectKey;

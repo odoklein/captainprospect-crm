@@ -185,3 +185,47 @@ sent by Twilio are logged in full (`[webhooks/twilio/transcription]`).
   call ends (AI summary; its suggested status is applied only on « Appliquer »),
   and moves to the next row once a result is saved. « Passer » skips,
   « Arrêter » or closing the drawer stops.
+
+## After the call: the result to confirm (under the island)
+
+When a call ends, a card hangs under the island with the result to save:
+
+- **Not answered** (no answer, busy, hung up after ≥ 15 s of ringing): « Pas de
+  réponse » (`NO_RESPONSE`) at once, from Twilio's real outcome, with a
+  factual note (« Pas de réponse après 28 s de sonnerie »). Tagged « Twilio ».
+- **Answered**: once the AI summary is ready, its suggested status (always one
+  of the mission's), the summary as the note, and the callback time when one
+  was agreed (« jeudi 14 h » → `callbackAt`). Tagged « IA ».
+- **Confirmer** saves it through `POST /api/actions` linked to that exact call;
+  **Modifier** edits the note and the callback; **Ignorer** hides it. Nothing is
+  saved without the click. A booked meeting is shown but planned in the fiche.
+- Pages follow a confirmation with `useCallQualified()`: Mode auto moves to
+  the next row, Mode Focus to the next prospect, Mes appels refreshes.
+
+Logic: `lib/telephony/suggestion.ts` (pure, tested), `GET
+/api/telephony/calls/[id]/suggestion`, `components/telephony/PostCallSuggestion.tsx`.
+
+## Which AI: DeepSeek or OpenAI (`CALL_AI_MODEL`)
+
+The call summary, the proposed result and the pre-call brief use the model set
+in **Paramètres → Intégrations → Modèle IA des appels** (`CALL_AI_MODEL`, live
+in about a second, also readable from the container env):
+
+| Value | Model |
+| --- | --- |
+| empty / `gpt-4o` | OpenAI (default) |
+| `deepseek-chat` | DeepSeek (needs `DEEPSEEK_API_KEY`) |
+
+Switching back to OpenAI = clearing that value or setting `gpt-4o`.
+
+- With DeepSeek set and an OpenAI key present, a failed DeepSeek call is retried
+  once on OpenAI, so no summary is lost.
+- **Data residency**: call transcripts are prospects' personal data. DeepSeek's
+  official API is hosted in China and the AI layer refuses to send it CRM data
+  unless the agency decides otherwise: either an EU host of the same model
+  (`DEEPSEEK_BASE_URL` + `DEEPSEEK_RESIDENCY=eu`), or an explicit
+  `AI_ALLOW_CN_RAW_CRM=true` in the container env. Until then the calls go to
+  OpenAI and **Journal d'appels → Diagnostic** says so (« deepseek-chat demandé,
+  gpt-4o utilisé : … »).
+- Audio transcription of recordings stays on Whisper / OpenAI: DeepSeek has no
+  speech-to-text.

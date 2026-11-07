@@ -44,7 +44,7 @@ import {
     X,
 } from "lucide-react";
 import { isCallActive, useIslandExtra, useSoftphone, type IslandAction } from "@/components/telephony/SoftphoneProvider";
-import { useCallTranscript } from "@/components/telephony/CallInsights";
+import { useCallQualified } from "@/components/telephony/PostCallSuggestion";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import dynamic from "next/dynamic";
@@ -1000,7 +1000,7 @@ export default function SDRActionPage() {
     }, [session?.user?.id]);
 
     // In-app softphone when Twilio is set up for this user, tel: (Allo) otherwise.
-    const { dial: softphoneDial, enabled: softphoneOn, insights: insightsOn, call: softCall } = useSoftphone();
+    const { dial: softphoneDial, enabled: softphoneOn, call: softCall } = useSoftphone();
     const placeCall = useCallback((phone: string, context?: Pick<PhoneAttemptContext, "contactId" | "companyId" | "targetName" | "companyName">) => {
         const handled = softphoneDial({
             phone,
@@ -1512,7 +1512,6 @@ export default function SDRActionPage() {
     const [autoMode, setAutoMode] = useState(false);
     const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
     const [autoCallId, setAutoCallId] = useState<string | null>(null);
-    const [appliedSuggestion, setAppliedSuggestion] = useState<string | null>(null);
     // Row whose automatic call is used up (dialled or cancelled): only a new row re-arms it.
     const autoDialedFor = useRef<string | null>(null);
 
@@ -1527,8 +1526,6 @@ export default function SDRActionPage() {
     useEffect(() => {
         if (autoMode && autoCallIsOurs && softCall?.callId) setAutoCallId(softCall.callId);
     }, [autoMode, autoCallIsOurs, softCall?.callId]);
-    const autoInsights = useCallTranscript(autoMode && insightsOn ? autoCallId : null, autoMode && insightsOn && Boolean(autoCallId));
-    const autoSuggestion = autoInsights.summary.status === "done" ? autoInsights.summary.data.suggestedStatus : null;
 
     /** Opens the row after `fromKey` that has a number (or the first one). */
     const openAutoRow = (fromKey: string | null) => {
@@ -1538,7 +1535,6 @@ export default function SDRActionPage() {
         while (idx < list.length && !rowPhone(list[idx])) idx++;
         autoDialedFor.current = null;
         setAutoCallId(null);
-        setAppliedSuggestion(null);
         if (idx <= 0 && fromKey) idx = list.length; // current row vanished from the list
         if (idx >= list.length) {
             setAutoMode(false);
@@ -1555,7 +1551,6 @@ export default function SDRActionPage() {
         if (drawerRow) {
             autoDialedFor.current = null;
             setAutoCallId(null);
-            setAppliedSuggestion(null);
         } else {
             openAutoRow(null);
         }
@@ -1623,6 +1618,17 @@ export default function SDRActionPage() {
 
     // Mode auto lives in the call Island: its status between calls, its actions on the outcome card.
     const autoName = drawerRow?._displayName ?? drawerRow?.company?.name ?? "ce prospect";
+    // A call confirmed from the island's suggestion: the queue moves on like a
+    // save from the pane (Mode auto: next row; otherwise the pane closes).
+    useCallQualified((q) => {
+        queryClient.invalidateQueries({ queryKey: queueQueryKey });
+        setActionsCompleted((c) => c + 1);
+        refreshQueue();
+        if (!unifiedDrawerOpen || q.companyId !== unifiedDrawerCompanyId) return;
+        if (autoMode) openAutoRow(autoRowKey);
+        else closeUnifiedDrawer();
+    });
+
     useIslandExtra(
         autoMode && drawerRow
             ? (() => {
@@ -1637,12 +1643,9 @@ export default function SDRActionPage() {
                       };
                   }
                   if (!autoPhone) return { tag: "Auto", text: `Pas de numéro pour ${autoName}`, actions: [skip, stop] };
-                  const suggestion: IslandAction[] =
-                      autoSuggestion && appliedSuggestion !== autoSuggestion
-                          ? [{ label: `Appliquer : ${statusLabels[autoSuggestion] ?? autoSuggestion}`, onClick: () => setAppliedSuggestion(autoSuggestion), tone: "accent" }]
-                          : [];
+                  // The result itself is proposed under the island (PostCallSuggestion): confirming it moves on.
                   if (autoCallId) {
-                      return { tag: "Auto", text: "Enregistrez le résultat pour passer au suivant", actions: [...suggestion, skip, stop] };
+                      return { tag: "Auto", text: "Confirmez le résultat proposé pour passer au suivant", actions: [skip, stop] };
                   }
                   return {
                       tag: "Auto",
@@ -2749,7 +2752,6 @@ export default function SDRActionPage() {
                             companyId={unifiedDrawerCompanyId}
                             missionId={unifiedDrawerMissionId}
                             missionName={unifiedDrawerMissionName}
-                            initialResult={autoMode ? appliedSuggestion ?? undefined : undefined}
                             telephonyCallId={autoMode ? autoCallId : undefined}
                             enableGooglePhoneLookup
                             clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}

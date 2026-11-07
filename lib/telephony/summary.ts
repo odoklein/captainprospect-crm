@@ -11,6 +11,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { AiCallError, callJsonModel } from "@/lib/ai/json-call";
+import { callModelOptions } from "@/lib/ai/call-model";
 import { transcriptText } from "./transcription";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
 import { transcribeAudioFr } from "@/lib/ai/mistral-transcribe";
@@ -91,7 +92,8 @@ Réponds UNIQUEMENT avec un objet JSON :
     "decisionMaker": "qui décide (l'interlocuteur ou une autre personne), ou null",
     "budget": "budget évoqué, ou null"
   },
-  "suggestedStatus": "un code de la liste STATUTS fournie, ou null"
+  "suggestedStatus": "un code de la liste STATUTS fournie, ou null",
+  "callbackAt": "date et heure de rappel convenues, au format AAAA-MM-JJTHH:MM (heure de Paris), ou null"
 }
 
 Règles :
@@ -99,7 +101,8 @@ Règles :
 - 4 points clés maximum, 3 objections maximum, 3 prochaines étapes maximum, chacun en une ligne courte.
 - Pas de formule de politesse, pas d'évaluation du SDR.
 - qualification : null pour tout ce qui n'a pas été dit explicitement.
-- suggestedStatus : le statut que le SDR devrait enregistrer d'après la conversation, choisi UNIQUEMENT dans la liste STATUTS ; null si aucun ne convient clairement.`;
+- suggestedStatus : le statut que le SDR devrait enregistrer d'après la conversation, choisi UNIQUEMENT dans la liste STATUTS ; null si aucun ne convient clairement.
+- callbackAt : seulement si un moment précis de rappel a été convenu (« jeudi 14 h »), calculé à partir de la DATE DE L'APPEL fournie ; null sinon. Jamais de date inventée.`;
 
 function list(v: unknown, max: number): string[] {
     if (!Array.isArray(v)) return [];
@@ -140,7 +143,27 @@ export function normalizeSummary(raw: unknown, allowedStatuses?: ReadonlySet<str
         },
         suggestedStatus:
             suggested && /^[A-Z0-9_]{1,64}$/.test(suggested) && (!allowedStatuses || allowedStatuses.has(suggested)) ? suggested : null,
+        callbackAt: localDateTime(o.callbackAt),
     };
+}
+
+/** "2026-11-12T14:00" (Paris wall time) or null; anything else is dropped. */
+export function localDateTime(v: unknown): string | null {
+    if (typeof v !== "string") return null;
+    const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (!m) return null;
+    const [y, mo, d, h, mi] = m.slice(1).map(Number);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59 || y < 2020 || y > 2100) return null;
+    return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`;
+}
+
+/** "jeudi 2026-11-12 14:05" in Paris time: what the model needs to resolve « jeudi ». */
+function parisStamp(d: Date): string {
+    const parts = new Intl.DateTimeFormat("fr-FR", {
+        timeZone: "Europe/Paris", weekday: "long", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(d);
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+    return `${get("weekday")} ${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
 }
 
 /** The summary as plain text for Action.callSummary (read by older screens). */
@@ -276,13 +299,14 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
     try {
         const { parsed } = await callJsonModel({
             system: SYSTEM,
-            user: `STATUTS (code : libellé)\n${statusList || "(aucun)"}\n\nTranscription de l'appel${mixed ? " (issue de l'enregistrement : les deux voix sont mélangées, sans indication de qui parle)" : ""} :\n\n${text.slice(0, 24_000)}`,
+            user: `DATE DE L'APPEL : ${parisStamp(call.startedAt)}\n\nSTATUTS (code : libellé)\n${statusList || "(aucun)"}\n\nTranscription de l'appel${mixed ? " (issue de l'enregistrement : les deux voix sont mélangées, sans indication de qui parle)" : ""} :\n\n${text.slice(0, 24_000)}`,
             maxTokens: 900,
             temperature: 0.2,
             timeoutMs: 45_000,
             surface: "call_summary",
             dataClass: "raw_crm",
             userId: call.sdr.id,
+            ...callModelOptions(),
         });
         const data = normalizeSummary(parsed, allowed);
         if (!data) return finish({ aiSummaryStatus: "failed", aiSummaryError: "Réponse de l'IA inutilisable" });
