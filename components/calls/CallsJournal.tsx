@@ -9,7 +9,7 @@
 // the journal, and integrated-phone calls nobody qualified (the process gap).
 // ============================================
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Headphones, Mic, PhoneCall, RotateCcw, Search, Sparkles, X } from "lucide-react";
 import { Kbd } from "@/components/ui";
@@ -20,7 +20,7 @@ import { TELEPHONY_STATUS_LABELS, isFinalStatus } from "@/lib/telephony/status";
 import { formatDuration, formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { StatusLabel } from "@/components/calls/StatusLabel";
 import { StatusDistribution } from "@/components/calls/StatusDistribution";
-import { CallDetailDrawer } from "@/components/calls/CallDetailDrawer";
+import { CallDetailDrawer, CallDetailPane } from "@/components/calls/CallDetailDrawer";
 import { useCountUp } from "@/components/calls/useCountUp";
 
 // ── period presets (Paris days) ─────────────────────────────────────────────
@@ -45,6 +45,19 @@ function hms(sec: number): string {
     const h = Math.floor(sec / 3600);
     const m = Math.round((sec % 3600) / 60);
     return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`;
+}
+
+/** Wide enough for the call to sit beside the list; null until known (SSR). */
+function useWide(): boolean | null {
+    return useSyncExternalStore<boolean | null>(
+        (onChange) => {
+            const mql = window.matchMedia("(min-width: 1024px)");
+            mql.addEventListener("change", onChange);
+            return () => mql.removeEventListener("change", onChange);
+        },
+        () => window.matchMedia("(min-width: 1024px)").matches,
+        () => null,
+    );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -151,6 +164,18 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
         return m;
     }, [data]);
 
+    const wide = useWide();
+    // Moves the cursor; with the pane open, the pane follows it.
+    const move = useCallback(
+        (delta: number) => {
+            if (!rows.length) return;
+            const next = Math.max(0, Math.min(rows.length - 1, cursor + delta));
+            setCursor(next);
+            if (open && wide) setOpen({ id: rows[next].id, kind: rows[next].kind });
+        },
+        [rows, cursor, open, wide],
+    );
+
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const el = e.target as HTMLElement | null;
@@ -158,23 +183,26 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                 if (e.key === "Escape") el.blur();
                 return;
             }
-            if (open || e.metaKey || e.ctrlKey || e.altKey) return;
-            if (e.key === "/") {
+            // The drawer (narrow screens) or another modal owns the keyboard.
+            if ((open && !wide) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('[aria-modal="true"]')) return;
+            if (e.key === "Escape" && open) {
+                setOpen(null);
+            } else if (e.key === "/") {
                 e.preventDefault();
                 searchRef.current?.focus();
-            } else if ((e.key === "j" || e.key === "ArrowDown") && rows.length) {
+            } else if (e.key === "j" || e.key === "ArrowDown") {
                 e.preventDefault();
-                setCursor((c) => Math.min(rows.length - 1, c + 1));
-            } else if ((e.key === "k" || e.key === "ArrowUp") && rows.length) {
+                move(1);
+            } else if (e.key === "k" || e.key === "ArrowUp") {
                 e.preventDefault();
-                setCursor((c) => Math.max(0, c - 1));
+                move(-1);
             } else if (e.key === "Enter" && rows[cursor]) {
                 setOpen({ id: rows[cursor].id, kind: rows[cursor].kind });
             }
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [rows, cursor, open]);
+    }, [rows, cursor, open, wide, move]);
 
     useEffect(() => {
         document.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" });
@@ -191,224 +219,215 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
     const firstRow = data ? (data.page - 1) * data.limit + 1 : 0;
     const lastRow = data ? Math.min(data.total, data.page * data.limit) : 0;
 
+    const showPane = Boolean(open) && wide;
+    const resolveStatus = (code: string) => statusMeta.get(code) ?? null;
+    const resetFilters = () => {
+        setQ("");
+        setFilters({ sdrIds: [], missionId: null, results: [], withRecording: false, q: "" });
+    };
+
+    // A workspace, edge to edge: slim header and toolbar, the list scrolling
+    // under them, the call beside it (wide screens) instead of over it.
     return (
-        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 pb-8">
-            {/* ── Header ── */}
-            <header className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                    <h1 className="text-[22px] font-semibold tracking-tight text-ink">{title}</h1>
-                    <p className="mt-0.5 text-[13px] text-ink-3">{subtitle}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    {headerActions}
-                    <div className="flex rounded-control border border-line bg-surface p-0.5" role="radiogroup" aria-label="Période">
-                        {periodPresets.map((p) => (
+        <div className="flex h-full min-h-0 w-full bg-canvas">
+            <div className="flex min-w-0 flex-1 flex-col">
+                {/* ── Header + views ── */}
+                <header className="shrink-0 border-b border-line bg-surface px-6">
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-4">
+                        <div className="min-w-0">
+                            <h1 className="text-[18px] font-semibold leading-tight tracking-[-0.015em] text-ink">{title}</h1>
+                            <p className="mt-0.5 truncate text-[12px] text-ink-3">{subtitle}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {headerActions}
+                            <div className="flex rounded-control bg-surface-3/70 p-0.5" role="radiogroup" aria-label="Période">
+                                {periodPresets.map((p) => (
+                                    <button
+                                        key={p.id}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={activePreset === p.id}
+                                        onClick={() => setFilters({ start: p.start, end: p.end })}
+                                        className={cn(
+                                            "cp-press h-7 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors duration-200",
+                                            activePreset === p.id ? "bg-surface text-ink shadow-sm" : "text-ink-3 hover:text-ink",
+                                        )}
+                                    >
+                                        {p.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className={cn("flex h-8 items-center gap-1 rounded-control border bg-surface px-2 text-[12px]", activePreset === "custom" ? "border-primary" : "border-line")}>
+                                <input
+                                    type="date"
+                                    aria-label="Du"
+                                    value={filters.start}
+                                    max={filters.end}
+                                    onChange={(e) => e.target.value && setFilters({ start: e.target.value })}
+                                    className="bg-transparent text-ink-2 outline-none"
+                                />
+                                <span className="text-ink-4">→</span>
+                                <input
+                                    type="date"
+                                    aria-label="Au"
+                                    value={filters.end}
+                                    min={filters.start}
+                                    max={today}
+                                    onChange={(e) => e.target.value && setFilters({ end: e.target.value })}
+                                    className="bg-transparent text-ink-2 outline-none"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <nav className="mt-3 flex items-center gap-5" aria-label="Vue">
+                        {(
+                            [
+                                ["journal", "Journal", data && !unqualified ? data.total : null],
+                                ["unqualified", "Sans statut", data?.unqualified ?? null],
+                            ] as const
+                        ).map(([id, label, count]) => (
                             <button
-                                key={p.id}
+                                key={id}
                                 type="button"
-                                role="radio"
-                                aria-checked={activePreset === p.id}
-                                onClick={() => setFilters({ start: p.start, end: p.end })}
+                                onClick={() => setFilters({ view: id, results: [] })}
+                                aria-current={filters.view === id ? "page" : undefined}
                                 className={cn(
-                                    "cp-press h-7 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors duration-200",
-                                    activePreset === p.id ? "bg-ink text-surface" : "text-ink-2 hover:text-ink",
+                                    "-mb-px flex items-center gap-2 border-b-2 pb-2.5 text-[13px] font-medium transition-colors",
+                                    filters.view === id ? "border-primary text-ink" : "border-transparent text-ink-3 hover:text-ink",
                                 )}
                             >
-                                {p.label}
+                                {label}
+                                {count !== null && count > 0 && (
+                                    <span
+                                        className={cn(
+                                            "rounded-full px-1.5 text-[11px] tabular-nums",
+                                            id === "unqualified" ? "bg-primary text-primary-fg" : "bg-surface-3 text-ink-3",
+                                        )}
+                                    >
+                                        {count}
+                                    </span>
+                                )}
                             </button>
                         ))}
-                    </div>
-                    <div className={cn("flex h-8 items-center gap-1 rounded-control border bg-surface px-2 text-[12px]", activePreset === "custom" ? "border-ink" : "border-line")}>
-                        <input
-                            type="date"
-                            aria-label="Du"
-                            value={filters.start}
-                            max={filters.end}
-                            onChange={(e) => e.target.value && setFilters({ start: e.target.value })}
-                            className="bg-transparent text-ink-2 outline-none"
-                        />
-                        <span className="text-ink-4">→</span>
-                        <input
-                            type="date"
-                            aria-label="Au"
-                            value={filters.end}
-                            min={filters.start}
-                            max={today}
-                            onChange={(e) => e.target.value && setFilters({ end: e.target.value })}
-                            className="bg-transparent text-ink-2 outline-none"
-                        />
-                    </div>
-                </div>
-            </header>
+                    </nav>
+                </header>
 
-            {/* ── View tabs ── */}
-            <nav className="flex items-center gap-5 border-b border-line" aria-label="Vue">
-                {(
-                    [
-                        ["journal", "Journal", data && !unqualified ? data.total : null],
-                        ["unqualified", "Sans statut", data?.unqualified ?? null],
-                    ] as const
-                ).map(([id, label, count]) => (
+                {/* ── Toolbar ── */}
+                <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line-subtle bg-surface px-6 py-2.5">
+                    <label className="relative flex h-8 min-w-[220px] flex-1 items-center sm:max-w-[400px]">
+                        <Search className="pointer-events-none absolute left-2.5 h-4 w-4 text-ink-3" aria-hidden />
+                        <input
+                            ref={searchRef}
+                            value={q}
+                            onChange={(e) => setQ(e.target.value)}
+                            placeholder={unqualified ? "Numéro, ou un mot dit pendant l'appel…" : "Prospect, société, ou un mot dit pendant l'appel…"}
+                            className="h-full w-full rounded-control border border-line bg-surface-2/50 pl-8 pr-9 text-[13px] text-ink placeholder:text-ink-4 focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-focus"
+                            aria-label="Rechercher"
+                        />
+                        {q ? (
+                            <button type="button" onClick={() => setQ("")} className="absolute right-2 text-ink-3 hover:text-ink" aria-label="Effacer la recherche">
+                                <X className="h-4 w-4" />
+                            </button>
+                        ) : (
+                            <Kbd className="absolute right-2">/</Kbd>
+                        )}
+                    </label>
+
+                    {scope === "team" && (
+                        <FacetSelect label="SDR" value={filters.sdrIds[0] ?? ""} options={data?.facets.sdrs ?? []} onChange={(v) => setFilters({ sdrIds: v ? [v] : [] })} />
+                    )}
+                    {!unqualified && (
+                        <FacetSelect label="Mission" value={filters.missionId ?? ""} options={data?.facets.missions ?? []} onChange={(v) => setFilters({ missionId: v || null })} />
+                    )}
                     <button
-                        key={id}
                         type="button"
-                        onClick={() => setFilters({ view: id, results: [] })}
-                        aria-current={filters.view === id ? "page" : undefined}
+                        onClick={() => setFilters({ withRecording: !filters.withRecording })}
+                        aria-pressed={filters.withRecording}
                         className={cn(
-                            "-mb-px flex items-center gap-2 border-b-2 pb-2.5 text-[13px] font-medium transition-colors",
-                            filters.view === id ? "border-ink text-ink" : "border-transparent text-ink-3 hover:text-ink",
+                            "cp-press flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-[12.5px] transition-colors",
+                            filters.withRecording ? "border-primary bg-primary-soft font-medium text-primary-soft-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
                         )}
                     >
-                        {label}
-                        {count !== null && count > 0 && (
-                            <span
-                                className={cn(
-                                    "rounded-full px-1.5 text-[11px] tabular-nums",
-                                    id === "unqualified" ? "bg-primary text-primary-fg" : "bg-surface-3 text-ink-3",
-                                )}
-                            >
-                                {count}
-                            </span>
-                        )}
+                        <Headphones className="h-3.5 w-3.5" /> Avec enregistrement
                     </button>
-                ))}
-            </nav>
-
-            {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2">
-                <label className="relative flex h-9 min-w-[260px] flex-1 items-center sm:max-w-[420px]">
-                    <Search className="pointer-events-none absolute left-2.5 h-4 w-4 text-ink-3" aria-hidden />
-                    <input
-                        ref={searchRef}
-                        value={q}
-                        onChange={(e) => setQ(e.target.value)}
-                        placeholder={unqualified ? "Numéro, ou un mot dit pendant l'appel…" : "Prospect, société, ou un mot dit pendant l'appel…"}
-                        className="h-full w-full rounded-control border border-line bg-surface pl-8 pr-9 text-[13px] text-ink placeholder:text-ink-4 focus:border-ink focus:outline-none focus:ring-2 focus:ring-focus"
-                        aria-label="Rechercher"
-                    />
-                    {q ? (
-                        <button type="button" onClick={() => setQ("")} className="absolute right-2 text-ink-3 hover:text-ink" aria-label="Effacer la recherche">
-                            <X className="h-4 w-4" />
+                    {filtered && (
+                        <button type="button" onClick={resetFilters} className="flex h-8 items-center gap-1.5 rounded-control px-2 text-[12.5px] text-ink-3 hover:bg-surface-2 hover:text-ink">
+                            <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
                         </button>
-                    ) : (
-                        <Kbd className="absolute right-2">/</Kbd>
                     )}
-                </label>
+                </div>
 
-                {scope === "team" && (
-                    <FacetSelect
-                        label="SDR"
-                        value={filters.sdrIds[0] ?? ""}
-                        options={data?.facets.sdrs ?? []}
-                        onChange={(v) => setFilters({ sdrIds: v ? [v] : [] })}
-                    />
-                )}
-                {!unqualified && (
-                    <FacetSelect
-                        label="Mission"
-                        value={filters.missionId ?? ""}
-                        options={data?.facets.missions ?? []}
-                        onChange={(v) => setFilters({ missionId: v || null })}
-                    />
-                )}
-                <button
-                    type="button"
-                    onClick={() => setFilters({ withRecording: !filters.withRecording })}
-                    aria-pressed={filters.withRecording}
-                    className={cn(
-                        "flex h-9 items-center gap-1.5 rounded-control border px-3 text-[13px] transition-colors",
-                        filters.withRecording ? "border-ink bg-ink text-surface" : "border-line bg-surface text-ink-2 hover:text-ink",
+                {/* ── Numbers + list (one scroll; room at the end to clear the floating dock) ── */}
+                <div className="min-h-0 flex-1 overflow-auto pb-12">
+                    {data && (
+                        <section className={cn("border-b border-line-subtle px-6 py-4 transition-opacity", loading && "opacity-60")}>
+                            <dl className="flex flex-wrap gap-x-10 gap-y-3">
+                                <Metric label={unqualified ? "Sans statut" : "Appels"} value={<AnimatedNumber value={k!.calls} format={int} />} />
+                                {!unqualified && (
+                                    <Metric
+                                        label="RDV"
+                                        value={<AnimatedNumber value={k!.meetings} format={int} />}
+                                        hint={k!.calls ? `${((k!.meetings / k!.calls) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %` : undefined}
+                                    />
+                                )}
+                                <Metric
+                                    label="Temps de parole"
+                                    value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds} format={(v) => hms(Math.round(v))} /> : "—"}
+                                    hint={k!.measuredCalls ? `${k!.measuredCalls} mesuré${k!.measuredCalls > 1 ? "s" : ""}` : undefined}
+                                />
+                                <Metric
+                                    label="Durée moyenne"
+                                    value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds / k!.measuredCalls} format={(v) => formatDuration(Math.round(v))} /> : "—"}
+                                />
+                                <Metric
+                                    label="Enregistrés"
+                                    value={<AnimatedNumber value={k!.withRecording} format={int} />}
+                                    hint={k!.calls ? `${Math.round((k!.withRecording / k!.calls) * 100)} %` : undefined}
+                                />
+                            </dl>
+                            {!unqualified && data.facets.statuses.length > 0 && (
+                                <div className="mt-4">
+                                    <StatusDistribution
+                                        items={data.facets.statuses}
+                                        selected={filters.results}
+                                        onToggle={(id) =>
+                                            setFilters({ results: filters.results.includes(id) ? filters.results.filter((r) => r !== id) : [...filters.results, id] })
+                                        }
+                                    />
+                                </div>
+                            )}
+                            {unqualified && (
+                                <p className="mt-3 text-[12px] text-ink-3">
+                                    Appels passés avec le téléphone intégré depuis plus de 10 minutes, sans statut enregistré par le SDR.
+                                </p>
+                            )}
+                        </section>
                     )}
-                >
-                    <Headphones className="h-3.5 w-3.5" /> Avec enregistrement
-                </button>
-                {filtered && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setQ("");
-                            setFilters({ sdrIds: [], missionId: null, results: [], withRecording: false, q: "" });
-                        }}
-                        className="flex h-9 items-center gap-1.5 rounded-control px-2.5 text-[13px] text-ink-3 hover:bg-surface-2 hover:text-ink"
-                    >
-                        <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
-                    </button>
-                )}
-            </div>
 
-            {/* ── Summary ── */}
-            {data && (
-                <section className={cn("rounded-panel border border-line bg-surface shadow-card transition-opacity", loading && "opacity-60")}>
-                    <dl className="grid grid-cols-2 divide-line-subtle sm:grid-cols-3 lg:grid-cols-5 lg:divide-x">
-                        <Metric label={unqualified ? "Appels sans statut" : "Appels"} value={<AnimatedNumber value={k!.calls} format={int} />} />
-                        {!unqualified && (
-                            <Metric
-                                label="RDV"
-                                value={<AnimatedNumber value={k!.meetings} format={int} />}
-                                hint={k!.calls ? `${((k!.meetings / k!.calls) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % des appels` : undefined}
-                            />
-                        )}
-                        <Metric
-                            label="Temps de parole"
-                            value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds} format={(v) => hms(Math.round(v))} /> : "—"}
-                            hint={k!.measuredCalls ? `${k!.measuredCalls} appel${k!.measuredCalls > 1 ? "s" : ""} mesuré${k!.measuredCalls > 1 ? "s" : ""}` : "aucune durée connue"}
-                        />
-                        <Metric
-                            label="Durée moyenne"
-                            value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds / k!.measuredCalls} format={(v) => formatDuration(Math.round(v))} /> : "—"}
-                        />
-                        <Metric
-                            label="Enregistrés"
-                            value={<AnimatedNumber value={k!.withRecording} format={int} />}
-                            hint={k!.calls ? `${Math.round((k!.withRecording / k!.calls) * 100)} %` : undefined}
-                        />
-                    </dl>
-                    {!unqualified && data.facets.statuses.length > 0 && (
-                        <div className="border-t border-line-subtle px-5 py-4">
-                            <StatusDistribution
-                                items={data.facets.statuses}
-                                selected={filters.results}
-                                onToggle={(id) =>
-                                    setFilters({ results: filters.results.includes(id) ? filters.results.filter((r) => r !== id) : [...filters.results, id] })
-                                }
-                            />
-                        </div>
+                    {error && <p className="px-6 py-4 text-[13px] text-danger-ink">{error}</p>}
+                    {!data && !error && <TableSkeleton />}
+                    {data && rows.length === 0 && (
+                        <EmptyState unqualified={unqualified} filtered={filtered} telephonyEnabled={data.telephonyEnabled} onReset={resetFilters} />
                     )}
-                    {unqualified && (
-                        <p className="border-t border-line-subtle px-5 py-3 text-[12px] text-ink-3">
-                            Appels passés avec le téléphone intégré depuis plus de 10 minutes, sans statut enregistré par le SDR.
-                        </p>
-                    )}
-                </section>
-            )}
-
-            {/* ── Table ── */}
-            <section className="overflow-hidden rounded-panel border border-line bg-surface shadow-card">
-                {error && <p className="px-5 py-4 text-[13px] text-danger-ink">{error}</p>}
-                {!data && !error && <TableSkeleton />}
-                {data && rows.length === 0 && (
-                    <EmptyState
-                        unqualified={unqualified}
-                        filtered={filtered}
-                        telephonyEnabled={data.telephonyEnabled}
-                        onReset={() => {
-                            setQ("");
-                            setFilters({ sdrIds: [], missionId: null, results: [], withRecording: false, q: "" });
-                        }}
-                    />
-                )}
-                {data && rows.length > 0 && (
-                    <div className={cn("overflow-x-auto transition-opacity", loading && "opacity-60")}>
-                        <table className="w-full min-w-[880px] border-collapse text-[13px]">
-                            <thead>
-                                <tr className="border-b border-line bg-surface-2 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-3">
-                                    <th className="w-[92px] px-4 py-2.5 font-semibold">{multiDay ? "Date" : "Heure"}</th>
-                                    <th className="px-3 py-2.5 font-semibold">Prospect</th>
-                                    <th className="px-3 py-2.5 font-semibold">{unqualified ? "Issue" : "Statut"}</th>
-                                    <th className="w-[84px] px-3 py-2.5 text-right font-semibold">Durée</th>
-                                    {scope === "team" && <th className="px-3 py-2.5 font-semibold">SDR</th>}
-                                    {!unqualified && <th className="px-3 py-2.5 font-semibold">Mission</th>}
-                                    <th className={cn("px-4 py-2.5 text-right font-semibold", onQualify && unqualified ? "w-[150px]" : "w-[72px]")} aria-label="Contenu" />
+                    {data && rows.length > 0 && (
+                        <table
+                            className={cn(
+                                "w-full border-collapse bg-surface text-[13px] transition-opacity",
+                                // Beside the pane: fixed columns, the prospect and status truncate instead of scrolling sideways.
+                                showPane ? "table-fixed" : "min-w-[880px]",
+                                loading && "opacity-60",
+                            )}
+                        >
+                            <thead className="sticky top-0 z-[1]">
+                                <tr className="bg-surface-2/95 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-3 shadow-[inset_0_-1px_0_var(--ds-line)] backdrop-blur">
+                                    <th className={cn("py-2 pl-6 pr-3 font-semibold", showPane ? (multiDay ? "w-[110px]" : "w-[76px]") : "w-[92px]")}>{multiDay ? "Date" : "Heure"}</th>
+                                    <th className="px-3 py-2 font-semibold">Prospect</th>
+                                    <th className={cn("px-3 py-2 font-semibold", showPane && "w-[140px]")}>{unqualified ? "Issue" : "Statut"}</th>
+                                    <th className={cn("px-3 py-2 text-right font-semibold", showPane ? "w-[76px]" : "w-[84px]")}>Durée</th>
+                                    {scope === "team" && <th className={cn("px-3 py-2 font-semibold", showPane && "w-[52px]")}>SDR</th>}
+                                    {!unqualified && !showPane && <th className="px-3 py-2 font-semibold">Mission</th>}
+                                    <th className={cn("py-2 pl-3 pr-6 text-right font-semibold", onQualify && unqualified ? "w-[150px]" : showPane ? "w-[72px]" : "w-[80px]")} aria-label="Contenu" />
                                 </tr>
                             </thead>
                             <tbody key={loadedQuery ?? ""}>
@@ -418,9 +437,12 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                                         row={r}
                                         index={i}
                                         active={i === cursor}
+                                        opened={open?.id === r.id}
                                         multiDay={multiDay}
                                         unqualified={unqualified}
                                         showSdr={scope === "team"}
+                                        showMission={!showPane}
+                                        compact={showPane}
                                         onQualify={unqualified && onQualify ? () => onQualify(r) : undefined}
                                         onOpen={() => {
                                             setCursor(i);
@@ -430,39 +452,54 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                                 ))}
                             </tbody>
                         </table>
-                    </div>
-                )}
-                {data && data.total > data.limit && (
-                    <footer className="flex items-center justify-between border-t border-line px-4 py-2.5 text-[12px] text-ink-3">
+                    )}
+                </div>
+
+                {/* ── Footer: where you are, how to move. Right-aligned: the dock floats bottom left. ── */}
+                {data && rows.length > 0 && (
+                    <footer className="flex h-10 shrink-0 items-center justify-end gap-4 border-t border-line bg-surface px-6 text-[12px] text-ink-3">
+                        <span className="hidden items-center gap-1 text-[11px] text-ink-4 xl:flex">
+                            <Kbd>j</Kbd> <Kbd>k</Kbd> se déplacer · <Kbd>Entrée</Kbd> ouvrir · <Kbd>/</Kbd> rechercher
+                        </span>
                         <span className="tabular-nums">
                             {firstRow}–{lastRow} sur {data.total.toLocaleString("fr-FR")}
                         </span>
-                        <div className="flex gap-1">
-                            <PagerButton disabled={data.page <= 1} onClick={() => setFilters({ page: data.page - 1 }, { keepPage: true })}>
-                                Précédent
-                            </PagerButton>
-                            <PagerButton disabled={lastRow >= data.total} onClick={() => setFilters({ page: data.page + 1 }, { keepPage: true })}>
-                                Suivant
-                            </PagerButton>
-                        </div>
+                        {data.total > data.limit && (
+                            <div className="flex gap-1">
+                                <PagerButton disabled={data.page <= 1} onClick={() => setFilters({ page: data.page - 1 }, { keepPage: true })}>
+                                    Précédent
+                                </PagerButton>
+                                <PagerButton disabled={lastRow >= data.total} onClick={() => setFilters({ page: data.page + 1 }, { keepPage: true })}>
+                                    Suivant
+                                </PagerButton>
+                            </div>
+                        )}
                     </footer>
                 )}
-            </section>
+            </div>
 
-            {data && rows.length > 0 && (
-                <p className="text-center text-[11px] text-ink-4">
-                    <Kbd>j</Kbd> <Kbd>k</Kbd> pour se déplacer · <Kbd>Entrée</Kbd> pour ouvrir · <Kbd>/</Kbd> pour rechercher
-                </p>
+            {showPane && (
+                <CallDetailPane
+                    apiBase={apiBase}
+                    target={open}
+                    onClose={() => setOpen(null)}
+                    onOpenCall={(id) => setOpen({ id, kind: "action" })}
+                    onPrev={cursor > 0 ? () => move(-1) : undefined}
+                    onNext={cursor < rows.length - 1 ? () => move(1) : undefined}
+                    highlight={filters.q}
+                    resolveStatus={resolveStatus}
+                />
             )}
-
-            <CallDetailDrawer
-                apiBase={apiBase}
-                target={open}
-                onClose={() => setOpen(null)}
-                onOpenCall={(id) => setOpen({ id, kind: "action" })}
-                highlight={filters.q}
-                resolveStatus={(code) => statusMeta.get(code) ?? null}
-            />
+            {wide === false && (
+                <CallDetailDrawer
+                    apiBase={apiBase}
+                    target={open}
+                    onClose={() => setOpen(null)}
+                    onOpenCall={(id) => setOpen({ id, kind: "action" })}
+                    highlight={filters.q}
+                    resolveStatus={resolveStatus}
+                />
+            )}
         </div>
     );
 }
@@ -478,11 +515,11 @@ const int = (v: number) => Math.round(v).toLocaleString("fr-FR");
 
 function Metric({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
     return (
-        <div className="px-5 py-4">
-            <dt className="text-[12px] text-ink-3">{label}</dt>
-            <dd className="mt-1 flex items-baseline gap-2">
-                <span className="text-[20px] font-semibold tabular-nums tracking-tight text-ink">{value}</span>
-                {hint && <span className="text-[12px] text-ink-3">{hint}</span>}
+        <div>
+            <dt className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">{label}</dt>
+            <dd className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="text-[19px] font-semibold tabular-nums tracking-tight text-ink">{value}</span>
+                {hint && <span className="text-[11.5px] text-ink-3">{hint}</span>}
             </dd>
         </div>
     );
@@ -500,7 +537,7 @@ function FacetSelect({
     onChange: (v: string) => void;
 }) {
     return (
-        <label className={cn("relative flex h-9 items-center rounded-control border bg-surface text-[13px]", value ? "border-ink" : "border-line")}>
+        <label className={cn("relative flex h-8 items-center rounded-control border bg-surface text-[12.5px]", value ? "border-primary" : "border-line")}>
             <span className="pointer-events-none pl-3 text-ink-3">{label}</span>
             <select
                 value={value}
@@ -526,18 +563,26 @@ function Row({
     row: r,
     index,
     active,
+    opened,
     multiDay,
     unqualified,
     showSdr,
+    showMission,
+    compact,
     onQualify,
     onOpen,
 }: {
     row: JournalRow;
     index: number;
     active: boolean;
+    /** Its detail is the one open in the pane. */
+    opened: boolean;
     multiDay: boolean;
     unqualified: boolean;
     showSdr: boolean;
+    showMission: boolean;
+    /** The detail pane is open: the SDR shows as initials only. */
+    compact: boolean;
     onQualify?: () => void;
     onOpen: () => void;
 }) {
@@ -549,11 +594,11 @@ function Row({
             onClick={onOpen}
             style={{ ["--i" as string]: index }}
             className={cn(
-                "cp-rise group cursor-pointer border-b border-line-subtle transition-colors duration-150 last:border-b-0",
-                active ? "bg-primary-soft/60" : "hover:bg-surface-2",
+                "cp-rise group cursor-pointer scroll-mt-9 border-b border-line-subtle transition-colors duration-150",
+                opened ? "bg-primary-soft" : active ? "bg-primary-soft/50" : "hover:bg-surface-2",
             )}
         >
-            <td className={cn("whitespace-nowrap px-4 py-2.5 tabular-nums text-ink-2", active && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
+            <td className={cn("whitespace-nowrap py-2.5 pl-6 pr-3 tabular-nums text-ink-2", (active || opened) && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
                 {multiDay && <span className="mr-1.5 text-ink-3">{at.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</span>}
                 {at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </td>
@@ -584,17 +629,17 @@ function Row({
                 )}
             </td>
             {showSdr && (
-            <td className="whitespace-nowrap px-3 py-2.5">
-                <span className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-3 text-[10px] font-semibold text-ink-2">
-                        {r.sdr.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                <td className="whitespace-nowrap px-3 py-2.5">
+                    <span className="flex items-center gap-2" title={r.sdr.name}>
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-3 text-[10px] font-semibold text-ink-2">
+                            {r.sdr.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                        </span>
+                        {!compact && <span className="text-ink-2">{r.sdr.name}</span>}
                     </span>
-                    <span className="text-ink-2">{r.sdr.name}</span>
-                </span>
-            </td>
+                </td>
             )}
-            {!unqualified && <td className="max-w-[200px] truncate px-3 py-2.5 text-ink-3">{r.mission?.name ?? "—"}</td>}
-            <td className="px-4 py-2.5">
+            {!unqualified && showMission && <td className="max-w-[200px] truncate px-3 py-2.5 text-ink-3">{r.mission?.name ?? "—"}</td>}
+            <td className="py-2.5 pl-3 pr-6">
                 <span className="flex items-center justify-end gap-1.5 text-ink-3">
                     {onQualify && (
                         <button
@@ -636,7 +681,7 @@ function TableSkeleton() {
     return (
         <div className="divide-y divide-line-subtle" aria-busy="true">
             {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} className="flex items-center gap-6 px-4 py-3.5">
+                <div key={i} className="flex items-center gap-6 px-6 py-3.5">
                     <div className="cp-shimmer h-3 w-12 rounded" />
                     <div className="cp-shimmer h-3 w-48 rounded" />
                     <div className="cp-shimmer h-3 w-28 rounded" />

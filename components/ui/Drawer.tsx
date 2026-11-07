@@ -48,6 +48,14 @@ interface DrawerProps {
     headerActions?: React.ReactNode;
     /** If false, drawer behaves as non-modal side panel (no full-screen blocking layer). */
     modal?: boolean;
+    /**
+     * A pane docked to the right edge, full height, no backdrop: the page stays
+     * usable beside it and, on wide screens, makes room for it (`--cp-pane-w`).
+     * Esc still closes it when it is the top drawer.
+     */
+    docked?: boolean;
+    /** Padding of the scroll area (default `p-6`). */
+    bodyClassName?: string;
 }
 
 const SIZES = {
@@ -72,6 +80,8 @@ interface DrawerHeaderProps {
     onClose?: () => void;
     showCloseButton?: boolean;
     className?: string;
+    /** `start`: title left-aligned and compact (docked panes). */
+    align?: "center" | "start";
 }
 
 /**
@@ -86,7 +96,33 @@ export function DrawerHeader({
     onClose,
     showCloseButton = true,
     className,
+    align = "center",
 }: DrawerHeaderProps) {
+    if (align === "start") {
+        return (
+            <div className={cn("flex h-14 shrink-0 items-center gap-2 border-b border-line-subtle bg-surface pl-5 pr-2", className)}>
+                {left && <div className="flex shrink-0 items-center gap-1">{left}</div>}
+                <div className="min-w-0 flex-1">
+                    {title && <h2 className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-ink">{title}</h2>}
+                    {subtitle && <p className="truncate text-[12px] text-ink-3">{subtitle}</p>}
+                </div>
+                <div className="flex shrink-0 items-center gap-0.5">
+                    {right}
+                    {showCloseButton && onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            aria-label="Fermer le panneau (Échap)"
+                            title="Fermer (Échap)"
+                            className="flex h-8 w-8 items-center justify-center rounded-control text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
     return (
         <div
             className={cn(
@@ -140,6 +176,8 @@ export function Drawer({
     headerLeft,
     headerActions,
     modal = true,
+    docked = false,
+    bodyClassName,
 }: DrawerProps) {
     const drawerRef = useRef<HTMLDivElement>(null);
     const stackId = useRef(Symbol("drawer")).current;
@@ -148,14 +186,18 @@ export function Drawer({
     // order drawers were actually opened in. Non-modal drawers (side panels such
     // as the SDR script) never handle Esc, so they must not sit on top of the
     // stack and swallow it from the modal drawer underneath.
+    // A docked pane blocks nothing (no backdrop, no scroll lock) but keeps Esc.
+    const blocking = modal && !docked;
+    const ownsEscape = modal || docked;
+
     useEffect(() => {
-        if (!isOpen || !modal) return;
+        if (!isOpen || !ownsEscape) return;
         openDrawers.push(stackId);
         return () => {
             const index = openDrawers.indexOf(stackId);
             if (index !== -1) openDrawers.splice(index, 1);
         };
-    }, [isOpen, modal, stackId]);
+    }, [isOpen, ownsEscape, stackId]);
 
     // Handle ESC key — only the drawer on top reacts, so Esc in an edit form
     // doesn't also close the detail drawer it was opened from.
@@ -170,18 +212,25 @@ export function Drawer({
 
     // Lock body scroll when drawer is open
     useEffect(() => {
-        if (isOpen && modal) {
-            document.body.style.overflow = "hidden";
-            document.addEventListener("keydown", handleKeyDown);
-        } else {
-            document.body.style.overflow = "";
-        }
+        if (isOpen && blocking) document.body.style.overflow = "hidden";
+        else document.body.style.overflow = "";
+        if (isOpen && ownsEscape) document.addEventListener("keydown", handleKeyDown);
 
         return () => {
             document.body.style.overflow = "";
             document.removeEventListener("keydown", handleKeyDown);
         };
-    }, [isOpen, handleKeyDown]);
+    }, [isOpen, blocking, ownsEscape, handleKeyDown]);
+
+    // Docked: the page makes room for the pane (see .cp-main in globals.css).
+    useEffect(() => {
+        if (!isOpen || !docked) return;
+        const root = document.documentElement;
+        root.dataset.paneDocked = "";
+        return () => {
+            delete root.dataset.paneDocked;
+        };
+    }, [isOpen, docked]);
 
     // Focus trap
     useEffect(() => {
@@ -195,6 +244,36 @@ export function Drawer({
     const handleOverlayClickClose = () => {
         if (closeOnOverlay) onClose();
     };
+
+    if (docked) {
+        return (
+            <div
+                ref={drawerRef}
+                tabIndex={-1}
+                role="dialog"
+                aria-label={typeof title === "string" ? title : "Panneau latéral"}
+                className={cn(
+                    "cp-docked-pane cp-pane-in fixed bottom-0 right-0 top-0 z-[81] flex flex-col border-l border-line bg-surface outline-none",
+                    "shadow-overlay xl:shadow-[-1px_0_0_var(--ds-line-subtle)]",
+                    className
+                )}
+            >
+                {(title || description || headerLeft || headerActions || showCloseButton) && (
+                    <DrawerHeader
+                        align="start"
+                        title={title}
+                        subtitle={description}
+                        left={headerLeft}
+                        right={headerActions}
+                        onClose={onClose}
+                        showCloseButton={showCloseButton}
+                    />
+                )}
+                <div className={cn("min-h-0 flex-1 overflow-y-auto drawer-scrollbar", bodyClassName ?? "p-6")}>{children}</div>
+                {footer && <div className="shrink-0 border-t border-line-subtle bg-surface px-5 py-3">{footer}</div>}
+            </div>
+        );
+    }
 
     return (
         <div
@@ -245,7 +324,7 @@ export function Drawer({
                 )}
 
                 {/* Content */}
-                <div className="min-h-0 flex-1 overflow-y-auto p-6 drawer-scrollbar">
+                <div className={cn("min-h-0 flex-1 overflow-y-auto drawer-scrollbar", bodyClassName ?? "p-6")}>
                     {children}
                 </div>
 

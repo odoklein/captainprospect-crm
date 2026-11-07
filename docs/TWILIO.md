@@ -67,15 +67,34 @@ an arbitrary number.
   Symptom when missing: error 31000 and « Connexion… » in the dock.
 - `Permissions-Policy` must allow `microphone=(self)`. Symptom: error 31401.
 
-## The dock
+## Where the call lives: the island
 
-During a call the softphone is a full-width band docked at the bottom of the app
-(`components/telephony/CallBar.tsx`). It reserves its height through the CSS
-variable `--softphone-dock-h`: the shell, sidebar, drawers, modals and toasts end
-above it, so the action drawer and the script stay usable while calling.
-« Réduire » folds it into a pill and gives the space back. A new fixed element
-anchored to the bottom of the viewport should add `var(--softphone-dock-h,0px)`
-to its offset.
+There is one call surface: the **island** at the top of the screen
+(`components/telephony/CallIsland.tsx`, mounted by `SoftphoneProvider`). It is
+a black pill while calling (name, timer, live level, last sentence heard);
+hover or click opens it (live transcript, keypad, micro, hang up), Échap folds
+it. When the call ends it becomes the outcome card (Twilio's issue, the AI
+summary when it is ready, Rappeler). It stays centred over the page, never
+over a docked pane (`--cp-pane-w`).
+
+Pages can put their own status in it while no call is live with
+`useIslandExtra({ tag, text, countdown, actions })` — Mode auto uses it for
+« Appel de X dans 3 s · Annuler · Passer · Arrêter ».
+
+The former bottom call band is gone: `--softphone-dock-h` stays at `0px` and is
+kept only so existing offsets still compile.
+
+## Per page
+
+| Page | Layout | Dock | Island |
+| --- | --- | --- | --- |
+| Appeler (`/sdr/action`, table) | list + **docked action pane** on the right (Appel · Fiche · Script tabs; the script tab comes up while calling, Appel when the call ends) | floating, bottom left | call + Mode auto status |
+| Mode Focus (`/sdr/focus`) | full height: session rail · prospect · outcome | shortcuts listed in the rail (lg+), floating below | call |
+| Mes appels / Journal d'appels | full height: list + **detail pane** following `j` / `k` (drawer on narrow screens) | floating | call |
+
+The docked pane is `<Drawer docked>`: no backdrop, Esc still closes it; from
+`xl` the page makes room for it (`:root[data-pane-docked]` sets
+`--cp-pane-w`, `.cp-main` pads by it), below it overlays.
 
 ## Security notes
 
@@ -96,7 +115,8 @@ to its offset.
 - `app/api/telephony/` — `config`, `token`, `calls`, `calls/[id]`
 - `app/api/webhooks/twilio/` — `voice`, `status`, `recording`, `notice`
 - `components/telephony/` — `SoftphoneProvider` (mounted in `AppLayoutShell`,
-  `useSoftphone()` / `useTelLinkHandler()`), `CallBar`
+  `useSoftphone()` / `useTelLinkHandler()` / `useIslandExtra()`), `CallIsland`,
+  `CallInsights` (transcript feed, AI summary view)
 - Prisma: `TelephonyCall`, `User.twilioCallerId`
   (migration `20261105100000_add_telephony_calls`)
 

@@ -117,7 +117,58 @@ function attention(item: DockItem): "live" | "danger" | "active" | null {
     return null;
 }
 
-export function FloatingDock() {
+/**
+ * The dock's items as a vertical list, for a workspace that has its own rail
+ * (Mode Focus): the shortcuts live in the rail instead of floating over it.
+ */
+export function DockList({ exclude = [], className }: { exclude?: string[]; className?: string }) {
+    const items = useContext(ItemsContext).filter((i) => !exclude.includes(i.id));
+    if (items.length === 0) return null;
+    return (
+        <ul className={cn("flex flex-col gap-0.5", className)} aria-label="Raccourcis">
+            {items.map((item) => {
+                const Icon = item.icon;
+                const a = attention(item);
+                return (
+                    <li key={item.id}>
+                        <button
+                            type="button"
+                            onClick={item.onClick}
+                            aria-pressed={item.active}
+                            className={cn(
+                                "cp-press group flex h-8 w-full items-center gap-2.5 rounded-control px-2 text-left text-[12.5px] font-medium transition-colors",
+                                a === "live"
+                                    ? "bg-success-soft text-success-ink"
+                                    : a === "danger"
+                                      ? "text-danger-ink hover:bg-danger-soft"
+                                      : a === "active"
+                                        ? "bg-primary-soft text-primary-soft-ink"
+                                        : "text-ink-3 hover:bg-surface-2 hover:text-ink",
+                            )}
+                        >
+                            <span className="relative flex h-4 w-4 items-center justify-center">
+                                {item.pulse && <span className="absolute inset-[-3px] rounded-full bg-success/30 animate-ping" aria-hidden />}
+                                <Icon className="relative h-4 w-4" aria-hidden />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                            {item.badge ? (
+                                <span key={item.badge} className="cp-pop rounded-full bg-danger px-1.5 text-[10.5px] font-bold leading-[16px] text-white">
+                                    {item.badge > 99 ? "99+" : item.badge}
+                                </span>
+                            ) : null}
+                        </button>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
+/**
+ * `railed`: the page shows the items in its own rail from `lg` up (DockList),
+ * so the floating dock only stays for narrower screens.
+ */
+export function FloatingDock({ railed = false }: { railed?: boolean }) {
     const items = useContext(ItemsContext);
     const wells = useRef<(HTMLElement | null)[]>([]);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -152,6 +203,7 @@ export function FloatingDock() {
                 onPointerLeave={() => magnify(null)}
                 className={cn(
                     "cp-glass cp-pop fixed z-[90] hidden h-14 items-end gap-2.5 rounded-2xl px-2.5 pb-2 sm:flex",
+                    railed && "lg:hidden",
                     "left-[calc(var(--cp-sidebar-w,0px)+1rem)] bottom-[calc(1rem+var(--softphone-dock-h,0px))]",
                 )}
             >

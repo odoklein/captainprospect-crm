@@ -89,7 +89,7 @@ import {
 import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openreplay/events";
 import { openReplayTracker } from "@/lib/openreplay/tracker";
 import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
-import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
 
 // ============================================
 // TYPES
@@ -168,6 +168,13 @@ interface UnifiedActionDrawerProps {
      *  absent RDV). When set, the drawer reads summary → history → action, the
      *  contact/company sheet moving below the action form. */
     summary?: ReactNode;
+    /**
+     * Docked beside the list (Appeler) instead of over it: no backdrop, tabs
+     * Appel / Fiche / Script, the result first with its save button pinned.
+     */
+    docked?: boolean;
+    /** Content of the « Script » tab (docked only), e.g. <ScriptCompanionContent />. */
+    script?: ReactNode;
 }
 
 interface AlloCallItem {
@@ -486,6 +493,8 @@ export function UnifiedActionDrawer({
     enableGooglePhoneLookup = false,
     enableCompanyAiEnrichment,
     summary,
+    docked = false,
+    script,
 }: UnifiedActionDrawerProps) {
     const { success, error: showError, info: showInfo } = useToast();
     const { data: session } = useSession();
@@ -1064,7 +1073,27 @@ export function UnifiedActionDrawer({
         );
     }, [statusLabels]);
 
-    const { dial: softphoneDial } = useSoftphone();
+    const { dial: softphoneDial, call: softphoneCall } = useSoftphone();
+
+    // Docked pane tabs. A new prospect opens on « Appel »; a call to this
+    // prospect brings up the script while talking, and the result once it ends.
+    const [paneTab, setPaneTab] = useState<"appel" | "fiche" | "script">("appel");
+    const paneProspectKey = `${contactId ?? ""}|${companyId}`;
+    const [paneProspect, setPaneProspect] = useState(paneProspectKey);
+    const callHere: "none" | "live" | "ended" =
+        softphoneCall && softphoneCall.target.companyId === companyId ? (isCallActive(softphoneCall) ? "live" : "ended") : "none";
+    const [seenCallHere, setSeenCallHere] = useState(callHere);
+    if (paneProspect !== paneProspectKey) {
+        setPaneProspect(paneProspectKey);
+        setPaneTab("appel");
+    }
+    if (seenCallHere !== callHere) {
+        setSeenCallHere(callHere);
+        if (callHere === "live" && script) setPaneTab("script");
+        else if (callHere === "ended") setPaneTab("appel");
+    }
+    /** Shown in the current tab (always true for the classic drawer). */
+    const inPane = (tab: "appel" | "fiche" | "script") => !docked || paneTab === tab;
     const primaryPhone = useMemo(() => {
         if (contact?.phone) return { number: contact.phone, label: "Contact" };
         if (company?.phone) return { number: company.phone, label: "Société" };
@@ -1651,10 +1680,6 @@ export function UnifiedActionDrawer({
 
     const handleSaveCompany = () => saveCompanyMutation.mutate();
 
-    // ── Render guards ──────────────────────────────────────────────────────────
-
-    if (!isOpen) return null;
-
     const canSubmit =
         !!newActionResult &&
         !requiresSavedInterlocutorBeforeSubmit &&
@@ -1676,6 +1701,10 @@ export function UnifiedActionDrawer({
     }, [actions, isCallbackResult]);
     const visibleActions = historyExpanded ? sortedHistoryActions : sortedHistoryActions.slice(0, 5);
 
+    // ── Render guards (after every hook) ───────────────────────────────────────
+
+    if (!isOpen) return null;
+
     // Quick actions + contact/company sheet. Rendered between the history and the
     // action form by default; below the form when a summary is passed (RDV view).
     const ficheSections = (
@@ -1683,7 +1712,7 @@ export function UnifiedActionDrawer({
             {/* ── Quick Action Bar ── */}
             <section
                 aria-label="Actions rapides"
-                className="flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60"
+                className={cn("flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60", docked && "rounded-xl p-2", !inPane("appel") && "hidden")}
                 style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
             >
                 {primaryPhone && (
@@ -1755,7 +1784,7 @@ export function UnifiedActionDrawer({
                 <div
                     role="tablist"
                     aria-label="Informations contact ou société"
-                    className="flex rounded-xl bg-slate-100/80 p-1 gap-1 border border-slate-200/60"
+                    className={cn("flex rounded-xl bg-slate-100/80 p-1 gap-1 border border-slate-200/60", !inPane("fiche") && "hidden")}
                     style={{ animation: "uadSectionIn 250ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     onKeyDown={(e) => {
                         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -1810,7 +1839,7 @@ export function UnifiedActionDrawer({
                     role="tabpanel"
                     aria-labelledby="tab-contact"
                     tabIndex={0}
-                    className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1"
+                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("fiche") && "hidden")}
                     style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                 >
                     {/* Contact header */}
@@ -2320,7 +2349,7 @@ export function UnifiedActionDrawer({
                     role="tabpanel"
                     aria-labelledby="tab-company"
                     tabIndex={0}
-                    className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1"
+                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("fiche") && "hidden")}
                     style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                 >
                     {/* No contact prompt */}
@@ -2813,6 +2842,8 @@ export function UnifiedActionDrawer({
             title={displayName}
             description={missionName ? `Mission : ${missionName}` : undefined}
             size="lg"
+            docked={docked}
+            bodyClassName={docked ? "p-0" : undefined}
         >
             <style>{`
                 @keyframes uadSectionIn {
@@ -2824,6 +2855,37 @@ export function UnifiedActionDrawer({
                     50% { opacity: 0.5; }
                 }
             `}</style>
+            {docked && (
+                <div
+                    role="tablist"
+                    aria-label="Panneau prospect"
+                    className="sticky top-0 z-[2] flex items-center gap-5 border-b border-line-subtle bg-surface/95 px-5 backdrop-blur"
+                >
+                    {(
+                        [
+                            ["appel", "Appel"],
+                            ["fiche", "Fiche"],
+                            ...(script ? ([["script", "Script"]] as const) : []),
+                        ] as const
+                    ).map(([id, label]) => (
+                        <button
+                            key={id}
+                            type="button"
+                            role="tab"
+                            aria-selected={paneTab === id}
+                            onClick={() => setPaneTab(id)}
+                            className={cn(
+                                "-mb-px flex h-10 items-center gap-1.5 border-b-2 text-[13px] font-medium transition-colors duration-150",
+                                paneTab === id ? "border-primary text-ink" : "border-transparent text-ink-3 hover:text-ink",
+                            )}
+                        >
+                            {label}
+                            {id === "script" && callHere === "live" && <span className="h-1.5 w-1.5 rounded-full bg-success" aria-label="en appel" />}
+                        </button>
+                    ))}
+                </div>
+            )}
+            <div className={cn(docked && "px-5 pb-6 pt-4")}>
             {loading ? (
                 <div className="space-y-5 p-1" role="status" aria-label="Chargement des données">
                     <div className="flex gap-3">
@@ -2862,6 +2924,7 @@ export function UnifiedActionDrawer({
                     {/* An excluded prospect stays open and readable — only the
                         queue drops it. The banner is the first thing read, so
                         nobody calls anyway or files a ticket about a "bug". */}
+                    <div className={cn("contents", docked && paneTab === "script" && "hidden")}>
                     {activeExclusion && (
                         <ExclusionBanner
                             info={{
@@ -2883,9 +2946,10 @@ export function UnifiedActionDrawer({
                             {summary}
                         </div>
                     )}
+                    </div>
 
                     {!activeExclusion && company && (
-                        <div className="flex justify-end -mb-2">
+                        <div className={cn("flex justify-end -mb-2", !inPane("fiche") && "hidden")}>
                             <button
                                 type="button"
                                 onClick={() => setExcludeDialogOpen(true)}
@@ -2901,7 +2965,7 @@ export function UnifiedActionDrawer({
                     {/* ── Unified history section (moved to top) ── */}
                     <section
                         aria-label="Historique des actions"
-                        className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                        className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden", docked && "order-3 rounded-xl shadow-none", !inPane("appel") && "hidden")}
                         style={{ animation: "uadSectionIn 250ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                     >
                         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
@@ -3266,7 +3330,12 @@ export function UnifiedActionDrawer({
                     {/* ── Record Action Section ── */}
                     <section
                         aria-label="Enregistrer une action"
-                        className="rounded-2xl border border-primary-100 bg-white shadow-sm overflow-hidden ring-1 ring-primary-50"
+                        className={cn(
+                            "rounded-2xl border border-primary-100 bg-white shadow-sm overflow-hidden ring-1 ring-primary-50",
+                            // Result first; overflow-clip (not hidden) keeps the save bar sticky.
+                            docked && "order-2 rounded-xl shadow-none ring-0 !overflow-clip",
+                            !inPane("appel") && "hidden",
+                        )}
                         style={{ animation: "uadSectionIn 250ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     >
                         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-primary-100 bg-primary-50/50">
@@ -3775,7 +3844,13 @@ export function UnifiedActionDrawer({
 
                                     {/* Submit — hidden when ENVOIE_MAIL (email panel has its own send) */}
                                     {newActionResult !== "ENVOIE_MAIL" && (
-                                    <div className="flex flex-col sm:flex-row gap-2 pt-3 mt-1 border-t border-primary-100">
+                                    <div
+                                        className={cn(
+                                            "flex flex-col sm:flex-row gap-2 pt-3 mt-1 border-t border-primary-100",
+                                            // Docked: the save stays in reach however long the form gets.
+                                            docked && "sticky bottom-0 z-[1] -mx-4 -mb-4 bg-surface/95 px-4 pb-4 backdrop-blur",
+                                        )}
+                                    >
                                         <Button
                                             type="button"
                                             variant="primary"
@@ -3813,8 +3888,10 @@ export function UnifiedActionDrawer({
 
                     {summary && ficheSections}
 
+                    {docked && script && <div className={cn(paneTab !== "script" && "hidden")}>{script}</div>}
                 </div>
             )}
+            </div>
 
             {/* ── Modals ── */}
             {company && (

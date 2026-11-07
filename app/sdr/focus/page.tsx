@@ -15,8 +15,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
-    AlertTriangle, Building2, CalendarClock, ChevronDown, Crosshair, ExternalLink, Globe, Keyboard,
-    Pause, Phone, PhoneOff, Play, RefreshCw, SkipForward, X,
+    AlertTriangle, Building2, CalendarClock, ChevronDown, Crosshair, ExternalLink, FileText, Globe, History, Keyboard,
+    LogOut, Pause, Phone, PhoneOff, Play, RefreshCw, SkipForward, X,
 } from "lucide-react";
 import { Kbd, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProv
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { AiSummaryView, useCallTranscript } from "@/components/telephony/CallInsights";
 import { PrecallBrief } from "@/components/sdr/PrecallBrief";
+import { DockList } from "@/components/layout/FloatingDock";
 import {
     EMPTY_STATS, callbackPresets, connectRate, dispositionKeys, isTypingTarget, parseLocalCallback, type SessionStats,
 } from "@/lib/focus/focus";
@@ -177,7 +178,6 @@ export default function FocusPage() {
     const [phoneChoice, setPhoneChoice] = useState<"contact" | "company">("contact");
     const [drawer, setDrawer] = useState<{ initialResult?: string } | null>(null);
     const [helpOpen, setHelpOpen] = useState(false);
-    const [scriptOpen, setScriptOpen] = useState(true);
 
     // The integrated-phone call placed to the prospect on screen (kept after the dock is closed).
     const [ourCallId, setOurCallId] = useState<string | null>(null);
@@ -482,13 +482,16 @@ export default function FocusPage() {
 
     const elapsed = sessionStart ? (now - sessionStart) / 1000 : 0;
     const rate = connectRate(stats);
+    const ready = phase === "ready" && prospect !== null;
 
+    // Three panes, each scrolling on its own: the session (rail), the prospect
+    // (what to read), the outcome (what to do). Nothing floats over them.
     return (
-        <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4 px-1 pb-6">
-            {/* ── Session bar ── */}
-            <header className="cp-glass sticky top-[56px] z-30 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-panel px-4 py-3">
-                <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-control bg-primary text-primary-fg">
+        <div className="flex h-full min-h-0 w-full flex-col bg-canvas lg:flex-row">
+            {/* ── Rail: the session ── */}
+            <aside className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-2.5 lg:w-[228px] lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0 lg:border-b-0 lg:border-r lg:p-0">
+                <div className="flex min-w-0 items-center gap-2.5 lg:px-4 lg:pb-4 lg:pt-5">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-primary text-primary-fg">
                         <Crosshair className="h-4 w-4" aria-hidden />
                     </span>
                     <div className="min-w-0">
@@ -496,7 +499,7 @@ export default function FocusPage() {
                         <button
                             type="button"
                             onClick={() => setPhase("setup")}
-                            className="flex max-w-[260px] items-center gap-1 truncate text-[12px] text-ink-3 hover:text-ink"
+                            className="flex max-w-[170px] items-center gap-1 text-[12px] text-ink-3 hover:text-ink"
                             title="Changer de mission"
                         >
                             <span className="truncate">{mission?.name ?? prospect?.missionName ?? "Mission"}</span>
@@ -505,331 +508,358 @@ export default function FocusPage() {
                     </div>
                 </div>
 
-                <dl className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[12px]">
-                    <Stat label="Session" value={clock(elapsed)} />
+                <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] lg:grid lg:grid-cols-2 lg:gap-px lg:border-y lg:border-line-subtle lg:bg-line-subtle">
+                    <Stat label="Session" value={clock(elapsed)} wide />
                     <Stat label="Appels" value={stats.dials} />
-                    <Stat label="Joints" value={rate === null ? "—" : `${stats.connected} · ${rate} %`} />
+                    <Stat label="Joints" value={stats.connected} hint={rate === null ? undefined : `${rate} %`} />
                     <Stat label="Traités" value={stats.saved} />
                     <Stat label="RDV" value={stats.meetings} strong={stats.meetings > 0} />
                 </dl>
 
-                <div className="ml-auto flex items-center gap-2">
-                    <label className={cn("flex items-center gap-2 text-[12px] text-ink-2", !softphoneOn && "opacity-50")} title={softphoneOn ? undefined : "Nécessite le téléphone intégré"}>
-                        <input
-                            type="checkbox"
-                            className="h-3.5 w-3.5 accent-[var(--ds-primary)]"
-                            checked={autoDial && softphoneOn}
-                            disabled={!softphoneOn}
-                            onChange={(e) => {
-                                setAutoDial(e.target.checked);
-                                writeLS(LS_AUTODIAL, e.target.checked ? "1" : "0");
-                            }}
-                        />
-                        Appel automatique
-                    </label>
-                    <button
-                        type="button"
-                        onClick={() => setPaused((v) => !v)}
-                        className={cn(
-                            "inline-flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-[12px] font-medium",
-                            paused ? "border-warning-line bg-warning-soft text-warning-ink" : "border-line text-ink-2 hover:bg-surface-2",
-                        )}
-                        title="Pause (P)"
-                    >
-                        {paused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+                <div className="ml-auto flex items-center gap-1.5 lg:ml-0 lg:flex-col lg:items-stretch lg:gap-0.5 lg:p-2">
+                    <Switch
+                        label="Appel automatique"
+                        checked={autoDial && softphoneOn}
+                        disabled={!softphoneOn}
+                        title={softphoneOn ? `Appelle ${AUTO_DIAL_SECONDS} s après l'affichage` : "Nécessite le téléphone intégré"}
+                        onChange={(v) => {
+                            setAutoDial(v);
+                            writeLS(LS_AUTODIAL, v ? "1" : "0");
+                        }}
+                    />
+                    <RailButton onClick={() => setPaused((v) => !v)} active={paused} title="Pause (P)" kbd="P">
+                        {paused ? <Play className="h-3.5 w-3.5" aria-hidden /> : <Pause className="h-3.5 w-3.5" aria-hidden />}
                         {paused ? "Reprendre" : "Pause"}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setHelpOpen(true)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-control border border-line text-ink-2 hover:bg-surface-2"
-                        aria-label="Raccourcis clavier (?)"
-                        title="Raccourcis clavier (?)"
+                    </RailButton>
+                    <RailButton onClick={() => setHelpOpen(true)} title="Raccourcis clavier (?)" kbd="?">
+                        <Keyboard className="h-3.5 w-3.5" aria-hidden />
+                        Raccourcis
+                    </RailButton>
+                </div>
+
+                <div className="hidden min-h-0 flex-1 lg:block" />
+                <DockList className="hidden px-2 pb-2 lg:flex" />
+                <div className="lg:border-t lg:border-line-subtle lg:p-2">
+                    <Link
+                        href="/sdr/action"
+                        className="flex h-8 items-center gap-2 rounded-control px-2 text-[12.5px] font-medium text-ink-3 hover:bg-surface-2 hover:text-ink"
                     >
-                        <Keyboard className="h-4 w-4" />
-                    </button>
-                    <Link href="/sdr/action" className="inline-flex h-8 items-center rounded-control px-2.5 text-[12px] font-medium text-ink-3 hover:bg-surface-2 hover:text-ink">
-                        Quitter
+                        <LogOut className="h-3.5 w-3.5" aria-hidden /> Quitter la session
                     </Link>
                 </div>
-            </header>
+            </aside>
 
-            {(phase === "loading" || (phase === "ready" && !prospect)) && <LoadingCard />}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+                {/* ── Prospect: what to read ── */}
+                <section className="min-w-0 flex-1 lg:overflow-y-auto" aria-label="Prospect">
+                    {(phase === "loading" || (phase === "ready" && !prospect)) && <LoadingProspect />}
 
-            {(phase === "empty" || phase === "error") && (
-                <div className="rounded-panel border border-line bg-surface px-6 py-14 text-center shadow-card">
-                    <p className="text-[15px] font-semibold text-ink">{phase === "empty" ? "File terminée pour le moment" : "Problème de chargement"}</p>
-                    <p className="mx-auto mt-1.5 max-w-md text-[13px] text-ink-3">{emptyMessage}</p>
-                    {stats.saved > 0 && (
-                        <p className="mt-4 text-[13px] text-ink-2">
-                            Session : {stats.saved} prospect{stats.saved > 1 ? "s" : ""} traité{stats.saved > 1 ? "s" : ""}, {stats.meetings} RDV, en {clock(elapsed)}.
-                        </p>
-                    )}
-                    <div className="mt-6 flex justify-center gap-2">
-                        <button type="button" onClick={() => void loadNext()} className="inline-flex h-9 items-center gap-1.5 rounded-control border border-line px-3 text-[13px] font-medium text-ink-2 hover:bg-surface-2">
-                            <RefreshCw className="h-3.5 w-3.5" /> Réessayer
-                        </button>
-                        <button type="button" onClick={() => setPhase("setup")} className="inline-flex h-9 items-center rounded-control bg-primary px-3 text-[13px] font-semibold text-primary-fg hover:bg-primary-hover">
-                            Changer de mission
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {phase === "ready" && prospect && (
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-                    {/* ── Prospect ── */}
-                    <section key={prospectKey ?? ""} className="cp-stagger flex min-w-0 flex-col gap-4">
-                        <div className="rounded-panel border border-line bg-surface shadow-card">
-                            <div className="flex items-start gap-4 p-5">
-                                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[15px] font-semibold text-primary-soft-ink">
-                                    {initials(personName(prospect))}
+                    {(phase === "empty" || phase === "error") && (
+                        <div className="flex min-h-full items-center justify-center px-6 py-16">
+                            <div className="cp-rise max-w-md text-center">
+                                <span className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-surface-3 text-ink-3">
+                                    {phase === "empty" ? <Crosshair className="h-5 w-5" aria-hidden /> : <AlertTriangle className="h-5 w-5" aria-hidden />}
                                 </span>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <h1 className="truncate text-[20px] font-semibold tracking-tight text-ink">{personName(prospect)}</h1>
-                                        {PRIORITY[prospect.priority] && (
-                                            <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", PRIORITY[prospect.priority].tone)}>
-                                                {PRIORITY[prospect.priority].label}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-2">
-                                        {prospect.contact?.title && <span>{prospect.contact.title}</span>}
-                                        {prospect.contact?.title && <span className="text-ink-4">·</span>}
-                                        <Building2 className="h-3.5 w-3.5 text-ink-3" aria-hidden />
-                                        <span>{prospect.company.name}</span>
-                                        {prospect.company.industry && <span className="text-ink-3">· {prospect.company.industry}</span>}
-                                        {prospect.company.website && (
-                                            <a
-                                                href={prospect.company.website.startsWith("http") ? prospect.company.website : `https://${prospect.company.website}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-0.5 text-link hover:underline"
-                                            >
-                                                <Globe className="h-3 w-3" /> site
-                                            </a>
-                                        )}
+                                <p className="text-[16px] font-semibold tracking-tight text-ink">{phase === "empty" ? "File terminée pour le moment" : "Problème de chargement"}</p>
+                                <p className="mt-1.5 text-[13px] text-ink-3">{emptyMessage}</p>
+                                {stats.saved > 0 && (
+                                    <p className="mt-4 text-[13px] text-ink-2">
+                                        Session : {stats.saved} prospect{stats.saved > 1 ? "s" : ""} traité{stats.saved > 1 ? "s" : ""}, {stats.meetings} RDV, en {clock(elapsed)}.
                                     </p>
-                                    <p className="mt-1 text-[12px] text-ink-3">
-                                        {prospect.strategyName ? `${prospect.strategyName}` : prospect.missionName}
-                                        {prospect.sourceListName ? ` · ${prospect.sourceListName}` : ""}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setDrawer({})}
-                                    className="hidden h-8 shrink-0 items-center gap-1.5 rounded-control border border-line px-2.5 text-[12px] font-medium text-ink-2 hover:bg-surface-2 sm:inline-flex"
-                                    title="Fiche complète (F)"
-                                >
-                                    <ExternalLink className="h-3.5 w-3.5" /> Fiche <Kbd>F</Kbd>
-                                </button>
-                            </div>
-
-                            {/* Call block */}
-                            <div className="flex flex-wrap items-center gap-3 border-t border-line-subtle bg-surface-2/60 px-5 py-3.5">
-                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                                    {contactPhone && (
-                                        <PhoneChip label="Direct" number={contactPhone} active={phoneChoice === "contact" || !companyPhone} onClick={() => setPhoneChoice("contact")} />
-                                    )}
-                                    {companyPhone && companyPhone !== contactPhone && (
-                                        <PhoneChip label="Standard" number={companyPhone} active={phoneChoice === "company" || !contactPhone} onClick={() => setPhoneChoice("company")} />
-                                    )}
-                                    {!phone && <span className="text-[13px] text-ink-3">Aucun numéro : passez ou complétez la fiche.</span>}
-                                </div>
-                                <div className="ml-auto flex items-center gap-2">
-                                    {countdown !== null && (
-                                        <span className="cp-pop flex items-center gap-2 text-[12px] text-ink-2" aria-live="polite">
-                                            <CountdownRing key={prospectKey ?? ""} seconds={AUTO_DIAL_SECONDS} />
-                                            Appel dans <span className="tabular-nums font-semibold text-ink">{countdown}</span>
-                                            <button type="button" onClick={cancelAutoDial} className="rounded-control px-1.5 py-0.5 text-ink-3 hover:bg-surface-3 hover:text-ink">
-                                                Annuler <Kbd className="ml-1">Échap</Kbd>
-                                            </button>
-                                        </span>
-                                    )}
-                                    {inCall && callIsOurs ? (
-                                        <button type="button" onClick={hangup} className="cp-press inline-flex h-10 items-center gap-2 rounded-control bg-danger px-4 text-[13px] font-semibold text-white hover:bg-red-700">
-                                            <PhoneOff className="h-4 w-4" /> Raccrocher <Kbd className="border-white/30 bg-white/10 text-white">H</Kbd>
-                                        </button>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={placeCall}
-                                            disabled={!phone || inCall}
-                                            className="cp-press inline-flex h-10 items-center gap-2 rounded-control bg-success px-4 text-[13px] font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            <Phone className="h-4 w-4" /> Appeler <Kbd className="border-white/30 bg-white/10 text-white">Espace</Kbd>
-                                        </button>
-                                    )}
+                                )}
+                                <div className="mt-6 flex justify-center gap-2">
+                                    <button type="button" onClick={() => void loadNext()} className="cp-press inline-flex h-9 items-center gap-1.5 rounded-control border border-line bg-surface px-3 text-[13px] font-medium text-ink-2 hover:bg-surface-2">
+                                        <RefreshCw className="h-3.5 w-3.5" /> Réessayer
+                                    </button>
+                                    <button type="button" onClick={() => setPhase("setup")} className="cp-press inline-flex h-9 items-center rounded-control bg-primary px-3 text-[13px] font-semibold text-primary-fg hover:bg-primary-hover">
+                                        Changer de mission
+                                    </button>
                                 </div>
                             </div>
                         </div>
+                    )}
 
-                        {missionId && (
-                            <PrecallBrief
-                                key={prospectKey ?? ""}
-                                companyId={prospect.company.id}
-                                contactId={prospect.contact?.id ?? null}
-                                missionId={missionId}
-                            />
-                        )}
+                    {ready && prospect && (
+                        <div key={prospectKey ?? ""} className="cp-stagger">
+                            {/* Who, and the call: stays in view while reading the brief and the script. */}
+                            <header className="sticky top-0 z-10 border-b border-line-subtle bg-canvas/85 backdrop-blur-md">
+                                <div className="mx-auto flex max-w-[860px] flex-col gap-4 px-6 pb-4 pt-6 lg:px-10">
+                                    <div className="flex items-start gap-4">
+                                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[14px] font-semibold text-primary-soft-ink">
+                                            {initials(personName(prospect))}
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h1 className="truncate text-[22px] font-semibold leading-tight tracking-[-0.015em] text-ink">{personName(prospect)}</h1>
+                                                {PRIORITY[prospect.priority] && (
+                                                    <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", PRIORITY[prospect.priority].tone)}>
+                                                        {PRIORITY[prospect.priority].label}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[13px] text-ink-2">
+                                                {prospect.contact?.title && <span>{prospect.contact.title}</span>}
+                                                {prospect.contact?.title && <span className="text-ink-4">·</span>}
+                                                <Building2 className="h-3.5 w-3.5 text-ink-3" aria-hidden />
+                                                <span className="font-medium text-ink">{prospect.company.name}</span>
+                                                {prospect.company.industry && <span className="text-ink-3">· {prospect.company.industry}</span>}
+                                                {prospect.company.website && (
+                                                    <a
+                                                        href={prospect.company.website.startsWith("http") ? prospect.company.website : `https://${prospect.company.website}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-0.5 text-link hover:underline"
+                                                    >
+                                                        <Globe className="h-3 w-3" /> site
+                                                    </a>
+                                                )}
+                                                <span className="text-ink-4">·</span>
+                                                <span className="text-ink-3">
+                                                    {prospect.strategyName || prospect.missionName}
+                                                    {prospect.sourceListName ? ` · ${prospect.sourceListName}` : ""}
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDrawer({})}
+                                            className="cp-press hidden h-8 shrink-0 items-center gap-1.5 rounded-control px-2.5 text-[12px] font-medium text-ink-3 hover:bg-surface-3 hover:text-ink sm:inline-flex"
+                                            title="Fiche complète (F)"
+                                        >
+                                            <ExternalLink className="h-3.5 w-3.5" /> Fiche <Kbd>F</Kbd>
+                                        </button>
+                                    </div>
 
-                        {/* Context: what to know before dialling */}
-                        <ContextCard prospect={prospect} statusLabel={(code) => statusOf.get(code)?.label ?? code} />
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <div className="flex min-w-0 flex-wrap items-center gap-1">
+                                            {contactPhone && (
+                                                <PhoneChip label="Direct" number={contactPhone} active={phoneChoice === "contact" || !companyPhone} onClick={() => setPhoneChoice("contact")} />
+                                            )}
+                                            {companyPhone && companyPhone !== contactPhone && (
+                                                <PhoneChip label="Standard" number={companyPhone} active={phoneChoice === "company" || !contactPhone} onClick={() => setPhoneChoice("company")} />
+                                            )}
+                                            {!phone && <span className="text-[13px] text-ink-3">Aucun numéro : passez ou complétez la fiche.</span>}
+                                        </div>
+                                        <div className="ml-auto flex items-center gap-2">
+                                            {countdown !== null && (
+                                                <span className="cp-pop flex items-center gap-2 text-[12px] text-ink-2" aria-live="polite">
+                                                    <CountdownRing key={prospectKey ?? ""} seconds={AUTO_DIAL_SECONDS} />
+                                                    Appel dans <span className="font-semibold tabular-nums text-ink">{countdown}</span>
+                                                    <button type="button" onClick={cancelAutoDial} className="rounded-control px-1.5 py-0.5 text-ink-3 hover:bg-surface-3 hover:text-ink">
+                                                        Annuler <Kbd className="ml-1">Échap</Kbd>
+                                                    </button>
+                                                </span>
+                                            )}
+                                            {inCall && callIsOurs ? (
+                                                <button type="button" onClick={hangup} className="cp-press inline-flex h-10 items-center gap-2 rounded-full bg-danger px-4 text-[13px] font-semibold text-white shadow-[0_6px_16px_-8px_var(--ds-danger)] hover:brightness-110">
+                                                    <PhoneOff className="h-4 w-4" /> Raccrocher <Kbd className="border-white/30 bg-white/10 text-white">H</Kbd>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={placeCall}
+                                                    disabled={!phone || inCall}
+                                                    className="cp-press inline-flex h-10 items-center gap-2 rounded-full bg-success px-4 text-[13px] font-semibold text-white shadow-[0_6px_16px_-8px_var(--ds-success)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
+                                                >
+                                                    <Phone className="h-4 w-4" /> Appeler <Kbd className="border-white/30 bg-white/10 text-white">Espace</Kbd>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </header>
 
-                        {/* Script */}
-                        {(prospect.script || prospect.scriptAdditional || prospect.scriptAiEnhanced) && (
-                            <ScriptCard prospect={prospect} open={scriptOpen} onToggle={() => setScriptOpen((v) => !v)} />
-                        )}
-                    </section>
-
-                    {/* ── Outcome ── */}
-                    <aside className="flex flex-col gap-3 self-start rounded-panel border border-line bg-surface p-4 shadow-card lg:sticky lg:top-[136px]">
-                        {ourCallId && insightsOn && !(inCall && callIsOurs) && insights.summary.status !== "none" && (
-                            <div className="-mx-4 -mt-4 mb-1 border-b border-line-subtle bg-surface-2/50 px-4 py-4">
-                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Résumé de l&apos;appel</p>
-                                <AiSummaryView
-                                    state={insights.summary}
-                                    resolveStatus={(code) => {
-                                        const st = statusOf.get(code);
-                                        return st ? { label: st.label, color: st.color } : null;
-                                    }}
-                                    onApplyStatus={(code) => {
-                                        if (statusOf.has(code) && selected !== code) choose(code);
-                                        // No retyping: the call's summary becomes the note (still editable).
-                                        if (!note.trim() && insights.summary.status === "done") setNote(insights.summary.data.summary.slice(0, 500));
-                                    }}
-                                />
+                            <div className="mx-auto max-w-[860px] divide-y divide-line-subtle px-6 lg:px-10">
+                                {missionId && (
+                                    <div className="py-6">
+                                        <PrecallBrief
+                                            key={prospectKey ?? ""}
+                                            flat
+                                            companyId={prospect.company.id}
+                                            contactId={prospect.contact?.id ?? null}
+                                            missionId={missionId}
+                                        />
+                                    </div>
+                                )}
+                                <ContextSection prospect={prospect} statusLabel={(code) => statusOf.get(code)?.label ?? code} />
+                                {(prospect.script || prospect.scriptAdditional || prospect.scriptAiEnhanced) && <ScriptSection prospect={prospect} />}
+                                <div className="h-6" aria-hidden />
                             </div>
-                        )}
-                        <div className="flex items-center justify-between">
+                        </div>
+                    )}
+                </section>
+
+                {/* ── Outcome: what to do ── */}
+                {(ready || phase === "loading") && (
+                    <aside
+                        className="flex shrink-0 flex-col border-t border-line bg-surface lg:w-[380px] lg:border-l lg:border-t-0 xl:w-[400px]"
+                        aria-label="Résultat de l'appel"
+                        aria-busy={!ready}
+                    >
+                        <div className="flex h-12 shrink-0 items-center justify-between border-b border-line-subtle px-5">
                             <h2 className="text-[13px] font-semibold text-ink">Résultat de l&apos;appel</h2>
                             <span className="text-[11px] text-ink-3">touches 1–9</span>
                         </div>
-                        <div className="grid grid-cols-1 gap-1.5">
-                            {keyed.map(({ status, key }) => {
-                                const active = selected === status.code;
-                                return (
-                                    <button
-                                        key={status.code}
-                                        type="button"
-                                        onClick={() => choose(status.code)}
-                                        aria-pressed={active}
-                                        className={cn(
-                                            "cp-press flex h-9 items-center gap-2.5 rounded-control border px-2.5 text-left text-[13px] transition-colors duration-150",
-                                            active
-                                                ? "cp-flash border-primary bg-primary-soft text-primary-soft-ink"
-                                                : "border-line text-ink-2 hover:border-line-strong hover:bg-surface-2 hover:text-ink",
-                                        )}
-                                    >
-                                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: status.color ?? "var(--ds-line-strong)" }} aria-hidden />
-                                        <span className="min-w-0 flex-1 truncate">{status.label}</span>
-                                        {suggestedStatus === status.code && (
-                                            <span className="rounded-sm bg-accent-50 px-1 text-[10px] font-semibold uppercase tracking-wide text-accent-700" title="Suggéré par l'IA d'après la conversation">
-                                                IA
-                                            </span>
-                                        )}
-                                        {status.triggersCallback && <CalendarClock className="h-3.5 w-3.5 shrink-0 text-ink-3" aria-label="planifie un rappel" />}
-                                        {key && <Kbd>{key}</Kbd>}
-                                    </button>
-                                );
-                            })}
-                        </div>
 
-                        {selectedStatus?.triggersCallback && (
-                            <fieldset className="cp-pop rounded-control border border-line-subtle bg-surface-2/60 p-2.5">
-                                <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Rappeler</legend>
-                                <div className="flex flex-wrap gap-1.5">
-                                    {presets.map((p) => (
-                                        <button
-                                            key={p.id}
-                                            type="button"
-                                            onClick={() => setCallbackChoice(p.id)}
-                                            aria-pressed={callbackChoice === p.id}
-                                            className={cn(
-                                                "rounded-full border px-2.5 py-1 text-[12px]",
-                                                callbackChoice === p.id ? "border-primary bg-primary-soft text-primary-soft-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
+                        {!ready ? (
+                            <div className="space-y-2 px-5 py-4">
+                                {[0, 1, 2, 3, 4, 5].map((i) => (
+                                    <div key={i} className="cp-shimmer h-9 rounded-control" />
+                                ))}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+                                    {ourCallId && insightsOn && !(inCall && callIsOurs) && insights.summary.status !== "none" && (
+                                        <div className="cp-rise rounded-panel bg-surface-2/70 p-3.5">
+                                            <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Résumé de l&apos;appel</p>
+                                            <AiSummaryView
+                                                state={insights.summary}
+                                                resolveStatus={(code) => {
+                                                    const st = statusOf.get(code);
+                                                    return st ? { label: st.label, color: st.color } : null;
+                                                }}
+                                                onApplyStatus={(code) => {
+                                                    if (statusOf.has(code) && selected !== code) choose(code);
+                                                    // No retyping: the call's summary becomes the note (still editable).
+                                                    if (!note.trim() && insights.summary.status === "done") setNote(insights.summary.data.summary.slice(0, 500));
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col gap-0.5" role="radiogroup" aria-label="Résultat">
+                                        {keyed.map(({ status, key }) => {
+                                            const active = selected === status.code;
+                                            return (
+                                                <button
+                                                    key={status.code}
+                                                    type="button"
+                                                    role="radio"
+                                                    aria-checked={active}
+                                                    onClick={() => choose(status.code)}
+                                                    className={cn(
+                                                        "cp-press flex h-9 items-center gap-2.5 rounded-control px-2.5 text-left text-[13px] transition-colors duration-150",
+                                                        active
+                                                            ? "cp-flash bg-primary-soft font-medium text-primary-soft-ink ring-1 ring-inset ring-primary/40"
+                                                            : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+                                                    )}
+                                                >
+                                                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: status.color ?? "var(--ds-line-strong)" }} aria-hidden />
+                                                    <span className="min-w-0 flex-1 truncate">{status.label}</span>
+                                                    {suggestedStatus === status.code && (
+                                                        <span className="rounded-sm bg-accent-50 px-1 text-[10px] font-semibold uppercase tracking-wide text-accent-700" title="Suggéré par l'IA d'après la conversation">
+                                                            IA
+                                                        </span>
+                                                    )}
+                                                    {status.triggersCallback && <CalendarClock className="h-3.5 w-3.5 shrink-0 text-ink-3" aria-label="planifie un rappel" />}
+                                                    {key && <Kbd>{key}</Kbd>}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {selectedStatus?.triggersCallback && (
+                                        <fieldset className="cp-pop px-1">
+                                            <legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Rappeler</legend>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {presets.map((p) => (
+                                                    <button
+                                                        key={p.id}
+                                                        type="button"
+                                                        onClick={() => setCallbackChoice(p.id)}
+                                                        aria-pressed={callbackChoice === p.id}
+                                                        className={cn(
+                                                            "cp-press rounded-full border px-2.5 py-1 text-[12px]",
+                                                            callbackChoice === p.id ? "border-primary bg-primary-soft text-primary-soft-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
+                                                        )}
+                                                    >
+                                                        {p.label}
+                                                    </button>
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setCallbackChoice("custom")}
+                                                    aria-pressed={callbackChoice === "custom"}
+                                                    className={cn(
+                                                        "cp-press rounded-full border px-2.5 py-1 text-[12px]",
+                                                        callbackChoice === "custom" ? "border-primary bg-primary-soft text-primary-soft-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
+                                                    )}
+                                                >
+                                                    Autre…
+                                                </button>
+                                            </div>
+                                            {callbackChoice === "custom" && (
+                                                <input
+                                                    type="datetime-local"
+                                                    value={customCallback}
+                                                    onChange={(e) => setCustomCallback(e.target.value)}
+                                                    className="mt-2 h-8 w-full rounded-control border border-line bg-surface px-2 text-[13px] text-ink"
+                                                    aria-label="Date et heure du rappel"
+                                                />
                                             )}
-                                        >
-                                            {p.label}
-                                        </button>
-                                    ))}
+                                        </fieldset>
+                                    )}
+
+                                    <div className="px-1">
+                                        <label htmlFor="focus-note" className="mb-1.5 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-ink-3">
+                                            <span>
+                                                Note {selectedStatus?.requiresNote && <span className="text-danger">*</span>}
+                                            </span>
+                                            <Kbd>N</Kbd>
+                                        </label>
+                                        <textarea
+                                            id="focus-note"
+                                            ref={noteRef}
+                                            value={note}
+                                            onChange={(e) => setNote(e.target.value)}
+                                            maxLength={500}
+                                            rows={4}
+                                            placeholder="Ce qu'il faut retenir…"
+                                            className="w-full resize-none rounded-control border border-line bg-surface-2/50 px-2.5 py-2 text-[13px] leading-relaxed text-ink placeholder:text-ink-4 focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-focus"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Always in reach, however long the list. */}
+                                <div className="shrink-0 space-y-1.5 border-t border-line-subtle bg-surface px-4 py-3">
+                                    {formError && (
+                                        <p className="cp-pop flex items-start gap-1.5 pb-1 text-[12px] text-danger-ink">
+                                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {formError}
+                                        </p>
+                                    )}
                                     <button
                                         type="button"
-                                        onClick={() => setCallbackChoice("custom")}
-                                        aria-pressed={callbackChoice === "custom"}
-                                        className={cn(
-                                            "rounded-full border px-2.5 py-1 text-[12px]",
-                                            callbackChoice === "custom" ? "border-primary bg-primary-soft text-primary-soft-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
-                                        )}
+                                        onClick={() => void save()}
+                                        disabled={!selected || saving}
+                                        className="cp-press inline-flex h-10 w-full items-center justify-center gap-2 rounded-control bg-primary px-4 text-[13px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                        Autre…
+                                        {saving
+                                            ? "Enregistrement…"
+                                            : selected === "MEETING_BOOKED"
+                                              ? "Planifier le RDV"
+                                              : inCall && callIsOurs
+                                                ? "Raccrocher, enregistrer et suivant"
+                                                : "Enregistrer et suivant"}
+                                        <Kbd className="border-white/30 bg-white/10 text-white">Entrée</Kbd>
                                     </button>
+                                    <div className="flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            onClick={skip}
+                                            disabled={inCall}
+                                            className="inline-flex h-7 items-center gap-1.5 rounded-control px-1.5 text-[12px] font-medium text-ink-3 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
+                                        >
+                                            <SkipForward className="h-3.5 w-3.5" /> Passer <Kbd>S</Kbd>
+                                        </button>
+                                        {paused && <span className="text-[11px] text-warning-ink">En pause : pas d&apos;appel automatique</span>}
+                                    </div>
                                 </div>
-                                {callbackChoice === "custom" && (
-                                    <input
-                                        type="datetime-local"
-                                        value={customCallback}
-                                        onChange={(e) => setCustomCallback(e.target.value)}
-                                        className="mt-2 h-8 w-full rounded-control border border-line bg-surface px-2 text-[13px] text-ink"
-                                        aria-label="Date et heure du rappel"
-                                    />
-                                )}
-                            </fieldset>
+                            </>
                         )}
-
-                        <div>
-                            <label htmlFor="focus-note" className="mb-1 flex items-center justify-between text-[12px] font-medium text-ink-2">
-                                <span>
-                                    Note {selectedStatus?.requiresNote && <span className="text-danger">*</span>}
-                                </span>
-                                <Kbd>N</Kbd>
-                            </label>
-                            <textarea
-                                id="focus-note"
-                                ref={noteRef}
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                maxLength={500}
-                                rows={3}
-                                placeholder="Ce qu'il faut retenir…"
-                                className="w-full resize-none rounded-control border border-line bg-surface px-2.5 py-2 text-[13px] text-ink placeholder:text-ink-4 focus:border-primary focus:outline-none focus:ring-2 focus:ring-focus"
-                            />
-                        </div>
-
-                        {formError && (
-                            <p className="flex items-start gap-1.5 text-[12px] text-danger-ink">
-                                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {formError}
-                            </p>
-                        )}
-
-                        <button
-                            type="button"
-                            onClick={() => void save()}
-                            disabled={!selected || saving}
-                            className="cp-press inline-flex h-10 items-center justify-center gap-2 rounded-control bg-primary px-4 text-[13px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {saving
-                                ? "Enregistrement…"
-                                : selected === "MEETING_BOOKED"
-                                  ? "Planifier le RDV"
-                                  : inCall && callIsOurs
-                                    ? "Raccrocher, enregistrer et suivant"
-                                    : "Enregistrer et suivant"}
-                            <Kbd className="border-white/30 bg-white/10 text-white">Entrée</Kbd>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={skip}
-                            disabled={inCall}
-                            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-control text-[12px] font-medium text-ink-3 hover:bg-surface-2 hover:text-ink disabled:opacity-40"
-                        >
-                            <SkipForward className="h-3.5 w-3.5" /> Passer ce prospect <Kbd>S</Kbd>
-                        </button>
-                        {paused && <p className="text-center text-[11px] text-warning-ink">En pause : pas d&apos;appel automatique.</p>}
                     </aside>
-                </div>
-            )}
+                )}
+            </div>
 
             {helpOpen && <ShortcutsSheet onClose={() => setHelpOpen(false)} />}
 
@@ -886,12 +916,82 @@ function CountdownRing({ seconds }: { seconds: number }) {
     );
 }
 
-function Stat({ label, value, strong }: { label: string; value: string | number; strong?: boolean }) {
+/** One session number: inline in the narrow top bar, a tile in the rail. */
+function Stat({ label, value, hint, strong, wide }: { label: string; value: string | number; hint?: string; strong?: boolean; wide?: boolean }) {
     return (
-        <div className="flex items-baseline gap-1.5">
-            <dt className="text-ink-3">{label}</dt>
-            <dd className={cn("font-semibold tabular-nums", strong ? "text-success-ink" : "text-ink")}>{value}</dd>
+        <div className={cn("flex items-baseline gap-1.5 lg:flex-col lg:items-start lg:gap-0.5 lg:bg-surface lg:px-4 lg:py-2.5", wide && "lg:col-span-2")}>
+            <dt className="text-ink-3 lg:text-[10.5px] lg:font-semibold lg:uppercase lg:tracking-wide">{label}</dt>
+            <dd className={cn("font-semibold tabular-nums lg:text-[18px] lg:leading-tight lg:tracking-tight", strong ? "text-success-ink" : "text-ink")}>
+                {value}
+                {hint && <span className="ml-1 text-[11px] font-medium tracking-normal text-ink-3">{hint}</span>}
+            </dd>
         </div>
+    );
+}
+
+function Switch({
+    label,
+    checked,
+    disabled,
+    title,
+    onChange,
+}: {
+    label: string;
+    checked: boolean;
+    disabled?: boolean;
+    title?: string;
+    onChange: (v: boolean) => void;
+}) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            disabled={disabled}
+            title={title}
+            onClick={() => onChange(!checked)}
+            className="flex h-8 items-center gap-2.5 rounded-control px-2 text-[12.5px] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+        >
+            <span className={cn("relative h-4 w-7 shrink-0 rounded-full transition-colors duration-200", checked ? "bg-primary" : "bg-surface-3 ring-1 ring-inset ring-line")}>
+                <span
+                    className={cn(
+                        "absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200",
+                        checked ? "translate-x-3.5" : "translate-x-0.5",
+                    )}
+                />
+            </span>
+            {label}
+        </button>
+    );
+}
+
+function RailButton({
+    children,
+    onClick,
+    active,
+    title,
+    kbd,
+}: {
+    children: React.ReactNode;
+    onClick: () => void;
+    active?: boolean;
+    title?: string;
+    kbd?: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            title={title}
+            aria-pressed={active}
+            className={cn(
+                "cp-press flex h-8 items-center gap-2.5 rounded-control px-2 text-[12.5px] font-medium",
+                active ? "bg-warning-soft text-warning-ink" : "text-ink-2 hover:bg-surface-2 hover:text-ink",
+            )}
+        >
+            {children}
+            {kbd && <Kbd className="ml-auto hidden lg:inline-flex">{kbd}</Kbd>}
+        </button>
     );
 }
 
@@ -902,17 +1002,26 @@ function PhoneChip({ label, number, active, onClick }: { label: string; number: 
             onClick={onClick}
             aria-pressed={active}
             className={cn(
-                "flex items-baseline gap-1.5 rounded-control border px-2.5 py-1.5 text-left",
-                active ? "border-line-strong bg-surface text-ink" : "border-transparent text-ink-3 hover:text-ink",
+                "flex items-baseline gap-1.5 rounded-full px-3 py-1.5 text-left transition-colors",
+                active ? "bg-surface text-ink shadow-[0_0_0_1px_var(--ds-line-strong)]" : "text-ink-3 hover:bg-surface-3/60 hover:text-ink",
             )}
         >
-            <span className="text-[11px] uppercase tracking-wide">{label}</span>
+            <span className="text-[10.5px] font-semibold uppercase tracking-wide">{label}</span>
             <span className="font-mono text-[14px] tabular-nums">{formatPhone(number)}</span>
         </button>
     );
 }
 
-function ContextCard({ prospect, statusLabel }: { prospect: NextProspect; statusLabel: (code: string) => string }) {
+function SectionTitle({ icon: Icon, children }: { icon: typeof History; children: React.ReactNode }) {
+    return (
+        <h2 className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+            <Icon className="h-4 w-4 text-ink-3" aria-hidden />
+            {children}
+        </h2>
+    );
+}
+
+function ContextSection({ prospect, statusLabel }: { prospect: NextProspect; statusLabel: (code: string) => string }) {
     const items: { title: string; body: React.ReactNode; tone?: "warn" }[] = [];
     if (prospect.sharedPhoneCall) {
         items.push({
@@ -955,12 +1064,12 @@ function ContextCard({ prospect, statusLabel }: { prospect: NextProspect; status
     }
 
     return (
-        <div className="rounded-panel border border-line bg-surface p-5 shadow-card">
-            <h2 className="mb-3 text-[13px] font-semibold text-ink">À savoir avant d&apos;appeler</h2>
+        <section className="py-6">
+            <SectionTitle icon={History}>À savoir avant d&apos;appeler</SectionTitle>
             {items.length === 0 ? (
-                <p className="text-[13px] text-ink-3">Premier contact : aucun échange enregistré avec ce prospect.</p>
+                <p className="mt-2 text-[13px] text-ink-3">Premier contact : aucun échange enregistré avec ce prospect.</p>
             ) : (
-                <ul className="space-y-3">
+                <ul className="mt-3 space-y-3">
                     {items.map((it, i) => (
                         <li key={i} className={cn("border-l-2 pl-3 text-[13px]", it.tone === "warn" ? "border-warning" : "border-line-strong")}>
                             <p className={cn("font-medium", it.tone === "warn" ? "text-warning-ink" : "text-ink")}>{it.title}</p>
@@ -969,11 +1078,12 @@ function ContextCard({ prospect, statusLabel }: { prospect: NextProspect; status
                     ))}
                 </ul>
             )}
-        </div>
+        </section>
     );
 }
 
-function ScriptCard({ prospect, open, onToggle }: { prospect: NextProspect; open: boolean; onToggle: () => void }) {
+/** The script, at reading size: the pane scrolls, the text never sits in a box. */
+function ScriptSection({ prospect }: { prospect: NextProspect }) {
     const tabs = [
         { id: "base", label: "Script", text: prospect.script },
         { id: "additional", label: "Complément", text: prospect.scriptAdditional },
@@ -983,43 +1093,54 @@ function ScriptCard({ prospect, open, onToggle }: { prospect: NextProspect; open
     const current = tabs.find((t) => t.id === tab) ?? tabs[0];
 
     return (
-        <div className="rounded-panel border border-line bg-surface shadow-card">
-            <div className="flex items-center gap-1 px-4 py-2.5">
-                <button type="button" onClick={onToggle} className="mr-2 flex items-center gap-1.5 text-[13px] font-semibold text-ink" aria-expanded={open}>
-                    <ChevronDown className={cn("h-4 w-4 text-ink-3 transition-transform", !open && "-rotate-90")} />
-                    Script
-                </button>
-                {open &&
-                    tabs.length > 1 &&
-                    tabs.map((t) => (
-                        <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => setTab(t.id)}
-                            aria-pressed={tab === t.id}
-                            className={cn("h-7 rounded-control px-2 text-[12px] font-medium", tab === t.id ? "bg-surface-2 text-ink" : "text-ink-3 hover:text-ink")}
-                        >
-                            {t.label}
-                        </button>
-                    ))}
+        <section className="py-6">
+            <div className="flex items-center gap-2">
+                <SectionTitle icon={FileText}>Script</SectionTitle>
+                {tabs.length > 1 && (
+                    <div className="ml-auto flex gap-0.5 rounded-control bg-surface-3/70 p-0.5" role="tablist" aria-label="Version du script">
+                        {tabs.map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                role="tab"
+                                aria-selected={tab === t.id}
+                                onClick={() => setTab(t.id)}
+                                className={cn(
+                                    "h-6 rounded-[6px] px-2 text-[11.5px] font-medium transition-colors",
+                                    tab === t.id ? "bg-surface text-ink shadow-sm" : "text-ink-3 hover:text-ink",
+                                )}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
-            {open && current && (
-                <div className="max-h-[42vh] overflow-y-auto border-t border-line-subtle px-5 py-4">
-                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink-2">{current.text}</p>
-                </div>
+            {current && (
+                <p key={current.id} className="cp-rise mt-3 max-w-[70ch] whitespace-pre-wrap text-[14px] leading-7 text-ink-2">
+                    {current.text}
+                </p>
             )}
-        </div>
+        </section>
     );
 }
 
-function LoadingCard() {
+function LoadingProspect() {
     return (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]" aria-busy="true">
-            <div className="space-y-4">
-                <div className="h-40 animate-pulse rounded-panel border border-line bg-surface" />
-                <div className="h-28 animate-pulse rounded-panel border border-line bg-surface" />
+        <div className="mx-auto max-w-[860px] px-6 pt-6 lg:px-10" aria-busy="true">
+            <div className="flex items-center gap-4">
+                <div className="cp-shimmer h-11 w-11 rounded-full" />
+                <div className="flex-1 space-y-2">
+                    <div className="cp-shimmer h-5 w-56 rounded" />
+                    <div className="cp-shimmer h-3 w-80 max-w-full rounded" />
+                </div>
             </div>
-            <div className="h-96 animate-pulse rounded-panel border border-line bg-surface" />
+            <div className="cp-shimmer mt-5 h-10 w-full rounded-full" />
+            <div className="mt-10 space-y-2.5">
+                {[94, 86, 72, 90, 64].map((w, i) => (
+                    <div key={i} className="cp-shimmer h-2.5 rounded" style={{ width: `${w}%` }} />
+                ))}
+            </div>
         </div>
     );
 }
@@ -1042,80 +1163,71 @@ function SetupScreen({
     onStart: () => void;
 }) {
     return (
-        <div className="mx-auto w-full max-w-[640px] py-6">
-            <div className="rounded-panel border border-line bg-surface p-6 shadow-card">
-                <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-full min-h-0 w-full overflow-y-auto bg-canvas">
+            <div className="cp-rise m-auto w-full max-w-[560px] px-4 py-10">
+                <div className="mb-6 flex items-center gap-3">
                     <span className="flex h-10 w-10 items-center justify-center rounded-control bg-primary text-primary-fg">
                         <Crosshair className="h-5 w-5" />
                     </span>
                     <div>
-                        <h1 className="text-[18px] font-semibold tracking-tight text-ink">Mode Focus</h1>
+                        <h1 className="text-[20px] font-semibold tracking-[-0.015em] text-ink">Mode Focus</h1>
                         <p className="text-[13px] text-ink-3">Un prospect à la fois, dans l&apos;ordre de votre file : rappels d&apos;abord.</p>
                     </div>
                 </div>
 
-                <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-ink-3">Mission du jour</p>
-                {missions === null ? (
-                    <div className="h-24 animate-pulse rounded-control bg-surface-2" />
-                ) : missions.length === 0 ? (
-                    <p className="rounded-control border border-line bg-surface-2 px-3 py-4 text-[13px] text-ink-3">
-                        Aucune mission d&apos;appel dans votre planning du jour.
-                    </p>
-                ) : (
-                    <ul className="space-y-1.5" role="radiogroup" aria-label="Mission">
-                        {missions.map((m) => (
-                            <li key={m.id}>
-                                <button
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={missionId === m.id}
-                                    onClick={() => onMission(m.id)}
-                                    className={cn(
-                                        "flex w-full items-center gap-3 rounded-control border px-3 py-2.5 text-left",
-                                        missionId === m.id ? "border-primary bg-primary-soft" : "border-line hover:bg-surface-2",
-                                    )}
-                                >
-                                    <span className={cn("h-3.5 w-3.5 rounded-full border-2", missionId === m.id ? "border-primary bg-primary" : "border-line-strong")} />
-                                    <span className="min-w-0">
-                                        <span className="block truncate text-[13px] font-semibold text-ink">{m.name}</span>
-                                        {m.client?.name && <span className="block truncate text-[12px] text-ink-3">{m.client.name}</span>}
-                                    </span>
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                )}
+                <div className="rounded-panel border border-line bg-surface p-5 shadow-card">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Mission du jour</p>
+                    {missions === null ? (
+                        <div className="cp-shimmer h-24 rounded-control" />
+                    ) : missions.length === 0 ? (
+                        <p className="rounded-control bg-surface-2 px-3 py-4 text-[13px] text-ink-3">Aucune mission d&apos;appel dans votre planning du jour.</p>
+                    ) : (
+                        <ul className="space-y-1" role="radiogroup" aria-label="Mission">
+                            {missions.map((m) => (
+                                <li key={m.id}>
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={missionId === m.id}
+                                        onClick={() => onMission(m.id)}
+                                        className={cn(
+                                            "cp-press flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors",
+                                            missionId === m.id ? "bg-primary-soft ring-1 ring-inset ring-primary/40" : "hover:bg-surface-2",
+                                        )}
+                                    >
+                                        <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full border-2", missionId === m.id ? "border-primary bg-primary" : "border-line-strong")} />
+                                        <span className="min-w-0">
+                                            <span className="block truncate text-[13px] font-semibold text-ink">{m.name}</span>
+                                            {m.client?.name && <span className="block truncate text-[12px] text-ink-3">{m.client.name}</span>}
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
 
-                <label className={cn("mt-5 flex items-start gap-2.5 text-[13px] text-ink-2", !softphoneOn && "opacity-60")}>
-                    <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 accent-[var(--ds-primary)]"
-                        checked={autoDial && softphoneOn}
-                        disabled={!softphoneOn}
-                        onChange={(e) => onAutoDial(e.target.checked)}
-                    />
-                    <span>
-                        <span className="font-medium text-ink">Appel automatique</span>
-                        <span className="block text-[12px] text-ink-3">
+                    <div className="mt-4 border-t border-line-subtle pt-3">
+                        <Switch label="Appel automatique" checked={autoDial && softphoneOn} disabled={!softphoneOn} onChange={onAutoDial} />
+                        <p className="pl-[46px] text-[12px] text-ink-3">
                             {softphoneOn
                                 ? `Chaque prospect est appelé ${AUTO_DIAL_SECONDS} s après son affichage (Échap pour annuler).`
                                 : "Nécessite le téléphone intégré : les numéros s'ouvriront dans votre application d'appel."}
-                        </span>
-                    </span>
-                </label>
+                        </p>
+                    </div>
 
-                <button
-                    type="button"
-                    onClick={onStart}
-                    disabled={!missionId}
-                    className="mt-6 inline-flex h-10 w-full items-center justify-center gap-2 rounded-control bg-primary text-[14px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <Play className="h-4 w-4" /> Démarrer la session
-                </button>
+                    <button
+                        type="button"
+                        onClick={onStart}
+                        disabled={!missionId}
+                        className="cp-press mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-control bg-primary text-[14px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <Play className="h-4 w-4" /> Démarrer la session
+                    </button>
+                </div>
+                <p className="mt-3 text-center text-[12px] text-ink-3">
+                    Appuyez sur <Kbd>?</Kbd> pendant la session pour voir les raccourcis.
+                </p>
             </div>
-            <p className="mt-3 text-center text-[12px] text-ink-3">
-                Appuyez sur <Kbd>?</Kbd> pendant la session pour voir les raccourcis.
-            </p>
         </div>
     );
 }

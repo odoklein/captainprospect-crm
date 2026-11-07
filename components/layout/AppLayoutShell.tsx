@@ -179,6 +179,8 @@ function InnerLayout({
         pathname === "/manager/planning" || pathname === "/sdr/planning";
     // The assistant is a chat app: history rail + thread + pinned composer.
     const isAssistantChat = pathname === "/manager/assistant";
+    // Calling workspaces: panes edge to edge, each scrolling on its own.
+    const isCallWorkspace = pathname === "/sdr/focus" || pathname === "/sdr/appels" || pathname === "/manager/appels";
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";
@@ -266,7 +268,7 @@ function InnerLayout({
                     </div>
                 </header>
 
-                {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat ? (
+                {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat || isCallWorkspace ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
                     <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px - var(--softphone-dock-h, 0px))' }}>
                         {children}
@@ -361,7 +363,8 @@ function InnerLayout({
 
                 <IncomingCallPanel />
             </main>
-            <FloatingDock />
+            {/* Mode Focus lists the shortcuts in its own rail. */}
+            <FloatingDock railed={pathname === "/sdr/focus"} />
         </div>
     );
 }

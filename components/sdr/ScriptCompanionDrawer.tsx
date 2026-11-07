@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Drawer, Tabs, Button, TextSkeleton, useToast } from "@/components/ui";
+import { Drawer, Button, useToast } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import { StrategyArtifactViewer } from "@/components/strategy";
 import {
     sdrScriptCompanionCampaignsKey,
@@ -47,6 +48,44 @@ export function ScriptCompanionDrawer({
     missionName,
     campaignId,
 }: ScriptCompanionDrawerProps) {
+    return (
+        <Drawer
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Script de campagne"
+            description={missionName ? `Mission : ${missionName}` : undefined}
+            size="lg"
+            side="left"
+            closeOnOverlay={false}
+            modal={false}
+        >
+            <ScriptCompanionContent active={isOpen} missionId={missionId} campaignId={campaignId} />
+        </Drawer>
+    );
+}
+
+const SCRIPT_TABS: { id: ScriptTabId; label: string }[] = [
+    { id: "base", label: "Script" },
+    { id: "additional", label: "Additionnel" },
+    { id: "ai", label: "Version IA" },
+];
+
+/**
+ * The campaign script (base, the team's shared additions, the AI version).
+ * Rendered in the script drawer, and as the « Script » tab of the docked
+ * action pane.
+ */
+export function ScriptCompanionContent({
+    active = true,
+    missionId,
+    campaignId,
+}: {
+    /** Loads only while shown. */
+    active?: boolean;
+    missionId?: string;
+    campaignId?: string | null;
+}) {
+    const isOpen = active;
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
     const [activeTab, setActiveTab] = useState<ScriptTabId>("base");
@@ -153,115 +192,94 @@ export function ScriptCompanionDrawer({
     };
 
     return (
-        <Drawer
-            isOpen={isOpen}
-            onClose={onClose}
-            title="Script de campagne"
-            description={missionName ? `Mission : ${missionName}` : undefined}
-            size="lg"
-            side="left"
-            closeOnOverlay={false}
-            modal={false}
-        >
-            <div className="space-y-4">
-                <Tabs
-                    variant="pills"
-                    activeTab={activeTab}
-                    onTabChange={(tabId) => setActiveTab(tabId as ScriptTabId)}
-                    tabs={[
-                        { id: "base", label: "Script de base" },
-                        { id: "additional", label: "Script additionel" },
-                        { id: "ai", label: "Script amélioré par IA" },
-                    ]}
-                />
-
-                {(campaignsLoading || companionLoading) && (
-                    <div className="space-y-3">
-                        <TextSkeleton lines={1} className="h-8 w-2/3" />
-                        <TextSkeleton lines={6} />
-                    </div>
-                )}
-
-                {!campaignsLoading && campaigns.length === 0 && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-600">
-                        Aucune campagne active disponible pour cette mission.
-                    </div>
-                )}
-
-                {!campaignsLoading && campaigns.length > 0 && companionData && (
-                    <div className="space-y-4">
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                            Campagne : <span className="font-semibold">{companionData.campaignName}</span>
-                        </div>
-
-                        {activeTab === "base" ? (
-                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                <StrategyArtifactViewer
-                                    type="script"
-                                    content={companionData.baseScript}
-                                    emptyText="Aucun script de base configuré sur cette campagne."
-                                />
-                            </div>
-                        ) : activeTab === "ai" ? (
-                            <div className="rounded-xl border border-slate-200 bg-white p-4">
-                                {companionData.aiShared ? (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-sm font-medium text-slate-700">Script amélioré par IA</p>
-                                            {companionData.aiGeneratedAt && (
-                                                <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                                    {companionData.aiGeneratedFrom ? `${companionData.aiGeneratedFrom} ` : ""}· {new Date(companionData.aiGeneratedAt).toLocaleDateString("fr-FR")}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <pre className="whitespace-pre-wrap text-sm leading-6 text-slate-700 font-sans">
-                                            {companionData.aiShared}
-                                        </pre>
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-slate-500">Aucun script IA disponible pour cette campagne.</p>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="space-y-3">
-                                <textarea
-                                    value={additionalDraft}
-                                    onChange={(e) => setAdditionalDraft(e.target.value)}
-                                    rows={16}
-                                    placeholder="Ajoutez votre script additionel ici..."
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-400"
-                                />
-                                <div className="flex items-center justify-between text-xs text-slate-500">
-                                    <span>{hasUnsavedChanges ? "Modifications non sauvegardées" : "Brouillon à jour"}</span>
-                                    {companionData.sharedUpdatedAt && (
-                                        <span>
-                                            Partagé le {new Date(companionData.sharedUpdatedAt).toLocaleString("fr-FR")}
-                                            {companionData.sharedUpdatedBy ? ` par ${companionData.sharedUpdatedBy}` : ""}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={handleSaveDraft}
-                                        variant="secondary"
-                                        disabled={isSavingDraft || isPublishing}
-                                        loading={isSavingDraft}
-                                    >
-                                        Sauvegarder brouillon
-                                    </Button>
-                                    <Button
-                                        onClick={handleShare}
-                                        disabled={isPublishing || isSavingDraft || !additionalDraft.trim()}
-                                        loading={isPublishing}
-                                    >
-                                        Partager avec l'equipe
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="flex gap-0.5 rounded-control bg-surface-3/70 p-0.5" role="tablist" aria-label="Version du script">
+                    {SCRIPT_TABS.map((t) => (
+                        <button
+                            key={t.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={activeTab === t.id}
+                            onClick={() => setActiveTab(t.id)}
+                            className={cn(
+                                "h-7 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors",
+                                activeTab === t.id ? "bg-surface text-ink shadow-sm" : "text-ink-3 hover:text-ink",
+                            )}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+                {companionData?.campaignName && (
+                    <p className="ml-auto truncate text-[12px] text-ink-3">
+                        Campagne · <span className="font-medium text-ink-2">{companionData.campaignName}</span>
+                    </p>
                 )}
             </div>
-        </Drawer>
+
+            {(campaignsLoading || companionLoading) && !companionData && (
+                <div className="space-y-2.5 pt-1">
+                    {[92, 84, 96, 70, 88, 60].map((w, i) => (
+                        <div key={i} className="cp-shimmer h-2.5 rounded" style={{ width: `${w}%` }} />
+                    ))}
+                </div>
+            )}
+
+            {!campaignsLoading && campaigns.length === 0 && (
+                <p className="rounded-control bg-surface-2 px-3 py-4 text-[13px] text-ink-3">Aucune campagne active disponible pour cette mission.</p>
+            )}
+
+            {!campaignsLoading && campaigns.length > 0 && companionData && (
+                <div key={activeTab} className="cp-rise">
+                    {activeTab === "base" ? (
+                        <div className="text-[14px] leading-7">
+                            <StrategyArtifactViewer type="script" content={companionData.baseScript} emptyText="Aucun script de base configuré sur cette campagne." />
+                        </div>
+                    ) : activeTab === "ai" ? (
+                        companionData.aiShared ? (
+                            <div className="space-y-2">
+                                {companionData.aiGeneratedAt && (
+                                    <p className="text-[11px] text-ink-3">
+                                        {companionData.aiGeneratedFrom ? `${companionData.aiGeneratedFrom} · ` : ""}
+                                        {new Date(companionData.aiGeneratedAt).toLocaleDateString("fr-FR")}
+                                    </p>
+                                )}
+                                <p className="whitespace-pre-wrap text-[14px] leading-7 text-ink-2">{companionData.aiShared}</p>
+                            </div>
+                        ) : (
+                            <p className="text-[13px] text-ink-3">Aucun script IA disponible pour cette campagne.</p>
+                        )
+                    ) : (
+                        <div className="space-y-2.5">
+                            <textarea
+                                value={additionalDraft}
+                                onChange={(e) => setAdditionalDraft(e.target.value)}
+                                rows={14}
+                                placeholder="Ajoutez votre script additionnel ici…"
+                                className="w-full rounded-control border border-line bg-surface-2/50 px-3 py-2.5 text-[13px] leading-relaxed text-ink placeholder:text-ink-4 focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-focus"
+                            />
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-ink-3">
+                                <span>{hasUnsavedChanges ? "Modifications non sauvegardées" : "Brouillon à jour"}</span>
+                                {companionData.sharedUpdatedAt && (
+                                    <span>
+                                        Partagé le {new Date(companionData.sharedUpdatedAt).toLocaleString("fr-FR")}
+                                        {companionData.sharedUpdatedBy ? ` par ${companionData.sharedUpdatedBy}` : ""}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button size="sm" onClick={handleSaveDraft} variant="secondary" disabled={isSavingDraft || isPublishing} isLoading={isSavingDraft}>
+                                    Sauvegarder le brouillon
+                                </Button>
+                                <Button size="sm" onClick={handleShare} disabled={isPublishing || isSavingDraft || !additionalDraft.trim()} isLoading={isPublishing}>
+                                    Partager avec l&apos;équipe
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
     );
 }

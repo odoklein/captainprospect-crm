@@ -18,7 +18,6 @@ import type { Call, Device } from "@twilio/voice-sdk";
 import { softphoneErrorMessage } from "@/lib/telephony/client-errors";
 import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
 import { isFinalStatus, type TelephonyStatus } from "@/lib/telephony/status";
-import { CallBar } from "./CallBar";
 import { CallIsland } from "./CallIsland";
 
 export interface DialTarget {
@@ -83,6 +82,33 @@ interface SoftphoneContextValue {
 }
 
 const SoftphoneContext = createContext<SoftphoneContextValue | null>(null);
+
+// ── Island slot ───────────────────────────────────────────────────────────
+// A page can put its own status in the Island when no call is on (Mode auto:
+// « Appel de X dans 3 s », Passer, Arrêter…), and add actions to the outcome.
+export interface IslandAction {
+    label: string;
+    onClick: () => void;
+    tone?: "primary" | "success" | "accent" | "ghost";
+}
+export interface IslandExtra {
+    /** Short tag at the start of the pill (« Auto »). */
+    tag: string;
+    text: string;
+    /** Draws a draining ring; `key` restarts it. */
+    countdown?: { seconds: number; key: string } | null;
+    actions: IslandAction[];
+}
+const IslandExtraSetter = createContext<((x: IslandExtra | null) => void) | null>(null);
+
+/** Shows `extra` in the Island while the calling component is mounted (null clears it). */
+export function useIslandExtra(extra: IslandExtra | null) {
+    const set = useContext(IslandExtraSetter);
+    useEffect(() => {
+        set?.(extra);
+    });
+    useEffect(() => () => set?.(null), [set]);
+}
 
 // ── Live audio levels ─────────────────────────────────────────────────────
 // Twilio emits the microphone (input) and speaker (output) levels every 50 ms.
@@ -397,6 +423,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         setCall((c) => (c && !c.pinned ? { ...c, pinned: true } : c));
     }, []);
 
+    const [islandExtra, setIslandExtra] = useState<IslandExtra | null>(null);
+
     const value = useMemo<SoftphoneContextValue>(
         () => ({
             enabled,
@@ -417,9 +445,10 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
     return (
         <SoftphoneContext.Provider value={value}>
-            {children}
-            {call && <CallBar key={call.key} />}
-            {call && <CallIsland key={`island-${call.key}`} />}
+            <IslandExtraSetter.Provider value={setIslandExtra}>
+                {children}
+                {(call || islandExtra) && <CallIsland key={call ? `call-${call.key}` : "idle"} extra={islandExtra} />}
+            </IslandExtraSetter.Provider>
         </SoftphoneContext.Provider>
     );
 }

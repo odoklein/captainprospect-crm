@@ -43,16 +43,15 @@ import {
     Play,
     X,
 } from "lucide-react";
-import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { isCallActive, useIslandExtra, useSoftphone, type IslandAction } from "@/components/telephony/SoftphoneProvider";
 import { useCallTranscript } from "@/components/telephony/CallInsights";
-import { useDockItem } from "@/components/layout/FloatingDock";
 import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import dynamic from "next/dynamic";
 import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
-import { ScriptCompanionDrawer } from "@/components/sdr/ScriptCompanionDrawer";
+import { ScriptCompanionContent } from "@/components/sdr/ScriptCompanionDrawer";
 import { AlreadyContactedModal, type AlreadyContactedInfo } from "@/components/sdr/AlreadyContactedModal";
 import { ActionQueueToolbar } from "@/components/sdr/ActionQueueToolbar";
 import { AbsentsToTreatButton, ABSENTS_TO_TREAT_QUERY_KEY, type AbsentToTreat } from "@/components/sdr/AbsentsToTreat";
@@ -1487,48 +1486,7 @@ export default function SDRActionPage() {
         if (item.missionId) setUnifiedDrawerMissionId(item.missionId);
     };
 
-    // The campaign script (left panel) and the action drawer (right) close
-    // independently. Closing the drawer keeps the script on screen, pinned to
-    // that mission. Closing the script hides it for this prospect only: the
-    // next contact opens with its script again. The floating dock's « Script »
-    // button toggles it in between.
-    const drawerProspectKey = `${unifiedDrawerContactId ?? ""}|${unifiedDrawerCompanyId ?? ""}`;
-    const [scriptHiddenFor, setScriptHiddenFor] = useState<string | null>(null);
-    const [pinnedScript, setPinnedScript] = useState<{ missionId: string; missionName?: string; campaignId: string | null } | null>(null);
-    const drawerScript = unifiedDrawerOpen && unifiedDrawerMissionId
-        ? { missionId: unifiedDrawerMissionId, missionName: unifiedDrawerMissionName, campaignId: drawerRow?.campaignId ?? null }
-        : null;
-    const scriptDismissed = drawerScript ? scriptHiddenFor === drawerProspectKey : false;
-    const scriptTarget = drawerScript ? (scriptDismissed ? null : drawerScript) : pinnedScript;
-
-    useDockItem(
-        "script",
-        drawerScript || pinnedScript
-            ? {
-                  label: scriptTarget ? "Masquer le script" : "Script",
-                  icon: FileText,
-                  active: Boolean(scriptTarget),
-                  order: 30,
-                  onClick: () => {
-                      if (scriptTarget) {
-                          if (drawerScript) setScriptHiddenFor(drawerProspectKey);
-                          setPinnedScript(null);
-                      } else {
-                          setScriptHiddenFor(null);
-                      }
-                  },
-              }
-            : null,
-    );
-
     const closeUnifiedDrawer = () => {
-        if (!scriptDismissed && unifiedDrawerOpen && unifiedDrawerMissionId) {
-            setPinnedScript({
-                missionId: unifiedDrawerMissionId,
-                missionName: unifiedDrawerMissionName,
-                campaignId: drawerRow?.campaignId ?? null,
-            });
-        }
         // Whatever was logged on an absent prospect may have cleared it.
         queryClient.invalidateQueries({ queryKey: ABSENTS_TO_TREAT_QUERY_KEY });
         setUnifiedDrawerOpen(false);
@@ -1654,6 +1612,38 @@ export default function SDRActionPage() {
         return () => window.removeEventListener("keydown", onKey, true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoMode, autoCountdown, autoRowKey]);
+
+    // Mode auto lives in the call Island: its status between calls, its actions on the outcome card.
+    const autoName = drawerRow?._displayName ?? drawerRow?.company?.name ?? "ce prospect";
+    useIslandExtra(
+        autoMode && drawerRow
+            ? (() => {
+                  const stop: IslandAction = { label: "Arrêter", onClick: stopAutoMode };
+                  const skip: IslandAction = { label: "Passer", onClick: () => openAutoRow(autoRowKey) };
+                  if (autoCountdown !== null) {
+                      return {
+                          tag: "Auto",
+                          text: `Appel de ${autoName} dans ${autoCountdown} s`,
+                          countdown: { seconds: AUTO_DIAL_SECONDS, key: autoRowKey ?? "" },
+                          actions: [{ label: "Annuler", onClick: cancelAutoDial }, skip, stop],
+                      };
+                  }
+                  if (!autoPhone) return { tag: "Auto", text: `Pas de numéro pour ${autoName}`, actions: [skip, stop] };
+                  const suggestion: IslandAction[] =
+                      autoSuggestion && appliedSuggestion !== autoSuggestion
+                          ? [{ label: `Appliquer : ${statusLabels[autoSuggestion] ?? autoSuggestion}`, onClick: () => setAppliedSuggestion(autoSuggestion), tone: "accent" }]
+                          : [];
+                  if (autoCallId) {
+                      return { tag: "Auto", text: "Enregistrez le résultat pour passer au suivant", actions: [...suggestion, skip, stop] };
+                  }
+                  return {
+                      tag: "Auto",
+                      text: `Prêt à appeler ${autoName}`,
+                      actions: [{ label: "Appeler", onClick: autoDial, tone: "success" }, skip, stop],
+                  };
+              })()
+            : null,
+    );
 
     const [emailModalPreferredMailboxId, setEmailModalPreferredMailboxId] = useState<string | null>(null);
 
@@ -2735,75 +2725,18 @@ export default function SDRActionPage() {
                     )}
                 </div>
 
-                {/* Mode auto: what happens next, always one click from stopping */}
-                {autoMode && drawerRow && (
-                    <div
-                        role="status"
-                        aria-live="polite"
-                        className={cn("cp-glass cp-pop fixed left-1/2 z-[100] flex transition-[top] duration-300", softCall ? "top-[58px]" : "top-3",
-                            "max-w-[calc(100vw-24px)] -translate-x-1/2 items-center gap-3 rounded-full py-1.5 pl-3 pr-1.5 text-[13px]",
-                        )}
-                    >
-                        <span className="flex items-center gap-1.5 font-semibold text-ink">
-                            <span className={cn("h-2 w-2 rounded-full", softCall?.phase === "live" && autoCallIsOurs ? "cp-halo bg-success" : autoCallActive ? "animate-pulse bg-warning" : "bg-primary")} />
-                            Mode auto
-                        </span>
-                        <span className="min-w-0 truncate text-ink-2">
-                            {autoCountdown !== null
-                                ? `Appel de ${drawerRow._displayName ?? drawerRow.company?.name ?? "ce prospect"} dans ${autoCountdown} s`
-                                : autoCallActive && autoCallIsOurs
-                                  ? softCall?.phase === "live"
-                                      ? `En ligne avec ${drawerRow._displayName ?? drawerRow.company?.name ?? "le prospect"}`
-                                      : softCall?.phase === "ringing"
-                                        ? `Ça sonne chez ${drawerRow._displayName ?? drawerRow.company?.name ?? "le prospect"}…`
-                                        : "Connexion…"
-                                  : !autoPhone
-                                    ? "Pas de numéro pour ce prospect"
-                                    : autoSuggestion && appliedSuggestion !== autoSuggestion
-                                      ? `IA : ${statusLabels[autoSuggestion] ?? autoSuggestion}`
-                                      : autoInsights.summary.status === "pending"
-                                        ? "Résumé de l'appel en cours…"
-                                        : "Enregistrez le résultat pour passer au suivant"}
-                        </span>
-                        {autoCountdown !== null && (
-                            <button type="button" onClick={cancelAutoDial} className="cp-press h-7 rounded-full px-2.5 text-[12px] font-medium text-ink-2 hover:bg-surface-2">
-                                Annuler
-                            </button>
-                        )}
-                        {autoCountdown === null && !autoCallActive && autoPhone && autoDialedFor.current === autoRowKey && !autoCallId && (
-                            <button type="button" onClick={autoDial} className="cp-press h-7 rounded-full bg-success px-2.5 text-[12px] font-semibold text-white">
-                                Appeler
-                            </button>
-                        )}
-                        {autoSuggestion && appliedSuggestion !== autoSuggestion && !autoCallActive && (
-                            <button
-                                type="button"
-                                onClick={() => setAppliedSuggestion(autoSuggestion)}
-                                className="cp-press h-7 rounded-full bg-accent px-2.5 text-[12px] font-semibold text-white"
-                            >
-                                Appliquer
-                            </button>
-                        )}
-                        {!autoCallActive && (
-                            <button
-                                type="button"
-                                onClick={() => openAutoRow(autoRowKey)}
-                                className="cp-press h-7 rounded-full px-2.5 text-[12px] font-medium text-ink-2 hover:bg-surface-2"
-                            >
-                                Passer
-                            </button>
-                        )}
-                        <button type="button" onClick={stopAutoMode} className="cp-press h-7 rounded-full px-2.5 text-[12px] font-medium text-ink-3 hover:bg-surface-2 hover:text-ink">
-                            Arrêter
-                        </button>
-                    </div>
-                )}
-
                 {/* Unified Action Drawer — mount only when open to avoid heavy effects when closed */}
                 {unifiedDrawerOpen && unifiedDrawerCompanyId && (
                         <UnifiedActionDrawer
                             isOpen={unifiedDrawerOpen}
                             onClose={closeUnifiedDrawer}
+                            // Beside the list, not over it: the next row stays visible and clickable.
+                            docked
+                            script={
+                                unifiedDrawerMissionId ? (
+                                    <ScriptCompanionContent missionId={unifiedDrawerMissionId} campaignId={drawerRow?.campaignId ?? null} />
+                                ) : undefined
+                            }
                             contactId={unifiedDrawerContactId}
                             companyId={unifiedDrawerCompanyId}
                             missionId={unifiedDrawerMissionId}
@@ -2857,20 +2790,6 @@ export default function SDRActionPage() {
                         />
                     )
                 }
-
-                {/* Script companion drawer (table view only): follows the open prospect, closes on its own */}
-                {scriptTarget && (
-                    <ScriptCompanionDrawer
-                        isOpen={!unifiedBookingDialogOpen && !unifiedAlloDialogOpen}
-                        onClose={() => {
-                            if (drawerScript) setScriptHiddenFor(drawerProspectKey);
-                            setPinnedScript(null);
-                        }}
-                        missionId={scriptTarget.missionId}
-                        missionName={scriptTarget.missionName}
-                        campaignId={scriptTarget.campaignId}
-                    />
-                )}
 
                 <QuickEmailModal
                     isOpen={showQuickEmailModal}

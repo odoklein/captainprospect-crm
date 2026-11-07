@@ -28,11 +28,14 @@ export function PrecallBrief({
     contactId,
     missionId,
     className,
+    flat = false,
 }: {
     companyId: string;
     contactId: string | null;
     missionId: string;
     className?: string;
+    /** A section of a workspace pane (Mode Focus) rather than a card. */
+    flat?: boolean;
 }) {
     const [state, setState] = useState<State>({ status: "loading" });
     const [nonce, setNonce] = useState(0);
@@ -68,8 +71,11 @@ export function PrecallBrief({
     }
 
     return (
-        <section className={cn("cp-ai-edge rounded-panel border border-line bg-surface shadow-card", className)} aria-busy={state.status === "loading"}>
-            <header className="flex items-center gap-2 px-5 pt-4">
+        <section
+            className={cn(!flat && "cp-ai-edge rounded-panel border border-line bg-surface shadow-card", className)}
+            aria-busy={state.status === "loading"}
+        >
+            <header className={cn("flex items-center gap-2", flat ? "" : "px-5 pt-4")}>
                 <Sparkles className="h-4 w-4 text-accent" aria-hidden />
                 <h2 className="text-[13px] font-semibold text-ink">Brief avant l&apos;appel</h2>
                 {state.status === "ready" && (
@@ -92,14 +98,14 @@ export function PrecallBrief({
             </header>
 
             {state.status === "loading" ? (
-                <div className="space-y-2.5 px-5 pb-5 pt-3">
+                <div className={cn("space-y-2.5 pt-3", !flat && "px-5 pb-5")}>
                     <p className="text-[12px] text-ink-3">Préparation du brief…</p>
                     {[96, 88, 72, 80].map((w, i) => (
                         <div key={i} className="cp-shimmer h-2.5 rounded" style={{ width: `${w}%` }} />
                     ))}
                 </div>
             ) : (
-                <div className="space-y-4 px-5 pb-5 pt-2.5">
+                <div className={cn("space-y-4 pt-2.5", !flat && "px-5 pb-5")}>
                     <p className="cp-rise text-[13px] leading-relaxed text-ink-2">{state.brief.context}</p>
                     {state.brief.angle && (
                         <div className="cp-rise flex gap-2.5 rounded-control border-l-2 border-accent bg-accent-50/60 px-3 py-2" style={{ ["--i" as string]: 1 }}>

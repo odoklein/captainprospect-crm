@@ -97,9 +97,9 @@ export function ToastProvider({
     );
 
     const positionClasses = {
-        "top-right": "top-4 right-4",
+        "top-right": "top-4 right-[calc(1rem+var(--cp-pane-w,0px))]",
         "top-center": "top-4 left-1/2 -translate-x-1/2",
-        "bottom-right": "bottom-[calc(1rem+var(--softphone-dock-h,0px))] right-4",
+        "bottom-right": "bottom-[calc(1rem+var(--softphone-dock-h,0px))] right-[calc(1rem+var(--cp-pane-w,0px))]",
         "bottom-center": "bottom-[calc(1rem+var(--softphone-dock-h,0px))] left-1/2 -translate-x-1/2",
     };
 
