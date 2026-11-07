@@ -1369,6 +1369,23 @@ model TelephonyCall {
   @@index([sdrId, companyId, createdAt])
 }
 
+/// AI pre-call brief for one prospect (contact, or company when called
+/// directly) on one mission. Cached until its inputs change (inputHash:
+/// fiche, history, script), so reopening a prospect costs nothing.
+/// targetId is a plain id (no FK), like the call log.
+model ProspectBrief {
+  id        String   @id @default(cuid())
+  targetId  String // contactId, or companyId for a company-level prospect
+  missionId String
+  inputHash String
+  data      Json // { context, angle, talkingPoints[], questions[], watchOut[] }
+  model     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([targetId, missionId])
+}
+
 /// One final sentence of a softphone call's live transcription (Twilio
 /// <Start><Transcription>), posted by /api/webhooks/twilio/transcription.
 model TelephonyTranscriptLine {

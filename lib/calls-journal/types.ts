@@ -2,7 +2,7 @@
 
 import type { CallSource } from "./filters";
 import type { TelephonyStatus } from "@/lib/telephony/status";
-import type { SummaryState } from "@/lib/telephony/summary";
+import type { SummaryState } from "@/lib/telephony/summary-shape";
 
 export interface JournalStatusRef {
     code: string;

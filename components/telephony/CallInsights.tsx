@@ -8,7 +8,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowRight, Check, Copy, ListChecks, ShieldAlert, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CallAiSummary, SummaryState } from "@/lib/telephony/summary";
+import { QUALIFICATION_LABELS, type CallAiSummary, type Qualification, type SummaryState } from "@/lib/telephony/summary-shape";
+import { StatusLabel } from "@/components/calls/StatusLabel";
 
 export interface TranscriptLine {
     id?: string;
@@ -27,56 +28,91 @@ interface TranscriptPayload {
 
 const TERMINAL = new Set<SummaryState["status"]>(["done", "skipped", "failed"]);
 
+type TranscriptSnapshot = { lines: TranscriptPayload["lines"]; summary: SummaryState; live: boolean };
+
+interface Feed {
+    snap: TranscriptSnapshot;
+    listeners: Set<(s: TranscriptSnapshot) => void>;
+    stop: () => void;
+}
+
+/** One poller per call, shared by every component following it (dock, Mode Focus…). */
+const feeds = new Map<string, Feed>();
+
+function openFeed(callId: string): Feed {
+    const existing = feeds.get(callId);
+    if (existing) return existing;
+
+    let cancelled = false;
+    let since: string | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let endedAt: number | null = null;
+    const feed: Feed = {
+        snap: { lines: [], summary: { status: "none" }, live: true },
+        listeners: new Set(),
+        stop: () => {
+            cancelled = true;
+            if (timer) clearTimeout(timer);
+        },
+    };
+    const emit = (next: TranscriptSnapshot) => {
+        feed.snap = next;
+        feed.listeners.forEach((l) => l(next));
+    };
+    const schedule = (ms: number) => {
+        if (!cancelled) timer = setTimeout(tick, ms);
+    };
+    const tick = async () => {
+        try {
+            const res = await fetch(`/api/telephony/calls/${callId}/transcript${since ? `?since=${encodeURIComponent(since)}` : ""}`);
+            const json = await res.json();
+            if (cancelled) return;
+            if (!json?.success) return schedule(4000);
+            const data = json.data as TranscriptPayload;
+            let lines = feed.snap.lines;
+            if (data.lines.length) {
+                since = data.lines[data.lines.length - 1].receivedAt;
+                const seen = new Set(lines.map((l) => l.id));
+                lines = [...lines, ...data.lines.filter((l) => !seen.has(l.id))];
+            }
+            emit({ lines, summary: data.summary, live: data.live });
+            if (!data.live && endedAt === null) endedAt = Date.now();
+            const settled = !data.live && TERMINAL.has(data.summary.status);
+            const expired = endedAt !== null && Date.now() - endedAt > 150_000;
+            if (!settled && !expired) schedule(data.live ? 1500 : 3000);
+        } catch {
+            schedule(4000);
+        }
+    };
+    feeds.set(callId, feed);
+    void tick();
+    return feed;
+}
+
 /**
  * Follows a softphone call's transcript and summary. Polls every 1.5 s while
  * the call is live, then every 3 s until the summary settles (2½ min at most).
+ * Components following the same call share one poller.
  */
-export function useCallTranscript(callId: string | null, enabled: boolean) {
-    const [lines, setLines] = useState<TranscriptPayload["lines"]>([]);
-    const [summary, setSummary] = useState<SummaryState>({ status: "none" });
-    const [live, setLive] = useState(true);
+export function useCallTranscript(callId: string | null, enabled: boolean): TranscriptSnapshot {
+    const [snap, setSnap] = useState<TranscriptSnapshot>({ lines: [], summary: { status: "none" }, live: true });
 
     useEffect(() => {
         if (!callId || !enabled) return;
-        let cancelled = false;
-        let since: string | null = null;
-        let timer: ReturnType<typeof setTimeout> | null = null;
-        let endedAt: number | null = null;
-
-        const tick = async () => {
-            try {
-                const res = await fetch(`/api/telephony/calls/${callId}/transcript${since ? `?since=${encodeURIComponent(since)}` : ""}`);
-                const json = await res.json();
-                if (cancelled || !json?.success) return schedule(4000);
-                const data = json.data as TranscriptPayload;
-                if (data.lines.length) {
-                    since = data.lines[data.lines.length - 1].receivedAt;
-                    setLines((prev) => {
-                        const seen = new Set(prev.map((l) => l.id));
-                        return [...prev, ...data.lines.filter((l) => !seen.has(l.id))];
-                    });
-                }
-                setSummary(data.summary);
-                setLive(data.live);
-                if (!data.live && endedAt === null) endedAt = Date.now();
-                const settled = !data.live && TERMINAL.has(data.summary.status);
-                const expired = endedAt !== null && Date.now() - endedAt > 150_000;
-                if (!settled && !expired) schedule(data.live ? 1500 : 3000);
-            } catch {
-                schedule(4000);
-            }
-        };
-        const schedule = (ms: number) => {
-            if (!cancelled) timer = setTimeout(tick, ms);
-        };
-        void tick();
+        const feed = openFeed(callId);
+        const listener = (s: TranscriptSnapshot) => setSnap(s);
+        feed.listeners.add(listener);
+        listener(feed.snap);
         return () => {
-            cancelled = true;
-            if (timer) clearTimeout(timer);
+            feed.listeners.delete(listener);
+            if (feed.listeners.size === 0) {
+                feed.stop();
+                feeds.delete(callId);
+            }
         };
     }, [callId, enabled]);
 
-    return { lines, summary, live };
+    return snap;
 }
 
 // ── transcript ──────────────────────────────────────────────────────────────
@@ -166,7 +202,10 @@ export function TranscriptView({
 
 export function summaryAsText(s: CallAiSummary): string {
     const block = (title: string, items: string[]) => (items.length ? `\n\n${title} :\n${items.map((x) => `• ${x}`).join("\n")}` : "");
-    return `${s.summary}${block("Points clés", s.keyPoints)}${block("Objections", s.objections)}${block("Prochaines étapes", s.nextSteps)}`;
+    const qual = s.qualification
+        ? (Object.keys(QUALIFICATION_LABELS) as (keyof Qualification)[]).filter((k) => s.qualification[k]).map((k) => `${QUALIFICATION_LABELS[k]} : ${s.qualification[k]}`)
+        : [];
+    return `${s.summary}${block("Points clés", s.keyPoints)}${block("Objections", s.objections)}${block("Prochaines étapes", s.nextSteps)}${block("Qualification", qual)}`;
 }
 
 function Section({ icon: Icon, title, items }: { icon: typeof ListChecks; title: string; items: string[] }) {
@@ -190,7 +229,38 @@ function Section({ icon: Icon, title, items }: { icon: typeof ListChecks; title:
     );
 }
 
-export function AiSummaryView({ state, className }: { state: SummaryState; className?: string }) {
+function QualificationGrid({ q }: { q: Qualification | undefined }) {
+    if (!q) return null;
+    const keys = (Object.keys(QUALIFICATION_LABELS) as (keyof Qualification)[]).filter((k) => q[k]);
+    if (keys.length === 0) return null;
+    return (
+        <section>
+            <h4 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Qualification</h4>
+            <dl className="divide-y divide-line-subtle rounded-control border border-line-subtle">
+                {keys.map((k) => (
+                    <div key={k} className="grid grid-cols-[112px_1fr] gap-3 px-3 py-1.5 text-[13px]">
+                        <dt className="text-ink-3">{QUALIFICATION_LABELS[k]}</dt>
+                        <dd className="text-ink">{q[k]}</dd>
+                    </div>
+                ))}
+            </dl>
+        </section>
+    );
+}
+
+export function AiSummaryView({
+    state,
+    className,
+    resolveStatus,
+    onApplyStatus,
+}: {
+    state: SummaryState;
+    className?: string;
+    /** Label/colour of a status code (the mission's configuration). */
+    resolveStatus?: (code: string) => { label: string; color: string | null } | null;
+    /** Shows « Appliquer » next to the suggested status. */
+    onApplyStatus?: (code: string) => void;
+}) {
     const [copied, setCopied] = useState(false);
 
     if (state.status === "none") return null;
@@ -214,8 +284,25 @@ export function AiSummaryView({ state, className }: { state: SummaryState; class
     }
 
     const s = state.data;
+    const suggested = s.suggestedStatus ? resolveStatus?.(s.suggestedStatus) ?? { label: s.suggestedStatus, color: null } : null;
     return (
         <div className={cn("space-y-4", className)}>
+            {suggested && s.suggestedStatus && (
+                <div className="flex items-center gap-2 rounded-control border border-accent-200 bg-accent-50 px-3 py-2 text-[13px]">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />
+                    <span className="text-ink-2">Statut suggéré</span>
+                    <StatusLabel label={suggested.label} color={suggested.color} className="font-medium" />
+                    {onApplyStatus && (
+                        <button
+                            type="button"
+                            onClick={() => onApplyStatus(s.suggestedStatus!)}
+                            className="ml-auto h-7 rounded-control bg-surface px-2.5 text-[12px] font-semibold text-ink shadow-card hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                        >
+                            Appliquer
+                        </button>
+                    )}
+                </div>
+            )}
             <div className="flex items-start justify-between gap-3">
                 <p className="text-[13px] leading-relaxed text-ink">{s.summary}</p>
                 <button
@@ -236,6 +323,7 @@ export function AiSummaryView({ state, className }: { state: SummaryState; class
             <Section icon={ListChecks} title="Points clés" items={s.keyPoints} />
             <Section icon={ShieldAlert} title="Objections" items={s.objections} />
             <Section icon={ArrowRight} title="Prochaines étapes" items={s.nextSteps} />
+            <QualificationGrid q={s.qualification} />
         </div>
     );
 }

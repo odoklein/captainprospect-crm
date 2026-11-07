@@ -42,6 +42,10 @@ function searchClause(q: string): Prisma.ActionWhereInput | null {
         OR: [
             { contact: { OR: [{ firstName: text }, { lastName: text }, { company: { name: text } }] } },
             { company: { name: text } },
+            // Searchable conversations: what was said (transcript) and the call's summary.
+            { callTranscription: text },
+            { callSummary: text },
+            { note: text },
         ],
     };
 }
@@ -60,7 +64,9 @@ function baseWhere(f: JournalFilters, range: PeriodRange): Prisma.ActionWhereInp
 const graceCutoff = () => new Date(Date.now() - QUALIFY_GRACE_MINUTES * 60_000);
 
 function unqualifiedWhere(f: JournalFilters, range: PeriodRange, withSdr = true): Prisma.TelephonyCallWhereInput {
-    const numberClause = phoneSearchClause(f.q);
+    const numberClause = /[a-zà-ÿ]/i.test(f.q)
+        ? { transcript: { some: { text: { contains: f.q, mode: "insensitive" as const } } } }
+        : phoneSearchClause(f.q);
     return {
         parentCallSid: { not: null }, // Twilio actually placed it
         actionId: null,

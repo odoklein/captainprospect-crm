@@ -202,8 +202,28 @@ test("transcript text labels each speaker", () => {
 test("AI summaries are validated, capped and never padded", () => {
     assert.equal(normalizeSummary({ summary: "  " }), null);
     assert.equal(normalizeSummary("text"), null);
-    const s = normalizeSummary({ summary: "Le gérant accepte un RDV.", keyPoints: ["a", "b", "c", "d", "e"], objections: [42, "Pas le temps"], nextSteps: "envoyer" });
-    assert.deepEqual(s, { summary: "Le gérant accepte un RDV.", keyPoints: ["a", "b", "c", "d"], objections: ["Pas le temps"], nextSteps: [] });
+    const s = normalizeSummary(
+        {
+            summary: "Le gérant accepte un RDV.",
+            keyPoints: ["a", "b", "c", "d", "e"],
+            objections: [42, "Pas le temps"],
+            nextSteps: "envoyer",
+            qualification: { need: "Un alternant en caisse", timing: "null", decisionMaker: "  ", budget: "Non précisé" },
+            suggestedStatus: "meeting_booked",
+        },
+        new Set(["MEETING_BOOKED", "NO_RESPONSE"]),
+    );
+    assert.deepEqual(s, {
+        summary: "Le gérant accepte un RDV.",
+        keyPoints: ["a", "b", "c", "d"],
+        objections: ["Pas le temps"],
+        nextSteps: [],
+        qualification: { need: "Un alternant en caisse", currentSolution: null, timing: null, decisionMaker: null, budget: null },
+        suggestedStatus: "MEETING_BOOKED",
+    });
+    assert.match(summaryText(s!), /Qualification :\n• Besoin : Un alternant en caisse/);
+    // A status the mission does not have is never suggested.
+    assert.equal(normalizeSummary({ summary: "x", suggestedStatus: "INVENTED" }, new Set(["NO_RESPONSE"]))?.suggestedStatus, null);
     assert.match(summaryText(s!), /Points clés :\n• a/);
     assert.doesNotMatch(summaryText(s!), /Prochaines étapes/);
 });

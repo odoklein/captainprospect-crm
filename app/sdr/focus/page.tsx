@@ -22,6 +22,8 @@ import { Kbd, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
+import { AiSummaryView, useCallTranscript } from "@/components/telephony/CallInsights";
+import { PrecallBrief } from "@/components/sdr/PrecallBrief";
 import {
     EMPTY_STATS, callbackPresets, connectRate, dispositionKeys, isTypingTarget, parseLocalCallback, type SessionStats,
 } from "@/lib/focus/focus";
@@ -147,7 +149,7 @@ function clock(totalSec: number): string {
 
 export default function FocusPage() {
     const { success } = useToast();
-    const { enabled: softphoneOn, call, dial, hangup, toggleMute } = useSoftphone();
+    const { enabled: softphoneOn, transcription, call, dial, hangup, toggleMute } = useSoftphone();
 
     const [missions, setMissions] = useState<Mission[] | null>(null);
     const [missionId, setMissionId] = useState<string | null>(null);
@@ -177,6 +179,8 @@ export default function FocusPage() {
     const [helpOpen, setHelpOpen] = useState(false);
     const [scriptOpen, setScriptOpen] = useState(true);
 
+    // The integrated-phone call placed to the prospect on screen (kept after the dock is closed).
+    const [ourCallId, setOurCallId] = useState<string | null>(null);
     const noteRef = useRef<HTMLTextAreaElement>(null);
     // Prospect whose automatic call is used up: dialled, or cancelled by the SDR.
     // Only a new prospect re-arms the countdown (closing the fiche or the help never does).
@@ -222,6 +226,9 @@ export default function FocusPage() {
     const phone = phoneChoice === "company" ? companyPhone ?? contactPhone : contactPhone ?? companyPhone;
     const inCall = isCallActive(call);
     const callIsOurs = Boolean(call && prospect && call.target.companyId === prospect.company.id);
+    if (callIsOurs && call?.callId && call.callId !== ourCallId) setOurCallId(call.callId);
+    const insights = useCallTranscript(transcription ? ourCallId : null, transcription && Boolean(ourCallId));
+    const suggestedStatus = insights.summary.status === "done" ? insights.summary.data.suggestedStatus : null;
 
     // ── queue ──────────────────────────────────────────────────────────────
     const loadNext = useCallback(
@@ -235,6 +242,7 @@ export default function FocusPage() {
             setFormError(null);
             setCountdown(null);
             setPhoneChoice("contact");
+            setOurCallId(null);
             const qs = new URLSearchParams({ missionId, channel: "CALL" });
             skip.contacts.forEach((id) => qs.append("skipContact", id));
             skip.companies.forEach((id) => qs.append("skipCompany", id));
@@ -656,6 +664,15 @@ export default function FocusPage() {
                             </div>
                         </div>
 
+                        {missionId && (
+                            <PrecallBrief
+                                key={prospectKey ?? ""}
+                                companyId={prospect.company.id}
+                                contactId={prospect.contact?.id ?? null}
+                                missionId={missionId}
+                            />
+                        )}
+
                         {/* Context: what to know before dialling */}
                         <ContextCard prospect={prospect} statusLabel={(code) => statusOf.get(code)?.label ?? code} />
 
@@ -667,6 +684,23 @@ export default function FocusPage() {
 
                     {/* ── Outcome ── */}
                     <aside className="flex flex-col gap-3 self-start rounded-panel border border-line bg-surface p-4 shadow-card lg:sticky lg:top-16">
+                        {ourCallId && transcription && !(inCall && callIsOurs) && insights.summary.status !== "none" && (
+                            <div className="-mx-4 -mt-4 mb-1 border-b border-line-subtle bg-surface-2/50 px-4 py-4">
+                                <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Résumé de l&apos;appel</p>
+                                <AiSummaryView
+                                    state={insights.summary}
+                                    resolveStatus={(code) => {
+                                        const st = statusOf.get(code);
+                                        return st ? { label: st.label, color: st.color } : null;
+                                    }}
+                                    onApplyStatus={(code) => {
+                                        if (statusOf.has(code) && selected !== code) choose(code);
+                                        // No retyping: the call's summary becomes the note (still editable).
+                                        if (!note.trim() && insights.summary.status === "done") setNote(insights.summary.data.summary.slice(0, 500));
+                                    }}
+                                />
+                            </div>
+                        )}
                         <div className="flex items-center justify-between">
                             <h2 className="text-[13px] font-semibold text-ink">Résultat de l&apos;appel</h2>
                             <span className="text-[11px] text-ink-3">touches 1–9</span>
@@ -687,6 +721,11 @@ export default function FocusPage() {
                                     >
                                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: status.color ?? "var(--ds-line-strong)" }} aria-hidden />
                                         <span className="min-w-0 flex-1 truncate">{status.label}</span>
+                                        {suggestedStatus === status.code && (
+                                            <span className="rounded-sm bg-accent-50 px-1 text-[10px] font-semibold uppercase tracking-wide text-accent-700" title="Suggéré par l'IA d'après la conversation">
+                                                IA
+                                            </span>
+                                        )}
                                         {status.triggersCallback && <CalendarClock className="h-3.5 w-3.5 shrink-0 text-ink-3" aria-label="planifie un rappel" />}
                                         {key && <Kbd>{key}</Kbd>}
                                     </button>

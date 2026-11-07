@@ -39,6 +39,7 @@
     "test:telephony": "tsx --test lib/telephony/telephony.test.ts",
     "test:calls-journal": "tsx --test lib/calls-journal/calls-journal.test.ts",
     "test:focus": "tsx --test lib/focus/focus.test.ts",
+    "test:sdr-assistant": "tsx --test lib/sdr-assistant/brief.test.ts",
     "test:onboarding": "tsx --test lib/onboarding/checklist-template.test.ts",
     "test:tasks": "tsx --test lib/tasks/access.test.ts lib/tasks/grouping.test.ts",
     "test:client-onboarding": "tsx --test lib/onboarding/client-onboarding.test.ts",

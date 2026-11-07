@@ -12,20 +12,10 @@
 import { prisma } from "@/lib/prisma";
 import { AiCallError, callJsonModel } from "@/lib/ai/json-call";
 import { transcriptText } from "./transcription";
+import { statusConfigService } from "@/lib/services/StatusConfigService";
 
-export interface CallAiSummary {
-    summary: string;
-    keyPoints: string[];
-    objections: string[];
-    nextSteps: string[];
-}
-
-export type SummaryState =
-    | { status: "none" }
-    | { status: "pending" }
-    | { status: "done"; data: CallAiSummary; at: string | null }
-    | { status: "skipped"; reason: string }
-    | { status: "failed"; reason: string };
+import { QUALIFICATION_LABELS, type CallAiSummary, type Qualification, type SummaryState } from "./summary-shape";
+export { QUALIFICATION_LABELS, type CallAiSummary, type Qualification, type SummaryState };
 
 /** Fewer words than this and there was no conversation to summarise. */
 export const MIN_WORDS = 25;
@@ -40,13 +30,23 @@ Réponds UNIQUEMENT avec un objet JSON :
   "summary": "2 à 3 phrases factuelles : qui a été joint, ce qui a été dit, où en est le prospect",
   "keyPoints": ["fait concret appris pendant l'appel", ...],
   "objections": ["objection ou réticence exprimée par le prospect", ...],
-  "nextSteps": ["prochaine étape convenue ou à faire", ...]
+  "nextSteps": ["prochaine étape convenue ou à faire", ...],
+  "qualification": {
+    "need": "besoin exprimé, ou null",
+    "currentSolution": "solution ou prestataire actuel, ou null",
+    "timing": "échéance ou calendrier évoqué, ou null",
+    "decisionMaker": "qui décide (l'interlocuteur ou une autre personne), ou null",
+    "budget": "budget évoqué, ou null"
+  },
+  "suggestedStatus": "un code de la liste STATUTS fournie, ou null"
 }
 
 Règles :
 - N'invente rien : chaque élément doit venir de la transcription. Une liste peut être vide.
 - 4 points clés maximum, 3 objections maximum, 3 prochaines étapes maximum, chacun en une ligne courte.
-- Pas de formule de politesse, pas d'évaluation du SDR.`;
+- Pas de formule de politesse, pas d'évaluation du SDR.
+- qualification : null pour tout ce qui n'a pas été dit explicitement.
+- suggestedStatus : le statut que le SDR devrait enregistrer d'après la conversation, choisi UNIQUEMENT dans la liste STATUTS ; null si aucun ne convient clairement.`;
 
 function list(v: unknown, max: number): string[] {
     if (!Array.isArray(v)) return [];
@@ -56,17 +56,37 @@ function list(v: unknown, max: number): string[] {
         .slice(0, max);
 }
 
-/** Validates the model's JSON; null when it has no usable summary. */
-export function normalizeSummary(raw: unknown): CallAiSummary | null {
+function field(v: unknown): string | null {
+    if (typeof v !== "string") return null;
+    const t = v.trim();
+    return t && !/^(null|n\/a|non (précisé|évoqué|mentionné)|inconnu)\.?$/i.test(t) ? t.slice(0, 200) : null;
+}
+
+/**
+ * Validates the model's JSON; null when it has no usable summary.
+ * `allowedStatuses` drops a suggested status the mission does not have.
+ */
+export function normalizeSummary(raw: unknown, allowedStatuses?: ReadonlySet<string>): CallAiSummary | null {
     if (!raw || typeof raw !== "object") return null;
     const o = raw as Record<string, unknown>;
     const summary = typeof o.summary === "string" ? o.summary.trim().slice(0, 1200) : "";
     if (!summary) return null;
+    const q = (o.qualification && typeof o.qualification === "object" ? o.qualification : {}) as Record<string, unknown>;
+    const suggested = typeof o.suggestedStatus === "string" ? o.suggestedStatus.trim().toUpperCase() : "";
     return {
         summary,
         keyPoints: list(o.keyPoints, 4),
         objections: list(o.objections, 3),
         nextSteps: list(o.nextSteps, 3),
+        qualification: {
+            need: field(q.need),
+            currentSolution: field(q.currentSolution),
+            timing: field(q.timing),
+            decisionMaker: field(q.decisionMaker),
+            budget: field(q.budget),
+        },
+        suggestedStatus:
+            suggested && /^[A-Z0-9_]{1,64}$/.test(suggested) && (!allowedStatuses || allowedStatuses.has(suggested)) ? suggested : null,
     };
 }
 
@@ -76,6 +96,10 @@ export function summaryText(s: CallAiSummary): string {
     if (s.keyPoints.length) parts.push(`Points clés :\n${s.keyPoints.map((x) => `• ${x}`).join("\n")}`);
     if (s.objections.length) parts.push(`Objections :\n${s.objections.map((x) => `• ${x}`).join("\n")}`);
     if (s.nextSteps.length) parts.push(`Prochaines étapes :\n${s.nextSteps.map((x) => `• ${x}`).join("\n")}`);
+    const qual = (Object.keys(QUALIFICATION_LABELS) as (keyof Qualification)[])
+        .filter((k) => s.qualification[k])
+        .map((k) => `• ${QUALIFICATION_LABELS[k]} : ${s.qualification[k]}`);
+    if (qual.length) parts.push(`Qualification :\n${qual.join("\n")}`);
     return parts.join("\n\n");
 }
 
@@ -158,18 +182,25 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
         return finish({ aiSummaryStatus: "skipped", aiSummaryError: call.transcript.length ? "Conversation trop courte pour un résumé" : "Aucune transcription pour cet appel" });
     }
 
+    // The mission's own statuses: the only ones the AI may suggest.
+    const config = await statusConfigService
+        .getEffectiveStatusConfig(call.campaignId ? { campaignId: call.campaignId } : {})
+        .catch(() => ({ statuses: [] as { code: string; label: string }[] }));
+    const allowed = new Set(config.statuses.map((x) => x.code));
+    const statusList = config.statuses.map((x) => `${x.code} : ${x.label}`).join("\n");
+
     try {
         const { parsed } = await callJsonModel({
             system: SYSTEM,
-            user: `Transcription de l'appel :\n\n${text.slice(0, 24_000)}`,
-            maxTokens: 700,
+            user: `STATUTS (code : libellé)\n${statusList || "(aucun)"}\n\nTranscription de l'appel :\n\n${text.slice(0, 24_000)}`,
+            maxTokens: 900,
             temperature: 0.2,
             timeoutMs: 45_000,
             surface: "call_summary",
             dataClass: "raw_crm",
             userId: call.sdr.id,
         });
-        const data = normalizeSummary(parsed);
+        const data = normalizeSummary(parsed, allowed);
         if (!data) return finish({ aiSummaryStatus: "failed", aiSummaryError: "Réponse de l'IA inutilisable" });
         return finish({ aiSummaryStatus: "done", aiSummary: data as unknown as object });
     } catch (err) {
