@@ -105,6 +105,7 @@ export const AssistantMessage = memo(function AssistantMessage({
                 label: s.label,
                 state: s.state,
                 meta: s.durationMs !== undefined ? (s.cached ? "déjà lu" : formatSeconds(s.durationMs)) : undefined,
+                tool: s.tool,
             }));
         }
         return traceRows(trace.entries);
@@ -138,16 +139,16 @@ export const AssistantMessage = memo(function AssistantMessage({
             {rows.length > 0 && (
                 <ToolTraceRoot open={traceOpen} onOpenChange={setUserOpen} className="mb-2 text-[12.5px]">
                     <div className="flex h-7 min-w-0 items-center">
-                        <ToolTraceTrigger open={traceOpen}>
+                        <ToolTraceTrigger open={traceOpen} rows={rows}>
                             {sourcesLabel(rows.length)}
-                            {!streaming && <span className="text-ink-4"> · {totalDuration(trace.entries)}</span>}
+                            {!streaming && <span className="font-normal text-ink-4"> · {totalDuration(trace.entries)}</span>}
                         </ToolTraceTrigger>
                     </div>
                     <ToolTraceList
                         rows={rows}
                         footer={
                             streaming && !writing && state?.phase === "thinking" && rows.every((r) => r.state !== "running") ? (
-                                <li className="text-ink-4">Analyse des résultats…</li>
+                                <li className="pl-[34px] text-ink-4">Analyse des résultats…</li>
                             ) : null
                         }
                     />

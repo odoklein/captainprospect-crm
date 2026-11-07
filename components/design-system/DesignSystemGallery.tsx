@@ -50,6 +50,44 @@ import { Section, SectionHeader } from "@/components/ui/Section";
 import { Spinner } from "@/components/ui/Spinner";
 import { AiMark } from "@/components/ui/AiMark";
 import { EYEBROW, SURFACE } from "@/components/ui/recipes";
+import { ToolCallsSection, type ToolCallEntry } from "@/components/ui/tool-calls-section";
+import { ToolTrace } from "@/components/assistant-ui/ToolTrace";
+import type { TraceEntry } from "@/components/assistant-ui/types";
+
+const DEMO_TOOL_CALLS: ToolCallEntry[] = [
+    {
+        tool_name: "search_contacts",
+        tool_category: "contacts",
+        message: "Recherché les décideurs chez Acme",
+        inputs: { query: "Acme Industries", role: "Directeur commercial" },
+        output: "3 contacts trouvés, dont **2 joignables**.",
+    },
+    {
+        tool_name: "search_calls",
+        tool_category: "calls",
+        message: "Consulté les 12 derniers appels",
+        inputs: { mission: "Acme — Q4", limit: 12 },
+    },
+    {
+        tool_name: "get_rdv_overview",
+        tool_category: "meetings",
+        message: "Vérifié les RDV de la semaine",
+        output: "4 RDV pris, 1 à confirmer.",
+    },
+    {
+        tool_name: "send_email",
+        tool_category: "gmail",
+        integration_name: "Gmail",
+        message: "Préparé un e-mail de relance",
+    },
+];
+
+const DEMO_TRACE: TraceEntry[] = [
+    { tool: "global_search", label: "Recherche « Acme »", ok: true, durationMs: 180 },
+    { tool: "get_mission_metrics", label: "Indicateurs de la mission", ok: true, durationMs: 420 },
+    { tool: "search_transcripts", label: "Transcriptions d'appels", ok: true, durationMs: 610 },
+    { tool: "list_tasks", label: "Tâches ouvertes", ok: false, durationMs: 0, errorCode: "refusé" },
+];
 
 export type RampInfo = {
     name: string;
@@ -77,6 +115,7 @@ const NAV = [
     { id: "feedback", label: "Statuts & messages" },
     { id: "data", label: "Données" },
     { id: "overlays", label: "Fenêtres" },
+    { id: "assistant", label: "Assistant IA" },
     { id: "patterns", label: "Modèles" },
 ];
 
@@ -644,6 +683,18 @@ export function DesignSystemGallery({ ramps, identity }: { ramps: RampInfo[]; id
                                 <Button variant="secondary" onClick={() => setDrawerOpen(true)}>Ouvrir un panneau</Button>
                             </div>
                         </Specimen>
+                    </Block>
+
+                    {/* ── Assistant ─────────────────────────────────────── */}
+                    <Block id="assistant" title="Assistant IA" intro="Les outils utilisés par une réponse : une tuile par famille d'outils, puis la chronologie des appels. ToolCallsSection est la primitive ; la trace du fil (ToolTrace) parle le même langage.">
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <Specimen label="ToolCallsSection">
+                                <ToolCallsSection toolCalls={DEMO_TOOL_CALLS} defaultExpanded />
+                            </Specimen>
+                            <Specimen label="Trace d'une réponse">
+                                <ToolTrace trace={DEMO_TRACE} />
+                            </Specimen>
+                        </div>
                     </Block>
 
                     {/* ── Patterns ──────────────────────────────────────── */}
