@@ -78,11 +78,9 @@ export function CallIsland() {
     const followed = Boolean(insights && call?.callId && call.phase !== "failed");
     const { lines } = useCallTranscript(followed ? call!.callId : null, followed && transcription);
     const last = lines[lines.length - 1] ?? null;
-    // "New" is measured on this browser's clock, from the moment a sentence first
-    // shows up — never against the server's timestamps (clocks can disagree).
-    const [seen, setSeen] = useState<{ id: string | null; at: number }>({ id: null, at: 0 });
-    if (last && last.id !== seen.id) setSeen({ id: last.id, at: Date.now() });
-    const showLine = Boolean(last && active && now - seen.at < LINE_HOLD_MS);
+    // "New" is measured on this browser's clock (arrivedAt, stamped by the feed when
+    // the line came in) — never against the server's timestamps: clocks can disagree.
+    const showLine = Boolean(last?.arrivedAt && active && now - last.arrivedAt < LINE_HOLD_MS);
 
     // Retract a moment after the call ends.
     useEffect(() => {

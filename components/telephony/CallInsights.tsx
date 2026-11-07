@@ -22,7 +22,8 @@ export interface TranscriptLine {
 
 interface TranscriptPayload {
     live: boolean;
-    lines: (TranscriptLine & { id: string; receivedAt: string })[];
+    /** arrivedAt: when this browser received the line (its own clock). */
+    lines: (TranscriptLine & { id: string; receivedAt: string; arrivedAt?: number })[];
     summary: SummaryState;
 }
 
@@ -73,7 +74,8 @@ function openFeed(callId: string): Feed {
             if (data.lines.length) {
                 since = data.lines[data.lines.length - 1].receivedAt;
                 const seen = new Set(lines.map((l) => l.id));
-                lines = [...lines, ...data.lines.filter((l) => !seen.has(l.id))];
+                const arrivedAt = Date.now();
+                lines = [...lines, ...data.lines.filter((l) => !seen.has(l.id)).map((l) => ({ ...l, arrivedAt }))];
             }
             emit({ lines, summary: data.summary, live: data.live });
             if (!data.live && endedAt === null) endedAt = Date.now();
