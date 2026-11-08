@@ -28,6 +28,7 @@ import { useCallQualified } from "@/components/telephony/PostCallSuggestion";
 import { PrecallBrief } from "@/components/sdr/PrecallBrief";
 import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
 import { DockList } from "@/components/layout/FloatingDock";
+import { FocusLaunch } from "@/components/sdr/focus/FocusLaunch";
 import {
     EMPTY_STATS, callbackPresets, connectRate, dispositionKeys, isTypingTarget, parseLocalCallback, type SessionStats,
 } from "@/lib/focus/focus";
@@ -149,7 +150,7 @@ function clock(totalSec: number): string {
 
 export default function FocusPage() {
     const { success } = useToast();
-    const { enabled: softphoneOn, insights: insightsOn, call, dial, hangup, toggleMute } = useSoftphone();
+    const { enabled: softphoneOn, insights: insightsOn, call, dial, hangup, toggleMute, callerId } = useSoftphone();
 
     const [missions, setMissions] = useState<Mission[] | null>(null);
     const [missionId, setMissionId] = useState<string | null>(null);
@@ -492,7 +493,7 @@ export default function FocusPage() {
 
     if (phase === "setup") {
         return (
-            <SetupScreen
+            <FocusLaunch
                 missions={missions}
                 missionId={missionId}
                 onMission={setMissionId}
@@ -501,7 +502,9 @@ export default function FocusPage() {
                     setAutoDial(v);
                     writeLS(LS_AUTODIAL, v ? "1" : "0");
                 }}
+                autoDialSeconds={AUTO_DIAL_SECONDS}
                 softphoneOn={softphoneOn}
+                callerId={callerId}
                 onStart={start}
             />
         );
@@ -1142,93 +1145,6 @@ function LoadingProspect() {
                 {[94, 86, 72, 90, 64].map((w, i) => (
                     <div key={i} className="cp-shimmer h-2.5 rounded" style={{ width: `${w}%` }} />
                 ))}
-            </div>
-        </div>
-    );
-}
-
-function SetupScreen({
-    missions,
-    missionId,
-    onMission,
-    autoDial,
-    onAutoDial,
-    softphoneOn,
-    onStart,
-}: {
-    missions: Mission[] | null;
-    missionId: string | null;
-    onMission: (id: string) => void;
-    autoDial: boolean;
-    onAutoDial: (v: boolean) => void;
-    softphoneOn: boolean;
-    onStart: () => void;
-}) {
-    return (
-        <div className="flex h-full min-h-0 w-full overflow-y-auto bg-canvas">
-            <div className="cp-rise m-auto w-full max-w-[560px] px-4 py-10">
-                <div className="mb-6 flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-control bg-primary text-primary-fg">
-                        <Crosshair className="h-5 w-5" />
-                    </span>
-                    <div>
-                        <h1 className="text-[20px] font-semibold tracking-[-0.015em] text-ink">Mode Focus</h1>
-                        <p className="text-[13px] text-ink-3">Un prospect à la fois, dans l&apos;ordre de votre file : rappels d&apos;abord.</p>
-                    </div>
-                </div>
-
-                <div className="rounded-panel border border-line bg-surface p-5 shadow-card">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-3">Mission du jour</p>
-                    {missions === null ? (
-                        <div className="cp-shimmer h-24 rounded-control" />
-                    ) : missions.length === 0 ? (
-                        <p className="rounded-control bg-surface-2 px-3 py-4 text-[13px] text-ink-3">Aucune mission d&apos;appel dans votre planning du jour.</p>
-                    ) : (
-                        <ul className="space-y-1" role="radiogroup" aria-label="Mission">
-                            {missions.map((m) => (
-                                <li key={m.id}>
-                                    <button
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={missionId === m.id}
-                                        onClick={() => onMission(m.id)}
-                                        className={cn(
-                                            "cp-press flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors",
-                                            missionId === m.id ? "bg-primary-soft ring-1 ring-inset ring-primary/40" : "hover:bg-surface-2",
-                                        )}
-                                    >
-                                        <span className={cn("h-3.5 w-3.5 shrink-0 rounded-full border-2", missionId === m.id ? "border-primary bg-primary" : "border-line-strong")} />
-                                        <span className="min-w-0">
-                                            <span className="block truncate text-[13px] font-semibold text-ink">{m.name}</span>
-                                            {m.client?.name && <span className="block truncate text-[12px] text-ink-3">{m.client.name}</span>}
-                                        </span>
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    <div className="mt-4 border-t border-line-subtle pt-3">
-                        <Switch label="Appel automatique" checked={autoDial && softphoneOn} disabled={!softphoneOn} onChange={onAutoDial} />
-                        <p className="pl-[46px] text-[12px] text-ink-3">
-                            {softphoneOn
-                                ? `Chaque prospect est appelé ${AUTO_DIAL_SECONDS} s après son affichage (Échap pour annuler).`
-                                : "Nécessite le téléphone intégré : les numéros s'ouvriront dans votre application d'appel."}
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={onStart}
-                        disabled={!missionId}
-                        className="cp-press mt-5 inline-flex h-10 w-full items-center justify-center gap-2 rounded-control bg-primary text-[14px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        <Play className="h-4 w-4" /> Démarrer la session
-                    </button>
-                </div>
-                <p className="mt-3 text-center text-[12px] text-ink-3">
-                    Appuyez sur <Kbd>?</Kbd> pendant la session pour voir les raccourcis.
-                </p>
             </div>
         </div>
     );

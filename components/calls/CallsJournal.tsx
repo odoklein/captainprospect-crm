@@ -433,14 +433,14 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                             )}
                         >
                             <thead className="sticky top-0 z-[1]">
-                                <tr className="bg-surface-2/95 text-left text-[11px] font-semibold uppercase tracking-wide text-ink-3 shadow-[inset_0_-1px_0_var(--ds-line)] backdrop-blur">
-                                    <th className={cn("py-2 pl-4 pr-2 font-semibold sm:pl-6 sm:pr-3", showPane ? (multiDay ? "w-[110px]" : "w-[76px]") : "w-[68px] sm:w-[92px]")}>{multiDay ? "Date" : "Heure"}</th>
-                                    <th className="px-3 py-2 font-semibold">Prospect</th>
-                                    <th className={cn("w-[112px] px-2 py-2 font-semibold sm:w-auto sm:px-3", showPane && "sm:w-[140px]")}>{unqualified ? "Issue" : "Statut"}</th>
-                                    <th className={cn("hidden px-3 py-2 text-right font-semibold sm:table-cell", showPane ? "w-[76px]" : "w-[84px]")}>Durée</th>
-                                    {scope === "team" && <th className={cn("px-3 py-2 font-semibold", showPane && "w-[52px]")}>SDR</th>}
-                                    {!unqualified && !showPane && <th className="hidden px-3 py-2 font-semibold xl:table-cell">Mission</th>}
-                                    <th className={cn("hidden py-2 pl-3 pr-6 text-right font-semibold sm:table-cell", onQualify && unqualified ? "w-[150px]" : showPane ? "w-[72px]" : "w-[80px]")} aria-label="Contenu" />
+                                <tr className="bg-surface-2/95 text-left text-xs font-medium text-ink-3 shadow-[inset_0_-1px_0_var(--ds-line)] backdrop-blur">
+                                    <th className={cn("h-9 py-0 pl-4 pr-2 font-medium sm:pl-6 sm:pr-3", showPane ? (multiDay ? "w-[110px]" : "w-[76px]") : "w-[68px] sm:w-[92px]")}>{multiDay ? "Date" : "Heure"}</th>
+                                    <th className="px-3 h-9 py-0 font-medium">Prospect</th>
+                                    <th className={cn("w-[112px] px-2 h-9 py-0 font-medium sm:w-auto sm:px-3", showPane && "sm:w-[140px]")}>{unqualified ? "Issue" : "Statut"}</th>
+                                    <th className={cn("hidden h-9 px-3 py-0 text-right font-medium sm:table-cell", showPane ? "w-[76px]" : "w-[84px]")}>Durée</th>
+                                    {scope === "team" && <th className={cn("px-3 h-9 py-0 font-medium", showPane && "w-[52px]")}>SDR</th>}
+                                    {!unqualified && !showPane && <th className="hidden px-3 h-9 py-0 font-medium xl:table-cell">Mission</th>}
+                                    <th className={cn("hidden h-9 py-0 pl-3 pr-6 text-right font-medium sm:table-cell", onQualify && unqualified ? "w-[150px]" : showPane ? "w-[72px]" : "w-[80px]")} aria-label="Contenu" />
                                 </tr>
                             </thead>
                             <tbody>
@@ -530,7 +530,7 @@ const int = (v: number) => Math.round(v).toLocaleString("fr-FR");
 function Metric({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
     return (
         <div>
-            <dt className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-3">{label}</dt>
+            <dt className="text-[11.5px] font-medium text-ink-3">{label}</dt>
             <dd className="mt-0.5 flex items-baseline gap-1.5">
                 <span className="text-[19px] font-semibold tabular-nums tracking-tight text-ink">{value}</span>
                 {hint && <span className="text-[11.5px] text-ink-3">{hint}</span>}
@@ -612,7 +612,7 @@ function Row({
                 opened ? "bg-primary-soft" : active ? "bg-primary-soft/50" : "hover:bg-surface-2",
             )}
         >
-            <td className={cn("whitespace-nowrap py-3 pl-4 pr-2 text-[11px] tabular-nums text-ink-2 sm:pl-6 sm:pr-3 sm:text-[13px]", (active || opened) && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
+            <td className={cn("whitespace-nowrap py-2.5 pl-4 pr-2 text-[11px] tabular-nums text-ink-2 sm:pl-6 sm:pr-3 sm:text-[13px]", (active || opened) && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
                 {multiDay && <span className="mr-1.5 text-ink-3">{at.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</span>}
                 {at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </td>

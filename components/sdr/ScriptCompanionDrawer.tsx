@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Drawer, Button, useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { StrategyArtifactViewer } from "@/components/strategy";
+import { ScriptReader } from "@/components/sdr/ScriptReader";
+import type { ScriptVars } from "@/lib/sdr-queue/script-fill";
 import {
     sdrScriptCompanionCampaignsKey,
     sdrScriptCompanionDataKey,
@@ -79,11 +80,17 @@ export function ScriptCompanionContent({
     active = true,
     missionId,
     campaignId,
+    vars,
+    inPane = false,
 }: {
     /** Loads only while shown. */
     active?: boolean;
     missionId?: string;
     campaignId?: string | null;
+    /** Fills {prénom}, {société}… with the prospect on screen. */
+    vars?: ScriptVars;
+    /** Rendered under the docked pane's sticky tabs (the step bar sticks below them). */
+    inPane?: boolean;
 }) {
     const isOpen = active;
     const queryClient = useQueryClient();
@@ -194,7 +201,7 @@ export function ScriptCompanionContent({
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-                <div className="flex gap-0.5 rounded-control bg-surface-3/70 p-0.5" role="tablist" aria-label="Version du script">
+                <div className="flex gap-0.5 rounded-lg bg-surface-2 p-0.5 ring-1 ring-inset ring-line-subtle" role="tablist" aria-label="Version du script">
                     {SCRIPT_TABS.map((t) => (
                         <button
                             key={t.id}
@@ -203,8 +210,8 @@ export function ScriptCompanionContent({
                             aria-selected={activeTab === t.id}
                             onClick={() => setActiveTab(t.id)}
                             className={cn(
-                                "h-7 rounded-[6px] px-2.5 text-[12px] font-medium transition-colors",
-                                activeTab === t.id ? "bg-surface text-ink shadow-sm" : "text-ink-3 hover:text-ink",
+                                "h-7 rounded-md px-2.5 text-[12px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                                activeTab === t.id ? "bg-surface text-ink shadow-xs ring-1 ring-line-subtle" : "text-ink-3 hover:text-ink",
                             )}
                         >
                             {t.label}
@@ -212,8 +219,8 @@ export function ScriptCompanionContent({
                     ))}
                 </div>
                 {companionData?.campaignName && (
-                    <p className="ml-auto truncate text-[12px] text-ink-3">
-                        Campagne · <span className="font-medium text-ink-2">{companionData.campaignName}</span>
+                    <p className="ml-auto min-w-0 truncate text-[12px] text-ink-4" title={`Campagne ${companionData.campaignName}`}>
+                        {companionData.campaignName}
                     </p>
                 )}
             </div>
@@ -233,23 +240,17 @@ export function ScriptCompanionContent({
             {!campaignsLoading && campaigns.length > 0 && companionData && (
                 <div key={activeTab} className="cp-rise">
                     {activeTab === "base" ? (
-                        <div className="text-[14px] leading-7">
-                            <StrategyArtifactViewer type="script" content={companionData.baseScript} emptyText="Aucun script de base configuré sur cette campagne." />
-                        </div>
+                        <ScriptReader content={companionData.baseScript} vars={vars} stickyTop={inPane ? 45 : 0} emptyText="Aucun script de base configuré sur cette campagne." />
                     ) : activeTab === "ai" ? (
-                        companionData.aiShared ? (
-                            <div className="space-y-2">
-                                {companionData.aiGeneratedAt && (
-                                    <p className="text-[11px] text-ink-3">
-                                        {companionData.aiGeneratedFrom ? `${companionData.aiGeneratedFrom} · ` : ""}
-                                        {new Date(companionData.aiGeneratedAt).toLocaleDateString("fr-FR")}
-                                    </p>
-                                )}
-                                <p className="whitespace-pre-wrap text-[14px] leading-7 text-ink-2">{companionData.aiShared}</p>
-                            </div>
-                        ) : (
-                            <p className="text-[13px] text-ink-3">Aucun script IA disponible pour cette campagne.</p>
-                        )
+                        <div className="space-y-3">
+                            {companionData.aiShared && companionData.aiGeneratedAt && (
+                                <p className="text-[11.5px] text-ink-4">
+                                    Généré{companionData.aiGeneratedFrom ? ` depuis ${companionData.aiGeneratedFrom}` : ""} le{" "}
+                                    {new Date(companionData.aiGeneratedAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+                                </p>
+                            )}
+                            <ScriptReader content={companionData.aiShared} vars={vars} stickyTop={inPane ? 45 : 0} emptyText="Aucune version IA pour cette campagne." />
+                        </div>
                     ) : (
                         <div className="space-y-2.5">
                             <textarea
@@ -257,10 +258,10 @@ export function ScriptCompanionContent({
                                 onChange={(e) => setAdditionalDraft(e.target.value)}
                                 rows={14}
                                 placeholder="Ajoutez votre script additionnel ici…"
-                                className="w-full rounded-control border border-line bg-surface-2/50 px-3 py-2.5 text-[13px] leading-relaxed text-ink placeholder:text-ink-4 focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-focus"
+                                className="w-full resize-y rounded-lg border border-line bg-surface px-3 py-2.5 text-[13px] leading-relaxed text-ink placeholder:text-ink-4 focus:border-primary-400 focus:outline-none focus:ring-4 focus:ring-primary-500/10"
                             />
-                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-ink-3">
-                                <span>{hasUnsavedChanges ? "Modifications non sauvegardées" : "Brouillon à jour"}</span>
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-ink-4">
+                                <span className={cn(hasUnsavedChanges && "text-warning-ink")}>{hasUnsavedChanges ? "Modifications non sauvegardées" : "Brouillon à jour"}</span>
                                 {companionData.sharedUpdatedAt && (
                                     <span>
                                         Partagé le {new Date(companionData.sharedUpdatedAt).toLocaleString("fr-FR")}

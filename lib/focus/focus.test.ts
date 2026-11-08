@@ -4,7 +4,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { callbackPresets, connectRate, dispositionKeys, parseLocalCallback } from "./focus";
+import { callbackPresets, connectRate, dispositionKeys, parseLocalCallback, queueSummary } from "./focus";
 
 const paris = (iso: string) => new Date(iso); // instants given with explicit offsets below
 
@@ -54,4 +54,23 @@ test("dispositions are ordered and the first nine get keys 1–9", () => {
 test("connect rate is null before the first dial", () => {
     assert.equal(connectRate({ dials: 0, connected: 0, saved: 0, meetings: 0, skipped: 0 }), null);
     assert.equal(connectRate({ dials: 3, connected: 1, saved: 0, meetings: 0, skipped: 0 }), 33);
+});
+
+test("queue summary for the launch screen", () => {
+    const now = new Date(2026, 10, 12, 10, 0);
+    const at = (d: number, h: number) => new Date(2026, 10, d, h).toISOString();
+    const s = queueSummary(
+        [
+            { priority: "ABSENT_RDV" },
+            { priority: "CALLBACK", lastAction: { callbackDate: at(11, 9) } },
+            { priority: "CALLBACK", lastAction: { callbackDate: at(12, 18) } },
+            { priority: "CALLBACK", lastAction: { callbackDate: at(13, 9) } },
+            { priority: "NEW" },
+            { priority: "NEW" },
+            { priority: "RETRY" },
+            { priority: "FOLLOW_UP" },
+        ],
+        now,
+    );
+    assert.deepEqual(s, { total: 8, absent: 1, callbacksDue: 2, callbacksLater: 1, fresh: 2, retries: 2 });
 });

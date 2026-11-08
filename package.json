@@ -49,7 +49,7 @@
     "test:billing-schedule": "tsx --test lib/billing/cycle-schedule.test.ts",
     "test:meeting-feedback-reminder": "tsx --test lib/meetings/feedbackReminder.test.ts",
     "test:prospect-submissions": "tsx --test lib/prospect-submissions/matching.test.ts",
-    "test:sdr-queue": "tsx --test lib/sdr-queue/last-action.test.ts lib/sdr-queue/shared-phone.test.ts",
+    "test:sdr-queue": "tsx --test lib/sdr-queue/last-action.test.ts lib/sdr-queue/shared-phone.test.ts lib/sdr-queue/display.test.ts lib/sdr-queue/script-fill.test.ts",
     "test:sdr-pace": "tsx --test lib/sdr-pace/pace.test.ts",
     "test:sdr-daily-report": "tsx --test lib/sdr-daily-report/report.test.ts",
     "test:manager-home": "tsx --test lib/manager-home/rules.test.ts lib/manager-home/today-rules.test.ts",

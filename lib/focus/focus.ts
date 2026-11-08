@@ -94,3 +94,40 @@ export function isTypingTarget(el: EventTarget | null): boolean {
     if (!node || typeof node.tagName !== "string") return false;
     return node.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(node.tagName);
 }
+
+// ── launch screen ──────────────────────────────────────────────────────────
+
+export interface QueueRowSummaryLike {
+    priority: string;
+    lastAction?: { callbackDate?: string | null } | null;
+}
+
+export interface QueueSummary {
+    total: number;
+    /** Prospects who missed their meeting: to call back first. */
+    absent: number;
+    /** Callbacks planned for today or already late. */
+    callbacksDue: number;
+    /** Callbacks planned later (they come up on their day). */
+    callbacksLater: number;
+    /** Never contacted. */
+    fresh: number;
+    /** Follow-ups and new attempts. */
+    retries: number;
+}
+
+/** What a session on this mission's queue holds, by the queue's own priorities. */
+export function queueSummary(rows: QueueRowSummaryLike[], now: Date = new Date()): QueueSummary {
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    const s: QueueSummary = { total: rows.length, absent: 0, callbacksDue: 0, callbacksLater: 0, fresh: 0, retries: 0 };
+    for (const r of rows) {
+        if (r.priority === "ABSENT_RDV") s.absent++;
+        else if (r.priority === "CALLBACK") {
+            const at = r.lastAction?.callbackDate ? new Date(r.lastAction.callbackDate).getTime() : NaN;
+            if (Number.isFinite(at) && at >= endOfDay) s.callbacksLater++;
+            else s.callbacksDue++;
+        } else if (r.priority === "NEW") s.fresh++;
+        else s.retries++;
+    }
+    return s;
+}

@@ -205,12 +205,14 @@ export function Drawer({
     // doesn't also close the detail drawer it was opened from.
     const handleKeyDown = useCallback(
         (e: KeyboardEvent) => {
+            // A docked pane leaves Esc to a dialog opened above it (help sheet, confirm…).
+            if (docked && document.querySelector('[aria-modal="true"]')) return;
             if (e.key === "Escape" && !e.defaultPrevented && closeOnEscape && openDrawers[openDrawers.length - 1] === stackId) {
                 e.preventDefault();
                 onClose();
             }
         },
-        [closeOnEscape, onClose, stackId]
+        [closeOnEscape, onClose, stackId, docked]
     );
 
     // Non-modal companions also own Escape when they are on top of the stack.
