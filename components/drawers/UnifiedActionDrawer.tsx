@@ -94,6 +94,8 @@ import { ActivityTimeline, actionsToEvents } from "@/components/sdr/workspace/Ac
 import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
 import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
 import { SmsThread } from "@/components/messaging/SmsThread";
+import { ResultPicker } from "./ResultPicker";
+import { ProspectCallStrip } from "./ProspectCallStrip";
 
 
 // ============================================
@@ -692,6 +694,7 @@ export function UnifiedActionDrawer({
         statuses: Array<{
             code: string;
             label: string;
+            color?: string | null;
             requiresNote: boolean;
             triggersCallback?: boolean;
             triggersExclusion?: boolean;
@@ -1083,7 +1086,7 @@ export function UnifiedActionDrawer({
         );
     }, [statusLabels]);
 
-    const { dial: softphoneDial, call: softphoneCall } = useSoftphone();
+    const { dial: softphoneDial, call: softphoneCall, hangup: softphoneHangup, enabled: softphoneEnabled } = useSoftphone();
 
     // Docked pane tabs. A new prospect opens on « Appel »; a call to this
     // prospect brings up the script while talking, and the result once it ends.
@@ -1234,9 +1237,9 @@ export function UnifiedActionDrawer({
             case "DISQUALIFIED": return "Pourquoi ce contact est-il disqualifié ?";
             case "MEETING_BOOKED": return "Détails du rendez-vous planifié...";
             case "ENVOIE_MAIL": return "Objet et résumé de l'email envoyé...";
-            default: return "Ajouter une note optionnelle...";
+            default: return textFieldRequiredForResult ? "Note requise pour ce résultat : ce qu'il faut retenir…" : "Ajouter une note optionnelle...";
         }
-    }, [newActionResult]);
+    }, [newActionResult, textFieldRequiredForResult]);
 
     // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -1720,17 +1723,16 @@ export function UnifiedActionDrawer({
     const ficheSections = (
         <>
             {company && inPane("fiche") && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact={["BAD_CONTACT","MAUVAIS_INTERLOCUTEUR"].includes(newActionResult)} onSelect={onContactSelect} />}
-            {/* ── Quick Action Bar ── */}
-            <section
-                aria-label="Actions rapides"
-                className={cn("flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60", docked && "rounded-xl p-2", !inPane("appel") && "hidden")}
-                style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
-            >
-                {primaryPhone && (
-                    <button
-                        type="button"
-                        aria-label={`Appeler ${primaryPhone.number}`}
-                        onClick={() => {
+            {/* ── Quick Action Bar ── (docked: one compact call strip) */}
+            {docked ? (
+                inPane("appel") && (
+                    <ProspectCallStrip
+                        phone={primaryPhone?.number ?? null}
+                        phoneKind={primaryPhone?.label === "Société" ? "Standard" : "Direct"}
+                        live={callHere === "live"}
+                        onHangup={softphoneHangup}
+                        onCall={() => {
+                            if (!primaryPhone) return;
                             const handled = softphoneDial({
                                 phone: primaryPhone.number,
                                 contactId: primaryPhone.label === "Société" ? null : contactId,
@@ -1741,54 +1743,81 @@ export function UnifiedActionDrawer({
                             });
                             if (!handled) window.open(`tel:${primaryPhone.number}`, "_self");
                         }}
-                        className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
-                    >
-                        <PhoneCall className="w-4 h-4" aria-hidden="true" />
-                        <span>Appeler</span>
-                        {primaryPhone.label === "Société" && (
-                            <span className="text-xs opacity-75 font-normal">
-                                (société)
-                            </span>
-                        )}
-                    </button>
-                )}
+                        email={primaryEmail}
+                        linkedin={contact?.linkedin ?? null}
+                        website={company?.website ?? null}
+                    />
+                )
+            ) : (
+                <section
+                    aria-label="Actions rapides"
+                    className={cn("flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60", docked && "rounded-xl p-2", !inPane("appel") && "hidden")}
+                    style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+                >
+                    {primaryPhone && (
+                        <button
+                            type="button"
+                            aria-label={`Appeler ${primaryPhone.number}`}
+                            onClick={() => {
+                                const handled = softphoneDial({
+                                    phone: primaryPhone.number,
+                                    contactId: primaryPhone.label === "Société" ? null : contactId,
+                                    companyId,
+                                    campaignId: campaigns[0]?.id ?? null,
+                                    label: displayName,
+                                    sublabel: company?.name && company.name !== displayName ? company.name : null,
+                                });
+                                if (!handled) window.open(`tel:${primaryPhone.number}`, "_self");
+                            }}
+                            className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                        >
+                            <PhoneCall className="w-4 h-4" aria-hidden="true" />
+                            <span>Appeler</span>
+                            {primaryPhone.label === "Société" && (
+                                <span className="text-xs opacity-75 font-normal">
+                                    (société)
+                                </span>
+                            )}
+                        </button>
+                    )}
 
-                {primaryEmail && (
-                    <a
-                        href={`mailto:${primaryEmail}`}
-                        aria-label={`Envoyer un email à ${primaryEmail}`}
-                        className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:scale-[0.98]"
-                    >
-                        <Send className="w-4 h-4" aria-hidden="true" />
-                        Email
-                    </a>
-                )}
+                    {primaryEmail && (
+                        <a
+                            href={`mailto:${primaryEmail}`}
+                            aria-label={`Envoyer un email à ${primaryEmail}`}
+                            className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                        >
+                            <Send className="w-4 h-4" aria-hidden="true" />
+                            Email
+                        </a>
+                    )}
 
-                {(contact?.linkedin || company?.website) && (
-                    <a
-                        href={
-                            contact?.linkedin
-                                ? contact.linkedin.startsWith("http")
-                                    ? contact.linkedin
-                                    : `https://${contact.linkedin}`
-                                : company?.website?.startsWith("http")
-                                    ? company.website
-                                    : `https://${company?.website}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={contact?.linkedin ? "Ouvrir le profil LinkedIn" : "Ouvrir le site web"}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98]"
-                    >
-                        {contact?.linkedin ? (
-                            <Linkedin className="w-4 h-4 text-blue-600" aria-hidden="true" />
-                        ) : (
-                            <Globe className="w-4 h-4 text-slate-500" aria-hidden="true" />
-                        )}
-                        {contact?.linkedin ? "LinkedIn" : "Site web"}
-                    </a>
-                )}
-            </section>
+                    {(contact?.linkedin || company?.website) && (
+                        <a
+                            href={
+                                contact?.linkedin
+                                    ? contact.linkedin.startsWith("http")
+                                        ? contact.linkedin
+                                        : `https://${contact.linkedin}`
+                                    : company?.website?.startsWith("http")
+                                        ? company.website
+                                        : `https://${company?.website}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={contact?.linkedin ? "Ouvrir le profil LinkedIn" : "Ouvrir le site web"}
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98]"
+                        >
+                            {contact?.linkedin ? (
+                                <Linkedin className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                            ) : (
+                                <Globe className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                            )}
+                            {contact?.linkedin ? "LinkedIn" : "Site web"}
+                        </a>
+                    )}
+                </section>
+            )}
 
             {/* ── Tab Navigation ── */}
             {contact && (
@@ -3357,7 +3386,7 @@ export function UnifiedActionDrawer({
                         )}
                         style={{ animation: "uadSectionIn 250ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     >
-                        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-primary-100 bg-primary-50/50">
+                        <div className={cn("flex items-center gap-3 px-4 py-3.5 border-b border-primary-100 bg-primary-50/50", docked && "hidden")}>
                             <div
                                 className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center shadow-sm"
                                 aria-hidden="true"
@@ -3385,75 +3414,96 @@ export function UnifiedActionDrawer({
                                 </p>
                             ) : (
                                 <div className="space-y-4">
-                                    {/* Outcome chips */}
-                                    <fieldset>
-                                        <legend className="text-xs font-bold text-slate-700 mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
-                                            Résultat <span className="text-red-500" aria-hidden="true">*</span>
-                                            <span className="sr-only">(obligatoire)</span>
-                                        </legend>
-                                        <div
-                                            className="flex flex-wrap gap-2"
-                                            role="radiogroup"
-                                            aria-label="Sélectionnez le résultat de l'action"
-                                            aria-required="true"
-                                        >
-                                            {statusOptions.map((opt) => {
-                                                const cfg =
-                                                    RESULT_CHIP_CONFIG[opt.value] ||
-                                                    RESULT_CHIP_CONFIG.NO_RESPONSE;
-                                                const Icon = cfg.icon;
-                                                const isSelected = newActionResult === opt.value;
-                                                const chipButton = (
-                                                    <button
-                                                        key={opt.value}
-                                                        type="button"
-                                                        role="radio"
-                                                        aria-checked={isSelected}
-                                                        onClick={() => {
-                                                            setNewActionResult(opt.value);
-                                                        }}
-                                                        className={cn(
-                                                            "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
-                                                            isSelected
-                                                                ? cn(
-                                                                    cfg.selectedBg,
-                                                                    cfg.selectedText,
-                                                                    cfg.selectedBorder,
-                                                                    "ring-1 shadow-sm scale-[1.02]",
-                                                                    `focus-visible:ring-${cfg.dot.replace("bg-", "")}`
-                                                                )
-                                                                : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm active:scale-[0.98]"
-                                                        )}
-                                                    >
-                                                        <Icon
-                                                            className={cn("w-3.5 h-3.5 shrink-0", isSelected ? cfg.selectedText : "text-slate-400")}
-                                                            aria-hidden="true"
-                                                        />
-                                                        {opt.label}
-                                                    </button>
-                                                );
-                                                if (!opt.title) return chipButton;
-                                                return (
-                                                    <Tooltip
-                                                        key={`${opt.value}-tooltip`}
-                                                        position="top"
-                                                        maxWidth="max-w-sm"
-                                                        content={
-                                                            <div className="space-y-1">
-                                                                {opt.title.split("\n").map((line, idx) => (
-                                                                    <p key={`${opt.value}-${idx}`} className="text-xs leading-relaxed">
-                                                                        {line}
-                                                                    </p>
-                                                                ))}
-                                                            </div>
-                                                        }
-                                                    >
-                                                        {chipButton}
-                                                    </Tooltip>
-                                                );
-                                            })}
+                                    {/* Outcome: docked → the 6 most-used first, keys 1–6 */}
+                                    {docked ? (
+                                        <div>
+                                            <p className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+                                                <span>
+                                                    Résultat <span className="text-danger" aria-hidden="true">*</span>
+                                                </span>
+                                                {newActionResult && <span className="normal-case tracking-normal text-ink-2">{statusLabels[newActionResult] ?? newActionResult}</span>}
+                                            </p>
+                                            <ResultPicker
+                                                options={statusOptions}
+                                                value={newActionResult}
+                                                keys={paneTab === "appel"}
+                                                colorFor={(code) => statusConfig?.statuses?.find((st) => st.code === code)?.color ?? null}
+                                                onChange={(code) => {
+                                                    setNewActionResult(code);
+                                                    if (getRequiresNote(code)) setTimeout(() => noteRef.current?.focus(), 0);
+                                                }}
+                                            />
                                         </div>
-                                    </fieldset>
+                                    ) : (
+                                        <fieldset>
+                                            <legend className="text-xs font-bold text-slate-700 mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
+                                                Résultat <span className="text-red-500" aria-hidden="true">*</span>
+                                                <span className="sr-only">(obligatoire)</span>
+                                            </legend>
+                                            <div
+                                                className="flex flex-wrap gap-2"
+                                                role="radiogroup"
+                                                aria-label="Sélectionnez le résultat de l'action"
+                                                aria-required="true"
+                                            >
+                                                {statusOptions.map((opt) => {
+                                                    const cfg =
+                                                        RESULT_CHIP_CONFIG[opt.value] ||
+                                                        RESULT_CHIP_CONFIG.NO_RESPONSE;
+                                                    const Icon = cfg.icon;
+                                                    const isSelected = newActionResult === opt.value;
+                                                    const chipButton = (
+                                                        <button
+                                                            key={opt.value}
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={isSelected}
+                                                            onClick={() => {
+                                                                setNewActionResult(opt.value);
+                                                            }}
+                                                            className={cn(
+                                                                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+                                                                isSelected
+                                                                    ? cn(
+                                                                        cfg.selectedBg,
+                                                                        cfg.selectedText,
+                                                                        cfg.selectedBorder,
+                                                                        "ring-1 shadow-sm scale-[1.02]",
+                                                                        `focus-visible:ring-${cfg.dot.replace("bg-", "")}`
+                                                                    )
+                                                                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm active:scale-[0.98]"
+                                                            )}
+                                                        >
+                                                            <Icon
+                                                                className={cn("w-3.5 h-3.5 shrink-0", isSelected ? cfg.selectedText : "text-slate-400")}
+                                                                aria-hidden="true"
+                                                            />
+                                                            {opt.label}
+                                                        </button>
+                                                    );
+                                                    if (!opt.title) return chipButton;
+                                                    return (
+                                                        <Tooltip
+                                                            key={`${opt.value}-tooltip`}
+                                                            position="top"
+                                                            maxWidth="max-w-sm"
+                                                            content={
+                                                                <div className="space-y-1">
+                                                                    {opt.title.split("\n").map((line, idx) => (
+                                                                        <p key={`${opt.value}-${idx}`} className="text-xs leading-relaxed">
+                                                                            {line}
+                                                                        </p>
+                                                                    ))}
+                                                                </div>
+                                                            }
+                                                        >
+                                                            {chipButton}
+                                                        </Tooltip>
+                                                    );
+                                                })}
+                                            </div>
+                                        </fieldset>
+                                    )}
 
                                     {/* ── Inline email panel: mailbox + template picker ── */}
                                     {newActionResult === "ENVOIE_MAIL" && (
@@ -3812,7 +3862,8 @@ export function UnifiedActionDrawer({
                                                 )}
                                                 {summarizeNoteMutation.isPending ? "Résumé en cours…" : "Résumer avec l'IA"}
                                             </button>
-                                            {isCallCampaign && (
+                                            {/* Twilio links the call by itself: the Allo matcher is for Allo users only. */}
+                                            {isCallCampaign && !softphoneEnabled && (
                                                 <button
                                                     type="button"
                                                     onClick={openAlloDialog}
