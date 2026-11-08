@@ -7,6 +7,7 @@ import { BreakdownCharts } from "@/components/client/BreakdownCharts";
 import { LaunchWarmupScreen, type PortalLaunchMission } from "@/components/portal/LaunchWarmupScreen";
 import { DailyReportLauncher } from "@/components/client/DailyReportLauncher";
 import { ClientHomeSkeleton, ClientHomeView, type ClientHomeMeeting } from "@/components/accueil/ClientHomeView";
+import type { ClientTeamData } from "@/components/accueil/ClientMissionTeamCard";
 
 interface DashboardStats {
     totalActions: number;
@@ -53,6 +54,8 @@ export default function ClientPortal() {
     const [totalMeetingsCount, setTotalMeetingsCount] = useState<number>(0);
     const [callsCountForMonth, setCallsCountForMonth] = useState<number>(0);
     const [launchMissions, setLaunchMissions] = useState<PortalLaunchMission[]>([]);
+    const [team, setTeam] = useState<ClientTeamData | null>(null);
+    const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
     // Month selector for calls stats: 0 = current month, -1 = previous, etc.
     const [callsMonthOffset, setCallsMonthOffset] = useState(0);
 
@@ -79,22 +82,25 @@ export default function ClientPortal() {
             const callsStartStr = callsStart.toISOString().split("T")[0];
             const callsEndStr = callsEnd.toISOString().split("T")[0];
 
-            const [statsRes, missionsRes, meetingsRes, settingsRes, callsRes, launchRes] = await Promise.all([
+            const [statsRes, missionsRes, meetingsRes, settingsRes, callsRes, launchRes, teamRes] = await Promise.all([
                 fetch(`/api/stats?startDate=${startDate}&endDate=${endDate}`),
                 fetch("/api/missions?isActive=true"),
                 clientId ? fetch(`/api/clients/${clientId}/meetings`) : Promise.resolve(null),
                 fetch("/api/client/portal/settings"),
                 fetch(`/api/client/calls?startDate=${callsStartStr}&endDate=${callsEndStr}`),
                 fetch("/api/portal/launch-state", { cache: "no-store" }),
+                fetch("/api/client/team", { cache: "no-store" }),
             ]);
 
-            const [statsJson, missionsJson, meetingsJson, settingsJson, callsJson, launchJson] = await Promise.all([
+            const [statsJson, missionsJson, meetingsJson, settingsJson, callsJson, launchJson, teamJson] = await Promise.all([
                 statsRes.json(),
                 missionsRes.json(),
                 meetingsRes?.ok ? meetingsRes.json() : Promise.resolve(null),
                 settingsRes.json(),
                 callsRes.ok ? callsRes.json() : Promise.resolve({ success: false }),
                 launchRes.json(),
+                // The team card is an extra: if it fails, the rest of the home still loads.
+                teamRes.ok ? teamRes.json().catch(() => null) : Promise.resolve(null),
             ]);
 
             if (statsJson.success) setStats(statsJson.data);
@@ -132,8 +138,12 @@ export default function ClientPortal() {
             if (launchJson?.success) {
                 setLaunchMissions(launchJson.data?.missions ?? []);
             }
+            // On failure, show the card's empty state rather than a skeleton that never resolves.
+            setTeam(teamJson?.success ? teamJson.data : { missions: [], members: [], lastActivityAt: null, actionsLast7Days: 0 });
+            setUpdatedAt(new Date());
         } catch (error) {
             console.error("Failed to fetch data:", error);
+            setTeam((prev) => prev ?? { missions: [], members: [], lastActivityAt: null, actionsLast7Days: 0 });
             toast.error("Erreur de chargement", "Impossible de charger les données");
         } finally {
             setIsLoading(false);
@@ -179,6 +189,8 @@ export default function ClientPortal() {
                 showDatabase={!!portalSettings?.portalShowDatabase}
                 breakdown={<BreakdownCharts />}
                 upcomingMeetings={upcomingMeetings}
+                team={team}
+                updatedAt={updatedAt}
             />
 
             {/* Floating "rapport de la veille" — appears from 7:30 each morning. */}
