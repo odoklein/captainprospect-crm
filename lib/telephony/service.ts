@@ -74,7 +74,7 @@ export async function createOutboundCall(
 
     const callerId = callerIdFor(config, user.twilioCallerId);
     if (!callerId) {
-        throw new TelephonyError("Aucun numéro Twilio sortant : configurez TWILIO_CALLER_ID ou le numéro de l'utilisateur", 409);
+        throw new TelephonyError("Aucun numéro Twilio attribué à cet utilisateur (Paramètres → Téléphonie)", 409);
     }
 
     const check = checkDialNumber(input.to, { allowedCountries: config.allowedCountries });

@@ -76,9 +76,13 @@ export function getTwilioConfig(): TwilioConfig | null {
     };
 }
 
-/** The caller id for a user: their own Twilio number, else the workspace default. */
-export function callerIdFor(config: TwilioConfig, userCallerId: string | null | undefined): string | null {
-    return toE164(userCallerId) ?? config.defaultCallerId;
+/**
+ * The caller id for a user: the Twilio number assigned to them in
+ * Paramètres → Téléphonie. No number = no integrated phone for that user
+ * (their phone links keep opening Allo / tel:), so the rollout is per person.
+ */
+export function callerIdFor(_config: TwilioConfig, userCallerId: string | null | undefined): string | null {
+    return toE164(userCallerId);
 }
 
 /** Absolute URL Twilio must call back (webhooks are signed against it). */

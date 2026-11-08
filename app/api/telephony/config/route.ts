@@ -17,7 +17,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
 
     const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { twilioCallerId: true } });
     const callerId = callerIdFor(config, user?.twilioCallerId);
-    if (!callerId) return successResponse({ softphone: false, reason: "no_caller_id" as const });
+    // No number assigned to this user (Paramètres → Téléphonie): they keep Allo.
+    if (!callerId) return successResponse({ softphone: false, reason: "no_assigned_number" as const });
 
     return successResponse({
         softphone: true,

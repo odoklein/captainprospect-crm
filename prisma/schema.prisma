@@ -477,7 +477,7 @@ model User {
   // Profile (all roles)
   phone           String?
   alloPhoneNumber String?
-  twilioCallerId  String? // E.164 Twilio number shown to prospects; null = workspace default (TWILIO_CALLER_ID)
+  twilioCallerId  String? // E.164 Twilio number assigned in Paramètres → Téléphonie; null = no integrated phone (Allo)
   timezone        String? @default("Europe/Paris")
   preferences     Json? // notifications, appearance, workingHours
 

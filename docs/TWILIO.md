@@ -46,9 +46,12 @@ an arbitrary number.
 2. **CRM — Paramètres → Intégrations → Téléphonie** (or the container env):
    `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_API_KEY_SID`,
    `TWILIO_API_KEY_SECRET`, `TWILIO_TWIML_APP_SID`, `TWILIO_CALLER_ID` (default `+33…`).
-3. **Per user (optional)** — Utilisateurs → fiche → « Numéro Twilio sortant ».
-   Empty = the default number. One number per SDR avoids the shared line being
-   flagged as spam.
+3. **Per user — Paramètres → Téléphonie.** The page lists the numbers of the
+   Twilio account (bought there, or verified as Caller ID) and every person who
+   may call. Pick a number for a person: from their next page load they call
+   through Twilio with it; without a number they keep Allo (tel:). A number
+   belongs to one person at a time (giving it to someone else takes it from its
+   holder). `TWILIO_CALLER_ID` is no longer used as a shared fallback.
 4. `APP_URL` (or `NEXTAUTH_URL`) must be the public HTTPS URL: webhooks are
    signed against it.
 

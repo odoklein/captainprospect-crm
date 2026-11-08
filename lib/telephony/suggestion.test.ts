@@ -111,3 +111,11 @@ test("call model: DeepSeek's China-hosted API is refused for call data → OpenA
     assert.equal(alone.model, "deepseek-chat");
     assert.equal(alone.fallback, null, "no OpenAI key: no relay");
 });
+
+test("caller id: only the number assigned to the user, never a shared default", async () => {
+    const { callerIdFor } = await import("./config");
+    const config = { defaultCallerId: "+33423490783" } as Parameters<typeof callerIdFor>[0];
+    assert.equal(callerIdFor(config, "06 12 34 56 78"), "+33612345678");
+    assert.equal(callerIdFor(config, null), null, "no number → Allo, not the default");
+    assert.equal(callerIdFor(config, ""), null);
+});

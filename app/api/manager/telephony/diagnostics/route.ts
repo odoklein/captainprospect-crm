@@ -21,6 +21,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const ai = Boolean(integrationKey("OPENAI_API_KEY"));
     const whisper = Boolean(process.env.WHISPER_API_URL);
     const callModel = callModelChoice();
+    const assigned = await prisma.user.count({ where: { isActive: true, twilioCallerId: { not: null } } });
 
     const checks = [
         {
@@ -31,9 +32,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         },
         {
             id: "callerId",
-            label: "Numéro sortant",
-            ok: Boolean(config?.defaultCallerId),
-            detail: config?.defaultCallerId ?? "TWILIO_CALLER_ID absent ou invalide (les numéros personnels restent possibles)",
+            label: "Numéros attribués",
+            ok: assigned > 0,
+            detail: assigned
+                ? `${assigned} personne${assigned > 1 ? "s" : ""} avec un numéro Twilio (Paramètres → Téléphonie)`
+                : "Aucun numéro attribué : tout le monde appelle encore via Allo (Paramètres → Téléphonie)",
         },
         {
             id: "appUrl",

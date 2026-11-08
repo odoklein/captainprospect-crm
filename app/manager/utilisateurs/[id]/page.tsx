@@ -1090,7 +1090,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
                             <Field id="acc-allo" label="Numéro Allo">
                                 <input id="acc-allo" className={cn(FIELD, "tabular-nums")} value={formData.alloPhoneNumber} onChange={(e) => patch({ alloPhoneNumber: e.target.value })} placeholder="+33…" />
                             </Field>
-                            <Field id="acc-twilio" label={<>Numéro Twilio sortant <span className="font-normal text-ink-3">(vide = numéro par défaut)</span></>}>
+                            <Field id="acc-twilio" label={<>Numéro Twilio sortant <span className="font-normal text-ink-3">(vide = Allo · à choisir dans Paramètres → Téléphonie)</span></>}>
                                 <input id="acc-twilio" className={cn(FIELD, "tabular-nums")} value={formData.twilioCallerId} onChange={(e) => patch({ twilioCallerId: e.target.value })} placeholder="+33…" />
                             </Field>
                         </div>
