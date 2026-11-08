@@ -212,7 +212,7 @@ export async function getPrecallBrief(args: {
     } catch (err) {
         if (err instanceof AiCallError) {
             const reason =
-                err.code === "MISSING_KEY" ? "IA non configurée" : err.code === "QUOTA" ? "Crédits IA épuisés" : err.code === "TIMEOUT" ? "L'IA n'a pas répondu à temps" : "Brief indisponible";
+                err.code === "MISSING_KEY" ? err.message || "IA non configurée" : err.code === "QUOTA" ? "Crédits IA épuisés" : err.code === "TIMEOUT" ? "L'IA n'a pas répondu à temps" : "Brief indisponible";
             return { status: "unavailable", reason };
         }
         console.error("[sdr-assistant/brief] failed", err);

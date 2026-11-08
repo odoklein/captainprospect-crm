@@ -205,7 +205,8 @@ function friendly(err: unknown): string {
     if (err instanceof AiCallError) {
         switch (err.code) {
             case "MISSING_KEY":
-                return "IA non configurée (clé manquante)";
+                // Which key, or that the model may not see call data (DeepSeek hosted in China).
+                return err.message || "IA non configurée (clé manquante)";
             case "QUOTA":
                 return "Crédits IA épuisés";
             case "TIMEOUT":
