@@ -10,7 +10,7 @@
 
 import twilio from "twilio";
 import { prisma } from "@/lib/prisma";
-import type { TwilioConfig } from "./config";
+import { publicUrl, type TwilioConfig } from "./config";
 import { toE164 } from "./phone";
 import { TELEPHONY_ROLES } from "./roles";
 
@@ -20,6 +20,19 @@ export interface AccountNumber {
     source: "twilio" | "verified";
     /** False for a bought number without voice (SMS only): it cannot place calls. */
     voice: boolean;
+    /** Can send / receive SMS (French mobile numbers; landline numbers cannot). */
+    sms: boolean;
+    /** Calls to it reach the CRM (Voice URL = our inbound webhook). Only bought numbers can. */
+    inboundReady: boolean;
+    /** Twilio's id of a bought number (PN…), to configure it. */
+    sid: string | null;
+}
+
+/** Where Twilio must send calls to our numbers. */
+export function inboundUrls(): { voice: string; status: string } | null {
+    const voice = publicUrl("/api/webhooks/twilio/incoming?step=start");
+    const status = publicUrl("/api/webhooks/twilio/incoming?step=status");
+    return voice && status ? { voice, status } : null;
 }
 
 const CACHE_MS = 60_000;
@@ -36,13 +49,25 @@ export async function listAccountNumbers(config: TwilioConfig, opts: { fresh?: b
         client.outgoingCallerIds.list({ limit: 200 }),
     ]);
     const byNumber = new Map<string, AccountNumber>();
+    const urls = inboundUrls();
     for (const n of bought) {
         const number = toE164(n.phoneNumber);
-        if (number) byNumber.set(number, { number, label: n.friendlyName || null, source: "twilio", voice: n.capabilities?.voice !== false });
+        if (!number) continue;
+        byNumber.set(number, {
+            number,
+            label: n.friendlyName || null,
+            source: "twilio",
+            voice: n.capabilities?.voice !== false,
+            sms: n.capabilities?.sms === true,
+            inboundReady: Boolean(urls && n.voiceUrl === urls.voice),
+            sid: n.sid,
+        });
     }
     for (const n of verified) {
         const number = toE164(n.phoneNumber);
-        if (number && !byNumber.has(number)) byNumber.set(number, { number, label: n.friendlyName || null, source: "verified", voice: true });
+        if (number && !byNumber.has(number)) {
+            byNumber.set(number, { number, label: n.friendlyName || null, source: "verified", voice: true, sms: false, inboundReady: false, sid: null });
+        }
     }
     const numbers = [...byNumber.values()].sort((a, b) => a.number.localeCompare(b.number));
     cache = { key, at: Date.now(), numbers };
@@ -82,14 +107,14 @@ export async function assignNumber(
     config: TwilioConfig,
     userId: string,
     rawNumber: string | null,
-): Promise<{ previousHolder: { id: string; name: string } | null }> {
+): Promise<{ previousHolder: { id: string; name: string } | null; inbound: InboundSetup | null }> {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, isActive: true, role: true } });
     if (!user || !user.isActive || !(TELEPHONY_ROLES as readonly string[]).includes(user.role)) {
         throw new NumberAssignmentError("Utilisateur introuvable ou sans accès au téléphone", 404);
     }
     if (rawNumber === null) {
         await prisma.user.update({ where: { id: userId }, data: { twilioCallerId: null } });
-        return { previousHolder: null };
+        return { previousHolder: null, inbound: null };
     }
     const number = toE164(rawNumber);
     if (!number) throw new NumberAssignmentError("Numéro invalide");
@@ -105,5 +130,32 @@ export async function assignNumber(
         ...holders.map((h) => prisma.user.update({ where: { id: h.id }, data: { twilioCallerId: null } })),
         prisma.user.update({ where: { id: userId }, data: { twilioCallerId: number } }),
     ]);
-    return { previousHolder: holders[0] ? { id: holders[0].id, name: holders[0].name } : null };
+    // Calls back to this number now reach its holder's browser.
+    let inbound: InboundSetup = { ok: false, reason: "Numéro vérifié : les appels entrants restent sur votre opérateur" };
+    if (found.sid) inbound = await configureInbound(config, found.sid);
+    return { previousHolder: holders[0] ? { id: holders[0].id, name: holders[0].name } : null, inbound };
+}
+
+export type InboundSetup = { ok: true } | { ok: false; reason: string };
+
+/** Points a bought number's calls at the CRM (Voice URL + status callback). */
+export async function configureInbound(config: TwilioConfig, sid: string): Promise<InboundSetup> {
+    const urls = inboundUrls();
+    if (!urls || !urls.voice.startsWith("https://")) {
+        return { ok: false, reason: "URL publique (APP_URL) absente ou non HTTPS : Twilio ne peut pas joindre le CRM" };
+    }
+    try {
+        const client = twilio(config.apiKeySid, config.apiKeySecret, { accountSid: config.accountSid });
+        await client.incomingPhoneNumbers(sid).update({
+            voiceUrl: urls.voice,
+            voiceMethod: "POST",
+            statusCallback: urls.status,
+            statusCallbackMethod: "POST",
+        });
+        cache = null;
+        return { ok: true };
+    } catch (err) {
+        console.error("[telephony/numbers] configure inbound failed", err);
+        return { ok: false, reason: "Twilio a refusé la configuration du numéro" };
+    }
 }

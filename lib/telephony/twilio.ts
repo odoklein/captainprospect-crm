@@ -32,8 +32,8 @@ export function createVoiceToken(config: TwilioConfig, userId: string): { token:
         identity,
         ttl: TOKEN_TTL_SEC,
     });
-    // Outbound only: no incomingAllow, inbound calls stay on Allo for now.
-    token.addGrant(new AccessToken.VoiceGrant({ outgoingApplicationSid: config.twimlAppSid, incomingAllow: false }));
+    // incomingAllow: calls to the user's Twilio number ring in their browser (inbound webhook → <Client>).
+    token.addGrant(new AccessToken.VoiceGrant({ outgoingApplicationSid: config.twimlAppSid, incomingAllow: true }));
     return { token: token.toJwt(), identity, ttlSec: TOKEN_TTL_SEC };
 }
 
@@ -183,4 +183,88 @@ export function isTwilioRecordingUrl(url: URL, accountSid: string): boolean {
         url.hostname === "api.twilio.com" &&
         url.pathname.startsWith(`/2010-04-01/Accounts/${accountSid}/Recordings/RE`)
     );
+}
+
+// ── Inbound ─────────────────────────────────────────────────────────────────
+
+/**
+ * A prospect called a user's Twilio number: ring that user's browser
+ * (<Client>) for `ringSec`, with who is calling as parameters so the island
+ * can show it before answering. On this call the caller is the inbound track.
+ */
+export function inboundTwiml(params: {
+    identity: string;
+    ringSec: number;
+    record: boolean;
+    transcription?: { engine: string; model: string; language: string } | null;
+    parameters: Record<string, string>;
+    urls: { dialAction: string; legStatus: string; recording: string; transcription?: string };
+}): VoiceResponse {
+    const vr = new VoiceResponse();
+    if (params.record || params.transcription) {
+        vr.say({ language: "fr-FR" }, "Bonjour. Cet appel est susceptible d'être enregistré et transcrit.");
+    }
+    if (params.transcription && params.urls.transcription) {
+        vr.start().transcription({
+            name: "crm-live",
+            track: "both_tracks",
+            languageCode: params.transcription.language,
+            transcriptionEngine: params.transcription.engine,
+            speechModel: params.transcription.model,
+            partialResults: false,
+            enableAutomaticPunctuation: true,
+            inboundTrackLabel: "prospect",
+            outboundTrackLabel: "sdr",
+            statusCallbackUrl: params.urls.transcription,
+            statusCallbackMethod: "POST",
+        });
+    }
+    const dial = vr.dial({
+        timeout: params.ringSec,
+        timeLimit: MAX_CALL_SEC,
+        action: params.urls.dialAction,
+        method: "POST",
+        ...(params.record
+            ? {
+                  record: "record-from-answer-dual" as const,
+                  recordingStatusCallback: params.urls.recording,
+                  recordingStatusCallbackEvent: ["completed" as const],
+                  recordingStatusCallbackMethod: "POST",
+              }
+            : {}),
+    });
+    const client = dial.client({
+        statusCallback: params.urls.legStatus,
+        statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+        statusCallbackMethod: "POST",
+    });
+    client.identity(params.identity);
+    for (const [name, value] of Object.entries(params.parameters)) {
+        if (value) client.parameter({ name, value: value.slice(0, 200) });
+    }
+    return vr;
+}
+
+/** Nobody answered (or the user is unavailable): their greeting, then a message of up to 2 minutes. */
+export function voicemailTwiml(params: { greeting: string; recording: string; done: string }): VoiceResponse {
+    const vr = new VoiceResponse();
+    vr.say({ language: "fr-FR" }, params.greeting);
+    vr.record({
+        maxLength: 120,
+        timeout: 5,
+        playBeep: true,
+        finishOnKey: "#",
+        action: params.done,
+        method: "POST",
+        recordingStatusCallback: params.recording,
+        recordingStatusCallbackEvent: ["completed"],
+        recordingStatusCallbackMethod: "POST",
+    });
+    vr.say({ language: "fr-FR" }, "Merci, au revoir.");
+    vr.hangup();
+    return vr;
+}
+
+export function defaultGreeting(firstName: string | null, brand: string): string {
+    return `Bonjour, vous êtes bien chez ${firstName ? `${firstName}, de ` : ""}${brand}. Je ne suis pas disponible pour le moment : laissez-moi un message après le bip, je vous rappelle rapidement.`;
 }

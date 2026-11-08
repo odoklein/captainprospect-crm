@@ -3,7 +3,7 @@ import { z } from "zod";
 import { errorResponse, requireRole, successResponse, validateRequest, withErrorHandler } from "@/lib/api-utils";
 import { audit, AUDIT_ACTIONS } from "@/lib/audit";
 import { getTwilioConfig } from "@/lib/telephony/config";
-import { NumberAssignmentError, assignNumber, listAccountNumbers, listPhoneUsers } from "@/lib/telephony/numbers";
+import { NumberAssignmentError, assignNumber, configureInbound, listAccountNumbers, listPhoneUsers } from "@/lib/telephony/numbers";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,7 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
     const { userId, number } = await validateRequest(request, putSchema);
 
     try {
-        const { previousHolder } = await assignNumber(config, userId, number);
+        const { previousHolder, inbound } = await assignNumber(config, userId, number);
         const users = await listPhoneUsers();
         const user = users.find((u) => u.id === userId);
         audit(request, session, {
@@ -58,9 +58,20 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
                 : `Numéro Twilio retiré à ${user?.name ?? userId}`,
             after: { twilioCallerId: number },
         });
-        return successResponse({ users, previousHolder });
+        return successResponse({ users, previousHolder, inbound });
     } catch (err) {
         if (err instanceof NumberAssignmentError) return errorResponse(err.message, err.status);
         throw err;
     }
+});
+
+/** POST /api/manager/telephony/numbers — { sid }: point a bought number's calls at the CRM again. */
+export const POST = withErrorHandler(async (request: NextRequest) => {
+    await requireRole(["MANAGER"], request);
+    const config = getTwilioConfig();
+    if (!config) return errorResponse("Twilio n'est pas configuré (Paramètres → Intégrations)", 409);
+    const { sid } = await validateRequest(request, z.object({ sid: z.string().regex(/^PN[0-9a-f]{32}$/i) }));
+    const result = await configureInbound(config, sid);
+    if (!result.ok) return errorResponse(result.reason, 502);
+    return successResponse({ configured: true });
 });

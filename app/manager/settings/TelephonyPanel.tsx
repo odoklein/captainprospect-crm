@@ -11,7 +11,7 @@
 // ============================================
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Loader2, Phone, PhoneCall, RefreshCw, Users } from "lucide-react";
+import { Check, ExternalLink, Loader2, Minus, Phone, PhoneCall, PhoneIncoming, RefreshCw, Users } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { Shimmer, StatusPill } from "@/components/accueil/AccueilUI";
@@ -41,6 +41,7 @@ export function TelephonyPanel() {
     const [loadError, setLoadError] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [savingFor, setSavingFor] = useState<string | null>(null);
+    const [configuring, setConfiguring] = useState<string | null>(null);
 
     const load = useCallback(async (fresh = false) => {
         setRefreshing(true);
@@ -60,6 +61,20 @@ export function TelephonyPanel() {
     if (loadError) return <Notice tone="rose">{loadError}</Notice>;
     if (!data) return <Shimmer className="h-64 rounded-3xl" />;
 
+    const configure = async (n: AccountNumber) => {
+        if (!n.sid) return;
+        setConfiguring(n.number);
+        try {
+            await api("/api/manager/telephony/numbers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid: n.sid }) });
+            success("Appels entrants configurés", `Les appels vers ${formatPhone(n.number)} arrivent maintenant dans le CRM.`);
+            await load(true);
+        } catch (e) {
+            showError("Configuration impossible", e instanceof Error ? e.message : "Erreur");
+        } finally {
+            setConfiguring(null);
+        }
+    };
+
     const holderOf = new Map(data.users.filter((u) => u.number).map((u) => [u.number!, u]));
     const withNumber = data.users.filter((u) => u.number).length;
 
@@ -68,7 +83,7 @@ export function TelephonyPanel() {
         if (holder && holder.id !== user.id && !window.confirm(`${formatPhone(number!)} est utilisé par ${holder.name}. Le lui retirer et le donner à ${user.name} ?`)) return;
         setSavingFor(user.id);
         try {
-            const res = await api<{ users: PhoneUserRow[]; previousHolder: { name: string } | null }>("/api/manager/telephony/numbers", {
+            const res = await api<{ users: PhoneUserRow[]; previousHolder: { name: string } | null; inbound: { ok: boolean; reason?: string } | null }>("/api/manager/telephony/numbers", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId: user.id, number }),
@@ -77,9 +92,11 @@ export function TelephonyPanel() {
             success(
                 number ? "Numéro attribué" : "Numéro retiré",
                 number
-                    ? `${user.name} appelle avec ${formatPhone(number)} via Twilio.${res.previousHolder ? ` ${res.previousHolder.name} repasse sur Allo.` : ""}`
+                    ? `${user.name} appelle avec ${formatPhone(number)} via Twilio.${res.previousHolder ? ` ${res.previousHolder.name} repasse sur Allo.` : ""}${res.inbound?.ok ? " Les appels entrants sonnent dans son navigateur." : ""}`
                     : `${user.name} repasse sur Allo.`,
             );
+            if (res.inbound && !res.inbound.ok) showError("Appels entrants non configurés", res.inbound.reason ?? "");
+            if (res.inbound?.ok) void load(true);
         } catch (e) {
             showError("Attribution impossible", e instanceof Error ? e.message : "Erreur");
         } finally {
@@ -137,7 +154,26 @@ export function TelephonyPanel() {
                                         {n.source === "twilio" ? "Acheté sur Twilio" : "Vérifié (Caller ID)"}
                                     </span>
                                     {n.label && n.label !== n.number && <span className="truncate text-xs text-zinc-500">{n.label}</span>}
-                                    <span className="ml-auto">
+                                    <span className="ml-auto flex flex-wrap items-center gap-1.5">
+                                        <Capability on={n.voice} label="Appels sortants" />
+                                        {n.source === "twilio" &&
+                                            (n.inboundReady ? (
+                                                <Capability on label="Appels entrants" />
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void configure(n)}
+                                                    disabled={configuring === n.number}
+                                                    className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                                                    title="Faire arriver les appels vers ce numéro dans le CRM"
+                                                >
+                                                    {configuring === n.number ? <Loader2 className="h-3 w-3 animate-spin" /> : <PhoneIncoming className="h-3 w-3" />}
+                                                    Configurer les appels entrants
+                                                </button>
+                                            ))}
+                                        <Capability on={n.sms} label="SMS" />
+                                    </span>
+                                    <span>
                                         {!n.voice ? (
                                             <StatusPill tone="amber">Sans voix</StatusPill>
                                         ) : holder ? (
@@ -208,5 +244,21 @@ export function TelephonyPanel() {
                 )}
             </SettingsCard>
         </div>
+    );
+}
+
+/** What a number can do, at a glance: ✓ in colour, — when it cannot. */
+function Capability({ on, label }: { on: boolean; label: string }) {
+    return (
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
+                on ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-zinc-400",
+            )}
+            title={on ? `${label} : oui` : `${label} : non`}
+        >
+            {on ? <Check className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+            {label}
+        </span>
     );
 }

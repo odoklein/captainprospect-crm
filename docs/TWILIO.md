@@ -9,7 +9,7 @@ keeps opening `tel:` exactly as before.
 | Exists | Does not exist (on purpose) |
 | --- | --- |
 | Click a number (action queue, fiche, rappels, missed inbound call) → the call starts in the browser | No auto-dialer / power-dialer, no call queue |
-| Call bar: status, timer, mute, DTMF keypad (switchboards, IVR), hang up, redial | No inbound calls on Twilio (inbound stays on Allo + the incoming-call panel) |
+| Call bar: status, timer, mute, DTMF keypad (switchboards, IVR), hang up, redial | Inbound calls ring only the number's owner (no team hunt group yet) |
 | Twilio's real outcome after hang-up (Pas de réponse, Occupé, Terminé · 2 min 14) | No transcription of Twilio recordings yet |
 | The call attaches itself to the qualification the SDR saves next for that prospect: duration + recording (« Écouter ») | |
 | Optional recording, with a spoken notice to the prospect | |
@@ -232,3 +232,26 @@ Switching back to OpenAI = clearing that value or setting `gpt-4o`.
   gpt-4o utilisé : … »).
 - Audio transcription of recordings stays on Whisper / OpenAI: DeepSeek has no
   speech-to-text.
+
+## Inbound calls (prospects calling back)
+
+A prospect who calls an SDR's Twilio number rings **that SDR's browser** (the
+island: « Appel entrant », name and company from the CRM, Décrocher / Refuser,
+Entrée / Échap), 20 seconds, then **voicemail** with the SDR's greeting.
+
+- Setup is automatic: assigning a bought number in Paramètres → Téléphonie
+  points its Voice URL and status callback at
+  `/api/webhooks/twilio/incoming` (« Configurer les appels entrants » redoes it).
+  Verified Caller IDs (numbers not bought in Twilio) cannot receive calls here.
+- Each inbound call is a `TelephonyCall` with `direction = INBOUND` (recording,
+  transcript, AI summary, journals, post-call card: same as outbound; `toNumber`
+  is always the prospect) plus an `IncomingCall` row: the « Appels à traiter »
+  panel with the caller's fiche and the missed-call reminder.
+- Voicemail: recorded (2 min max), transcribed (Whisper / OpenAI), notified
+  (« Message vocal : … »). A missed call without a message notifies « Appel
+  manqué ». Journals show « Manqué » / « Message vocal ».
+- SDR preferences (Paramètres → Téléphone): receive calls on/off (off = straight
+  to voicemail, e.g. in a meeting), personal greeting (default: « Bonjour, vous
+  êtes bien chez {prénom}, de {marque}… »).
+- A call ringing in while the SDR is already on a call goes to voicemail.
+- Migration: `20261109100000_add_inbound_calls`.

@@ -41,6 +41,8 @@ export type CallSuggestion =
       };
 
 export interface SuggestionInput {
+    /** Inbound: the prospect called us. Missed, it is a call back to make, not an outcome to log. */
+    direction?: "OUTBOUND" | "INBOUND";
     status: TelephonyStatus;
     answeredAt: Date | null;
     startedAt: Date;
@@ -68,6 +70,10 @@ export function suggestCallResult(input: SuggestionInput): CallSuggestion {
     if (!input.campaignId) return { state: "none", reason: "Appel sans campagne : qualifiez-le depuis la fiche" };
 
     const byCode = new Map(input.statuses.map((s) => [s.code, s]));
+
+    if (input.direction === "INBOUND" && !input.answeredAt) {
+        return { state: "none", reason: "Appel entrant manqué : rappelez le prospect" };
+    }
 
     if (!input.answeredAt) {
         const nrp = NO_ANSWER_CODES.map((c) => byCode.get(c)).find(Boolean);

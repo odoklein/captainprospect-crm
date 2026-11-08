@@ -475,11 +475,13 @@ model User {
   selectedListId    String?
 
   // Profile (all roles)
-  phone           String?
-  alloPhoneNumber String?
-  twilioCallerId  String? // E.164 Twilio number assigned in Paramètres → Téléphonie; null = no integrated phone (Allo)
-  timezone        String? @default("Europe/Paris")
-  preferences     Json? // notifications, appearance, workingHours
+  phone              String?
+  alloPhoneNumber    String?
+  twilioCallerId     String? // E.164 Twilio number assigned in Paramètres → Téléphonie; null = no integrated phone (Allo)
+  twilioReceiveCalls Boolean @default(true) // inbound calls ring in the browser; false = straight to voicemail
+  voicemailGreeting  String? // spoken to callers when unavailable; null = default greeting
+  timezone           String? @default("Europe/Paris")
+  preferences        Json? // notifications, appearance, workingHours
 
   // Sign-in / connection tracking (for team performance)
   lastSignInAt      DateTime?
@@ -1318,6 +1320,11 @@ enum TelephonyCallStatus {
   CANCELED // the SDR hung up before the prospect answered
 }
 
+enum TelephonyDirection {
+  OUTBOUND // placed by the SDR from the browser
+  INBOUND // a prospect called the SDR's Twilio number
+}
+
 /// One row per outbound call placed from the browser softphone.
 /// The row is created first (POST /api/telephony/calls); the TwiML webhook only
 /// ever dials the number stored here, so the browser never chooses what Twilio
@@ -1326,10 +1333,11 @@ enum TelephonyCallStatus {
 /// contactId / companyId / campaignId are plain ids (no FK), like IncomingCall,
 /// so the call log survives a list being deleted or re-imported.
 model TelephonyCall {
-  id       String @id @default(cuid())
-  provider String @default("twilio")
-  sdrId    String
-  sdr      User   @relation("SdrTelephonyCalls", fields: [sdrId], references: [id], onDelete: Cascade)
+  id        String             @id @default(cuid())
+  provider  String             @default("twilio")
+  direction TelephonyDirection @default(OUTBOUND)
+  sdrId     String
+  sdr       User               @relation("SdrTelephonyCalls", fields: [sdrId], references: [id], onDelete: Cascade)
 
   toNumber   String // E.164, validated before the row is created
   fromNumber String // caller id presented to the prospect
@@ -1352,6 +1360,10 @@ model TelephonyCall {
   recordingSid         String?
   recordingUrl         String? // https://api.twilio.com/…/Recordings/RE….mp3 — streamed via /api/actions/[id]/recording
   recordingDurationSec Int?
+
+  // Inbound only: the caller left a message (recordingUrl is then the voicemail)
+  voicemail      Boolean @default(false)
+  incomingCallId String? @unique // the « Appels à traiter » row of this inbound call
 
   // AI summary built from the live transcript once the call ends (lib/telephony/summary)
   aiSummary       Json? // { summary, keyPoints[], objections[], nextSteps[] }
@@ -1501,12 +1513,12 @@ model ExclusionImport {
   duration String
   source   ExclusionSource
 
-  totalRows      Int
-  createdCount   Int @default(0)
+  totalRows        Int
+  createdCount     Int @default(0)
   /// Repeated in the file, or already covered by an active rule of the same scope.
-  duplicateCount Int @default(0)
+  duplicateCount   Int @default(0)
   /// No usable name, website or phone.
-  rejectedCount  Int @default(0)
+  rejectedCount    Int @default(0)
   appliedCompanies Int @default(0)
   appliedContacts  Int @default(0)
 
@@ -1766,13 +1778,13 @@ model Task {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // Unified task list: where the task belongs and where it came from
-  clientId     String?
-  client       Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  source       TaskSource       @default(MANUAL)
-  sourceRef    String? // free-form pointer back to the origin (e.g. "sessionTask:<id>")
-  sessionId    String?
-  session      ClientSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
-  audienceRole SessionTaskRole? // session to-dos addressed to a role rather than a person
+  clientId      String?
+  client        Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  source        TaskSource       @default(MANUAL)
+  sourceRef     String? // free-form pointer back to the origin (e.g. "sessionTask:<id>")
+  sessionId     String?
+  session       ClientSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  audienceRole  SessionTaskRole? // session to-dos addressed to a role rather than a person
   assigneeLabel String? // free-text owner when it isn't a CRM user (often someone on the client side)
 
   title       String
@@ -4609,22 +4621,22 @@ model AssistantConversation {
   createdBy   User   @relation("AssistantConversationAuthor", fields: [createdById], references: [id], onDelete: Cascade)
 
   /// Workspace folder (Captain AI v4). Null = agency view / not filed yet.
-  folderId String?
-  folder   AssistantFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  kind     AssistantConversationKind @default(CHAT)
+  folderId   String?
+  folder     AssistantFolder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  kind       AssistantConversationKind @default(CHAT)
   /// PRIVATE = owner only; SHARED = read-only for every active manager.
-  visibility AssistantVisibility @default(PRIVATE)
+  visibility AssistantVisibility       @default(PRIVATE)
   pinnedAt   DateTime?
 
-  title         String
-  summary       String?   @db.Text
+  title                String
+  summary              String?   @db.Text
   /// Rolling summary bookkeeping: last message folded into `summary` and its size.
   summaryUpToMessageId String?
   summaryTokens        Int?
   /// Set when a manager renamed the thread: the AI title job must not overwrite it.
   titleEditedAt        DateTime?
-  messageCount  Int       @default(0)
-  lastMessageAt DateTime?
+  messageCount         Int       @default(0)
+  lastMessageAt        DateTime?
 
   messages  AssistantMessage[]
   artifacts AssistantArtifact[]
@@ -4654,14 +4666,14 @@ model AssistantMessage {
   content String               @db.Text
 
   /// Which tools ran, ok/ko and timings. Shown as "N sources consultées".
-  trace  Json?
+  trace        Json?
   /// A proposed or executed action: { tool, args, card, state, outcome }.
   /// Never holds a secret — a revealed password goes server → UI only.
-  action Json?
+  action       Json?
   /// Files attached to a user message: [{ fileId, name, mimeType, size }].
-  attachments Json?
+  attachments  Json?
   /// Manager feedback on an answer: { rating: "up" | "down", comment?, at, by }.
-  feedback Json?
+  feedback     Json?
   /// Set when the message was edited or regenerated; the replacement is a newer row.
   supersededAt DateTime?
 
@@ -4772,30 +4784,30 @@ model AssistantRun {
   clientId  String?
   missionId String?
 
-  status           AssistantRunStatus @default(RUNNING)
-  model            String?
-  fallbackUsed     Boolean            @default(false)
-  promptTokens     Int                @default(0)
-  completionTokens Int                @default(0)
-  costEur          Float              @default(0)
-  latencyMs        Int?
-  firstTokenMs     Int?
-  iterations       Int                @default(0)
-  toolCalls        Int                @default(0)
-  retries          Int                @default(0)
+  status            AssistantRunStatus @default(RUNNING)
+  model             String?
+  fallbackUsed      Boolean            @default(false)
+  promptTokens      Int                @default(0)
+  completionTokens  Int                @default(0)
+  costEur           Float              @default(0)
+  latencyMs         Int?
+  firstTokenMs      Int?
+  iterations        Int                @default(0)
+  toolCalls         Int                @default(0)
+  retries           Int                @default(0)
   /// Part of promptTokens served from the provider's prompt cache (billed at the cached price).
-  cachedInputTokens Int               @default(0)
+  cachedInputTokens Int                @default(0)
   /// Part of completionTokens spent on hidden reasoning.
-  reasoningTokens  Int                @default(0)
+  reasoningTokens   Int                @default(0)
   /// Routing tier the turn ran at ("fast" | "standard" | "deep"), null before routing existed.
-  tier             String?
+  tier              String?
   /// Provider that answered ("openai" | "deepseek").
-  provider         String?
-  errorCode        String?
+  provider          String?
+  errorCode         String?
   /// { checked, verified, failed, repaired, skipped }
-  verification     Json?
+  verification      Json?
   /// The assistant message this run produced.
-  messageId        String?
+  messageId         String?
 
   evidence AssistantEvidence[]
 
@@ -4903,9 +4915,9 @@ model AssistantFolder {
   clientId String? @unique
   client   Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
-  name  String
-  color String?
-  icon  String?
+  name             String
+  color            String?
+  icon             String?
   /// Manager-written guidance injected into every turn of the folder (<= 600 tokens, enforced by the API).
   instructions     String? @db.Text
   /// Suggested first questions shown on the folder home: string[].
@@ -4938,27 +4950,27 @@ model AssistantMemory {
   scope AssistantMemoryScope
 
   /// FOLDER scope: the folder the fact belongs to.
-  folderId String?
-  folder   AssistantFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId  String?
+  folder    AssistantFolder? @relation(fields: [folderId], references: [id], onDelete: Cascade)
   /// USER scope: the manager the preference belongs to.
-  userId String?
-  user   User?   @relation("AssistantMemoryUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?            @relation("AssistantMemoryUser", fields: [userId], references: [id], onDelete: Cascade)
   /// Ranking bonus only: no relation, a deleted mission keeps the memory.
   missionId String?
 
-  kind    AssistantMemoryKind @default(FACT)
-  content String              @db.VarChar(600)
+  kind        AssistantMemoryKind @default(FACT)
+  content     String              @db.VarChar(600)
   /// "SCOPE:folderId|userId|" (lib/assistant/memory/normalize.ts).
-  scopeKey   String
+  scopeKey    String
   /// sha1 of the normalised content: the same fact is stored once per scope.
-  contentKey String
+  contentKey  String
   /// { conversationId, messageId, by: "model" | "user" }
-  source     Json?
-  confidence Float     @default(0.8)
-  pinned     Boolean   @default(false)
-  useCount   Int       @default(0)
-  lastUsedAt DateTime?
-  expiresAt  DateTime?
+  source      Json?
+  confidence  Float               @default(0.8)
+  pinned      Boolean             @default(false)
+  useCount    Int                 @default(0)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
   /// Soft delete = undo from the Mémoire tab.
   deletedAt   DateTime?
   createdById String?
@@ -4982,16 +4994,16 @@ model AssistantFileText {
   folderId String
   folder   AssistantFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
-  status     AssistantFileTextStatus @default(PENDING)
-  text       String?                 @db.Text
-  pages      Int?
-  chars      Int                     @default(0)
-  tokens     Int                     @default(0)
-  chunkCount Int                     @default(0)
+  status      AssistantFileTextStatus @default(PENDING)
+  text        String?                 @db.Text
+  pages       Int?
+  chars       Int                     @default(0)
+  tokens      Int                     @default(0)
+  chunkCount  Int                     @default(0)
   /// Which extractor produced the text (pdf-parse, mammoth, xlsx, ocr...).
   extractor   String?
   error       String?
-  attempts    Int       @default(0)
+  attempts    Int                     @default(0)
   extractedAt DateTime?
 
   chunks AssistantFileChunk[]
@@ -5009,16 +5021,16 @@ model AssistantFileChunk {
   fileTextId String
   fileText   AssistantFileText @relation(fields: [fileTextId], references: [id], onDelete: Cascade)
   /// Denormalised from the file text for folder-scoped search.
-  folderId String
-  fileId   String
+  folderId   String
+  fileId     String
 
   index   Int
   page    Int?
   heading String?
-  content String  @db.Text
-  tokens  Int     @default(0)
+  content String                   @db.Text
+  tokens  Int                      @default(0)
   /// Generated column: to_tsvector('french', content), GIN-indexed. Written by Postgres, never by Prisma.
-  tsv Unsupported("tsvector")?
+  tsv     Unsupported("tsvector")?
 
   @@unique([fileTextId, index])
   @@index([folderId])
@@ -5031,9 +5043,9 @@ model AssistantPin {
   folderId String
   folder   AssistantFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
 
-  title String
+  title    String
   /// The visual as rendered (StoredVisual, lib/assistant/visuals).
-  visual Json
+  visual   Json
   /// What produced it, for "Actualiser": { tool, args, sql? }.
   source   Json?
   question String?
@@ -5639,25 +5651,25 @@ model AgentRun {
   jobId String?
   job   AgentJob? @relation(fields: [jobId], references: [id], onDelete: SetNull)
 
-  kind     AgentJobKind
-  playbook String
-  trigger  AgentTrigger
-  status   AgentRunStatus @default(QUEUED)
-  priority Int            @default(0)
-  runAfter DateTime       @default(now())
+  kind      AgentJobKind
+  playbook  String
+  trigger   AgentTrigger
+  status    AgentRunStatus @default(QUEUED)
+  priority  Int            @default(0)
+  runAfter  DateTime       @default(now())
   /// "job:<id>:<ISO minute>" for scheduled runs: a tick never enqueues twice.
-  dedupeKey String? @unique
+  dedupeKey String?        @unique
 
-  folderId  String?
-  clientId  String?
-  missionId String?
+  folderId       String?
+  clientId       String?
+  missionId      String?
   /// The manager the run acts as (tools run under their permissions).
-  actorId   String
+  actorId        String
   /// The AGENT thread (AssistantConversation) the run writes to.
   conversationId String?
 
-  goal String? @db.Text
-  plan Json?
+  goal   String? @db.Text
+  plan   Json?
   /// { maxToolCalls, maxCostEur, deadlineMs, maxSafeWrites, maxPhases }
   budget Json
   /// { promptTokens, completionTokens, costEur, toolCalls, phases }
@@ -5670,12 +5682,12 @@ model AgentRun {
   error          String? @db.Text
 
   /// "worker" (second service) or "lite" (inside the web process, agent-tick).
-  mode        String    @default("worker")
-  lockedBy    String?
-  heartbeatAt DateTime?
-  attempts    Int       @default(0)
-  maxAttempts Int       @default(3)
-  checkpoint  Json?
+  mode              String    @default("worker")
+  lockedBy          String?
+  heartbeatAt       DateTime?
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(3)
+  checkpoint        Json?
   cancelRequestedAt DateTime?
 
   startedAt  DateTime?
@@ -5738,7 +5750,7 @@ model AgentProposal {
   args      Json
   /// PendingActionCard from the tool's describe(), resolved server-side.
   card      Json
-  rationale String? @db.Text
+  rationale String?            @db.Text
   /// confirm | safe_write
   risk      String
   state     AgentProposalState @default(PENDING)
@@ -5762,14 +5774,14 @@ model AgentFinding {
   runId String?
   run   AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
 
-  rule      String
+  rule        String
   /// "<rule>:<scope>:<key>" — unique across the agency.
-  dedupeKey String        @unique
-  severity  AgentSeverity
-  kind      String
-  title     String
-  body      String        @db.Text
-  metrics   Json?
+  dedupeKey   String        @unique
+  severity    AgentSeverity
+  kind        String
+  title       String
+  body        String        @db.Text
+  metrics     Json?
   evidenceIds Json?
 
   folderId      String?
@@ -5779,15 +5791,15 @@ model AgentFinding {
   /// Proposal seeds: [{ tool, args, rationale }]
   suggested     Json?
 
-  state       AgentFindingState @default(OPEN)
-  firstSeenAt DateTime          @default(now())
-  lastSeenAt  DateTime          @default(now())
-  seenCount   Int               @default(1)
-  notifiedAt  DateTime?
-  ackedById   String?
-  ackedAt     DateTime?
+  state        AgentFindingState @default(OPEN)
+  firstSeenAt  DateTime          @default(now())
+  lastSeenAt   DateTime          @default(now())
+  seenCount    Int               @default(1)
+  notifiedAt   DateTime?
+  ackedById    String?
+  ackedAt      DateTime?
   snoozedUntil DateTime?
-  resolvedAt  DateTime?
+  resolvedAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

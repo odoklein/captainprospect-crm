@@ -29,6 +29,10 @@ export interface JournalRow {
     hasSummary: boolean;
     note: string | null;
     source: CallSource;
+    /** The prospect called the SDR's Twilio number. */
+    inbound?: boolean;
+    /** Inbound and not answered: the caller left a message. */
+    voicemail?: boolean;
 }
 
 export interface JournalFacet {

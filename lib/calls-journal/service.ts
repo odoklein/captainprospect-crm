@@ -156,7 +156,7 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
     const telephony = rows.length
         ? await prisma.telephonyCall.findMany({
               where: { actionId: { in: rows.map((r) => r.id) } },
-              select: { actionId: true, status: true, durationSec: true, toNumber: true },
+              select: { actionId: true, status: true, durationSec: true, toNumber: true, direction: true, voicemail: true },
           })
         : [];
     const tByAction = new Map(telephony.map((t) => [t.actionId, t]));
@@ -182,6 +182,8 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
             hasSummary: Boolean(r.callSummary),
             note: r.note,
             source: callSource({ hasTelephonyCall: Boolean(t), hasRecording: Boolean(r.callRecordingUrl), enriched: Boolean(r.callEnrichmentAt) }),
+            inbound: t?.direction === "INBOUND",
+            voicemail: Boolean(t?.voicemail),
         };
     });
 
@@ -250,7 +252,7 @@ async function journalUnqualified(f: JournalFilters, range: PeriodRange, telepho
             take: f.limit,
             select: {
                 id: true, startedAt: true, toNumber: true, status: true, durationSec: true, recordingUrl: true,
-                contactId: true, companyId: true, campaignId: true,
+                contactId: true, companyId: true, campaignId: true, direction: true, voicemail: true,
                 sdr: { select: { id: true, name: true } },
             },
         }),
@@ -296,6 +298,8 @@ async function journalUnqualified(f: JournalFilters, range: PeriodRange, telepho
             hasSummary: false,
             note: null,
             source: "crm",
+            inbound: r.direction === "INBOUND",
+            voicemail: r.voicemail,
         };
     });
 

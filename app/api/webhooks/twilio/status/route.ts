@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { applyDialResult, applyLegStatus } from "@/lib/telephony/service";
+import { syncIncomingRow } from "@/lib/telephony/inbound";
 import { emptyTwiml, twiml } from "@/lib/telephony/twilio";
 import { gateTwilioWebhook } from "@/lib/telephony/webhook";
 
@@ -21,6 +22,8 @@ export async function POST(req: NextRequest) {
         try {
             if (leg === "dial") await applyDialResult(callId, params);
             else await applyLegStatus(callId, params);
+            // Inbound calls: « Appels à traiter » follows the browser leg (ringing → answered → done).
+            await syncIncomingRow(callId);
         } catch (error) {
             console.error(`[webhooks/twilio/status] leg=${leg} failed`, error);
             if (leg !== "dial") return new Response("handler failed", { status: 500 }); // Twilio retries

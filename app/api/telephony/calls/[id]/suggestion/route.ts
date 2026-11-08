@@ -23,7 +23,7 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: { p
     const call = await prisma.telephonyCall.findUnique({
         where: { id },
         select: {
-            id: true, sdrId: true, status: true, answeredAt: true, startedAt: true, endedAt: true, actionId: true,
+            id: true, sdrId: true, status: true, direction: true, answeredAt: true, startedAt: true, endedAt: true, actionId: true,
             campaignId: true, contactId: true, companyId: true,
             aiSummary: true, aiSummaryStatus: true, aiSummaryError: true, aiSummaryAt: true,
         },
@@ -34,6 +34,7 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: { p
         ? (await statusConfigService.getEffectiveStatusConfig({ campaignId: call.campaignId }).catch(() => ({ statuses: [] }))).statuses
         : [];
     const suggestion = suggestCallResult({
+        direction: call.direction,
         status: call.status as TelephonyStatus,
         answeredAt: call.answeredAt,
         startedAt: call.startedAt,

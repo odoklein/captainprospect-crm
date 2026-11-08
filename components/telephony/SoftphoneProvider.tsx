@@ -34,10 +34,13 @@ export interface DialTarget {
     showOutcome?: boolean;
 }
 
-export type CallPhase = "preparing" | "connecting" | "ringing" | "live" | "ended" | "failed";
+/** "incoming": a prospect is calling the user's Twilio number, ringing in the browser. */
+export type CallPhase = "preparing" | "connecting" | "ringing" | "incoming" | "live" | "ended" | "failed";
 
 export interface SoftphoneCall {
     key: number;
+    /** outbound: placed from the CRM; inbound: the prospect called the user's number. */
+    direction: "outbound" | "inbound";
     target: DialTarget;
     phase: CallPhase;
     callId: string | null;
@@ -61,6 +64,8 @@ interface SoftphoneConfig {
     edge?: string;
     recording?: boolean;
     transcription?: boolean;
+    /** Calls to the user's number ring in the browser (Paramètres → Téléphone). */
+    receiveCalls?: boolean;
 }
 
 interface SoftphoneContextValue {
@@ -75,6 +80,10 @@ interface SoftphoneContextValue {
     call: SoftphoneCall | null;
     dial: (target: DialTarget) => boolean;
     hangup: () => void;
+    /** Picks up the ringing inbound call. */
+    answer: () => void;
+    /** Sends the ringing inbound call to voicemail. */
+    decline: () => void;
     toggleMute: () => void;
     sendDigit: (digit: string) => void;
     dismiss: () => void;
@@ -146,7 +155,7 @@ export function useCallLevels(): CallLevels {
     );
 }
 
-const LIVE_PHASES = new Set<CallPhase>(["preparing", "connecting", "ringing", "live"]);
+const LIVE_PHASES = new Set<CallPhase>(["preparing", "connecting", "ringing", "incoming", "live"]);
 const AUTO_DISMISS_MS = 60_000;
 
 export function isCallActive(call: SoftphoneCall | null): boolean {
@@ -178,6 +187,9 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     const devicePromiseRef = useRef<Promise<Device> | null>(null);
     const lifetimeRef = useRef(0);
     const twilioCallRef = useRef<Call | null>(null);
+    /** Handles a call ringing in (set every render, read by the Device listener). */
+    const incomingRef = useRef<((incoming: Call) => void) | null>(null);
+    const ringNoticeRef = useRef<Notification | null>(null);
     /** Routes Device "error" events to the call being placed. */
     const deviceErrorRef = useRef<((e: { code?: number; message?: string }) => void) | null>(null);
     const keyRef = useRef(0);
@@ -245,6 +257,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         device.on("error", (e: { code?: number; message?: string }) => {
             deviceErrorRef.current?.(e);
         });
+        device.on("incoming", (incoming: Call) => incomingRef.current?.(incoming));
         deviceRef.current = device;
         return device;
         })();
@@ -367,6 +380,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         cancelledRef.current.clear();
         const next: SoftphoneCall = {
             key,
+            direction: "outbound",
             target,
             phase: "preparing",
             callId: null,
@@ -386,9 +400,134 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         return true;
     }, [enabled, start]);
 
+    const closeRingNotice = useCallback(() => {
+        ringNoticeRef.current?.close();
+        ringNoticeRef.current = null;
+    }, []);
+
+    // ── inbound ────────────────────────────────────────────────────────────
+    // A prospect calls the user's number: the webhook rings this browser with
+    // who is calling as parameters (lib/telephony/inbound). One call at a time:
+    // a call ringing in during another goes to voicemail.
+    useEffect(() => {
+        incomingRef.current = (incoming: Call) => {
+            if (isCallActive(callRef.current)) {
+                incoming.reject();
+                return;
+            }
+            const param = (name: string) => incoming.customParameters?.get(name) || null;
+            const key = ++keyRef.current;
+            cancelledRef.current.clear();
+            const callId = param("callId");
+            const target: DialTarget = {
+                phone: incoming.parameters?.From ?? "",
+                label: param("callerName"),
+                sublabel: param("companyName"),
+                contactId: param("contactId"),
+                companyId: param("companyId"),
+                campaignId: param("campaignId"),
+            };
+            const next: SoftphoneCall = {
+                key,
+                direction: "inbound",
+                target,
+                phase: "incoming",
+                callId,
+                startedAt: Date.now(),
+                answeredAt: null,
+                endedAt: null,
+                muted: false,
+                outcome: null,
+                durationSec: null,
+                error: null,
+                retryable: true,
+                pinned: false,
+            };
+            callRef.current = next;
+            setCall(next);
+            twilioCallRef.current = incoming;
+
+            // Another tab or app in front: a desktop notification brings the SDR back.
+            if (typeof document !== "undefined" && document.hidden && typeof Notification !== "undefined" && Notification.permission === "granted") {
+                const n = new Notification("Appel entrant", {
+                    body: [target.label, target.sublabel].filter(Boolean).join(" · ") || target.phone,
+                    tag: "cp-incoming-call",
+                    requireInteraction: true,
+                });
+                n.onclick = () => {
+                    window.focus();
+                    n.close();
+                };
+                ringNoticeRef.current = n;
+            }
+
+            const missed = () => {
+                if (key !== keyRef.current) return;
+                closeRingNotice();
+                twilioCallRef.current = null;
+                patch(key, (c) => (c.phase === "incoming" ? { phase: "ended", endedAt: Date.now(), outcome: "NO_ANSWER" } : {}));
+            };
+            incoming.on("accept", () => {
+                closeRingNotice();
+                patch(key, { phase: "live", answeredAt: Date.now() });
+            });
+            incoming.on("mute", (muted: boolean) => patch(key, { muted }));
+            incoming.on("volume", (input: number, output: number) => {
+                if (key === keyRef.current) pushLevels({ input, output });
+            });
+            incoming.on("cancel", missed); // the caller hung up, or the ring time ran out
+            incoming.on("reject", missed);
+            incoming.on("disconnect", () => finish(key, "ended", null, callId));
+            incoming.on("error", (e: { code?: number; message?: string }) => {
+                closeRingNotice();
+                finish(key, "failed", softphoneErrorMessage(e?.code, e?.message), callId);
+            });
+        };
+    });
+
+    // Registered while the user receives calls; re-registers after a Device was
+    // dropped (network error) or the token was refreshed into a new Device.
+    const receive = enabled && Boolean(config?.receiveCalls);
+    useEffect(() => {
+        if (!receive) return;
+        let stopped = false;
+        const ensure = () => {
+            if (stopped) return;
+            getDevice()
+                .then((device) => {
+                    if (!stopped && device.state === "unregistered") return device.register();
+                })
+                .catch(() => undefined);
+        };
+        ensure();
+        const t = setInterval(ensure, 30_000);
+        return () => {
+            stopped = true;
+            clearInterval(t);
+            const device = deviceRef.current;
+            if (device?.state === "registered") device.unregister().catch(() => undefined);
+        };
+    }, [receive, getDevice]);
+
+    const answer = useCallback(() => {
+        const current = callRef.current;
+        if (current?.phase !== "incoming") return;
+        twilioCallRef.current?.accept();
+    }, []);
+
+    const decline = useCallback(() => {
+        const current = callRef.current;
+        if (current?.phase !== "incoming") return;
+        twilioCallRef.current?.reject(); // → the caller hears the voicemail greeting
+    }, []);
+
     const hangup = useCallback(() => {
         const current = callRef.current;
         if (!current) return;
+        if (current.phase === "incoming") {
+            twilioCallRef.current?.reject();
+            return;
+        }
         if (!LIVE_PHASES.has(current.phase)) return;
         cancelledRef.current.add(current.key);
         const twilioCall = twilioCallRef.current;
@@ -459,12 +598,14 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             call,
             dial,
             hangup,
+            answer,
+            decline,
             toggleMute,
             sendDigit,
             dismiss,
             pin,
         }),
-        [enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, toggleMute, sendDigit, dismiss, pin],
+        [enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin],
     );
 
     return (
@@ -486,6 +627,8 @@ const DISABLED: SoftphoneContextValue = {
     call: null,
     dial: () => false,
     hangup: () => undefined,
+    answer: () => undefined,
+    decline: () => undefined,
     toggleMute: () => undefined,
     sendDigit: () => undefined,
     dismiss: () => undefined,

@@ -17,7 +17,7 @@
 // ============================================
 
 import { useEffect, useState } from "react";
-import { Grid3x3, Mic, MicOff, PhoneOff, Sparkles, X } from "lucide-react";
+import { Grid3x3, Mic, MicOff, Phone, PhoneIncoming, PhoneOff, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClock, formatDuration, formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { TELEPHONY_STATUS_LABELS } from "@/lib/telephony/status";
@@ -64,6 +64,7 @@ function liveText(call: SoftphoneCall, now: number): string {
 /** What happened, in words: Twilio's own outcome when it is known. */
 function outcomeText(call: SoftphoneCall): string {
     if (call.phase === "failed") return call.error ?? "Échec de l'appel";
+    if (call.direction === "inbound" && !call.answeredAt) return "Appel manqué · messagerie";
     if (call.outcome && call.outcome !== "COMPLETED") return TELEPHONY_STATUS_LABELS[call.outcome];
     const talk = call.durationSec ?? (call.answeredAt && call.endedAt ? Math.round((call.endedAt - call.answeredAt) / 1000) : null);
     if (call.answeredAt && talk != null) return `Terminé · ${formatDuration(talk)}`;
@@ -182,7 +183,7 @@ function IslandShell({
 }
 
 export function CallIsland({ extra }: { extra: IslandExtra | null }) {
-    const { call, insights, transcription, hangup, toggleMute, sendDigit, dismiss, dial, pin } = useSoftphone();
+    const { call, insights, transcription, hangup, answer, decline, toggleMute, sendDigit, dismiss, dial, pin } = useSoftphone();
     const active = isCallActive(call);
     const now = useNow(active);
     const [expanded, setExpanded] = useState(false);
@@ -213,6 +214,27 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
     useEffect(() => {
         if (ended && expanded) pin();
     }, [ended, expanded, pin]);
+
+    // Ringing: Entrée picks up, Échap sends to voicemail (never while typing).
+    const ringing = call?.phase === "incoming";
+    useEffect(() => {
+        if (!ringing) return;
+        const onKey = (e: KeyboardEvent) => {
+            const el = e.target as HTMLElement | null;
+            if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
+            if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                answer();
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                decline();
+            }
+        };
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
+    }, [ringing, answer, decline]);
 
     // Échap folds; digits feed DTMF while the keypad is open.
     useEffect(() => {
@@ -254,7 +276,10 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
     }
 
     const name = call.target.label?.trim() || formatPhone(call.target.phone);
-    const initials = name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+    // Only a person or company name makes initials; a bare number gets a handset.
+    const initials = call.target.label?.trim()
+        ? name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+        : null;
     const firstName = name.split(/\s+/)[0];
     const speaker = (l: { speaker: string }) => (l.speaker === "sdr" ? "Vous" : l.speaker === "mixed" ? "Conversation" : firstName);
 
@@ -295,7 +320,7 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                             open ? "bg-surface-3 text-ink-2" : failed ? "bg-red-500/20 text-red-300" : "bg-white/15 text-white/80",
                         )}
                     >
-                        {initials}
+                        {initials ?? <Phone className="h-3 w-3" aria-hidden />}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[13px]">
                         <span className="font-semibold">{name}</span>
@@ -346,6 +371,48 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
         );
     }
 
+    // ── Ringing in: who is calling, pick up or send to voicemail ─────────
+    if (call.phase === "incoming") {
+        const known = Boolean(call.target.label);
+        return (
+            <IslandShell dark width="w-[min(460px,calc(100vw-24px))]" radius="rounded-[30px]" label={`Appel entrant de ${name}`}>
+                <div className="flex items-center gap-3 py-2.5 pl-2.5 pr-2.5">
+                    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center" aria-hidden>
+                        <span className="cp-ring-wave absolute inset-0 rounded-full bg-emerald-400/50" />
+                        <span className="cp-ring-wave absolute inset-0 rounded-full bg-emerald-400/40 [animation-delay:600ms]" />
+                        <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500 text-[13px] font-bold text-white">
+                            {known ? initials : <PhoneIncoming className="h-4.5 w-4.5" />}
+                        </span>
+                    </span>
+                    <span className="min-w-0 flex-1">
+                        <span className="block text-[10.5px] font-semibold uppercase tracking-[0.12em] text-emerald-300">Appel entrant</span>
+                        <span className="block truncate text-[14.5px] font-semibold leading-tight">{name}</span>
+                        <span className="block truncate text-[12px] text-white/55">
+                            {call.target.sublabel ?? (known ? formatPhone(call.target.phone) : "Numéro inconnu du CRM")}
+                        </span>
+                    </span>
+                    <button
+                        type="button"
+                        onClick={decline}
+                        aria-label="Refuser : l'appelant tombe sur votre messagerie (Échap)"
+                        title="Refuser · messagerie (Échap)"
+                        className="cp-press relative z-20 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
+                    >
+                        <PhoneOff className="h-4.5 w-4.5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={answer}
+                        title="Décrocher (Entrée)"
+                        className="cp-press relative z-20 flex h-11 shrink-0 items-center gap-2 rounded-full bg-emerald-500 pl-3.5 pr-4 text-[13px] font-semibold text-white shadow-[0_8px_24px_-8px_rgb(16_185_129)] hover:bg-emerald-400"
+                    >
+                        <Phone className="cp-ring-wiggle h-4 w-4" /> Décrocher
+                    </button>
+                </div>
+            </IslandShell>
+        );
+    }
+
     // ── During the call ──────────────────────────────────────────────────
     const open = expanded;
     return (
@@ -365,7 +432,7 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                         live ? "bg-emerald-500/20 text-emerald-300" : "bg-white/15 text-white/80",
                     )}
                 >
-                    {initials}
+                    {initials ?? <Phone className="h-3 w-3" aria-hidden />}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{name}</span>
                 {call.muted && <MicOff className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Micro coupé" />}

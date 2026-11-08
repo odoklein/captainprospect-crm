@@ -119,3 +119,10 @@ test("caller id: only the number assigned to the user, never a shared default", 
     assert.equal(callerIdFor(config, null), null, "no number → Allo, not the default");
     assert.equal(callerIdFor(config, ""), null);
 });
+
+test("inbound: a missed call back is never logged as « pas de réponse »; an answered one gets the AI result", () => {
+    const missed = suggestCallResult({ ...base, direction: "INBOUND", status: "NO_ANSWER" });
+    assert.equal(missed.state, "none");
+    const answered = suggestCallResult({ ...base, direction: "INBOUND", status: "COMPLETED", answeredAt: at(3), summary: done("CALLBACK_REQUESTED", "2026-11-12T14:00") });
+    assert.ok(answered.state === "ready" && answered.source === "ai");
+});

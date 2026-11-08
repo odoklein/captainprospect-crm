@@ -15,7 +15,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const config = getTwilioConfig();
     if (!config) return successResponse({ softphone: false, reason: "not_configured" as const });
 
-    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { twilioCallerId: true } });
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { twilioCallerId: true, twilioReceiveCalls: true } });
     const callerId = callerIdFor(config, user?.twilioCallerId);
     // No number assigned to this user (Paramètres → Téléphonie): they keep Allo.
     if (!callerId) return successResponse({ softphone: false, reason: "no_assigned_number" as const });
@@ -27,5 +27,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         edge: config.edge,
         recording: config.record,
         transcription: Boolean(config.transcription),
+        receiveCalls: user?.twilioReceiveCalls ?? true,
     });
 });

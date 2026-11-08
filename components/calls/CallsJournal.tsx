@@ -11,7 +11,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Headphones, Mic, PhoneCall, RefreshCw, RotateCcw, Search, Sparkles, X } from "lucide-react";
+import { Headphones, Mic, PhoneCall, PhoneIncoming, RefreshCw, RotateCcw, Search, Sparkles, Voicemail, X } from "lucide-react";
 import { Kbd } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { activeFilterCount, journalQuery, parseJournalFilters, todayParis, type JournalFilters } from "@/lib/calls-journal/filters";
@@ -618,6 +618,11 @@ function Row({
             </td>
             <td className="max-w-[320px] px-3 py-2.5">
                 <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className="block w-full min-w-0 text-left" aria-label={`Ouvrir l’appel de ${who}`}><ProspectIdentity name={r.contact?.name} company={r.company?.name ?? who} role={r.contact?.title} website={r.company?.website} compact /></button>
+                {r.inbound && (
+                    <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-success-ink sm:pl-[47px]">
+                        <PhoneIncoming className="h-3 w-3" aria-hidden /> Appel entrant
+                    </p>
+                )}
                 {r.note && !unqualified && <p className="mt-1 truncate text-[11px] text-ink-3 sm:pl-[47px]">{r.note}</p>}
                 {onQualify && <button type="button" disabled={!r.company} onClick={(e) => { e.stopPropagation(); onQualify(); }} className="mt-1.5 rounded-control bg-primary px-2.5 py-1 text-[12px] font-semibold text-primary-fg disabled:opacity-40 sm:hidden">Qualifier</button>}
             </td>
@@ -626,9 +631,13 @@ function Row({
                     <StatusLabel label={r.status.label} color={r.status.color} />
                 ) : r.telephonyStatus ? (
                     // Past the grace period, a non-final status means Twilio's last callback never arrived.
-                    <span className={isFinalStatus(r.telephonyStatus) ? "text-ink-2" : "text-ink-3"}>
-                        {isFinalStatus(r.telephonyStatus) ? TELEPHONY_STATUS_LABELS[r.telephonyStatus] : "Issue inconnue"}
-                    </span>
+                    r.inbound && r.telephonyStatus !== "COMPLETED" ? (
+                        <span className={r.voicemail ? "font-medium text-warning-ink" : "text-danger-ink"}>{r.voicemail ? "Message vocal" : "Manqué"}</span>
+                    ) : (
+                        <span className={isFinalStatus(r.telephonyStatus) ? "text-ink-2" : "text-ink-3"}>
+                            {isFinalStatus(r.telephonyStatus) ? TELEPHONY_STATUS_LABELS[r.telephonyStatus] : "Issue inconnue"}
+                        </span>
+                    )
                 ) : (
                     <span className="text-ink-4">—</span>
                 )}
@@ -669,7 +678,11 @@ function Row({
                     )}
                     {r.source === "crm" && <PhoneCall className="h-3.5 w-3.5" aria-label="Téléphone intégré" />}
                     {r.hasSummary && <Sparkles className="h-3.5 w-3.5" aria-label="Résumé disponible" />}
-                    {r.hasRecording && <Mic className="h-3.5 w-3.5 text-ink-2" aria-label="Enregistrement" />}
+                    {r.voicemail ? (
+                        <Voicemail className="h-3.5 w-3.5 text-warning-ink" aria-label="Message vocal" />
+                    ) : (
+                        r.hasRecording && <Mic className="h-3.5 w-3.5 text-ink-2" aria-label="Enregistrement" />
+                    )}
                 </span>
             </td>
         </tr>
