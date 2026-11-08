@@ -255,3 +255,31 @@ Entrée / Échap), 20 seconds, then **voicemail** with the SDR's greeting.
   êtes bien chez {prénom}, de {marque}… »).
 - A call ringing in while the SDR is already on a call goes to voicemail.
 - Migration: `20261109100000_add_inbound_calls`.
+
+## SMS
+
+SDRs and managers text prospects **from the number assigned to them**; replies
+to that number come back to them.
+
+- **Where**: the « SMS » tab of the Appeler pane (conversation with the
+  prospect, any of their numbers on file, mobile first), and **Messages**
+  (`/sdr/messages`, `/manager/messages`): every conversation, unread first,
+  search, « Nouveau » to any number, « Appeler » from a conversation. Unread
+  replies show in the floating dock and as a notification.
+- **Composer**: live length — 160 characters per SMS (153 beyond), 70 / 67 as
+  soon as one character is outside GSM-7 (ê, ô, œ, emoji…), with which one;
+  quick templates with the prospect's first name; Ctrl/⌘ + Entrée sends.
+  Delivery ticks (en file / envoyé / délivré / non délivré + Twilio code).
+- **Signature**: Paramètres → Téléphone → « Mes SMS », appended on its own line.
+- **STOP**: a reply STOP / ARRÊT / STOP SMS / DÉSINSCRIRE… puts the number on
+  `SmsOptOut`; sending to it is refused and the conversation says so.
+- **Numbers**: French landlines (+33 1–5, 9) cannot send SMS — Paramètres →
+  Téléphonie shows each number's SMS capability, and the composer says so
+  before Twilio does. SMS needs a French **mobile** number (+33 6 / 7), sold by
+  Twilio with a regulatory bundle. Assigning an SMS-capable number also points
+  its SMS URL at `/api/webhooks/twilio/sms` (signed; `?step=status` = delivery
+  reports).
+- Code: `lib/messaging/` (`segments.ts` pure + tested, `sms.ts`),
+  `components/messaging/` (`SmsThread`, `SmsInbox`, `SmsDockItem`),
+  `app/api/messaging/{sms,threads}`. Migration `20261110100000_add_sms`.
+  Tests: `npm run test:messaging`.

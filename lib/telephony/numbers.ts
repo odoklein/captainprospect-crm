@@ -29,10 +29,11 @@ export interface AccountNumber {
 }
 
 /** Where Twilio must send calls to our numbers. */
-export function inboundUrls(): { voice: string; status: string } | null {
+export function inboundUrls(): { voice: string; status: string; sms: string } | null {
     const voice = publicUrl("/api/webhooks/twilio/incoming?step=start");
     const status = publicUrl("/api/webhooks/twilio/incoming?step=status");
-    return voice && status ? { voice, status } : null;
+    const sms = publicUrl("/api/webhooks/twilio/sms");
+    return voice && status && sms ? { voice, status, sms } : null;
 }
 
 const CACHE_MS = 60_000;
@@ -132,14 +133,14 @@ export async function assignNumber(
     ]);
     // Calls back to this number now reach its holder's browser.
     let inbound: InboundSetup = { ok: false, reason: "Numéro vérifié : les appels entrants restent sur votre opérateur" };
-    if (found.sid) inbound = await configureInbound(config, found.sid);
+    if (found.sid) inbound = await configureInbound(config, found.sid, { sms: found.sms });
     return { previousHolder: holders[0] ? { id: holders[0].id, name: holders[0].name } : null, inbound };
 }
 
 export type InboundSetup = { ok: true } | { ok: false; reason: string };
 
 /** Points a bought number's calls at the CRM (Voice URL + status callback). */
-export async function configureInbound(config: TwilioConfig, sid: string): Promise<InboundSetup> {
+export async function configureInbound(config: TwilioConfig, sid: string, opts: { sms?: boolean } = {}): Promise<InboundSetup> {
     const urls = inboundUrls();
     if (!urls || !urls.voice.startsWith("https://")) {
         return { ok: false, reason: "URL publique (APP_URL) absente ou non HTTPS : Twilio ne peut pas joindre le CRM" };
@@ -151,6 +152,8 @@ export async function configureInbound(config: TwilioConfig, sid: string): Promi
             voiceMethod: "POST",
             statusCallback: urls.status,
             statusCallbackMethod: "POST",
+            // Replies to this number's SMS come back to the CRM too.
+            ...(opts.sms ? { smsUrl: urls.sms, smsMethod: "POST" } : {}),
         });
         cache = null;
         return { ok: true };

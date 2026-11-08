@@ -47,6 +47,7 @@ import {
   ListChecks,
   Crosshair,
   Headphones,
+  MessageSquareText,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { AiMark } from "@/components/ui/AiMark";
@@ -115,6 +116,7 @@ export const MANAGER_NAV: NavSection[] = [
           { href: "/manager/lists/sourcing", icon: ScanSearch, label: "Sourcing", permission: "pages.prospects", description: "Trouver des sociétés sur Google Maps, le registre et Apollo" },
           { href: "/manager/prospection", icon: Phone, label: "Appels", permission: "pages.missions", description: "Activité d'appel des SDR, mission par mission" },
           { href: "/manager/appels", icon: Headphones, label: "Journal d'appels", permission: "pages.missions", description: "Chaque appel avec son statut, son enregistrement, sa transcription et son résumé IA" },
+          { href: "/manager/messages", icon: MessageSquareText, label: "Messages", permission: "pages.missions", description: "Vos SMS avec les prospects, depuis votre numéro Twilio" },
           { href: "/manager/exclusions", icon: Ban, label: "Blacklist", permission: "pages.prospects", description: "Sociétés et contacts à ne jamais rappeler" },
 
         ],
@@ -261,6 +263,12 @@ export const SDR_NAV: NavSection[] = [
         href: "/sdr/appels",
         icon: Headphones,
         label: "Mes appels",
+        permission: "pages.action",
+      },
+      {
+        href: "/sdr/messages",
+        icon: MessageSquareText,
+        label: "Messages",
         permission: "pages.action",
       },
       {

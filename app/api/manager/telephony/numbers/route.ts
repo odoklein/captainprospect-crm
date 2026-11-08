@@ -71,7 +71,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const config = getTwilioConfig();
     if (!config) return errorResponse("Twilio n'est pas configuré (Paramètres → Intégrations)", 409);
     const { sid } = await validateRequest(request, z.object({ sid: z.string().regex(/^PN[0-9a-f]{32}$/i) }));
-    const result = await configureInbound(config, sid);
+    const sms = (await listAccountNumbers(config).catch(() => [])).find((n) => n.sid === sid)?.sms ?? false;
+    const result = await configureInbound(config, sid, { sms });
     if (!result.ok) return errorResponse(result.reason, 502);
     return successResponse({ configured: true });
 });

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 async function view(userId: string) {
     const [user, brand] = await Promise.all([
-        prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, twilioCallerId: true, twilioReceiveCalls: true, voicemailGreeting: true } }),
+        prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, twilioCallerId: true, twilioReceiveCalls: true, voicemailGreeting: true, smsSignature: true } }),
         getBrand(),
     ]);
     return {
@@ -20,6 +20,7 @@ async function view(userId: string) {
         number: toE164(user.twilioCallerId),
         receiveCalls: user.twilioReceiveCalls,
         voicemailGreeting: user.voicemailGreeting,
+        smsSignature: user.smsSignature,
         defaultGreeting: defaultGreeting(user.name.split(/\s+/)[0] || null, brand.name),
     };
 }
@@ -34,6 +35,8 @@ const schema = z.object({
     receiveCalls: z.boolean().optional(),
     /** Empty = back to the default greeting. */
     voicemailGreeting: z.string().max(600).nullable().optional(),
+    /** Appended to my SMS on its own line; empty = none. */
+    smsSignature: z.string().max(80).nullable().optional(),
 });
 
 /** PUT /api/telephony/prefs — the SDR's own choices (the number itself is a manager's). */
@@ -45,6 +48,7 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
         data: {
             ...(body.receiveCalls !== undefined ? { twilioReceiveCalls: body.receiveCalls } : {}),
             ...(body.voicemailGreeting !== undefined ? { voicemailGreeting: body.voicemailGreeting?.trim() || null } : {}),
+            ...(body.smsSignature !== undefined ? { smsSignature: body.smsSignature?.trim() || null } : {}),
         },
     });
     return successResponse(await view(session.user.id));

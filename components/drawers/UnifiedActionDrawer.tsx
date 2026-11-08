@@ -93,6 +93,7 @@ import { AccountMap } from "@/components/sdr/workspace/AccountMap";
 import { ActivityTimeline, actionsToEvents } from "@/components/sdr/workspace/ActivityTimeline";
 import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
 import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { SmsThread } from "@/components/messaging/SmsThread";
 
 
 // ============================================
@@ -1086,7 +1087,7 @@ export function UnifiedActionDrawer({
 
     // Docked pane tabs. A new prospect opens on « Appel »; a call to this
     // prospect brings up the script while talking, and the result once it ends.
-    const [paneTab, setPaneTab] = useState<"appel" | "fiche" | "script">("appel");
+    const [paneTab, setPaneTab] = useState<"appel" | "fiche" | "script" | "sms">("appel");
     const paneProspectKey = `${contactId ?? ""}|${companyId}`;
     const [paneProspect, setPaneProspect] = useState(paneProspectKey);
     const callHere: "none" | "live" | "ended" =
@@ -1102,7 +1103,7 @@ export function UnifiedActionDrawer({
         else if (callHere === "ended") setPaneTab("appel");
     }
     /** Shown in the current tab (always true for the classic drawer). */
-    const inPane = (tab: "appel" | "fiche" | "script") => !docked || paneTab === tab;
+    const inPane = (tab: "appel" | "fiche" | "script" | "sms") => !docked || paneTab === tab;
     const primaryPhone = useMemo(() => {
         if (contact?.phone) return { number: contact.phone, label: "Contact" };
         if (company?.phone) return { number: company.phone, label: "Société" };
@@ -2877,6 +2878,7 @@ export function UnifiedActionDrawer({
                             ["appel", "Appel"],
                             ["fiche", "Fiche"],
                             ...(script ? ([["script", "Script"]] as const) : []),
+                            ["sms", "SMS"],
                         ] as const
                     ).map(([id, label]) => (
                         <button
@@ -2935,7 +2937,7 @@ export function UnifiedActionDrawer({
                     {/* An excluded prospect stays open and readable — only the
                         queue drops it. The banner is the first thing read, so
                         nobody calls anyway or files a ticket about a "bug". */}
-                    <div className={cn("contents", docked && paneTab === "script" && "hidden")}>
+                    <div className={cn("contents", docked && (paneTab === "script" || paneTab === "sms") && "hidden")}>
                     {activeExclusion && (
                         <ExclusionBanner
                             info={{
@@ -3907,6 +3909,16 @@ export function UnifiedActionDrawer({
                     {summary && ficheSections}
 
                     {docked && script && <div className={cn(paneTab !== "script" && "hidden")}>{script}</div>}
+                    {/* SMS: mounted only while open (it polls for replies), full height under the tabs. */}
+                    {docked && paneTab === "sms" && (
+                        <SmsThread
+                            contactId={contactId}
+                            companyId={companyId}
+                            campaignId={campaigns[0]?.id ?? null}
+                            firstName={contact?.firstName ?? null}
+                            className="-mx-5 -mb-6 -mt-4 h-[calc(100vh-6rem)]"
+                        />
+                    )}
                 </div>
             )}
             </div>

@@ -14,6 +14,7 @@ import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
+import { SmsDockItem } from "@/components/messaging/SmsDockItem";
 import { SoftphoneProvider } from "@/components/telephony/SoftphoneProvider";
 import { FloatingDock, FloatingDockProvider } from "@/components/layout/FloatingDock";
 import { Modal } from "@/components/ui";
@@ -181,7 +182,9 @@ function InnerLayout({
     // The assistant is a chat app: history rail + thread + pinned composer.
     const isAssistantChat = pathname === "/manager/assistant";
     // Calling workspaces: panes edge to edge, each scrolling on its own.
-    const isCallWorkspace = pathname === "/sdr/focus" || pathname === "/sdr/appels" || pathname === "/manager/appels";
+    const isCallWorkspace =
+        pathname === "/sdr/focus" || pathname === "/sdr/appels" || pathname === "/manager/appels" ||
+        pathname === "/sdr/messages" || pathname === "/manager/messages";
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";
@@ -365,6 +368,7 @@ function InnerLayout({
                 </Modal>
 
                 <IncomingCallPanel />
+                <SmsDockItem />
             </main>
             {/* Mode Focus lists the shortcuts in its own rail. */}
             <FloatingDock railed={pathname === "/sdr/focus"} />

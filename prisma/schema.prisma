@@ -480,6 +480,7 @@ model User {
   twilioCallerId     String? // E.164 Twilio number assigned in Paramètres → Téléphonie; null = no integrated phone (Allo)
   twilioReceiveCalls Boolean @default(true) // inbound calls ring in the browser; false = straight to voicemail
   voicemailGreeting  String? // spoken to callers when unavailable; null = default greeting
+  smsSignature       String? // appended to the SMS the user sends; null = none
   timezone           String? @default("Europe/Paris")
   preferences        Json? // notifications, appearance, workingHours
 
@@ -503,6 +504,7 @@ model User {
 
   // Outbound calls placed from the in-app Twilio softphone
   telephonyCalls TelephonyCall[] @relation("SdrTelephonyCalls")
+  smsMessages    SmsMessage[]    @relation("SdrSmsMessages")
 
   // Advanced Planning: allocations, capacity, absences
   sdrDayAllocations        SdrDayAllocation[]       @relation("SdrDayAllocations")
@@ -5808,4 +5810,44 @@ model AgentFinding {
   @@index([rule, state])
   @@index([clientId, state])
   @@index([subjectUserId, state])
+}
+
+enum SmsDirection {
+  OUTBOUND // sent by the SDR from the CRM
+  INBOUND // received on the SDR's Twilio number
+}
+
+/// One SMS on a user's Twilio number. A conversation is every message between
+/// one of our lines and one prospect number (prospectNumber, E.164).
+/// contactId / companyId are plain ids (no FK), like the call log.
+model SmsMessage {
+  id             String       @id @default(cuid())
+  sdrId          String
+  sdr            User         @relation("SdrSmsMessages", fields: [sdrId], references: [id], onDelete: Cascade)
+  direction      SmsDirection
+  prospectNumber String // E.164
+  lineNumber     String // our Twilio number, E.164
+  body           String       @db.Text
+  status         String // queued | sending | sent | delivered | undelivered | failed | received
+  twilioSid      String?      @unique // SM… / MM…
+  errorCode      String?
+  contactId      String?
+  companyId      String?
+  campaignId     String?
+  readAt         DateTime? // inbound: when the SDR saw it
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([sdrId, prospectNumber, createdAt])
+  @@index([sdrId, direction, readAt])
+  @@index([contactId])
+  @@index([companyId])
+}
+
+/// A number that answered STOP: no SMS is ever sent to it again.
+model SmsOptOut {
+  id        String   @id @default(cuid())
+  number    String   @unique // E.164
+  keyword   String? // what they sent (STOP, ARRET…)
+  createdAt DateTime @default(now())
 }

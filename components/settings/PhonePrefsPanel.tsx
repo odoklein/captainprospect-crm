@@ -7,7 +7,7 @@
 // ============================================
 
 import { useEffect, useState } from "react";
-import { PhoneCall, PhoneIncoming, Voicemail, Volume2 } from "lucide-react";
+import { MessageSquareText, PhoneCall, PhoneIncoming, Voicemail, Volume2 } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/accueil/AccueilUI";
@@ -19,6 +19,7 @@ type Prefs = {
     number: string | null;
     receiveCalls: boolean;
     voicemailGreeting: string | null;
+    smsSignature: string | null;
     defaultGreeting: string;
 };
 
@@ -33,6 +34,7 @@ export function PhonePrefsPanel() {
     const { success, error: showError } = useToast();
     const [prefs, setPrefs] = useState<Prefs | null>(null);
     const [greeting, setGreeting] = useState("");
+    const [signature, setSignature] = useState("");
     const [savingGreeting, setSavingGreeting] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -41,6 +43,7 @@ export function PhonePrefsPanel() {
             .then((p) => {
                 setPrefs(p);
                 setGreeting(p.voicemailGreeting ?? "");
+                setSignature(p.smsSignature ?? "");
             })
             .catch((e) => setLoadError(e instanceof Error ? e.message : "Erreur"));
     }, []);
@@ -48,7 +51,7 @@ export function PhonePrefsPanel() {
     if (loadError) return <Notice tone="rose">{loadError}</Notice>;
     if (!prefs) return <Shimmer className="h-64 rounded-3xl" />;
 
-    const save = async (patch: Partial<Pick<Prefs, "receiveCalls" | "voicemailGreeting">>) => {
+    const save = async (patch: Partial<Pick<Prefs, "receiveCalls" | "voicemailGreeting" | "smsSignature">>) => {
         const next = await api({ method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
         setPrefs(next);
         return next;
@@ -65,7 +68,8 @@ export function PhonePrefsPanel() {
         }
     };
 
-    const dirty = greeting.trim() !== (prefs.voicemailGreeting ?? "").trim();
+    const dirty =
+        greeting.trim() !== (prefs.voicemailGreeting ?? "").trim() || signature.trim() !== (prefs.smsSignature ?? "").trim();
     const spoken = greeting.trim() || prefs.defaultGreeting;
 
     const preview = () => {
@@ -138,15 +142,34 @@ export function PhonePrefsPanel() {
                 <p className="mt-1 text-[11px] text-zinc-400">« Écouter » utilise la voix de votre navigateur ; au téléphone, la voix de Twilio est légèrement différente.</p>
             </SettingsCard>
 
+            <SettingsCard icon={MessageSquareText} tone="indigo" title="Mes SMS" subtitle="Ajoutée sur sa propre ligne à la fin de chaque SMS que vous envoyez.">
+                <input
+                    value={signature}
+                    onChange={(e) => setSignature(e.target.value)}
+                    maxLength={80}
+                    placeholder="Ex. Julie · Captain Soft"
+                    aria-label="Signature des SMS"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-zinc-900 placeholder:font-medium placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/15"
+                />
+                <div className="mt-3 max-w-sm rounded-[18px] rounded-br-md bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-fg shadow-sm">
+                    Bonjour, suite à notre échange je vous envoie le lien pour réserver un créneau.
+                    {signature.trim() && <span className="mt-1 block opacity-80">{signature.trim()}</span>}
+                </div>
+                <p className="mt-1.5 text-[11px] text-zinc-400">Aperçu d&apos;un SMS envoyé.</p>
+            </SettingsCard>
+
             <SaveBar
                 dirty={dirty}
                 saving={savingGreeting}
-                onReset={() => setGreeting(prefs.voicemailGreeting ?? "")}
+                onReset={() => {
+                    setGreeting(prefs.voicemailGreeting ?? "");
+                    setSignature(prefs.smsSignature ?? "");
+                }}
                 onSave={async () => {
                     setSavingGreeting(true);
                     try {
-                        await save({ voicemailGreeting: greeting.trim() || null });
-                        success("Messagerie enregistrée", "Vos appelants entendront ce message.");
+                        await save({ voicemailGreeting: greeting.trim() || null, smsSignature: signature.trim() || null });
+                        success("Préférences enregistrées", "Messagerie et signature SMS à jour.");
                     } catch (e) {
                         showError("Enregistrement impossible", e instanceof Error ? e.message : "Erreur");
                     } finally {
