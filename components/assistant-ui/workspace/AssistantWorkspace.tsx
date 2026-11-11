@@ -335,7 +335,7 @@ function WorkspaceShell() {
                     {!fullConversation && <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-line-subtle px-3">
                         {!wide && <Button size="icon-sm" variant="ghost" aria-label="Revenir au travail" onClick={closeDiscussion}><ArrowLeft aria-hidden /></Button>}
                         <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-600"><BrainCircuit className="size-4" aria-hidden /></span>
-                        <div className="min-w-0 flex-1"><h2 className="text-sm font-semibold text-ink">Captain</h2><p className="truncate text-[11px] text-ink-3">{activeThread?.conversation.folder?.name || draftScope.folderName}</p></div>
+                        <div className="min-w-0 flex-1"><h2 className="text-sm font-semibold text-ink">{brand.assistantName}</h2><p className="truncate text-[11px] text-ink-3">{activeThread?.conversation.folder?.name || draftScope.folderName}</p></div>
                         <Button size="icon-sm" variant="ghost" aria-label="Ouvrir la conversation en grand" onClick={openCaptain}><Maximize2 aria-hidden /></Button>
                         <Button size="icon-sm" variant="ghost" aria-label="Nouvelle conversation" onClick={newConversation}><SquarePen aria-hidden /></Button>
                         {wide && <Button size="icon-sm" variant="ghost" aria-label="Replier la discussion" onClick={closeDiscussion}><X aria-hidden /></Button>}

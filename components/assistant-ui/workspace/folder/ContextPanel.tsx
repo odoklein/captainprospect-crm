@@ -16,11 +16,13 @@ import { FilesTab } from "./FilesTab";
 import { BoardTab } from "./BoardTab";
 import { AgentTab } from "./AgentTab";
 import { FolderHeader } from "./FolderHeader";
+import { useBrand } from "@/lib/brand/client";
 
 export function ContextPanel({ folderId, folderName, onOpenConversation, initialTab = "overview", open: controlledOpen, onOpenChange }: {
     folderId: string | null; folderName: string; onOpenConversation(id: string): void;
     initialTab?: string; open?: boolean; onOpenChange?(open: boolean): void;
 }) {
+    const brand = useBrand();
     const [localOpen, setLocalOpen] = useState(false);
     const [tab, setTab] = useState(initialTab);
     const open = controlledOpen ?? localOpen;
@@ -35,7 +37,7 @@ export function ContextPanel({ folderId, folderName, onOpenConversation, initial
             <SheetContent className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
                 <div className="border-b border-line-subtle px-5 pb-4 pt-6 pr-12">
                     <SheetTitle className="text-lg">{folderName}</SheetTitle>
-                    <SheetDescription className="mt-1">Le contexte de travail de Captain, accessible à tout moment.</SheetDescription>
+                    <SheetDescription className="mt-1">Le contexte de travail de {brand.assistantName}, accessible à tout moment.</SheetDescription>
                 </div>
                 <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-0">
                     <div className="overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

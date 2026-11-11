@@ -628,7 +628,7 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenCapt
                         />
 
                         <div className="space-y-0.5">
-                            <RailItem icon={<BrainCircuit />} label="Captain · Conversation" active={activeKey === "captain"} onClick={onOpenCaptain} />
+                            <RailItem icon={<BrainCircuit />} label={`${brand.assistantName} · Conversation`} active={activeKey === "captain"} onClick={onOpenCaptain} />
                             <RailItem icon={<LayoutDashboard />} label="Pilotage" active={activeKey === "agency"} onClick={() => onOpenFolder(null)} />
                             <RailItem
                                 icon={<Workflow />}
@@ -845,6 +845,7 @@ export const RailStrip = memo(function RailStrip({
     onOpenSearch: () => void;
     onOpenFolder: (folderId: string | null) => void;
 }) {
+    const brand = useBrand();
     const { data: overview, error: overviewError } = useAgentOverview();
     const agentCount = overview && !overviewError ? overview.counts.pendingProposals + overview.counts.critical : 0;
     const mod = isMac ? "⌘" : "Ctrl";
@@ -908,7 +909,7 @@ export const RailStrip = memo(function RailStrip({
                 { onClick: onOpenSearch },
             )}
             <div className="my-1 h-px w-6 bg-line" aria-hidden />
-            {item("Captain · Conversation", "Captain · Conversation", <BrainCircuit aria-hidden />, { onClick: onOpenCaptain, active: activeKey === "captain" })}
+            {item(`${brand.assistantName} · Conversation`, `${brand.assistantName} · Conversation`, <BrainCircuit aria-hidden />, { onClick: onOpenCaptain, active: activeKey === "captain" })}
             {item("Pilotage", "Pilotage", <LayoutDashboard aria-hidden />, { onClick: () => onOpenFolder(null), active: activeKey === "agency" })}
             {item(agentCount > 0 ? `Opérations — ${agentCount} à traiter` : "Opérations", "Opérations", <Workflow aria-hidden />, { onClick: onOpenOperations, active: activeKey === "operations", badge: agentCount > 0 })}
         </div>

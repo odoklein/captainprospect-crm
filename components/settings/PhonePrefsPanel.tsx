@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/accueil/AccueilUI";
 import { Notice, SaveBar, SECONDARY_BUTTON, SettingRow, SettingsCard, Toggle } from "@/components/settings/SettingsUI";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
+import { useBrand } from "@/lib/brand/client";
 
 type Prefs = {
     configured: boolean;
@@ -31,6 +32,7 @@ async function api(init?: RequestInit): Promise<Prefs> {
 }
 
 export function PhonePrefsPanel() {
+    const brand = useBrand();
     const { success, error: showError } = useToast();
     const [prefs, setPrefs] = useState<Prefs | null>(null);
     const [greeting, setGreeting] = useState("");
@@ -147,7 +149,7 @@ export function PhonePrefsPanel() {
                     value={signature}
                     onChange={(e) => setSignature(e.target.value)}
                     maxLength={80}
-                    placeholder="Ex. Julie · Captain Soft"
+                    placeholder={`Ex. Julie · ${brand.name}`}
                     aria-label="Signature des SMS"
                     className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-zinc-900 placeholder:font-medium placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/15"
                 />

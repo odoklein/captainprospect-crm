@@ -26,6 +26,7 @@ import { MISSION_BUDGETS, type CreateMissionBody } from "@/lib/assistant/api-con
 import { formatDuration, formatEur } from "@/lib/agent/client/format";
 import { createMission, useClientOptions, type ClientOption } from "@/lib/agent/client/hooks";
 import { FormField, StaticField } from "./shared";
+import { useBrand } from "@/lib/brand/client";
 
 type BudgetKey = CreateMissionBody["budget"];
 
@@ -58,6 +59,7 @@ export function DelegateComposer({
     client?: ClientOption | null;
     onLaunched: (runId: string) => void;
 }) {
+    const brand = useBrand();
     return (
         <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
             <SheetContent side="right" className="w-full gap-0 sm:max-w-lg">
@@ -67,7 +69,7 @@ export function DelegateComposer({
                             <AiMark className="size-[18px]" aria-hidden />
                         </span>
                         <div className="min-w-0">
-                            <SheetTitle>Confier un travail à Captain</SheetTitle>
+                            <SheetTitle>Confier un travail à {brand.assistantName}</SheetTitle>
                             <SheetDescription className="text-xs">
                                 {client ? `Pour ${client.name}` : "L’agent travaille en arrière-plan et te soumet ses propositions"}
                             </SheetDescription>

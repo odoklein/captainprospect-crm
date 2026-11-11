@@ -3,18 +3,20 @@
 import { Brain, FileText, ShieldCheck } from "lucide-react";
 import { useFolderDetail, useFolderFiles, useMemories } from "@/lib/assistant/client/folder-hooks";
 import { ContextPanel } from "../folder/ContextPanel";
+import { useBrand } from "@/lib/brand/client";
 
 /** Readable context beside the full thread; full editing stays in the existing panel. */
 export function ConversationContext({ folderId, folderName, missionName, onOpenConversation }: {
     folderId: string | null; folderName: string; missionName?: string | null; onOpenConversation(id: string): void;
 }) {
+    const brand = useBrand();
     const memories = useMemories(folderId, false);
     const files = useFolderFiles(folderId);
     const { data: folder } = useFolderDetail(folderId);
     const items = [...(memories.data?.folder ?? []).filter(m => m.folderId === folderId), ...(memories.data?.user ?? []), ...(memories.data?.agency ?? [])]
         .filter(m => !m.deletedAt).sort((a, b) => Number(b.pinned) - Number(a.pinned)).slice(0, 5);
-    return <aside aria-label="Contexte de Captain" className="hidden w-[320px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface-2/60 p-5 min-[1500px]:flex">
-        <h2 className="text-base font-semibold tracking-tight text-ink">Contexte de Captain</h2><p className="mt-1 text-xs leading-relaxed text-ink-3">Le périmètre et les éléments disponibles pour cet échange.</p>
+    return <aside aria-label={`Contexte de ${brand.assistantName}`} className="hidden w-[320px] shrink-0 flex-col overflow-y-auto border-l border-line bg-surface-2/60 p-5 min-[1500px]:flex">
+        <h2 className="text-base font-semibold tracking-tight text-ink">Contexte de {brand.assistantName}</h2><p className="mt-1 text-xs leading-relaxed text-ink-3">Le périmètre et les éléments disponibles pour cet échange.</p>
         <section className="mt-6 rounded-xl border border-line bg-surface p-4"><h3 className="text-[10px] font-medium uppercase tracking-wider text-ink-3">Périmètre actif</h3><p className="mt-3 text-sm font-semibold text-ink">{folderName}</p>{missionName && <p className="mt-1 text-xs text-ink-3">{missionName}</p>}<p className="mt-3 flex items-start gap-2 text-[11px] leading-relaxed text-ink-3"><ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-accent-600" aria-hidden />{folderId ? "Contexte lié à ce dossier. Les droits sont vérifiés côté serveur." : "Vue agence. Le client concerné reste à préciser pour une action."}</p></section>
         {folder?.instructions && <section className="mt-6"><h3 className="text-xs font-semibold text-ink">Instructions du dossier</h3><p className="mt-2 line-clamp-5 whitespace-pre-wrap break-words text-xs leading-relaxed text-ink-3">{folder.instructions}</p></section>}
         <section className="mt-6"><h3 className="text-xs font-semibold text-ink">Mémoire utile</h3>

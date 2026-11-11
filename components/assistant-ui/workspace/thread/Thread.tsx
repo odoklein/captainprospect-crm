@@ -480,10 +480,10 @@ export function Thread({
                 <AiMark className="size-6" aria-hidden />
             </span>
             <h2 className={cn("mt-4 font-semibold tracking-tight text-ink motion-safe:animate-ds-enter", compact ? "text-lg" : "text-2xl")}>
-                {compact ? "Captain, à vos côtés" : `Bonjour${firstName ? ` ${firstName}` : ""}`}
+                {compact ? `${brand.assistantName}, à vos côtés` : `Bonjour${firstName ? ` ${firstName}` : ""}`}
             </h2>
             <p className="mt-1 text-[15px] text-ink-3 motion-safe:animate-ds-enter [animation-delay:30ms]">
-                {folderKind === "AGENCY" ? "Analysez une situation, préparez un plan ou confiez un travail à Captain." : `Discutons de ${folderName} et préparons la prochaine étape.`}
+                {folderKind === "AGENCY" ? `Analysez une situation, préparez un plan ou confiez un travail à ${brand.assistantName}.` : `Discutons de ${folderName} et préparons la prochaine étape.`}
             </p>
             {canWrite && (
                 <div className={cn("mt-6 grid gap-2 text-left", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>

@@ -19,7 +19,7 @@ export function managerWorkItems(runs: AgentRunCard[], findings: AgentFindingIte
     for (const run of unique.values()) {
         const status = statuses[run.status];
         if (!status) continue;
-        items.push({ id: `run:${run.id}`, title: run.goal || run.jobName || "Travail confié à Captain", context: run.clientName || "Tous les clients", label: status[1], priority: status[0], runId: run.id });
+        items.push({ id: `run:${run.id}`, title: run.goal || run.jobName || "Travail confié à l'assistant", context: run.clientName || "Tous les clients", label: status[1], priority: status[0], runId: run.id });
     }
     for (const f of findings) {
         if (f.state !== "OPEN" || (folderId && f.folderId !== folderId)) continue;

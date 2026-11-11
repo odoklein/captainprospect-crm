@@ -10,6 +10,7 @@ import { ClientMonthOverview } from "./ClientMonthOverview";
 import type { WorkspaceView } from "../workspace-state";
 import { ContextPanel } from "./ContextPanel";
 import { EmptyState } from "./parts";
+import { useBrand } from "@/lib/brand/client";
 
 export function FolderHome(props: {
     folderId: string | null; tab: string; onTabChange(tab: string): void;
@@ -23,16 +24,17 @@ export function FolderHome(props: {
     onDiscussConversation(id: string): void;
     onOpenDiscussion(): void;
 }) {
+    const brand = useBrand();
     const { folderId, tab, onTabChange, onOpenConversation, onStartConversation, onOpenSearch, leading, onOpenFolder, view, selectedRunId, onSelectRun, onDiscussConversation, onOpenDiscussion } = props;
     const { data: detail, error, isLoading } = useFolderDetail(folderId);
     const [contextOpen, setContextOpen] = useState(false);
-    const name = folderId ? (detail?.name ?? "Dossier") : "Captain AI";
+    const name = folderId ? (detail?.name ?? "Dossier") : brand.assistantName;
     const Icon = view === "operations" ? Workflow : folderId ? Building2 : Globe2;
     const linkedTab = tab !== "conversations";
     return <div className="flex h-full flex-col">
         <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-line-subtle bg-surface px-3 py-2 sm:px-6">
             <div className="flex min-w-0 items-center gap-1">{leading}<Button variant="ghost" onClick={onOpenSearch} className="min-w-0 gap-2 font-medium text-ink-2"><Icon className="size-4 text-ink-3" aria-hidden /><span className="truncate">{name}</span><ChevronDown className="size-3.5 text-ink-4" aria-hidden /></Button></div>
-            <div className="flex items-center gap-1"><Button data-captain-discussion-toggle size="sm" variant="outline" onClick={onOpenDiscussion}><MessageSquare aria-hidden /><span className="hidden sm:inline">Discuter avec</span> Captain</Button><ContextPanel key={`${folderId}:${linkedTab ? tab : "default"}`} folderId={folderId} folderName={name} onOpenConversation={onOpenConversation}
+            <div className="flex items-center gap-1"><Button data-captain-discussion-toggle size="sm" variant="outline" onClick={onOpenDiscussion}><MessageSquare aria-hidden /><span className="hidden sm:inline">Discuter avec</span> {brand.assistantName}</Button><ContextPanel key={`${folderId}:${linkedTab ? tab : "default"}`} folderId={folderId} folderName={name} onOpenConversation={onOpenConversation}
                 initialTab={!folderId ? "memoire" : linkedTab ? tab : "overview"} open={contextOpen || linkedTab}
                 onOpenChange={(open) => { setContextOpen(open); if (!open && linkedTab) onTabChange("conversations"); }} /></div>
         </header>
@@ -42,7 +44,7 @@ export function FolderHome(props: {
                     <div>
                         <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-accent-600">{view === "operations" ? "Opérations" : folderId ? "Espace client et dossier" : "Pilotage"}</p>
                         <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{view === "operations" ? "De la discussion au travail suivi." : folderId ? name : "Les décisions du jour"}</h1>
-                        <p className="mt-2 text-sm leading-relaxed text-ink-3">{view === "operations" ? "Retrouvez les plans, les propositions à valider et le résultat de chaque exécution." : folderId ? "Votre activité, vos missions et vos prochaines décisions, avec Captain à vos côtés." : "Les priorités de vos clients, prêtes à examiner avec Captain."}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-ink-3">{view === "operations" ? "Retrouvez les plans, les propositions à valider et le résultat de chaque exécution." : folderId ? `Votre activité, vos missions et vos prochaines décisions, avec ${brand.assistantName} à vos côtés.` : "Les priorités de vos clients, prêtes à examiner avec Captain."}</p>
                     </div>
                     {folderId && detail?.kind === "CLIENT" && view !== "operations" && <ClientMonthOverview key={folderId} folderId={folderId} onAsk={(firstMessage, missionId) => { void onStartConversation({ folderId, clientId: detail.clientId, missionId, firstMessage }); }} />}
                     <DecisionDesk folderId={folderId} detail={detail ?? null} onOpenFolder={onOpenFolder} onStartConversation={onStartConversation} onDiscussConversation={onDiscussConversation} selectedRunId={selectedRunId} onSelectRun={onSelectRun} operations={view === "operations"} />

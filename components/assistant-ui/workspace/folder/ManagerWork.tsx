@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/shadcn
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/shadcn/sheet";
 import { useToast } from "@/components/ui/Toast";
 import { managerWorkItems, type WorkItem } from "./manager-work";
+import { useBrand } from "@/lib/brand/client";
 
 // Operational surfaces are loaded only when requested, keeping the conversation light.
 const Onboarding = dynamic(() => import("@/components/manager/client-onboarding/ClientOnboardingWizard").then(m => m.ClientOnboardingModal));
@@ -24,6 +25,7 @@ export function ManagerWork({ folderId, detail, onOpenFolder, onStartConversatio
     folderId: string | null; detail: FolderDetail | null; onOpenFolder(id: string): void;
     onStartConversation(opts: { folderId: string | null; clientId?: string | null; firstMessage?: string }): Promise<boolean>;
 }) {
+    const brand = useBrand();
     const [onboarding, setOnboarding] = useState(false);
     const [delegate, setDelegate] = useState(false);
     const [inbox, setInbox] = useState(false);
@@ -56,7 +58,7 @@ export function ManagerWork({ folderId, detail, onOpenFolder, onStartConversatio
         } catch (e) { toast.error("Client créé, espace indisponible", e instanceof Error ? e.message : "Réessayez depuis la liste des clients."); }
     };
     return <div className="space-y-8">
-        <div className="flex flex-wrap justify-center gap-2" aria-label="Actions de Captain">
+        <div className="flex flex-wrap justify-center gap-2" aria-label={`Actions de ${brand.assistantName}`}>
             {!folderId && <Button variant="outline" className="min-h-11 rounded-full text-sm" onClick={() => setOnboarding(true)}><Plus aria-hidden />Lancer un client</Button>}
             <Button variant="outline" className="min-h-11 rounded-full text-sm" onClick={() => setDelegate(true)}><Sparkles aria-hidden />Confier un travail</Button>
             <Button variant="ghost" className="min-h-11 rounded-full text-sm text-ink-3" onClick={() => setInbox(true)}>Examiner les priorités<ArrowUpRight aria-hidden /></Button>
@@ -65,7 +67,7 @@ export function ManagerWork({ folderId, detail, onOpenFolder, onStartConversatio
             <div className="flex items-center justify-between gap-3"><h2 id="captain-work-heading" className="text-sm font-medium text-ink">À faire avancer</h2><span className="text-xs text-ink-3">{folderId ? detail?.name : "Tous les clients"}</span></div>
             {loading && work.length === 0 ? <p role="status" className="py-4 text-sm text-ink-3">Recherche des travaux et des priorités…</p> : null}
             {unavailable && <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-2 p-3 text-sm text-ink-3"><span>Le suivi est partiellement indisponible. Les éléments affichés peuvent être incomplets.</span><Button variant="ghost" size="sm" onClick={() => { runs.reload(); pending.reload(); findings.reload(); }}>Réessayer</Button></div>}
-            {!loading && !unavailable && work.length === 0 && <p className="py-4 text-sm leading-relaxed text-ink-3">Aucun travail à suivre dans les données chargées. Confiez une première opération à Captain ou préparez un lancement.</p>}
+            {!loading && !unavailable && work.length === 0 && <p className="py-4 text-sm leading-relaxed text-ink-3">Aucun travail à suivre dans les données chargées. Confiez une première opération à {brand.assistantName} ou préparez un lancement.</p>}
             <ul className="divide-y divide-line-subtle">
                 {work.slice(0, 3).map(item => <li key={item.id}><button type="button" disabled={!!busy} onClick={() => void openItem(item)} className="group flex min-h-20 w-full items-center gap-3 rounded-xl px-3 py-4 text-left transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:opacity-60">
                     <div className="min-w-0 flex-1"><div className="mb-1 flex flex-wrap gap-x-2 text-xs text-ink-3"><span className={item.priority < 2 ? "font-medium text-accent-600" : ""}>{item.label}</span><span>· {item.context}</span></div><p className="line-clamp-2 text-sm font-medium text-ink">{item.title}</p></div>

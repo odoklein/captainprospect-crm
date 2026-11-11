@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/
 import { useToast } from "@/components/ui/Toast";
 import { managerWorkItems, workMatchesFilter, type WorkFilter } from "./manager-work";
 import { OperationReview } from "./OperationReview";
+import { useBrand } from "@/lib/brand/client";
 
 const Onboarding = dynamic(() => import("@/components/manager/client-onboarding/ClientOnboardingWizard").then(m => m.ClientOnboardingModal));
 const Delegate = dynamic(() => import("@/components/agent/DelegateComposer").then(m => m.DelegateComposer));
@@ -27,6 +28,7 @@ export function DecisionDesk({ folderId, detail, onOpenFolder, onStartConversati
     onDiscussConversation(id: string): void;
     selectedRunId: string | null; onSelectRun(id: string | null): void; operations?: boolean;
 }) {
+    const brand = useBrand();
     const [onboarding, setOnboarding] = useState(false);
     const [delegate, setDelegate] = useState(false);
     const [history, setHistory] = useState(false);
@@ -79,7 +81,7 @@ export function DecisionDesk({ folderId, detail, onOpenFolder, onStartConversati
                     </button>)}
                 </div>
                 {loading && work.length === 0 && <p role="status" className="p-4 text-sm text-ink-3">Lecture des priorités…</p>}
-                {!loading && filtered.length === 0 && <div className="rounded-xl border border-dashed border-line p-5 text-sm leading-relaxed text-ink-3"><CircleCheck className="mb-3 size-5 text-ink-4" aria-hidden />Aucun élément dans cette vue parmi les données chargées. Vous pouvez confier un travail à Captain.</div>}
+                {!loading && filtered.length === 0 && <div className="rounded-xl border border-dashed border-line p-5 text-sm leading-relaxed text-ink-3"><CircleCheck className="mb-3 size-5 text-ink-4" aria-hidden />Aucun élément dans cette vue parmi les données chargées. Vous pouvez confier un travail à {brand.assistantName}.</div>}
                 <ul className="space-y-2">
                     {filtered.map(item => <li key={item.id}><button type="button" aria-pressed={selected?.id === item.id} onClick={() => { if (item.finding) { setSelection(item.id); onSelectRun(null); } else chooseRun(item.runId); }} className={cn("relative flex min-h-28 w-full flex-col items-start gap-2 overflow-hidden rounded-xl border p-4 text-left transition-[background-color,border-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus", selected?.id === item.id ? "border-accent-200 bg-accent-soft/50 before:absolute before:inset-y-4 before:left-0 before:w-0.5 before:bg-accent-600" : "border-line bg-surface hover:border-line-strong")}>
                         <span className="flex w-full flex-wrap items-center justify-between gap-2"><span className="text-xs font-medium text-ink-2">{item.context}</span><span className={cn("rounded-md px-2 py-1 text-[10px] font-medium", item.priority <= 2 ? "bg-warning-soft text-warning-ink" : item.priority === 3 ? "bg-surface-3 text-ink-3" : "bg-accent-soft text-accent-600")}>{item.label}</span></span>
@@ -93,7 +95,7 @@ export function DecisionDesk({ folderId, detail, onOpenFolder, onStartConversati
             <section className="min-w-0" aria-label="Examen du travail sélectionné">
                 {reviewRunId ? <OperationReview key={reviewRunId} runId={reviewRunId} folderId={folderId} onDiscuss={onDiscussConversation} onDetails={setDetailsId} /> : selected?.finding ? <article className="overflow-hidden rounded-2xl border border-line bg-surface">
                     <header className="space-y-3 border-b border-line-subtle p-5"><span className="inline-flex items-center gap-2 text-xs font-medium text-warning-ink"><TriangleAlert className="size-4" aria-hidden />{selected.label}</span><h3 className="text-lg font-semibold tracking-tight text-ink">{selected.title}</h3><p className="text-xs text-ink-3">{selected.context}{selected.finding.subjectName ? ` · ${selected.finding.subjectName}` : ""}</p></header>
-                    <div className="space-y-5 p-5"><p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-2">{selected.finding.body}</p><p className="text-xs text-ink-3">Dernier signal : {new Date(selected.finding.lastSeenAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}</p><div className="rounded-xl bg-surface-2 p-4 text-xs leading-relaxed text-ink-3">Captain peut relire les données et préparer une prochaine étape. L’ouverture de ce signal n’applique aucun changement.</div><Button onClick={() => void discussFinding()} disabled={busy}><MessageSquare aria-hidden />{busy ? "Ouverture…" : "Examiner avec Captain"}</Button>{selected.runId && <Button variant="ghost" size="sm" onClick={() => chooseRun(selected.runId)}>Voir l’exécution liée<ArrowUpRight aria-hidden /></Button>}</div>
+                    <div className="space-y-5 p-5"><p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-2">{selected.finding.body}</p><p className="text-xs text-ink-3">Dernier signal : {new Date(selected.finding.lastSeenAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}</p><div className="rounded-xl bg-surface-2 p-4 text-xs leading-relaxed text-ink-3">{brand.assistantName} peut relire les données et préparer une prochaine étape. L’ouverture de ce signal n’applique aucun changement.</div><Button onClick={() => void discussFinding()} disabled={busy}><MessageSquare aria-hidden />{busy ? "Ouverture…" : `Examiner avec ${brand.assistantName}`}</Button>{selected.runId && <Button variant="ghost" size="sm" onClick={() => chooseRun(selected.runId)}>Voir l’exécution liée<ArrowUpRight aria-hidden /></Button>}</div>
                 </article> : <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface/70 p-8 text-center"><Workflow className="size-7 text-accent-600" aria-hidden /><h3 className="mt-4 text-base font-semibold text-ink">Le travail, prêt à examiner</h3><p className="mt-2 max-w-sm text-sm leading-relaxed text-ink-3">Sélectionnez une priorité pour retrouver son contexte, ses étapes et les propositions à valider.</p></div>}
             </section>
         </div>
