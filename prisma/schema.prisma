@@ -3925,8 +3925,8 @@ model BrandSettings {
   currency String @default("EUR")
   timeZone String @default("Europe/Paris")
 
-  primaryColor String @default("#263460")
-  accentColor  String @default("#C64B8B")
+  primaryColor String @default("#06103A")
+  accentColor  String @default("#FF0A80")
   neutralTint  Float  @default(1)
 
   fontPreset String @default("default") // "default" | "inter" | "manrope" (brand/fonts.ts)

@@ -55,15 +55,15 @@ export const brandConfig = {
         /**
          * Structure colour: sidebar, hero cards, primary buttons. Pick the
          * darkest colour of the logo; it lands on the shade that matches its
-         * lightness (navy #263460 → primary-900).
+         * lightness (Suzalink navy #06103A → primary-950).
          *
-         * Captain Soft brand system: Marine for structure, Magenta for the
-         * signal (the action that matters, focus, progress). The accent never
-         * carries meaning on its own: always with an icon or a label.
+         * Suzalink: navy for structure, pink for the signal (the action that
+         * matters, focus, progress). The accent never carries meaning on its
+         * own: always with an icon or a label.
          */
-        primary: "#0E1B3D",
+        primary: "#06103A",
         /** Highlight colour: active nav, selection, focus ring, AI features. */
-        accent: "#FF006E",
+        accent: "#FF0A80",
         /** How much of the primary hue tints the greys: 0 = pure grey, 1 = slate-like. */
         neutralTint: 1,
     },

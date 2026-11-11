@@ -61,10 +61,10 @@ You give two seeds (config defaults, or `primaryColor` / `accentColor` in
 `BrandSettings`). `lib/brand/color.ts` derives everything else in OKLCH:
 
 - **primary**: the darkest logo colour. Sidebar, hero cards, primary buttons.
-  The seed lands on the shade that matches its lightness (Captain Prospect
-  navy `#263460` → `primary-900`).
+  The seed lands on the shade that matches its lightness (Suzalink
+  navy `#06103A` → `primary-950`).
 - **accent**: the lively logo colour. Active nav, selection, focus ring, AI.
-  (Captain Prospect rose `#C64B8B` → `accent-500`).
+  (Suzalink pink `#FF0A80` → `accent-500`).
 - **neutral**: greys tinted with the primary hue (`neutralTint`, 0 to 1).
 
 Status colours (success, warning, danger, info) mean the same thing for every

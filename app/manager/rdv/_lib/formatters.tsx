@@ -8,8 +8,8 @@ export function hashColor(str: string): string {
   for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
   const colors = [
     // Literal hex on purpose: callers append alpha suffixes (`${c}12`).
-    // Brand-harmonised: navy / rose family first, then calm support hues.
-    "#263460", "#C64B8B", "#3B5BA9", "#0F766E", "#B45309",
+    // Brand-harmonised: Suzalink navy / pink family first, then calm support hues.
+    "#14255F", "#D50069", "#3B5BA9", "#0F766E", "#B45309",
     "#7A3E6B", "#2F6F8F", "#4D5B7C", "#A23B5F", "#3F7D58",
   ];
   return colors[Math.abs(h) % colors.length];
