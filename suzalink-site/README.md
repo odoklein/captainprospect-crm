@@ -92,7 +92,7 @@ app/
   demo/page.tsx         page de demande de démo
   demo/actions.ts       server action : validation (Zod) + envoi au webhook
   sitemap.ts, robots.ts SEO
-  opengraph-image.png   image de partage (1200×630), twitter-image.png, icon.svg, apple-icon.png
+  opengraph-image.png   image de partage (1200×630), twitter-image.png, icon.png, apple-icon.png
 components/
   sections/             un composant par section (AnnouncementBar, SiteHeader, Hero, LogoStrip,
                         AiSplit, Engines, Roles, StackCost, CaseStudies, Testimonial, Pricing,
@@ -100,31 +100,32 @@ components/
   mockups/              maquettes produit en HTML/CSS (file d'appels SDR, fiche de RDV IA,
                         tableau de bord manager, portail client, moteurs)
   ui/                   boutons, eyebrow, cadre photo avec grain, animations, icônes
-  brand/Logo.tsx        logo Suzalink en SVG (tracés, sans dépendance de police)
+  brand/Logo.tsx        logo Suzalink (fichiers PNG de public/brand)
   DemoForm.tsx          formulaire de démo (nom, email, entreprise, taille d'équipe)
 content/                textes, prix, marques, images (voir plus haut)
 lib/demo-schema.ts      schéma Zod partagé navigateur / serveur
 lib/resolve-image.ts    choisit la photo locale ou celle de secours
 scripts/fetch-logos.mjs récupère les logos via l'API
-public/brand/           logo.svg, logo-inverse.svg
+public/brand/           logo.png, logo-inverse.png, mark.png, mark-inverse.png
 ```
 
 ## Design system
 
 | Jeton | Valeur | Usage |
 |---|---|---|
-| `navy` | `#263460` | couleur principale, boutons, bandes sombres |
-| `rose` | `#C64B8B` | accent : points, flèches des CTA, surlignages, anneau de focus |
+| `navy` | `#112F35` | teal foncé Suzalink : couleur principale, boutons, bandes sombres |
+| `rose` | `#F6C227` | jaune « étincelle » : points, flèches des CTA, surlignages (pas de texte dessus) |
+| `mint` | `#B9EDD6` | menthe : accents sur fond foncé |
 | `paper` | `#F7F5F0` | fond de page |
-| `ink` | `#0F1222` | texte |
-| `muted` | `#6B6F80` | texte secondaire |
+| `ink` | `#0C1F23` | texte |
+| `muted` | `#5B6B6E` | texte secondaire |
 | `line` | `#E4E1DA` | filets |
 
 Les jetons sont dans `app/globals.css` (`@theme`). Titres en Bricolage Grotesque 300–400
 (interlettrage −0,03 em), texte en Geist, eyebrows en Geist Mono 11 px majuscules.
 
-Le rose n'est jamais utilisé comme fond de texte : du texte blanc sur `#C64B8B` n'atteint pas le
-contraste AA (4,4:1). Les CTA sont donc des pilules navy, avec une pastille rose pour la flèche.
+Le jaune (jeton `rose`) n'est jamais utilisé comme fond de texte ni pour l'anneau de focus : trop
+clair sur le fond papier. Les CTA sont des pilules teal, avec une pastille jaune et une flèche teal.
 
 ## Accessibilité et performance
 
