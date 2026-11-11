@@ -3,6 +3,8 @@ import { DateTime } from 'luxon';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getSdrMissionScope, SDR_ALL_MISSIONS_PERMISSION } from '@/lib/sdr-today-missions';
+import { userHasPermission } from '@/lib/api-utils';
 
 /** App timezone for "today" so Vercel (UTC) and localhost match the same calendar day. */
 const APP_TIMEZONE = 'Europe/Paris';
@@ -94,6 +96,11 @@ export async function GET() {
 
         const todayMissionIds = [...new Set(blocks.map((b) => b.mission.id))];
 
+        // « Changer de mission sans planning »: the SDR may pick any running mission.
+        const freeMissionSwitch = userRole === 'SDR'
+            && await userHasPermission(SDR_ALL_MISSIONS_PERMISSION, session.user.id, userRole);
+        const allowedMissionIds = freeMissionSwitch ? await getSdrMissionScope(session.user.id) : todayMissionIds;
+
         return NextResponse.json({
             success: true,
             data: {
@@ -101,6 +108,8 @@ export async function GET() {
                 todayMissionIds,
                 weekBlocks,
                 hasBlocksToday: blocks.length > 0,
+                freeMissionSwitch,
+                allowedMissionIds,
             },
         });
     } catch (error) {

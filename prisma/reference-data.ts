@@ -47,6 +47,7 @@ export const PERMISSIONS: PermissionDef[] = [
     { code: "features.edit_mission", name: "Modifier mission", description: "Peut modifier les missions existantes", category: "features" },
     { code: "features.delete_mission", name: "Supprimer mission", description: "Peut supprimer des missions", category: "features" },
     { code: "features.assign_sdr", name: "Assigner SDR", description: "Peut assigner des SDRs aux missions", category: "features" },
+    { code: "features.sdr_all_missions", name: "Changer de mission sans planning", description: "L'SDR voit et travaille toutes les missions en cours, même sans créneau au planning du jour", category: "features" },
     
     // Features - List Management
     { code: "features.create_list", name: "Créer liste", description: "Peut créer de nouvelles listes", category: "features" },

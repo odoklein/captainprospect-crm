@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
+import { getSdrMissionScope } from "@/lib/sdr-today-missions";
 import type { ProspectReferrer } from "./types";
 
 /** Roles that work a calling queue and may propose a prospect. */
 export const SUBMITTER_ROLES = ["SDR", "BUSINESS_DEVELOPER", "BOOKER", "MANAGER"];
 
 /**
- * An SDR/BD may only add prospects to a mission they work: planned on it today
- * (the queue's own scope) or durably assigned to it. Bookers and managers work
+ * An SDR/BD may only add prospects to a mission they work: in their mission scope
+ * (today's planning, or every running mission with the « sans planning » permission)
+ * or durably assigned to it. Bookers and managers work
  * across missions.
  */
 export async function canSubmitOnMission(user: { id: string; role: string }, missionId: string): Promise<boolean> {
@@ -15,7 +16,7 @@ export async function canSubmitOnMission(user: { id: string; role: string }, mis
     if (user.role !== "SDR" && user.role !== "BUSINESS_DEVELOPER") return false;
 
     const [today, assignment] = await Promise.all([
-        getTodaySdrMissionIds(user.id),
+        getSdrMissionScope(user.id, user.role),
         prisma.sDRAssignment.findUnique({
             where: { missionId_sdrId: { missionId, sdrId: user.id } },
             select: { id: true },

@@ -576,6 +576,22 @@ function ActionStatsModalBody({
     );
 }
 
+/**
+ * Missions the SDR may pick: strictly today's planning (no fallback to the rest of
+ * the week), or every running mission when they hold « changer de mission sans
+ * planning » (the server sends the allowed set; /api/sdr/today-blocks).
+ */
+function selectableMissionIdsOf(data: {
+    hasBlocksToday: boolean;
+    todayMissionIds: string[];
+    freeMissionSwitch?: boolean;
+    allowedMissionIds?: string[];
+}): Set<string> {
+    if (data.freeMissionSwitch && data.allowedMissionIds) return new Set(data.allowedMissionIds);
+    if (data.hasBlocksToday && data.todayMissionIds.length > 0) return new Set(data.todayMissionIds);
+    return new Set<string>();
+}
+
 export default function SDRActionPage() {
     const { setCollapsed } = useSidebar();
     const { data: session } = useSession();
@@ -616,6 +632,8 @@ export default function SDRActionPage() {
         todayMissionIds: string[];
         weekBlocks: Array<{ id: string; date: string; startTime: string; endTime: string; mission: { id: string; name: string; channel: string } }>;
         hasBlocksToday: boolean;
+        freeMissionSwitch?: boolean;
+        allowedMissionIds?: string[];
     } | null>(null);
     const [todayBlocksLoading, setTodayBlocksLoading] = useState(true);
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
@@ -842,18 +860,9 @@ export default function SDRActionPage() {
                     setMissions(allMissions);
 
                     const saved = localStorage.getItem("sdr_selected_mission");
-                    const allowedMissionIds = (() => {
-                        // Strictly today's planning only — no fallback to the rest of the week.
-                        if (!todayJson.success || !todayJson.data) return new Set<string>();
-                        const planningData = todayJson.data as {
-                            hasBlocksToday: boolean;
-                            todayMissionIds: string[];
-                        };
-                        if (planningData.hasBlocksToday && planningData.todayMissionIds.length > 0) {
-                            return new Set(planningData.todayMissionIds);
-                        }
-                        return new Set<string>();
-                    })();
+                    const allowedMissionIds = todayJson.success && todayJson.data
+                        ? selectableMissionIdsOf(todayJson.data)
+                        : new Set<string>();
                     const availableMissions = allMissions.filter((m: Mission) => allowedMissionIds.has(m.id));
                     const missionId = (saved && availableMissions.some((m: Mission) => m.id === saved))
                         ? saved
@@ -886,14 +895,7 @@ export default function SDRActionPage() {
     }, [showError]);
 
     useEffect(() => {
-        // Strictly today's planning only — no fallback to the rest of the week.
-        const allowedMissionIds = (() => {
-            if (!todayBlocksData) return null;
-            if (todayBlocksData.hasBlocksToday && todayBlocksData.todayMissionIds.length > 0) {
-                return new Set(todayBlocksData.todayMissionIds);
-            }
-            return new Set<string>();
-        })();
+        const allowedMissionIds = todayBlocksData ? selectableMissionIdsOf(todayBlocksData) : null;
 
         const availableMissions = allowedMissionIds
             ? missions.filter((mission) => allowedMissionIds.has(mission.id))
@@ -1117,14 +1119,10 @@ export default function SDRActionPage() {
         ["INTERESTED", "CALLBACK_REQUESTED", "ENVOIE_MAIL"].includes(code)
         , [statusConfig]);
 
-    const selectableMissionIds = useMemo(() => {
-        // Strictly today's planning only — no fallback to the rest of the week.
-        if (!todayBlocksData) return null;
-        if (todayBlocksData.hasBlocksToday && todayBlocksData.todayMissionIds.length > 0) {
-            return new Set(todayBlocksData.todayMissionIds);
-        }
-        return new Set<string>();
-    }, [todayBlocksData]);
+    const selectableMissionIds = useMemo(
+        () => (todayBlocksData ? selectableMissionIdsOf(todayBlocksData) : null),
+        [todayBlocksData],
+    );
 
     const selectableMissions = useMemo(() => {
         if (!selectableMissionIds) return missions;

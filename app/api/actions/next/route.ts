@@ -6,7 +6,7 @@ import {
     withErrorHandler,
 } from '@/lib/api-utils';
 import { statusConfigService } from '@/lib/services/StatusConfigService';
-import { getTodaySdrMissionIds } from '@/lib/sdr-today-missions';
+import { getSdrMissionScope } from '@/lib/sdr-today-missions';
 import { LAST_ACTION_CTES } from '@/lib/sdr-queue/last-action';
 import { findAbsentRdvRecalls } from '@/lib/sdr-queue/absent-rdv';
 import { findSharedPhoneCalls, sharedPhoneRowKey } from '@/lib/sdr-queue/shared-phone';
@@ -53,11 +53,11 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const isBooker = session.user.role === "BOOKER";
     const isSdr = session.user.role === "SDR";
 
-    // SDRs are strictly limited to missions in today's planning (ScheduleBlock),
-    // regardless of any long-lived SDRAssignment record or client-supplied missionId.
+    // SDRs are limited to missions in today's planning (ScheduleBlock), unless they hold the
+    // « changer de mission sans planning » permission; never a client-supplied missionId outside it.
     let sdrTodayMissionIds: string[] = [];
     if (isSdr) {
-        sdrTodayMissionIds = await getTodaySdrMissionIds(sdrId);
+        sdrTodayMissionIds = await getSdrMissionScope(sdrId);
         if (sdrTodayMissionIds.length === 0 || (missionId && !sdrTodayMissionIds.includes(missionId))) {
             return successResponse({
                 hasNext: false,
