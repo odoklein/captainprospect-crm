@@ -14,6 +14,8 @@ export type Action = { label: string; href: string };
 
 export const hero = {
   eyebrow: "CRM d'exécution outbound",
+  /** Pill above the title: who Suzalink is for. */
+  audience: "Agences de prospection et équipes SDR",
   titleLines: ["Votre prospection.", "Vos règles."],
   subtitle:
     "Le CRM d'exécution outbound qui réunit appels, emails, séquences et IA dans une instance dédiée.",
