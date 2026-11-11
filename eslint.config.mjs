@@ -16,7 +16,7 @@ const eslintConfig = defineConfig([
     "lead-hub/**",
     "console/**",
     // Marketing site: standalone Next.js project with its own toolchain.
-    "captain-soft-site/**",
+    "suzalink-site/**",
   ]),
 ]);
 
